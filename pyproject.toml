@@ -20,7 +20,10 @@ dependencies = [
 
 # Nur für Entwicklung und Tests, nicht im Betrieb.
 [dependency-groups]
-dev = ["pytest>=8.3"]
+dev = [
+    "pytest>=8.3",
+    "httpx2>=2.10",  # von starlette.testclient bevorzugt, sonst Deprecation-Warnung
+]
 
 [build-system]
 requires = ["hatchling"]
