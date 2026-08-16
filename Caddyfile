@@ -1,0 +1,6 @@
+# TLS ohne Konfigurationsaufwand: Domain eintragen, fertig.
+# Für lokale Versuche stattdessen `:80` verwenden.
+hoeren.example.org {
+	encode gzip
+	reverse_proxy hoeren:8000
+}

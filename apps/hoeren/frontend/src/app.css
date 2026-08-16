@@ -1,0 +1,140 @@
+/* Ruhig, kontrastreich, große Schrift: gelesen wird hier unter Anstrengung. */
+:root {
+  --rand: #d8d4cd;
+  --gedaempft: #6b6b6b;
+  --akzent: #1b4d3e;
+  --warnung: #8a5300;
+  color-scheme: light;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 18px;
+  color: #1c1b19;
+  background: #faf9f7;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 4rem;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 0;
+}
+
+h2 {
+  font-size: 1.2rem;
+  margin: 2rem 0 0.75rem;
+}
+
+.kopf {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--rand);
+  padding: 1rem 1.25rem;
+  max-width: 44rem;
+  margin: 0 auto;
+}
+
+.kopf nav {
+  display: flex;
+  gap: 1rem;
+  margin-left: auto;
+}
+
+a {
+  color: var(--akzent);
+}
+
+.knopf {
+  font: inherit;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid var(--akzent);
+  border-radius: 0.4rem;
+  background: #fff;
+  color: var(--akzent);
+  cursor: pointer;
+}
+
+.knopf:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.knopf.haupt {
+  background: var(--akzent);
+  color: #fff;
+}
+
+.reihe {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+label > span {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--gedaempft);
+  margin-bottom: 0.2rem;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  padding: 0.5rem;
+  border: 1px solid var(--rand);
+  border-radius: 0.3rem;
+  width: 100%;
+  max-width: 28rem;
+  box-sizing: border-box;
+}
+
+.karte {
+  border: 1px solid var(--rand);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  background: #fff;
+}
+
+.hinweise {
+  color: var(--warnung);
+  border-left: 3px solid var(--warnung);
+  padding-left: 0.75rem;
+  margin: 1rem 0;
+}
+
+.fehler {
+  color: #b3261e;
+}
+
+.gedaempft {
+  color: var(--gedaempft);
+  font-size: 0.9rem;
+}
+
+.balken {
+  height: 0.6rem;
+  background: var(--rand);
+  border-radius: 0.3rem;
+  overflow: hidden;
+}
+
+.balken > div {
+  height: 100%;
+  background: var(--akzent);
+}
