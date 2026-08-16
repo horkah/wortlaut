@@ -27,7 +27,7 @@ Basis ist `openai/whisper-large-v3`, Laufzeit faster-whisper (CTranslate2), Trai
 2026 nicht mehr — sondern weil es das einzige ist, bei dem Trainingsrezept,
 Laufzeit-Ökosystem und dokumentierte Ergebnisse für genau diesen Fall vollständig
 vorliegen. MIT-Lizenz, keine Attributionspflicht. Für die Entwicklung ohne GPU
-genügt `whisper-small`.
+genügt `whisper-small`, für noch weniger Rechenlast `whisper-tiny`.
 
 **2. Aufnahme erfolgt äußerungsweise, nicht am Stück.**
 `hören` zeigt immer genau eine kurze Einheit und nimmt genau dazu auf. Jedes
