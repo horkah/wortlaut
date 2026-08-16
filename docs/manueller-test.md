@@ -22,7 +22,10 @@ Dauer: etwa 10 Minuten, plus die Zeit für ein paar echte Aufnahmen.
    Überschrift „Sprecher“, darunter „Noch kein Sprecherprofil vorhanden.“ —
    das ist der Leerzustand, keine kaputte Seite.
 2. Unter „Neues Profil“: Namen eintragen, Basismodell auf
-   `whisper-small (Entwicklung ohne GPU)` belassen, **Anlegen**.
+   `whisper-small (Entwicklung ohne GPU)` oder, für noch weniger Rechenlast,
+   `whisper-tiny (noch weniger Rechenlast)` stellen, **Anlegen**. Für den
+   Testablauf hier ohne Belang: `hören` selbst ruft Whisper nirgends auf —
+   das Feld ist reine Metadaten für das spätere Training in `lernen`.
 3. Erwartet: Profil erscheint in der Liste, App springt automatisch zur
    Ansicht „Textquelle“, die Navigation oben ist jetzt sichtbar.
 4. Falls `WORTLAUT_AUTH_TOKEN` gesetzt ist: stattdessen erscheint unter der

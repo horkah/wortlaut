@@ -78,6 +78,7 @@
     <select bind:value={basismodell}>
       <option value="openai/whisper-large-v3">whisper-large-v3 (Betrieb)</option>
       <option value="openai/whisper-small">whisper-small (Entwicklung ohne GPU)</option>
+      <option value="openai/whisper-tiny">whisper-tiny (noch weniger Rechenlast)</option>
     </select>
   </label>
   <button class="knopf haupt" type="submit">Anlegen</button>
