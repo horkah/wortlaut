@@ -1,0 +1,25 @@
+# Daten: enthalten Stimmaufnahmen (Gesundheitsdaten nach Art. 9 DSGVO)
+data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# Konfiguration mit Geheimnissen
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.ruff_cache/
+.pytest_cache/
+
+# Persönliche Werkzeugeinstellungen
+.claude/settings.local.json
+
+# uv.lock und package-lock.json gehören bewusst ins Git: nur so ist ein
+# Aufbau später noch derselbe.
+
+# Node
+node_modules/
+dist/

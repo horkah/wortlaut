@@ -1,0 +1,56 @@
+[project]
+name = "wortlaut"
+version = "0.1.0"
+description = "Personalisierte Spracherkennung für Deutsch"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+
+# Eine Abhängigkeitsliste für das ganze Repository. Bei drei kleinen Apps, die
+# dieselbe Bibliothek nutzen, ist ein Satz Abhängigkeiten übersichtlicher als
+# drei, die auseinanderlaufen.
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy>=2.0",
+    "pydantic-settings>=2.4",
+    "python-multipart>=0.0.9",
+    "anthropic>=0.40",          # Textquelle „LLM"
+    "pypdf>=5.0",               # einziges Textformat ohne Standardbibliothek
+]
+
+# Nur für Entwicklung und Tests, nicht im Betrieb.
+[dependency-groups]
+dev = ["pytest>=8.3"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Die geteilte Bibliothek liegt unter packages/, wird aber als Teil dieses
+# Projekts installiert (editierbar, d. h. Änderungen wirken sofort).
+[tool.hatch.build.targets.wheel]
+packages = ["packages/wortlaut/src/wortlaut"]
+
+[tool.pytest.ini_options]
+testpaths = ["packages/wortlaut/tests", "apps/hoeren/tests"]
+# Die Apps sind keine installierten Pakete, sondern werden aus dem
+# Wurzelverzeichnis importiert — wie beim Start über uvicorn.
+pythonpath = ["."]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+ignore = [
+    # FastAPI benutzt Aufrufe wie File() und Form() absichtlich als Vorgabewert;
+    # das ist dort die vorgesehene Schreibweise, kein Fehler.
+    "B008",
+    # Kommentare und Texte sind deutsch: Gedankenstrich und Minuszeichen sind
+    # gewollt und keine verwechselten ASCII-Zeichen.
+    "RUF001",
+    "RUF002",
+    "RUF003",
+]

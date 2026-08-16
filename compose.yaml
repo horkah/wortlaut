@@ -1,0 +1,36 @@
+# Betrieb: ein Anwendungscontainer je App plus Caddy als TLS-Endpunkt.
+# Derzeit ist nur „hören" implementiert; „lernen" und „schreiben" kommen als
+# weitere Dienste mit demselben Muster dazu.
+services:
+  hoeren:
+    build:
+      context: .
+      dockerfile: apps/hoeren/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Im Container liegen die Daten immer hier; auf dem Wirt entscheidet das
+      # Volume unten, wo das tatsächlich ist.
+      WORTLAUT_DATA_DIR: /srv/wortlaut/data
+    volumes:
+      - wortlaut-data:/srv/wortlaut/data
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - hoeren
+
+volumes:
+  wortlaut-data:
+  caddy-data:
+  caddy-config:

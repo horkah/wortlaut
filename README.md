@@ -10,7 +10,7 @@ Drei Apps, die nacheinander greifen:
 
 | App | Aufgabe | Status |
 |---|---|---|
-| **hören** | Sprachproben sammeln — zu LLM-erzeugten oder hochgeladenen Texten | in Entwicklung |
+| **hören** | Sprachproben sammeln — zu LLM-erzeugten oder hochgeladenen Texten | läuft, mit Tests |
 | **lernen** | aus den Proben ein sprecherspezifisches Whisper-Modell feintunen | entworfen |
 | **schreiben** | mit diesem Modell diktieren, vorlesen lassen, Fehler neu einsprechen | entworfen |
 
@@ -59,84 +59,73 @@ Sprecherprofil und einen Modellstand konfiguriert. Ein großer Knopf, sonst nich
 
 ## Projektstruktur
 
+Was steht, steht ohne Klammer. Was noch fehlt, ist gekennzeichnet.
+
 ```
 wortlaut/
 ├── README.md
 ├── compose.yaml
-├── Makefile                       # dev, migrate, train, release
+├── Caddyfile
+├── Makefile                       # test, dev, migrate, train, release
+├── pyproject.toml                 # Abhängigkeiten, Test- und Lint-Einstellungen
+├── conftest.py                    # geteilte Testbausteine
 ├── .env.example
 │
 ├── apps/
 │   ├── hoeren/                    # App „hören"
+│   │   ├── Dockerfile
 │   │   ├── backend/
-│   │   │   ├── main.py            # FastAPI, Router-Registrierung
+│   │   │   ├── main.py            # FastAPI, Router, Ausliefern des Frontends
 │   │   │   ├── config.py          # Settings aus ENV, ein Ort
+│   │   │   ├── deps.py            # Token, Datenbank je Sprecher, Ablage
 │   │   │   ├── api/
 │   │   │   │   ├── speakers.py    # Sprecherprofile
 │   │   │   │   ├── sources.py     # LLM-Themen, Textupload
-│   │   │   │   ├── prompts.py     # nächste Sprecheinheit ausliefern
+│   │   │   │   ├── prompts.py     # nächste Sprecheinheit, Sitzungen
 │   │   │   │   ├── recordings.py  # Upload, Prüfung, Verwerfen
 │   │   │   │   ├── progress.py    # gesammelte Minuten, Marken
 │   │   │   │   └── intake.py      # Korrekturen von „schreiben"
 │   │   │   ├── services/
 │   │   │   │   ├── prompt_queue.py    # Reihenfolge, Wiederaufnahme
 │   │   │   │   └── quality.py         # Pegel, Clipping, Dauerplausibilität
-│   │   │   └── db/migrations/     # 001_init.sql, 002_…
-│   │   └── frontend/
-│   │       └── src/routes/        # Start, Quelle wählen, Aufnahme, Fortschritt
+│   │   │   └── db/
+│   │   │       ├── models.py      # typisierte Modelle zum Schema
+│   │   │       └── migrations/    # 001_init.sql, 002_…
+│   │   ├── frontend/
+│   │   │   ├── vite.config.ts     # Alias auf packages/ui, Proxy auf /api
+│   │   │   └── src/
+│   │   │       ├── lib/           # api.ts, zustand.svelte.ts
+│   │   │       └── routes/        # Start, Quelle wählen, Aufnahme, Fortschritt
+│   │   └── tests/                 # Endpunkte, Warteschlange, Intake
 │   │
-│   ├── lernen/                    # App „lernen"
-│   │   ├── backend/
-│   │   │   ├── main.py
-│   │   │   ├── api/
-│   │   │   │   ├── snapshots.py   # Korpus einfrieren, Splits bilden
-│   │   │   │   ├── jobs.py        # Training starten, Status, Log
-│   │   │   │   └── models.py      # Registry, Freigabe auf „active"
-│   │   │   └── services/
-│   │   │       ├── snapshot.py    # Korpus → unveränderliches Manifest
-│   │   │       ├── backends.py    # lokaler Prozess oder GPU-Anbieter
-│   │   │       └── job_worker.py  # Poll-Schleife über jobs-Tabelle
-│   │   └── frontend/
-│   │       └── src/routes/        # Jobs, Metriken, Modellstände
-│   │
-│   └── schreiben/                 # App „schreiben"
-│       ├── backend/
-│       │   ├── main.py
-│       │   ├── config.py          # SPRECHER_ID + MODELL_REF, fest
-│       │   ├── api/
-│       │   │   ├── sessions.py
-│       │   │   ├── segments.py    # transkribieren, neu einsprechen
-│       │   │   └── model.py       # aktiver Modellstand für die Kopfzeile
-│       │   └── services/
-│       │       ├── segmenter.py   # Whisper-Ausgabe → vorlesbare Abschnitte
-│       │       └── outbox.py      # Korrekturen an „hören", mit Wiederholung
-│       └── frontend/
-│           └── src/routes/        # genau zwei: Aufnahme, Ergebnis
+│   ├── lernen/                    # App „lernen" — entworfen, siehe README dort
+│   └── schreiben/                 # App „schreiben" — entworfen, siehe README dort
 │
 ├── packages/
 │   ├── wortlaut/                  # eine Python-Bibliothek, von allen genutzt
-│   │   └── src/wortlaut/
-│   │       ├── audio.py           # 16 kHz mono, Trimmen, Pegel, Dauer
-│   │       ├── corpus.py          # Korpus-Layout lesen und schreiben
-│   │       ├── registry.py        # Modellstände lesen und schreiben
-│   │       ├── storage.py         # Blob-Ablage: lokal oder S3-kompatibel
-│   │       ├── db.py              # SQLite-Verbindung, Migrationsläufer
-│   │       ├── text/
-│   │       │   ├── llm.py         # Thema + Altersspanne → Text
-│   │       │   ├── upload.py      # txt, md, pdf, epub, docx → Reintext
-│   │       │   └── chunker.py     # Text → sprechbare Einheiten
-│   │       └── whisper/
-│   │           ├── local.py       # faster-whisper
-│   │           └── remote.py      # OpenAI-kompatibler Endpunkt
+│   │   ├── src/wortlaut/
+│   │   │   ├── audio.py           # 16 kHz mono, Pegel, Dauer
+│   │   │   ├── corpus.py          # Korpus-Layout lesen und schreiben
+│   │   │   ├── registry.py        # Modellstände lesen und schreiben
+│   │   │   ├── storage.py         # Blob-Ablage: lokal (S3 vorbereitet)
+│   │   │   ├── db.py              # SQLite-Verbindung, Migrationsläufer
+│   │   │   ├── ids.py             # zeitlich sortierbare Kennungen
+│   │   │   ├── text/
+│   │   │   │   ├── llm.py         # Thema + Altersspanne → Text
+│   │   │   │   ├── upload.py      # txt, md, pdf, epub, docx → Reintext
+│   │   │   │   └── chunker.py     # Text → sprechbare Einheiten
+│   │   │   └── whisper/           # für „schreiben": lokal oder entfernt
+│   │   │       ├── local.py       # faster-whisper
+│   │   │       └── remote.py      # OpenAI-kompatibler Endpunkt
+│   │   └── tests/                 # Chunker, Textformate, Audio, Ablage
 │   │
 │   └── ui/                        # geteilte Svelte-Komponenten
 │       ├── Recorder.svelte
 │       ├── AudioPlayer.svelte
 │       ├── PromptView.svelte      # eine Einheit groß, Kontext blass
-│       ├── SegmentList.svelte
 │       └── speak.ts               # Vorlesen über Web Speech API
 │
-├── training/                      # das, was auf der GPU läuft
+├── training/                      # noch nicht gebaut: das, was auf der GPU läuft
 │   ├── Dockerfile
 │   ├── finetune.py                # liest Manifest, schreibt Checkpoint + Metriken
 │   ├── evaluate.py                # WER/CER auf dem Testsplit
@@ -168,7 +157,10 @@ wortlaut/
    geschätzter Sprechdauer, an Satz- und Teilsatzgrenzen.
 4. **Aufnehmen.** Die App zeigt eine Einheit groß, davor und dahinter je eine blass.
    Aufnehmen, anhören, verwerfen und wiederholen, weiter. Sitzung ist jederzeit
-   unterbrechbar und wird an derselben Stelle fortgesetzt.
+   unterbrechbar und wird an derselben Stelle fortgesetzt. Die Stelle wird
+   nirgends gespeichert, sondern abgeleitet: offen ist jede Vorlage ohne gültige
+   Aufnahme. Verwerfen macht eine Vorlage damit von selbst wieder offen — und
+   löscht die Audiodatei wirklich, statt sie nur zu markieren.
 5. **Prüfen.** Serverseitig: Pegel, Clipping, führende und schließende Stille, Dauer
    gegen die geschätzte Sprechdauer. Auffälligkeiten werden angezeigt, nicht
    erzwungen — bei Sprechstörungen sind Ausreißer normal und dürfen nicht
@@ -191,15 +183,30 @@ kann.
 ### Endpunkte
 
 ```
-POST   /api/speakers
-POST   /api/sources/llm          { thema, altersspanne, umfang }
-POST   /api/sources/upload       multipart
-GET    /api/prompts/next?session=…
-POST   /api/recordings           multipart: audio + prompt_id + modus
-DELETE /api/recordings/{id}
-GET    /api/progress?speaker=…
-POST   /api/korpus/intake        ← von „schreiben"
+POST   /api/speakers                        { name, sprache, basismodell }
+GET    /api/speakers
+GET    /api/speakers/{id}
+POST   /api/sources/llm?sprecher=…          { thema, altersspanne, umfang }
+POST   /api/sources/upload?sprecher=…       multipart: datei
+GET    /api/sources?sprecher=…
+POST   /api/sessions?sprecher=…
+GET    /api/prompts/next?sprecher=…&session=…
+POST   /api/recordings?sprecher=…           multipart: audio + prompt_id + modus
+GET    /api/recordings/{id}/audio?sprecher=…
+DELETE /api/recordings/{id}?sprecher=…
+GET    /api/progress?sprecher=…
+POST   /api/korpus/intake?sprecher=…        ← von „schreiben"
+GET    /gesundheit                          ohne Token
 ```
+
+Jeder Endpunkt nennt seinen Sprecher, und zwar immer als Abfrageparameter —
+auch die mit Formular- oder JSON-Rumpf. Der Grund steht im nächsten Abschnitt:
+Das Korpus hat je Sprecher eine eigene Datenbank, und ohne die Kennung wüsste
+der Server nicht, welche Datei er öffnen soll. Ein Parameter an immer derselben
+Stelle heißt außerdem: eine einzige Abhängigkeit wertet ihn aus.
+
+Alle `/api`-Endpunkte hängen hinter `WORTLAUT_AUTH_TOKEN`, sofern gesetzt.
+Die interaktive Dokumentation liegt unter `/docs`.
 
 ---
 
@@ -214,11 +221,22 @@ data/korpus/<sprecher_id>/
 └── hoeren.sqlite               # Vorlagen, Aufnahmen, Sitzungen
 ```
 
+Die Datenbank liegt **innerhalb** des Sprecherverzeichnisses, also eine je
+Sprecher. Das hat drei Folgen: `lernen` liest genau eine Datei statt einer
+gefilterten Tabelle, eine vollständige Löschung ist das Entfernen eines
+Verzeichnisses, und jeder Endpunkt von `hören` muss seinen Sprecher nennen.
+
 `lernen` kopiert daraus vor jedem Job einen unveränderlichen Schnappschuss:
 
 ```
-data/snapshots/<job_id>/manifest.jsonl
+data/snapshots/<job_id>/
+├── manifest.jsonl
+└── sprecher.txt                # nur die Sprecher-ID
 ```
+
+`sprecher.txt` ist die Zusage an die Löschung: `scripts/purge_speaker.py` findet
+einen Schnappschuss daran, ohne das Manifest deuten zu müssen. Fehlt die Datei,
+meldet das Skript den Schnappschuss zur Prüfung von Hand.
 
 Eine Zeile pro Aufnahme:
 
@@ -235,6 +253,12 @@ stammen aus `schreiben` und sind schwächere Daten: der Text ist keine Vorgabe,
 sondern eine vom Nutzer abgenickte Maschinenausgabe. Wer sie gleichrangig einspeist,
 trainiert dem Modell seine eigenen Fehler an. Voreinstellung ist ein niedrigeres
 Gewicht, festgelegt im Rezept.
+
+**Modi.** `modus` ist `gelesen`, `nachgesprochen` oder `frei`. Die ersten beiden
+kommen aus `hören` (siehe „Vorsprechen statt Vorlesen"), `frei` aus `schreiben`:
+dort spricht die Person selbst formulierte Sätze, nicht eine Vorlage.
+`GET /api/progress` zählt beides getrennt, damit sich die Gewichtung an Zahlen
+statt an Vermutungen ausrichten kann.
 
 ---
 
@@ -291,11 +315,11 @@ niemand, welcher Stand welche Ausgabe erzeugt hat.
 
 | Tabelle | Zweck |
 |---|---|
-| `speakers` | Profil, Sprache, Basismodell |
-| `text_sources` | LLM-Auftrag oder hochgeladener Text, mit Parametern |
-| `prompts` | eine Sprecheinheit, Herkunft, Reihenfolge |
-| `sessions` | Aufnahmesitzung, Position in der Warteschlange |
-| `recordings` | Blob-Referenz, Dauer, Pegel, Modus, Status |
+| `speakers` | Profil, Sprache, Basismodell — genau eine Zeile je Datenbank |
+| `text_sources` | LLM-Auftrag, hochgeladener Text oder Korrektur, mit Parametern |
+| `prompts` | eine Sprecheinheit, Herkunft, fortlaufende Position |
+| `sessions` | Aufnahmesitzung: begonnen, zuletzt aktiv |
+| `recordings` | Blob-Referenz, Messwerte, Modus, Status, Kennung aus „schreiben" |
 
 **lernen**
 
@@ -315,6 +339,14 @@ Zugriff über SQLAlchemy 2.0 mit typisierten Modellen. Schemaänderungen als
 nummerierte `.sql`-Dateien, angewendet von `scripts/migrate.py`. Kein Alembic — bei
 diesem Schemaumfang ist die Migrationsmaschinerie größer als das Schema.
 
+Zwei Spalten tragen mehr Bedeutung, als ihr Name verrät:
+
+- `prompts.position` ist über **alle** Quellen eines Sprechers fortlaufend. Eine
+  neue Textquelle hängt hinten an, statt in die laufende Sitzung zu springen.
+- `recordings.externe_id` ist die Abschnittskennung aus `schreiben` und
+  eindeutig. Die dortige Outbox darf damit beliebig oft wiederholen, ohne dass
+  dieselbe Korrektur zweimal im Korpus landet.
+
 ---
 
 ## Technologien
@@ -333,12 +365,17 @@ diesem Schemaumfang ist die Migrationsmaschinerie größer als das Schema.
 | Jobs | `jobs`-Tabelle plus Poll-Worker | keine Broker-Abhängigkeit für eine Warteschlange mit selten mehr als einem Eintrag |
 | Proxy | Caddy | TLS ohne Konfigurationsaufwand |
 | Auth | `hören` und `lernen` hinter Token, `schreiben` ohne | siehe Grundentscheidung 7 |
+| Tests | pytest, FastAPI-TestClient | echte SQLite-Datei, echte Endpunkte, kein Nachbau |
+| Werkzeug | uv, ruff | eine Abhängigkeitsdatei, ein Formatierer, keine Diskussion |
 
 ---
 
 ## Konfiguration
 
-Eine `.env` pro App, eingelesen in `config.py`, nirgends `os.environ` im Fachcode.
+Alles über Umgebungsvariablen, eingelesen in der `config.py` der App, nirgends
+`os.environ` im Fachcode. Die Bibliothek liest gar keine Umgebung: Pfade und
+Schlüssel werden ihr übergeben. Vorlage ist `.env.example`; im Betrieb bekommt
+jede App ihre Werte aus der Umgebung.
 
 ```
 # gemeinsam
@@ -346,9 +383,10 @@ WORTLAUT_DATA_DIR=/srv/wortlaut/data
 WORTLAUT_STORAGE=local              # local | s3
 
 # hören
-WORTLAUT_LLM_PROVIDER=
+WORTLAUT_LLM_PROVIDER=              # leer = Textquelle „LLM" abgeschaltet
 WORTLAUT_LLM_API_KEY=
-WORTLAUT_AUTH_TOKEN=
+WORTLAUT_LLM_MODEL=claude-opus-5
+WORTLAUT_AUTH_TOKEN=                # leer = offen, nur für die Entwicklung
 
 # lernen
 WORTLAUT_TRAINING_BACKEND=local     # local | remote
@@ -368,10 +406,28 @@ WORTLAUT_INTAKE_TOKEN=
 
 ## Entwicklung
 
+Voraussetzungen: Python 3.12 mit [uv](https://docs.astral.sh/uv/), Node 20 oder
+neuer für das Frontend — und **ffmpeg im Pfad**, sonst schlägt jeder
+Aufnahme-Upload fehl.
+
 ```bash
 cp .env.example .env
-make migrate                 # Datenbanken anlegen
-make dev APP=hoeren          # Backend + Vite
+uv sync                      # Abhängigkeiten und die Bibliothek `wortlaut`
+cd apps/hoeren/frontend && npm install && cd -
+
+make test                    # Testlauf, gut eine Sekunde
+make dev APP=hoeren          # Backend auf :8000, Vite auf :5173
+make migrate                 # nur nötig, wenn nach einem Update Migrationen offen sind
+```
+
+Aufgerufen wird `http://localhost:5173`; Vite leitet `/api` an das Backend
+weiter, deshalb gibt es keine CORS-Regeln. Neue Sprecher bekommen ihre
+Datenbank beim Anlegen, `make migrate` ist also kein erster Schritt, sondern
+ein späterer.
+
+Noch nicht nutzbar, weil `lernen` fehlt:
+
+```bash
 make train SPEAKER=spr_7f2a RECIPE=whisper_full
 make release JOB=42
 ```
@@ -379,6 +435,39 @@ make release JOB=42
 Ohne GPU: `WORTLAUT_BASE_MODEL=openai/whisper-small` und
 `WORTLAUT_TRAINING_BACKEND=remote`. Die Apps laufen lokal, das Training auf
 gemieteter Hardware.
+
+Betrieb, Endpunktliste und Fehlersuche stehen in [`docs/betrieb.md`](docs/betrieb.md).
+
+---
+
+## Tests
+
+```bash
+make test
+```
+
+Läuft in gut einer Sekunde: ohne GPU, ohne Netz, ohne Mikrofon.
+
+| Ort | Prüft |
+|---|---|
+| `packages/wortlaut/tests/` | Chunker, Textformate, Audiomessung, Ablage, Migrationen, Registry |
+| `apps/hoeren/tests/` | Endpunkte gegen eine echte SQLite-Datei im Temporärverzeichnis |
+
+Zwei Regeln halten den Aufwand klein und die Aussagekraft hoch:
+
+**Nachgebaut wird so wenig wie möglich.** Die Tests sprechen mit echtem SQLite,
+echten Dateien und den echten Endpunkten. Ersetzt sind genau zwei Dinge: der
+LLM-Anbieter (sonst kostete jeder Testlauf Geld und Netz) und ffmpeg.
+
+**ffmpeg wird trotzdem einmal wirklich benutzt.** Ein Test erzeugt eine
+Opus-Datei, wie sie ein Browser liefert, schickt sie an `POST /api/recordings`
+und prüft, dass im Korpus 16 kHz Mono liegen. Damit ist der Weg vom Browser bis
+zur Datei einmal vollständig durchlaufen; die übrigen Aufnahmetests kommen
+ohne externes Programm aus. Fehlt ffmpeg, werden diese drei Tests übersprungen
+statt zu scheitern.
+
+Was noch fehlt: das Frontend hat keine eigenen Tests. `npm run check`
+(svelte-check) prüft dort bislang nur die Typen.
 
 ---
 
@@ -390,14 +479,17 @@ DSGVO. Das hat Folgen für den Aufbau, nicht nur für einen Hinweistext:
 - Audio liegt ausschließlich unter `WORTLAUT_DATA_DIR`, nie im Git, nie in Logs.
 - Die entfernten Adapter für ASR und LLM sind bewusste Schalter mit lokaler
   Voreinstellung. Wer sie umlegt, schickt Stimm- oder Textdaten an Dritte.
+- Verworfene Aufnahmen werden gelöscht, nicht nur markiert. In der Datenbank
+  bleibt der Datensatz als Spur, die Audiodatei ist weg.
 - `scripts/purge_speaker.py` entfernt Profil, Aufnahmen, Schnappschüsse und Modelle
   vollständig. Das Recht auf Löschung muss ausführbar sein, nicht dokumentiert.
+
+Einzelheiten in [`docs/datenschutz.md`](docs/datenschutz.md).
 
 ---
 
 ## Bewusst nicht enthalten
 
-- **Automatische Tests.** Kommen später, dann als `tests/` je Paket.
 - **Phonetisch ausgewogene Vorlagen.** LLM-Text ist flüssig, aber phonetisch
   beliebig. Eine dritte Textquelle aus einer festen, phonetisch abgedeckten
   Satzliste wäre für Sprechstörungen wirksamer und steht auf der Liste.
