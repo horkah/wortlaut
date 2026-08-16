@@ -38,6 +38,10 @@ werden drei Tests übersprungen statt zu scheitern — die übrigen laufen
 vollständig durch. Was geprüft wird, steht im
 [README](../README.md#tests).
 
+Den Weg im Browser deckt das nicht ab — dafür gibt es
+[`docs/manueller-test.md`](manueller-test.md), zum Durchklicken nach jeder
+Änderung an Frontend oder Endpunkten.
+
 ## Betrieb mit Compose
 
 ```bash

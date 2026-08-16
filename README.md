@@ -469,6 +469,11 @@ statt zu scheitern.
 Was noch fehlt: das Frontend hat keine eigenen Tests. `npm run check`
 (svelte-check) prüft dort bislang nur die Typen.
 
+Den kompletten Weg im Browser — Sprecher anlegen, Textquelle, Aufnehmen,
+Fortschritt — deckt kein automatisierter Test ab. Dafür gibt es eine
+Schritt-für-Schritt-Anleitung zum Selbst-Durchklicken:
+[`docs/manueller-test.md`](docs/manueller-test.md).
+
 ---
 
 ## Datenschutz
