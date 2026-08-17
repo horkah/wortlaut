@@ -70,10 +70,7 @@ und ein Schlüssel hinterlegt ist):
    „▶ Vorsprechen lassen“ testen. Erwartet: Einheit wird vorgelesen, danach
    erscheint „wird als „nachgesprochen“ gespeichert“ und die nächste
    Aufnahme wird entsprechend markiert (in Schritt 4 unter „Modus
-   `nachgesprochen`“ sichtbar). Sind mehrere deutsche Stimmen installiert,
-   erscheint daneben ein Auswahlfeld; gewählte Stimme bleibt nach Neuladen
-   der Seite erhalten (`localStorage`) und wird für „Vorsprechen lassen“
-   verwendet.
+   `nachgesprochen`“ sichtbar).
 8. Einheiten aufnehmen, bis „Alles aufgenommen“ erscheint. Erwartet: zwei
    Knöpfe, „Neue Textquelle“ und „Fortschritt ansehen“.
 9. Seite neu laden (F5), während noch offene Einheiten vorhanden sind.
@@ -90,6 +87,27 @@ und ein Schlüssel hinterlegt ist):
 3. **Abmelden.** Erwartet: zurück zur Startansicht, Navigation verschwindet,
    das angelegte Profil steht weiter in der Sprecherliste und lässt sich
    erneut auswählen.
+
+## 5. Einstellungen
+
+1. **Einstellungen** in der Navigation.
+2. **Probe hören** drücken. Erwartet: der Probesatz wird vorgelesen. (Meldet
+   der Browser keine deutsche Stimme, steht statt der Auswahl ein Hinweis und
+   der Knopf ist ausgegraut — siehe `docs/betrieb.md`.)
+3. **Sprechtempo** verschieben, erneut **Probe hören**. Erwartet: die Anzeige
+   neben dem Regler ändert sich (z. B. „0,7×“) und die Probe wird hörbar
+   langsamer beziehungsweise schneller.
+4. Sind mehrere Stimmen installiert: andere **Stimme** wählen, erneut Probe
+   hören. Erwartet: hörbar andere Stimme.
+5. **Schriftgröße der Vorlage** verschieben. Erwartet: der Beispieltext
+   darunter wächst beziehungsweise schrumpft sofort mit.
+6. Zur **Aufnahme** wechseln. Erwartet: die Vorlage erscheint in der
+   eingestellten Größe, „▶ Vorsprechen lassen“ nutzt Stimme und Tempo aus den
+   Einstellungen.
+7. Seite neu laden (F5). Erwartet: alle drei Werte sind erhalten
+   (`localStorage`).
+8. **Auf Vorgaben zurücksetzen** drücken. Erwartet: Tempo 0,9×, Schriftgröße
+   2,0 rem, Stimme wieder die des Browsers.
 
 ## Aufräumen
 

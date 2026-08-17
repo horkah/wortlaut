@@ -94,8 +94,9 @@ wortlaut/
 │   │   ├── frontend/
 │   │   │   ├── vite.config.ts     # Alias auf packages/ui, Proxy auf /api
 │   │   │   └── src/
-│   │   │       ├── lib/           # api.ts, zustand.svelte.ts
-│   │   │       └── routes/        # Start, Quelle wählen, Aufnahme, Fortschritt
+│   │   │       ├── lib/           # api.ts, zustand.svelte.ts, einstellungen.svelte.ts
+│   │   │       └── routes/        # Start, Quelle wählen, Aufnahme, Fortschritt,
+│   │   │                          # Einstellungen
 │   │   └── tests/                 # Endpunkte, Warteschlange, Intake
 │   │
 │   ├── lernen/                    # App „lernen" — entworfen, siehe README dort
@@ -123,7 +124,7 @@ wortlaut/
 │       ├── Recorder.svelte
 │       ├── AudioPlayer.svelte
 │       ├── PromptView.svelte      # eine Einheit groß, Kontext blass
-│       └── speak.ts               # Vorlesen über Web Speech API
+│       └── speak.ts               # Vorlesen über Web Speech API, Stimme und Tempo
 │
 ├── training/                      # noch nicht gebaut: das, was auf der GPU läuft
 │   ├── Dockerfile
@@ -179,6 +180,25 @@ Das hat einen Preis: Nachsprechen verändert Sprechtempo und Satzmelodie in Rich
 der Vorgabe. Die Aufnahme wird deshalb als `nachgesprochen` markiert und im Manifest
 getrennt geführt, damit man den Effekt später messen und die Gewichtung anpassen
 kann.
+
+Weil dieser Effekt am Sprechtempo der Vorgabe hängt, ist das Tempo einstellbar
+(Vorgabe 0,9× — langsamer ist leichter nachzusprechen, ermüdet aber über eine lange
+Sitzung). Ebenso die Stimme: welche zur Wahl stehen und wie natürlich sie klingen,
+entscheidet allein das Betriebssystem. Dieselbe Seite klingt auf macOS natürlich und
+unter Linux mit espeak-ng blechern; die App kann das nur zur Auswahl stellen, nicht
+verbessern. Wege zu einer besseren Stimme stehen in `docs/betrieb.md`.
+
+### Einstellungen
+
+Unter `#/einstellungen` liegen Stimme, Sprechtempo und Schriftgröße der Vorlage, je
+mit Probe. Sie hängen am Gerät und nicht am Sprecherprofil — welche Stimmen es gibt,
+bestimmt das Betriebssystem, und wer die App auf zwei Geräten benutzt, braucht dort
+verschiedene Werte. Gespeichert wird deshalb im `localStorage` des Browsers
+(`wortlaut.stimme`, `wortlaut.tempo`, `wortlaut.schrift`), nicht im Korpus.
+
+Die Schriftgröße ist einstellbar, weil die Zielgruppe sehr verschieden gut liest —
+dieselbe Vorgabe, die einer Person zu klein ist, drängt bei einer anderen den
+Kontext aus dem Bild.
 
 ### Endpunkte
 
@@ -357,7 +377,7 @@ Zwei Spalten tragen mehr Bedeutung, als ihr Name verrät:
 | Datenbank | SQLite (WAL) | ein Server, ein Sprecher; Backup heißt Datei kopieren |
 | Frontend | Svelte 5, Vite, TypeScript | kompiliert weg, kein Laufzeit-Framework auf schwachen Geräten |
 | Aufnahme | `MediaRecorder` (Opus), serverseitig ffmpeg → 16 kHz mono WAV | Browser liefern kein WAV, Konvertierung an einer Stelle |
-| Vorlesen | Web Speech API | deutsche Stimmen überall vorhanden, keine Infrastruktur, keine Latenz |
+| Vorlesen | Web Speech API | deutsche Stimmen fast überall vorhanden, keine Infrastruktur, keine Latenz — dafür schwankt die Qualität je nach Betriebssystem stark, Stimme und Tempo sind deshalb einstellbar |
 | ASR | faster-whisper (CTranslate2) | schnellste brauchbare Whisper-Laufzeit auf CPU und kleiner GPU |
 | ASR entfernt | OpenAI-kompatibler Endpunkt | ein Adapter deckt mehrere Anbieter ab |
 | Training | HF Transformers, Datasets, Accelerate | Standardrezept für Whisper, breit dokumentiert |
