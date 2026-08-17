@@ -70,7 +70,10 @@ und ein Schlüssel hinterlegt ist):
    „▶ Vorsprechen lassen“ testen. Erwartet: Einheit wird vorgelesen, danach
    erscheint „wird als „nachgesprochen“ gespeichert“ und die nächste
    Aufnahme wird entsprechend markiert (in Schritt 4 unter „Modus
-   `nachgesprochen`“ sichtbar).
+   `nachgesprochen`“ sichtbar). Sind mehrere deutsche Stimmen installiert,
+   erscheint daneben ein Auswahlfeld; gewählte Stimme bleibt nach Neuladen
+   der Seite erhalten (`localStorage`) und wird für „Vorsprechen lassen“
+   verwendet.
 8. Einheiten aufnehmen, bis „Alles aufgenommen“ erscheint. Erwartet: zwei
    Knöpfe, „Neue Textquelle“ und „Fortschritt ansehen“.
 9. Seite neu laden (F5), während noch offene Einheiten vorhanden sind.
