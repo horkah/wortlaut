@@ -11,7 +11,7 @@
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import PromptView from '$ui/PromptView.svelte';
   import Recorder from '$ui/Recorder.svelte';
-  import { beiStimmenAenderung, brichVorlesenAb, deutscheStimmen, sprich, stimmeVerfuegbar } from '$ui/speak';
+  import { brichVorlesenAb, sprich, stimmeNachUri, stimmeVerfuegbar } from '$ui/speak';
   import {
     aufnahmeSenden,
     aufnahmeVerwerfen,
@@ -20,11 +20,11 @@
     type Aufnahme,
     type Naechste,
   } from '../lib/api';
+  import { einstellungen } from '../lib/einstellungen.svelte';
   import { gehZu, zustand } from '../lib/zustand.svelte';
 
   const sprecher = zustand.sprecher!;
   const SITZUNG_SCHLUESSEL = `wortlaut.sitzung.${sprecher}`;
-  const STIMME_SCHLUESSEL = 'wortlaut.stimme';
 
   let stand = $state<'laedt' | 'bereit' | 'sendet' | 'geprueft'>('laedt');
   let ausschnitt = $state<Naechste | null>(null);
@@ -33,24 +33,6 @@
   let nachgesprochen = $state(false);
   let fehler = $state('');
   let sitzung: string | null = null;
-
-  // Stimmen kommen auf manchen Systemen erst asynchron nach dem Laden der
-  // Seite an (`voiceschanged`), deshalb hier neu abfragen statt nur einmal.
-  let stimmen = $state(deutscheStimmen());
-  let stimmeUri = $state(localStorage.getItem(STIMME_SCHLUESSEL));
-  // Ohne eigene Wahl: die vom Browser als Standard markierte Stimme, sonst
-  // die erste — damit die Anzeige im <select> nie von dem abweicht, was
-  // tatsächlich gesprochen wird.
-  const gewaehlteStimme = $derived(
-    stimmen.find((s) => s.voiceURI === stimmeUri) ?? stimmen.find((s) => s.default) ?? stimmen[0] ?? null,
-  );
-
-  $effect(() => beiStimmenAenderung(() => (stimmen = deutscheStimmen())));
-
-  function stimmeWaehlen(uri: string) {
-    stimmeUri = uri;
-    localStorage.setItem(STIMME_SCHLUESSEL, uri);
-  }
 
   const fortschritt = $derived(
     ausschnitt && ausschnitt.gesamt > 0 ? (ausschnitt.erledigt / ausschnitt.gesamt) * 100 : 0,
@@ -84,7 +66,10 @@
     if (!ausschnitt?.aktuell) return;
     nachgesprochen = true; // schon der Versuch verändert die Sprechweise
     try {
-      await sprich(ausschnitt.aktuell.text, gewaehlteStimme);
+      await sprich(ausschnitt.aktuell.text, {
+        stimme: stimmeNachUri(einstellungen.stimmeUri),
+        tempo: einstellungen.tempo,
+      });
     } catch (ursache) {
       fehler = ursache instanceof Error ? ursache.message : String(ursache);
     }
@@ -134,25 +119,18 @@
   <p class="gedaempft">{ausschnitt.erledigt} von {ausschnitt.gesamt} Einheiten</p>
   <div class="balken"><div style="width:{fortschritt}%"></div></div>
 
-  <PromptView vorher={ausschnitt.vorher} aktuell={ausschnitt.aktuell} nachher={ausschnitt.nachher} />
+  <PromptView
+    vorher={ausschnitt.vorher}
+    aktuell={ausschnitt.aktuell}
+    nachher={ausschnitt.nachher}
+    schriftRem={einstellungen.schriftRem}
+  />
 
   {#if stimmeVerfuegbar()}
     <div class="reihe" style="justify-content:center">
       <button class="knopf" onclick={vorlesen} disabled={stand === 'sendet'}>
         ▶ Vorsprechen lassen
       </button>
-      {#if stimmen.length > 1}
-        <select
-          aria-label="Stimme"
-          value={gewaehlteStimme?.voiceURI}
-          onchange={(ereignis) => stimmeWaehlen(ereignis.currentTarget.value)}
-          style="width:auto;max-width:16rem"
-        >
-          {#each stimmen as stimme (stimme.voiceURI)}
-            <option value={stimme.voiceURI}>{stimme.name}</option>
-          {/each}
-        </select>
-      {/if}
       {#if nachgesprochen}
         <span class="gedaempft">wird als „nachgesprochen“ gespeichert</span>
       {/if}

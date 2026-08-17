@@ -96,4 +96,47 @@ gedacht. Das Frontend fragt den Token einmal ab und legt ihn im
 | `Keine Textquelle konfiguriert` | `WORTLAUT_LLM_PROVIDER` ist leer — Textupload nutzen oder Anbieter setzen |
 | Aufnahmeknopf ohne Wirkung | `MediaRecorder` braucht HTTPS oder `localhost` |
 | „Vorlesen" ohne Stimme | Browser ohne deutsche Stimme für die Web Speech API |
+| Vorgelesene Stimme klingt blechern | Siehe „Bessere Vorlesestimme unter Linux" unten. Die Web Speech API nutzt die Stimmen des Betriebssystems; unter Linux ist das per Vorgabe espeak-ng. |
 | `make frontend` startet ohne Fehlermeldung, aber `localhost:5173` bleibt unerreichbar | `node_modules` fehlt (`npm install` in `apps/hoeren/frontend` vergessen). `npm run dev` sucht `vite` dann über `$PATH` — auf manchen Systemen (z. B. Ubuntu/Debian) existiert dort ein gleichnamiges, aber völlig anderes Paket namens `vite` (ViTE, ein Trace-Viewer), das kommentarlos ein leeres GUI-Fenster statt des Dev-Servers öffnet. Prüfen mit `command -v vite` — zeigt der Pfad nicht auf `apps/hoeren/frontend/node_modules/.bin/vite`, fehlt die Installation. Abhilfe: `npm install` nachholen. |
+
+## Bessere Vorlesestimme unter Linux
+
+Die App wählt die Stimme nicht selbst, sie bietet unter „Einstellungen" nur an,
+was der Browser meldet. Unter Linux kommt das aus `speech-dispatcher`, der per
+Vorgabe `espeak-ng` benutzt — verständlich, aber deutlich blechern. Für Deutsch
+gibt es in den Paketquellen von Debian/Ubuntu/Mint keine RHVoice-Stimme; die
+nächstbessere Stufe sind die mbrola-Stimmen.
+
+```bash
+sudo apt install espeak-ng mbrola mbrola-de6 mbrola-de7
+```
+
+`espeak-ng` gehört ausdrücklich dazu: Das Paket `libespeak-ng1` allein genügt
+nicht. Das mbrola-Modul ist ein *generisches* Modul, das eine Shell-Pipeline
+aufruft (`espeak-ng … | mbrola … | paplay`) und deshalb das Kommandozeilen-
+programm braucht, nicht nur die Bibliothek. Fehlt es, bleibt das Modul still,
+obwohl `spd-say -O` es als vorhanden anzeigt.
+
+Danach das Modul in `/etc/speech-dispatcher/speechd.conf` einschalten — dort ist
+es auskommentiert:
+
+```
+AddModule "espeak-ng-mbrola-generic" "sd_generic"   "espeak-ng-mbrola-generic.conf"
+```
+
+Zwei Fallen dabei:
+
+* Beim Einschalten müssen die schon genutzten Module (`espeak-ng`) eingeschaltet
+  **bleiben**, sonst ist gar keine Stimme mehr da.
+* Das Modul bringt `DefaultVoice "en1"` mit, eine englische Stimme, die mit den
+  deutschen Paketen nicht installiert wird. Ohne Sprachangabe scheitert es
+  deshalb mit `cannot find file en1`. Zum Prüfen die Sprache mitgeben:
+
+```bash
+pkill speech-dispatcher                       # lädt die Konfiguration neu
+spd-say -o espeak-ng-mbrola-generic -l de -y de6 "Ein Satz zur Probe"
+```
+
+Firefox fragt die Stimmenliste beim Start einmal ab: Nach Änderungen an
+`speech-dispatcher` muss der Browser neu gestartet werden, ein Neuladen der
+Seite genügt nicht.

@@ -11,12 +11,20 @@
     vorher,
     aktuell,
     nachher,
-  }: { vorher: Einheit; aktuell: Einheit; nachher: Einheit } = $props();
+    schriftRem = 2,
+  }: {
+    vorher: Einheit;
+    aktuell: Einheit;
+    nachher: Einheit;
+    /** Schriftgröße der aktuellen Einheit; einstellbar, weil die Zielgruppe
+        sehr verschieden gut liest. */
+    schriftRem?: number;
+  } = $props();
 </script>
 
 <div class="vorlage">
   <p class="blass">{vorher?.text ?? ''}</p>
-  <p class="aktuell">{aktuell?.text ?? ''}</p>
+  <p class="aktuell" style="font-size:{schriftRem}rem">{aktuell?.text ?? ''}</p>
   <p class="blass">{nachher?.text ?? ''}</p>
 </div>
 
@@ -30,7 +38,6 @@
     justify-content: center;
   }
   .aktuell {
-    font-size: 2rem;
     line-height: 1.4;
     margin: 0;
   }

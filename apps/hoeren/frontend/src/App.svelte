@@ -4,14 +4,19 @@
   import Quelle from './routes/Quelle.svelte';
   import Aufnahme from './routes/Aufnahme.svelte';
   import Fortschritt from './routes/Fortschritt.svelte';
+  import Einstellungen from './routes/Einstellungen.svelte';
 
   // Großgeschriebene Variablen sind in Svelte 5 als Komponente verwendbar.
   // Ohne gewählten Sprecher führt jeder Weg zurück zum Start.
   const Ansicht = $derived(
     !zustand.sprecher
       ? Start
-      : ({ '/quelle': Quelle, '/aufnahme': Aufnahme, '/fortschritt': Fortschritt }[zustand.route] ??
-        Start),
+      : ({
+          '/quelle': Quelle,
+          '/aufnahme': Aufnahme,
+          '/fortschritt': Fortschritt,
+          '/einstellungen': Einstellungen,
+        }[zustand.route] ?? Start),
   );
 </script>
 
@@ -23,6 +28,7 @@
       <a href="#/quelle">Textquelle</a>
       <a href="#/aufnahme">Aufnehmen</a>
       <a href="#/fortschritt">Fortschritt</a>
+      <a href="#/einstellungen">Einstellungen</a>
     </nav>
   {/if}
 </header>
