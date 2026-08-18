@@ -5,11 +5,15 @@
 #   make dev APP=hoeren          Backend und Vite parallel starten
 #   make backend APP=hoeren      nur das Backend
 #   make frontend APP=hoeren     nur Vite
+#   make install APP=hoeren      Frontend-Abhängigkeiten installieren
 
 APP  ?= hoeren
 PORT ?= 8000
 
-.PHONY: test dev backend frontend migrate train release
+FRONTEND     = apps/$(APP)/frontend
+NODE_MODULES = $(FRONTEND)/node_modules
+
+.PHONY: test dev backend frontend install migrate train release
 
 test:
 	uv run pytest
@@ -20,8 +24,18 @@ dev:
 backend:
 	uv run uvicorn apps.$(APP).backend.main:app --reload --port $(PORT)
 
-frontend:
-	cd apps/$(APP)/frontend && npm run dev
+frontend: $(NODE_MODULES)
+	cd $(FRONTEND) && npm run dev
+
+install: $(NODE_MODULES)
+
+# Ohne node_modules sucht „npm run dev" das Kommando vite über $$PATH und
+# findet auf Debian/Ubuntu womöglich den gleichnamigen Trace-Viewer statt
+# des Dev-Servers (siehe docs/betrieb.md). Darum hier erzwungen — „npm ci"
+# statt „npm install", weil package-lock.json bewusst im Git liegt.
+$(NODE_MODULES): $(FRONTEND)/package-lock.json
+	cd $(FRONTEND) && npm ci
+	@touch $@
 
 migrate:
 	uv run python scripts/migrate.py
