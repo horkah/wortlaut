@@ -1,6 +1,7 @@
-# TLS ohne Konfigurationsaufwand: Domain eintragen, fertig.
-# Für lokale Versuche stattdessen `:80` verwenden.
-hoeren.example.org {
+# TLS ohne Konfigurationsaufwand: WORTLAUT_DOMAIN in der .env setzen, fertig.
+# Ohne Eintrag lauscht Caddy auf :80 — gut für den Versuch auf der Maschine
+# selbst, für ein Zertifikat von Let's Encrypt braucht es den echten Namen.
+{$WORTLAUT_DOMAIN::80} {
 	encode gzip
 	reverse_proxy hoeren:8000
 }

@@ -20,6 +20,9 @@ services:
   caddy:
     image: caddy:2
     restart: unless-stopped
+    environment:
+      # Aus der .env des Wirts; ohne Eintrag bleibt es bei HTTP auf :80.
+      WORTLAUT_DOMAIN: ${WORTLAUT_DOMAIN:-}
     ports:
       - "80:80"
       - "443:443"
