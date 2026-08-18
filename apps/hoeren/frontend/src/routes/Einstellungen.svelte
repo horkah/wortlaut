@@ -1,15 +1,19 @@
 <script lang="ts">
   /**
    * Was am Gerät eingestellt werden kann — mit Probe, denn ob ein Tempo
-   * passt, hört man und liest man nicht ab.
+   * passt und ob ein Mikrofon taugt, hört man und liest man nicht ab.
    */
+  import Mikrofontest from '$ui/Mikrofontest.svelte';
   import PromptView from '$ui/PromptView.svelte';
   import { beiStimmenAenderung, sprich, stimmen, stimmeNachUri } from '$ui/speak';
   import {
     einstellungen,
+    setzeAutoPegel,
+    setzeMikrofon,
     setzeSchrift,
     setzeStimme,
     setzeTempo,
+    setzeVerstaerkung,
     setzeZurueck,
     SCHRIFT_SPANNE,
     TEMPO_SPANNE,
@@ -35,6 +39,17 @@
     }
   }
 </script>
+
+<h2>Mikrofon</h2>
+
+<Mikrofontest
+  geraeteId={einstellungen.mikrofonId}
+  verstaerkung={einstellungen.verstaerkung}
+  autoPegel={einstellungen.autoPegel}
+  ongeraet={setzeMikrofon}
+  onverstaerkung={setzeVerstaerkung}
+  onautoPegel={setzeAutoPegel}
+/>
 
 <h2>Vorlesen</h2>
 
@@ -108,7 +123,7 @@
 {/if}
 
 <h2>Zurücksetzen</h2>
-<p class="gedaempft">Setzt Stimme, Tempo und Schriftgröße auf die Vorgaben zurück.</p>
+<p class="gedaempft">Setzt Mikrofon, Stimme, Tempo und Schriftgröße auf die Vorgaben zurück.</p>
 <button class="knopf" onclick={setzeZurueck}>Auf Vorgaben zurücksetzen</button>
 
 <style>

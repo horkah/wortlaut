@@ -159,7 +159,13 @@
         <button class="knopf haupt" onclick={hole}>Weiter</button>
       </div>
     {:else}
-      <Recorder onaufnahme={sende} deaktiviert={stand === 'sendet'} />
+      <Recorder
+        onaufnahme={sende}
+        deaktiviert={stand === 'sendet'}
+        geraeteId={einstellungen.mikrofonId}
+        verstaerkung={einstellungen.verstaerkung}
+        autoPegel={einstellungen.autoPegel}
+      />
       {#if stand === 'sendet'}<p class="gedaempft">Wird geprüft …</p>{/if}
     {/if}
   </div>

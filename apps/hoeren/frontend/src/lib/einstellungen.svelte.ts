@@ -1,13 +1,17 @@
 /**
- * Was sich am Gerät einstellen lässt: Vorlesen und Schriftgröße.
+ * Was sich am Gerät einstellen lässt: Mikrofon, Vorlesen und Schriftgröße.
  *
  * Bewusst im Browser gespeichert und nicht am Sprecherprofil: Welche Stimmen
- * es gibt, hängt am Betriebssystem, und wer die App auf zwei Geräten benutzt,
- * braucht dort verschiedene Werte. Ein Schlüssel je Wert, wie beim Sprecher
- * und beim Token auch.
+ * und welche Mikrofone es gibt, hängt am Gerät, und wer die App auf zwei
+ * Geräten benutzt, braucht dort verschiedene Werte. Ein Schlüssel je Wert,
+ * wie beim Sprecher und beim Token auch.
  */
+import { VERSTAERKUNG_SPANNE, VERSTAERKUNG_VORGABE } from '$ui/mikrofon';
 import { TEMPO_VORGABE } from '$ui/speak';
 
+const MIKROFON_SCHLUESSEL = 'wortlaut.mikrofon';
+const VERSTAERKUNG_SCHLUESSEL = 'wortlaut.verstaerkung';
+const AUTOPEGEL_SCHLUESSEL = 'wortlaut.autopegel';
 const STIMME_SCHLUESSEL = 'wortlaut.stimme';
 const TEMPO_SCHLUESSEL = 'wortlaut.tempo';
 const SCHRIFT_SCHLUESSEL = 'wortlaut.schrift';
@@ -17,6 +21,9 @@ export const TEMPO_SPANNE = { min: 0.5, max: 1.5, schritt: 0.1 };
 export const SCHRIFT_SPANNE = { min: 1.2, max: 4, schritt: 0.1 };
 export const SCHRIFT_VORGABE = 2;
 
+/** Die Pegelregelung des Browsers ist an, solange nichts anderes dasteht. */
+export const AUTOPEGEL_VORGABE = true;
+
 function zahl(schluessel: string, vorgabe: number, spanne: { min: number; max: number }): number {
   const gelesen = Number(localStorage.getItem(schluessel));
   if (!Number.isFinite(gelesen) || gelesen === 0) return vorgabe;
@@ -24,10 +31,29 @@ function zahl(schluessel: string, vorgabe: number, spanne: { min: number; max: n
 }
 
 export const einstellungen = $state({
+  mikrofonId: localStorage.getItem(MIKROFON_SCHLUESSEL),
+  verstaerkung: zahl(VERSTAERKUNG_SCHLUESSEL, VERSTAERKUNG_VORGABE, VERSTAERKUNG_SPANNE),
+  autoPegel: (localStorage.getItem(AUTOPEGEL_SCHLUESSEL) ?? String(AUTOPEGEL_VORGABE)) === 'true',
   stimmeUri: localStorage.getItem(STIMME_SCHLUESSEL),
   tempo: zahl(TEMPO_SCHLUESSEL, TEMPO_VORGABE, TEMPO_SPANNE),
   schriftRem: zahl(SCHRIFT_SCHLUESSEL, SCHRIFT_VORGABE, SCHRIFT_SPANNE),
 });
+
+export function setzeMikrofon(id: string | null): void {
+  einstellungen.mikrofonId = id;
+  if (id) localStorage.setItem(MIKROFON_SCHLUESSEL, id);
+  else localStorage.removeItem(MIKROFON_SCHLUESSEL);
+}
+
+export function setzeVerstaerkung(wert: number): void {
+  einstellungen.verstaerkung = wert;
+  localStorage.setItem(VERSTAERKUNG_SCHLUESSEL, String(wert));
+}
+
+export function setzeAutoPegel(an: boolean): void {
+  einstellungen.autoPegel = an;
+  localStorage.setItem(AUTOPEGEL_SCHLUESSEL, String(an));
+}
 
 export function setzeStimme(uri: string | null): void {
   einstellungen.stimmeUri = uri;
@@ -46,6 +72,9 @@ export function setzeSchrift(wert: number): void {
 }
 
 export function setzeZurueck(): void {
+  setzeMikrofon(null);
+  setzeVerstaerkung(VERSTAERKUNG_VORGABE);
+  setzeAutoPegel(AUTOPEGEL_VORGABE);
   setzeStimme(null);
   setzeTempo(TEMPO_VORGABE);
   setzeSchrift(SCHRIFT_VORGABE);
