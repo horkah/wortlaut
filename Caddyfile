@@ -1,6 +1,9 @@
 # TLS ohne Konfigurationsaufwand: WORTLAUT_DOMAIN in der .env setzen, fertig.
 # Ohne Eintrag lauscht Caddy auf :80 — gut für den Versuch auf der Maschine
 # selbst, für ein Zertifikat von Let's Encrypt braucht es den echten Namen.
+# Eine Domain für alle drei Apps. Solange nur „hören" existiert, geht alles
+# dorthin; für „lernen" und „schreiben" kommt je ein `handle_path /lernen/*`
+# dazu, und „hören" zieht dann von der Wurzel auf `/hoeren/` um.
 {$WORTLAUT_DOMAIN::80} {
 	encode gzip
 	reverse_proxy hoeren:8000

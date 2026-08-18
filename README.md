@@ -121,6 +121,8 @@ wortlaut/
 │   │   └── tests/                 # Chunker, Textformate, Audio, Ablage
 │   │
 │   └── ui/                        # geteilte Svelte-Komponenten
+│       ├── Kopfleiste.svelte      # App-Reiter oben, Ansichten-Reiter darunter
+│       ├── apps.ts                # die drei Apps: Name, Pfad, schon da oder nicht
 │       ├── Recorder.svelte
 │       ├── AudioPlayer.svelte
 │       ├── PromptView.svelte      # eine Einheit groß, Kontext blass
@@ -190,6 +192,24 @@ Sitzung). Ebenso die Stimme: welche zur Wahl stehen und wie natürlich sie kling
 entscheidet allein das Betriebssystem. Dieselbe Seite klingt auf macOS natürlich und
 unter Linux mit espeak-ng blechern; die App kann das nur zur Auswahl stellen, nicht
 verbessern. Wege zu einer besseren Stimme stehen in `docs/betrieb.md`.
+
+### Menüführung
+
+Die Kopfzeile hat zwei Reihen, weil es zwei Ebenen gibt. Oben die drei Apps —
+`hören`, `lernen`, `schreiben` —, die offene dunkelgrün hinterlegt; die beiden
+noch nicht gebauten stehen blass daneben und sind nicht anklickbar. Darunter
+die Ansichten der offenen App, die aktuelle hell hinterlegt. Beides steht in
+`packages/ui/Kopfleiste.svelte`, damit `lernen` und `schreiben` später dieselbe
+Leiste bekommen und nicht jede App ihr eigenes Menü erfindet.
+
+Alle drei liegen unter einer Adresse (`wortlaut.example.org`), nicht unter drei
+Subdomains: ein Zertifikat, ein Caddy-Block, und der Wechsel zwischen den Apps
+ist ein Pfadwechsel. Solange nur `hören` existiert, liegt es auf der Wurzel;
+welcher Pfad zu welcher App gehört, steht an einer Stelle in
+`packages/ui/apps.ts`.
+
+Ohne gewähltes Sprecherprofil bleibt die zweite Reihe leer — jede Ansicht
+führte dort ohnehin nur zurück zur Sprecherwahl.
 
 ### Einstellungen
 
