@@ -53,6 +53,52 @@ besorgt TLS. Die Daten liegen im Volume `wortlaut-data`; eine Sicherung ist
 das Kopieren dieses Volumes bei angehaltenem Dienst (SQLite im WAL-Modus mag
 keine Kopie mitten im Schreibvorgang).
 
+Vite läuft dabei nicht mit — es ist reines Entwicklungswerkzeug. Das Frontend
+wird beim `docker build` einmal gebaut und vom Backend mit ausgeliefert. Ein
+`--host` braucht darum weder Vite noch uvicorn: der Startbefehl im Dockerfile
+bindet bereits `0.0.0.0`, erreichbar von außen ist trotzdem nur Caddy.
+
+### Auf eine Subdomain stellen
+
+1. **DNS**: einen A-Eintrag (bei IPv6 zusätzlich AAAA) von der Subdomain auf
+   die öffentliche Adresse der Maschine. Vor dem ersten Start prüfen, sonst
+   scheitert die Zertifikatsausstellung und Let's Encrypt drosselt Wiederholungen.
+
+2. **`.env` auf dem Wirt**:
+
+   ```
+   WORTLAUT_DOMAIN=hoeren.example.org
+   WORTLAUT_AUTH_TOKEN=<lange Zufallszeichenkette>
+   ```
+
+   Den Token mit `openssl rand -base64 32` erzeugen. **Ohne ihn steht die App
+   offen im Netz** — jeder mit der Adresse kann Sprecher anlegen, Aufnahmen
+   lesen und die LLM-Textquelle auf deine Rechnung benutzen.
+
+3. **Ports 80 und 443** in der Firewall der Maschine und, falls vorhanden, in
+   der des Anbieters freigeben. Port 80 wird gebraucht, auch wenn nachher alles
+   über HTTPS läuft: darüber läuft die ACME-Prüfung.
+
+4. **Starten und nachsehen:**
+
+   ```bash
+   docker compose up -d --build
+   docker compose logs -f caddy       # „certificate obtained successfully"
+   curl https://hoeren.example.org/gesundheit
+   ```
+
+`/gesundheit` verlangt bewusst keinen Token und eignet sich als Prüfpunkt für
+eine Überwachung.
+
+**HTTPS ist nicht optional.** Der Aufnahmeknopf benutzt `MediaRecorder`, und
+das gibt der Browser nur in einem sicheren Kontext frei — über eine
+IP-Adresse oder blankes HTTP bleibt die App unbenutzbar.
+
+Läuft auf der Maschine bereits ein anderer Reverse Proxy auf 80/443, dann den
+`caddy`-Dienst aus `compose.yaml` streichen, beim Dienst `hoeren` `expose`
+durch `ports: ["127.0.0.1:8000:8000"]` ersetzen und den vorhandenen Proxy auf
+`127.0.0.1:8000` zeigen lassen.
+
 ## Endpunkte
 
 ```
