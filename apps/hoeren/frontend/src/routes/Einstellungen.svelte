@@ -6,6 +6,7 @@
   import Mikrofontest from '$ui/Mikrofontest.svelte';
   import PromptView from '$ui/PromptView.svelte';
   import { beiStimmenAenderung, sprich, stimmen, stimmeNachUri } from '$ui/speak';
+  import { ApiFehler, setzeToken, sprecherListe, token } from '../lib/api';
   import {
     einstellungen,
     setzeAutoPegel,
@@ -23,12 +24,31 @@
 
   let liste = $state(stimmen());
   let fehler = $state('');
+  let tokenEingabe = $state(token());
+  let zugangMeldung = $state('');
+  let zugangOffen = $state(false);
 
   // Die Stimmenliste trifft auf manchen Systemen erst nach dem Laden ein.
   $effect(() => beiStimmenAenderung(() => (liste = stimmen())));
 
   // Über `liste`, damit die Anzeige nachzieht, wenn die Stimmen spät eintreffen.
   const gewaehlt = $derived(stimmeNachUri(einstellungen.stimmeUri, liste));
+
+  // Speichern allein sagt noch nicht, ob der Token stimmt — darum eine echte
+  // Anfrage hinterher. Ein falscher Token fällt sonst erst viel später auf.
+  async function tokenSpeichern() {
+    setzeToken(tokenEingabe);
+    zugangMeldung = 'Wird geprüft …';
+    try {
+      await sprecherListe();
+      zugangMeldung = 'Token gespeichert, der Server nimmt ihn an.';
+    } catch (ursache) {
+      zugangMeldung =
+        ursache instanceof ApiFehler && ursache.status === 401
+          ? 'Der Server weist diesen Token ab.'
+          : `Prüfung nicht möglich: ${ursache instanceof Error ? ursache.message : ursache}`;
+    }
+  }
 
   async function probe() {
     fehler = '';
@@ -120,6 +140,29 @@
 
 {#if fehler}
   <p class="fehler">{fehler}</p>
+{/if}
+
+<h2>Zugang</h2>
+<p class="gedaempft">
+  Nur nötig, wenn der Server mit <code>WORTLAUT_AUTH_TOKEN</code> läuft. Der Token bleibt in
+  diesem Browser und wird beim Zurücksetzen unten nicht angetastet.
+</p>
+<div class="reihe">
+  <input
+    bind:value={tokenEingabe}
+    type={zugangOffen ? 'text' : 'password'}
+    placeholder="Token"
+    autocomplete="off"
+    spellcheck="false"
+    style="max-width:20rem"
+  />
+  <button class="knopf" onclick={() => (zugangOffen = !zugangOffen)}>
+    {zugangOffen ? 'Verbergen' : 'Anzeigen'}
+  </button>
+  <button class="knopf haupt" onclick={tokenSpeichern}>Speichern und prüfen</button>
+</div>
+{#if zugangMeldung}
+  <p class="gedaempft">{zugangMeldung}</p>
 {/if}
 
 <h2>Zurücksetzen</h2>

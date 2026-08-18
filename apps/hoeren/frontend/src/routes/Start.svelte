@@ -5,6 +5,9 @@
 
   let sprecher = $state<Sprecher[]>([]);
   let fehler = $state('');
+  // Der Zugang steht sonst unter „Einstellungen". Hier taucht er nur auf, wenn
+  // der Server ihn verlangt — ohne Sprecher ist jene Ansicht nicht erreichbar.
+  let zugangNoetig = $state(false);
   let tokenEingabe = $state(token());
   let name = $state('');
   let basismodell = $state('openai/whisper-large-v3');
@@ -13,11 +16,13 @@
     fehler = '';
     try {
       sprecher = await sprecherListe();
+      zugangNoetig = false;
     } catch (ursache) {
-      fehler =
-        ursache instanceof ApiFehler && ursache.status === 401
-          ? 'Zugang nötig: bitte Token eintragen.'
-          : String(ursache instanceof Error ? ursache.message : ursache);
+      const abgewiesen = ursache instanceof ApiFehler && ursache.status === 401;
+      zugangNoetig = zugangNoetig || abgewiesen;
+      fehler = abgewiesen
+        ? 'Zugang nötig: bitte Token eintragen.'
+        : String(ursache instanceof Error ? ursache.message : ursache);
     }
   }
 
@@ -84,11 +89,14 @@
   <button class="knopf haupt" type="submit">Anlegen</button>
 </form>
 
-<h2>Zugang</h2>
-<p class="gedaempft">
-  Nur nötig, wenn der Server mit <code>WORTLAUT_AUTH_TOKEN</code> läuft.
-</p>
-<div class="reihe">
-  <input bind:value={tokenEingabe} type="password" placeholder="Token" style="max-width:20rem" />
-  <button class="knopf" onclick={tokenSpeichern}>Speichern</button>
-</div>
+{#if zugangNoetig}
+  <h2>Zugang</h2>
+  <p class="gedaempft">
+    Dieser Server läuft mit <code>WORTLAUT_AUTH_TOKEN</code>. Später ist der Token unter
+    „Einstellungen" zu ändern.
+  </p>
+  <div class="reihe">
+    <input bind:value={tokenEingabe} type="password" placeholder="Token" style="max-width:20rem" />
+    <button class="knopf" onclick={tokenSpeichern}>Speichern</button>
+  </div>
+{/if}
