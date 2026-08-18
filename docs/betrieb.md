@@ -60,6 +60,13 @@ bindet bereits `0.0.0.0`, erreichbar von außen ist trotzdem nur Caddy.
 
 ### Auf eine Subdomain stellen
 
+Eine Adresse für alle drei Apps, nicht eine je App: `wortlaut.example.org`.
+Derzeit liegt `hören` allein auf der Wurzel und Caddy reicht alles dorthin
+durch. Kommen `lernen` und `schreiben` dazu, bekommt jede App einen Pfad
+(`/hoeren/`, `/lernen/`, `/schreiben/`) und der Caddyfile einen `handle_path`
+je Dienst; die App-Leiste im Frontend steht schon darauf ein
+(`packages/ui/apps.ts`).
+
 1. **DNS**: einen A-Eintrag (bei IPv6 zusätzlich AAAA) von der Subdomain auf
    die öffentliche Adresse der Maschine. Vor dem ersten Start prüfen, sonst
    scheitert die Zertifikatsausstellung und Let's Encrypt drosselt Wiederholungen.
@@ -67,7 +74,7 @@ bindet bereits `0.0.0.0`, erreichbar von außen ist trotzdem nur Caddy.
 2. **`.env` auf dem Wirt**:
 
    ```
-   WORTLAUT_DOMAIN=hoeren.example.org
+   WORTLAUT_DOMAIN=wortlaut.example.org
    WORTLAUT_AUTH_TOKEN=<lange Zufallszeichenkette>
    ```
 
@@ -84,7 +91,7 @@ bindet bereits `0.0.0.0`, erreichbar von außen ist trotzdem nur Caddy.
    ```bash
    docker compose up -d --build
    docker compose logs -f caddy       # „certificate obtained successfully"
-   curl https://hoeren.example.org/gesundheit
+   curl https://wortlaut.example.org/gesundheit
    ```
 
 `/gesundheit` verlangt bewusst keinen Token und eignet sich als Prüfpunkt für

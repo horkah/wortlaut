@@ -18,16 +18,22 @@ Dauer: etwa 10 Minuten, plus die Zeit für ein paar echte Aufnahmen.
 
 ## 1. Sprecherprofil
 
-1. Seite öffnen. Erwartet: Kopfzeile „wortlaut · hören“ **ohne** Navigation,
-   Überschrift „Sprecher“, darunter „Noch kein Sprecherprofil vorhanden.“ —
-   das ist der Leerzustand, keine kaputte Seite.
+1. Seite öffnen. Erwartet: Kopfzeile mit einer Reihe — „wortlaut“, dahinter
+   die drei Apps, „hören“ dunkelgrün hinterlegt, „lernen“ und „schreiben“
+   blass und nicht anklickbar (die gibt es noch nicht). Die zweite Reihe mit
+   den Ansichten fehlt noch. Darunter Überschrift „Sprecher“ und
+   „Noch kein Sprecherprofil vorhanden.“ — das ist der Leerzustand, keine
+   kaputte Seite.
 2. Unter „Neues Profil“: Namen eintragen, Basismodell auf
    `whisper-small (Entwicklung ohne GPU)` oder, für noch weniger Rechenlast,
    `whisper-tiny (noch weniger Rechenlast)` stellen, **Anlegen**. Für den
    Testablauf hier ohne Belang: `hören` selbst ruft Whisper nirgends auf —
    das Feld ist reine Metadaten für das spätere Training in `lernen`.
 3. Erwartet: Profil erscheint in der Liste, App springt automatisch zur
-   Ansicht „Textquelle“, die Navigation oben ist jetzt sichtbar.
+   Ansicht „Textquelle“; in der Kopfzeile steht jetzt eine zweite Reihe
+   (Sprecher, Textquelle, Aufnehmen, Fortschritt, Einstellungen) mit
+   „Textquelle“ hell hinterlegt. Beim Wechsel der Ansicht wandert die
+   Hinterlegung mit.
 4. Falls `WORTLAUT_AUTH_TOKEN` gesetzt ist: stattdessen erscheint unter der
    leeren Liste „Zugang nötig: bitte Token eintragen.“ Token unter „Zugang“
    eintragen, **Speichern**, dann Schritt 2 wiederholen.
@@ -79,14 +85,14 @@ und ein Schlüssel hinterlegt ist):
 
 ## 4. Fortschritt
 
-1. **Fortschritt** in der Navigation.
+1. **Fortschritt** in der Kopfzeile.
 2. Erwartet: Stundenzahl, Anzahl Aufnahmen, offene Einheiten; zwei Balken
    gegen die Marken „Brauchbar“ und „Gut“; Tabelle „Zusammensetzung“ mit den
    gerade aufgenommenen Modi (`gelesen` und ggf. `nachgesprochen`) und der
    Quelle (`vorlage`).
-3. **Abmelden.** Erwartet: zurück zur Startansicht, Navigation verschwindet,
-   das angelegte Profil steht weiter in der Sprecherliste und lässt sich
-   erneut auswählen.
+3. **Abmelden.** Erwartet: zurück zur Sprecheransicht, die Ansichtenreihe
+   verschwindet, die App-Reihe bleibt; das angelegte Profil steht weiter in
+   der Sprecherliste und lässt sich erneut auswählen.
 
 ## 5. Mikrofon
 
