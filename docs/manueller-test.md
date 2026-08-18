@@ -88,9 +88,46 @@ und ein Schlüssel hinterlegt ist):
    das angelegte Profil steht weiter in der Sprecherliste und lässt sich
    erneut auswählen.
 
-## 5. Einstellungen
+## 5. Mikrofon
 
-1. **Einstellungen** in der Navigation.
+Die Einstellungen öffnen den Abschnitt „Mikrofon“ ganz oben.
+
+1. **▶ Mikrofon testen** drücken. Beim ersten Mal fragt der Browser nach
+   Zugriff — **erlauben**. Erwartet: ein Pegelbalken erscheint und bewegt
+   sich beim Sprechen; darunter steht der Wert in dBFS und eine Einordnung
+   („guter Pegel“ / „zu leise“ / „zu laut“). Die Grenzen sind dieselben, die
+   der Server nach dem Absenden prüft — was hier „gut“ ist, gibt später
+   keinen Hinweis.
+2. Nicht sprechen. Erwartet: die Anzeige fällt auf „still“ zurück.
+3. **Verstärkung** verschieben, dabei weitersprechen. Erwartet: der Balken
+   folgt sofort, ohne dass der Test neu startet.
+4. **Automatisch einmessen** drücken und fünf Sekunden lang normal sprechen —
+   im selben Abstand wie später bei der Aufnahme. Erwartet: der Zähler läuft
+   von 5 herunter, danach steht „Verstärkung auf N,N× gesetzt“ und der Regler
+   ist entsprechend gesprungen. Wer während der fünf Sekunden schweigt,
+   bekommt „Nichts gehört“ und die Verstärkung bleibt, wie sie war.
+5. **● Probe aufnehmen**, ein paar Sätze sprechen, **■ Aufnahme beenden**.
+   Erwartet: unter dem Pegelbalken erscheint ein Abspieler „Probe“, und die
+   Wiedergabe ist so laut wie eingestellt.
+6. Sind mehrere Mikrofone da: bei laufendem Test ein anderes **Mikrofon**
+   wählen. Erwartet: der Test startet von selbst neu und der Balken reagiert
+   auf das andere Gerät. Vor dem ersten Test heißen die Geräte nur
+   „Mikrofon 1“, „Mikrofon 2“ — die echten Namen gibt der Browser erst nach
+   erteilter Erlaubnis heraus.
+7. **Pegel automatisch nachregeln** aus- und wieder einschalten. Erwartet:
+   der Test startet jedes Mal neu (die Regelung sitzt in der Aufnahme des
+   Browsers und lässt sich nur beim Öffnen setzen).
+8. **■ Test beenden**. Erwartet: die Aufnahmeanzeige des Browsers im Tab
+   erlischt. Sie darf nicht stehen bleiben — sonst hört die App weiter mit.
+9. Zur **Aufnahme** wechseln und eine Einheit aufnehmen. Erwartet: der Wert
+   „… dBFS“ unter der Wiedergabe liegt in derselben Gegend wie im Test.
+10. Ein gewähltes Mikrofon abziehen (USB-Headset) und aufnehmen. Erwartet:
+    die Aufnahme läuft mit der Vorgabe des Browsers und darüber steht „Das
+    gewählte Mikrofon ist nicht da“ — keine verweigerte Aufnahme.
+
+## 6. Vorlesen und Anzeige
+
+1. Weiter unten in denselben **Einstellungen**.
 2. **Probe hören** drücken. Erwartet: der Probesatz wird vorgelesen. (Meldet
    der Browser keine deutsche Stimme, steht statt der Auswahl ein Hinweis und
    der Knopf ist ausgegraut — siehe `docs/betrieb.md`.)
@@ -104,10 +141,11 @@ und ein Schlüssel hinterlegt ist):
 6. Zur **Aufnahme** wechseln. Erwartet: die Vorlage erscheint in der
    eingestellten Größe, „▶ Vorsprechen lassen“ nutzt Stimme und Tempo aus den
    Einstellungen.
-7. Seite neu laden (F5). Erwartet: alle drei Werte sind erhalten
-   (`localStorage`).
+7. Seite neu laden (F5). Erwartet: alle Werte sind erhalten, auch Mikrofon
+   und Verstärkung (`localStorage`).
 8. **Auf Vorgaben zurücksetzen** drücken. Erwartet: Tempo 0,9×, Schriftgröße
-   2,0 rem, Stimme wieder die des Browsers.
+   2,0 rem, Stimme wieder die des Browsers, Verstärkung 1,0×, Mikrofon
+   wieder die Vorgabe des Browsers, Pegelregelung an.
 
 ## Aufräumen
 

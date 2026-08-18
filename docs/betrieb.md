@@ -95,9 +95,45 @@ gedacht. Das Frontend fragt den Token einmal ab und legt ihn im
 | `Unbekannter Sprecher` (404) | falsche `sprecher`-ID, oder Korpus liegt unter einem anderen `WORTLAUT_DATA_DIR` |
 | `Keine Textquelle konfiguriert` | `WORTLAUT_LLM_PROVIDER` ist leer — Textupload nutzen oder Anbieter setzen |
 | Aufnahmeknopf ohne Wirkung | `MediaRecorder` braucht HTTPS oder `localhost` |
+| Aufnahmen sind durchweg sehr leise (Hinweis „Sehr leise") | Erst unter „Einstellungen → Mikrofon" **Automatisch einmessen** laufen lassen; das hebt den Pegel im Browser an. Bleibt es leise, siehe „Leises Mikrofon unter Linux" unten. |
+| Der Pegelbalken im Mikrofontest bleibt auf „still" | Der Browser hat ein anderes Gerät geöffnet als erwartet — im Test das Mikrofon ausdrücklich auswählen. Steht dort nur „Mikrofon 1", war der Test noch nie an; die echten Namen gibt der Browser erst nach erteilter Erlaubnis heraus. |
 | „Vorlesen" ohne Stimme | Browser ohne deutsche Stimme für die Web Speech API |
 | Vorgelesene Stimme klingt blechern | Siehe „Bessere Vorlesestimme unter Linux" unten. Die Web Speech API nutzt die Stimmen des Betriebssystems; unter Linux ist das per Vorgabe espeak-ng. |
 | `make frontend` startet ohne Fehlermeldung, aber `localhost:5173` bleibt unerreichbar | `node_modules` fehlt (`npm install` in `apps/hoeren/frontend` vergessen). `npm run dev` sucht `vite` dann über `$PATH` — auf manchen Systemen (z. B. Ubuntu/Debian) existiert dort ein gleichnamiges, aber völlig anderes Paket namens `vite` (ViTE, ein Trace-Viewer), das kommentarlos ein leeres GUI-Fenster statt des Dev-Servers öffnet. Prüfen mit `command -v vite` — zeigt der Pfad nicht auf `apps/hoeren/frontend/node_modules/.bin/vite`, fehlt die Installation. Abhilfe: `npm install` nachholen. |
+
+## Leises Mikrofon unter Linux
+
+Eingebaute Mikrofone sind unter Linux oft deutlich leiser als unter macOS oder
+Windows — nicht weil die Hardware schlechter wäre, sondern weil dort im Treiber
+eine Verstärkung sitzt, die es hier nicht gibt. Betroffen sind besonders die
+Mikrofonarrays von Apple-Geräten am `snd-hda-macbookpro`-Treiber (T2).
+
+Erst nachsehen, ob auf Systemebene überhaupt noch Luft ist:
+
+```bash
+pactl get-default-source
+pactl list sources | grep -A6 'Name: alsa_input'
+```
+
+Steht dort `Volume: … / 100% / 0,00 dB` bei `Base Volume: … / 100% / 0,00 dB`,
+ist der Regler bereits am Anschlag — der Eingang liefert schlicht wenig. Zwei
+Wege gibt es dann:
+
+```bash
+# 1. Über die Vorgabe hinaus verstärken (PipeWire/PulseAudio können das)
+pactl set-source-volume @DEFAULT_SOURCE@ 200%
+```
+
+Das gilt für alle Programme, nicht nur für wortlaut, und wird bei einigen
+Treibern beim Neustart zurückgesetzt.
+
+2. Oder die **Verstärkung** unter „Einstellungen → Mikrofon" benutzen. Sie
+   wirkt nur in dieser App, überlebt den Neustart und lässt sich mit
+   „Automatisch einmessen" auf die eigene Stimme einstellen.
+
+Beides verstärkt das Rauschen des Raumes mit. Wo Aufnahmen über Stunden
+entstehen sollen, bringt ein Headset oder ein Ansteckmikrofon mehr als jede
+Verstärkung.
 
 ## Bessere Vorlesestimme unter Linux
 

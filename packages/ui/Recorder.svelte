@@ -2,67 +2,65 @@
   /**
    * Ein Knopf, eine Aufnahme.
    *
-   * `MediaRecorder` liefert je nach Browser Opus in WebM oder OGG, Safari
-   * liefert MP4. Was davon kommt, ist gleichgültig: umgewandelt wird
-   * serverseitig an genau einer Stelle (`wortlaut.audio`).
+   * Gerätewahl, Verstärkung und Format stecken in `mikrofon.ts` — dieselbe
+   * Kette, die der Mikrofontest in den Einstellungen vorführt. Hier bleibt
+   * nur, was den Knopf betrifft.
    */
+  import { Aufnahmekette, MikrofonFehler, zeichneAuf } from './mikrofon';
+
   let {
     onaufnahme,
     deaktiviert = false,
+    geraeteId = null,
+    verstaerkung = 1,
+    autoPegel = true,
   }: {
     /** Wird mit der fertigen Aufnahme aufgerufen. */
     onaufnahme: (aufnahme: Blob) => void;
     deaktiviert?: boolean;
+    /** Gewähltes Mikrofon; `null` heißt: was der Browser vorschlägt. */
+    geraeteId?: string | null;
+    verstaerkung?: number;
+    autoPegel?: boolean;
   } = $props();
 
   let laeuft = $state(false);
   let fehler = $state('');
   let sekunden = $state(0);
 
-  let rekorder: MediaRecorder | null = null;
+  let kette: Aufnahmekette | null = null;
+  let beende: (() => Promise<Blob>) | null = null;
   let uhr: ReturnType<typeof setInterval> | null = null;
-
-  function bevorzugterTyp(): string {
-    const kandidaten = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'];
-    return kandidaten.find((typ) => MediaRecorder.isTypeSupported(typ)) ?? '';
-  }
 
   async function starte() {
     fehler = '';
     try {
-      const strom = await navigator.mediaDevices.getUserMedia({
-        // Die Umwandlung macht ffmpeg; hier geht es nur um saubere Rohdaten.
-        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: false },
-      });
-      const stuecke: Blob[] = [];
-      const typ = bevorzugterTyp();
-      rekorder = new MediaRecorder(strom, typ ? { mimeType: typ } : undefined);
-
-      rekorder.ondataavailable = (ereignis) => {
-        if (ereignis.data.size > 0) stuecke.push(ereignis.data);
-      };
-      rekorder.onstop = () => {
-        strom.getTracks().forEach((t) => t.stop()); // Mikrofon wieder freigeben
-        onaufnahme(new Blob(stuecke, { type: typ || 'audio/webm' }));
-      };
-
-      rekorder.start();
+      kette = await Aufnahmekette.oeffne({ geraeteId, verstaerkung, autoPegel });
+      if (kette.ersatzGeraet) {
+        fehler = 'Das gewählte Mikrofon ist nicht da — es läuft die Vorgabe des Browsers.';
+      }
+      beende = zeichneAuf(kette);
       laeuft = true;
       sekunden = 0;
       uhr = setInterval(() => (sekunden += 1), 1000);
     } catch (ursache) {
-      fehler =
-        ursache instanceof DOMException && ursache.name === 'NotAllowedError'
-          ? 'Kein Zugriff auf das Mikrofon. Bitte im Browser erlauben.'
-          : 'Aufnahme nicht möglich. Braucht HTTPS oder localhost.';
+      fehler = ursache instanceof MikrofonFehler ? ursache.message : String(ursache);
+      kette?.schliesse();
+      kette = null;
     }
   }
 
-  function stoppe() {
-    rekorder?.stop();
-    rekorder = null;
+  async function stoppe() {
     laeuft = false;
     if (uhr) clearInterval(uhr);
+    const fertig = beende;
+    beende = null;
+    // Erst die Aufnahme einsammeln, dann das Mikrofon freigeben: umgekehrt
+    // fehlt dem Rekorder die Quelle, bevor er sein letztes Stück liefert.
+    const aufnahme = await fertig?.();
+    kette?.schliesse();
+    kette = null;
+    if (aufnahme) onaufnahme(aufnahme);
   }
 </script>
 

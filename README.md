@@ -124,6 +124,9 @@ wortlaut/
 │       ├── Recorder.svelte
 │       ├── AudioPlayer.svelte
 │       ├── PromptView.svelte      # eine Einheit groß, Kontext blass
+│       ├── Mikrofontest.svelte    # Gerät wählen, Pegel sehen, Probe hören
+│       ├── Pegelanzeige.svelte    # Pegelbalken, Grenzen wie in quality.py
+│       ├── mikrofon.ts            # Aufnahmekette: Gerät, Verstärkung, Messung
 │       └── speak.ts               # Vorlesen über Web Speech API, Stimme und Tempo
 │
 ├── training/                      # noch nicht gebaut: das, was auf der GPU läuft
@@ -190,15 +193,43 @@ verbessern. Wege zu einer besseren Stimme stehen in `docs/betrieb.md`.
 
 ### Einstellungen
 
-Unter `#/einstellungen` liegen Stimme, Sprechtempo und Schriftgröße der Vorlage, je
-mit Probe. Sie hängen am Gerät und nicht am Sprecherprofil — welche Stimmen es gibt,
-bestimmt das Betriebssystem, und wer die App auf zwei Geräten benutzt, braucht dort
-verschiedene Werte. Gespeichert wird deshalb im `localStorage` des Browsers
-(`wortlaut.stimme`, `wortlaut.tempo`, `wortlaut.schrift`), nicht im Korpus.
+Unter `#/einstellungen` liegen Mikrofon, Stimme, Sprechtempo und Schriftgröße der
+Vorlage, je mit Probe. Sie hängen am Gerät und nicht am Sprecherprofil — welche
+Stimmen und welche Mikrofone es gibt, bestimmt das Betriebssystem, und wer die App
+auf zwei Geräten benutzt, braucht dort verschiedene Werte. Gespeichert wird deshalb
+im `localStorage` des Browsers (`wortlaut.mikrofon`, `wortlaut.verstaerkung`,
+`wortlaut.autopegel`, `wortlaut.stimme`, `wortlaut.tempo`, `wortlaut.schrift`),
+nicht im Korpus.
 
 Die Schriftgröße ist einstellbar, weil die Zielgruppe sehr verschieden gut liest —
 dieselbe Vorgabe, die einer Person zu klein ist, drängt bei einer anderen den
 Kontext aus dem Bild.
+
+#### Mikrofon
+
+Der Mikrofontest zeigt den Pegel live, gegen dieselben Grenzen, die der Server nach
+dem Absenden prüft (`services/quality.py`) — was im Test „guter Pegel" ist, gibt
+später keinen Hinweis. Dazu die Wahl unter den vorhandenen Geräten und eine Probe
+zum Anhören.
+
+Zu leise Eingänge lassen sich auf zwei Arten heben, und die beiden tun
+Verschiedenes:
+
+- **Verstärkung** ist ein fester Faktor (1–20×) vor der Aufzeichnung. Er behebt ein
+  Mikrofon, das durchweg zu leise ist — unter Linux der Normalfall bei eingebauten
+  Mikrofonen, siehe `docs/betrieb.md`. **Automatisch einmessen** hört fünf Sekunden
+  zu und setzt den Faktor so, dass die Spitze bei −6 dBFS landet; eingemessen wird
+  auf die Spitze und nicht auf den Mittelwert, weil ein Wert am Anschlag verloren
+  ist, ein zu leiser Mittelwert dagegen nur ungünstig.
+- **Pegel automatisch nachregeln** ist die Regelung des Browsers (AGC). Sie gleicht
+  aus, wenn mal lauter und mal leiser gesprochen wird, hebt einen durchweg zu leisen
+  Eingang aber nicht an.
+
+Beides steckt in der gespeicherten Aufnahme — sie ist Trainingsmaterial, und was
+hier verstärkt wird, ist später verstärkt. Das ist gewollt: eine Aufnahme knapp über
+dem Rauschen nützt dem Training nicht. Was aber *nicht* passiert, ist eine
+nachträgliche Normalisierung auf dem Server. Wie laut jemand spricht, gehört zu den
+Daten, für die dieses Projekt existiert.
 
 ### Endpunkte
 
