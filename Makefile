@@ -1,14 +1,18 @@
 # Alles, was man im Alltag braucht — mehr nicht.
 #
-#   make test                    Testlauf (Bibliothek und App)
+#   make test                    Testlauf (Bibliothek und Apps)
 #   make migrate                 Datenbanken anlegen bzw. fortschreiben
 #   make dev APP=hoeren          Backend und Vite parallel starten
+#   make dev APP=schreiben       dasselbe für „schreiben" (Backend :8001, Vite :5174)
 #   make backend APP=hoeren      nur das Backend
 #   make frontend APP=hoeren     nur Vite
 #   make install APP=hoeren      Frontend-Abhängigkeiten installieren
 
-APP  ?= hoeren
-PORT ?= 8000
+APP ?= hoeren
+
+# Je App ein eigener Port, damit beide gleichzeitig laufen können; die
+# Vite-Konfiguration von „schreiben" leitet /api genau dorthin.
+PORT ?= $(if $(filter schreiben,$(APP)),8001,8000)
 
 FRONTEND     = apps/$(APP)/frontend
 NODE_MODULES = $(FRONTEND)/node_modules

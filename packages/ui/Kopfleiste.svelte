@@ -17,6 +17,7 @@
     app,
     punkte = [],
     route = '/',
+    hinweis = '',
   }: {
     /** Welche der drei Apps diese Seite ist. */
     app: AppSchluessel;
@@ -24,6 +25,13 @@
     punkte?: Menuepunkt[];
     /** Die offene Hash-Route, ohne `#`. */
     route?: string;
+    /**
+     * Eine Zeile am rechten Rand der App-Reihe. „schreiben" zeigt darin
+     * dauerhaft Basismodell und Datum seines Modellstands: Ein Modellwechsel
+     * ist dort eine Konfigurationsänderung, und wer eine Ausgabe beurteilt,
+     * muss sehen, welcher Stand sie erzeugt hat.
+     */
+    hinweis?: string;
   } = $props();
 </script>
 
@@ -45,6 +53,9 @@
         {/if}
       {/each}
     </nav>
+    {#if hinweis}
+      <span class="hinweis">{hinweis}</span>
+    {/if}
   </div>
 
   {#if punkte.length}
@@ -103,6 +114,14 @@
     display: block;
     width: 1.5em;
     height: 1.5em;
+  }
+
+  /* Randnotiz, kein Bedienelement: schiebt sich nach rechts und bleibt leise. */
+  .hinweis {
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: var(--gedaempft);
+    text-align: right;
   }
 
   .ansichten {

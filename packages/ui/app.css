@@ -1,4 +1,6 @@
-/* Ruhig, kontrastreich, große Schrift: gelesen wird hier unter Anstrengung. */
+/* Das gemeinsame Aussehen aller drei Apps.
+   Ruhig, kontrastreich, große Schrift: gelesen wird hier unter Anstrengung.
+   Eingebunden von der `main.ts` jeder App über den Alias `$ui`. */
 :root {
   --rand: #d8d4cd;
   --gedaempft: #6b6b6b;

@@ -6,9 +6,10 @@
     └── checkpoint/                 Rohgewichte, optional
 
 Ein Modellstand ist damit ein Verzeichnis, das man kopieren, sichern und per
-`scp` verschieben kann. Geschrieben wird die Registry von „lernen", gelesen von
-„schreiben"; beide Apps sind noch nicht implementiert, das Format aber ist die
-Nahtstelle und gehört deshalb an genau eine Stelle.
+`scp` verschieben kann. Geschrieben wird die Registry von „lernen" — die App
+gibt es noch nicht —, gelesen von „schreiben", das ohne einen Stand mit dem
+unveränderten Whisper-Modell arbeitet. Das Format ist die Nahtstelle zwischen
+beiden und gehört deshalb an genau eine Stelle.
 """
 
 from __future__ import annotations

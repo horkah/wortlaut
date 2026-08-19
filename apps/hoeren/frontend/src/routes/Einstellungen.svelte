@@ -18,7 +18,7 @@
     setzeZurueck,
     SCHRIFT_SPANNE,
     TEMPO_SPANNE,
-  } from '../lib/einstellungen.svelte';
+  } from '$ui/einstellungen.svelte';
 
   const PROBE = 'Am Montag gehe ich zum Markt und kaufe frisches Brot.';
 

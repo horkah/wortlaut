@@ -5,9 +5,14 @@
  * und welche Mikrofone es gibt, hängt am Gerät, und wer die App auf zwei
  * Geräten benutzt, braucht dort verschiedene Werte. Ein Schlüssel je Wert,
  * wie beim Sprecher und beim Token auch.
+ *
+ * Geteilt zwischen den Apps, nicht kopiert: `localStorage` gehört dem
+ * Ursprung, und alle drei Apps liegen unter derselben Adresse. Wer das
+ * Mikrofon in „hören" einmisst, hat es damit auch in „schreiben" eingemessen
+ * — dort gibt es bewusst keine Einstellungsansicht (Grundentscheidung 7).
  */
-import { VERSTAERKUNG_SPANNE, VERSTAERKUNG_VORGABE } from '$ui/mikrofon';
-import { TEMPO_VORGABE } from '$ui/speak';
+import { VERSTAERKUNG_SPANNE, VERSTAERKUNG_VORGABE } from './mikrofon';
+import { TEMPO_VORGABE } from './speak';
 
 const MIKROFON_SCHLUESSEL = 'wortlaut.mikrofon';
 const VERSTAERKUNG_SCHLUESSEL = 'wortlaut.verstaerkung';

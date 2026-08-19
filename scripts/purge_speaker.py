@@ -3,8 +3,8 @@
     uv run python scripts/purge_speaker.py spr_7f2a --ja-wirklich
 
 Das Recht auf Löschung muss ausführbar sein, nicht dokumentiert. Entfernt
-werden Profil, Vorlagen, Aufnahmen, Modellstände und die Schnappschüsse, die
-aus diesem Korpus entstanden sind.
+werden Profil, Vorlagen, Aufnahmen, Modellstände, die Schnappschüsse, die aus
+diesem Korpus entstanden sind, und die Diktate von „schreiben".
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from wortlaut import corpus, registry
 
 from apps.hoeren.backend.config import einstellungen
+from apps.schreiben.backend.config import sprecher_relpfad as diktate_relpfad
 
 # Schnappschüsse legt „lernen" an. Damit sie löschbar bleiben, ohne ihr
 # Manifest zu deuten, liegt neben dem Manifest eine Datei mit der Sprecher-ID.
@@ -39,6 +40,8 @@ def main() -> int:
     ziele = [
         datenverzeichnis / corpus.sprecher_relpfad(argumente.sprecher_id),
         datenverzeichnis / registry.MODELLE / argumente.sprecher_id,
+        # Arbeitsstand von „schreiben": Diktate, die noch nicht übergeben sind.
+        datenverzeichnis / diktate_relpfad(argumente.sprecher_id),
         *_schnappschuesse(datenverzeichnis, argumente.sprecher_id),
     ]
     vorhanden = [ziel for ziel in ziele if ziel.exists()]

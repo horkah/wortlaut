@@ -115,3 +115,36 @@ def untersuche(wav: Path) -> Befund:
 def _dbfs(betrag: float) -> float:
     """Linearer Betrag → dBFS. Stille ergibt −120 statt minus unendlich."""
     return 20 * math.log10(max(betrag, 1e-6) / VOLLAUSSCHLAG)
+
+
+def schneide_ausschnitt(quelle: Path, ziel: Path, start_s: float, ende_s: float) -> None:
+    """Schreibt den Bereich [start_s, ende_s) einer WAV-Datei in eine neue Datei.
+
+    Gebraucht von „schreiben": Whisper liefert Abschnittsgrenzen, und jeder
+    Abschnitt braucht sein eigenes Audio — er kann einzeln neu eingesprochen
+    werden und geht einzeln als Korrekturpaar an „hören".
+
+    Reine Standardbibliothek und ohne Umkodieren: ein Schnitt an
+    Rahmengrenzen ist das Kopieren eines Byte-Bereichs. Grenzen außerhalb der
+    Datei werden auf sie zurechtgestutzt, statt zu scheitern — Whisper meldet
+    gelegentlich ein Ende hinter dem letzten Abtastwert.
+    """
+    with wave.open(str(quelle), "rb") as datei:
+        rahmen_gesamt = datei.getnframes()
+        rate = datei.getframerate()
+        von = max(0, min(rahmen_gesamt, int(start_s * rate)))
+        bis = max(von, min(rahmen_gesamt, int(ende_s * rate)))
+        datei.setpos(von)
+        rohdaten = datei.readframes(bis - von)
+        parameter = datei.getparams()
+
+    if not rohdaten:
+        raise AudioFehler(f"Leerer Ausschnitt {start_s:.2f}–{ende_s:.2f} s.")
+
+    ziel.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(ziel), "wb") as neu:
+        # Kanäle, Breite und Rate der Quelle übernehmen; nur die Länge ändert sich.
+        neu.setnchannels(parameter.nchannels)
+        neu.setsampwidth(parameter.sampwidth)
+        neu.setframerate(parameter.framerate)
+        neu.writeframes(rohdaten)
