@@ -33,26 +33,9 @@ services:
     volumes:
       - wortlaut-data:/srv/wortlaut/data
     expose:
-      - "8000"
+      - 'ports: ["127.0.0.1:8000:8000"]'
     depends_on:
       - hoeren
-
-  caddy:
-    image: caddy:2
-    restart: unless-stopped
-    environment:
-      # Aus der .env des Wirts; ohne Eintrag bleibt es bei HTTP auf :80.
-      WORTLAUT_DOMAIN: ${WORTLAUT_DOMAIN:-}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    depends_on:
-      - hoeren
-      - schreiben
 
 volumes:
   wortlaut-data:
