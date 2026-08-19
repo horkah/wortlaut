@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img">
+  <title>wortlaut</title>
+  <!--
+    Fassung für den Browser-Tab. Sie wird immer als eigenständiges Dokument
+    geladen, nie in eine Seite eingebettet; deshalb darf hier eine
+    Medienabfrage auf `:root` stehen. Ohne sie wäre das schwarze Zeichen in
+    einer dunklen Tableiste kaum zu sehen.
+
+    Kopie unter apps/hoeren/frontend/public/favicon.svg — siehe README.md.
+  -->
+  <style>
+    :root { color: #1c1b19 }
+    @media (prefers-color-scheme: dark) { :root { color: #faf9f7 } }
+  </style>
+  <path
+    d="M21.5,20.5 L33.5,43.5 L47.5,11.5 L61.5,43.5 C67.91,28.84 64.87,14.48 71.57,20.49 A39,39 0 1 1 15.5,74.42 L15.5,45.5"
+    fill="none" stroke="currentColor" stroke-width="10"
+    stroke-linecap="round" stroke-linejoin="round" />
+</svg>

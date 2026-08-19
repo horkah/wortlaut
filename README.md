@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/wortlaut-logo-invers.svg" />
+  <img src="assets/wortlaut-logo.svg" alt="" width="88" height="88" />
+</picture>
+
 # wortlaut
 
 Personalisierte Spracherkennung für Deutsch, wenn die Standardmodelle versagen —

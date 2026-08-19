@@ -9,6 +9,9 @@
    * Aufmerksamkeit.
    */
   import { APPS, type AppSchluessel, type Menuepunkt } from './apps';
+  // Als Quelltext eingebunden und nicht als <img>, damit das Zeichen die
+  // Schriftfarbe des Schriftzugs annimmt (die Datei zeichnet currentColor).
+  import zeichen from '../../assets/wortlaut-logo.svg?raw';
 
   let {
     app,
@@ -26,7 +29,9 @@
 
 <header class="kopf">
   <div class="ebene apps">
-    <h1 class="marke">wortlaut</h1>
+    <h1 class="marke">
+      <span class="zeichen">{@html zeichen}</span>wortlaut
+    </h1>
     <nav aria-label="Apps">
       {#each APPS as eintrag (eintrag.schluessel)}
         {#if eintrag.schluessel === app}
@@ -77,12 +82,27 @@
   }
 
   .marke {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
     font-size: 1.1rem;
     margin: 0;
     font-weight: 600;
     letter-spacing: 0.02em;
     color: var(--gedaempft);
     margin-right: 0.6rem;
+  }
+
+  /* Das Zeichen trägt die Marke, darum kräftig; der Schriftzug bleibt leise.
+     Etwas größer als die Versalhöhe, sonst wirkt es angeklebt. */
+  .zeichen {
+    color: var(--akzent);
+  }
+
+  .zeichen :global(svg) {
+    display: block;
+    width: 1.5em;
+    height: 1.5em;
   }
 
   .ansichten {
