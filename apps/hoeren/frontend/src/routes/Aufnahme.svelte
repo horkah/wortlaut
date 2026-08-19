@@ -20,7 +20,7 @@
     type Aufnahme,
     type Naechste,
   } from '../lib/api';
-  import { einstellungen } from '../lib/einstellungen.svelte';
+  import { einstellungen } from '$ui/einstellungen.svelte';
   import { gehZu, zustand } from '../lib/zustand.svelte';
 
   const sprecher = zustand.sprecher!;

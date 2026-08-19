@@ -1,10 +1,21 @@
 # TLS ohne Konfigurationsaufwand: WORTLAUT_DOMAIN in der .env setzen, fertig.
 # Ohne Eintrag lauscht Caddy auf :80 — gut für den Versuch auf der Maschine
 # selbst, für ein Zertifikat von Let's Encrypt braucht es den echten Namen.
-# Eine Domain für alle drei Apps. Solange nur „hören" existiert, geht alles
-# dorthin; für „lernen" und „schreiben" kommt je ein `handle_path /lernen/*`
-# dazu, und „hören" zieht dann von der Wurzel auf `/hoeren/` um.
+# Eine Domain für alle drei Apps, ein Zertifikat, ein Block. „hören" ist der
+# Einstieg und liegt auf der Wurzel; jede weitere App bekommt einen Pfad.
+# `handle_path` schneidet das Präfix ab — der Container dahinter sieht seine
+# eigenen Wege und muss nichts von der Verteilung wissen. Dass das gebaute
+# Frontend seine Dateien trotzdem unter `/schreiben/…` sucht, steht im `base`
+# seiner Vite-Konfiguration; beides gehört zusammen (siehe packages/ui/apps.ts).
+# Für „lernen" kommt später ein dritter Block nach demselben Muster dazu.
 {$WORTLAUT_DOMAIN::80} {
 	encode gzip
-	reverse_proxy hoeren:8000
+
+	handle_path /schreiben/* {
+		reverse_proxy schreiben:8000
+	}
+
+	handle {
+		reverse_proxy hoeren:8000
+	}
 }

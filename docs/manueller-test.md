@@ -1,11 +1,13 @@
-# Manueller Test — App „hören“
+# Manueller Test
 
-Schritt-für-Schritt-Anleitung für einen Menschen im Browser. Prüft den
-kompletten Weg vom leeren Sprecherprofil bis zur ersten Aufnahme, einmal quer
-durch alle Ansichten. Ergänzt `make test` (automatisiert, ohne Browser, ohne
-Mikrofon) — ersetzt es nicht.
+Schritt-für-Schritt-Anleitung für einen Menschen im Browser. Abschnitte 1–6
+prüfen die App „hören" vom leeren Sprecherprofil bis zur ersten Aufnahme,
+Abschnitt 7 die App „schreiben" vom Diktat bis zur Korrektur im Korpus.
+Ergänzt `make test` (automatisiert, ohne Browser, ohne Mikrofon) — ersetzt es
+nicht.
 
-Dauer: etwa 10 Minuten, plus die Zeit für ein paar echte Aufnahmen.
+Dauer: etwa 10 Minuten für „hören", 10 weitere für „schreiben", plus die Zeit
+für ein paar echte Aufnahmen.
 
 ## Voraussetzungen
 
@@ -19,8 +21,8 @@ Dauer: etwa 10 Minuten, plus die Zeit für ein paar echte Aufnahmen.
 ## 1. Sprecherprofil
 
 1. Seite öffnen. Erwartet: Kopfzeile mit einer Reihe — „wortlaut“, dahinter
-   die drei Apps, „hören“ dunkelgrün hinterlegt, „lernen“ und „schreiben“
-   blass und nicht anklickbar (die gibt es noch nicht). Die zweite Reihe mit
+   die drei Apps, „hören“ dunkelgrün hinterlegt, „schreiben“ anklickbar und
+   „lernen“ blass und tot (die gibt es noch nicht). Die zweite Reihe mit
    den Ansichten fehlt noch. Darunter Überschrift „Sprecher“ und
    „Noch kein Sprecherprofil vorhanden.“ — das ist der Leerzustand, keine
    kaputte Seite.
@@ -153,12 +155,62 @@ Die Einstellungen öffnen den Abschnitt „Mikrofon“ ganz oben.
    2,0 rem, Stimme wieder die des Browsers, Verstärkung 1,0×, Mikrofon
    wieder die Vorgabe des Browsers, Pegelregelung an.
 
+## 7. App „schreiben“
+
+Eigener Server, eigene Ports: `make dev APP=schreiben` (Backend `:8001`, Vite
+`:5174`). „hören“ darf daneben weiterlaufen — für Schritt 7.6 muss es das
+sogar. Vorher in der `.env`:
+
+```
+WORTLAUT_SPRECHER_ID=<die ID aus Schritt 1>
+WORTLAUT_INTAKE_URL=http://localhost:8000/api/korpus/intake
+WORTLAUT_INTAKE_TOKEN=<derselbe Wert wie WORTLAUT_AUTH_TOKEN, falls gesetzt>
+```
+
+Aufgerufen wird **`http://localhost:5174/schreiben/`** — mit Pfad; ohne ihn
+bleibt die Seite leer, das ist kein Fehler.
+
+1. Seite öffnen. Erwartet: dieselbe Kopfzeile, jetzt mit „schreiben“
+   hinterlegt, keine zweite Reihe, und rechts oben blass der Modellstand —
+   ohne `WORTLAUT_MODELL_REF` steht dort „whisper-tiny · unverändert“.
+   Darunter mittig „Sprechen Sie einfach los.“ und ein großer Knopf.
+2. **● Aufnehmen**, zwei bis drei kurze Sätze sprechen, **■ Fertig**.
+   Erwartet: „Wird verstanden …“. Beim allerersten Mal dauert das länger, weil
+   faster-whisper sein Modell herunterlädt (Fortschritt in der
+   Backend-Konsole). Danach wechselt die Ansicht zum Text.
+3. Erwartet: die Sätze stehen als einzeln umrandete Abschnitte untereinander,
+   und die App liest von selbst vor; der gerade gesprochene Abschnitt ist
+   blass hinterlegt. **■ Anhalten** stoppt sofort, **▶ Vorlesen** beginnt von
+   vorn. Dass `tiny` dabei Unsinn versteht, ist erwartet und der Grund für
+   die App „lernen“.
+4. Einen falschen Abschnitt **anklicken**. Erwartet: er bekommt einen
+   kräftigen Rahmen, darunter erscheint eine Karte mit dem Text groß, einem
+   Abspieler „So klang es“ und einem Aufnahmeknopf. Diesen Satz noch einmal
+   sprechen. Erwartet: nur dieser Abschnitt ändert sich, alle anderen stehen
+   unverändert; links am Abschnitt bleibt eine schmale Markierung („neu“).
+   Ein zweiter Klick auf denselben Abschnitt schließt die Karte wieder.
+5. **Weitersprechen** drücken, einen weiteren Satz diktieren. Erwartet: die
+   neuen Abschnitte hängen hinten an, die alten bleiben stehen.
+6. **Fertig** drücken. Erwartet: „Der Text ist abgeschickt.“ und „N von N
+   Abschnitten sind bei „hören“ angekommen.“ Zur Probe in „hören“ unter
+   **Fortschritt** nachsehen: in der Tabelle „Zusammensetzung“ steht jetzt
+   Quelle `korrektur` und Modus `frei`, mit der Zahl der Abschnitte.
+7. Den Postausgang prüfen: „hören“ anhalten (`Strg-C` im Terminal), in
+   „schreiben“ **Neuer Text**, kurz diktieren, **Fertig**. Erwartet: „Noch
+   nicht alles übergeben“ mit dem Grund und einem Knopf **Noch einmal
+   senden**. „hören“ wieder starten, den Knopf drücken. Erwartet: alles
+   angekommen, kein doppelter Eintrag im Fortschritt von „hören“ (die
+   Abschnittskennung verhindert das).
+8. Seite neu laden (F5), solange ein Text unbestätigt ist. Erwartet: der Text
+   ist wieder da. Einen neuen Tab öffnen: dort ein leeres Blatt.
+
 ## Aufräumen
 
-Testdaten liegen unter `data/korpus/<sprecher_id>/` (Pfad aus
-`WORTLAUT_DATA_DIR`). Löschen genügt ein Entfernen des Verzeichnisses, oder
+Testdaten liegen unter `data/korpus/<sprecher_id>/` und
+`data/diktate/<sprecher_id>/` (Pfad aus `WORTLAUT_DATA_DIR`). Löschen genügt
+ein Entfernen der Verzeichnisse, oder
 `uv run python scripts/purge_speaker.py <sprecher_id>` für den vollständigen
-Weg über das Löschskript.
+Weg über das Löschskript — es räumt beide zugleich weg.
 
 ## Bekannte, keine Fehler
 
@@ -166,5 +218,7 @@ Weg über das Löschskript.
 |---|---|
 | `GET / → 404` und `GET /favicon.ico → 404` in der Backend-Konsole | normal in der Entwicklung — das Backend liefert `/` nur aus, wenn unter `frontend/dist` ein gebautes Frontend liegt; in der Entwicklung läuft die Oberfläche über Vite auf `:5173` |
 | Startseite zeigt nur „Sprecher“ und ein leeres Formular | Leerzustand vor dem ersten Profil, keine kaputte Seite |
+| „schreiben“ versteht mit `tiny` erkennbar Falsches | erwartet — genau dafür gibt es die App „lernen“ |
+| `http://localhost:5174` ohne `/schreiben/` bleibt leer | die App liegt unter einem Pfad (`base` in ihrer `vite.config.ts`) |
 
 Bekannte Fehlerbilder mit Ursache: [`docs/betrieb.md#wenn-etwas-klemmt`](betrieb.md#wenn-etwas-klemmt).

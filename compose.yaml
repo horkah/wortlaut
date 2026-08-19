@@ -1,6 +1,5 @@
 # Betrieb: ein Anwendungscontainer je App plus Caddy als TLS-Endpunkt.
-# Derzeit ist nur „hören" implementiert; „lernen" und „schreiben" kommen als
-# weitere Dienste mit demselben Muster dazu.
+# „lernen" kommt als weiterer Dienst nach demselben Muster dazu.
 services:
   hoeren:
     build:
@@ -17,6 +16,27 @@ services:
     expose:
       - "8000"
 
+  schreiben:
+    build:
+      context: .
+      dockerfile: apps/schreiben/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      WORTLAUT_DATA_DIR: /srv/wortlaut/data
+      # Zwei Container, ein Volume: „schreiben" schreibt nur in sein eigenes
+      # Verzeichnis (data/diktate) und liest die Modelle aus data/modelle.
+      # Der Korpus gehört „hören" allein (Grundentscheidung 6); dorthin geht
+      # es über die API, nicht über das Dateisystem.
+      WORTLAUT_INTAKE_URL: http://hoeren:8000/api/korpus/intake
+      WORTLAUT_INTAKE_TOKEN: ${WORTLAUT_AUTH_TOKEN:-}
+    volumes:
+      - wortlaut-data:/srv/wortlaut/data
+    expose:
+      - "8000"
+    depends_on:
+      - hoeren
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -32,6 +52,7 @@ services:
       - caddy-config:/config
     depends_on:
       - hoeren
+      - schreiben
 
 volumes:
   wortlaut-data:

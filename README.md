@@ -17,10 +17,14 @@ Drei Apps, die nacheinander greifen:
 |---|---|---|
 | **hören** | Sprachproben sammeln — zu LLM-erzeugten oder hochgeladenen Texten | läuft, mit Tests |
 | **lernen** | aus den Proben ein sprecherspezifisches Whisper-Modell feintunen | entworfen |
-| **schreiben** | mit diesem Modell diktieren, vorlesen lassen, Fehler neu einsprechen | entworfen |
+| **schreiben** | mit diesem Modell diktieren, vorlesen lassen, Fehler neu einsprechen | läuft, mit Tests |
 
 `lernen` liest die Dateien von `hören`. `schreiben` liest das Modell von `lernen` und
 gibt Korrekturen an `hören` zurück. Sonst berühren sie sich nicht.
+
+Solange `lernen` fehlt, läuft `schreiben` mit dem unveränderten `whisper-tiny`.
+Das ist kein Behelf, sondern der Anfang der Messlatte: Was dieses Modell mit
+einer abweichenden Aussprache anstellt, ist der Grund für das ganze Projekt.
 
 ---
 
@@ -99,13 +103,31 @@ wortlaut/
 │   │   ├── frontend/
 │   │   │   ├── vite.config.ts     # Alias auf packages/ui, Proxy auf /api
 │   │   │   └── src/
-│   │   │       ├── lib/           # api.ts, zustand.svelte.ts, einstellungen.svelte.ts
+│   │   │       ├── lib/           # api.ts, zustand.svelte.ts
 │   │   │       └── routes/        # Start, Quelle wählen, Aufnahme, Fortschritt,
 │   │   │                          # Einstellungen
 │   │   └── tests/                 # Endpunkte, Warteschlange, Intake
 │   │
 │   ├── lernen/                    # App „lernen" — entworfen, siehe README dort
-│   └── schreiben/                 # App „schreiben" — entworfen, siehe README dort
+│   │
+│   └── schreiben/                 # App „schreiben"
+│       ├── Dockerfile
+│       ├── backend/
+│       │   ├── main.py            # FastAPI ohne Token (Grundentscheidung 7)
+│       │   ├── config.py          # Sprecher, Modellstand, ASR, Intake-Adresse
+│       │   ├── deps.py            # Datenbank, Ablage, Transkriptor
+│       │   ├── api/
+│       │   │   ├── sessions.py    # Diktiersitzung, Bestätigen
+│       │   │   ├── segments.py    # diktieren, Abschnitt neu einsprechen
+│       │   │   ├── model.py       # welcher Modellstand läuft
+│       │   │   └── outbox.py      # Postausgang ansehen, noch einmal senden
+│       │   ├── services/
+│       │   │   ├── segmenter.py   # transkribieren, an Zeitmarken schneiden
+│       │   │   └── outbox.py      # Korrekturen zurück an „hören"
+│       │   └── db/                # models.py, migrations/
+│       ├── frontend/
+│       │   └── src/routes/        # Aufnahme, Ergebnis — mehr braucht es nicht
+│       └── tests/                 # Diktat, Korrekturen, Modellauskunft
 │
 ├── packages/
 │   ├── wortlaut/                  # eine Python-Bibliothek, von allen genutzt
@@ -125,16 +147,19 @@ wortlaut/
 │   │   │       └── remote.py      # OpenAI-kompatibler Endpunkt
 │   │   └── tests/                 # Chunker, Textformate, Audio, Ablage
 │   │
-│   └── ui/                        # geteilte Svelte-Komponenten
+│   └── ui/                        # geteilte Svelte-Komponenten und Einstellungen
 │       ├── Kopfleiste.svelte      # App-Reiter oben, Ansichten-Reiter darunter
 │       ├── apps.ts                # die drei Apps: Name, Pfad, schon da oder nicht
+│       ├── app.css                # das gemeinsame Aussehen aller Apps
 │       ├── Recorder.svelte
 │       ├── AudioPlayer.svelte
-│       ├── PromptView.svelte      # eine Einheit groß, Kontext blass
+│       ├── PromptView.svelte      # eine Einheit groß, Kontext blass („hören")
+│       ├── SegmentList.svelte     # anklickbare Abschnitte („schreiben")
 │       ├── Mikrofontest.svelte    # Gerät wählen, Pegel sehen, Probe hören
 │       ├── Pegelanzeige.svelte    # Pegelbalken, Grenzen wie in quality.py
 │       ├── mikrofon.ts            # Aufnahmekette: Gerät, Verstärkung, Messung
-│       └── speak.ts               # Vorlesen über Web Speech API, Stimme und Tempo
+│       ├── speak.ts               # Vorlesen über Web Speech API, Stimme und Tempo
+│       └── einstellungen.svelte.ts # Gerätewerte im localStorage, appübergreifend
 │
 ├── training/                      # noch nicht gebaut: das, was auf der GPU läuft
 │   ├── Dockerfile
@@ -201,17 +226,20 @@ verbessern. Wege zu einer besseren Stimme stehen in `docs/betrieb.md`.
 ### Menüführung
 
 Die Kopfzeile hat zwei Reihen, weil es zwei Ebenen gibt. Oben die drei Apps —
-`hören`, `lernen`, `schreiben` —, die offene dunkelgrün hinterlegt; die beiden
-noch nicht gebauten stehen blass daneben und sind nicht anklickbar. Darunter
+`hören`, `lernen`, `schreiben` —, die offene dunkelgrün hinterlegt; das noch
+nicht gebaute `lernen` steht blass daneben und ist nicht anklickbar. Darunter
 die Ansichten der offenen App, die aktuelle hell hinterlegt. Beides steht in
-`packages/ui/Kopfleiste.svelte`, damit `lernen` und `schreiben` später dieselbe
-Leiste bekommen und nicht jede App ihr eigenes Menü erfindet.
+`packages/ui/Kopfleiste.svelte` — deshalb hat `schreiben` dieselbe Leiste
+bekommen, ohne ein eigenes Menü zu erfinden. Am rechten Rand der oberen Reihe
+ist Platz für eine Randnotiz; `schreiben` schreibt seinen Modellstand hinein.
 
 Alle drei liegen unter einer Adresse (`wortlaut.example.org`), nicht unter drei
 Subdomains: ein Zertifikat, ein Caddy-Block, und der Wechsel zwischen den Apps
-ist ein Pfadwechsel. Solange nur `hören` existiert, liegt es auf der Wurzel;
-welcher Pfad zu welcher App gehört, steht an einer Stelle in
-`packages/ui/apps.ts`.
+ist ein Pfadwechsel. `hören` ist der Einstieg und liegt auf der Wurzel,
+`schreiben` unter `/schreiben/`; welcher Pfad zu welcher App gehört, steht an
+einer Stelle in `packages/ui/apps.ts` — und noch einmal im `base` der
+Vite-Konfiguration der App, weil das gebaute Frontend seine eigenen Dateien
+unter diesem Pfad sucht.
 
 Ohne gewähltes Sprecherprofil bleibt die zweite Reihe leer — jede Ansicht
 führte dort ohnehin nur zurück zur Sprecherwahl.
@@ -373,7 +401,9 @@ niemand, welcher Stand welche Ausgabe erzeugt hat.
 
 ---
 
-## App „schreiben" — Ablauf
+## App „schreiben"
+
+### Ablauf
 
 1. Nutzer spricht, Whisper liefert Text mit Segmentgrenzen.
 2. Die App liest jeden Abschnitt vor. Jeder Abschnitt ist anklickbar.
@@ -382,6 +412,87 @@ niemand, welcher Stand welche Ausgabe erzeugt hat.
 4. Bestätigt der Nutzer den fertigen Text, geht jeder Abschnitt als Korrekturpaar an
    `POST /api/korpus/intake` von `hören`. Die Outbox puffert, wenn `hören` nicht
    erreichbar ist.
+
+### Der Abschnitt ist die Einheit
+
+Was `hören` die Vorlage ist, ist `schreiben` der Abschnitt: die Einheit, an der
+alles hängt. Whisper meldet zu jedem Segment Anfang und Ende, und genau dort
+wird die Aufnahme zerschnitten (`wortlaut.audio.schneide_ausschnitt`). Jeder
+Abschnitt hat deshalb seine eigene WAV-Datei — anders ließe er sich weder
+einzeln ersetzen noch einzeln als Audio-Text-Paar zurückgeben.
+
+Die zusammenhängende Aufnahme wird nach dem Schnitt nicht behalten. Sie wäre
+eine zweite Kopie derselben Stimmdaten und wird nicht mehr gebraucht.
+
+### Ein großer Knopf
+
+Die Zielperson kann schlecht lesen und schreiben (Grundentscheidung 7). Daraus
+folgt mehr als der Verzicht auf ein Anmeldefeld:
+
+- **Zwei Ansichten, keine Menüführung.** Sprechen und Ergebnis; der Weg
+  dazwischen ergibt sich, statt gewählt zu werden. Die zweite Reiterreihe der
+  Kopfzeile bleibt leer.
+- **Vorgelesen wird von selbst.** Wer den Text nicht sicher lesen kann, hört
+  den Fehler — deshalb liest die Ergebnisansicht sofort los und markiert
+  mitlaufend, wo sie gerade ist.
+- **Keine Einstellungsansicht.** Mikrofon, Stimme, Tempo und Schriftgröße
+  stehen in `hören` und gelten hier mit: beide Apps liegen unter derselben
+  Adresse und teilen sich damit den `localStorage`.
+- **Bearbeitet wird durch Sprechen.** Der fertige Text ist zum Kopieren da,
+  nicht zum Tippen.
+
+### Ohne „lernen" fängt es mit `tiny` an
+
+Ist `WORTLAUT_MODELL_REF` leer, lädt faster-whisper das unveränderte
+`whisper-tiny`. Die Kopfzeile schreibt dauerhaft hin, was gerade arbeitet
+(`whisper-tiny · unverändert`, später `whisper-large-v3 · Stand 2026-08-15 ·
+WER 14,6 %`) — wer eine Ausgabe beurteilt, beurteilt immer ein bestimmtes
+Modell.
+
+### Der Postausgang
+
+Zwischen `schreiben` und `hören` liegt eine Tabelle und kein direkter Aufruf:
+Dass beide gleichzeitig erreichbar sind, ist nicht zugesichert. Zwei Zusagen
+halten das einfach — Wiederholen ist gefahrlos (`hören` erkennt die
+Abschnittskennung als `externe_id` wieder), und nichts wird stillschweigend
+verworfen: Ein Fehlschlag zählt hoch und schreibt seinen Grund in die Zeile,
+der Eintrag bleibt offen.
+
+Erst wenn ein Abschnitt im Korpus angekommen ist, wird seine Audiodatei hier
+gelöscht.
+
+### Endpunkte
+
+```
+POST   /api/sessions                        neue Diktiersitzung
+GET    /api/sessions/{id}
+POST   /api/sessions/{id}/segments          multipart: audio → Abschnitte
+POST   /api/sessions/{id}/bestaetigen       → Postausgang, sofort senden
+POST   /api/segments/{id}/neu               multipart: audio, ersetzt einen
+GET    /api/segments/{id}/audio
+GET    /api/model                           Modellstand für die Kopfzeile
+GET    /api/outbox
+POST   /api/outbox/senden                   noch einmal versuchen
+GET    /gesundheit                          ohne Token
+```
+
+Kein Sprecherparameter und kein Token: Eine Instanz gehört zu genau einer
+Person und einem Modellstand, beides steht in der Konfiguration.
+
+### Ablage
+
+```
+data/diktate/<sprecher_id>/
+├── audio/<abschnitt_id>.wav     16 kHz mono, je ein Abschnitt
+└── schreiben.sqlite             Sitzungen, Abschnitte, Postausgang
+```
+
+Nach Sprecher gegliedert wie der Korpus, obwohl eine Instanz nur einen kennt:
+Sonst fände `scripts/purge_speaker.py` diese Dateien nicht, und eine Löschung
+wäre unvollständig.
+
+Neben und nicht im Korpus: `hören` ist dessen einziger Schreiber
+(Grundentscheidung 6). Was hier liegt, ist Arbeitsstand.
 
 ---
 
@@ -470,11 +581,12 @@ WORTLAUT_BASE_MODEL=openai/whisper-large-v3
 
 # schreiben
 WORTLAUT_SPRECHER_ID=spr_7f2a
-WORTLAUT_MODELL_REF=spr_7f2a/2026-08-15T1420
+WORTLAUT_MODELL_REF=                # leer = noch kein Stand aus „lernen"
+WORTLAUT_ASR_MODELL=tiny            # gilt, solange MODELL_REF leer ist
 WORTLAUT_ASR=local                  # local | remote
 WORTLAUT_ASR_ENDPOINT=
 WORTLAUT_ASR_API_KEY=
-WORTLAUT_INTAKE_URL=https://hoeren.example.org/api/korpus/intake
+WORTLAUT_INTAKE_URL=https://wortlaut.example.org/api/korpus/intake
 WORTLAUT_INTAKE_TOKEN=
 ```
 
@@ -501,6 +613,18 @@ weiter, deshalb gibt es keine CORS-Regeln. Neue Sprecher bekommen ihre
 Datenbank beim Anlegen, `make migrate` ist also kein erster Schritt, sondern
 ein späterer.
 
+Für `schreiben` dasselbe mit eigenem Port — beide dürfen nebeneinander laufen:
+
+```bash
+uv sync --extra asr          # zusätzlich faster-whisper (nur für WORTLAUT_ASR=local)
+cd apps/schreiben/frontend && npm install && cd -
+make dev APP=schreiben       # Backend auf :8001, Vite auf :5174
+```
+
+Aufgerufen wird `http://localhost:5174/schreiben/` — mit Pfad, weil die App im
+Betrieb dort liegt. Beim ersten Diktat lädt faster-whisper sein Modell herunter;
+das dauert einmalig und braucht Netz.
+
 Noch nicht nutzbar, weil `lernen` fehlt:
 
 ```bash
@@ -526,14 +650,16 @@ Läuft in gut einer Sekunde: ohne GPU, ohne Netz, ohne Mikrofon.
 
 | Ort | Prüft |
 |---|---|
-| `packages/wortlaut/tests/` | Chunker, Textformate, Audiomessung, Ablage, Migrationen, Registry |
+| `packages/wortlaut/tests/` | Chunker, Textformate, Audiomessung und -schnitt, Ablage, Migrationen, Registry |
 | `apps/hoeren/tests/` | Endpunkte gegen eine echte SQLite-Datei im Temporärverzeichnis |
+| `apps/schreiben/tests/` | Diktat und Abschnittsersatz, Postausgang, Modellauskunft |
 
 Zwei Regeln halten den Aufwand klein und die Aussagekraft hoch:
 
 **Nachgebaut wird so wenig wie möglich.** Die Tests sprechen mit echtem SQLite,
-echten Dateien und den echten Endpunkten. Ersetzt sind genau zwei Dinge: der
-LLM-Anbieter (sonst kostete jeder Testlauf Geld und Netz) und ffmpeg.
+echten Dateien und den echten Endpunkten. Ersetzt ist nur, was Geld, Netz oder
+eine GPU kosten würde: der LLM-Anbieter, ffmpeg, Whisper und der Weg von
+`schreiben` zurück zu `hören`.
 
 **ffmpeg wird trotzdem einmal wirklich benutzt.** Ein Test erzeugt eine
 Opus-Datei, wie sie ein Browser liefert, schickt sie an `POST /api/recordings`
@@ -562,6 +688,8 @@ DSGVO. Das hat Folgen für den Aufbau, nicht nur für einen Hinweistext:
   Voreinstellung. Wer sie umlegt, schickt Stimm- oder Textdaten an Dritte.
 - Verworfene Aufnahmen werden gelöscht, nicht nur markiert. In der Datenbank
   bleibt der Datensatz als Spur, die Audiodatei ist weg.
+- `schreiben` behält kein Audio, das es losgeworden ist: Sobald ein Abschnitt
+  im Korpus angekommen ist, wird seine Datei dort gelöscht.
 - `scripts/purge_speaker.py` entfernt Profil, Aufnahmen, Schnappschüsse und Modelle
   vollständig. Das Recht auf Löschung muss ausführbar sein, nicht dokumentiert.
 

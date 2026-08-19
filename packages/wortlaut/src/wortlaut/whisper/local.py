@@ -1,7 +1,12 @@
 """Transkription im eigenen Prozess über faster-whisper (CTranslate2).
 
-Erwartet ein für faster-whisper exportiertes Modellverzeichnis, also den
-`ct2/`-Ordner eines Modellstands aus der Registry.
+Zwei Arten von Modellangaben, beide von faster-whisper selbst unterschieden:
+
+* ein Verzeichnis — der `ct2/`-Ordner eines Modellstands aus der Registry,
+  also das feingetunte Modell aus „lernen";
+* ein Name wie `tiny` oder `small` — das unveränderte Whisper-Modell, das
+  faster-whisper beim ersten Aufruf herunterlädt. Damit ist „schreiben"
+  benutzbar, bevor es „lernen" gibt.
 """
 
 from __future__ import annotations
@@ -13,22 +18,22 @@ from . import Abschnitt, Transkript
 
 class LokalerTranskriptor:
     def __init__(
-        self, modellverzeichnis: Path, *, geraet: str = "auto", rechenart: str = "int8"
+        self, modell: Path | str, *, geraet: str = "auto", rechenart: str = "int8"
     ) -> None:
-        self.modellverzeichnis = modellverzeichnis
+        self.modell = modell
         self.geraet = geraet
         self.rechenart = rechenart
-        self._modell = None  # erst beim ersten Aufruf laden
+        self._geladen = None  # das Modell selbst, erst beim ersten Aufruf geladen
 
     def transkribiere(self, wav: Path, sprache: str = "de") -> Transkript:
-        if self._modell is None:
+        if self._geladen is None:
             from faster_whisper import WhisperModel
 
-            self._modell = WhisperModel(
-                str(self.modellverzeichnis), device=self.geraet, compute_type=self.rechenart
+            self._geladen = WhisperModel(
+                str(self.modell), device=self.geraet, compute_type=self.rechenart
             )
 
-        rohabschnitte, _info = self._modell.transcribe(str(wav), language=sprache)
+        rohabschnitte, _info = self._geladen.transcribe(str(wav), language=sprache)
         abschnitte = [
             Abschnitt(start_s=a.start, ende_s=a.end, text=a.text.strip()) for a in rohabschnitte
         ]

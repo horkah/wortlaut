@@ -67,3 +67,45 @@ class TestWandleInWav:
         kaputt.write_bytes(b"das ist kein Audio")
         with pytest.raises(audio.AudioFehler):
             audio.wandle_in_wav(kaputt, tmp_path / "ziel.wav")
+
+
+class TestSchneideAusschnitt:
+    """Der Schnitt an Whisper-Segmentgrenzen — Grundlage der App „schreiben"."""
+
+    def test_schneidet_den_gewuenschten_bereich(self, tmp_path: Path, wav_schreiben) -> None:
+        quelle = wav_schreiben(tmp_path / "ganz.wav", sekunden=6.0)
+        ziel = tmp_path / "teil" / "stueck.wav"
+
+        audio.schneide_ausschnitt(quelle, ziel, 2.0, 3.5)
+
+        befund = audio.untersuche(ziel)
+        assert befund.dauer_s == pytest.approx(1.5, abs=0.01)
+
+    def test_behaelt_format_und_pegel(self, tmp_path: Path, wav_schreiben) -> None:
+        quelle = wav_schreiben(tmp_path / "ganz.wav", sekunden=4.0, amplitude=8000)
+        ziel = tmp_path / "stueck.wav"
+
+        audio.schneide_ausschnitt(quelle, ziel, 1.0, 3.0)
+
+        with wave.open(str(ziel), "rb") as datei:
+            assert datei.getframerate() == 16_000
+            assert datei.getnchannels() == 1
+            assert datei.getsampwidth() == 2
+        # Geschnitten wird ohne Umkodieren; der Pegel bleibt, wie er war.
+        assert audio.untersuche(ziel).spitze_dbfs == pytest.approx(
+            audio.untersuche(quelle).spitze_dbfs, abs=0.5
+        )
+
+    def test_stutzt_grenzen_hinter_dem_dateiende(self, tmp_path: Path, wav_schreiben) -> None:
+        # Whisper meldet gelegentlich ein Ende hinter dem letzten Abtastwert.
+        quelle = wav_schreiben(tmp_path / "ganz.wav", sekunden=2.0)
+        ziel = tmp_path / "stueck.wav"
+
+        audio.schneide_ausschnitt(quelle, ziel, 1.0, 9.0)
+
+        assert audio.untersuche(ziel).dauer_s == pytest.approx(1.0, abs=0.01)
+
+    def test_lehnt_leeren_ausschnitt_ab(self, tmp_path: Path, wav_schreiben) -> None:
+        quelle = wav_schreiben(tmp_path / "ganz.wav", sekunden=2.0)
+        with pytest.raises(audio.AudioFehler):
+            audio.schneide_ausschnitt(quelle, tmp_path / "leer.wav", 1.0, 1.0)
