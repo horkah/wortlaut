@@ -24,7 +24,7 @@ class TestBestaetigen:
     def test_schickt_jeden_abschnitt_als_korrekturpaar(
         self, klient: TestClient, sitzung: str, diktat: dict, intake: Testintake
     ) -> None:
-        antwort = klient.post(f"/api/sessions/{sitzung}/bestaetigen")
+        antwort = klient.post(f"/schreiben/api/sessions/{sitzung}/bestaetigen")
 
         assert antwort.status_code == 200
         assert antwort.json() == {"eingestellt": 3, "gesendet": 3, "offen": 0, "fehler": None}
@@ -46,23 +46,23 @@ class TestBestaetigen:
     ) -> None:
         # Angekommen heißt: die Aufnahme liegt im Korpus. Eine zweite Kopie
         # wäre nur mehr Gesundheitsdaten.
-        klient.post(f"/api/sessions/{sitzung}/bestaetigen")
+        klient.post(f"/schreiben/api/sessions/{sitzung}/bestaetigen")
 
         assert audiodateien(audioverzeichnis) == []
-        zeilen = klient.get(f"/api/sessions/{sitzung}").json()["abschnitte"]
+        zeilen = klient.get(f"/schreiben/api/sessions/{sitzung}").json()["abschnitte"]
         assert all(zeile["hat_audio"] is False for zeile in zeilen)
-        assert klient.get(f"/api/segments/{zeilen[0]['id']}/audio").status_code == 404
+        assert klient.get(f"/schreiben/api/segments/{zeilen[0]['id']}/audio").status_code == 404
 
     def test_schliesst_die_sitzung(
         self, klient: TestClient, sitzung: str, diktat: dict, intake: Testintake
     ) -> None:
-        klient.post(f"/api/sessions/{sitzung}/bestaetigen")
+        klient.post(f"/schreiben/api/sessions/{sitzung}/bestaetigen")
 
-        assert klient.get(f"/api/sessions/{sitzung}").json()["status"] == "bestaetigt"
+        assert klient.get(f"/schreiben/api/sessions/{sitzung}").json()["status"] == "bestaetigt"
         # Ein bestätigter Text wird nicht mehr verändert.
         assert (
             klient.post(
-                f"/api/sessions/{sitzung}/segments",
+                f"/schreiben/api/sessions/{sitzung}/segments",
                 files={"audio": ("a.webm", b"x", "audio/webm")},
             ).status_code
             == 409
@@ -71,14 +71,14 @@ class TestBestaetigen:
     def test_zweites_bestaetigen_stellt_nichts_nach(
         self, klient: TestClient, sitzung: str, diktat: dict, intake: Testintake
     ) -> None:
-        klient.post(f"/api/sessions/{sitzung}/bestaetigen")
-        antwort = klient.post(f"/api/sessions/{sitzung}/bestaetigen")
+        klient.post(f"/schreiben/api/sessions/{sitzung}/bestaetigen")
+        antwort = klient.post(f"/schreiben/api/sessions/{sitzung}/bestaetigen")
 
         assert antwort.json()["eingestellt"] == 0
         assert len(intake.lieferungen) == 3
 
     def test_lehnt_leere_sitzung_ab(self, klient: TestClient, sitzung: str) -> None:
-        assert klient.post(f"/api/sessions/{sitzung}/bestaetigen").status_code == 400
+        assert klient.post(f"/schreiben/api/sessions/{sitzung}/bestaetigen").status_code == 400
 
 
 class TestPostausgang:
@@ -92,26 +92,26 @@ class TestPostausgang:
     ) -> None:
         intake.scheitert = True
 
-        antwort = klient.post(f"/api/sessions/{sitzung}/bestaetigen").json()
+        antwort = klient.post(f"/schreiben/api/sessions/{sitzung}/bestaetigen").json()
 
         assert (antwort["gesendet"], antwort["offen"]) == (0, 3)
         assert "hören ist nicht erreichbar" in antwort["fehler"]
         # Solange nichts übergeben ist, bleibt die Aufnahme liegen.
         assert len(audiodateien(audioverzeichnis)) == 3
-        assert klient.get("/api/outbox").json()["offen"] == 3
+        assert klient.get("/schreiben/api/outbox").json()["offen"] == 3
 
     def test_holt_den_versand_spaeter_nach(
         self, klient: TestClient, sitzung: str, diktat: dict, intake: Testintake
     ) -> None:
         intake.scheitert = True
-        klient.post(f"/api/sessions/{sitzung}/bestaetigen")
+        klient.post(f"/schreiben/api/sessions/{sitzung}/bestaetigen")
 
         intake.scheitert = False
-        antwort = klient.post("/api/outbox/senden").json()
+        antwort = klient.post("/schreiben/api/outbox/senden").json()
 
         assert (antwort["gesendet"], antwort["offen"]) == (3, 0)
         assert len(intake.lieferungen) == 3
-        assert klient.get("/api/outbox").json() == {
+        assert klient.get("/schreiben/api/outbox").json() == {
             "offen": 0,
             "gesendet": 3,
             "letzter_fehler": None,
@@ -120,8 +120,8 @@ class TestPostausgang:
     def test_sendet_gesendetes_nicht_noch_einmal(
         self, klient: TestClient, sitzung: str, diktat: dict, intake: Testintake
     ) -> None:
-        klient.post(f"/api/sessions/{sitzung}/bestaetigen")
-        antwort = klient.post("/api/outbox/senden").json()
+        klient.post(f"/schreiben/api/sessions/{sitzung}/bestaetigen")
+        antwort = klient.post("/schreiben/api/outbox/senden").json()
 
         assert antwort["gesendet"] == 0
         assert len(intake.lieferungen) == 3
@@ -140,8 +140,8 @@ class TestPostausgang:
         monkeypatch.setenv("WORTLAUT_INTAKE_URL", "")
         einstellungen.cache_clear()
 
-        antwort = klient.post(f"/api/sessions/{sitzung}/bestaetigen").json()
+        antwort = klient.post(f"/schreiben/api/sessions/{sitzung}/bestaetigen").json()
 
         assert (antwort["eingestellt"], antwort["gesendet"], antwort["offen"]) == (3, 0, 3)
         assert intake.lieferungen == []
-        assert klient.get("/api/outbox").json()["offen"] == 3
+        assert klient.get("/schreiben/api/outbox").json()["offen"] == 3

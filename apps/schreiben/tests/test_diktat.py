@@ -43,20 +43,20 @@ class TestDiktieren:
 
     def test_liefert_den_abschnitt_zum_anhoeren(self, klient: TestClient, diktat: dict) -> None:
         kennung = diktat["abschnitte"][0]["id"]
-        antwort = klient.get(f"/api/segments/{kennung}/audio")
+        antwort = klient.get(f"/schreiben/api/segments/{kennung}/audio")
         assert antwort.status_code == 200
         assert antwort.content.startswith(b"RIFF")
 
     def test_weiteres_diktat_haengt_hinten_an(
         self, klient: TestClient, sitzung: str, diktat: dict, aufnahme: dict
     ) -> None:
-        antwort = klient.post(f"/api/sessions/{sitzung}/segments", files=aufnahme)
+        antwort = klient.post(f"/schreiben/api/sessions/{sitzung}/segments", files=aufnahme)
         assert antwort.status_code == 201
         assert [a["position"] for a in antwort.json()["abschnitte"]] == [1, 2, 3, 4, 5, 6]
 
     def test_lehnt_leere_aufnahme_ab(self, klient: TestClient, sitzung: str) -> None:
         antwort = klient.post(
-            f"/api/sessions/{sitzung}/segments",
+            f"/schreiben/api/sessions/{sitzung}/segments",
             files={"audio": ("leer.webm", b"", "audio/webm")},
         )
         assert antwort.status_code == 400
@@ -65,13 +65,13 @@ class TestDiktieren:
         self, klient: TestClient, sitzung: str, aufnahme: dict, whisper: Testtranskriptor
     ) -> None:
         whisper.abschnitte = []
-        antwort = klient.post(f"/api/sessions/{sitzung}/segments", files=aufnahme)
+        antwort = klient.post(f"/schreiben/api/sessions/{sitzung}/segments", files=aufnahme)
         assert antwort.status_code == 422
 
     def test_kennt_die_sitzung_nach_dem_neuladen(
         self, klient: TestClient, sitzung: str, diktat: dict
     ) -> None:
-        antwort = klient.get(f"/api/sessions/{sitzung}")
+        antwort = klient.get(f"/schreiben/api/sessions/{sitzung}")
         assert antwort.status_code == 200
         assert antwort.json() == diktat
 
@@ -83,7 +83,7 @@ class TestNeuEinsprechen:
         kennung = diktat["abschnitte"][1]["id"]
         whisper.abschnitte = [Abschnitt(start_s=0.0, ende_s=1.5, text="Mit viel Milch.")]
 
-        antwort = klient.post(f"/api/segments/{kennung}/neu", files=aufnahme)
+        antwort = klient.post(f"/schreiben/api/segments/{kennung}/neu", files=aufnahme)
 
         assert antwort.status_code == 200
         abschnitte = antwort.json()["abschnitte"]
@@ -103,7 +103,7 @@ class TestNeuEinsprechen:
         audioverzeichnis: Path,
     ) -> None:
         kennung = diktat["abschnitte"][0]["id"]
-        klient.post(f"/api/segments/{kennung}/neu", files=aufnahme)
+        klient.post(f"/schreiben/api/segments/{kennung}/neu", files=aufnahme)
         # Dieselbe Kennung, dieselbe Datei: die alte Aufnahme wird überschrieben.
         assert len(audiodateien(audioverzeichnis)) == 3
 
@@ -118,10 +118,10 @@ class TestNeuEinsprechen:
             Abschnitt(start_s=1.0, ende_s=2.0, text="einen Tee."),
         ]
 
-        antwort = klient.post(f"/api/segments/{kennung}/neu", files=aufnahme)
+        antwort = klient.post(f"/schreiben/api/segments/{kennung}/neu", files=aufnahme)
 
         assert antwort.json()["abschnitte"][0]["text"] == "Ich hätte gern einen Tee."
 
     def test_kennt_den_abschnitt_nicht(self, klient: TestClient, aufnahme: dict) -> None:
-        antwort = klient.post("/api/segments/seg_gibtsnicht/neu", files=aufnahme)
+        antwort = klient.post("/schreiben/api/segments/seg_gibtsnicht/neu", files=aufnahme)
         assert antwort.status_code == 404

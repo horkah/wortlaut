@@ -74,7 +74,6 @@ Was steht, steht ohne Klammer. Was noch fehlt, ist gekennzeichnet.
 wortlaut/
 ├── README.md
 ├── compose.yaml
-├── Caddyfile
 ├── Makefile                       # test, dev, migrate, train, release
 ├── pyproject.toml                 # Abhängigkeiten, Test- und Lint-Einstellungen
 ├── conftest.py                    # geteilte Testbausteine
@@ -234,12 +233,17 @@ bekommen, ohne ein eigenes Menü zu erfinden. Am rechten Rand der oberen Reihe
 ist Platz für eine Randnotiz; `schreiben` schreibt seinen Modellstand hinein.
 
 Alle drei liegen unter einer Adresse (`wortlaut.example.org`), nicht unter drei
-Subdomains: ein Zertifikat, ein Caddy-Block, und der Wechsel zwischen den Apps
-ist ein Pfadwechsel. `hören` ist der Einstieg und liegt auf der Wurzel,
-`schreiben` unter `/schreiben/`; welcher Pfad zu welcher App gehört, steht an
-einer Stelle in `packages/ui/apps.ts` — und noch einmal im `base` der
-Vite-Konfiguration der App, weil das gebaute Frontend seine eigenen Dateien
-unter diesem Pfad sucht.
+Subdomains: ein Zertifikat, eine Proxy-Regel je App, und der Wechsel zwischen
+den Apps ist ein Pfadwechsel. `hören` ist der Einstieg und liegt auf der
+Wurzel, `schreiben` unter `/schreiben/`; welcher Pfad zu welcher App gehört,
+steht in `packages/ui/apps.ts`.
+
+Der Pfad gehört dabei der App, nicht dem Proxy: `schreiben` hängt seine
+Oberfläche *und* seine API selbst unter `/schreiben/` (`BASIS` in seiner
+`main.py`, `base` in seiner `vite.config.ts`). Der Proxy reicht den Weg
+unverändert weiter und muss nichts abschneiden — als er es einmal gar nicht
+verteilte, beantwortete `hören` den Klick auf den Reiter mit der eigenen Seite,
+und `schreiben` war nicht erreichbar.
 
 Ohne gewähltes Sprecherprofil bleibt die zweite Reihe leer — jede Ansicht
 führte dort ohnehin nur zurück zur Sprecherwahl.
@@ -464,17 +468,21 @@ gelöscht.
 ### Endpunkte
 
 ```
-POST   /api/sessions                        neue Diktiersitzung
-GET    /api/sessions/{id}
-POST   /api/sessions/{id}/segments          multipart: audio → Abschnitte
-POST   /api/sessions/{id}/bestaetigen       → Postausgang, sofort senden
-POST   /api/segments/{id}/neu               multipart: audio, ersetzt einen
-GET    /api/segments/{id}/audio
-GET    /api/model                           Modellstand für die Kopfzeile
-GET    /api/outbox
-POST   /api/outbox/senden                   noch einmal versuchen
-GET    /gesundheit                          ohne Token
+POST   /schreiben/api/sessions              neue Diktiersitzung
+GET    /schreiben/api/sessions/{id}
+POST   /schreiben/api/sessions/{id}/segments        multipart: audio → Abschnitte
+POST   /schreiben/api/sessions/{id}/bestaetigen     → Postausgang, sofort senden
+POST   /schreiben/api/segments/{id}/neu     multipart: audio, ersetzt einen
+GET    /schreiben/api/segments/{id}/audio
+GET    /schreiben/api/model                 Modellstand für die Kopfzeile
+GET    /schreiben/api/outbox
+POST   /schreiben/api/outbox/senden         noch einmal versuchen
+GET    /gesundheit                          ohne Token, auf der Wurzel
 ```
+
+Alles unter `/schreiben` — dem Ort dieser App unter der gemeinsamen Domain.
+Nur `/gesundheit` bleibt auf der Wurzel: Eine Überwachung spricht den Container
+unmittelbar an.
 
 Kein Sprecherparameter und kein Token: Eine Instanz gehört zu genau einer
 Person und einem Modellstand, beides steht in der Konfiguration.
@@ -550,7 +558,7 @@ Zwei Spalten tragen mehr Bedeutung, als ihr Name verrät:
 | Training | HF Transformers, Datasets, Accelerate | Standardrezept für Whisper, breit dokumentiert |
 | Textquelle | LLM-API über einen Adapter | Thema und Altersspanne als Prompt-Parameter |
 | Jobs | `jobs`-Tabelle plus Poll-Worker | keine Broker-Abhängigkeit für eine Warteschlange mit selten mehr als einem Eintrag |
-| Proxy | Caddy | TLS ohne Konfigurationsaufwand |
+| Proxy | der vorhandene Reverse Proxy des Wirts | TLS und Pfadverteilung gehören zur Maschine, nicht in dieses Projekt |
 | Auth | `hören` und `lernen` hinter Token, `schreiben` ohne | siehe Grundentscheidung 7 |
 | Tests | pytest, FastAPI-TestClient | echte SQLite-Datei, echte Endpunkte, kein Nachbau |
 | Werkzeug | uv, ruff | eine Abhängigkeitsdatei, ein Formatierer, keine Diskussion |
@@ -621,8 +629,9 @@ cd apps/schreiben/frontend && npm install && cd -
 make dev APP=schreiben       # Backend auf :8001, Vite auf :5174
 ```
 
-Aufgerufen wird `http://localhost:5174/schreiben/` — mit Pfad, weil die App im
-Betrieb dort liegt. Beim ersten Diktat lädt faster-whisper sein Modell herunter;
+Aufgerufen wird `http://localhost:5174/schreiben/` — mit Pfad, weil die App
+dort liegt, in der Entwicklung wie im Betrieb. Laufen beide Apps, führt auch
+der Reiter auf `http://localhost:5173` hinüber. Beim ersten Diktat lädt faster-whisper sein Modell herunter;
 das dauert einmalig und braucht Netz.
 
 Noch nicht nutzbar, weil `lernen` fehlt:

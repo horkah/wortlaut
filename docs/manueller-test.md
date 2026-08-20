@@ -219,6 +219,7 @@ Weg über das Löschskript — es räumt beide zugleich weg.
 | `GET / → 404` und `GET /favicon.ico → 404` in der Backend-Konsole | normal in der Entwicklung — das Backend liefert `/` nur aus, wenn unter `frontend/dist` ein gebautes Frontend liegt; in der Entwicklung läuft die Oberfläche über Vite auf `:5173` |
 | Startseite zeigt nur „Sprecher“ und ein leeres Formular | Leerzustand vor dem ersten Profil, keine kaputte Seite |
 | „schreiben“ versteht mit `tiny` erkennbar Falsches | erwartet — genau dafür gibt es die App „lernen“ |
-| `http://localhost:5174` ohne `/schreiben/` bleibt leer | die App liegt unter einem Pfad (`base` in ihrer `vite.config.ts`) |
+| `http://localhost:5174` ohne `/schreiben/` bleibt leer | die App liegt unter einem Pfad (`base` in ihrer `vite.config.ts`, `BASIS` in ihrer `main.py`) |
+| Der Reiter „schreiben" bleibt in „hören" stehen | „schreiben" läuft nicht (`make dev APP=schreiben`); im Betrieb: der Proxy verteilt `/schreiben/` nicht |
 
 Bekannte Fehlerbilder mit Ursache: [`docs/betrieb.md#wenn-etwas-klemmt`](betrieb.md#wenn-etwas-klemmt).
