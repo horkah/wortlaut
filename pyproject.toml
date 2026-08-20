@@ -48,20 +48,3 @@ testpaths = ["packages/wortlaut/tests", "apps/hoeren/tests", "apps/schreiben/tes
 # Wurzelverzeichnis importiert — wie beim Start über uvicorn.
 pythonpath = ["."]
 addopts = "-q"
-
-[tool.ruff]
-line-length = 100
-target-version = "py312"
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "RUF"]
-ignore = [
-    # FastAPI benutzt Aufrufe wie File() und Form() absichtlich als Vorgabewert;
-    # das ist dort die vorgesehene Schreibweise, kein Fehler.
-    "B008",
-    # Kommentare und Texte sind deutsch: Gedankenstrich und Minuszeichen sind
-    # gewollt und keine verwechselten ASCII-Zeichen.
-    "RUF001",
-    "RUF002",
-    "RUF003",
-]
