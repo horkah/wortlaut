@@ -75,7 +75,7 @@ wortlaut/
 ├── README.md
 ├── compose.yaml
 ├── Makefile                       # test, dev, migrate, train, release
-├── pyproject.toml                 # Abhängigkeiten, Test- und Lint-Einstellungen
+├── pyproject.toml                 # Abhängigkeiten und Testeinstellungen
 ├── conftest.py                    # geteilte Testbausteine
 ├── .env.example
 │
@@ -561,7 +561,7 @@ Zwei Spalten tragen mehr Bedeutung, als ihr Name verrät:
 | Proxy | der vorhandene Reverse Proxy des Wirts | TLS und Pfadverteilung gehören zur Maschine, nicht in dieses Projekt |
 | Auth | `hören` und `lernen` hinter Token, `schreiben` ohne | siehe Grundentscheidung 7 |
 | Tests | pytest, FastAPI-TestClient | echte SQLite-Datei, echte Endpunkte, kein Nachbau |
-| Werkzeug | uv, ruff | eine Abhängigkeitsdatei, ein Formatierer, keine Diskussion |
+| Werkzeug | uv | eine Abhängigkeitsdatei, ein Befehl, keine Diskussion |
 
 ---
 
