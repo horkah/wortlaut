@@ -73,6 +73,7 @@ Was steht, steht ohne Klammer. Was noch fehlt, ist gekennzeichnet.
 ```
 wortlaut/
 ├── README.md
+├── Dockerfile                     # ein Abbild für beide Apps
 ├── compose.yaml
 ├── Makefile                       # test, dev, migrate, train, release
 ├── pyproject.toml                 # Abhängigkeiten und Testeinstellungen
@@ -80,6 +81,7 @@ wortlaut/
 ├── .env.example
 │
 ├── apps/
+│   ├── gesamt.py                  # beide Apps in einem Prozess (Betrieb)
 │   ├── hoeren/                    # App „hören"
 │   │   ├── Dockerfile
 │   │   ├── backend/
@@ -127,6 +129,8 @@ wortlaut/
 │       ├── frontend/
 │       │   └── src/routes/        # Aufnahme, Ergebnis — mehr braucht es nicht
 │       └── tests/                 # Diktat, Korrekturen, Modellauskunft
+│
+├── tests/                         # was keine einzelne App betrifft: gesamt.py
 │
 ├── packages/
 │   ├── wortlaut/                  # eine Python-Bibliothek, von allen genutzt
@@ -244,6 +248,12 @@ Oberfläche *und* seine API selbst unter `/schreiben/` (`BASIS` in seiner
 unverändert weiter und muss nichts abschneiden — als er es einmal gar nicht
 verteilte, beantwortete `hören` den Klick auf den Reiter mit der eigenen Seite,
 und `schreiben` war nicht erreichbar.
+
+Weil die Pfade so an den Apps hängen, ist der Betrieb frei in der Aufteilung.
+Auf einem einzelnen Wirt läuft alles in **einem** Container: `apps/gesamt.py`
+verteilt im Prozess, was sonst der Proxy verteilte, und draußen genügt eine
+Regel auf einen Port. Wer die Apps trennen will, nimmt die Dockerfiles unter
+`apps/` und gibt dem Proxy zwei Regeln — am Code ändert das nichts.
 
 Ohne gewähltes Sprecherprofil bleibt die zweite Reihe leer — jede Ansicht
 führte dort ohnehin nur zurück zur Sprecherwahl.

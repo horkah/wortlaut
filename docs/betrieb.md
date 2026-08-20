@@ -77,29 +77,57 @@ Den Weg im Browser deckt das nicht ab — dafür gibt es
 docker compose up -d --build
 ```
 
-Je App ein Container — er liefert API und gebautes Frontend aus —, davor der
-Reverse Proxy des Wirts: Er besorgt TLS und verteilt die Pfade einer Domain
-(siehe „Auf eine Subdomain stellen"). Compose bindet die Container an
-`127.0.0.1:8000` („hören") und `127.0.0.1:8001` („schreiben"); aus dem Netz
-erreichbar ist nur der Proxy. Die Daten liegen im gemeinsamen Volume
-`wortlaut-data`; eine Sicherung ist das Kopieren dieses Volumes bei
-angehaltenem Dienst (SQLite im WAL-Modus mag keine Kopie mitten im
-Schreibvorgang).
+**Ein Container für alles.** Darin ein uvicorn für beide Apps: „hören" auf der
+Wurzel, „schreiben" unter `/schreiben` — zusammengesetzt in `apps/gesamt.py`,
+gebaut vom `Dockerfile` im Wurzelverzeichnis. Compose bindet ihn an
+`127.0.0.1:8000`; aus dem Netz erreichbar ist allein der Reverse Proxy des
+Wirts, und der braucht genau eine Regel auf diesen Port.
 
-Beide Container teilen sich das Volume, aber nicht die Verzeichnisse:
-„hören" schreibt `korpus/`, „schreiben" nur `diktate/` und liest `modelle/`
-(Grundentscheidung 6). Der Weg vom einen zum anderen führt über die API, nicht
-über das Dateisystem — deshalb steht `WORTLAUT_INTAKE_URL` in der
-`compose.yaml` auf `http://hoeren:8000/api/korpus/intake`.
+Geteilt wird der Prozess, sonst nichts: Jede App behält ihre Datenbank, ihre
+Ablage und ihre Zugangsregeln — die `/api`-Wege von „hören" hinter dem Token,
+„schreiben" ohne (Grundentscheidung 7). Auch der Weg der Korrekturen bleibt die
+API und nicht das Dateisystem (Grundentscheidung 6); er zeigt nur auf
+`127.0.0.1` statt in ein Containernetz, deshalb steht `WORTLAUT_INTAKE_URL` in
+der `compose.yaml` auf `http://127.0.0.1:8000/api/korpus/intake`. Verklemmen
+kann das nicht: Der Postausgang sendet in einem Arbeitsfaden, während die
+Ereignisschleife die eingehende Lieferung annimmt.
 
-Das Modell von „schreiben" liegt im Volume unter `.cache/huggingface`; ohne
-das lüde jeder Neustart des Containers erneut herunter.
+Die Daten liegen im Volume `wortlaut-data` — `korpus/` gehört „hören",
+`diktate/` gehört „schreiben". Eine Sicherung ist das Kopieren dieses Volumes
+bei angehaltenem Dienst (SQLite im WAL-Modus mag keine Kopie mitten im
+Schreibvorgang). Das Whisper-Modell liegt darin unter `.cache/huggingface`;
+ohne das lüde jeder Neustart erneut herunter — der erste Start dauert deshalb
+einige Minuten, worauf die `start_period` der Healthcheck-Prüfung Rücksicht
+nimmt.
 
-Vite läuft dabei nicht mit — es ist reines Entwicklungswerkzeug. Das Frontend
-wird beim `docker build` einmal gebaut und vom Backend mit ausgeliefert. Ein
-`--host` braucht darum weder Vite noch uvicorn: der Startbefehl im Dockerfile
-bindet bereits `0.0.0.0` — das gilt im Container; nach außen bindet Compose
-auf `127.0.0.1`.
+Vite läuft nicht mit — es ist reines Entwicklungswerkzeug. Beide Frontends
+werden beim `docker build` einmal gebaut und vom Prozess mit ausgeliefert.
+
+### Bevor die Korrekturen ankommen: der Sprecher
+
+„schreiben" gehört zu genau einer Person, und ihre Kennung vergibt „hören"
+beim Anlegen des Sprechers. Beim ersten Aufbau also erst den Sprecher anlegen,
+dann seine Kennung in die `.env` schreiben und den Container neu starten:
+
+```bash
+curl -X POST https://wortlaut.example.org/api/speakers \
+  -H "Authorization: Bearer $WORTLAUT_AUTH_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Vorname","sprache":"de","basismodell":"tiny"}'
+# → {"id":"spr_…"}  in die .env als WORTLAUT_SPRECHER_ID
+docker compose up -d
+```
+
+Fehlt die Kennung, sammelt der Postausgang die Korrekturen, statt sie zu
+verwerfen — nachzuholen mit „Noch einmal senden" in der Oberfläche.
+
+### Getrennte Container
+
+Wer die Apps auseinanderhalten will — eigene Neustarts, ein schlankes Abbild
+für „hören" ohne CTranslate2 —, nimmt statt dessen die beiden Dockerfiles
+unter `apps/`, je einen Dienst daraus, und gibt dem Proxy zwei Regeln
+(`/schreiben/` → „schreiben", `/` → „hören"). Am Code ändert das nichts: Die
+Pfade bringen die Apps selbst mit, `apps/gesamt.py` fügt sie nur zusammen.
 
 ### Auf eine Subdomain stellen
 
@@ -109,9 +137,9 @@ Eine Adresse für alle drei Apps, nicht eine je App: `wortlaut.example.org`.
 Muster dazu.
 
 **Der Proxy schneidet nichts ab.** Jede App hängt selbst unter ihrem Pfad —
-Oberfläche *und* API (`BASIS` in ihrer `main.py`, `base` in ihrer
-`vite.config.ts`). Der Proxy reicht den Weg unverändert weiter; eine Regel, die
-`/schreiben/` entfernt, macht die App unerreichbar.
+Oberfläche *und* API (`BASIS` in `apps/schreiben/backend/main.py`, `base` in
+ihrer `vite.config.ts`). Der Proxy reicht den Weg unverändert weiter; eine
+Regel, die `/schreiben/` entfernt, macht die App unerreichbar.
 
 Wer eine App verschiebt, ändert drei Stellen zusammen: `BASIS` im Backend, das
 `base` in der `vite.config.ts` und den Pfad in `packages/ui/apps.ts`.
@@ -130,57 +158,64 @@ Wer eine App verschiebt, ändert drei Stellen zusammen: `BASIS` im Backend, das
    offen im Netz** — jeder mit der Adresse kann Sprecher anlegen, Aufnahmen
    lesen und die LLM-Textquelle auf deine Rechnung benutzen.
 
-3. **Den vorhandenen Reverse Proxy** auf die beiden Ports zeigen lassen.
-   `/schreiben/` zuerst, sonst greift die Regel für die Wurzel — mit Caddy:
+3. **Den Reverse Proxy** auf `127.0.0.1:8000` zeigen lassen — eine Regel für
+   die ganze Domain, die Verteilung macht die App selbst. Mit Caddy:
 
    ```caddyfile
    wortlaut.example.org {
    	encode gzip
-
-   	handle /schreiben/* {
-   		reverse_proxy 127.0.0.1:8001
-   	}
-
-   	handle {
-   		reverse_proxy 127.0.0.1:8000
-   	}
+   	reverse_proxy 127.0.0.1:8000
    }
    ```
 
-   Mit nginx (`proxy_pass` **ohne** Pfadangabe, sonst wird das Präfix
-   abgeschnitten):
+   Mit nginx:
 
    ```nginx
-   location /schreiben/ {
-       proxy_pass http://127.0.0.1:8001;
-       proxy_set_header Host $host;
-       proxy_set_header X-Forwarded-Proto $scheme;
-       client_max_body_size 64m;   # Aufnahmen sind größer als die Vorgabe
-   }
-
    location / {
        proxy_pass http://127.0.0.1:8000;
        proxy_set_header Host $host;
        proxy_set_header X-Forwarded-Proto $scheme;
-       client_max_body_size 64m;
+       client_max_body_size 64m;   # Aufnahmen sind größer als die Vorgabe
    }
    ```
+
+   **Läuft der Proxy selbst als Container** (nginx-proxy, Traefik und
+   Verwandte), dann nicht auf `127.0.0.1` veröffentlichen, sondern beide in ein
+   gemeinsames Docker-Netz stellen — sonst sieht der Proxy den Dienst nicht.
+   In der `compose.yaml` die `ports` streichen und statt dessen:
+
+   ```yaml
+   services:
+     wortlaut:
+       networks: [proxy]
+       environment:
+         # nginx-proxy/acme-companion lesen das; bei Traefik sind es Labels.
+         VIRTUAL_HOST: wortlaut.example.org
+         VIRTUAL_PORT: "8000"
+         LETSENCRYPT_HOST: wortlaut.example.org
+
+   networks:
+     proxy:
+       external: true
+   ```
+
+   Der Name `proxy` ist der des vorhandenen Netzes (`docker network ls`).
 
 4. **Starten und nachsehen:**
 
    ```bash
    docker compose up -d --build
-   curl http://127.0.0.1:8000/gesundheit        # „hören"
-   curl http://127.0.0.1:8001/gesundheit        # „schreiben"
+   docker compose ps                            # „healthy"
+   curl http://127.0.0.1:8000/gesundheit
    curl -I https://wortlaut.example.org/schreiben/
    ```
 
-   Die letzte Zeile ist die Probe auf den Proxy: Kommt dort die Seite von
-   „hören" statt der von „schreiben", greift die Regel für `/schreiben/` nicht.
+   Die letzte Zeile ist die Probe auf die Verteilung: Kommt dort die Seite von
+   „hören" statt der von „schreiben", zeigt der Proxy nicht auf diesen Port
+   oder schneidet den Pfad ab.
 
 `/gesundheit` verlangt bewusst keinen Token und eignet sich als Prüfpunkt für
-eine Überwachung. Es liegt bei beiden Apps auf der Wurzel ihres Containers,
-denn eine Überwachung spricht den Dienst unmittelbar an.
+eine Überwachung.
 
 **HTTPS ist nicht optional.** Der Aufnahmeknopf benutzt `MediaRecorder`, und
 das gibt der Browser nur in einem sicheren Kontext frei — über eine
@@ -224,8 +259,12 @@ GET    /gesundheit                                auf der Wurzel, für die Über
 ```
 
 Der Pfad `/schreiben` gehört zur App und nicht zum Proxy: Er steht als `BASIS`
-in ihrer `main.py`, damit vor den Containern eine Regel genügt, die den Weg
+in ihrer `main.py`, damit vor dem Container eine Regel genügt, die den Weg
 unverändert durchreicht.
+
+Im gemeinsamen Container (`apps/gesamt.py`) gibt es nur eine Wurzel, also auch
+nur ein `/gesundheit` — das von „hören". Für eine Überwachung genügt es: Der
+Prozess ist derselbe.
 
 **Warum überall `sprecher=…`:** Das Korpus hat je Sprecher eine eigene
 Datenbank (`data/korpus/<sprecher_id>/hoeren.sqlite`). Ohne die Sprecher-ID
@@ -268,7 +307,9 @@ umgekehrter Richtung braucht „schreiben" den Token von „hören"
 | „schreiben": „Aus der Aufnahme wurde kein Wort verstanden" | Whisper hat nichts erkannt. Mit `tiny` ist das bei leiser Aufnahme oder starker Sprechstörung der Normalfall — erst Mikrofon einmessen (in „hören" unter Einstellungen), dann ein größeres Modell versuchen. |
 | „schreiben": Postausgang bleibt offen | `WORTLAUT_INTAKE_URL` fehlt oder zeigt ins Leere, oder der Token passt nicht zum `WORTLAUT_AUTH_TOKEN` von „hören". Nichts geht verloren: „Noch einmal senden" nach dem Richten genügt. |
 | `localhost:5174` zeigt eine leere Seite | Der Pfad fehlt: `http://localhost:5174/schreiben/` aufrufen. |
-| Der Reiter „schreiben" landet wieder in „hören" | Der Proxy verteilt `/schreiben/` nicht (oder schneidet den Pfad ab). Probe: `curl -I https://<domain>/schreiben/` und `curl http://127.0.0.1:8001/gesundheit`. In der Entwicklung läuft „schreiben" nicht mit — `make dev APP=schreiben`. |
+| Der Reiter „schreiben" landet wieder in „hören" | Im Betrieb: Der Proxy schneidet `/schreiben/` ab oder zeigt auf den falschen Port. Probe: `curl -I https://<domain>/schreiben/`. In der Entwicklung: „schreiben" läuft nicht mit — `make dev APP=schreiben`. |
+| `Address already in use` beim `make dev` | Der Port ist noch belegt, meist von einem älteren Lauf. Nachsehen mit `ss -tlnp \| grep -E "8000\|8001"`, dann die PID beenden. |
+| Korrekturen bleiben im Postausgang, Fehler nennt 404 „Unbekannter Sprecher" | `WORTLAUT_SPRECHER_ID` fehlt oder gehört zu keinem Sprecher in „hören" — siehe „Bevor die Korrekturen ankommen". |
 | `make frontend` startet ohne Fehlermeldung, aber `localhost:5173` bleibt unerreichbar | `node_modules` fehlt (`npm install` in `apps/hoeren/frontend` vergessen). `npm run dev` sucht `vite` dann über `$PATH` — auf manchen Systemen (z. B. Ubuntu/Debian) existiert dort ein gleichnamiges, aber völlig anderes Paket namens `vite` (ViTE, ein Trace-Viewer), das kommentarlos ein leeres GUI-Fenster statt des Dev-Servers öffnet. Prüfen mit `command -v vite` — zeigt der Pfad nicht auf `apps/hoeren/frontend/node_modules/.bin/vite`, fehlt die Installation. Abhilfe: `npm install` nachholen. |
 
 ## Leises Mikrofon unter Linux

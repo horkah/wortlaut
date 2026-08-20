@@ -1,47 +1,45 @@
-# Betrieb: ein Anwendungscontainer je App, davor der Reverse Proxy des Wirts.
-# Er besorgt TLS und verteilt die Pfade einer Domain auf die Ports hier — die
-# Wege bleiben dabei unverändert, jede App hängt schon selbst unter ihrem Pfad
-# (siehe docs/betrieb.md). Gebunden wird nur an 127.0.0.1: aus dem Netz
-# erreichbar ist ausschließlich der Proxy.
-# „lernen" kommt als weiterer Dienst nach demselben Muster dazu.
+# Betrieb: ein Container für die ganze App, davor der Reverse Proxy des Wirts.
+#
+# Darin ein uvicorn für beide Apps — „hören" auf der Wurzel, „schreiben" unter
+# /schreiben (siehe apps/gesamt.py). Der Proxy braucht deshalb nur eine Regel
+# auf diesen einen Port und schneidet nichts ab; die Pfade bringt die App
+# selbst mit.
+#
+# Wer die Apps getrennt betreiben will, nimmt statt dessen die beiden
+# Dockerfiles unter apps/ als je einen Dienst (docs/betrieb.md).
 services:
-  hoeren:
+  wortlaut:
     build:
       context: .
-      dockerfile: apps/hoeren/Dockerfile
+      dockerfile: Dockerfile
     restart: unless-stopped
     env_file: .env
     environment:
       # Im Container liegen die Daten immer hier; auf dem Wirt entscheidet das
       # Volume unten, wo das tatsächlich ist.
       WORTLAUT_DATA_DIR: /srv/wortlaut/data
-    volumes:
-      - wortlaut-data:/srv/wortlaut/data
-    ports:
-      - "127.0.0.1:8000:8000"
-
-  schreiben:
-    build:
-      context: .
-      dockerfile: apps/schreiben/Dockerfile
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      WORTLAUT_DATA_DIR: /srv/wortlaut/data
-      # Zwei Container, ein Volume: „schreiben" schreibt nur in sein eigenes
-      # Verzeichnis (data/diktate) und liest die Modelle aus data/modelle.
-      # Der Korpus gehört „hören" allein (Grundentscheidung 6); dorthin geht
-      # es über die API, nicht über das Dateisystem.
-      WORTLAUT_INTAKE_URL: http://hoeren:8000/api/korpus/intake
+      # Der Weg von „schreiben" zurück in den Korpus führt auch hier über die
+      # API und nicht am Modell vorbei (Grundentscheidung 6) — nur zeigt er
+      # jetzt auf denselben Prozess. Der Token ist derselbe, den „hören"
+      # verlangt; ohne ihn weist es die Lieferung ab.
+      WORTLAUT_INTAKE_URL: http://127.0.0.1:8000/api/korpus/intake
       WORTLAUT_INTAKE_TOKEN: ${WORTLAUT_AUTH_TOKEN:-}
     volumes:
       - wortlaut-data:/srv/wortlaut/data
+    # Nur auf die Rückschleife: aus dem Netz erreichbar ist allein der Proxy.
+    # Läuft der Proxy selbst als Container, ist statt dessen ein gemeinsames
+    # Netz das Richtige — siehe docs/betrieb.md.
     ports:
-      # Eigener Port, denn der Proxy spricht beide Dienste an: die Wurzel geht
-      # an „hören" (8000), `/schreiben/` hierher.
-      - "127.0.0.1:8001:8000"
-    depends_on:
-      - hoeren
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      # Ohne Token erreichbar und ohne curl im Abbild auskommend.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/gesundheit')"]
+      interval: 30s
+      timeout: 5s
+      # Der erste Start lädt das Whisper-Modell; bis dahin ist „ungesund" kein
+      # Grund, den Container umzubringen.
+      start_period: 5m
+      retries: 3
 
 volumes:
   wortlaut-data:

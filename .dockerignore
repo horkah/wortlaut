@@ -1,0 +1,25 @@
+# Was nicht in den Bau-Kontext gehört. Ohne diese Datei schickt `docker build`
+# das ganze Verzeichnis an den Daemon — samt Aufnahmen und virtueller
+# Umgebung, beides groß und beides falsch am Platz.
+
+# Stimmaufnahmen sind Gesundheitsdaten (Art. 9 DSGVO) und haben in einem
+# Abbild nichts verloren.
+data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# Geheimnisse: die Werte kommen zur Laufzeit über env_file, nicht im Abbild.
+.env
+
+# Wird im Abbild selbst gebaut bzw. installiert.
+node_modules/
+dist/
+.venv/
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.git/
+.claude/
