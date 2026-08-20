@@ -31,8 +31,14 @@ make dev APP=schreiben       # Backend auf :8001, Vite auf :5174
 ```
 
 Aufgerufen wird `http://localhost:5174/schreiben/` — **mit Pfad**, weil die App
-im Betrieb dort liegt (`base` in ihrer `vite.config.ts`). Ohne den Pfad
-antwortet Vite mit einer leeren Seite, das ist kein Fehler der App.
+dort liegt, in der Entwicklung wie im Betrieb (`base` in ihrer
+`vite.config.ts`, `BASIS` in ihrer `main.py`). Ohne den Pfad antwortet Vite mit
+einer leeren Seite, das ist kein Fehler der App.
+
+Laufen beide Apps, führt auch der Reiter „schreiben" auf `http://localhost:5173`
+hinüber: Vite von „hören" reicht `/schreiben` an den Nachbarn auf 5174 durch,
+wie im Betrieb der Reverse Proxy. Läuft „schreiben" nicht, steht dort ein
+Verbindungsfehler — dann fehlt `make dev APP=schreiben`.
 
 Beim ersten Diktat lädt faster-whisper sein Modell aus dem Netz; das dauert
 einmalig und landet im Cache von huggingface. `WORTLAUT_ASR_MODELL=tiny` ist
@@ -71,8 +77,11 @@ Den Weg im Browser deckt das nicht ab — dafür gibt es
 docker compose up -d --build
 ```
 
-Je App ein Container — er liefert API und gebautes Frontend aus —, Caddy davor
-besorgt TLS und verteilt die Pfade. Die Daten liegen im gemeinsamen Volume
+Je App ein Container — er liefert API und gebautes Frontend aus —, davor der
+Reverse Proxy des Wirts: Er besorgt TLS und verteilt die Pfade einer Domain
+(siehe „Auf eine Subdomain stellen"). Compose bindet die Container an
+`127.0.0.1:8000` („hören") und `127.0.0.1:8001` („schreiben"); aus dem Netz
+erreichbar ist nur der Proxy. Die Daten liegen im gemeinsamen Volume
 `wortlaut-data`; eine Sicherung ist das Kopieren dieses Volumes bei
 angehaltenem Dienst (SQLite im WAL-Modus mag keine Kopie mitten im
 Schreibvorgang).
@@ -89,19 +98,23 @@ das lüde jeder Neustart des Containers erneut herunter.
 Vite läuft dabei nicht mit — es ist reines Entwicklungswerkzeug. Das Frontend
 wird beim `docker build` einmal gebaut und vom Backend mit ausgeliefert. Ein
 `--host` braucht darum weder Vite noch uvicorn: der Startbefehl im Dockerfile
-bindet bereits `0.0.0.0`, erreichbar von außen ist trotzdem nur Caddy.
+bindet bereits `0.0.0.0` — das gilt im Container; nach außen bindet Compose
+auf `127.0.0.1`.
 
 ### Auf eine Subdomain stellen
 
 Eine Adresse für alle drei Apps, nicht eine je App: `wortlaut.example.org`.
 `hören` ist der Einstieg und liegt auf der Wurzel, `schreiben` unter
-`/schreiben/`; `handle_path` im Caddyfile schneidet das Präfix ab, der
-Container dahinter sieht seine eigenen Wege. Für `lernen` kommt später ein
-dritter Block nach demselben Muster dazu.
+`/schreiben/`. Für `lernen` kommt später ein weiterer Pfad nach demselben
+Muster dazu.
 
-Wer eine App verschiebt, ändert drei Stellen zusammen: den `handle_path` im
-Caddyfile, den Pfad in `packages/ui/apps.ts` und das `base` in der
-`vite.config.ts` der App.
+**Der Proxy schneidet nichts ab.** Jede App hängt selbst unter ihrem Pfad —
+Oberfläche *und* API (`BASIS` in ihrer `main.py`, `base` in ihrer
+`vite.config.ts`). Der Proxy reicht den Weg unverändert weiter; eine Regel, die
+`/schreiben/` entfernt, macht die App unerreichbar.
+
+Wer eine App verschiebt, ändert drei Stellen zusammen: `BASIS` im Backend, das
+`base` in der `vite.config.ts` und den Pfad in `packages/ui/apps.ts`.
 
 1. **DNS**: einen A-Eintrag (bei IPv6 zusätzlich AAAA) von der Subdomain auf
    die öffentliche Adresse der Maschine. Vor dem ersten Start prüfen, sonst
@@ -110,7 +123,6 @@ Caddyfile, den Pfad in `packages/ui/apps.ts` und das `base` in der
 2. **`.env` auf dem Wirt**:
 
    ```
-   WORTLAUT_DOMAIN=wortlaut.example.org
    WORTLAUT_AUTH_TOKEN=<lange Zufallszeichenkette>
    ```
 
@@ -118,29 +130,61 @@ Caddyfile, den Pfad in `packages/ui/apps.ts` und das `base` in der
    offen im Netz** — jeder mit der Adresse kann Sprecher anlegen, Aufnahmen
    lesen und die LLM-Textquelle auf deine Rechnung benutzen.
 
-3. **Ports 80 und 443** in der Firewall der Maschine und, falls vorhanden, in
-   der des Anbieters freigeben. Port 80 wird gebraucht, auch wenn nachher alles
-   über HTTPS läuft: darüber läuft die ACME-Prüfung.
+3. **Den vorhandenen Reverse Proxy** auf die beiden Ports zeigen lassen.
+   `/schreiben/` zuerst, sonst greift die Regel für die Wurzel — mit Caddy:
+
+   ```caddyfile
+   wortlaut.example.org {
+   	encode gzip
+
+   	handle /schreiben/* {
+   		reverse_proxy 127.0.0.1:8001
+   	}
+
+   	handle {
+   		reverse_proxy 127.0.0.1:8000
+   	}
+   }
+   ```
+
+   Mit nginx (`proxy_pass` **ohne** Pfadangabe, sonst wird das Präfix
+   abgeschnitten):
+
+   ```nginx
+   location /schreiben/ {
+       proxy_pass http://127.0.0.1:8001;
+       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       client_max_body_size 64m;   # Aufnahmen sind größer als die Vorgabe
+   }
+
+   location / {
+       proxy_pass http://127.0.0.1:8000;
+       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       client_max_body_size 64m;
+   }
+   ```
 
 4. **Starten und nachsehen:**
 
    ```bash
    docker compose up -d --build
-   docker compose logs -f caddy       # „certificate obtained successfully"
-   curl https://wortlaut.example.org/gesundheit
+   curl http://127.0.0.1:8000/gesundheit        # „hören"
+   curl http://127.0.0.1:8001/gesundheit        # „schreiben"
+   curl -I https://wortlaut.example.org/schreiben/
    ```
 
+   Die letzte Zeile ist die Probe auf den Proxy: Kommt dort die Seite von
+   „hören" statt der von „schreiben", greift die Regel für `/schreiben/` nicht.
+
 `/gesundheit` verlangt bewusst keinen Token und eignet sich als Prüfpunkt für
-eine Überwachung.
+eine Überwachung. Es liegt bei beiden Apps auf der Wurzel ihres Containers,
+denn eine Überwachung spricht den Dienst unmittelbar an.
 
 **HTTPS ist nicht optional.** Der Aufnahmeknopf benutzt `MediaRecorder`, und
 das gibt der Browser nur in einem sicheren Kontext frei — über eine
 IP-Adresse oder blankes HTTP bleibt die App unbenutzbar.
-
-Läuft auf der Maschine bereits ein anderer Reverse Proxy auf 80/443, dann den
-`caddy`-Dienst aus `compose.yaml` streichen, beim Dienst `hoeren` `expose`
-durch `ports: ["127.0.0.1:8000:8000"]` ersetzen und den vorhandenen Proxy auf
-`127.0.0.1:8000` zeigen lassen.
 
 ## Endpunkte
 
@@ -167,17 +211,21 @@ App „schreiben" (kein Token, kein Sprecherparameter — beides steht in der
 Konfiguration der Instanz):
 
 ```
-POST   /api/sessions                              neue Diktiersitzung
-GET    /api/sessions/{id}
-POST   /api/sessions/{id}/segments                multipart: audio → Abschnitte
-POST   /api/sessions/{id}/bestaetigen             → Postausgang, sofort senden
-POST   /api/segments/{id}/neu                     multipart: audio
-GET    /api/segments/{id}/audio
-GET    /api/model                                 Modellstand für die Kopfzeile
-GET    /api/outbox
-POST   /api/outbox/senden                         noch einmal versuchen
-GET    /gesundheit
+POST   /schreiben/api/sessions                    neue Diktiersitzung
+GET    /schreiben/api/sessions/{id}
+POST   /schreiben/api/sessions/{id}/segments      multipart: audio → Abschnitte
+POST   /schreiben/api/sessions/{id}/bestaetigen   → Postausgang, sofort senden
+POST   /schreiben/api/segments/{id}/neu           multipart: audio
+GET    /schreiben/api/segments/{id}/audio
+GET    /schreiben/api/model                       Modellstand für die Kopfzeile
+GET    /schreiben/api/outbox
+POST   /schreiben/api/outbox/senden               noch einmal versuchen
+GET    /gesundheit                                auf der Wurzel, für die Überwachung
 ```
+
+Der Pfad `/schreiben` gehört zur App und nicht zum Proxy: Er steht als `BASIS`
+in ihrer `main.py`, damit vor den Containern eine Regel genügt, die den Weg
+unverändert durchreicht.
 
 **Warum überall `sprecher=…`:** Das Korpus hat je Sprecher eine eigene
 Datenbank (`data/korpus/<sprecher_id>/hoeren.sqlite`). Ohne die Sprecher-ID
@@ -197,8 +245,9 @@ gedacht. Das Frontend fragt den Token einmal ab und legt ihn im
 „schreiben" hat bewusst keinen Zugang (Grundentscheidung 7): Die Zielperson
 kann schlecht lesen und schreiben, ein Anmeldefeld wäre eine unüberwindbare
 Hürde. Eine solche Instanz gehört deshalb ins private Netz oder hinter einen
-Zugang, den jemand anderes einrichtet — etwa eine Basisauthentifizierung im
-`handle_path`-Block von Caddy oder eine Beschränkung auf das eigene Netz. In
+Zugang, den jemand anderes einrichtet — etwa eine
+Basisauthentifizierung im `/schreiben/`-Block des Proxys oder eine
+Beschränkung auf das eigene Netz. In
 umgekehrter Richtung braucht „schreiben" den Token von „hören"
 (`WORTLAUT_INTAKE_TOKEN`), um seine Korrekturen abliefern zu dürfen.
 
@@ -219,6 +268,7 @@ umgekehrter Richtung braucht „schreiben" den Token von „hören"
 | „schreiben": „Aus der Aufnahme wurde kein Wort verstanden" | Whisper hat nichts erkannt. Mit `tiny` ist das bei leiser Aufnahme oder starker Sprechstörung der Normalfall — erst Mikrofon einmessen (in „hören" unter Einstellungen), dann ein größeres Modell versuchen. |
 | „schreiben": Postausgang bleibt offen | `WORTLAUT_INTAKE_URL` fehlt oder zeigt ins Leere, oder der Token passt nicht zum `WORTLAUT_AUTH_TOKEN` von „hören". Nichts geht verloren: „Noch einmal senden" nach dem Richten genügt. |
 | `localhost:5174` zeigt eine leere Seite | Der Pfad fehlt: `http://localhost:5174/schreiben/` aufrufen. |
+| Der Reiter „schreiben" landet wieder in „hören" | Der Proxy verteilt `/schreiben/` nicht (oder schneidet den Pfad ab). Probe: `curl -I https://<domain>/schreiben/` und `curl http://127.0.0.1:8001/gesundheit`. In der Entwicklung läuft „schreiben" nicht mit — `make dev APP=schreiben`. |
 | `make frontend` startet ohne Fehlermeldung, aber `localhost:5173` bleibt unerreichbar | `node_modules` fehlt (`npm install` in `apps/hoeren/frontend` vergessen). `npm run dev` sucht `vite` dann über `$PATH` — auf manchen Systemen (z. B. Ubuntu/Debian) existiert dort ein gleichnamiges, aber völlig anderes Paket namens `vite` (ViTE, ein Trace-Viewer), das kommentarlos ein leeres GUI-Fenster statt des Dev-Servers öffnet. Prüfen mit `command -v vite` — zeigt der Pfad nicht auf `apps/hoeren/frontend/node_modules/.bin/vite`, fehlt die Installation. Abhilfe: `npm install` nachholen. |
 
 ## Leises Mikrofon unter Linux

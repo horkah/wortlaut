@@ -39,6 +39,13 @@ export type Versand = { eingestellt: number; gesendet: number; offen: number; fe
 
 export type PostausgangStand = { offen: number; gesendet: number; letzter_fehler: string | null };
 
+/**
+ * Alle Wege dieser App liegen unter ihrem Pfad, die API eingeschlossen.
+ * `BASE_URL` ist das `base` aus der Vite-Konfiguration (`/schreiben/`) — so
+ * steht der Ort an einer Stelle und nicht zweimal.
+ */
+const API = `${import.meta.env.BASE_URL}api`;
+
 export class ApiFehler extends Error {
   constructor(
     readonly status: number,
@@ -49,7 +56,7 @@ export class ApiFehler extends Error {
 }
 
 async function anfrage<T>(pfad: string, optionen: RequestInit = {}): Promise<T> {
-  const antwort = await fetch(`/api${pfad}`, optionen);
+  const antwort = await fetch(`${API}${pfad}`, optionen);
   if (!antwort.ok) {
     // FastAPI antwortet mit {"detail": …}; bei Netzfehlern bleibt der Status.
     const rumpf = await antwort.json().catch(() => null);
@@ -77,7 +84,7 @@ export const diktieren = (sitzung: string, aufnahme: Blob) =>
 export const abschnittNeuSprechen = (abschnitt: string, aufnahme: Blob) =>
   anfrage<Sitzung>(`/segments/${abschnitt}/neu`, alsFormular(aufnahme));
 
-export const abschnittAudioUrl = (abschnitt: string) => `/api/segments/${abschnitt}/audio`;
+export const abschnittAudioUrl = (abschnitt: string) => `${API}/segments/${abschnitt}/audio`;
 
 // ── Abschließen ─────────────────────────────────────────────────────────────
 

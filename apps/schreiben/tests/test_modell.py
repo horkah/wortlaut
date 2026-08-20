@@ -30,7 +30,7 @@ MANIFEST = {
 class TestModellauskunft:
     def test_meldet_das_grundmodell_ohne_registry(self, klient: TestClient) -> None:
         # Der Normalfall, solange es „lernen" nicht gibt.
-        antwort = klient.get("/api/model").json()
+        antwort = klient.get("/schreiben/api/model").json()
 
         assert antwort["ref"] == ""
         assert antwort["basismodell"] == "tiny"
@@ -46,7 +46,7 @@ class TestModellauskunft:
         monkeypatch.setenv("WORTLAUT_MODELL_REF", MANIFEST["id"])
         einstellungen.cache_clear()
 
-        antwort = klient.get("/api/model").json()
+        antwort = klient.get("/schreiben/api/model").json()
 
         assert antwort["basismodell"] == "openai/whisper-large-v3"
         assert antwort["methode"] == "full"
@@ -59,7 +59,7 @@ class TestModellauskunft:
         monkeypatch.setenv("WORTLAUT_MODELL_REF", "spr_test/gibtsnicht")
         einstellungen.cache_clear()
 
-        assert "nicht gefunden" in klient.get("/api/model").json()["beschriftung"]
+        assert "nicht gefunden" in klient.get("/schreiben/api/model").json()["beschriftung"]
 
 
 class TestModellpfad:

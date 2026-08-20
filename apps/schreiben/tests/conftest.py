@@ -131,7 +131,7 @@ def aufnahme() -> dict[str, tuple[str, bytes, str]]:
 
 @pytest.fixture
 def sitzung(klient: TestClient) -> str:
-    antwort = klient.post("/api/sessions")
+    antwort = klient.post("/schreiben/api/sessions")
     assert antwort.status_code == 201, antwort.text
     return antwort.json()["id"]
 
@@ -139,6 +139,6 @@ def sitzung(klient: TestClient) -> str:
 @pytest.fixture
 def diktat(klient: TestClient, sitzung: str, aufnahme: dict) -> dict:
     """Eine Sitzung mit den drei Abschnitten aus `VORGABE`."""
-    antwort = klient.post(f"/api/sessions/{sitzung}/segments", files=aufnahme)
+    antwort = klient.post(f"/schreiben/api/sessions/{sitzung}/segments", files=aufnahme)
     assert antwort.status_code == 201, antwort.text
     return antwort.json()

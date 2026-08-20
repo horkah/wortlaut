@@ -7,9 +7,11 @@
  * aber nicht anklickbar.
  *
  * `pfad` ist der Ort unter der gemeinsamen Domain. `hören` ist der Einstieg
- * und liegt auf der Wurzel, jede weitere App bekommt einen Pfad; Caddy
- * verteilt sie auf die Container (siehe `Caddyfile`). Der Pfad steht auch im
- * `base` der jeweiligen Vite-Konfiguration — beides muss zusammenpassen.
+ * und liegt auf der Wurzel, jede weitere App bekommt einen Pfad; der Reverse
+ * Proxy des Wirts verteilt sie unverändert auf die Container (siehe
+ * `docs/betrieb.md`). Derselbe Pfad steht im `base` der jeweiligen
+ * Vite-Konfiguration und im `BASIS` ihres Backends — alle drei müssen
+ * zusammenpassen, sonst führt der Reiter ins Leere oder auf die falsche App.
  */
 export type AppSchluessel = 'hoeren' | 'lernen' | 'schreiben';
 

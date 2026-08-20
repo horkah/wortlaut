@@ -9,8 +9,9 @@ const repowurzel = resolve(hier, '../../..');
 export default defineConfig({
   plugins: [svelte()],
   // Diese App liegt unter der gemeinsamen Domain auf `/schreiben/` (siehe
-  // packages/ui/apps.ts und den Caddyfile). Ohne `base` verwiese das gebaute
-  // HTML auf `/assets/…` und träfe damit die App „hören" auf der Wurzel.
+  // `BASIS` in backend/main.py und packages/ui/apps.ts). Ohne `base` verwiese
+  // das gebaute HTML auf `/assets/…` und träfe damit die App „hören" auf der
+  // Wurzel.
   base: '/schreiben/',
   resolve: {
     // Geteilte Komponenten liegen außerhalb dieser App.
@@ -21,8 +22,10 @@ export default defineConfig({
     port: 5174,
     // Ohne diese Freigabe verweigert Vite Dateien oberhalb des Projektordners.
     fs: { allow: [repowurzel] },
-    // Statt CORS: der Entwicklungsserver reicht /api an das Backend durch.
-    // Port 8001, damit beide Backends gleichzeitig laufen können (Makefile).
-    proxy: { '/api': 'http://localhost:8001' },
+    // Statt CORS: der Entwicklungsserver reicht die API an das Backend durch.
+    // Der Pfad bleibt dabei unverändert — das Backend hängt sie selbst unter
+    // `/schreiben` (siehe `BASIS` dort). Port 8001, damit beide Backends
+    // gleichzeitig laufen können (Makefile).
+    proxy: { '/schreiben/api': 'http://localhost:8001' },
   },
 });

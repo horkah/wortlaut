@@ -1,4 +1,8 @@
-# Betrieb: ein Anwendungscontainer je App plus Caddy als TLS-Endpunkt.
+# Betrieb: ein Anwendungscontainer je App, davor der Reverse Proxy des Wirts.
+# Er besorgt TLS und verteilt die Pfade einer Domain auf die Ports hier — die
+# Wege bleiben dabei unverändert, jede App hängt schon selbst unter ihrem Pfad
+# (siehe docs/betrieb.md). Gebunden wird nur an 127.0.0.1: aus dem Netz
+# erreichbar ist ausschließlich der Proxy.
 # „lernen" kommt als weiterer Dienst nach demselben Muster dazu.
 services:
   hoeren:
@@ -13,8 +17,8 @@ services:
       WORTLAUT_DATA_DIR: /srv/wortlaut/data
     volumes:
       - wortlaut-data:/srv/wortlaut/data
-    expose:
-      - "8000"
+    ports:
+      - "127.0.0.1:8000:8000"
 
   schreiben:
     build:
@@ -32,12 +36,12 @@ services:
       WORTLAUT_INTAKE_TOKEN: ${WORTLAUT_AUTH_TOKEN:-}
     volumes:
       - wortlaut-data:/srv/wortlaut/data
-    expose:
-      - 'ports: ["127.0.0.1:8000:8000"]'
+    ports:
+      # Eigener Port, denn der Proxy spricht beide Dienste an: die Wurzel geht
+      # an „hören" (8000), `/schreiben/` hierher.
+      - "127.0.0.1:8001:8000"
     depends_on:
       - hoeren
 
 volumes:
   wortlaut-data:
-  caddy-data:
-  caddy-config:

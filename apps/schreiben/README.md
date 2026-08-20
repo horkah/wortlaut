@@ -53,17 +53,22 @@ Geteilt mit `hören` und über `$ui` eingebunden: `Kopfleiste`, `Recorder`,
 ## Endpunkte
 
 ```
-POST   /api/sessions                          neue Diktiersitzung
-GET    /api/sessions/{id}
-POST   /api/sessions/{id}/segments            multipart: audio → Abschnitte
-POST   /api/sessions/{id}/bestaetigen         → Postausgang, sofort senden
-POST   /api/segments/{id}/neu                 multipart: audio, ersetzt einen
-GET    /api/segments/{id}/audio
-GET    /api/model                             Modellstand für die Kopfzeile
-GET    /api/outbox
-POST   /api/outbox/senden                     noch einmal versuchen
-GET    /gesundheit
+POST   /schreiben/api/sessions                neue Diktiersitzung
+GET    /schreiben/api/sessions/{id}
+POST   /schreiben/api/sessions/{id}/segments  multipart: audio → Abschnitte
+POST   /schreiben/api/sessions/{id}/bestaetigen   → Postausgang, sofort senden
+POST   /schreiben/api/segments/{id}/neu       multipart: audio, ersetzt einen
+GET    /schreiben/api/segments/{id}/audio
+GET    /schreiben/api/model                   Modellstand für die Kopfzeile
+GET    /schreiben/api/outbox
+POST   /schreiben/api/outbox/senden           noch einmal versuchen
+GET    /gesundheit                            auf der Wurzel, für die Überwachung
 ```
+
+Alles hängt unter `/schreiben` — dem Ort dieser App unter der gemeinsamen
+Domain (`BASIS` in `backend/main.py`). So genügt vor den Containern eine
+Regel, die den Weg unverändert durchreicht; ein Proxy, der das Präfix
+abschneidet, wird nicht gebraucht.
 
 Kein Token: siehe Grundentscheidung 7 und `docs/datenschutz.md`.
 
@@ -109,4 +114,5 @@ make dev APP=schreiben             # Backend :8001, Vite :5174
 
 Aufgerufen wird `http://localhost:5174/schreiben/`. Beim ersten Diktat lädt
 faster-whisper sein Modell herunter; das dauert einmalig und braucht Netz.
-`hören` kann daneben weiterlaufen (`:8000` und `:5173`).
+`hören` kann daneben weiterlaufen (`:8000` und `:5173`); dann führt auch dort
+der Reiter „schreiben" hierher.
