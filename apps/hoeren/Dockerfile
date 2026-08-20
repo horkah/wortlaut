@@ -5,6 +5,9 @@ COPY apps/hoeren/frontend/package*.json ./apps/hoeren/frontend/
 # `npm ci` statt `npm install`: baut genau das, was in package-lock.json steht.
 RUN cd apps/hoeren/frontend && npm ci
 COPY packages/ui ./packages/ui
+# Die Kopfzeile bindet das Zeichen als Quelltext ein
+# (packages/ui/Kopfleiste.svelte) — ohne assets/ bricht der Bau ab.
+COPY assets ./assets
 COPY apps/hoeren/frontend ./apps/hoeren/frontend
 RUN cd apps/hoeren/frontend && npm run build
 

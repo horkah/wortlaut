@@ -43,7 +43,7 @@ build-backend = "hatchling.build"
 packages = ["packages/wortlaut/src/wortlaut"]
 
 [tool.pytest.ini_options]
-testpaths = ["packages/wortlaut/tests", "apps/hoeren/tests", "apps/schreiben/tests"]
+testpaths = ["packages/wortlaut/tests", "apps/hoeren/tests", "apps/schreiben/tests", "tests"]
 # Die Apps sind keine installierten Pakete, sondern werden aus dem
 # Wurzelverzeichnis importiert — wie beim Start über uvicorn.
 pythonpath = ["."]
