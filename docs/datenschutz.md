@@ -54,9 +54,22 @@ uv run python scripts/purge_speaker.py <sprecher_id> --ja-wirklich # löschen
 ```
 
 Entfernt Profil, Aufnahmen, Schnappschüsse, Modellstände und die Diktate von
-„schreiben". Sicherungskopien
-außerhalb von `WORTLAUT_DATA_DIR` liegen außerhalb dessen, was ein Skript
-wissen kann — sie gehören in die Löschroutine des Betriebs.
+„schreiben". Dasselbe geht in der Oberfläche als Aufsicht (siehe unten), mit
+demselben Umfang: Was zu einer Person gehört, steht an einer Stelle
+(`apps/hoeren/backend/services/loeschung.py`), damit Oberfläche und
+Kommandozeile nicht Verschiedenes löschen.
+
+Feiner geht es auch — eine einzelne Aufnahme oder alle Aufnahmen einer Person,
+ohne ihr Profil anzutasten. Einen Weg, der mehrere Personen auf einmal löscht,
+gibt es bewusst nicht.
+
+**Sicherungen sind Kopien und müssen mitgelöscht werden.** Die Aufsicht kann
+Korpora als `.tgz` ausleiten; was einmal heruntergeladen ist, weiß dieses
+Projekt nicht mehr. Solche Archive enthalten vollständige Stimmaufnahmen und
+gehören damit in die Löschroutine des Betriebs — ebenso wie ausgeleitete
+Datensätze (`.zip`) und jede Sicherung außerhalb von `WORTLAUT_DATA_DIR`.
+Aufbewahrungsfrist und Ablageort dafür festzulegen ist eine organisatorische
+Entscheidung, die kein Skript abnehmen kann.
 
 ## Zugang
 
@@ -71,6 +84,16 @@ zurückgezogen, indem ein neuer ausgegeben wird; Einzelheiten in
 
 `WORTLAUT_AUTH_TOKEN` schützt daneben nur noch die Verwaltung — Profile
 anlegen, Zugänge ausgeben — und öffnet selbst kein Korpus.
+
+`WORTLAUT_ADMIN_TOKEN` dagegen schon: Er ist der Zugang der **Aufsicht**, die
+in jedes Korpus sieht, Aufnahmen abhört, sichert und löscht. Damit ist er der
+einzige Schlüssel, der an die Stimmaufnahmen aller Personen kommt, und
+entsprechend zu behandeln — lang und zufällig, nicht in einem geteilten
+Dokument, und getrennt vom Verwaltertoken. Ist er nicht gesetzt, ist die
+Aufsicht abgeschaltet; das ist die Voreinstellung. Wer eine Instanz für andere
+betreibt, sollte ihnen sagen, dass es diese Rolle gibt und wer sie hat: Für die
+betroffenen Personen ist das eine Auskunft nach Art. 13/14 DSGVO und keine
+technische Fußnote.
 
 `schreiben` hat bewusst kein Nutzerkonto, weil die Zielperson schlecht lesen
 und schreiben kann. Eine `schreiben`-Instanz gehört deshalb ins private Netz

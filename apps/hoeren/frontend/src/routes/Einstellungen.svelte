@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Die gemeinsamen Geräteeinstellungen, dazu der Verwaltertoken.
+   * Die gemeinsamen Geräteeinstellungen, dazu der Zugang zu dieser Instanz.
    *
    * Mikrofon, Stimme und Schrift stehen in `$ui/Einstellungen.svelte` — sie
    * gelten für alle Apps. Hier kommt nur hinzu, was allein diese App angeht:
@@ -9,6 +9,11 @@
    * schon in diesem Browser; ein Feld daneben wäre nur ein Weg, ihn
    * kaputtzumachen. „schreiben" bekommt ihn aus demselben Grund nicht zu sehen
    * (Grundentscheidung 7).
+   *
+   * Dasselbe Feld nimmt den Verwalter- **und** den Aufsichtstoken: Der Server
+   * sieht am Vorgelegten, welches von beidem es ist (backend/deps.py). Deshalb
+   * wird die Aufsicht aus jedem Browser erreichbar, in dem jemand ihren Token
+   * einträgt — es gibt keine zweite Adresse und keine zweite Anmeldung.
    */
   import Gemeinsam from '$ui/Einstellungen.svelte';
   import { SPRECHER_PFAD } from '$ui/apps';
@@ -32,7 +37,9 @@
       zugangMeldung =
         wer.art === 'sprecher'
           ? `Angenommen — dieser Browser gehört jetzt zu „${wer.name}“.`
-          : 'Token gespeichert, der Server nimmt ihn an.';
+          : wer.art === 'aufsicht'
+            ? 'Angenommen — dieser Browser ist jetzt die Aufsicht.'
+            : 'Token gespeichert, der Server nimmt ihn an.';
       angenommen = true;
       await ladeZugang();
     } catch (ursache) {
@@ -54,6 +61,12 @@
         und gibt die persönlichen Links aus. Wer aufnehmen will, braucht hier nichts — dafür gibt
         es den Link. Der Wert bleibt in diesem Browser und wird beim Zurücksetzen unten nicht
         angetastet.
+      </p>
+      <p class="gedaempft">
+        Für die <strong>Aufsicht</strong>: der <code>WORTLAUT_ADMIN_TOKEN</code>, in dasselbe
+        Feld. Sie sieht in jeden Korpus, benennt um, sichert und löscht. Dieser Browser gehört
+        danach der Aufsicht — ein Sprecher, der ihn vorher benutzt hat, öffnet einmal wieder
+        seinen persönlichen Link.
       </p>
       <div class="reihe">
         <input

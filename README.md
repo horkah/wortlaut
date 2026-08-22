@@ -91,6 +91,7 @@ wortlaut/
 │   │   │   ├── api/
 │   │   │   │   ├── speakers.py    # Sprecherprofile
 │   │   │   │   ├── zugang.py      # Zugänge ausgeben, zurückziehen, auskunft
+│   │   │   │   ├── admin.py       # Aufsicht: einsehen, sichern, löschen
 │   │   │   │   ├── sources.py     # LLM-Themen, Textupload
 │   │   │   │   ├── prompts.py     # nächste Sprecheinheit, Sitzungen
 │   │   │   │   ├── recordings.py  # Upload, Prüfung, Verwerfen
@@ -99,7 +100,9 @@ wortlaut/
 │   │   │   ├── services/
 │   │   │   │   ├── prompt_queue.py    # Reihenfolge, Wiederaufnahme
 │   │   │   │   ├── quality.py         # Pegel, Clipping, Dauerplausibilität
-│   │   │   │   └── zugang.py          # Zugang erzeugen, zerlegen, prüfen
+│   │   │   │   ├── zugang.py          # Zugang erzeugen, zerlegen, prüfen
+│   │   │   │   ├── export.py          # Datensatz als .zip (Text-Audio-Paare)
+│   │   │   │   └── loeschung.py       # was zu einem Sprecher gehört
 │   │   │   └── db/
 │   │   │       ├── models.py      # typisierte Modelle zum Schema
 │   │   │       └── migrations/    # 001_init.sql, 002_…
@@ -108,8 +111,8 @@ wortlaut/
 │   │   │   └── src/
 │   │   │       ├── lib/           # api.ts, zustand.svelte.ts
 │   │   │       └── routes/        # Verwaltung, Quelle wählen, Aufnahme,
-│   │   │                          # Fortschritt, Einstellungen
-│   │   └── tests/                 # Endpunkte, Warteschlange, Intake
+│   │   │                          # Fortschritt, Einsicht, Einstellungen
+│   │   └── tests/                 # Endpunkte, Warteschlange, Intake, Aufsicht
 │   │
 │   ├── lernen/                    # App „lernen" — entworfen, siehe README dort
 │   │
@@ -141,7 +144,8 @@ wortlaut/
 │   │   │   ├── corpus.py          # Korpus-Layout lesen und schreiben
 │   │   │   ├── registry.py        # Modellstände lesen und schreiben
 │   │   │   ├── storage.py         # Blob-Ablage: lokal (S3 vorbereitet)
-│   │   │   ├── db.py              # SQLite-Verbindung, Migrationsläufer
+│   │   │   ├── sicherung.py       # Sicherungsarchiv schreiben und einspielen
+│   │   │   ├── db.py              # SQLite-Verbindung, Migrationen, Sicherungskopie
 │   │   │   ├── ids.py             # zeitlich sortierbare Kennungen
 │   │   │   ├── text/
 │   │   │   │   ├── llm.py         # Thema + Altersspanne → Text
@@ -180,6 +184,7 @@ wortlaut/
 │   └── betrieb.md
 └── scripts/
     ├── migrate.py
+    ├── restore.py                 # eine Sicherung zurückspielen
     └── purge_speaker.py           # Löschung, vollständig
 ```
 
@@ -362,7 +367,9 @@ Browser eingestellt ist — der Name, den der Server zum vorgelegten Zugang nenn
 steht dafür in keinem `localStorage` mehr.
 
 `WORTLAUT_AUTH_TOKEN` schützt damit nicht mehr die Daten, sondern nur noch die
-**Verwaltung**: Profile anlegen, Zugänge ausgeben und zurückziehen.
+**Verwaltung**: Profile anlegen, Zugänge ausgeben und zurückziehen. An die
+Korpora kommt außer den Sprechern nur die Aufsicht — der eine Zugang, der über
+ihnen steht (siehe unten).
 
 **Der Preis.** Es gibt genau einen Weg zu den Daten, und der leitet seine
 Kennung ab — also kommt auch die Verwaltung nicht an die Korpora. Wer eine
@@ -379,6 +386,118 @@ Zugang ausgeben und den Link auf sein Gerät bringen, und in der `.env` von
 `schreiben` den `WORTLAUT_INTAKE_TOKEN` gegen diesen Zugang tauschen. Bis das
 geschehen ist, kommt niemand an die Aufnahmen — was der Sinn der Sache ist, aber
 eben auch ihr Preis.
+
+### Die Aufsicht — der eine Zugang über allen Korpora
+
+Der Preis des vorigen Abschnitts war, dass niemand mehr über die Korpora
+hinwegsieht: Die Verwaltung legt Profile an und kommt an keine Aufnahme. Für
+den Alltag ist das richtig. Für den Betrieb fehlte damit alles, was ein Betrieb
+braucht — nachsehen, was gesammelt wurde, einen Tippfehler im Namen
+richtigstellen, sichern, aufräumen. Nichts davon ging ohne eine SSH-Sitzung und
+`sqlite3` von Hand.
+
+Dafür gibt es eine dritte Art von Aufrufer, die **Aufsicht**, hinter einem
+eigenen `WORTLAUT_ADMIN_TOKEN`. Sie sieht in jeden Korpus, benennt Sprecher um,
+leitet Sicherungen und Datensätze aus und löscht. Sie darf zusätzlich alles,
+was die Verwaltung darf; umgekehrt nicht.
+
+**Aus jedem Browser erreichbar, ohne zweite Adresse.** Der Aufsichtstoken wird
+unter „Einstellungen → Zugang" in dasselbe Feld eingetragen wie ein
+Verwaltertoken; der Server sieht am Vorgelegten, welches von beidem er vor sich
+hat (`services/zugang.py` unterscheidet die Formen). Ein Browser trägt dabei
+weiterhin genau einen Zugang — wer dort vorher den Link eines Sprechers
+geöffnet hatte, öffnet ihn danach einmal wieder. Zwei gleichzeitige Identitäten
+in einem Browser wären genau die Doppeldeutigkeit, gegen die der ganze vorige
+Abschnitt angetreten ist.
+
+**Der Sprecher steht hier in der Adresse** — als einzige Wege dieser App
+(`/api/admin/…`). Das ist kein Rückfall in die alte Behauptung: Die Aufsicht
+hat keinen eigenen Sprecher, sie sieht über alle hinweg, und geprüft wird ihr
+Token und nicht die Kennung daneben. Damit der Unterschied sichtbar bleibt,
+liegen diese Wege unter einem eigenen Präfix und nirgends sonst.
+
+**Leer heißt abgeschaltet, nicht offen.** Beim Verwaltertoken bedeutet ein
+leerer Wert „steht offen", was für die lokale Entwicklung bequem ist. Hier
+nicht: Ohne gesetzten Token antwortet jeder Weg der Aufsicht mit 401, auch in
+der Entwicklung. Ein Zugang, der Korpora löscht, soll nicht versehentlich
+offenstehen.
+
+#### Zwei Formate, zwei Fragen
+
+Ausgeleitet wird in zwei Formaten, weil zwei verschiedene Fragen dahinterstehen.
+
+Die **Sicherung** (`.tgz`) beantwortet „Der Server ist weg, ich will den Stand
+zurück." Sie enthält die Dateien, wie sie unter `WORTLAUT_DATA_DIR` liegen —
+Datenbanken und Aufnahmen —, und ihr Inneres bildet das Datenverzeichnis eins
+zu eins ab:
+
+```
+wortlaut-gesamt-20260822-174500.tgz
+├── sicherung.json               Zeitpunkt, Sprecher, je Datei Größe und SHA-256
+└── daten/
+    ├── korpus/spr_…/hoeren.sqlite
+    ├── korpus/spr_…/audio/rec_….wav
+    └── diktate/spr_…/…          Arbeitsstand von „schreiben"
+```
+
+Das ist der ganze Trick der Wiederherstellung: Sie ist ein Auspacken an die
+richtige Stelle, kein Einspielen. `scripts/restore.py` nimmt einem die
+Prüfungen ab, aber `tar xzf` käme genauso weit — eine Sicherung, die ein
+laufendes Programm zum Lesen braucht, ist im Ernstfall keine.
+
+Es gibt sie je Sprecher und über alle auf einmal, letztere als **eine** Datei.
+Der Dienst darf dabei laufen: Die Datenbanken werden nicht kopiert, sondern
+über die Online-Backup-Schnittstelle von SQLite gezogen. Ein `cp` der
+`.sqlite`-Datei wäre kein stimmiger Stand, weil im WAL-Modus ein Teil der Daten
+daneben in `…-wal` steht.
+
+Der **Datensatz** (`.zip`, nur je Sprecher) beantwortet „Ich will die Paare aus
+Text und Audio ansehen oder trainieren, mit Werkzeugen, die von wortlaut nichts
+wissen":
+
+```
+spr_…/
+├── LIESMICH.txt
+├── metadaten.csv        file_name, transcription, dauer_s, modus, quelle, …
+├── metadaten.jsonl      dieselben Zeilen als JSON
+└── audio/
+    ├── rec_….wav        16 kHz mono, PCM 16 bit
+    └── rec_….txt        der gesprochene Text zu genau dieser Datei
+```
+
+Die Spalten `file_name` und `transcription` heißen englisch, weil das
+`audiofolder`-Format von Hugging Face genau diese Namen erwartet — der
+Datensatz lädt damit ohne eine Zeile Anpassungscode. Der Text steht doppelt
+darin: in der Tabelle fürs Training, als `.txt` neben dem Audio für jedes
+Werkzeug, das nur ein Verzeichnis sieht. Ein paar Kilobyte gegen den Umweg über
+eine Tabelle.
+
+Der Datensatz ist ausdrücklich **keine** Sicherung — Sitzungen und
+Warteschlange fehlen —, und die `LIESMICH.txt` sagt das auch demjenigen, der
+das Archiv in einem Jahr wiederfindet.
+
+#### Löschen: drei Stufen, und die vierte gibt es nicht
+
+| | Was verschwindet | Was bleibt |
+|---|---|---|
+| eine Aufnahme | Audio und Datensatz; die Einheit wird wieder offen | alles andere |
+| alle Aufnahmen eines Sprechers | jedes Audio, jede Aufnahmezeile | Profil, Textquellen, Warteschlange |
+| ein Sprecher | Korpus, Diktate, Modellstände, Schnappschüsse | nichts |
+
+Eine vierte Stufe „alle Sprecher" gibt es nicht, weder in der Oberfläche noch
+in der API. Sie wäre ein Knopf, der einmal im Leben gedrückt wird — und dann
+versehentlich. Wer zwei Personen löschen will, tut es zweimal und denkt dabei
+zweimal nach. Sichern über alle geht; löschen nur einzeln.
+
+Die beiden großen Stufen verlangen die Kennung ein zweites Mal
+(`?bestaetigung=…`), und die Oberfläche lässt dafür den Namen abschreiben. Ein
+zweites „Wirklich?" klickt man weg, ohne es gelesen zu haben; einen Namen
+abzuschreiben zwingt dazu hinzusehen, wen es trifft.
+
+Was zu einer Person gehört, steht an einer Stelle
+(`services/loeschung.py`) — dieselbe, die auch `scripts/purge_speaker.py`
+fragt. Sonst löschten Oberfläche und Kommandozeile Verschiedenes, und der
+Unterschied fiele niemandem auf.
 
 ### Endpunkte
 
@@ -410,7 +529,24 @@ GET    /api/progress
 POST   /api/korpus/intake                   ← von „schreiben"
 ```
 
-Mit beidem erreichbar, weil er die Frage beantwortet, welches von beidem
+Aufsicht — hinter `WORTLAUT_ADMIN_TOKEN`. Als einzige Wege dieser App nennen
+sie ihren Sprecher in der Adresse; die Aufsicht hat keinen eigenen:
+
+```
+GET    /api/admin/speakers                  alle Sprecher mit Kennzahlen
+GET    /api/admin/speakers/{id}             Quellen, Sitzungen, Umfang
+GET    /api/admin/speakers/{id}/recordings  Aufnahmen mit ihrem Text
+GET    /api/admin/speakers/{id}/recordings/{r}/audio
+PATCH  /api/admin/speakers/{id}             { name }  — umbenennen
+GET    /api/admin/speakers/{id}/sicherung   .tgz, wiederherstellbar
+GET    /api/admin/speakers/{id}/datensatz   .zip, Text-Audio-Paare
+GET    /api/admin/sicherung                 .tgz über alle Sprecher
+DELETE /api/admin/speakers/{id}/recordings/{r}
+DELETE /api/admin/speakers/{id}/recordings?bestaetigung={id}
+DELETE /api/admin/speakers/{id}?bestaetigung={id}
+```
+
+Mit jedem der drei erreichbar, weil er die Frage beantwortet, welcher
 vorliegt — und ohne alles:
 
 ```
@@ -663,7 +799,7 @@ Zwei Spalten tragen mehr Bedeutung, als ihr Name verrät:
 | Textquelle | LLM über einen Adapter, OpenAI-kompatibel oder Anthropic | Thema und Altersspanne als Prompt-Parameter; derselbe Adapter bedient ein lokales Ollama und die bezahlten Anbieter — für ein paar Vorlesesätze genügt ein kleines Modell auf der eigenen GPU |
 | Jobs | `jobs`-Tabelle plus Poll-Worker | keine Broker-Abhängigkeit für eine Warteschlange mit selten mehr als einem Eintrag |
 | Proxy | der vorhandene Reverse Proxy des Wirts | TLS und Pfadverteilung gehören zur Maschine, nicht in dieses Projekt |
-| Auth | in `hören` je Sprecher ein Zugang, der zugleich die Kennung ist; der Token davor schützt nur die Verwaltung. `schreiben` ohne | die Bindung zwischen Aufrufer und Verzeichnis muss der Server ziehen, nicht der Aufrufer; siehe Grundentscheidung 7 |
+| Auth | in `hören` je Sprecher ein Zugang, der zugleich die Kennung ist; der Token davor schützt nur die Verwaltung, ein zweiter die Aufsicht. `schreiben` ohne | die Bindung zwischen Aufrufer und Verzeichnis muss der Server ziehen, nicht der Aufrufer; siehe Grundentscheidung 7 |
 | Tests | pytest, FastAPI-TestClient | echte SQLite-Datei, echte Endpunkte, kein Nachbau |
 | Werkzeug | uv | eine Abhängigkeitsdatei, ein Befehl, keine Diskussion |
 
@@ -693,6 +829,9 @@ WORTLAUT_AUTH_TOKEN=                # Verwaltung: Profile anlegen, Zugänge
                                     # ausgeben. Leer = offen, nur für die
                                     # Entwicklung. Öffnet selbst kein Korpus —
                                     # dorthin führt der Zugang des Sprechers.
+WORTLAUT_ADMIN_TOKEN=               # Aufsicht: in jeden Korpus sehen,
+                                    # umbenennen, sichern, löschen. Leer =
+                                    # abgeschaltet (nicht offen).
 
 # lernen
 WORTLAUT_TRAINING_BACKEND=local     # local | remote
@@ -773,7 +912,7 @@ Läuft in gut einer Sekunde: ohne GPU, ohne Netz, ohne Mikrofon.
 | Ort | Prüft |
 |---|---|
 | `packages/wortlaut/tests/` | Chunker, Textformate, Audiomessung und -schnitt, Ablage, Migrationen, Registry |
-| `apps/hoeren/tests/` | Endpunkte gegen eine echte SQLite-Datei im Temporärverzeichnis; dazu die Trennung: Der Zugang des einen öffnet den Korpus des anderen nicht, und eine fremde Kennung im Parameter endet mit 403 statt mit einem Schreibvorgang |
+| `apps/hoeren/tests/` | Endpunkte gegen eine echte SQLite-Datei im Temporärverzeichnis; dazu die Trennung: Der Zugang des einen öffnet den Korpus des anderen nicht, und eine fremde Kennung im Parameter endet mit 403 statt mit einem Schreibvorgang. Für die Aufsicht: dass sie ohne Token zu ist, dass ihre Sicherung sich wirklich zurückspielen lässt, und dass es keinen Weg gibt, der mehr als einen Sprecher löscht |
 | `apps/schreiben/tests/` | Diktat und Abschnittsersatz, Postausgang, Modellauskunft |
 
 Zwei Regeln halten den Aufwand klein und die Aussagekraft hoch:
@@ -828,9 +967,10 @@ Einzelheiten in [`docs/datenschutz.md`](docs/datenschutz.md).
   beliebig. Eine dritte Textquelle aus einer festen, phonetisch abgedeckten
   Satzliste wäre für Sprechstörungen wirksamer und steht auf der Liste.
 - **Rollen und Mandanten.** Mehrere Personen an einer `hören`-Instanz gehen,
-  seit der Zugang die Kennung trägt — aber es gibt genau zwei Arten von
-  Aufrufer, den Sprecher und die Verwaltung, und keine Rechtematrix dazwischen.
-  Ein Benutzerkonzept wäre größer als das, was es zu trennen gibt.
+  seit der Zugang die Kennung trägt — aber es gibt genau drei Arten von
+  Aufrufer, den Sprecher, die Verwaltung und die Aufsicht, und keine
+  Rechtematrix dazwischen. Jede ist ein Token, keine ist ein Konto. Ein
+  Benutzerkonzept wäre größer als das, was es zu trennen gibt.
 - **Streaming-Transkription.** Die Vorlese-Korrektur-Schleife arbeitet
   abschnittsweise; Live-Erkennung würde das Bedienkonzept nicht verbessern.
 - **Diarisierung, Zeitstempel auf Wortebene.** Ein Sprecher, kurze Abschnitte.

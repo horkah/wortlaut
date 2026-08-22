@@ -1,7 +1,7 @@
 """Gemeinsame Abhängigkeiten der Endpunkte: Zugang, Datenbank, Ablage.
 
-Hier hängt die Bindung zwischen Aufrufer und Verzeichnis. Es gibt zwei Arten
-von Zugang, beide als `Authorization: Bearer …`:
+Hier hängt die Bindung zwischen Aufrufer und Verzeichnis. Es gibt drei Arten
+von Zugang, alle als `Authorization: Bearer …`:
 
 * **Verwaltung** — `WORTLAUT_AUTH_TOKEN`. Legt Sprecherprofile an, gibt deren
   Zugänge aus und zieht sie zurück. Sie kommt an keine Aufnahme heran; wer für
@@ -11,6 +11,15 @@ von Zugang, beide als `Authorization: Bearer …`:
 * **Sprecherzugang** — `<sprecher_id>.<geheimnis>` (siehe `services/zugang.py`).
   Er ist zugleich die Kennung: Der Server spaltet ihn, öffnet die Datenbank
   dieses Sprechers und prüft dort den Prüfwert.
+* **Aufsicht** — `WORTLAUT_ADMIN_TOKEN`. Der eine Zugang, der über allen
+  Korpora steht: einsehen, umbenennen, sichern, löschen. Er wählt seinen
+  Sprecher ausdrücklich in der Adresse, denn er hat keinen eigenen — deshalb
+  liegen seine Wege unter `/api/admin/…` und nirgends sonst (siehe
+  `api/admin.py`). Er darf alles, was die Verwaltung darf; umgekehrt nicht.
+
+  Anders als beim Verwaltertoken heißt „leer" hier **abgeschaltet**: Ein
+  offenstehender Zugang, der löschen darf, wäre kein Entwicklungskomfort,
+  sondern ein Unfall mit Ansage.
 
 `?sprecher=` gibt es weiterhin, aber nur noch als Behauptung, die stimmen muss.
 Weicht sie von der abgeleiteten Kennung ab — alter Reiter, falsches Lesezeichen,
@@ -40,9 +49,9 @@ _engines: dict[str, Engine] = {}
 
 @dataclass(frozen=True)
 class Zugang:
-    """Wer ruft. `sprecher_id` ist leer, solange die Verwaltung ruft."""
+    """Wer ruft. `sprecher_id` ist leer, außer ein Sprecher ruft selbst."""
 
-    art: str  # sprecher | verwaltung
+    art: str  # sprecher | verwaltung | aufsicht
     sprecher_id: str = ""
 
 
@@ -67,9 +76,48 @@ def _vorgelegt(authorization: str | None) -> str:
     return (authorization or "").removeprefix("Bearer ")
 
 
+def _gleich(vorgelegt: str, erwartet: str) -> bool:
+    """Zeitkonstanter Vergleich über die UTF-8-Bytes.
+
+    Zeitkonstant, weil sonst die Antwortzeit den Anfang des Tokens verrät.
+    Ausdrücklich in Bytes, weil `compare_digest` Zeichenketten mit
+    Nicht-ASCII-Zeichen abweist — ein Umlaut im Token genügte sonst für einen
+    500er statt eines sauberen 401.
+    """
+    return secrets.compare_digest(vorgelegt.encode("utf-8"), erwartet.encode("utf-8"))
+
+
+def _ist_aufsicht(vorgelegt: str) -> bool:
+    """Der Aufsichtstoken, falls einer gesetzt ist. Leer = abgeschaltet."""
+    erwartet = einstellungen().admin_token
+    return bool(erwartet) and _gleich(vorgelegt, erwartet)
+
+
+def _pruefe_aufsicht(authorization: Annotated[str | None, Header()] = None) -> None:
+    """Wächter der Wege unter `/api/admin/…`.
+
+    Ohne gesetzten `WORTLAUT_ADMIN_TOKEN` kommt hier niemand durch — auch nicht
+    in der Entwicklung. Diese Wege löschen Korpora; ein offener Zugang dazu
+    wäre kein Komfort, sondern der Unfall.
+    """
+    if not einstellungen().admin_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Die Aufsicht ist abgeschaltet: WORTLAUT_ADMIN_TOKEN ist nicht gesetzt.",
+        )
+    if not _ist_aufsicht(_vorgelegt(authorization)):
+        raise HTTPException(status_code=401, detail="Nicht angemeldet")
+
+
 def _pruefe_verwaltung(authorization: Annotated[str | None, Header()] = None) -> None:
-    """Bearer-Token gegen `WORTLAUT_AUTH_TOKEN`. Leerer Wert = offen (Entwicklung)."""
+    """Bearer-Token gegen `WORTLAUT_AUTH_TOKEN`. Leerer Wert = offen (Entwicklung).
+
+    Die Aufsicht kommt hier ebenfalls durch: Wer jeden Korpus löschen darf,
+    hätte an einem zweiten Token für das Anlegen eines Profils nichts gewonnen.
+    """
     vorgelegt = _vorgelegt(authorization)
+    if _ist_aufsicht(vorgelegt):
+        return
     # Ein Sprecherzugang ist hier kein schwächerer Verwalter, sondern etwas
     # anderes. Ohne diese Zeile käme er auf einem Server ohne gesetzten Token
     # durch und dürfte Profile anlegen — genau die stille Verwechslung, gegen
@@ -82,17 +130,19 @@ def _pruefe_verwaltung(authorization: Annotated[str | None, Header()] = None) ->
     erwartet = einstellungen().auth_token
     if not erwartet:
         return
-    # Zeitkonstanter Vergleich über die UTF-8-Bytes: sonst verrät die
-    # Antwortzeit den Anfang des Tokens. Verglichen wird ausdrücklich in Bytes,
-    # weil `compare_digest` Zeichenketten mit Nicht-ASCII-Zeichen abweist — ein
-    # Umlaut im Token genügt sonst für einen 500er statt eines sauberen 401.
-    if not secrets.compare_digest(vorgelegt.encode("utf-8"), erwartet.encode("utf-8")):
+    if not _gleich(vorgelegt, erwartet):
         raise HTTPException(status_code=401, detail="Nicht angemeldet")
 
 
 def _wer_ruft(authorization: Annotated[str | None, Header()] = None) -> Zugang:
     """Die Kennung aus dem Vorgelegten ableiten — die einzige Stelle, die das tut."""
-    teile = zugangsdienst.zerlege(_vorgelegt(authorization))
+    vorgelegt = _vorgelegt(authorization)
+    # Die Aufsicht zuerst: Sonst fiele sie in die Verwaltung und die Oberfläche
+    # bekäme nie zu sehen, dass sie mehr darf.
+    if _ist_aufsicht(vorgelegt):
+        return Zugang(art="aufsicht")
+
+    teile = zugangsdienst.zerlege(vorgelegt)
     if teile is None:
         _pruefe_verwaltung(authorization)
         return Zugang(art="verwaltung")
@@ -143,3 +193,4 @@ Datenbank = Annotated[Session, Depends(_sprecher_sitzung)]
 Ablage = Annotated[storage.Ablage, Depends(_ablage)]
 Wer = Annotated[Zugang, Depends(_wer_ruft)]
 Verwaltung = Depends(_pruefe_verwaltung)
+Aufsicht = Depends(_pruefe_aufsicht)

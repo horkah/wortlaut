@@ -9,22 +9,36 @@
    *
    * Den Link gibt es genau einmal zu sehen; gespeichert ist nur sein Prüfwert.
    * Verloren heißt deshalb: einen neuen ausgeben — und damit ist der alte tot.
+   *
+   * Dieselbe Seite sieht die Aufsicht, nur mit mehr darauf: Zu jedem Sprecher
+   * steht dann, wie viel er gesammelt hat, und ein Weg in seine Daten
+   * (`Einsicht.svelte`). Zwei getrennte Seiten wären zwei Listen derselben
+   * Sprecher — eine davon immer die falsche.
    */
   import { EINSTELLUNGEN_PFAD } from '$ui/apps';
   import {
     ApiFehler,
+    alleSprecher,
+    sicherungGesamt,
     sprecherAnlegen,
     sprecherListe,
     zugangAusgeben,
     zugangZurueckziehen,
     type Sprecher,
+    type Uebersicht,
   } from '../lib/api';
-  import { gehZu, ladeZugang, zustand } from '../lib/zustand.svelte';
+  import { EINSICHT_ROUTE, gehZu, ladeZugang, zustand } from '../lib/zustand.svelte';
 
-  let sprecher = $state<Sprecher[]>([]);
+  let sprecher = $state<(Sprecher | Uebersicht)[]>([]);
   let fehler = $state('');
+  let meldung = $state('');
+  let packt = $state(false);
   let name = $state('');
   let basismodell = $state('openai/whisper-large-v3');
+
+  // Die Aufsicht sieht dieselbe Liste, holt sie aber über ihren eigenen Weg —
+  // nur der bringt die Kennzahlen mit.
+  const beaufsichtigt = $derived(zustand.art === 'aufsicht');
 
   // Der frisch ausgegebene Zugang, solange er auf dem Bildschirm steht.
   let frisch = $state<{ sprecher_id: string; link: string } | null>(null);
@@ -36,7 +50,7 @@
     fehler = '';
     if (zugangNoetig) return;
     try {
-      sprecher = await sprecherListe();
+      sprecher = beaufsichtigt ? await alleSprecher() : await sprecherListe();
     } catch (ursache) {
       if (ursache instanceof ApiFehler && ursache.status === 401) await ladeZugang();
       else fehler = ursache instanceof Error ? ursache.message : String(ursache);
@@ -92,8 +106,24 @@
     kopiert = true;
   }
 
+  async function sichereAlles() {
+    fehler = '';
+    meldung = '';
+    packt = true;
+    try {
+      await sicherungGesamt();
+      meldung = 'Gesamtsicherung heruntergeladen.';
+    } catch (ursache) {
+      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+    } finally {
+      packt = false;
+    }
+  }
+
+  const minuten = (sekunden: number) => `${Math.round(sekunden / 60)} min`;
+
   $effect(() => {
-    if (zustand.art === 'verwaltung') lade();
+    if (zustand.art === 'verwaltung' || zustand.art === 'aufsicht') lade();
   });
 </script>
 
@@ -101,6 +131,9 @@
 
 {#if fehler}
   <p class="fehler">{fehler}</p>
+{/if}
+{#if meldung}
+  <p class="gedaempft">{meldung}</p>
 {/if}
 
 {#if zugangNoetig}
@@ -149,7 +182,21 @@
             ? `Zugang ausgegeben am ${person.zugang_erneuert.slice(0, 10)}`
             : 'Kein Zugang — für niemanden erreichbar'}
         </div>
+        {#if 'kennzahlen' in person}
+          <!-- Nur die Aufsicht bekommt diese Zahlen mitgeliefert. Sie stehen
+               hier, weil sie die Frage beantworten, die man vor jedem Griff in
+               einen Korpus hat: Wie viel steht darin? -->
+          <div class="gedaempft">
+            {person.kennzahlen.aufnahmen} Aufnahmen · {minuten(person.kennzahlen.sekunden)} ·
+            {person.kennzahlen.quellen} Textquellen
+          </div>
+        {/if}
       </div>
+      {#if beaufsichtigt}
+        <button class="knopf" onclick={() => gehZu(`${EINSICHT_ROUTE}${person.id}`)}>
+          Ansehen
+        </button>
+      {/if}
       {#if person.zugang_erneuert}
         <button class="knopf" onclick={() => zieh_zurueck(person)}>Zurückziehen</button>
       {/if}
@@ -177,6 +224,25 @@
     </label>
     <button class="knopf haupt" type="submit">Anlegen und Zugang ausgeben</button>
   </form>
+
+  {#if beaufsichtigt}
+    <h2>Gesamtsicherung</h2>
+    <div class="karte">
+      <p class="gedaempft">
+        Alle Korpora und alle Aufnahmen in <strong>einer</strong> Datei — die Sicherung, die man
+        wegträgt. Zurück kommt der Stand mit <code>scripts/restore.py</code>. Modellstände sind
+        nicht darin: Sie sind groß und lassen sich neu rechnen, die Aufnahmen nicht.
+      </p>
+      <button class="knopf haupt" disabled={packt} onclick={sichereAlles}>
+        {packt ? 'Wird gepackt …' : 'Gesamtsicherung herunterladen (.tgz)'}
+      </button>
+      <p class="gedaempft">
+        Bei einem großen Bestand dauert das Packen; der Browser hält die Datei so lange im
+        Speicher. Für sehr große Bestände besser <code>curl</code> — siehe
+        <code>docs/betrieb.md</code>.
+      </p>
+    </div>
+  {/if}
 {/if}
 
 <style>

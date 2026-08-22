@@ -1,9 +1,11 @@
 """Testaufbau für „hören".
 
-Es gibt zwei Klienten, weil es zwei Arten von Zugang gibt (siehe
+Es gibt drei Klienten, weil es drei Arten von Zugang gibt (siehe
 `backend/deps.py`): `verwalter` legt Profile an und gibt Zugänge aus, `klient`
-ist der Zugang **eines** Sprechers und damit der Weg zu dessen Daten. Die
-Aufrufe hängen `?sprecher=…` weiterhin an — nicht mehr, um den Sprecher zu
+ist der Zugang **eines** Sprechers und damit der Weg zu dessen Daten, und
+`aufsicht` sieht über alle Korpora hinweg.
+
+Die Aufrufe hängen `?sprecher=…` weiterhin an — nicht mehr, um den Sprecher zu
 wählen, sondern damit die Behauptung gegen die abgeleitete Kennung geprüft
 wird.
 
@@ -31,12 +33,14 @@ from apps.hoeren.backend.config import einstellungen
 from apps.hoeren.backend.main import app
 
 TOKEN = "test-geheim"
+ADMIN_TOKEN = "test-aufsicht"
 
 
 @pytest.fixture
 def _umgebung(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, wav_schreiben) -> Iterator[None]:
     monkeypatch.setenv("WORTLAUT_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("WORTLAUT_AUTH_TOKEN", TOKEN)
+    monkeypatch.setenv("WORTLAUT_ADMIN_TOKEN", ADMIN_TOKEN)
     monkeypatch.setenv("WORTLAUT_LLM_PROVIDER", "")  # Textquelle „LLM" aus
     einstellungen.cache_clear()
     deps._engines.clear()
@@ -55,6 +59,13 @@ def _umgebung(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, wav_schreiben) ->
 def verwalter(_umgebung: None) -> Iterator[TestClient]:
     """Die Verwaltung: Profile anlegen, Zugänge ausgeben und zurückziehen."""
     with TestClient(app, headers={"Authorization": f"Bearer {TOKEN}"}) as klient:
+        yield klient
+
+
+@pytest.fixture
+def aufsicht(_umgebung: None) -> Iterator[TestClient]:
+    """Die Aufsicht: über alle Korpora sehen, sichern, umbenennen, löschen."""
+    with TestClient(app, headers={"Authorization": f"Bearer {ADMIN_TOKEN}"}) as klient:
         yield klient
 
 
