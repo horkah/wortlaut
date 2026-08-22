@@ -26,12 +26,22 @@
 
 body {
   margin: 0;
+  /* Flex-Spalte über die volle Höhe, damit die Fußzeile bei kurzem Inhalt
+     unten bleibt statt gleich unter dem Text zu schweben (siehe `main` und
+     `Fusszeile.svelte`). */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 main {
   max-width: 44rem;
   margin: 0 auto;
   padding: 1.5rem 1.25rem 4rem;
+  width: 100%;
+  box-sizing: border-box;
+  /* Wächst, um den Raum zwischen Kopf- und Fußzeile zu füllen. */
+  flex: 1;
 }
 
 h2 {
