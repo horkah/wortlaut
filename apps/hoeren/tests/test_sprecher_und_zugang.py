@@ -28,6 +28,36 @@ class TestVerwaltung:
         antwort = klient_ohne_token.get("/api/speakers", headers={"Authorization": "Bearer falsch"})
         assert antwort.status_code == 401
 
+    def test_ohne_gesetzten_token_ist_die_verwaltung_zu(
+        self, _umgebung: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # „Leer" hieß hier einmal „offen", als Bequemlichkeit für die
+        # Entwicklung. Nur weiß keine Installation, ob sie Entwicklung ist:
+        # Wer den Token beim Aufsetzen vergisst, stellte damit eine Seite ins
+        # Netz, auf der jeder Profile anlegt und ausgegebene Zugänge
+        # zurückzieht. Ein vergessener Token ist jetzt die zugesperrte, nicht
+        # die großzügigste Einstellung.
+        monkeypatch.setenv("WORTLAUT_AUTH_TOKEN", "")
+        einstellungen.cache_clear()
+        with TestClient(app) as offen:
+            assert offen.get("/api/speakers").status_code == 401
+            assert offen.post("/api/speakers", json={"name": "Wer auch immer"}).status_code == 401
+            assert offen.delete("/api/speakers/spr_egal/zugang").status_code == 401
+
+    def test_ohne_gesetzten_token_bleibt_der_sprecher_drin(
+        self, _umgebung: None, monkeypatch: pytest.MonkeyPatch, verwalter: TestClient
+    ) -> None:
+        # Die zugesperrte Verwaltung sperrt niemanden aus, der schon einen
+        # Zugang hat: Aufnehmen hängt am Sprecherzugang und nie am
+        # Verwaltertoken.
+        angelegt = verwalter.post("/api/speakers", json={"name": "Testperson"}).json()["id"]
+        zugang = verwalter.post(f"/api/speakers/{angelegt}/zugang").json()["zugang"]
+        monkeypatch.setenv("WORTLAUT_AUTH_TOKEN", "")
+        einstellungen.cache_clear()
+        with TestClient(app, headers={"Authorization": f"Bearer {zugang}"}) as sprechend:
+            assert sprechend.get(f"/api/progress?sprecher={angelegt}").status_code == 200
+            assert sprechend.get("/api/zugang").json()["art"] == "sprecher"
+
     def test_gesundheit_ist_offen(self, klient_ohne_token: TestClient) -> None:
         # Proxy und Compose müssen den Dienst ohne Token prüfen können.
         assert klient_ohne_token.get("/gesundheit").json() == {"status": "ok"}

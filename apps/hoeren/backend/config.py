@@ -32,12 +32,14 @@ class Einstellungen(BaseSettings):
     # Mistral … Bei anbieter="anthropic" ohne Bedeutung.
     llm_base_url: str = ""
 
-    # Leer heißt: keine Authentifizierung. Nur für die lokale Entwicklung.
+    # Die Verwaltung: legt Sprecherprofile an, gibt Zugänge aus und zieht sie
+    # zurück. Leer heißt **abgeschaltet**, nicht „offen" — auch nicht für die
+    # Entwicklung: Keine Installation weiß, ob sie eine ist.
     auth_token: str = ""
 
     # Die Aufsicht: sieht jeden Korpus, sichert ihn und löscht daraus. Leer
-    # heißt hier — anders als oben — **abgeschaltet** und nicht „offen": Ein
-    # Zugang, der löschen darf, darf nicht versehentlich offenstehen.
+    # heißt auch hier abgeschaltet: Ein Zugang, der löschen darf, darf nicht
+    # versehentlich offenstehen.
     admin_token: str = ""
 
     @model_validator(mode="after")

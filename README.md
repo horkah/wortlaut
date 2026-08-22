@@ -413,7 +413,9 @@ steht dafür in keinem `localStorage` mehr.
 `WORTLAUT_AUTH_TOKEN` schützt damit nicht mehr die Daten, sondern nur noch die
 **Verwaltung**: Profile anlegen, Zugänge ausgeben und zurückziehen. An die
 Korpora kommt außer den Sprechern nur die Aufsicht — der eine Zugang, der über
-ihnen steht (siehe unten).
+ihnen steht (siehe unten). Ist er nicht gesetzt, ist die Verwaltung zu, nicht
+offen: Keine Installation weiß, ob sie Entwicklung ist, und ein vergessener
+Token darf nicht die großzügigste Einstellung sein.
 
 **Der Preis.** Es gibt genau einen Weg zu den Daten, und der leitet seine
 Kennung ab — also kommt auch die Verwaltung nicht an die Korpora. Wer eine
@@ -545,7 +547,7 @@ Unterschied fiele niemandem auf.
 
 ### Endpunkte
 
-Verwaltung — hinter `WORTLAUT_AUTH_TOKEN`, sofern gesetzt:
+Verwaltung — hinter `WORTLAUT_AUTH_TOKEN`; ohne ihn zu:
 
 ```
 POST   /api/speakers                        { name, sprache, basismodell }
@@ -878,9 +880,10 @@ WORTLAUT_LLM_API_KEY=               # bei lokalem Ollama leer
 WORTLAUT_LLM_MODEL=gemma2:9b
 WORTLAUT_LLM_BASE_URL=http://ollama:11434/v1   # nur bei openai
 WORTLAUT_AUTH_TOKEN=                # Verwaltung: Profile anlegen, Zugänge
-                                    # ausgeben. Leer = offen, nur für die
-                                    # Entwicklung. Öffnet selbst kein Korpus —
-                                    # dorthin führt der Zugang des Sprechers.
+                                    # ausgeben. Leer = abgeschaltet, auch in
+                                    # der Entwicklung. Öffnet selbst kein
+                                    # Korpus — dorthin führt der Zugang des
+                                    # Sprechers.
 WORTLAUT_ADMIN_TOKEN=               # Aufsicht: in jeden Korpus sehen,
                                     # umbenennen, sichern, löschen. Leer =
                                     # abgeschaltet (nicht offen).
