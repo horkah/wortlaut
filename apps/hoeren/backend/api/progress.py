@@ -39,11 +39,20 @@ def fortschritt(sprecher: str, db: Datenbank) -> FortschrittAntwort:
     sekunden = db.scalar(select(func.coalesce(func.sum(Aufnahme.dauer_s), 0.0)).where(*gueltig))
     aufnahmen = db.scalar(select(func.count()).select_from(Aufnahme).where(*gueltig))
 
-    einheiten_gesamt = db.scalar(
-        select(func.count()).select_from(Vorlage).where(Vorlage.speaker_id == sprecher)
-    )
-    einheiten_erledigt = db.scalar(
-        select(func.count(func.distinct(Aufnahme.prompt_id))).where(*gueltig)
+    # Offen ist, was noch vorzusprechen ist: aus einer stillgelegten Quelle
+    # kommt nichts mehr, also zählt sie hier auch nicht mit. Direkt gezählt und
+    # nicht als Differenz — sonst geriete die Zahl ins Minus, sobald eine
+    # Quelle mit Aufnahmen abgestellt wird.
+    erledigte_vorlagen = select(Aufnahme.prompt_id).where(*gueltig)
+    einheiten_offen = db.scalar(
+        select(func.count())
+        .select_from(Vorlage)
+        .join(Textquelle, Textquelle.id == Vorlage.source_id)
+        .where(
+            Vorlage.speaker_id == sprecher,
+            Textquelle.aktiv.is_(True),
+            Vorlage.id.not_in(erledigte_vorlagen),
+        )
     )
 
     nach_modus = dict(
@@ -64,7 +73,7 @@ def fortschritt(sprecher: str, db: Datenbank) -> FortschrittAntwort:
     return FortschrittAntwort(
         sekunden=float(sekunden or 0.0),
         aufnahmen=aufnahmen or 0,
-        offene_einheiten=(einheiten_gesamt or 0) - (einheiten_erledigt or 0),
+        offene_einheiten=einheiten_offen or 0,
         nach_modus=nach_modus,
         nach_quelle=nach_quelle,
     )

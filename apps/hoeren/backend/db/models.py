@@ -40,6 +40,9 @@ class Textquelle(Basis):
     art: Mapped[str]  # llm | upload | korrektur
     titel: Mapped[str]
     parameter: Mapped[str]  # JSON
+    # Stillgelegt heißt: keine neuen Einheiten mehr in der Warteschlange.
+    # Was schon aufgenommen wurde, bleibt im Korpus.
+    aktiv: Mapped[bool] = mapped_column(default=True)
     erstellt: Mapped[str]
 
 

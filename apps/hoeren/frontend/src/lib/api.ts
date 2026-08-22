@@ -33,7 +33,14 @@ export type Aufnahme = {
   hinweise: string[];
 };
 
-export type Quelle = { id: string; art: string; titel: string; einheiten: number; erstellt: string };
+export type Quelle = {
+  id: string;
+  art: string;
+  titel: string;
+  einheiten: number;
+  aktiv: boolean;
+  erstellt: string;
+};
 
 export type Fortschritt = {
   sekunden: number;
@@ -110,6 +117,39 @@ export function quelleAusDatei(sprecher: string, datei: File) {
     method: 'POST',
     body: formular,
   });
+}
+
+export const quelleLoeschen = (sprecher: string, quelle: string) =>
+  anfrage<void>(`/sources/${quelle}?sprecher=${sprecher}`, { method: 'DELETE' });
+
+/** Stilllegen oder wieder aufnehmen; gibt die Quelle im neuen Zustand zurück. */
+export const quelleUmstellen = (sprecher: string, quelle: string, aktiv: boolean) =>
+  anfrage<Quelle>(`/sources/${quelle}?sprecher=${sprecher}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ aktiv }),
+  });
+
+/**
+ * Der geschnittene Text einer Quelle als Klartext.
+ *
+ * Eigene Anfrage statt `anfrage`: Hier kommt kein JSON zurück. Nötig ist das,
+ * weil die API einen Token verlangt — ein `window.open` auf die Adresse
+ * schickte keinen mit und liefe in ein 401.
+ */
+export async function quelleText(sprecher: string, quelle: string): Promise<string> {
+  const kopf = new Headers();
+  const angemeldet = token();
+  if (angemeldet) kopf.set('Authorization', `Bearer ${angemeldet}`);
+
+  const antwort = await fetch(`/api/sources/${quelle}/text?sprecher=${sprecher}`, {
+    headers: kopf,
+  });
+  if (!antwort.ok) {
+    const rumpf = await antwort.json().catch(() => null);
+    throw new ApiFehler(antwort.status, rumpf?.detail ?? `Fehler ${antwort.status}`);
+  }
+  return antwort.text();
 }
 
 // ── Aufnehmen ───────────────────────────────────────────────────────────────
