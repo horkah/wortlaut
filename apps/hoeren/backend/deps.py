@@ -51,8 +51,11 @@ def _pruefe_token(authorization: Annotated[str | None, Header()] = None) -> None
     if not erwartet:
         return
     vorgelegt = (authorization or "").removeprefix("Bearer ")
-    # Zeitkonstanter Vergleich: sonst verrät die Antwortzeit den Anfang des Tokens.
-    if not secrets.compare_digest(vorgelegt, erwartet):
+    # Zeitkonstanter Vergleich über die UTF-8-Bytes: sonst verrät die
+    # Antwortzeit den Anfang des Tokens. Verglichen wird ausdrücklich in Bytes,
+    # weil `compare_digest` Zeichenketten mit Nicht-ASCII-Zeichen abweist — ein
+    # Umlaut im Token genügt sonst für einen 500er statt eines sauberen 401.
+    if not secrets.compare_digest(vorgelegt.encode("utf-8"), erwartet.encode("utf-8")):
         raise HTTPException(status_code=401, detail="Nicht angemeldet")
 
 
