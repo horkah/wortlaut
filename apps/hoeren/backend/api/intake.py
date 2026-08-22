@@ -25,7 +25,7 @@ from wortlaut import corpus, ids
 from wortlaut.text import chunker
 
 from ..db.models import Aufnahme, Textquelle, Vorlage, jetzt
-from ..deps import Ablage, Datenbank
+from ..deps import Ablage, Datenbank, SprecherId
 from ..services.prompt_queue import naechste_position
 
 router = APIRouter(prefix="/api/korpus", tags=["Korpus"])
@@ -41,7 +41,7 @@ class IntakeAntwort(BaseModel):
 
 @router.post("/intake", response_model=IntakeAntwort, status_code=201)
 async def nimm_korrektur_an(
-    sprecher: str,
+    sprecher: SprecherId,
     db: Datenbank,
     ablage: Ablage,
     audio: UploadFile = File(),

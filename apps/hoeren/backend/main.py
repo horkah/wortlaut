@@ -4,8 +4,11 @@ Start in der Entwicklung (aus dem Repository-Wurzelverzeichnis):
 
     uv run uvicorn apps.hoeren.backend.main:app --reload
 
-Alle `/api`-Endpunkte hängen hinter der Token-Prüfung; im Browser erreichbar
-ist außerdem das gebaute Frontend, sofern es vorliegt. Ein CORS-Regelwerk
+Die Wege teilen sich nach dem, was sie brauchen: Sprecherprofile anzulegen und
+Zugänge auszugeben ist Sache der Verwaltung (`WORTLAUT_AUTH_TOKEN`), alles
+Übrige verlangt den Zugang **eines** Sprechers und leitet dessen Kennung daraus
+ab (siehe `deps.py`). Im Browser erreichbar ist außerdem das gebaute Frontend,
+sofern es vorliegt. Ein CORS-Regelwerk
 braucht es nicht: in der Entwicklung leitet Vite `/api` an dieses Backend
 weiter (siehe `frontend/vite.config.ts`), im Betrieb liefert dieser Prozess
 beides aus.
@@ -18,20 +21,29 @@ from pathlib import Path
 from fastapi import FastAPI
 from wortlaut.web import FrontendDateien
 
-from .api import intake, progress, prompts, recordings, sources, speakers
-from .deps import Authentifiziert
+from .api import intake, progress, prompts, recordings, sources, speakers, zugang
+from .deps import Verwaltung
 
 app = FastAPI(title="wortlaut · hören", version="0.1.0")
 
+# Die Verwaltung: Profile anlegen und ansehen. Sie kommt an keine Aufnahme
+# heran — dafür braucht auch sie den Zugang des jeweiligen Sprechers.
+app.include_router(speakers.router, dependencies=[Verwaltung])
+
+# Zugänge ausgeben und zurückziehen; die Auskunft „wer bin ich hier" darin
+# hat bewusst keinen Wächter (siehe `api/zugang.py`).
+app.include_router(zugang.router)
+
+# Alles, was Daten berührt. Der Wächter steckt in `SprecherId`/`Datenbank`:
+# ohne Sprecherzugang gibt es keine Datenbank, die sich öffnen ließe.
 for router in (
-    speakers.router,
     sources.router,
     prompts.router,
     recordings.router,
     progress.router,
     intake.router,
 ):
-    app.include_router(router, dependencies=[Authentifiziert])
+    app.include_router(router)
 
 
 @app.get("/gesundheit", tags=["Betrieb"])

@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from ..db.models import Aufnahme, Textquelle, Vorlage
-from ..deps import Datenbank
+from ..deps import Datenbank, SprecherId
 from ..services import prompt_queue
 
 router = APIRouter(prefix="/api/progress", tags=["Fortschritt"])
@@ -34,7 +34,7 @@ class FortschrittAntwort(BaseModel):
 
 
 @router.get("", response_model=FortschrittAntwort)
-def fortschritt(sprecher: str, db: Datenbank) -> FortschrittAntwort:
+def fortschritt(sprecher: SprecherId, db: Datenbank) -> FortschrittAntwort:
     gueltig = (Aufnahme.speaker_id == sprecher, Aufnahme.status == "ok")
 
     sekunden = db.scalar(select(func.coalesce(func.sum(Aufnahme.dauer_s), 0.0)).where(*gueltig))

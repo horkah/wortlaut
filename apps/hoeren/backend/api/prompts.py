@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from wortlaut import ids
 
 from ..db.models import Sitzung, Vorlage, jetzt
-from ..deps import Datenbank
+from ..deps import Datenbank, SprecherId
 from ..services import prompt_queue
 
 router = APIRouter(tags=["Vorlagen"])
@@ -41,7 +41,7 @@ class NaechsteAntwort(BaseModel):
 
 
 @router.post("/api/sessions", response_model=SitzungAntwort, status_code=201)
-def beginne_sitzung(sprecher: str, db: Datenbank) -> SitzungAntwort:
+def beginne_sitzung(sprecher: SprecherId, db: Datenbank) -> SitzungAntwort:
     sitzung = Sitzung(
         id=ids.neue_id("ses"), speaker_id=sprecher, begonnen=jetzt(), zuletzt_aktiv=jetzt()
     )
@@ -52,7 +52,7 @@ def beginne_sitzung(sprecher: str, db: Datenbank) -> SitzungAntwort:
 
 @router.get("/api/prompts/next", response_model=NaechsteAntwort)
 def naechste_einheit(
-    sprecher: str, db: Datenbank, session: str | None = None, zufall: bool = False
+    sprecher: SprecherId, db: Datenbank, session: str | None = None, zufall: bool = False
 ) -> NaechsteAntwort:
     if session is not None:
         sitzung = db.get(Sitzung, session)

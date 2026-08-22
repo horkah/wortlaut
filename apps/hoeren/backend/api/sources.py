@@ -20,7 +20,7 @@ from wortlaut.text import chunker, llm, upload
 
 from ..config import einstellungen
 from ..db.models import Aufnahme, Textquelle, Vorlage, jetzt
-from ..deps import Datenbank
+from ..deps import Datenbank, SprecherId
 from ..services.prompt_queue import naechste_position
 
 router = APIRouter(prefix="/api/sources", tags=["Textquellen"])
@@ -61,7 +61,7 @@ def _als_antwort(quelle: Textquelle, einheiten: int) -> QuellenAntwort:
 
 
 @router.post("/llm", response_model=QuellenAntwort, status_code=201)
-def aus_llm(sprecher: str, auftrag: LLMAuftrag, db: Datenbank) -> QuellenAntwort:
+def aus_llm(sprecher: SprecherId, auftrag: LLMAuftrag, db: Datenbank) -> QuellenAntwort:
     konfiguration = einstellungen()
     try:
         text = llm.erzeuge_text(
@@ -89,7 +89,9 @@ def aus_llm(sprecher: str, auftrag: LLMAuftrag, db: Datenbank) -> QuellenAntwort
 
 
 @router.post("/upload", response_model=QuellenAntwort, status_code=201)
-async def aus_upload(sprecher: str, db: Datenbank, datei: UploadFile = File()) -> QuellenAntwort:
+async def aus_upload(
+    sprecher: SprecherId, db: Datenbank, datei: UploadFile = File()
+) -> QuellenAntwort:
     inhalt = await datei.read()
     if len(inhalt) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="Datei ist zu groß (Grenze: 10 MB).")
@@ -112,7 +114,7 @@ async def aus_upload(sprecher: str, db: Datenbank, datei: UploadFile = File()) -
 
 
 @router.get("", response_model=list[QuellenAntwort])
-def liste(sprecher: str, db: Datenbank) -> list[QuellenAntwort]:
+def liste(sprecher: SprecherId, db: Datenbank) -> list[QuellenAntwort]:
     anzahl = (
         select(Vorlage.source_id, func.count().label("einheiten"))
         .group_by(Vorlage.source_id)
@@ -135,7 +137,7 @@ def _hole(db: Session, sprecher: str, quelle_id: str) -> Textquelle:
 
 
 @router.get("/{quelle_id}/text", response_class=PlainTextResponse)
-def text_ansehen(sprecher: str, quelle_id: str, db: Datenbank) -> str:
+def text_ansehen(sprecher: SprecherId, quelle_id: str, db: Datenbank) -> str:
     """Der Text, wie er in der Warteschlange steht — eine Einheit je Absatz.
 
     Nicht das Original, sondern das Geschnittene: Genau das wird vorgesprochen,
@@ -150,7 +152,7 @@ def text_ansehen(sprecher: str, quelle_id: str, db: Datenbank) -> str:
 
 @router.patch("/{quelle_id}", response_model=QuellenAntwort)
 def stelle_um(
-    sprecher: str, quelle_id: str, aenderung: AktivAenderung, db: Datenbank
+    sprecher: SprecherId, quelle_id: str, aenderung: AktivAenderung, db: Datenbank
 ) -> QuellenAntwort:
     """Quelle stilllegen oder wieder aufnehmen — ohne Datenverlust."""
     quelle = _hole(db, sprecher, quelle_id)
@@ -164,7 +166,7 @@ def stelle_um(
 
 
 @router.delete("/{quelle_id}", status_code=204)
-def loesche(sprecher: str, quelle_id: str, db: Datenbank) -> None:
+def loesche(sprecher: SprecherId, quelle_id: str, db: Datenbank) -> None:
     """Quelle mitsamt ihren Einheiten löschen — solange nichts daran hängt.
 
     Gibt es zu einer Einheit eine gültige Aufnahme, wird nicht gelöscht: Das

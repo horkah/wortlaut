@@ -1,5 +1,12 @@
 """Testaufbau für „hören".
 
+Es gibt zwei Klienten, weil es zwei Arten von Zugang gibt (siehe
+`backend/deps.py`): `verwalter` legt Profile an und gibt Zugänge aus, `klient`
+ist der Zugang **eines** Sprechers und damit der Weg zu dessen Daten. Die
+Aufrufe hängen `?sprecher=…` weiterhin an — nicht mehr, um den Sprecher zu
+wählen, sondern damit die Behauptung gegen die abgeleitete Kennung geprüft
+wird.
+
 Jeder Test bekommt ein eigenes Datenverzeichnis und einen frischen Zustand.
 Zwei Dinge werden ersetzt:
 
@@ -12,7 +19,7 @@ Zwei Dinge werden ersetzt:
 from __future__ import annotations
 
 import shutil
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
@@ -45,8 +52,8 @@ def _umgebung(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, wav_schreiben) ->
 
 
 @pytest.fixture
-def klient(_umgebung: None) -> Iterator[TestClient]:
-    """Angemeldeter Zugriff — der Normalfall in allen Tests."""
+def verwalter(_umgebung: None) -> Iterator[TestClient]:
+    """Die Verwaltung: Profile anlegen, Zugänge ausgeben und zurückziehen."""
     with TestClient(app, headers={"Authorization": f"Bearer {TOKEN}"}) as klient:
         yield klient
 
@@ -58,13 +65,42 @@ def klient_ohne_token(_umgebung: None) -> Iterator[TestClient]:
 
 
 @pytest.fixture
-def sprecher(klient: TestClient) -> str:
+def sprecher(verwalter: TestClient) -> str:
     """Ein angelegtes Sprecherprofil; gibt dessen Kennung zurück."""
-    antwort = klient.post(
+    antwort = verwalter.post(
         "/api/speakers", json={"name": "Testperson", "basismodell": "openai/whisper-small"}
     )
     assert antwort.status_code == 201
     return antwort.json()["id"]
+
+
+@pytest.fixture
+def zugang_ausgeben(verwalter: TestClient) -> Callable[[str], str]:
+    """Einen Zugang ausgeben. Im Klartext gibt es ihn nur an dieser Stelle."""
+
+    def gib(sprecher_id: str) -> str:
+        antwort = verwalter.post(f"/api/speakers/{sprecher_id}/zugang")
+        assert antwort.status_code == 201
+        return antwort.json()["zugang"]
+
+    return gib
+
+
+@pytest.fixture
+def klient_fuer(zugang_ausgeben: Callable[[str], str]) -> Callable[[str], TestClient]:
+    """Ein Klient mit frischem Zugang für einen bestimmten Sprecher."""
+
+    def baue(sprecher_id: str) -> TestClient:
+        return TestClient(app, headers={"Authorization": f"Bearer {zugang_ausgeben(sprecher_id)}"})
+
+    return baue
+
+
+@pytest.fixture
+def klient(klient_fuer: Callable[[str], TestClient], sprecher: str) -> Iterator[TestClient]:
+    """Der Zugang eines Sprechers — der Normalfall in allen Datentests."""
+    with klient_fuer(sprecher) as klient:
+        yield klient
 
 
 @pytest.fixture
