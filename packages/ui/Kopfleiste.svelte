@@ -19,7 +19,6 @@
     uebergreifend = [],
     sprecher,
     route = '/',
-    hinweis = '',
   }: {
     /** Welche der drei Apps diese Seite ist. */
     app: AppSchluessel;
@@ -36,21 +35,15 @@
      */
     uebergreifend?: Menuepunkt[];
     /**
-     * Der Sprecher, für den diese Sitzung gilt — als Statuszeile hinter den
-     * App-Reitern. `null` heißt „kein gültiger Zugang" und zeigt einen
-     * Platzhalter; ausgelassen heißt „diese App führt keinen Sprecher" und
-     * zeigt nichts.
+     * Wer hier angemeldet ist — als Statuszeile neben dem Menüknopf. Meist ein
+     * Sprechername; „hören" setzt hier auch „Verwaltung" oder „Aufsicht" ein,
+     * denn beide sollen genauso auffallen wie ein Sprecher es tut. `null`
+     * heißt „kein gültiger Zugang" und zeigt einen Platzhalter; ausgelassen
+     * heißt „diese App führt keinen Sprecher" und zeigt nichts.
      */
     sprecher?: string | null;
     /** Die offene Hash-Route, ohne `#`. */
     route?: string;
-    /**
-     * Eine Randnotiz im linken Block. „schreiben" zeigt darin
-     * dauerhaft Basismodell und Datum seines Modellstands: Ein Modellwechsel
-     * ist dort eine Konfigurationsänderung, und wer eine Ausgabe beurteilt,
-     * muss sehen, welcher Stand sie erzeugt hat.
-     */
-    hinweis?: string;
   } = $props();
 
   // Warum Sprecher und Einstellungen hier hängen und nicht in der Reiterreihe:
@@ -108,21 +101,17 @@
           {/if}
         {/each}
       </nav>
-
-      {#if hinweis}
-        <span class="hinweis">{hinweis}</span>
-      {/if}
     </div>
 
     <div class="rechts">
       {#if sprecher !== undefined}
-        <!-- Wer gerade spricht, steht immer da: Alles, was die App tut, hängt
-             am Sprecher, und ein Griff in den falschen Korpus wäre teuer.
-             Der Name kommt vom Server, der ihn aus dem vorgelegten Zugang
-             ableitet — hier steht also, für wen dieser Browser eingestellt
-             ist, und nicht, was er sich gemerkt hat. Er steht direkt neben
-             dem Menüknopf: beides betrifft, wer hier gerade unterwegs ist. -->
-        <span class="sprecher" class:leer={!sprecher} title="Eingestellter Sprecher">
+        <!-- Wer gerade angemeldet ist, steht immer da: Alles, was die App
+             tut, hängt daran, und ein Griff in den falschen Korpus wäre
+             teuer. Der Wert kommt vom Server, der ihn aus dem vorgelegten
+             Zugang ableitet — meist ein Sprechername, bei „hören" auch
+             „Verwaltung" oder „Aufsicht". Er steht direkt neben dem
+             Menüknopf: beides betrifft, wer hier gerade unterwegs ist. -->
+        <span class="sprecher" class:leer={!sprecher} title="Angemeldet als">
           {sprecher ?? 'kein Zugang'}
         </span>
       {/if}
@@ -278,18 +267,6 @@
     display: block;
     width: 1.5em;
     height: 1.5em;
-  }
-
-  /* Randnotiz, kein Bedienelement: bleibt leise und darf schrumpfen. */
-  .hinweis {
-    min-width: 0;
-    max-width: 100%;
-    flex: 0 1 auto;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 0.8rem;
-    color: var(--gedaempft);
   }
 
   /* Steht im rechten Block, neben dem Menüknopf. Kräftiger als der Hinweis:

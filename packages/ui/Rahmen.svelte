@@ -37,7 +37,6 @@
     uebergreifend = [],
     sprecher,
     route = '/',
-    hinweis = '',
     children,
   }: {
     /** Welche der drei Apps diese Seite ist. */
@@ -46,12 +45,13 @@
     punkte?: Menuepunkt[];
     /** Menüpunkte dieser App, über den gerätebezogenen (siehe `Kopfleiste`). */
     uebergreifend?: Menuepunkt[];
-    /** Wer hier eingestellt ist; `undefined` heißt „führt keinen Sprecher". */
+    /**
+     * Wer hier angemeldet ist — ein Sprechername oder, für „hören", auch
+     * „Verwaltung"/„Aufsicht". `undefined` heißt „führt keinen Sprecher".
+     */
     sprecher?: string | null;
     /** Die offene Hash-Route, ohne `#`. */
     route?: string;
-    /** Randnotiz im linken Block der Kopfzeile. */
-    hinweis?: string;
     /** Die Ansicht, die diese App zur Route zeigt. */
     children: Snippet;
   } = $props();
@@ -63,7 +63,7 @@
   );
 </script>
 
-<Kopfleiste {app} {punkte} {uebergreifend} {sprecher} {route} {hinweis} />
+<Kopfleiste {app} {punkte} {uebergreifend} {sprecher} {route} />
 
 <main>
   {#if Geraet}

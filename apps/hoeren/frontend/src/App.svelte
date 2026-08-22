@@ -86,20 +86,26 @@
 
   // Für die Kopfzeile: der Name, den der Server zum vorgelegten Zugang nennt —
   // nicht der, den sich der Browser gemerkt hat. `undefined` heißt „führt
-  // keinen Sprecher" (Verwaltung und Aufsicht), `null` heißt „kein gültiger
-  // Zugang".
-  const name = $derived(spricht || zustand.art === 'keiner' ? zustand.name : undefined);
-  // Verwaltung und Aufsicht sagen, was sie sind — sonst sähe eine Seite ohne
-  // Aufnahmeansichten aus wie ein Fehler. Bei der Aufsicht kommt hinzu, dass
-  // sie in fremde Korpora sieht und aus ihnen löschen kann: Das soll dauerhaft
-  // dastehen und nicht nur auf der Seite, auf der gerade gelöscht wird.
-  const hinweis = $derived(
-    beaufsichtigt ? 'Aufsicht' : zustand.art === 'verwaltung' ? 'Verwaltung' : '',
+  // keinen Sprecher, und ist auch nicht Verwaltung oder Aufsicht" — der Fall
+  // tritt praktisch nicht ein, da `art` dann eines von beiden ist.
+  //
+  // Verwaltung und Aufsicht stehen genau hier und nicht mehr als eigener
+  // Hinweis links: Sie sagen, wer hier unterwegs ist, genau wie ein
+  // Sprechername das tut, und sollen deshalb genauso aussehen und genauso
+  // rechtsbündig stehen — nicht in der Reiterreihe verschwinden.
+  const name = $derived(
+    spricht || zustand.art === 'keiner'
+      ? zustand.name
+      : beaufsichtigt
+        ? 'Aufsicht'
+        : zustand.art === 'verwaltung'
+          ? 'Verwaltung'
+          : undefined,
   );
 
   ladeZugang();
 </script>
 
-<Rahmen app="hoeren" punkte={menue} {uebergreifend} sprecher={name} {hinweis} route={offen}>
+<Rahmen app="hoeren" punkte={menue} {uebergreifend} sprecher={name} route={offen}>
   <Ansicht />
 </Rahmen>
