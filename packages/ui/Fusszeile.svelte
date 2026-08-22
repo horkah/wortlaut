@@ -1,10 +1,9 @@
 <script lang="ts">
   /**
-   * Der Seitenfuß: eine Zeile, die sagt, welcher Stand hier läuft.
+   * Der Seitenfuß: eine Zeile, die sagt, welcher Stand hier läuft (`bau.ts`).
    *
-   * Bewusst leise und ganz unten — das ist keine Information für die Arbeit,
-   * sondern für den Zweifel: „Sehe ich gerade die neue Fassung?" Wer sie nicht
-   * braucht, soll sie nicht bemerken.
+   * Bewusst leise und ganz unten — wer sie nicht braucht, soll sie nicht
+   * bemerken.
    */
   import { BAUDATUM, baudatumLesbar } from './bau';
 </script>

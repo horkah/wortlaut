@@ -54,23 +54,17 @@
     hinweis?: string;
   } = $props();
 
-  // Die Einstellungen gehören zum Gerät, nicht zur App, und stehen deshalb
-  // nicht in der Reiterreihe einer einzelnen App, sondern hier hinter dem
-  // Menüknopf — in jeder App an derselben Stelle. Eingeklappt, weil sie selten
-  // gebraucht werden: „schreiben" soll ein großer Knopf bleiben
-  // (Grundentscheidung 7).
+  // Warum Sprecher und Einstellungen hier hängen und nicht in der Reiterreihe:
+  // siehe die Konstanten in `apps.ts`. Eingeklappt, weil sie selten gebraucht
+  // werden — „schreiben" soll ein großer Knopf bleiben (Grundentscheidung 7).
   let offen = $state(false);
   let huelle = $state<HTMLElement | null>(null);
   let knopf = $state<HTMLButtonElement | null>(null);
 
-  // In den Einstellungen braucht es einen Weg zurück, und zwar hier: „schreiben"
-  // hat gar keine Reiterreihe, und „hören" blendet sie ohne gewählten Sprecher
-  // aus. Ohne diesen Eintrag käme man nur über den Zurück-Knopf des Browsers
-  // wieder heraus.
   const inEinstellungen = $derived(route === EINSTELLUNGEN_PFAD);
-  // Auf einer übergreifenden Ansicht — Einstellungen wie Sprecher — führt die
-  // Reiterreihe nicht zurück: „schreiben" hat keine, und „hören" blendet sie
-  // ohne gewählten Sprecher aus. Der Rückweg gehört dann hierher.
+  // Auf einer übergreifenden Ansicht führt die Reiterreihe nicht zurück:
+  // „schreiben" hat keine, „hören" blendet sie ohne gewählten Sprecher aus.
+  // Ohne diesen Eintrag käme man nur über den Zurück-Knopf des Browsers heraus.
   const aussenstehend = $derived(
     inEinstellungen || uebergreifend.some((punkt) => punkt.pfad === route),
   );

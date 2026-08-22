@@ -10,11 +10,8 @@
  * Ursprung, und alle drei Apps liegen unter derselben Adresse. Wer das
  * Mikrofon in „hören" einmisst, hat es damit auch in „schreiben" eingemessen.
  *
- * Weil die Werte geteilt sind, ist es auch die Ansicht dazu: Sie steht einmal
- * in `Einstellungen.svelte` und hängt in jeder App hinter dem Menüknopf der
- * Kopfleiste. Was nur eine App angeht — der Zugangstoken von „hören" —, gibt
- * sie von außen herein; „schreiben" bekommt ihn nicht zu sehen
- * (Grundentscheidung 7).
+ * Weil die Werte geteilt sind, ist es auch die Ansicht dazu — sie steht einmal
+ * in `Einstellungen.svelte`.
  */
 import { VERSTAERKUNG_SPANNE, VERSTAERKUNG_VORGABE } from './mikrofon';
 import { TEMPO_VORGABE } from './speak';

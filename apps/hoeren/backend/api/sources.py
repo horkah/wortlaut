@@ -48,6 +48,18 @@ class AktivAenderung(BaseModel):
     aktiv: bool
 
 
+def _als_antwort(quelle: Textquelle, einheiten: int) -> QuellenAntwort:
+    """Die eine Stelle, an der eine Quelle zur Antwort wird."""
+    return QuellenAntwort(
+        id=quelle.id,
+        art=quelle.art,
+        titel=quelle.titel,
+        einheiten=einheiten,
+        aktiv=quelle.aktiv,
+        erstellt=quelle.erstellt,
+    )
+
+
 @router.post("/llm", response_model=QuellenAntwort, status_code=201)
 def aus_llm(sprecher: str, auftrag: LLMAuftrag, db: Datenbank) -> QuellenAntwort:
     konfiguration = einstellungen()
@@ -112,17 +124,7 @@ def liste(sprecher: str, db: Datenbank) -> list[QuellenAntwort]:
         .where(Textquelle.speaker_id == sprecher)
         .order_by(Textquelle.erstellt)
     ).all()
-    return [
-        QuellenAntwort(
-            id=quelle.id,
-            art=quelle.art,
-            titel=quelle.titel,
-            einheiten=einheiten,
-            aktiv=quelle.aktiv,
-            erstellt=quelle.erstellt,
-        )
-        for quelle, einheiten in zeilen
-    ]
+    return [_als_antwort(quelle, einheiten) for quelle, einheiten in zeilen]
 
 
 def _hole(db: Session, sprecher: str, quelle_id: str) -> Textquelle:
@@ -158,14 +160,7 @@ def stelle_um(
     einheiten = db.scalar(
         select(func.count()).select_from(Vorlage).where(Vorlage.source_id == quelle.id)
     )
-    return QuellenAntwort(
-        id=quelle.id,
-        art=quelle.art,
-        titel=quelle.titel,
-        einheiten=einheiten or 0,
-        aktiv=quelle.aktiv,
-        erstellt=quelle.erstellt,
-    )
+    return _als_antwort(quelle, einheiten or 0)
 
 
 @router.delete("/{quelle_id}", status_code=204)
@@ -237,11 +232,4 @@ def _lege_quelle_an(
     )
     db.commit()
 
-    return QuellenAntwort(
-        id=quelle.id,
-        art=quelle.art,
-        titel=quelle.titel,
-        einheiten=len(einheiten),
-        aktiv=quelle.aktiv,
-        erstellt=quelle.erstellt,
-    )
+    return _als_antwort(quelle, len(einheiten))

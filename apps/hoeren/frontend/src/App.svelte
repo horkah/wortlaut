@@ -11,12 +11,9 @@
   import Einstellungen from './routes/Einstellungen.svelte';
 
   // Die Reihenfolge ist der Weg durch die Arbeit an einem Sprecher: Text
-  // holen, aufnehmen, nachsehen, was zusammengekommen ist.
-  //
-  // Weder der Sprecher noch die Einstellungen stehen darin. Beide gelten über
-  // diese App hinaus — der Sprecher ist die Klammer um den ganzen Korpus, die
-  // Einstellungen gehören zum Gerät — und hängen deshalb im Menü der
-  // Kopfleiste, an derselben Stelle wie in jeder anderen App.
+  // holen, aufnehmen, nachsehen, was zusammengekommen ist. Sprecher und
+  // Einstellungen stehen bewusst nicht darin, sondern im Menü der Kopfleiste
+  // (warum: `apps.ts`).
   const MENUE: Menuepunkt[] = [
     { pfad: '/quelle', text: 'Textquelle' },
     { pfad: '/aufnahme', text: 'Aufnehmen' },
