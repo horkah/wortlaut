@@ -8,6 +8,7 @@
    * (Grundentscheidung 7).
    */
   import Gemeinsam from '$ui/Einstellungen.svelte';
+  import { SPRECHER_PFAD } from '$ui/apps';
   import { ApiFehler, setzeToken, sprecherListe, token } from '../lib/api';
   import { gehZu } from '../lib/zustand.svelte';
 
@@ -63,7 +64,9 @@
       <!-- Ohne gewählten Sprecher steht keine Reiterreihe da, über die man
            zurückfände. Wer wegen des Tokens hergeschickt wurde, kommt hier
            wieder heraus. -->
-      <button class="knopf haupt" onclick={() => gehZu('/')}>Weiter zu den Sprechern</button>
+      <button class="knopf haupt" onclick={() => gehZu(SPRECHER_PFAD)}>
+        Weiter zu den Sprechern
+      </button>
     {/if}
   {/snippet}
 </Gemeinsam>

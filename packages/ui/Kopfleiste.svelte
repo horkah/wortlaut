@@ -16,6 +16,8 @@
   let {
     app,
     punkte = [],
+    uebergreifend = [],
+    sprecher,
     route = '/',
     hinweis = '',
   }: {
@@ -23,6 +25,18 @@
     app: AppSchluessel;
     /** Die Ansichten dieser App; leer lassen heißt: zweite Reihe ausblenden. */
     punkte?: Menuepunkt[];
+    /**
+     * Ansichten, die nicht zu dieser App gehören, sondern zur ganzen
+     * Anwendung — sie stehen im Menü über den Einstellungen. „hören" reicht
+     * hier den Sprecher herein; „schreiben" hat noch keine solche Ansicht.
+     */
+    uebergreifend?: Menuepunkt[];
+    /**
+     * Der gewählte Sprecher, für die Statuszeile neben dem Menüknopf.
+     * `null` heißt „noch keiner gewählt" und zeigt einen Platzhalter;
+     * ausgelassen heißt „diese App führt keinen Sprecher" und zeigt nichts.
+     */
+    sprecher?: string | null;
     /** Die offene Hash-Route, ohne `#`. */
     route?: string;
     /**
@@ -48,6 +62,12 @@
   // aus. Ohne diesen Eintrag käme man nur über den Zurück-Knopf des Browsers
   // wieder heraus.
   const inEinstellungen = $derived(route === EINSTELLUNGEN_PFAD);
+  // Auf einer übergreifenden Ansicht — Einstellungen wie Sprecher — führt die
+  // Reiterreihe nicht zurück: „schreiben" hat keine, und „hören" blendet sie
+  // ohne gewählten Sprecher aus. Der Rückweg gehört dann hierher.
+  const aussenstehend = $derived(
+    inEinstellungen || uebergreifend.some((punkt) => punkt.pfad === route),
+  );
   const appName = $derived(APPS.find((eintrag) => eintrag.schluessel === app)?.name ?? '');
 
   function schliesseWennDraussen(ereignis: MouseEvent) {
@@ -87,7 +107,15 @@
       <span class="hinweis">{hinweis}</span>
     {/if}
 
-    <div class="menue" class:ohne-hinweis={!hinweis} bind:this={huelle}>
+    {#if sprecher !== undefined}
+      <!-- Wer gerade spricht, steht immer da: Alles, was die App tut, hängt
+           am Sprecher, und ein Griff in den falschen Korpus wäre teuer. -->
+      <span class="sprecher" class:leer={!sprecher} title="Gewählter Sprecher">
+        {sprecher ?? 'kein Sprecher'}
+      </span>
+    {/if}
+
+    <div class="menue" class:ohne-hinweis={!hinweis && sprecher === undefined} bind:this={huelle}>
       <button
         bind:this={knopf}
         class="knopf-menue"
@@ -115,14 +143,23 @@
       </button>
       {#if offen}
         <nav class="klappe" aria-label="Menü">
+          <!-- Erst wer, dann womit: Der Sprecher steht über den Einstellungen. -->
+          {#each uebergreifend as punkt (punkt.pfad)}
+            <a
+              class="eintrag"
+              class:aktiv={punkt.pfad === route}
+              href="#{punkt.pfad}"
+              onclick={() => (offen = false)}>{punkt.text}</a
+            >
+          {/each}
           <a
             class="eintrag"
             class:aktiv={inEinstellungen}
             href="#{EINSTELLUNGEN_PFAD}"
             onclick={() => (offen = false)}>Einstellungen</a
           >
-          {#if inEinstellungen}
-            <a class="eintrag" href="#/" onclick={() => (offen = false)}>
+          {#if aussenstehend}
+            <a class="eintrag zurueck" href="#/" onclick={() => (offen = false)}>
               Zurück zu „{appName}“
             </a>
           {/if}
@@ -197,8 +234,34 @@
     text-align: right;
   }
 
-  /* Ganz rechts, in jeder App an derselben Stelle. Ohne Hinweis daneben muss
-     der Knopf sich den Platz selbst nehmen. */
+  /* Steht rechts, gleich vor dem Menüknopf. Kräftiger als der Hinweis
+     daneben: Das ist kein Fußnotentext, sondern die Antwort auf „für wen
+     nehme ich hier eigentlich auf". */
+  .sprecher {
+    margin-left: auto;
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--akzent);
+  }
+
+  /* Steht schon ein Hinweis rechts, teilen sich beide den Rand nicht auf. */
+  .hinweis + .sprecher {
+    margin-left: 0.6rem;
+  }
+
+  /* Noch keiner gewählt: sichtbar, aber ohne Gewicht. */
+  .sprecher.leer {
+    font-weight: 400;
+    font-style: italic;
+    color: var(--gedaempft);
+  }
+
+  /* Ganz rechts, in jeder App an derselben Stelle. Steht links davon nichts,
+     muss der Knopf sich den Platz selbst nehmen. */
   .menue {
     position: relative;
     margin-left: 0.5rem;
@@ -262,6 +325,14 @@
   .eintrag.aktiv {
     background: var(--akzent-hell);
     font-weight: 600;
+  }
+
+  /* Der Rückweg ist kein Ziel wie die anderen, sondern der Ausgang. */
+  .eintrag.zurueck {
+    margin-top: 0.25rem;
+    border-top: 1px solid var(--rand);
+    padding-top: 0.55rem;
+    color: var(--gedaempft);
   }
 
   .ansichten {
