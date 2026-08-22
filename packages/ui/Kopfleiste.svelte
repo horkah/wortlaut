@@ -8,7 +8,7 @@
    * Ansicht darunter blasser — sonst streiten die beiden Reihen um die
    * Aufmerksamkeit.
    */
-  import { APPS, type AppSchluessel, type Menuepunkt } from './apps';
+  import { APPS, EINSTELLUNGEN_PFAD, type AppSchluessel, type Menuepunkt } from './apps';
   // Als Quelltext eingebunden und nicht als <img>, damit das Zeichen die
   // Schriftfarbe des Schriftzugs annimmt (die Datei zeichnet currentColor).
   import zeichen from '../../assets/wortlaut-logo.svg?raw';
@@ -33,7 +33,24 @@
      */
     hinweis?: string;
   } = $props();
+
+  // Die Einstellungen gehören zum Gerät, nicht zur App, und stehen deshalb
+  // nicht in der Reiterreihe einer einzelnen App, sondern hier hinter dem
+  // Menüknopf — in jeder App an derselben Stelle. Eingeklappt, weil sie selten
+  // gebraucht werden: „schreiben" soll ein großer Knopf bleiben
+  // (Grundentscheidung 7).
+  let offen = $state(false);
+  let huelle = $state<HTMLElement | null>(null);
+
+  function schliesseWennDraussen(ereignis: MouseEvent) {
+    if (offen && huelle && !huelle.contains(ereignis.target as Node)) offen = false;
+  }
 </script>
+
+<svelte:window
+  onclick={schliesseWennDraussen}
+  onkeydown={(ereignis) => ereignis.key === 'Escape' && (offen = false)}
+/>
 
 <header class="kopf">
   <div class="ebene apps">
@@ -56,6 +73,30 @@
     {#if hinweis}
       <span class="hinweis">{hinweis}</span>
     {/if}
+
+    <div class="menue" class:ohne-hinweis={!hinweis} bind:this={huelle}>
+      <button
+        class="knopf-menue"
+        aria-label="Menü"
+        aria-expanded={offen}
+        aria-haspopup="menu"
+        onclick={() => (offen = !offen)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 6h18M3 12h18M3 18h18" />
+        </svg>
+      </button>
+      {#if offen}
+        <nav class="klappe" aria-label="Menü">
+          <a
+            class="eintrag"
+            class:aktiv={route === EINSTELLUNGEN_PFAD}
+            href="#{EINSTELLUNGEN_PFAD}"
+            onclick={() => (offen = false)}>Einstellungen</a
+          >
+        </nav>
+      {/if}
+    </div>
   </div>
 
   {#if punkte.length}
@@ -122,6 +163,73 @@
     font-size: 0.8rem;
     color: var(--gedaempft);
     text-align: right;
+  }
+
+  /* Ganz rechts, in jeder App an derselben Stelle. Ohne Hinweis daneben muss
+     der Knopf sich den Platz selbst nehmen. */
+  .menue {
+    position: relative;
+    margin-left: 0.5rem;
+  }
+
+  .menue.ohne-hinweis {
+    margin-left: auto;
+  }
+
+  .knopf-menue {
+    display: block;
+    padding: 0.35rem;
+    border: 0;
+    border-radius: 0.4rem;
+    background: none;
+    color: var(--akzent);
+    cursor: pointer;
+    line-height: 0;
+  }
+
+  .knopf-menue:hover,
+  .knopf-menue[aria-expanded='true'] {
+    background: var(--akzent-hell);
+  }
+
+  .knopf-menue svg {
+    width: 1.4rem;
+    height: 1.4rem;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    fill: none;
+  }
+
+  .klappe {
+    position: absolute;
+    top: calc(100% + 0.3rem);
+    right: 0;
+    z-index: 10;
+    min-width: 11rem;
+    padding: 0.25rem;
+    border: 1px solid var(--rand);
+    border-radius: 0.5rem;
+    background: #fff;
+    box-shadow: 0 4px 14px rgb(0 0 0 / 12%);
+  }
+
+  .eintrag {
+    display: block;
+    padding: 0.5rem 0.7rem;
+    border-radius: 0.35rem;
+    text-decoration: none;
+    color: var(--akzent);
+    white-space: nowrap;
+  }
+
+  .eintrag:hover {
+    background: var(--akzent-hell);
+  }
+
+  .eintrag.aktiv {
+    background: var(--akzent-hell);
+    font-weight: 600;
   }
 
   .ansichten {

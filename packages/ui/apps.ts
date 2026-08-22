@@ -52,3 +52,13 @@ export interface Menuepunkt {
   pfad: string;
   text: string;
 }
+
+/**
+ * Wo die Einstellungen liegen — in jeder App dieselbe Hash-Route.
+ *
+ * Sie gehören zum Gerät und nicht zu einer App (Mikrofon, Stimme, Schrift
+ * teilen sich alle drei über den `localStorage`), stehen deshalb in keiner
+ * Reiterreihe, sondern hinter dem Menüknopf der Kopfleiste. Eine Konstante,
+ * damit Kopfleiste und Apps nicht getrennt voneinander raten.
+ */
+export const EINSTELLUNGEN_PFAD = '/einstellungen';
