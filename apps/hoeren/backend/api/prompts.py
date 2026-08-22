@@ -51,7 +51,9 @@ def beginne_sitzung(sprecher: str, db: Datenbank) -> SitzungAntwort:
 
 
 @router.get("/api/prompts/next", response_model=NaechsteAntwort)
-def naechste_einheit(sprecher: str, db: Datenbank, session: str | None = None) -> NaechsteAntwort:
+def naechste_einheit(
+    sprecher: str, db: Datenbank, session: str | None = None, zufall: bool = False
+) -> NaechsteAntwort:
     if session is not None:
         sitzung = db.get(Sitzung, session)
         if sitzung is None or sitzung.speaker_id != sprecher:
@@ -59,7 +61,13 @@ def naechste_einheit(sprecher: str, db: Datenbank, session: str | None = None) -
         sitzung.zuletzt_aktiv = jetzt()
         db.commit()
 
-    ausschnitt = prompt_queue.naechste(db, sprecher)
+    # Die Sitzung ist der Startwert des Mischens: Sie überdauert ein Neuladen,
+    # aber nicht den Tag, und hält die gestreute Reihenfolge damit genau so
+    # lange fest, wie am Stück aufgenommen wird. Ohne Sitzung tut es der
+    # Sprecher — irgendetwas Festes muss es sein.
+    ausschnitt = prompt_queue.naechste(
+        db, sprecher, zufall=zufall, streuung=session or sprecher
+    )
     return NaechsteAntwort(
         vorher=_als_antwort(ausschnitt.vorher),
         aktuell=_als_antwort(ausschnitt.aktuell),

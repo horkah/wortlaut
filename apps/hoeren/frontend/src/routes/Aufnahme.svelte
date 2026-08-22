@@ -21,7 +21,7 @@
     type Naechste,
   } from '../lib/api';
   import { einstellungen } from '$ui/einstellungen.svelte';
-  import { gehZu, zustand } from '../lib/zustand.svelte';
+  import { gehZu, setzeZufall, zustand } from '../lib/zustand.svelte';
 
   const sprecher = zustand.sprecher!;
   const SITZUNG_SCHLUESSEL = `wortlaut.sitzung.${sprecher}`;
@@ -53,8 +53,20 @@
     loeseUrl();
     letzte = null;
     nachgesprochen = false;
-    ausschnitt = await naechsteEinheit(sprecher, sitzung);
+    ausschnitt = await naechsteEinheit(sprecher, sitzung, zustand.zufall);
     stand = 'bereit';
+  }
+
+  function wechsleReihenfolge() {
+    setzeZufall(!zustand.zufall);
+    // Nur nachladen, wenn nichts in der Schwebe ist: Mitten in der Nachschau
+    // einer eben gesprochenen Aufnahme würde `hole()` sie wegräumen. Dann
+    // greift die neue Reihenfolge eben beim „Weiter".
+    if (stand === 'bereit') {
+      hole().catch((ursache) => {
+        fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      });
+    }
   }
 
   function loeseUrl() {
@@ -119,6 +131,22 @@
   <p class="gedaempft">{ausschnitt.erledigt} von {ausschnitt.gesamt} Einheiten</p>
   <div class="balken"><div style="width:{fortschritt}%"></div></div>
 
+  <div class="reihe">
+    <button
+      class="streuung"
+      role="switch"
+      aria-checked={zustand.zufall}
+      title={zustand.zufall
+        ? 'Die Einheiten kommen gemischt aus allen aktiven Quellen'
+        : 'Die Einheiten kommen der Reihe nach, wie im Text'}
+      disabled={stand === 'sendet'}
+      onclick={wechsleReihenfolge}
+    >
+      <span class="knebel" aria-hidden="true"></span>
+      Zufällige Reihenfolge
+    </button>
+  </div>
+
   <PromptView
     vorher={ausschnitt.vorher}
     aktuell={ausschnitt.aktuell}
@@ -176,6 +204,63 @@
 {/if}
 
 <style>
+  /* Ein Schalter, keine Schaltfläche: leise genug, um die Vorlage nicht zu
+     stören, und groß genug für einen Finger (2,75rem hoch = 44 px). */
+  .streuung {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 2.75rem;
+    padding: 0 0.5rem 0 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 0.9rem;
+    color: var(--gedaempft);
+    cursor: pointer;
+  }
+
+  .streuung:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  /* Die Wippe: außen die Bahn, innen der Knebel, der nach rechts wandert. */
+  .knebel {
+    position: relative;
+    flex: none;
+    width: 2.4rem;
+    height: 1.35rem;
+    border-radius: 999px;
+    background: var(--rand);
+    transition: background 0.15s;
+  }
+
+  .knebel::after {
+    content: '';
+    position: absolute;
+    top: 0.15rem;
+    left: 0.15rem;
+    width: 1.05rem;
+    height: 1.05rem;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.15s;
+  }
+
+  .streuung[aria-checked='true'] {
+    color: var(--akzent);
+    font-weight: 600;
+  }
+
+  .streuung[aria-checked='true'] .knebel {
+    background: var(--akzent);
+  }
+
+  .streuung[aria-checked='true'] .knebel::after {
+    transform: translateX(1.05rem);
+  }
+
   .mitte {
     display: flex;
     flex-direction: column;

@@ -160,9 +160,11 @@ export async function quelleText(sprecher: string, quelle: string): Promise<stri
 export const sitzungBeginnen = (sprecher: string) =>
   anfrage<{ id: string; begonnen: string }>(`/sessions?sprecher=${sprecher}`, { method: 'POST' });
 
-export const naechsteEinheit = (sprecher: string, sitzung: string | null) =>
+export const naechsteEinheit = (sprecher: string, sitzung: string | null, zufall = false) =>
   anfrage<Naechste>(
-    `/prompts/next?sprecher=${sprecher}` + (sitzung ? `&session=${sitzung}` : ''),
+    `/prompts/next?sprecher=${sprecher}` +
+      (sitzung ? `&session=${sitzung}` : '') +
+      (zufall ? '&zufall=true' : ''),
   );
 
 export function aufnahmeSenden(
