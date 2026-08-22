@@ -23,8 +23,9 @@
   import { einstellungen } from '$ui/einstellungen.svelte';
   import { gehZu, setzeZufall, zustand } from '../lib/zustand.svelte';
 
-  const sprecher = zustand.sprecher!;
-  const SITZUNG_SCHLUESSEL = `wortlaut.sitzung.${sprecher}`;
+  // Je Sprecher ein eigener Schlüssel: Wechselt auf einem Gerät der Zugang,
+  // soll die Sitzung des anderen nicht weiterlaufen.
+  const SITZUNG_SCHLUESSEL = `wortlaut.sitzung.${zustand.sprecher}`;
 
   let stand = $state<'laedt' | 'bereit' | 'sendet' | 'geprueft'>('laedt');
   let ausschnitt = $state<Naechste | null>(null);
@@ -43,7 +44,7 @@
     // genau die Lebensdauer, die zu „unterbrechbar" passt.
     sitzung = sessionStorage.getItem(SITZUNG_SCHLUESSEL);
     if (!sitzung) {
-      sitzung = (await sitzungBeginnen(sprecher)).id;
+      sitzung = (await sitzungBeginnen()).id;
       sessionStorage.setItem(SITZUNG_SCHLUESSEL, sitzung);
     }
     await hole();
@@ -53,7 +54,7 @@
     loeseUrl();
     letzte = null;
     nachgesprochen = false;
-    ausschnitt = await naechsteEinheit(sprecher, sitzung, zustand.zufall);
+    ausschnitt = await naechsteEinheit(sitzung, zustand.zufall);
     stand = 'bereit';
   }
 
@@ -94,7 +95,7 @@
     stand = 'sendet';
     abspielUrl = URL.createObjectURL(aufnahme);
     try {
-      letzte = await aufnahmeSenden(sprecher, {
+      letzte = await aufnahmeSenden({
         audio: aufnahme,
         prompt_id: ausschnitt.aktuell.id,
         modus: nachgesprochen ? 'nachgesprochen' : 'gelesen',
@@ -109,7 +110,7 @@
 
   async function nochmal() {
     if (!letzte) return;
-    await aufnahmeVerwerfen(sprecher, letzte.id);
+    await aufnahmeVerwerfen(letzte.id);
     await hole(); // dieselbe Einheit ist damit wieder offen
   }
 

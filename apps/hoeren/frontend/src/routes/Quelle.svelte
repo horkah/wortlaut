@@ -13,9 +13,7 @@
     quellen,
     type Quelle,
   } from '../lib/api';
-  import { gehZu, zustand } from '../lib/zustand.svelte';
-
-  const sprecher = zustand.sprecher!;
+  import { gehZu } from '../lib/zustand.svelte';
 
   let liste = $state<Quelle[]>([]);
   let fehler = $state('');
@@ -27,7 +25,7 @@
   let datei = $state<FileList | null>(null);
 
   async function lade() {
-    liste = await quellen(sprecher);
+    liste = await quellen();
   }
 
   async function fuehreAus(arbeit: () => Promise<unknown>) {
@@ -45,17 +43,17 @@
 
   const ausLLM = (ereignis: SubmitEvent) => {
     ereignis.preventDefault();
-    fuehreAus(() => quelleAusLLM(sprecher, { thema, altersspanne, umfang }));
+    fuehreAus(() => quelleAusLLM({ thema, altersspanne, umfang }));
   };
 
   const ausDatei = (ereignis: SubmitEvent) => {
     ereignis.preventDefault();
     const gewaehlt = datei?.[0];
-    if (gewaehlt) fuehreAus(() => quelleAusDatei(sprecher, gewaehlt));
+    if (gewaehlt) fuehreAus(() => quelleAusDatei(gewaehlt));
   };
 
   const stelleUm = (quelle: Quelle) =>
-    fuehreAus(() => quelleUmstellen(sprecher, quelle.id, !quelle.aktiv));
+    fuehreAus(() => quelleUmstellen(quelle.id, !quelle.aktiv));
 
   function loesche(quelle: Quelle) {
     // Gewarnt wird vorher, nicht hinterher: Die Einheiten sind fort, und bei
@@ -65,7 +63,7 @@
         'Das lässt sich nicht rückgängig machen. Soll die Quelle nur aus der ' +
         'Warteschlange verschwinden, stelle sie stattdessen ab.',
     );
-    if (sicher) fuehreAus(() => quelleLoeschen(sprecher, quelle.id));
+    if (sicher) fuehreAus(() => quelleLoeschen(quelle.id));
   }
 
   async function zeigeText(quelle: Quelle) {
@@ -73,7 +71,7 @@
     // nicht mehr als Folge des Klicks und wird als Popup abgefangen.
     const tab = window.open('', '_blank');
     try {
-      const text = await quelleText(sprecher, quelle.id);
+      const text = await quelleText(quelle.id);
       const adresse = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
       if (tab) tab.location.href = adresse;
       else window.open(adresse, '_blank'); // doch abgefangen: zweiter Versuch

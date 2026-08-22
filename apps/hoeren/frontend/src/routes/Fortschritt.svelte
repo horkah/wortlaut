@@ -4,15 +4,13 @@
    * brauchbar, ab etwa 20 Stunden gut. Danach flacht der Gewinn ab.
    */
   import { fortschritt, type Fortschritt } from '../lib/api';
-  import { waehleSprecher, zustand } from '../lib/zustand.svelte';
 
-  const sprecher = zustand.sprecher!;
   let daten = $state<Fortschritt | null>(null);
 
   const stunden = (sekunden: number) => (sekunden / 3600).toFixed(2);
   const anteil = (sekunden: number, marke: number) => Math.min(100, (sekunden / marke) * 100);
 
-  fortschritt(sprecher).then((antwort) => (daten = antwort));
+  fortschritt().then((antwort) => (daten = antwort));
 </script>
 
 <h2>Fortschritt</h2>
@@ -48,8 +46,6 @@
   <p class="gedaempft">Wird geladen …</p>
 {/if}
 
-<h2>Sprecher wechseln</h2>
-<button class="knopf" onclick={() => waehleSprecher(null)}>Abmelden</button>
 
 <style>
   table {

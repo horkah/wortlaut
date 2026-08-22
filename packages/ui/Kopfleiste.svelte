@@ -38,9 +38,10 @@
      */
     uebergreifend?: Menuepunkt[];
     /**
-     * Der gewählte Sprecher, als Statuszeile hinter den App-Reitern.
-     * `null` heißt „noch keiner gewählt" und zeigt einen Platzhalter;
-     * ausgelassen heißt „diese App führt keinen Sprecher" und zeigt nichts.
+     * Der Sprecher, für den diese Sitzung gilt — als Statuszeile hinter den
+     * App-Reitern. `null` heißt „kein gültiger Zugang" und zeigt einen
+     * Platzhalter; ausgelassen heißt „diese App führt keinen Sprecher" und
+     * zeigt nichts.
      */
     sprecher?: string | null;
     /** Die offene Hash-Route, ohne `#`. */
@@ -117,9 +118,12 @@
 
       {#if sprecher !== undefined}
         <!-- Wer gerade spricht, steht immer da: Alles, was die App tut, hängt
-             am Sprecher, und ein Griff in den falschen Korpus wäre teuer. -->
-        <span class="sprecher" class:leer={!sprecher} title="Gewählter Sprecher">
-          {sprecher ?? 'kein Sprecher'}
+             am Sprecher, und ein Griff in den falschen Korpus wäre teuer.
+             Der Name kommt vom Server, der ihn aus dem vorgelegten Zugang
+             ableitet — hier steht also, für wen dieser Browser eingestellt
+             ist, und nicht, was er sich gemerkt hat. -->
+        <span class="sprecher" class:leer={!sprecher} title="Eingestellter Sprecher">
+          {sprecher ?? 'kein Zugang'}
         </span>
       {/if}
     </div>
@@ -295,7 +299,7 @@
     color: var(--akzent);
   }
 
-  /* Noch keiner gewählt: sichtbar, aber ohne Gewicht. */
+  /* Kein gültiger Zugang: sichtbar, aber ohne Gewicht. */
   .sprecher.leer {
     font-weight: 400;
     font-style: italic;
