@@ -17,7 +17,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
-from fastapi.staticfiles import StaticFiles
+from wortlaut.web import FrontendDateien
 
 from .api import model, outbox, segments, sessions
 
@@ -59,4 +59,4 @@ def wurzel() -> RedirectResponse:
 # die Ansichten dieser App stehen im Hash und brauchen nichts weiter.
 _frontend = Path(__file__).parents[1] / "frontend" / "dist"
 if _frontend.is_dir():
-    app.mount(BASIS, StaticFiles(directory=_frontend, html=True), name="frontend")
+    app.mount(BASIS, FrontendDateien(directory=_frontend, html=True), name="frontend")

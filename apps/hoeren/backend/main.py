@@ -16,7 +16,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+from wortlaut.web import FrontendDateien
 
 from .api import intake, progress, prompts, recordings, sources, speakers
 from .deps import Authentifiziert
@@ -42,6 +42,8 @@ def gesundheit() -> dict[str, str]:
 
 # Das gebaute Frontend, falls vorhanden. `html=True` liefert für unbekannte
 # Pfade die index.html aus, damit die Routen im Browser direkt aufrufbar sind.
+# `FrontendDateien` setzt dazu die Cache-Regeln — ohne die zeigt ein Browser
+# nach dem Ausrollen weiter die alte App (siehe `wortlaut/web.py`).
 _frontend = Path(__file__).parents[1] / "frontend" / "dist"
 if _frontend.is_dir():
-    app.mount("/", StaticFiles(directory=_frontend, html=True), name="frontend")
+    app.mount("/", FrontendDateien(directory=_frontend, html=True), name="frontend")
