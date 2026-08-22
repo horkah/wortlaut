@@ -197,6 +197,9 @@ export function aufnahmeSenden(eingabe: {
 export const aufnahmeVerwerfen = (aufnahme: string) =>
   anfrage<void>(`/recordings/${aufnahme}`, { method: 'DELETE' });
 
+/** Eine eigene Aufnahme anhören — für „Meine Daten" (siehe unten). */
+export const meineAufnahmeAudio = (aufnahme: string) => blob(`/recordings/${aufnahme}/audio`);
+
 // ── Fortschritt ─────────────────────────────────────────────────────────────
 
 export const fortschritt = () => anfrage<Fortschritt>('/progress');
@@ -345,3 +348,22 @@ async function blobMitNamen(pfad: string): Promise<[Blob, string]> {
   const treffer = angabe.match(/filename="?([^";]+)"?/);
   return [await antwort.blob(), treffer?.[1] ?? (pfad.split('/').pop() || 'wortlaut')];
 }
+
+// ── Konto ───────────────────────────────────────────────────────────────────
+//
+// Ein Sprecher sieht sich selbst — dieselben Formen wie oben bei der Aufsicht
+// (`Uebersicht`, `AufsichtQuelle`, `Sitzungenseite`, `Aufnahmenseite`), denn
+// der Server füllt sie über dieselbe Zählung (`services/uebersicht.py`). Nur
+// der Weg ist ein anderer: keine Kennung in der Adresse, sie steckt im
+// vorgelegten Zugang. Anhören und Verwerfen einer Aufnahme laufen weiter über
+// `meineAufnahmeAudio` und `aufnahmeVerwerfen` weiter oben.
+
+export type Konto = { sprecher: Uebersicht; quellen: AufsichtQuelle[] };
+
+export const meinKonto = () => anfrage<Konto>('/konto');
+
+export const meineSitzungen = (ab = 0, anzahl = 10) =>
+  anfrage<Sitzungenseite>(`/konto/sessions?ab=${ab}&anzahl=${anzahl}`);
+
+export const meineAufnahmen = (ab = 0, anzahl = 10) =>
+  anfrage<Aufnahmenseite>(`/konto/recordings?ab=${ab}&anzahl=${anzahl}`);

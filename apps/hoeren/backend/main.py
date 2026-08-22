@@ -23,7 +23,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from wortlaut.web import FrontendDateien
 
-from .api import admin, intake, progress, prompts, recordings, sources, speakers, zugang
+from .api import admin, intake, konto, progress, prompts, recordings, sources, speakers, zugang
 from .deps import Verwaltung
 
 app = FastAPI(title="wortlaut · hören", version="0.1.0")
@@ -49,6 +49,7 @@ for router in (
     recordings.router,
     progress.router,
     intake.router,
+    konto.router,
 ):
     app.include_router(router)
 
