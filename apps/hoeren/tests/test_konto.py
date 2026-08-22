@@ -87,3 +87,55 @@ class TestEigeneDaten:
         assert klient.delete(f"/api/recordings/{aufnahme['id']}").status_code == 204
         nach_dem_verwerfen = klient.get("/api/konto/recordings").json()["aufnahmen"][0]
         assert nach_dem_verwerfen["status"] == "verworfen"
+
+
+class TestPin:
+    def test_ohne_pin_ist_offen(self, klient: TestClient) -> None:
+        assert klient.get("/api/konto/pin").json() == {"gesetzt": False}
+        assert klient.get("/api/konto").status_code == 200
+
+    def test_gesetzte_pin_sperrt_die_lesenden_wege(self, klient: TestClient) -> None:
+        assert klient.patch("/api/konto/pin", json={"pin": "1234"}).json() == {"gesetzt": True}
+        assert klient.get("/api/konto/pin").json() == {"gesetzt": True}
+
+        assert klient.get("/api/konto").status_code == 401
+        assert klient.get("/api/konto/sessions").status_code == 401
+        assert klient.get("/api/konto/recordings").status_code == 401
+
+        assert klient.get("/api/konto", headers={"X-Pin": "0000"}).status_code == 401
+        assert klient.get("/api/konto", headers={"X-Pin": "1234"}).status_code == 200
+
+    def test_pin_wieder_entfernen(self, klient: TestClient) -> None:
+        klient.patch("/api/konto/pin", json={"pin": "1234"})
+        assert klient.patch("/api/konto/pin", json={"pin": None}).json() == {"gesetzt": False}
+        assert klient.get("/api/konto").status_code == 200
+
+    def test_pin_muss_vier_ziffern_haben(self, klient: TestClient) -> None:
+        for ungueltig in ("123", "12345", "abcd", ""):
+            antwort = klient.patch("/api/konto/pin", json={"pin": ungueltig})
+            assert antwort.status_code == 422
+
+    def test_setzen_und_entfernen_verlangt_die_alte_pin_nicht(self, klient: TestClient) -> None:
+        # Bewusst so: Die eigene PIN zu ändern ist nicht das Versehen, gegen
+        # das sie schützt (siehe `services/pin.py`).
+        klient.patch("/api/konto/pin", json={"pin": "1234"})
+        assert klient.patch("/api/konto/pin", json={"pin": "5678"}).json() == {"gesetzt": True}
+        assert klient.get("/api/konto", headers={"X-Pin": "5678"}).status_code == 200
+
+    def test_aufsicht_setzt_und_entfernt_ohne_die_alte_zu_kennen(
+        self, aufsicht: TestClient, klient: TestClient, sprecher: str
+    ) -> None:
+        klient.patch("/api/konto/pin", json={"pin": "1234"})
+
+        antwort = aufsicht.patch(f"/api/admin/speakers/{sprecher}/pin", json={"pin": "5678"})
+        assert antwort.json() == {"gesetzt": True}
+        assert klient.get("/api/konto", headers={"X-Pin": "5678"}).status_code == 200
+        assert klient.get("/api/konto", headers={"X-Pin": "1234"}).status_code == 401
+
+        aufsicht.patch(f"/api/admin/speakers/{sprecher}/pin", json={"pin": None})
+        assert klient.get("/api/konto").status_code == 200
+
+    def test_pin_gesetzt_steht_im_profil(self, aufsicht: TestClient, klient: TestClient) -> None:
+        klient.patch("/api/konto/pin", json={"pin": "1234"})
+        einsicht = aufsicht.get("/api/admin/speakers").json()
+        assert einsicht[0]["pin_gesetzt"] is True

@@ -43,6 +43,9 @@ class UebersichtAntwort(BaseModel):
     basismodell: str
     erstellt: str
     zugang_erneuert: str | None
+    # Nie die PIN selbst oder ihr Prüfwert — nur, ob eine gesetzt ist (siehe
+    # `services/pin.py`).
+    pin_gesetzt: bool
     kennzahlen: Kennzahlen
 
 
@@ -103,6 +106,7 @@ def profil(sitzung: Session, sprecher: Sprecher, ablage: storage.Ablage) -> Uebe
         basismodell=sprecher.basismodell,
         erstellt=sprecher.erstellt,
         zugang_erneuert=sprecher.zugang_erneuert,
+        pin_gesetzt=sprecher.pin_hash is not None,
         kennzahlen=Kennzahlen(
             aufnahmen=_zaehle(sitzung, Aufnahme, gueltig),
             verworfen=_zaehle(sitzung, Aufnahme, Aufnahme.status == "verworfen"),

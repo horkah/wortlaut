@@ -34,6 +34,9 @@ class Sprecher(Basis):
     # zurückgezogen — dann kommt niemand an diesen Korpus heran.
     zugang_hash: Mapped[str | None] = mapped_column(default=None)
     zugang_erneuert: Mapped[str | None] = mapped_column(default=None)
+    # Prüfwert der PIN vor „Meine Daten", siehe `services/pin.py`. NULL heißt:
+    # keine PIN gesetzt, die Ansicht öffnet sich ohne Umweg.
+    pin_hash: Mapped[str | None] = mapped_column(default=None)
 
 
 class Textquelle(Basis):
