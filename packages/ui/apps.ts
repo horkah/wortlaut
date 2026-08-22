@@ -77,6 +77,19 @@ export const EINSTELLUNGEN_PFAD = '/einstellungen';
 export const DARSTELLUNG_PFAD = '/darstellung';
 
 /**
+ * Wo die Zugangsdaten dieser Instanz verwaltet werden — Verwalter- und
+ * Aufsichtstoken.
+ *
+ * Eine eigene Ansicht aus demselben Grund wie `DARSTELLUNG_PFAD`: Wer ein
+ * Mikrofon einmisst, will nicht an einem Formular für Serverzugänge
+ * vorbeiblättern, und umgekehrt. Es gibt sie nur bei „hören" — die Tokens
+ * verwalten diese Instanz, „schreiben" hat damit nichts zu tun
+ * (Grundentscheidung 7). Deshalb keine Konstante, die alle drei Apps
+ * gleichermaßen einbinden, sondern eine, die „hören" allein benutzt.
+ */
+export const ZUGANGSDATEN_PFAD = '/zugangsdaten';
+
+/**
  * Wo der Sprecher gewählt und angelegt wird.
  *
  * Auch das gehört nicht in die Reiterreihe einer App: Der Sprecher ist die

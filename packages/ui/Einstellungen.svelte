@@ -9,13 +9,11 @@
    * Farben, Schriftart und Schriftgrößen stehen nicht hier, sondern in
    * `Darstellung.svelte`, einem eigenen Menüpunkt (siehe `DARSTELLUNG_PFAD`
    * in `apps.ts`): Mikrofon und Stimme misst man einmal ein, die Darstellung
-   * darf jeder anfassen, ohne durch Technisches zu blättern.
-   *
-   * Was nur eine App angeht, kommt als `zugang` von außen herein: Der
-   * Zugangstoken gehört zu „hören" und hat in „schreiben" nichts zu suchen
-   * (Grundentscheidung 7).
+   * darf jeder anfassen, ohne durch Technisches zu blättern. Aus demselben
+   * Grund stehen die Zugangsdaten (Verwalter- und Aufsichtstoken) ebenfalls
+   * nicht hier, sondern unter `ZUGANGSDATEN_PFAD` — und die gibt es ohnehin
+   * nur bei „hören" (Grundentscheidung 7).
    */
-  import type { Snippet } from 'svelte';
   import Mikrofontest from './Mikrofontest.svelte';
   import { beiStimmenAenderung, sprich, stimmen, stimmeNachUri } from './speak';
   import {
@@ -28,8 +26,6 @@
     setzeZurueck,
     TEMPO_SPANNE,
   } from './einstellungen.svelte';
-
-  let { zugang }: { zugang?: Snippet } = $props();
 
   const PROBE = 'Am Montag gehe ich zum Markt und kaufe frisches Brot.';
 
@@ -109,8 +105,6 @@
 {#if fehler}
   <p class="fehler">{fehler}</p>
 {/if}
-
-{@render zugang?.()}
 
 <h2>Zurücksetzen</h2>
 <p class="gedaempft">Setzt Mikrofon, Stimme und Tempo auf die Vorgaben zurück.</p>

@@ -2,7 +2,13 @@
   import Kopfleiste from '$ui/Kopfleiste.svelte';
   import Fusszeile from '$ui/Fusszeile.svelte';
   import Darstellung from '$ui/Darstellung.svelte';
-  import { DARSTELLUNG_PFAD, EINSTELLUNGEN_PFAD, SPRECHER_PFAD, type Menuepunkt } from '$ui/apps';
+  import {
+    DARSTELLUNG_PFAD,
+    EINSTELLUNGEN_PFAD,
+    SPRECHER_PFAD,
+    ZUGANGSDATEN_PFAD,
+    type Menuepunkt,
+  } from '$ui/apps';
   import { EINSICHT_ROUTE, ladeZugang, zustand } from './lib/zustand.svelte';
   import Verwaltung from './routes/Verwaltung.svelte';
   import Einsicht from './routes/Einsicht.svelte';
@@ -10,6 +16,7 @@
   import Aufnahme from './routes/Aufnahme.svelte';
   import Fortschritt from './routes/Fortschritt.svelte';
   import Einstellungen from './routes/Einstellungen.svelte';
+  import Zugangsdaten from './routes/Zugangsdaten.svelte';
 
   // Die Reihenfolge ist der Weg durch die Arbeit an einem Sprecher: Text
   // holen, aufnehmen, nachsehen, was zusammengekommen ist. Die Einstellungen
@@ -38,7 +45,9 @@
       ? Einstellungen
       : zustand.route === DARSTELLUNG_PFAD
         ? Darstellung
-        : // Die Einsicht der Aufsicht in einen einzelnen Korpus. Sie steht in
+        : zustand.route === ZUGANGSDATEN_PFAD
+          ? Zugangsdaten
+          : // Die Einsicht der Aufsicht in einen einzelnen Korpus. Sie steht in
           // keiner Reiterreihe: Hierher führt ein Klick aus der Sprecherliste,
           // zurück derselbe Weg.
           beaufsichtigt && zustand.route.startsWith(EINSICHT_ROUTE)
@@ -61,7 +70,9 @@
   // Aufsicht zugleich der Rückweg aus der Einsicht in einen einzelnen Korpus.
   const uebergreifend = $derived(spricht ? [] : [{ pfad: SPRECHER_PFAD, text: 'Sprecher' }]);
   const offen = $derived(
-    zustand.route === EINSTELLUNGEN_PFAD || zustand.route === DARSTELLUNG_PFAD
+    zustand.route === EINSTELLUNGEN_PFAD ||
+      zustand.route === DARSTELLUNG_PFAD ||
+      zustand.route === ZUGANGSDATEN_PFAD
       ? zustand.route
       : !spricht
         ? SPRECHER_PFAD
@@ -82,6 +93,9 @@
   const hinweis = $derived(
     beaufsichtigt ? 'Aufsicht' : zustand.art === 'verwaltung' ? 'Verwaltung' : '',
   );
+  // Zugangsdaten verwaltet, wer keinen Sprecher führt — dieselbe Zielgruppe
+  // wie die Seite selbst (siehe `Zugangsdaten.svelte`).
+  const zugangsdaten = $derived(!spricht);
 
   ladeZugang();
 </script>
@@ -92,6 +106,7 @@
   {uebergreifend}
   sprecher={name}
   {hinweis}
+  {zugangsdaten}
   route={offen}
 />
 

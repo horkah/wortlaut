@@ -42,8 +42,13 @@
   // Der Sprecher dieser Instanz, für die Kopfzeile — dieselbe Kennung, unter
   // der auch die Aufnahmen abgelegt werden. Solange die Auskunft noch
   // aussteht, bleibt sie unbestimmt und die Zeile zeigt nichts, statt kurz
-  // „kein Zugang" vorzutäuschen.
-  const sprecher = $derived(zustand.modellstand?.sprecher_id);
+  // „kein Zugang" vorzutäuschen. Genau wie bei „hören" (siehe dort
+  // `zustand.name`) wird eine leere Kennung zu `null`, damit die Kopfzeile
+  // „kein Zugang" zeigt statt einer leeren Zeile — eine unkonfigurierte
+  // Instanz soll man sehen, nicht raten müssen.
+  const sprecher = $derived(
+    zustand.modellstand === null ? undefined : zustand.modellstand.sprecher_id || null,
+  );
 
   ladeModellstand();
   stelleSitzungWiederHer();
