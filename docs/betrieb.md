@@ -54,9 +54,11 @@ Diktieren kann in „schreiben", wer seinen persönlichen Link einmal geöffnet
 hat — denselben wie in „hören". Ohne ihn zeigt die App „Kein Zugang" statt
 eines Aufnahmeknopfes, der ins Leere liefe.
 
-`make migrate` wird nur gebraucht, wenn nach einem Update Migrationen für
-bereits bestehende Sprecher offen sind — neue Sprecher bekommen ihre Datenbank
-beim Anlegen.
+`make migrate` schreibt alle Korpora auf einmal fort. Nötig ist es dafür
+nicht: Neue Sprecher bekommen ihre Datenbank beim Anlegen, bestehende werden
+beim ersten Zugriff fortgeschrieben — ein Update braucht deshalb keinen
+zusätzlichen Schritt und keine Erinnerung daran. Wer es dennoch aufruft,
+verschiebt das bloß nach vorn und sieht in der Ausgabe, was offen war.
 
 ## Tests
 
