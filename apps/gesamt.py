@@ -12,8 +12,8 @@ Regel, die auf diesen einen Port zeigt.
 
 Die Trennung, die sonst zwei Container leisten, bleibt in der Sache bestehen:
 Jede App behält ihre eigene Datenbank, ihre eigene Ablage und ihre eigenen
-Zugangsregeln — die `/api`-Wege von „hören" hinter dem Token, „schreiben" ohne
-(Grundentscheidung 7). Geteilt wird nur der Prozess.
+Zugangsregeln — die `/api`-Wege von „hören" hinter dem Zugang des jeweiligen
+Sprechers, „schreiben" ohne (Grundentscheidung 7). Geteilt wird nur der Prozess.
 
 Der Weg von „schreiben" zurück in den Korpus führt auch hier über die API und
 nicht am Modell vorbei (Grundentscheidung 6); er zeigt lediglich auf

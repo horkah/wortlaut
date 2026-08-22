@@ -19,7 +19,7 @@ from wortlaut import audio as klang
 from wortlaut import corpus, ids
 
 from ..db.models import Aufnahme, Vorlage, jetzt
-from ..deps import Ablage, Datenbank
+from ..deps import Ablage, Datenbank, SprecherId
 from ..services import quality
 
 router = APIRouter(prefix="/api/recordings", tags=["Aufnahmen"])
@@ -41,7 +41,7 @@ class AufnahmeAntwort(BaseModel):
 
 @router.post("", response_model=AufnahmeAntwort, status_code=201)
 async def nimm_auf(
-    sprecher: str,
+    sprecher: SprecherId,
     db: Datenbank,
     ablage: Ablage,
     audio: UploadFile = File(),
@@ -111,7 +111,9 @@ async def nimm_auf(
 
 
 @router.get("/{aufnahme_id}/audio")
-def hoere_ab(sprecher: str, aufnahme_id: str, db: Datenbank, ablage: Ablage) -> FileResponse:
+def hoere_ab(
+    sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage
+) -> FileResponse:
     """Die eigene Aufnahme anhören, bevor man sie behält."""
     aufnahme = db.get(Aufnahme, aufnahme_id)
     if aufnahme is None or aufnahme.speaker_id != sprecher or aufnahme.status != "ok":
@@ -120,7 +122,7 @@ def hoere_ab(sprecher: str, aufnahme_id: str, db: Datenbank, ablage: Ablage) -> 
 
 
 @router.delete("/{aufnahme_id}", status_code=204)
-def verwirf(sprecher: str, aufnahme_id: str, db: Datenbank, ablage: Ablage) -> None:
+def verwirf(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage) -> None:
     """Verwerfen heißt: Audio löschen, Datensatz als `verworfen` behalten.
 
     Die Vorlage wird dadurch wieder offen (die Warteschlange zählt nur

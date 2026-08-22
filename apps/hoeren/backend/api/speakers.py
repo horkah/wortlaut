@@ -2,6 +2,11 @@
 
 Ein Profil anzulegen heißt, ein Korpusverzeichnis mit eigener Datenbank
 anzulegen. Alle anderen Endpunkte setzen ein bestehendes Profil voraus.
+
+Diese Wege gehören der Verwaltung (`WORTLAUT_AUTH_TOKEN`, siehe `deps.py`).
+Ein frisch angelegtes Profil hat noch keinen Zugang und ist damit für
+niemanden erreichbar — der Zugang wird gesondert ausgegeben (`api/zugang.py`).
+`zugang_erneuert` sagt in der Liste, ob schon einer besteht.
 """
 
 from __future__ import annotations
@@ -30,6 +35,9 @@ class SprecherAntwort(BaseModel):
     sprache: str
     basismodell: str
     erstellt: str
+    # Wann der geltende Zugang ausgegeben wurde; None heißt: keiner da. Der
+    # Zugang selbst steht hier nie — er ist nur beim Ausgeben zu sehen.
+    zugang_erneuert: str | None = None
 
 
 @router.post("", response_model=SprecherAntwort, status_code=201)
@@ -83,4 +91,5 @@ def _als_antwort(sprecher: Sprecher) -> SprecherAntwort:
         sprache=sprecher.sprache,
         basismodell=sprecher.basismodell,
         erstellt=sprecher.erstellt,
+        zugang_erneuert=sprecher.zugang_erneuert,
     )
