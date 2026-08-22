@@ -1,4 +1,5 @@
-# Betrieb: ein Container für die ganze App, davor der Reverse Proxy des Wirts.
+# Betrieb: ein Container für die ganze App, davor caddy-docker-proxy des
+# Wirts (Compose-Projekt „caddy", eigenes Docker-Netz „caddy").
 #
 # Darin ein uvicorn für beide Apps — „hören" auf der Wurzel, „schreiben" unter
 # /schreiben (siehe apps/gesamt.py). Der Proxy braucht deshalb nur eine Regel
@@ -14,6 +15,14 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     env_file: .env
+    networks:
+      - caddy
+    labels:
+      # caddy-docker-proxy liest das vom Docker-Socket und baut daraus die
+      # Route — keine Zeile in der Caddyfile des Wirts nötig. Der Port ist
+      # der Port des Containers selbst, nicht der des Wirts.
+      caddy: wortlaut.bitzz.de
+      caddy.reverse_proxy: "{{upstreams 8000}}"
     environment:
       # Im Container liegen die Daten immer hier; auf dem Wirt entscheidet das
       # Volume unten, wo das tatsächlich ist.
@@ -26,11 +35,6 @@ services:
       WORTLAUT_INTAKE_TOKEN: ${WORTLAUT_AUTH_TOKEN:-}
     volumes:
       - wortlaut-data:/srv/wortlaut/data
-    # Nur auf die Rückschleife: aus dem Netz erreichbar ist allein der Proxy.
-    # Läuft der Proxy selbst als Container, ist statt dessen ein gemeinsames
-    # Netz das Richtige — siehe docs/betrieb.md.
-    ports:
-      - "127.0.0.1:8000:8000"
     healthcheck:
       # Ohne Token erreichbar und ohne curl im Abbild auskommend.
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/gesundheit')"]
@@ -40,6 +44,10 @@ services:
       # Grund, den Container umzubringen.
       start_period: 5m
       retries: 3
+
+networks:
+  caddy:
+    external: true
 
 volumes:
   wortlaut-data:
