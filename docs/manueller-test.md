@@ -33,12 +33,16 @@ für ein paar echte Aufnahmen.
    das Feld ist reine Metadaten für das spätere Training in `lernen`.
 3. Erwartet: Profil erscheint in der Liste, App springt automatisch zur
    Ansicht „Textquelle“; in der Kopfzeile steht jetzt eine zweite Reihe
-   (Sprecher, Textquelle, Aufnehmen, Fortschritt, Einstellungen) mit
-   „Textquelle“ hell hinterlegt. Beim Wechsel der Ansicht wandert die
-   Hinterlegung mit.
-4. Falls `WORTLAUT_AUTH_TOKEN` gesetzt ist: stattdessen erscheint unter der
-   leeren Liste „Zugang nötig: bitte Token eintragen.“ Token unter „Zugang“
-   eintragen, **Speichern**, dann Schritt 2 wiederholen.
+   (Sprecher, Textquelle, Aufnehmen, Fortschritt) mit „Textquelle“ hell
+   hinterlegt. Beim Wechsel der Ansicht wandert die Hinterlegung mit. Die
+   Einstellungen stehen nicht in dieser Reihe, sondern hinter dem Menüknopf
+   (☰) rechts oben — sie gehören zum Gerät und nicht zu dieser App.
+4. Falls `WORTLAUT_AUTH_TOKEN` gesetzt ist: stattdessen erscheint statt der
+   Liste der Hinweis, dass der Server einen Zugangstoken verlangt, mit dem
+   Knopf **Zu den Einstellungen**. Dort unter „Zugang“ den Token eintragen,
+   **Speichern und prüfen**, dann mit **Weiter zu den Sprechern** zurück und
+   Schritt 2 wiederholen. Ein Eingabefeld für den Token gibt es bewusst nur
+   an dieser einen Stelle.
 
 ## 2. Textquelle
 
@@ -98,7 +102,9 @@ und ein Schlüssel hinterlegt ist):
 
 ## 5. Mikrofon
 
-Die Einstellungen öffnen den Abschnitt „Mikrofon“ ganz oben.
+Die Einstellungen über den Menüknopf (☰) rechts oben öffnen; der Abschnitt
+„Mikrofon“ steht ganz oben. Derselbe Knopf steht in „schreiben“ an derselben
+Stelle und führt zu derselben Ansicht — nur ohne den Abschnitt „Zugang“.
 
 1. **▶ Mikrofon testen** drücken. Beim ersten Mal fragt der Browser nach
    Zugriff — **erlauben**. Erwartet: ein Pegelbalken erscheint und bewegt

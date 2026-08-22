@@ -297,6 +297,8 @@ umgekehrter Richtung braucht „schreiben" den Token von „hören"
 | `ffmpeg ist gescheitert` beim Upload | ffmpeg fehlt oder das Format ist kaputt |
 | `Unbekannter Sprecher` (404) | falsche `sprecher`-ID, oder Korpus liegt unter einem anderen `WORTLAUT_DATA_DIR` |
 | `Keine Textquelle konfiguriert` | `WORTLAUT_LLM_PROVIDER` ist leer — Textupload nutzen oder Anbieter setzen |
+| `Textquelle nicht erreichbar` | Bei `openai`: `WORTLAUT_LLM_BASE_URL` zeigt ins Leere. Lokal prüfen mit `docker compose ps` (läuft „ollama"?) und `docker exec wortlaut-ollama-1 ollama list` (ist das Modell geladen?). |
+| `Textquelle antwortete mit 404` | Das Modell aus `WORTLAUT_LLM_MODEL` ist dort nicht geladen — `docker exec wortlaut-ollama-1 ollama pull <modell>` |
 | Aufnahmeknopf ohne Wirkung | `MediaRecorder` braucht HTTPS oder `localhost` |
 | Aufnahmen sind durchweg sehr leise (Hinweis „Sehr leise") | Erst unter „Einstellungen → Mikrofon" **Automatisch einmessen** laufen lassen; das hebt den Pegel im Browser an. Bleibt es leise, siehe „Leises Mikrofon unter Linux" unten. |
 | Der Pegelbalken im Mikrofontest bleibt auf „still" | Der Browser hat ein anderes Gerät geöffnet als erwartet — im Test das Mikrofon ausdrücklich auswählen. Steht dort nur „Mikrofon 1", war der Test noch nie an; die echten Namen gibt der Browser erst nach erteilter Erlaubnis heraus. |
@@ -304,7 +306,7 @@ umgekehrter Richtung braucht „schreiben" den Token von „hören"
 | Vorgelesene Stimme klingt blechern | Siehe „Bessere Vorlesestimme unter Linux" unten. Die Web Speech API nutzt die Stimmen des Betriebssystems; unter Linux ist das per Vorgabe espeak-ng. |
 | „schreiben": erstes Diktat hängt lange | faster-whisper lädt beim ersten Aufruf sein Modell herunter. Danach kommt es aus dem Cache. Ohne Netz schlägt es fehl — dann `WORTLAUT_ASR_MODELL` auf ein bereits geladenes Modell setzen. |
 | „schreiben": `ModuleNotFoundError: faster_whisper` | `uv sync --extra asr` vergessen (oder `WORTLAUT_ASR=remote` setzen) |
-| „schreiben": „Aus der Aufnahme wurde kein Wort verstanden" | Whisper hat nichts erkannt. Mit `tiny` ist das bei leiser Aufnahme oder starker Sprechstörung der Normalfall — erst Mikrofon einmessen (in „hören" unter Einstellungen), dann ein größeres Modell versuchen. |
+| „schreiben": „Aus der Aufnahme wurde kein Wort verstanden" | Whisper hat nichts erkannt. Mit `tiny` ist das bei leiser Aufnahme oder starker Sprechstörung der Normalfall — erst Mikrofon einmessen (Menüknopf oben rechts → Einstellungen; die Werte gelten für beide Apps), dann ein größeres Modell versuchen. |
 | „schreiben": Postausgang bleibt offen | `WORTLAUT_INTAKE_URL` fehlt oder zeigt ins Leere, oder der Token passt nicht zum `WORTLAUT_AUTH_TOKEN` von „hören". Nichts geht verloren: „Noch einmal senden" nach dem Richten genügt. |
 | `localhost:5174` zeigt eine leere Seite | Der Pfad fehlt: `http://localhost:5174/schreiben/` aufrufen. |
 | Der Reiter „schreiben" landet wieder in „hören" | Im Betrieb: Der Proxy schneidet `/schreiben/` ab oder zeigt auf den falschen Port. Probe: `curl -I https://<domain>/schreiben/`. In der Entwicklung: „schreiben" läuft nicht mit — `make dev APP=schreiben`. |

@@ -100,6 +100,9 @@ def _openai(auftrag: Auftrag, *, api_schluessel: str, modell: str, basis_url: st
 
 
 def _anthropic(auftrag: Auftrag, *, api_schluessel: str, modell: str, basis_url: str = "") -> str:
+    # `basis_url` bleibt hier ungenutzt: Alle Adapter haben dieselbe Signatur,
+    # damit `erzeuge_text` sie ohne Sonderfall aufrufen kann. Die Adresse von
+    # Claude steht fest.
     if not api_schluessel:
         raise ValueError("WORTLAUT_LLM_API_KEY fehlt.")
     # Erst hier importieren: wer die LLM-Quelle nicht nutzt, braucht das Paket

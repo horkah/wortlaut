@@ -41,16 +41,22 @@
   // (Grundentscheidung 7).
   let offen = $state(false);
   let huelle = $state<HTMLElement | null>(null);
+  let knopf = $state<HTMLButtonElement | null>(null);
 
   function schliesseWennDraussen(ereignis: MouseEvent) {
     if (offen && huelle && !huelle.contains(ereignis.target as Node)) offen = false;
   }
+
+  // Nach Escape gehört die Marke dorthin zurück, wo sie herkam — sonst steht
+  // sie im Nichts und die nächste Tabulatortaste fängt von vorn an.
+  function schliesseMitTaste(ereignis: KeyboardEvent) {
+    if (ereignis.key !== 'Escape' || !offen) return;
+    offen = false;
+    knopf?.focus();
+  }
 </script>
 
-<svelte:window
-  onclick={schliesseWennDraussen}
-  onkeydown={(ereignis) => ereignis.key === 'Escape' && (offen = false)}
-/>
+<svelte:window onclick={schliesseWennDraussen} onkeydown={schliesseMitTaste} />
 
 <header class="kopf">
   <div class="ebene apps">
@@ -76,13 +82,27 @@
 
     <div class="menue" class:ohne-hinweis={!hinweis} bind:this={huelle}>
       <button
+        bind:this={knopf}
         class="knopf-menue"
         aria-label="Menü"
         aria-expanded={offen}
-        aria-haspopup="menu"
+        aria-haspopup="true"
         onclick={() => (offen = !offen)}
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
+        <!-- Strich und Maß stehen als Attribute, nicht nur im Stylesheet: Die
+             drei Linien haben keine Fläche, ein reiner `fill` zeichnet also
+             nichts. Bliebe das CSS einmal aus, wäre der Knopf unsichtbar
+             statt unschön. -->
+        <svg
+          viewBox="0 0 24 24"
+          width="24"
+          height="24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
           <path d="M3 6h18M3 12h18M3 18h18" />
         </svg>
       </button>

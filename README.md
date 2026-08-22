@@ -566,7 +566,7 @@ Zwei Spalten tragen mehr Bedeutung, als ihr Name verrät:
 | ASR | faster-whisper (CTranslate2) | schnellste brauchbare Whisper-Laufzeit auf CPU und kleiner GPU |
 | ASR entfernt | OpenAI-kompatibler Endpunkt | ein Adapter deckt mehrere Anbieter ab |
 | Training | HF Transformers, Datasets, Accelerate | Standardrezept für Whisper, breit dokumentiert |
-| Textquelle | LLM-API über einen Adapter | Thema und Altersspanne als Prompt-Parameter |
+| Textquelle | LLM über einen Adapter, OpenAI-kompatibel oder Anthropic | Thema und Altersspanne als Prompt-Parameter; derselbe Adapter bedient ein lokales Ollama und die bezahlten Anbieter — für ein paar Vorlesesätze genügt ein kleines Modell auf der eigenen GPU |
 | Jobs | `jobs`-Tabelle plus Poll-Worker | keine Broker-Abhängigkeit für eine Warteschlange mit selten mehr als einem Eintrag |
 | Proxy | der vorhandene Reverse Proxy des Wirts | TLS und Pfadverteilung gehören zur Maschine, nicht in dieses Projekt |
 | Auth | `hören` und `lernen` hinter Token, `schreiben` ohne | siehe Grundentscheidung 7 |
@@ -589,8 +589,12 @@ WORTLAUT_STORAGE=local              # local | s3
 
 # hören
 WORTLAUT_LLM_PROVIDER=              # leer = Textquelle „LLM" abgeschaltet
-WORTLAUT_LLM_API_KEY=
-WORTLAUT_LLM_MODEL=claude-opus-5
+                                    # openai = jede OpenAI-kompatible Schnittstelle
+                                    #          (lokales Ollama, Groq, Gemini, Mistral)
+                                    # anthropic = Claude, braucht einen Schlüssel
+WORTLAUT_LLM_API_KEY=               # bei lokalem Ollama leer
+WORTLAUT_LLM_MODEL=gemma2:9b
+WORTLAUT_LLM_BASE_URL=http://ollama:11434/v1   # nur bei openai
 WORTLAUT_AUTH_TOKEN=                # leer = offen, nur für die Entwicklung
 
 # lernen
