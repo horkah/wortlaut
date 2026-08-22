@@ -724,7 +724,7 @@ cp .env.example .env
 uv sync                      # Abhängigkeiten und die Bibliothek `wortlaut`
 cd apps/hoeren/frontend && npm install && cd -
 
-make test                    # Testlauf, gut eine Sekunde
+make test                    # Testlauf, je nach Hard 5-50 Sekunden
 make dev APP=hoeren          # Backend auf :8000, Vite auf :5173
 make migrate                 # nur nötig, wenn nach einem Update Migrationen offen sind
 ```
