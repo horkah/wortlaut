@@ -63,9 +63,9 @@ class TestGrenze:
     def test_ohne_gesetzten_token_ist_die_aufsicht_zu(
         self, _umgebung: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        # Anders als beim Verwaltertoken heißt „leer" hier nicht „offen".
-        # Sonst stünde auf jeder Installation, die den Token vergisst, ein
-        # Löschknopf für alle Korpora offen.
+        # „Leer" heißt abgeschaltet, wie beim Verwaltertoken. Sonst stünde auf
+        # jeder Installation, die den Token vergisst, ein Löschknopf für alle
+        # Korpora offen.
         monkeypatch.setenv("WORTLAUT_ADMIN_TOKEN", "")
         einstellungen.cache_clear()
         with TestClient(app) as offen:

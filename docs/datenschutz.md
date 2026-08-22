@@ -83,7 +83,8 @@ zurückgezogen, indem ein neuer ausgegeben wird; Einzelheiten in
 [`betrieb.md`](betrieb.md#authentifizierung).
 
 `WORTLAUT_AUTH_TOKEN` schützt daneben nur noch die Verwaltung — Profile
-anlegen, Zugänge ausgeben — und öffnet selbst kein Korpus.
+anlegen, Zugänge ausgeben — und öffnet selbst kein Korpus. Ist er nicht
+gesetzt, ist die Verwaltung zu und nicht offen.
 
 `WORTLAUT_ADMIN_TOKEN` dagegen schon: Er ist der Zugang der **Aufsicht**, die
 in jedes Korpus sieht, Aufnahmen abhört, sichert und löscht. Damit ist er der

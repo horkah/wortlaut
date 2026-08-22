@@ -353,8 +353,9 @@ Die interaktive API-Dokumentation liegt unter `/docs`.
 Drei Arten von Zugang, alle als `Authorization: Bearer …`:
 
 **Der Verwaltertoken** ist `WORTLAUT_AUTH_TOKEN`. Er legt Sprecherprofile an
-und gibt deren Zugänge aus. Leer → die Verwaltung steht offen, nur für die
-lokale Entwicklung gedacht. An die Aufnahmen kommt er nicht.
+und gibt deren Zugänge aus. Leer → die Verwaltung ist **zu**, auch in der
+Entwicklung: Ohne gesetzten Token legt niemand ein Profil an und zieht niemand
+einen Zugang zurück. An die Aufnahmen kommt er nicht.
 
 **Der Sprecherzugang** hat die Form `<sprecher_id>.<geheimnis>` und ist
 zugleich die Kennung: „hören" spaltet ihn am Punkt, öffnet die Datenbank dieses

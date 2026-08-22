@@ -7,7 +7,8 @@ von Zugang, alle als `Authorization: Bearer …`:
   Zugänge aus und zieht sie zurück. Sie kommt an keine Aufnahme heran; wer für
   einen Sprecher aufnehmen will, benutzt dessen Zugang. Das ist der Preis
   dafür, dass es nur **einen** Weg zu den Daten gibt und der die Kennung
-  ableitet.
+  ableitet. Ist der Token nicht gesetzt, ist die Verwaltung zu — auch in der
+  Entwicklung.
 * **Sprecherzugang** — `<sprecher_id>.<geheimnis>` (siehe `wortlaut.zugang`).
   Er ist zugleich die Kennung: Der Server spaltet ihn, öffnet die Datenbank
   dieses Sprechers und prüft dort den Prüfwert.
@@ -17,9 +18,8 @@ von Zugang, alle als `Authorization: Bearer …`:
   liegen seine Wege unter `/api/admin/…` und nirgends sonst (siehe
   `api/admin.py`). Er darf alles, was die Verwaltung darf; umgekehrt nicht.
 
-  Anders als beim Verwaltertoken heißt „leer" hier **abgeschaltet**: Ein
-  offenstehender Zugang, der löschen darf, wäre kein Entwicklungskomfort,
-  sondern ein Unfall mit Ansage.
+  „Leer" heißt auch hier **abgeschaltet**: Ein offenstehender Zugang, der
+  löschen darf, wäre kein Entwicklungskomfort, sondern ein Unfall mit Ansage.
 
 `?sprecher=` gibt es weiterhin, aber nur noch als Behauptung, die stimmen muss.
 Weicht sie von der abgeleiteten Kennung ab — alter Reiter, falsches Lesezeichen,
@@ -110,27 +110,38 @@ def _pruefe_aufsicht(authorization: Annotated[str | None, Header()] = None) -> N
 
 
 def _pruefe_verwaltung(authorization: Annotated[str | None, Header()] = None) -> None:
-    """Bearer-Token gegen `WORTLAUT_AUTH_TOKEN`. Leerer Wert = offen (Entwicklung).
+    """Bearer-Token gegen `WORTLAUT_AUTH_TOKEN`. Nicht gesetzt = abgeschaltet.
 
     Die Aufsicht kommt hier ebenfalls durch: Wer jeden Korpus löschen darf,
     hätte an einem zweiten Token für das Anlegen eines Profils nichts gewonnen.
+
+    Ohne gesetzten Token kommt hier niemand durch — wie bei der Aufsicht und
+    aus demselben Grund. Früher stand die Verwaltung dann offen, gedacht als
+    Bequemlichkeit für die Entwicklung. Nur unterscheidet keine Installation
+    zwischen „Entwicklung" und „Betrieb": Wer den Token beim Aufsetzen
+    vergisst, hat eine Seite im Netz, auf der jeder Profile anlegt und
+    ausgegebene Zugänge zurückzieht — und nichts daran sieht falsch aus, weil
+    genau das die Oberfläche der Verwaltung ist. Ein vergessener Token darf
+    nicht die großzügigste aller Einstellungen sein.
     """
     vorgelegt = _vorgelegt(authorization)
     if _ist_aufsicht(vorgelegt):
         return
+    if not einstellungen().auth_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Die Verwaltung ist abgeschaltet: WORTLAUT_AUTH_TOKEN ist nicht gesetzt.",
+        )
     # Ein Sprecherzugang ist hier kein schwächerer Verwalter, sondern etwas
-    # anderes. Ohne diese Zeile käme er auf einem Server ohne gesetzten Token
-    # durch und dürfte Profile anlegen — genau die stille Verwechslung, gegen
-    # die dieser Umbau angetreten ist.
+    # anderes. Er scheiterte auch am Vergleich weiter unten, aber mit
+    # „Nicht angemeldet" — und wer seinen persönlichen Link vorlegt, sucht dann
+    # den Fehler beim Link statt an der Stelle, an der er steht.
     if zugangsdienst.zerlege(vorgelegt) is not None:
         raise HTTPException(
             status_code=401, detail="Das ist ein Sprecherzugang, kein Verwalterzugang."
         )
 
-    erwartet = einstellungen().auth_token
-    if not erwartet:
-        return
-    if not _gleich(vorgelegt, erwartet):
+    if not _gleich(vorgelegt, einstellungen().auth_token):
         raise HTTPException(status_code=401, detail="Nicht angemeldet")
 
 

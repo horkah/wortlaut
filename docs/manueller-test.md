@@ -17,9 +17,10 @@ Dauer: etwa 10 Minuten für „hören", 5 für die Aufsicht (6b), 10 weitere fü
 - Browser mit Mikrofonzugriff, aufgerufen über **`http://localhost:5173`**
   (nicht `:8000` — das Backend liefert dort nur `/api/…` und `/gesundheit`,
   ein `404` auf `/` davor ist normal, kein Fehler)
-- `WORTLAUT_AUTH_TOKEN` in `.env` leer lassen, dann entfällt Schritt 1.4
-- Für Abschnitt 6b zusätzlich `WORTLAUT_ADMIN_TOKEN` setzen; leer heißt dort
-  **abgeschaltet**, nicht offen
+- `WORTLAUT_AUTH_TOKEN` in `.env` setzen — leer heißt abgeschaltet, dann
+  führt Schritt 1.2 zu nichts
+- Für Abschnitt 6b zusätzlich `WORTLAUT_ADMIN_TOKEN` setzen; auch dort heißt
+  leer **abgeschaltet**, nicht offen
 
 ## 1. Sprecherprofil und Zugang
 
@@ -29,8 +30,13 @@ gemacht, und was dabei herauskommt, ist ein Link.
 1. Seite öffnen. Erwartet: Kopfzeile mit einer Reihe — „wortlaut“, dahinter
    die drei Apps, „hören“ dunkelgrün hinterlegt, „schreiben“ anklickbar und
    „lernen“ blass und tot (die gibt es noch nicht). Die zweite Reihe mit den
-   Ansichten fehlt noch. Darunter Überschrift „Sprecher“ und „Noch kein
-   Sprecherprofil vorhanden.“ — das ist der Leerzustand, keine kaputte Seite.
+   Ansichten fehlt noch. Darunter Überschrift „Sprecher“ und der Hinweis, dass
+   dieser Browser keinen gültigen Zugang hat, mit dem Knopf **Zu den
+   Zugangsdaten**. Dort den Verwaltertoken eintragen, **Speichern und prüfen**,
+   dann mit **Weiter zu den Sprechern** zurück. Erwartet jetzt: „Noch kein
+   Sprecherprofil vorhanden.“ — der Leerzustand, keine kaputte Seite. Derselbe
+   Punkt steht auch im Menü (☰) rechts oben, und zwar immer — auch ohne
+   gültigen Zugang, denn genau dann braucht man ihn.
 2. Unter „Neues Profil“: Namen eintragen, Basismodell auf
    `whisper-small (Entwicklung ohne GPU)` oder, für noch weniger Rechenlast,
    `whisper-tiny (noch weniger Rechenlast)` stellen, **Anlegen und Zugang
@@ -40,13 +46,6 @@ gemacht, und was dabei herauskommt, ist ein Link.
 3. Erwartet: Oben erscheint der Kasten „Zugang ausgegeben“ mit einem Link der
    Form `http://localhost:5173/#/zugang/spr_….…`, darunter das Profil in der
    Liste mit „Zugang ausgegeben am …“. **Link kopieren**.
-4. Falls `WORTLAUT_AUTH_TOKEN` gesetzt ist: Statt der Liste erscheint der
-   Hinweis, dass dieser Browser keinen gültigen Zugang hat, mit dem Knopf
-   **Zu den Zugangsdaten**. Dort den Verwaltertoken eintragen, **Speichern und
-   prüfen**, dann mit **Weiter zu den Sprechern** zurück und Schritt 2
-   wiederholen. Derselbe Punkt steht auch im Menü (☰) rechts oben, und zwar
-   immer — auch ohne gültigen Zugang, denn genau dann braucht man ihn.
-
 ## 1b. Den Zugang benutzen
 
 1. Den kopierten Link in die Adresszeile einfügen und öffnen. Erwartet: Die
