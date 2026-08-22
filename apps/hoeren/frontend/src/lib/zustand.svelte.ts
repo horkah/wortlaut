@@ -10,16 +10,10 @@
  * Umbau ausschließt. Was der Browser aufbewahrt, ist allein der Zugang.
  */
 
-import { ApiFehler, setzeZugang, werRuft } from './api';
+import { nimmZugangAusLink } from '$ui/zugang';
+import { ApiFehler, werRuft } from './api';
 
 const ZUFALL_SCHLUESSEL = 'wortlaut.zufall';
-
-/**
- * Der Weg, auf dem ein Zugang in diesen Browser kommt: ein Link, einmal
- * geöffnet. Er steht im Hash und nicht in der Abfrage — ein Fragment geht nie
- * an den Server und landet damit in keinem Zugriffsprotokoll.
- */
-const ZUGANG_ROUTE = '/zugang/';
 
 function routeAusHash(): string {
   return window.location.hash.replace(/^#/, '') || '/';
@@ -63,24 +57,11 @@ export function setzeZufall(an: boolean): void {
   localStorage.setItem(ZUFALL_SCHLUESSEL, String(an));
 }
 
-/**
- * Einen Zugang aus dem Link übernehmen, falls einer darin steht.
- *
- * Der Eintrag im Verlauf wird dabei ersetzt statt ergänzt: Sonst stünde das
- * Geheimnis in der Adresszeile und im Zurück-Knopf.
- */
-function nimmZugangAusLink(): void {
-  const route = routeAusHash();
-  if (!route.startsWith(ZUGANG_ROUTE)) return;
-  setzeZugang(decodeURIComponent(route.slice(ZUGANG_ROUTE.length)));
-  const { pathname, search } = window.location;
-  window.history.replaceState(null, '', `${pathname}${search}#/`);
-  zustand.route = '/';
-}
-
 /** Beim Server nachfragen, für wen dieser Browser eingestellt ist. */
 export async function ladeZugang(): Promise<void> {
-  nimmZugangAusLink();
+  // Steckte einer im Link, liegt er jetzt im Browser und die Adresse ist
+  // wieder sauber (siehe `$ui/zugang`).
+  if (nimmZugangAusLink(routeAusHash())) zustand.route = '/';
   try {
     const wer = await werRuft();
     zustand.art = wer.art;

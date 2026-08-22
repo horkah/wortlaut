@@ -3,10 +3,16 @@
 Die Feldnamen entsprechen den Variablen mit dem Präfix `WORTLAUT_`,
 `modell_ref` also `WORTLAUT_MODELL_REF`.
 
-Eine Instanz dieser App ist auf **einen** Sprecher und **einen** Modellstand
-konfiguriert (Grundentscheidung 7). Beides ist deshalb Konfiguration und kein
-Laufzeitparameter: Ein Modellwechsel ist eine Änderung mit Neustart, sonst
-weiß hinterher niemand, welcher Stand welche Ausgabe erzeugt hat.
+Wer hier spricht, steht **nicht** mehr in der Konfiguration: Diese App führt
+denselben Sprecher wie „hören", und den bringt der Aufrufer als Zugang mit
+(siehe `deps.py`). Eine Instanz bedient damit so viele Sprecher, wie Zugänge
+vorgelegt werden — nötig geworden, weil jeder Sprecher sein eigenes,
+feingetuntes Modell bekommt und weil seine Diktate als Korrekturen in seinen
+Korpus zurückfließen. Beides braucht die Kennung, und geraten werden darf sie
+nicht.
+
+Was bleibt, gehört der Maschine und nicht der Person: wo die Daten liegen, wie
+Whisper läuft und wohin die Korrekturen gehen.
 """
 
 from __future__ import annotations
@@ -24,19 +30,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 #     ├── audio/<abschnitt_id>.wav     16 kHz mono, je ein Abschnitt
 #     └── schreiben.sqlite             Sitzungen, Abschnitte, Postausgang
 #
-# Nach Sprecher gegliedert wie der Korpus, obwohl eine Instanz nur einen kennt:
-# Sonst fände `scripts/purge_speaker.py` diese Dateien nicht, und eine Löschung
-# wäre unvollständig.
+# Nach Sprecher gegliedert wie der Korpus: Jeder Mensch hat hier seine eigene
+# Datei, und `scripts/purge_speaker.py` löscht mit dem Verzeichnis alles, was
+# von ihm da war. Eine gemeinsame Datenbank mit einer Spalte „sprecher" wäre
+# ein Filter, den man vergessen kann — ein Verzeichnis nicht.
 DIKTATE = "diktate"
 DATENBANKNAME = "schreiben.sqlite"
 
-# Ohne gesetzten Sprecher (Entwicklung) braucht das Verzeichnis trotzdem einen
-# Namen — ein leerer wäre ein Pfad, der auf sich selbst zeigt.
-OHNE_SPRECHER = "ohne-sprecher"
-
 
 def sprecher_relpfad(sprecher_id: str) -> str:
-    return f"{DIKTATE}/{sprecher_id or OHNE_SPRECHER}"
+    return f"{DIKTATE}/{sprecher_id}"
 
 
 def audio_relpfad(sprecher_id: str, abschnitt_id: str) -> str:
@@ -51,13 +54,12 @@ class Einstellungen(BaseSettings):
     data_dir: Path = Path("./data")
     storage: str = "local"
 
-    # Wessen Stimme. Bestimmt die eigene Ablage und geht als Behauptung an
-    # „hören" mit, das sie gegen den Zugang aus `intake_token` hält.
-    sprecher_id: str = ""
-
-    # Modellstand aus der Registry, Form `<sprecher_id>/<version>`. Leer heißt:
-    # noch keiner da — dann läuft `asr_modell` als unverändertes Whisper-Modell.
-    # Genau so fängt eine Installation an, bevor es „lernen" gibt.
+    # Ein fest vorgegebener Modellstand, Form `<sprecher_id>/<version>`. Leer
+    # ist der Normalfall: Dann bekommt jeder Sprecher den Stand, den „lernen"
+    # für ihn freigegeben hat (`registry.aktiver_stand`), und solange es keinen
+    # gibt, das unveränderte `asr_modell`. Gesetzt gilt der eine Stand für
+    # jeden, der hier ruft — gedacht zum Erproben eines Standes, nicht für den
+    # Betrieb.
     modell_ref: str = ""
     asr_modell: str = "tiny"
 
@@ -70,19 +72,20 @@ class Einstellungen(BaseSettings):
 
     # Wohin die bestätigten Korrekturen gehen. Leer heißt: sie bleiben im
     # Postausgang liegen, statt verloren zu gehen.
+    #
+    # Einen Token braucht es hier nicht mehr: Gesendet wird mit dem Zugang, den
+    # der Sprecher gerade vorgelegt hat (siehe `services/outbox.py`). Damit
+    # liegt kein fremdes Geheimnis in der Umgebung, und die Korrektur landet
+    # zwingend im Korpus dessen, der sie bestätigt hat.
     intake_url: str = ""
-    # Der Zugang dieses Sprechers bei „hören" (`<sprecher_id>.<geheimnis>`,
-    # dort ausgegeben). Er bestimmt, in welchen Korpus geschrieben wird —
-    # `sprecher_id` oben wird von „hören" nur noch dagegen geprüft.
-    intake_token: str = ""
 
     @property
     def migrationsverzeichnis(self) -> Path:
         return Path(__file__).parent / "db" / "migrations"
 
-    @property
-    def datenbank(self) -> Path:
-        return self.data_dir / sprecher_relpfad(self.sprecher_id) / DATENBANKNAME
+    def datenbank(self, sprecher_id: str) -> Path:
+        """Die Diktatdatenbank eines Sprechers. Je Sprecher eine Datei."""
+        return self.data_dir / sprecher_relpfad(sprecher_id) / DATENBANKNAME
 
 
 @lru_cache

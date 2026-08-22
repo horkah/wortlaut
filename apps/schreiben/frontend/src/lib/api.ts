@@ -1,10 +1,19 @@
 /**
  * Der einzige Ort, an dem diese App mit ihrem Backend spricht.
  *
- * Kein Token, kein Sprecherparameter: Eine Instanz gehört zu genau einer
- * Person und einem Modellstand (Grundentscheidung 7). Beides steht in der
- * Konfiguration des Servers, nicht in der Adresszeile.
+ * Jede Anfrage trägt den Zugang des Sprechers — denselben, den „hören" für ihn
+ * ausgegeben hat und der in demselben Browser liegt (siehe `$ui/zugang`). Den
+ * Sprecher nennt trotzdem keine Anfrage: Der Server leitet ihn aus dem Zugang
+ * ab (`backend/deps.py`). So kann diese App gar nicht erst in ein fremdes
+ * Verzeichnis schreiben, und der Mensch muss dafür nichts tun — sein Link war
+ * einmal zu öffnen, hier oder drüben.
  */
+
+import { mitZugang } from '$ui/zugang';
+export { setzeZugang, zugang } from '$ui/zugang';
+
+/** Wer der Server in diesem Browser sieht. */
+export type Wer = { art: string; sprecher_id: string; name: string };
 
 export type Abschnitt = {
   id: string;
@@ -56,7 +65,10 @@ export class ApiFehler extends Error {
 }
 
 async function anfrage<T>(pfad: string, optionen: RequestInit = {}): Promise<T> {
-  const antwort = await fetch(`${API}${pfad}`, optionen);
+  const antwort = await fetch(`${API}${pfad}`, {
+    ...optionen,
+    headers: mitZugang(optionen.headers),
+  });
   if (!antwort.ok) {
     // FastAPI antwortet mit {"detail": …}; bei Netzfehlern bleibt der Status.
     const rumpf = await antwort.json().catch(() => null);
@@ -98,4 +110,8 @@ export const postausgangSenden = () =>
 
 // ── Kopfzeile ───────────────────────────────────────────────────────────────
 
+/** Für wen dieser Browser eingestellt ist — die Antwort kommt vom Server. */
+export const werRuft = () => anfrage<Wer>('/zugang');
+
+/** Der Modellstand **dieses** Sprechers; „lernen" gibt ihn je Person frei. */
 export const modell = () => anfrage<Modell>('/model');

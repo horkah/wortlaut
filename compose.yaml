@@ -36,13 +36,11 @@ services:
       # API und nicht am Modell vorbei (Grundentscheidung 6) — nur zeigt er
       # jetzt auf denselben Prozess.
       #
-      # Der Token ist hier **nicht** der Verwaltertoken, sondern der Zugang des
-      # Sprechers, für den diese Instanz konfiguriert ist: „hören" liest daraus
-      # ab, in welchen Korpus geschrieben wird. Ausgegeben wird er dort unter
-      # „Sprecher"; er gehört als WORTLAUT_INTAKE_TOKEN in die .env des Wirts.
-      # Ohne ihn weist „hören" die Lieferung ab, und der Postausgang wartet.
+      # Einen Token braucht es hier nicht: „schreiben" sendet mit dem Zugang
+      # des Sprechers, der den Text gerade bestätigt hat. Damit liegt kein
+      # Geheimnis in dieser Datei, und die Korrektur geht zwingend in den
+      # Korpus dessen, der sie abgenickt hat.
       WORTLAUT_INTAKE_URL: http://127.0.0.1:8000/api/korpus/intake
-      WORTLAUT_INTAKE_TOKEN: ${WORTLAUT_INTAKE_TOKEN:-}
     volumes:
       - wortlaut-data:/srv/wortlaut/data
     healthcheck:

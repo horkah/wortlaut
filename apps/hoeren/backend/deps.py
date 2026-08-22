@@ -8,7 +8,7 @@ von Zugang, alle als `Authorization: Bearer …`:
   einen Sprecher aufnehmen will, benutzt dessen Zugang. Das ist der Preis
   dafür, dass es nur **einen** Weg zu den Daten gibt und der die Kennung
   ableitet.
-* **Sprecherzugang** — `<sprecher_id>.<geheimnis>` (siehe `services/zugang.py`).
+* **Sprecherzugang** — `<sprecher_id>.<geheimnis>` (siehe `wortlaut.zugang`).
   Er ist zugleich die Kennung: Der Server spaltet ihn, öffnet die Datenbank
   dieses Sprechers und prüft dort den Prüfwert.
 * **Aufsicht** — `WORTLAUT_ADMIN_TOKEN`. Der eine Zugang, der über allen
@@ -38,10 +38,10 @@ from fastapi import Depends, Header, HTTPException
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 from wortlaut import corpus, db, storage
+from wortlaut import zugang as zugangsdienst
 
 from .config import einstellungen
 from .db.models import Sprecher
-from .services import zugang as zugangsdienst
 
 # Engines sind teuer im Aufbau und beliebig oft wiederverwendbar.
 _engines: dict[str, Engine] = {}

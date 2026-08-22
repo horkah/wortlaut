@@ -70,17 +70,22 @@ Domain (`BASIS` in `backend/main.py`). So genügt vor den Containern eine
 Regel, die den Weg unverändert durchreicht; ein Proxy, der das Präfix
 abschneidet, wird nicht gebraucht.
 
-Kein Token: siehe Grundentscheidung 7 und `docs/datenschutz.md`.
+**Der Sprecher kommt aus dem Zugang.** Jede Anfrage trägt denselben Zugang,
+den „hören" für diese Person ausgegeben hat (`<sprecher_id>.<geheimnis>`);
+der Server leitet die Kennung daraus ab und öffnet die Diktatdatenbank dieses
+Sprechers — je Mensch eine Datei unter `data/diktate/<sprecher_id>/`. Ein
+Anmeldefeld ist das nicht: Beide Apps liegen unter einer Domain und lesen
+denselben Eintrag im `localStorage`, der persönliche Link ist also einmal zu
+öffnen, gleich wo. Siehe Grundentscheidung 7 und `docs/datenschutz.md`.
 
 ## Konfiguration
 
 | Variable | Bedeutung |
 |---|---|
-| `WORTLAUT_SPRECHER_ID` | wessen Stimme; steht in jeder Korrektur |
-| `WORTLAUT_MODELL_REF` | Stand aus der Registry, `<sprecher_id>/<version>` |
-| `WORTLAUT_ASR_MODELL` | Whisper-Modell, solange `MODELL_REF` leer ist (`tiny`) |
+| `WORTLAUT_MODELL_REF` | fester Stand für alle, `<sprecher_id>/<version>`; leer = je Sprecher sein freigegebener |
+| `WORTLAUT_ASR_MODELL` | Whisper-Modell, solange kein Stand da ist (`tiny`) |
 | `WORTLAUT_ASR` | `local` (faster-whisper) oder `remote` |
-| `WORTLAUT_INTAKE_URL` / `_TOKEN` | wohin die Korrekturen gehen |
+| `WORTLAUT_INTAKE_URL` | wohin die Korrekturen gehen; gesendet wird mit dem Zugang des Bestätigenden |
 
 **Ohne `lernen` fängt man mit `tiny` an.** Ist `WORTLAUT_MODELL_REF` leer, lädt
 faster-whisper das unveränderte `whisper-tiny` — schnell, anspruchslos und für
