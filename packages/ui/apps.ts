@@ -64,6 +64,19 @@ export interface Menuepunkt {
 export const EINSTELLUNGEN_PFAD = '/einstellungen';
 
 /**
+ * Wo Farben, Schriftart und Schriftgrößen eingestellt werden.
+ *
+ * Eine eigene Ansicht und kein Abschnitt in `Einstellungen.svelte`: Dort
+ * stehen Mikrofon und Stimme — etwas, das man einmal einmisst und dann in
+ * Ruhe lässt. Die Darstellung dagegen darf jeder anfassen, der die Schrift zu
+ * klein oder den Kontrast zu schwach findet, ohne durch Technisches zu
+ * blättern. Aus demselben Grund wie `EINSTELLUNGEN_PFAD` gerätebezogen und
+ * über den `localStorage` geteilt (siehe `einstellungen.svelte.ts`), deshalb
+ * ebenfalls im Menü der Kopfleiste und nicht in einer Reiterreihe.
+ */
+export const DARSTELLUNG_PFAD = '/darstellung';
+
+/**
  * Wo der Sprecher gewählt und angelegt wird.
  *
  * Auch das gehört nicht in die Reiterreihe einer App: Der Sprecher ist die

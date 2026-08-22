@@ -1,6 +1,11 @@
 /* Das gemeinsame Aussehen aller drei Apps.
    Ruhig, kontrastreich, große Schrift: gelesen wird hier unter Anstrengung.
    Eingebunden von der `main.ts` jeder App über den Alias `$ui`. */
+/* Die Vorgaben hier sind zugleich die Werte, auf die „Darstellung →
+   Vorgaben" zurücksetzt (siehe `einstellungen.svelte.ts`, `FARBEN`). Wer eine
+   Farbe dort ändert, überschreibt die zugehörige Variable per Inline-Stil auf
+   diesem Wurzelelement — deshalb stehen alle einstellbaren Werte als
+   Variable und nicht als literaler Wert in dieser Regel. */
 :root {
   --rand: #d8d4cd;
   --gedaempft: #6b6b6b;
@@ -8,11 +13,15 @@
   /* Hinterlegung für den offenen Reiter und andere leise Markierungen. */
   --akzent-hell: #e4ece9;
   --warnung: #8a5300;
+  --fehler: #b3261e;
+  --text: #1c1b19;
+  --hintergrund: #faf9f7;
+  --schrift-familie: system-ui, -apple-system, 'Segoe UI', sans-serif;
   color-scheme: light;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--schrift-familie);
   font-size: 18px;
-  color: #1c1b19;
-  background: #faf9f7;
+  color: var(--text);
+  background: var(--hintergrund);
 }
 
 body {
@@ -101,7 +110,7 @@ textarea {
 }
 
 .fehler {
-  color: #b3261e;
+  color: var(--fehler);
 }
 
 .gedaempft {

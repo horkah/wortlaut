@@ -211,8 +211,8 @@
 
   /* Dieselbe Farbe wie `.fehler` in der gemeinsamen app.css. */
   .loeschen:hover:not(:disabled) {
-    border-color: #b3261e;
-    color: #b3261e;
+    border-color: var(--fehler);
+    color: var(--fehler);
   }
 
   /* Der Titel ist der Weg zum Text — als Knopf, damit der Token mitgeht,

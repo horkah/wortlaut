@@ -1,7 +1,8 @@
 <script lang="ts">
   import Kopfleiste from '$ui/Kopfleiste.svelte';
   import Fusszeile from '$ui/Fusszeile.svelte';
-  import { EINSTELLUNGEN_PFAD, SPRECHER_PFAD, type Menuepunkt } from '$ui/apps';
+  import Darstellung from '$ui/Darstellung.svelte';
+  import { DARSTELLUNG_PFAD, EINSTELLUNGEN_PFAD, SPRECHER_PFAD, type Menuepunkt } from '$ui/apps';
   import { ladeZugang, zustand } from './lib/zustand.svelte';
   import Verwaltung from './routes/Verwaltung.svelte';
   import Quelle from './routes/Quelle.svelte';
@@ -32,13 +33,15 @@
   const Ansicht = $derived(
     zustand.route === EINSTELLUNGEN_PFAD
       ? Einstellungen
-      : !spricht
-        ? Verwaltung
-        : ({
-            '/quelle': Quelle,
-            '/aufnahme': Aufnahme,
-            '/fortschritt': Fortschritt,
-          }[zustand.route] ?? Quelle),
+      : zustand.route === DARSTELLUNG_PFAD
+        ? Darstellung
+        : !spricht
+          ? Verwaltung
+          : ({
+              '/quelle': Quelle,
+              '/aufnahme': Aufnahme,
+              '/fortschritt': Fortschritt,
+            }[zustand.route] ?? Quelle),
   );
 
   // Nur wer aufnimmt, hat Ansichten zu wechseln; die Verwaltung hat eine
@@ -49,7 +52,7 @@
   // abgeleitet. Für die Verwaltung ist er der einzige Punkt.
   const uebergreifend = $derived(spricht ? [] : [{ pfad: SPRECHER_PFAD, text: 'Sprecher' }]);
   const offen = $derived(
-    zustand.route === EINSTELLUNGEN_PFAD
+    zustand.route === EINSTELLUNGEN_PFAD || zustand.route === DARSTELLUNG_PFAD
       ? zustand.route
       : !spricht
         ? SPRECHER_PFAD
