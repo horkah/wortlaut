@@ -564,6 +564,27 @@ ein Versehen soll höchstens eine Aufnahme kosten.
 `schreiben` verlinkt auf dieselbe Seite, statt eine eigene Ansicht zu bauen:
 Die Daten liegen im Korpus, den nur `hören` schreibt (Grundentscheidung 6).
 
+##### Eine PIN davor
+
+Wer mag — die Person selbst oder die Aufsicht an ihrer Stelle — sichert
+**Meine Daten** zusätzlich mit einer vierstelligen PIN (`services/pin.py`,
+Spalte `pin_hash`, Migration `004_pin.sql`). Vier Ziffern und keine
+Anmeldung mit Text: dieselbe Grundentscheidung 7, die auch `schreiben` einen
+Text- statt Passwortfeld erspart.
+
+Es ist ausdrücklich kein zweites Schloss, sondern eine zusätzliche Hürde
+gegen den Klick aus Versehen — die eigentliche Kennung bleibt der Zugang.
+Eine PIN ist deshalb bewusst leichtgewichtig geprüft (zeitkonstanter
+Vergleich, kein Sperren nach Fehlversuchen; siehe `services/pin.py`) und
+schützt nur die drei lesenden Wege unter `/api/konto/…`, nicht das Anhören
+oder Verwerfen einer Aufnahme selbst — wer erst einmal drin ist, braucht sie
+nicht ein zweites Mal.
+
+Gesetzt und geändert wird sie ohne die alte zu kennen: über `/api/konto/pin`
+von der Person selbst oder über `/api/admin/speakers/{id}/pin` von der
+Aufsicht — der Rückweg, wenn eine PIN vergessen wurde oder aus Versehen
+gesetzt ist.
+
 ### Endpunkte
 
 Verwaltung — hinter `WORTLAUT_AUTH_TOKEN`; ohne ihn zu:
@@ -595,7 +616,12 @@ POST   /api/korpus/intake                   ← von „schreiben"
 GET    /api/konto                           Profil, Kennzahlen, Textquellen — die eigenen
 GET    /api/konto/sessions?ab=&anzahl=      seitenweise, zu zehnt
 GET    /api/konto/recordings?ab=&anzahl=    seitenweise, mit Text
+GET    /api/konto/pin                       { gesetzt }  — ungeschützt
+PATCH  /api/konto/pin                       { pin }  — vier Ziffern oder null
 ```
+
+Die drei ersten `/api/konto/…`-Wege verlangen zusätzlich die Kopfzeile
+`X-Pin: …`, sobald eine PIN gesetzt ist.
 
 Aufsicht — hinter `WORTLAUT_ADMIN_TOKEN`. Als einzige Wege dieser App nennen
 sie ihren Sprecher in der Adresse; die Aufsicht hat keinen eigenen:
@@ -607,6 +633,7 @@ GET    /api/admin/speakers/{id}/sessions?ab=&anzahl=   seitenweise, zu zehnt
 GET    /api/admin/speakers/{id}/recordings  Aufnahmen mit ihrem Text, seitenweise
 GET    /api/admin/speakers/{id}/recordings/{r}/audio
 PATCH  /api/admin/speakers/{id}             { name }  — umbenennen
+PATCH  /api/admin/speakers/{id}/pin         { pin }  — setzen, ändern, löschen; alte PIN egal
 GET    /api/admin/speakers/{id}/sicherung   .tgz, wiederherstellbar
 GET    /api/admin/speakers/{id}/datensatz   .zip, Text-Audio-Paare
 GET    /api/admin/sicherung                 .tgz über alle Sprecher
@@ -1036,6 +1063,11 @@ DSGVO. Das hat Folgen für den Aufbau, nicht nur für einen Hinweistext:
   im Korpus angekommen ist, wird seine Datei dort gelöscht.
 - `scripts/purge_speaker.py` entfernt Profil, Aufnahmen, Schnappschüsse und Modelle
   vollständig. Das Recht auf Löschung muss ausführbar sein, nicht dokumentiert.
+- **Meine Daten** zeigt einer Person nur ihre eigenen Aufnahmen, nie fremde —
+  aus demselben Grund wie oben, nicht durch eine zweite Prüfung. Eine
+  optionale PIN sichert die Ansicht zusätzlich gegen den Klick aus Versehen;
+  sie ist kein Ersatz für den Zugang, nur eine Hürde davor (siehe
+  „Eine PIN davor" oben).
 
 Einzelheiten in [`docs/datenschutz.md`](docs/datenschutz.md).
 

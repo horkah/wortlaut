@@ -35,7 +35,8 @@ from wortlaut import corpus, sicherung
 from ..config import einstellungen
 from ..db.models import Aufnahme, Sprecher
 from ..deps import Ablage, Aufsicht, engine_fuer, vergiss_engine
-from ..services import export, loeschung, uebersicht
+from ..services import export, loeschung, pin, uebersicht
+from ..services.pin import PinAenderung, PinAntwort
 from ..services.uebersicht import (
     SEITE,
     AufnahmenAntwort,
@@ -156,6 +157,21 @@ def benenne_um(sprecher_id: str, aenderung: Umbenennung, ablage: Ablage) -> Uebe
         sprecher.name = aenderung.name
         sitzung.commit()
         return uebersicht.profil(sitzung, sprecher, ablage)
+
+
+@router.patch("/speakers/{sprecher_id}/pin", response_model=PinAntwort)
+def setze_pin(sprecher_id: str, aenderung: PinAenderung) -> PinAntwort:
+    """Die PIN einer Person setzen, ändern oder (mit `pin: null`) wegnehmen.
+
+    Anders als beim eigenen Weg (`api/konto.py`) unter keinem eigenen Vorbehalt:
+    Die Aufsicht ist der Rückweg, wenn jemand seine PIN vergessen oder aus
+    Versehen eine falsche eingetippt hat, und braucht dafür nicht die alte.
+    """
+    with Session(engine_fuer(sprecher_id)) as sitzung:
+        sprecher = _hole(sitzung, sprecher_id)
+        sprecher.pin_hash = pin.pruefwert(aenderung.pin) if aenderung.pin is not None else None
+        sitzung.commit()
+        return PinAntwort(gesetzt=sprecher.pin_hash is not None)
 
 
 # ── Sichern und ausleiten ───────────────────────────────────────────────────

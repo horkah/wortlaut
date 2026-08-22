@@ -1,0 +1,11 @@
+-- Eine PIN vor „Meine Daten" — eine zusätzliche Hürde, kein zweites Schloss.
+--
+-- Der Zugang bleibt die eigentliche Kennung (siehe `003_zugang.sql`); wer ihn
+-- vorlegt, kommt an alles andere weiterhin heran. Die PIN sperrt nur den einen
+-- Weg, auf dem sich etwas löschen lässt — gedacht gegen den Klick aus
+-- Versehen, nicht gegen jemanden, der den Zugang gezielt missbraucht
+-- (Grundentscheidung 7: die Zielperson tippt vier Ziffern, keinen Text).
+--
+-- Gesetzt wird sie von der Person selbst oder von der Aufsicht; NULL heißt:
+-- keine PIN, „Meine Daten" öffnet sich ohne Umweg.
+ALTER TABLE speakers ADD COLUMN pin_hash TEXT;

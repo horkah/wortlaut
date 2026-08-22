@@ -18,6 +18,7 @@
     aufsichtSitzungen,
     datensatzSprecher,
     einsicht as ladeEinsicht,
+    pinSetzenAdmin,
     sicherungSprecher,
     sprecherLoeschen,
     sprecherUmbenennen,
@@ -34,6 +35,7 @@
   const sprecherId = $derived(sprecherAusRoute(zustand.route));
 
   let daten = $state<Einsicht | null>(null);
+  let neuePin = $state('');
 
   let sitzungen = $state<AufsichtSitzung[]>([]);
   let sitzungenSeite = $state(1);
@@ -129,6 +131,28 @@
       await sprecherUmbenennen(sprecherId, neuer.trim());
       await lade();
     }, 'Umbenannt.');
+  }
+
+  /**
+   * PIN setzen oder ändern — ohne die alte zu kennen. Die Aufsicht ist der
+   * Rückweg, wenn jemand seine PIN vergessen oder aus Versehen eine falsche
+   * eingetippt hat (siehe `services/pin.py`).
+   */
+  async function pinAendern(ereignis: SubmitEvent) {
+    ereignis.preventDefault();
+    const neue = neuePin.trim();
+    await tue('pin', async () => {
+      await pinSetzenAdmin(sprecherId, neue);
+      neuePin = '';
+      await lade();
+    }, 'PIN gespeichert.');
+  }
+
+  async function pinWegnehmen() {
+    await tue('pin', async () => {
+      await pinSetzenAdmin(sprecherId, null);
+      await lade();
+    }, 'PIN entfernt.');
   }
 
   async function loescheEine(aufnahme: AufsichtAufnahme) {
@@ -229,6 +253,7 @@
     {:else}
       · kein Zugang — für niemanden erreichbar
     {/if}
+    · PIN {person.pin_gesetzt ? 'gesetzt' : 'nicht gesetzt'}
   </p>
 
   <div class="karte zahlen">
@@ -270,6 +295,35 @@
       <strong>Datensatz</strong> enthält zu jeder Aufnahme die WAV-Datei und ihren Text — für
       Training und für Werkzeuge, die von wortlaut nichts wissen. Zum Sichern taugt er nicht.
     </p>
+  </div>
+
+  <h2>PIN vor „Meine Daten"</h2>
+  <div class="karte">
+    <p class="gedaempft">
+      Sichert die Ansicht, in der diese Person ihre eigenen Daten sieht — gegen den Klick aus
+      Versehen, nicht als zweites Passwort. Setzen oder ändern verlangt die alte PIN nicht: Das
+      ist der Rückweg, wenn sie vergessen wurde.
+    </p>
+    <form class="reihe" onsubmit={pinAendern}>
+      <input
+        bind:value={neuePin}
+        type="text"
+        inputmode="numeric"
+        pattern="[0-9]{4}"
+        maxlength="4"
+        placeholder="Neue PIN"
+        autocomplete="off"
+        required
+      />
+      <button class="knopf haupt" type="submit" disabled={laeuft === 'pin'}>
+        {person.pin_gesetzt ? 'PIN ändern' : 'PIN einrichten'}
+      </button>
+      {#if person.pin_gesetzt}
+        <button class="knopf" type="button" disabled={laeuft === 'pin'} onclick={pinWegnehmen}>
+          PIN entfernen
+        </button>
+      {/if}
+    </form>
   </div>
 
   <h2>Textquellen</h2>

@@ -16,6 +16,8 @@
     meineAufnahmeAudio,
     meineAufnahmen,
     meineSitzungen,
+    pinSetzen,
+    pinStand,
     type AufsichtAufnahme,
     type AufsichtSitzung,
     type Konto,
@@ -23,6 +25,19 @@
   import { zustand } from '../lib/zustand.svelte';
 
   const PRO_SEITE = 10;
+
+  // Ob und womit diese Seite offen ist. `noetig` heißt: eine PIN ist gesetzt
+  // und noch nicht eingegeben. Die PIN selbst liegt nur hier im Speicher,
+  // nie in `localStorage` — dort steht schon der Zugang, und ein zweites
+  // dauerhaft gemerktes Geheimnis nähme der PIN genau den Sinn, den sie haben
+  // soll (siehe `services/pin.py`).
+  let stand = $state<'unbekannt' | 'noetig' | 'offen'>('unbekannt');
+  let meinePin = $state<string | undefined>(undefined);
+  let pinEingabe = $state('');
+  let pinFehler = $state('');
+  // Getrennt von `pinEingabe`: Die Verwaltung der eigenen PIN ist ein anderes
+  // Formular, das erst zu sehen ist, wenn diese Seite schon offen ist.
+  let neuePin = $state('');
 
   let daten = $state<Konto | null>(null);
 
@@ -44,13 +59,13 @@
   let hoerprobe = $state<{ id: string; adresse: string } | null>(null);
 
   async function ladeSitzungen() {
-    const seite = await meineSitzungen((sitzungenSeite - 1) * PRO_SEITE, PRO_SEITE);
+    const seite = await meineSitzungen((sitzungenSeite - 1) * PRO_SEITE, PRO_SEITE, meinePin);
     sitzungen = seite.sitzungen;
     sitzungenGesamt = seite.gesamt;
   }
 
   async function ladeAufnahmen() {
-    const seite = await meineAufnahmen((aufnahmenSeite - 1) * PRO_SEITE, PRO_SEITE);
+    const seite = await meineAufnahmen((aufnahmenSeite - 1) * PRO_SEITE, PRO_SEITE, meinePin);
     aufnahmen = seite.aufnahmen;
     aufnahmenGesamt = seite.gesamt;
   }
@@ -58,11 +73,63 @@
   async function lade() {
     fehler = '';
     try {
-      daten = await meinKonto();
+      daten = await meinKonto(meinePin);
       await Promise.all([ladeSitzungen(), ladeAufnahmen()]);
     } catch (ursache) {
       fehler = ursache instanceof Error ? ursache.message : String(ursache);
     }
+  }
+
+  /** Ob eine PIN nötig ist, und danach, falls nicht, gleich laden. */
+  async function starte() {
+    fehler = '';
+    try {
+      stand = (await pinStand()).gesetzt ? 'noetig' : 'offen';
+      if (stand === 'offen') await lade();
+    } catch (ursache) {
+      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+    }
+  }
+
+  async function entsperren(ereignis: SubmitEvent) {
+    ereignis.preventDefault();
+    pinFehler = '';
+    try {
+      // Ein Testabruf: Er wirft, wenn die PIN nicht stimmt, und sagt damit
+      // beides in einem — ob sie stimmt und, wenn ja, gleich die Daten.
+      daten = await meinKonto(pinEingabe);
+      meinePin = pinEingabe;
+      pinEingabe = '';
+      stand = 'offen';
+      await Promise.all([ladeSitzungen(), ladeAufnahmen()]);
+    } catch {
+      pinFehler = 'Falsche PIN.';
+    }
+  }
+
+  async function pinAendern(ereignis: SubmitEvent) {
+    ereignis.preventDefault();
+    const neue = neuePin.trim();
+    await tue(
+      'pin',
+      async () => {
+        await pinSetzen(neue);
+        meinePin = neue;
+        neuePin = '';
+      },
+      'PIN gespeichert.',
+    );
+  }
+
+  async function pinWegnehmen() {
+    await tue(
+      'pin',
+      async () => {
+        await pinSetzen(null);
+        meinePin = undefined;
+      },
+      'PIN entfernt.',
+    );
   }
 
   async function wechsleSitzungenSeite(seite: number) {
@@ -139,7 +206,7 @@
   const tag = (zeitpunkt: string) => zeitpunkt.slice(0, 10);
 
   $effect(() => {
-    if (zustand.art === 'sprecher') lade();
+    if (zustand.art === 'sprecher') starte();
   });
 </script>
 
@@ -150,7 +217,26 @@
   <p class="gedaempft">{meldung}</p>
 {/if}
 
-{#if !daten}
+{#if stand === 'noetig'}
+  <h2>Meine Daten</h2>
+  <div class="karte">
+    <p>Diese Seite ist mit einer PIN gesichert.</p>
+    <form class="reihe" onsubmit={entsperren}>
+      <input
+        bind:value={pinEingabe}
+        type="text"
+        inputmode="numeric"
+        pattern="[0-9]{4}"
+        maxlength="4"
+        placeholder="PIN"
+        autocomplete="off"
+        required
+      />
+      <button class="knopf haupt" type="submit">Entsperren</button>
+    </form>
+    {#if pinFehler}<p class="fehler">{pinFehler}</p>{/if}
+  </div>
+{:else if stand === 'unbekannt' || !daten}
   <p class="gedaempft">Wird geladen …</p>
 {:else}
   {@const person = daten.sprecher}
@@ -225,6 +311,34 @@
     <p class="gedaempft">Keine Aufnahme.</p>
   {/each}
   <Pager seite={aufnahmenSeite} gesamtSeiten={aufnahmenSeiten} aendere={wechsleAufnahmenSeite} />
+
+  <h2>PIN</h2>
+  <div class="karte">
+    <p class="gedaempft">
+      Eine PIN sichert diese Seite zusätzlich zum Zugang — gedacht gegen den Klick aus Versehen,
+      nicht als zweites Passwort.
+    </p>
+    <form class="reihe" onsubmit={pinAendern}>
+      <input
+        bind:value={neuePin}
+        type="text"
+        inputmode="numeric"
+        pattern="[0-9]{4}"
+        maxlength="4"
+        placeholder="Neue PIN"
+        autocomplete="off"
+        required
+      />
+      <button class="knopf haupt" type="submit" disabled={laeuft === 'pin'}>
+        {meinePin ? 'PIN ändern' : 'PIN einrichten'}
+      </button>
+      {#if meinePin}
+        <button class="knopf" type="button" disabled={laeuft === 'pin'} onclick={pinWegnehmen}>
+          PIN entfernen
+        </button>
+      {/if}
+    </form>
+  </div>
 {/if}
 
 <style>

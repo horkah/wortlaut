@@ -219,7 +219,7 @@ export type Kennzahlen = {
   bytes_audio: number;
 };
 
-export type Uebersicht = Sprecher & { kennzahlen: Kennzahlen };
+export type Uebersicht = Sprecher & { pin_gesetzt: boolean; kennzahlen: Kennzahlen };
 
 export type AufsichtQuelle = {
   id: string;
@@ -276,6 +276,21 @@ export const sprecherUmbenennen = (sprecher: string, name: string) =>
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name }),
+  });
+
+/** Ob eine PIN gesetzt ist — nie die PIN selbst; siehe `Uebersicht.pin_gesetzt`. */
+export type PinStand = { gesetzt: boolean };
+
+/**
+ * Die PIN einer Person setzen, ändern oder (mit `pin: null`) wegnehmen — ohne
+ * die alte zu kennen. Die Aufsicht ist der Rückweg, wenn jemand seine PIN
+ * vergessen hat.
+ */
+export const pinSetzenAdmin = (sprecher: string, pin: string | null) =>
+  anfrage<PinStand>(`/admin/speakers/${sprecher}/pin`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pin }),
   });
 
 /**
@@ -357,13 +372,31 @@ async function blobMitNamen(pfad: string): Promise<[Blob, string]> {
 // der Weg ist ein anderer: keine Kennung in der Adresse, sie steckt im
 // vorgelegten Zugang. Anhören und Verwerfen einer Aufnahme laufen weiter über
 // `meineAufnahmeAudio` und `aufnahmeVerwerfen` weiter oben.
+//
+// Ist eine PIN gesetzt, verlangen die drei lesenden Wege sie zusätzlich als
+// `X-Pin`-Kopfzeile — deshalb der optionale `pin`-Parameter unten. `pinStand`
+// selbst bleibt ungeschützt: Er beantwortet ja gerade die Frage, ob überhaupt
+// nach einer PIN gefragt werden muss.
 
 export type Konto = { sprecher: Uebersicht; quellen: AufsichtQuelle[] };
 
-export const meinKonto = () => anfrage<Konto>('/konto');
+function mitPin(pin?: string): RequestInit {
+  return pin ? { headers: { 'X-Pin': pin } } : {};
+}
 
-export const meineSitzungen = (ab = 0, anzahl = 10) =>
-  anfrage<Sitzungenseite>(`/konto/sessions?ab=${ab}&anzahl=${anzahl}`);
+export const pinStand = () => anfrage<PinStand>('/konto/pin');
 
-export const meineAufnahmen = (ab = 0, anzahl = 10) =>
-  anfrage<Aufnahmenseite>(`/konto/recordings?ab=${ab}&anzahl=${anzahl}`);
+export const pinSetzen = (pin: string | null) =>
+  anfrage<PinStand>('/konto/pin', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pin }),
+  });
+
+export const meinKonto = (pin?: string) => anfrage<Konto>('/konto', mitPin(pin));
+
+export const meineSitzungen = (ab = 0, anzahl = 10, pin?: string) =>
+  anfrage<Sitzungenseite>(`/konto/sessions?ab=${ab}&anzahl=${anzahl}`, mitPin(pin));
+
+export const meineAufnahmen = (ab = 0, anzahl = 10, pin?: string) =>
+  anfrage<Aufnahmenseite>(`/konto/recordings?ab=${ab}&anzahl=${anzahl}`, mitPin(pin));
