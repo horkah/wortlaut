@@ -1,10 +1,14 @@
 """Korrekturen von „schreiben" annehmen.
 
 Zwei Zusagen an die dortige Outbox: Wiederholungen legen nichts doppelt an, und
-Korrekturen bleiben als schwächere Daten erkennbar.
+Korrekturen bleiben als schwächere Daten erkennbar. Dazu die dritte, die aus
+dem Zugang folgt: In welchen Korpus geschrieben wird, entscheidet der Zugang
+und nicht die Adresse.
 """
 
 from __future__ import annotations
+
+from collections.abc import Callable
 
 from fastapi.testclient import TestClient
 
@@ -79,3 +83,35 @@ class TestIntake:
             data={"text": "   ", "externe_id": "seg_leer"},
         )
         assert antwort.status_code == 400
+
+
+class TestFalschKonfiguriert:
+    """„schreiben" mit dem Zugang des einen und der Kennung des anderen.
+
+    Das ist der Weg, auf dem Gesundheitsdaten früher still in einen fremden
+    Korpus gewandert wären: „schreiben" nennt seinen `WORTLAUT_SPRECHER_ID`,
+    und „hören" schrieb dorthin. Jetzt hält „hören" die Behauptung gegen den
+    Zugang aus `WORTLAUT_INTAKE_TOKEN`.
+    """
+
+    def test_fremde_kennung_wird_abgewiesen(
+        self,
+        verwalter: TestClient,
+        klient: TestClient,
+        klient_fuer: Callable[[str], TestClient],
+        audio_datei: dict,
+    ) -> None:
+        fremd = verwalter.post(
+            "/api/speakers", json={"name": "Andere", "basismodell": "openai/whisper-small"}
+        ).json()["id"]
+
+        antwort = klient.post(
+            f"/api/korpus/intake?sprecher={fremd}",
+            files=audio_datei,
+            data={"text": "Gehört woandershin.", "externe_id": "seg_1"},
+        )
+
+        # 403 heißt für den Postausgang: Eintrag bleibt offen, Grund steht in
+        # der Zeile. Nichts geht verloren, und nichts landet falsch.
+        assert antwort.status_code == 403
+        assert klient_fuer(fremd).get("/api/progress").json()["aufnahmen"] == 0
