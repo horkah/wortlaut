@@ -63,6 +63,14 @@ services:
     volumes:
       # Die geladenen Modelle überleben hier einen Neustart.
       - ollama-models:/root/.ollama
+    healthcheck:
+      # Ohne curl im Abbild: `ollama list` spricht dieselbe Schnittstelle an,
+      # die auch „hören" benutzt, und antwortet erst, wenn der Dienst steht.
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      start_period: 1m
+      retries: 3
     deploy:
       resources:
         reservations:
