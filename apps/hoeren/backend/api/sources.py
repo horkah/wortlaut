@@ -11,14 +11,15 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 from wortlaut import ids
 from wortlaut.text import chunker, llm, upload
 
 from ..config import einstellungen
-from ..db.models import Textquelle, Vorlage, jetzt
+from ..db.models import Aufnahme, Textquelle, Vorlage, jetzt
 from ..deps import Datenbank
 from ..services.prompt_queue import naechste_position
 
@@ -39,7 +40,12 @@ class QuellenAntwort(BaseModel):
     art: str
     titel: str
     einheiten: int
+    aktiv: bool
     erstellt: str
+
+
+class AktivAenderung(BaseModel):
+    aktiv: bool
 
 
 @router.post("/llm", response_model=QuellenAntwort, status_code=201)
@@ -112,10 +118,90 @@ def liste(sprecher: str, db: Datenbank) -> list[QuellenAntwort]:
             art=quelle.art,
             titel=quelle.titel,
             einheiten=einheiten,
+            aktiv=quelle.aktiv,
             erstellt=quelle.erstellt,
         )
         for quelle, einheiten in zeilen
     ]
+
+
+def _hole(db: Session, sprecher: str, quelle_id: str) -> Textquelle:
+    quelle = db.get(Textquelle, quelle_id)
+    if quelle is None or quelle.speaker_id != sprecher:
+        raise HTTPException(status_code=404, detail="Unbekannte Textquelle")
+    return quelle
+
+
+@router.get("/{quelle_id}/text", response_class=PlainTextResponse)
+def text_ansehen(sprecher: str, quelle_id: str, db: Datenbank) -> str:
+    """Der Text, wie er in der Warteschlange steht — eine Einheit je Absatz.
+
+    Nicht das Original, sondern das Geschnittene: Genau das wird vorgesprochen,
+    und genau das will nachsehen, wer prüft, ob eine Quelle taugt.
+    """
+    quelle = _hole(db, sprecher, quelle_id)
+    einheiten = db.scalars(
+        select(Vorlage.text).where(Vorlage.source_id == quelle.id).order_by(Vorlage.position)
+    ).all()
+    return f"{quelle.titel}\n\n" + "\n\n".join(einheiten)
+
+
+@router.patch("/{quelle_id}", response_model=QuellenAntwort)
+def stelle_um(
+    sprecher: str, quelle_id: str, aenderung: AktivAenderung, db: Datenbank
+) -> QuellenAntwort:
+    """Quelle stilllegen oder wieder aufnehmen — ohne Datenverlust."""
+    quelle = _hole(db, sprecher, quelle_id)
+    quelle.aktiv = aenderung.aktiv
+    db.commit()
+
+    einheiten = db.scalar(
+        select(func.count()).select_from(Vorlage).where(Vorlage.source_id == quelle.id)
+    )
+    return QuellenAntwort(
+        id=quelle.id,
+        art=quelle.art,
+        titel=quelle.titel,
+        einheiten=einheiten or 0,
+        aktiv=quelle.aktiv,
+        erstellt=quelle.erstellt,
+    )
+
+
+@router.delete("/{quelle_id}", status_code=204)
+def loesche(sprecher: str, quelle_id: str, db: Datenbank) -> None:
+    """Quelle mitsamt ihren Einheiten löschen — solange nichts daran hängt.
+
+    Gibt es zu einer Einheit eine gültige Aufnahme, wird nicht gelöscht: Das
+    Audio ist der Ertrag der ganzen Arbeit, und die Quelle ist seine Herkunft
+    (`parameter` hält fest, woher der Text stammt). Wer sie loswerden will,
+    legt sie stattdessen still — dafür gibt es den Schalter.
+
+    Verworfene Aufnahmen stehen dem nicht im Weg: Ihr Audio ist schon gelöscht,
+    die Zeile ist nur noch ein Vermerk und geht mit.
+    """
+    quelle = _hole(db, sprecher, quelle_id)
+    vorlagen = select(Vorlage.id).where(Vorlage.source_id == quelle.id)
+
+    gueltige = db.scalar(
+        select(func.count())
+        .select_from(Aufnahme)
+        .where(Aufnahme.prompt_id.in_(vorlagen), Aufnahme.status == "ok")
+    )
+    if gueltige:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Zu dieser Quelle gibt es {gueltige} Aufnahme(n). "
+                "Sie lässt sich deshalb nicht löschen — stelle sie stattdessen ab."
+            ),
+        )
+
+    # Reihenfolge zählt: SQLite prüft die Fremdschlüssel (PRAGMA foreign_keys).
+    db.execute(delete(Aufnahme).where(Aufnahme.prompt_id.in_(vorlagen)))
+    db.execute(delete(Vorlage).where(Vorlage.source_id == quelle.id))
+    db.delete(quelle)
+    db.commit()
 
 
 def _lege_quelle_an(
@@ -156,5 +242,6 @@ def _lege_quelle_an(
         art=quelle.art,
         titel=quelle.titel,
         einheiten=len(einheiten),
+        aktiv=quelle.aktiv,
         erstellt=quelle.erstellt,
     )

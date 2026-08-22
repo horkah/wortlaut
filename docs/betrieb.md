@@ -232,6 +232,9 @@ GET    /api/speakers/{id}
 POST   /api/sources/llm?sprecher=…                { thema, altersspanne, umfang }
 POST   /api/sources/upload?sprecher=…             multipart: datei
 GET    /api/sources?sprecher=…
+GET    /api/sources/{id}/text?sprecher=…          Klartext, eine Einheit je Absatz
+PATCH  /api/sources/{id}?sprecher=…               { aktiv }  — abstellen/aufnehmen
+DELETE /api/sources/{id}?sprecher=…               409, wenn Aufnahmen daran hängen
 POST   /api/sessions?sprecher=…
 GET    /api/prompts/next?sprecher=…&session=…
 POST   /api/recordings?sprecher=…                 multipart: audio, prompt_id, modus, session
