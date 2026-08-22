@@ -57,8 +57,9 @@ gemacht, und was dabei herauskommt, ist ein Link.
    „Sprecher“ noch „Einstellungen“ stehen in der Reiterreihe — die
    Einstellungen hängen hinter dem Menüknopf (☰) rechts oben, einen Punkt
    „Sprecher“ gibt es hier nicht mehr: Wer man ist, steht im Zugang. Der Punkt
-   „Zugangsdaten“ steht auch hier im Menü; er zeigt dann kein Eingabefeld,
-   sondern nur, wessen Zugang in diesem Browser liegt.
+   „Zugangsdaten“ steht auch hier im Menü; er zeigt dann nicht sofort ein
+   Eingabefeld, sondern zuerst, wessen Zugang in diesem Browser liegt —
+   darunter **Zugang wechseln** für Verwaltung und Aufsicht (Abschnitt 6).
 2. Seite neu laden. Erwartet: Es bleibt alles, wie es war — der Zugang liegt
    in diesem Browser. Genau das ist der Alltag: einmal einrichten, danach nie
    wieder etwas eintragen.
@@ -205,7 +206,9 @@ Setzt einen Sprecher mit mindestens einer Aufnahme voraus (Abschnitt 3) und
 `WORTLAUT_ADMIN_TOKEN` in der `.env` — ohne den Wert ist die Aufsicht
 abgeschaltet, und das ist Absicht. Nach dem Setzen das Backend neu starten.
 
-1. Menüknopf (☰) → **Zugangsdaten**, den Aufsichtstoken in dasselbe Feld
+1. Menüknopf (☰) → **Zugangsdaten**. Steht dort der Zugang eines Sprechers
+   (nach Abschnitt 1b ist das so), erst **Zugang wechseln** drücken — ein
+   Browser trägt genau einen Zugang. Dann den Aufsichtstoken in dasselbe Feld
    eintragen wie den Verwaltertoken, **Speichern und prüfen**. Erwartet: „Angenommen — dieser Browser
    ist jetzt die Aufsicht.“ In der Kopfzeile steht dauerhaft „Aufsicht“ statt
    eines Sprechernamens.

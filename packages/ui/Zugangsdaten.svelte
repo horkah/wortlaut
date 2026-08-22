@@ -15,11 +15,16 @@
    *
    * Der Menüpunkt dazu steht immer im Menü, gerade auch ohne gültigen Zugang:
    * Dann ist er der einzige Weg herein, und ein Menü, das ihn erst nach der
-   * Anmeldung zeigte, hätte die Tür hinter das Schloss gelegt. Wer mit dem
-   * Zugang eines Sprechers hier ist, findet die Seite ebenfalls, aber kein
-   * Eingabefeld: Sein Zugang kam über einen Link und liegt schon in diesem
-   * Browser; ein Feld daneben wäre nur ein Weg, ihn kaputtzumachen. Auskunft
-   * ja, Gelegenheit nein.
+   * Anmeldung zeigte, hätte die Tür hinter das Schloss gelegt.
+   *
+   * Wer mit dem Zugang eines Sprechers hier ist, sieht zuerst nur, wessen
+   * Zugang in diesem Browser liegt — kein Feld, in das er nichts einzutragen
+   * hat und an dem er seinen Zugang nur kaputtmachen könnte. Zugeklappt ist
+   * aber nicht verschlossen: Ein Browser trägt genau **einen** Zugang, und ihn
+   * gegen den Verwalter- oder Aufsichtstoken zu tauschen, ist der einzige Weg
+   * in die Verwaltung und in die Aufsicht. Wer diesen Rechner gerade zum
+   * Sichern, Umbenennen oder Löschen benutzen will, klappt das Feld hier auf.
+   * Der persönliche Zugang kommt danach mit einem Klick auf den Link zurück.
    */
   import type { Snippet } from 'svelte';
   import { setzeZugang, zugang as gespeichert } from './zugang';
@@ -55,6 +60,8 @@
   let meldung = $state('');
   let offen = $state(false);
   let angenommen = $state(false);
+  // Nur für den Sprecherfall: Das Feld ist da, aber es drängt sich nicht auf.
+  let wechseln = $state(false);
 
   // Speichern allein sagt noch nicht, ob der Zugang stimmt — darum eine echte
   // Anfrage hinterher. Ein falscher Token fällt sonst erst viel später auf.
@@ -82,33 +89,7 @@
 
 <h2>Zugangsdaten</h2>
 
-{#if art === 'sprecher'}
-  <p>
-    Dieser Browser hat den persönlichen Zugang von <strong>{name}</strong>. Er kam über den Link,
-    der einmal geöffnet wurde, und gilt weiter — hier ist nichts einzutragen.
-  </p>
-  <p class="gedaempft">
-    Derselbe Zugang gilt in beiden Apps: einmal geöffnet, überall angemeldet. Geht er verloren,
-    gibt die Verwaltung einen neuen Link aus; der alte gilt dann nicht mehr.
-  </p>
-{:else}
-  <p class="gedaempft">
-    Wer aufnehmen oder diktieren will, braucht hier nichts einzutragen — dafür gibt es den
-    persönlichen Link. Er wird einmal geöffnet und gilt danach in beiden Apps.
-  </p>
-  {#if verwaltet}
-    <p class="gedaempft">
-      Für die Verwaltung: der <code>WORTLAUT_AUTH_TOKEN</code> des Servers. Er legt Profile an und
-      gibt die persönlichen Links aus. Der Wert bleibt in diesem Browser und wird beim
-      Zurücksetzen unter „Einstellungen" nicht angetastet.
-    </p>
-    <p class="gedaempft">
-      Für die <strong>Aufsicht</strong>: der <code>WORTLAUT_ADMIN_TOKEN</code>, in dasselbe Feld.
-      Sie sieht in jeden Korpus, benennt um, sichert und löscht. Dieser Browser gehört danach der
-      Aufsicht — ein Sprecher, der ihn vorher benutzt hat, öffnet einmal wieder seinen
-      persönlichen Link.
-    </p>
-  {/if}
+{#snippet formular()}
   <div class="reihe">
     <input
       bind:value={eingabe}
@@ -131,4 +112,58 @@
          übers Menü. -->
     {@render weiter()}
   {/if}
+{/snippet}
+
+{#if art === 'sprecher'}
+  <p>
+    Dieser Browser hat den persönlichen Zugang von <strong>{name}</strong>. Er kam über den Link,
+    der einmal geöffnet wurde, und gilt weiter — hier ist nichts einzutragen.
+  </p>
+  <p class="gedaempft">
+    Derselbe Zugang gilt in beiden Apps: einmal geöffnet, überall angemeldet. Geht er verloren,
+    gibt die Verwaltung einen neuen Link aus; der alte gilt dann nicht mehr.
+  </p>
+
+  {#if verwaltet}
+    <!-- Der Weg in die Verwaltung und in die Aufsicht führt über dasselbe
+         Feld, und ohne ihn käme man von einem Sprechergerät nie dorthin. Er
+         steht trotzdem hinter einem Klick: Wer hier aufnimmt, soll nicht als
+         Erstes ein Token-Feld sehen. -->
+    <h2>Diesen Browser übergeben</h2>
+    {#if wechseln}
+      <p class="gedaempft">
+        Ein Browser trägt genau einen Zugang. Wird hier der
+        <code>WORTLAUT_AUTH_TOKEN</code> (Verwaltung) oder der
+        <code>WORTLAUT_ADMIN_TOKEN</code> (Aufsicht) eingetragen, gilt der persönliche Zugang von
+        <strong>{name}</strong> in diesem Browser nicht mehr — er kommt mit einem Klick auf den
+        persönlichen Link zurück. Der Server sieht am Vorgelegten, welches von beidem es ist.
+      </p>
+      {@render formular()}
+    {:else}
+      <p class="gedaempft">
+        Zum Sichern, Umbenennen oder Löschen braucht es den Verwalter- oder den Aufsichtstoken.
+        Dieser Browser gehört danach der Verwaltung bzw. der Aufsicht.
+      </p>
+      <button class="knopf" onclick={() => (wechseln = true)}>Zugang wechseln</button>
+    {/if}
+  {/if}
+{:else}
+  <p class="gedaempft">
+    Wer aufnehmen oder diktieren will, braucht hier nichts einzutragen — dafür gibt es den
+    persönlichen Link. Er wird einmal geöffnet und gilt danach in beiden Apps.
+  </p>
+  {#if verwaltet}
+    <p class="gedaempft">
+      Für die Verwaltung: der <code>WORTLAUT_AUTH_TOKEN</code> des Servers. Er legt Profile an und
+      gibt die persönlichen Links aus. Der Wert bleibt in diesem Browser und wird beim
+      Zurücksetzen unter „Einstellungen" nicht angetastet.
+    </p>
+    <p class="gedaempft">
+      Für die <strong>Aufsicht</strong>: der <code>WORTLAUT_ADMIN_TOKEN</code>, in dasselbe Feld.
+      Sie sieht in jeden Korpus, benennt um, sichert und löscht. Dieser Browser gehört danach der
+      Aufsicht — ein Sprecher, der ihn vorher benutzt hat, öffnet einmal wieder seinen
+      persönlichen Link.
+    </p>
+  {/if}
+  {@render formular()}
 {/if}
