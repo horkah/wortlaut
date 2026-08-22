@@ -276,9 +276,13 @@ Zeile im Rahmen, statt einer Änderung in jeder App.
 Der Punkt **Zugangsdaten** steht in **beiden** Apps immer im Menü, auch und
 gerade ohne gültigen Zugang: Dann ist er der einzige Weg herein, und ein Menü,
 das ihn erst nach der Anmeldung zeigte, hätte die Tür hinter das Schloss
-gelegt. Wer mit dem Zugang eines Sprechers da ist, findet die Seite ebenfalls,
-aber ohne Eingabefeld — sie sagt ihm nur, wessen Zugang in diesem Browser
-liegt. Die Ansicht selbst gibt es ebenfalls nur einmal
+gelegt. Wer mit dem Zugang eines Sprechers da ist, findet die Seite ebenfalls;
+sie sagt ihm zunächst nur, wessen Zugang in diesem Browser liegt, statt ihm ein
+Feld hinzustellen, an dem er ihn kaputtmachen kann. Darunter steht **Zugang
+wechseln**: Ein Browser trägt genau einen Zugang, und ihn gegen den Verwalter-
+oder Aufsichtstoken zu tauschen, ist der einzige Weg in die Verwaltung und in
+die Aufsicht — auch von einem Gerät aus, auf dem gerade jemand aufnimmt. Der
+persönliche Zugang kommt danach mit einem Klick auf den Link zurück. Die Ansicht selbst gibt es ebenfalls nur einmal
 (`packages/ui/Zugangsdaten.svelte`), denn es ist derselbe Zugang: Beide Apps
 lesen denselben Eintrag im `localStorage` (`packages/ui/zugang.ts`). Was die
 Apps unterscheidet, ist eine Eigenschaft — nur `hören` nimmt in dasselbe Feld
