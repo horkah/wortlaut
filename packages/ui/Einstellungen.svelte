@@ -2,18 +2,13 @@
   /**
    * Die Einstellungen aller Apps — eine Ansicht, nicht drei.
    *
-   * Was hier steht, gehört zum Gerät und nicht zur App: Mikrofon, Stimme,
-   * Schriftgröße. Alle drei Apps lesen dieselben Werte aus dem `localStorage`
-   * (siehe `einstellungen.svelte.ts`), deshalb wäre eine Kopie je App eine
-   * Kopie zu viel — wer in „schreiben" das Mikrofon einmisst, hat es auch für
-   * „hören" eingemessen.
+   * Die Werte selbst und warum sie geteilt sind: `einstellungen.svelte.ts`.
+   * Hier steht nur die Bedienung dazu, mit Probe — ob ein Tempo passt und ob
+   * ein Mikrofon taugt, hört man und liest man nicht ab.
    *
-   * Mit Probe, denn ob ein Tempo passt und ob ein Mikrofon taugt, hört man und
-   * liest man nicht ab.
-   *
-   * Was nur eine App angeht, kommt als `zugang` von außen herein — der
-   * Zugangstoken etwa gehört zu „hören" und hat in „schreiben" nichts zu
-   * suchen (Grundentscheidung 7).
+   * Was nur eine App angeht, kommt als `zugang` von außen herein: Der
+   * Zugangstoken gehört zu „hören" und hat in „schreiben" nichts zu suchen
+   * (Grundentscheidung 7).
    */
   import type { Snippet } from 'svelte';
   import Mikrofontest from './Mikrofontest.svelte';

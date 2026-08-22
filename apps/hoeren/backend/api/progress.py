@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 
 from ..db.models import Aufnahme, Textquelle, Vorlage
 from ..deps import Datenbank
+from ..services import prompt_queue
 
 router = APIRouter(prefix="/api/progress", tags=["Fortschritt"])
 
@@ -39,21 +40,15 @@ def fortschritt(sprecher: str, db: Datenbank) -> FortschrittAntwort:
     sekunden = db.scalar(select(func.coalesce(func.sum(Aufnahme.dauer_s), 0.0)).where(*gueltig))
     aufnahmen = db.scalar(select(func.count()).select_from(Aufnahme).where(*gueltig))
 
-    # Offen ist, was noch vorzusprechen ist: aus einer stillgelegten Quelle
-    # kommt nichts mehr, also zählt sie hier auch nicht mit. Direkt gezählt und
-    # nicht als Differenz — sonst geriete die Zahl ins Minus, sobald eine
+    # Offen ist, was noch vorzusprechen ist — dieselbe Menge, die auch die
+    # Warteschlange meint (`prompt_queue.aus_aktiven_quellen`). Direkt gezählt
+    # und nicht als Differenz: Sonst geriete die Zahl ins Minus, sobald eine
     # Quelle mit Aufnahmen abgestellt wird.
     erledigte_vorlagen = select(Aufnahme.prompt_id).where(*gueltig)
-    einheiten_offen = db.scalar(
-        select(func.count())
-        .select_from(Vorlage)
-        .join(Textquelle, Textquelle.id == Vorlage.source_id)
-        .where(
-            Vorlage.speaker_id == sprecher,
-            Textquelle.aktiv.is_(True),
-            Vorlage.id.not_in(erledigte_vorlagen),
-        )
+    offene = prompt_queue.aus_aktiven_quellen(sprecher).where(
+        Vorlage.id.not_in(erledigte_vorlagen)
     )
+    einheiten_offen = db.scalar(select(func.count()).select_from(offene.subquery()))
 
     nach_modus = dict(
         db.execute(

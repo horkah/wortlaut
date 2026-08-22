@@ -61,9 +61,9 @@
       <p class="gedaempft">{zugangMeldung}</p>
     {/if}
     {#if angenommen}
-      <!-- Ohne gewählten Sprecher steht keine Reiterreihe da, über die man
-           zurückfände. Wer wegen des Tokens hergeschickt wurde, kommt hier
-           wieder heraus. -->
+      <!-- Der nächste Schritt, nicht der einzige Ausgang: Wer wegen des
+           Tokens hergeschickt wurde, will jetzt zum Sprecher. Heraus käme er
+           auch übers Menü. -->
       <button class="knopf haupt" onclick={() => gehZu(SPRECHER_PFAD)}>
         Weiter zu den Sprechern
       </button>

@@ -29,15 +29,18 @@ class Ausschnitt:
     gesamt: int
 
 
-def _aus_aktiven_quellen(sprecher_id: str):
-    """Vorlagen eines Sprechers, deren Quelle nicht stillgelegt ist.
+def aus_aktiven_quellen(sprecher_id: str):
+    """Kennungen der Vorlagen eines Sprechers, deren Quelle nicht stillgelegt ist.
 
-    Eine stillgelegte Quelle verschwindet damit aus der Warteschlange, ohne
-    dass an ihren Einheiten etwas geändert würde: Wird sie wieder aufgenommen,
-    stehen sie an derselben Stelle wie zuvor.
+    Die eine Stelle, an der „was zählt überhaupt mit" festgelegt ist — auch der
+    Fortschritt fragt hier. Eine stillgelegte Quelle verschwindet damit aus der
+    Warteschlange, ohne dass an ihren Einheiten etwas geändert würde: Wird sie
+    wieder aufgenommen, stehen sie an derselben Stelle wie zuvor.
     """
-    return select(Vorlage.id).join(Textquelle, Textquelle.id == Vorlage.source_id).where(
-        Vorlage.speaker_id == sprecher_id, Textquelle.aktiv.is_(True)
+    return (
+        select(Vorlage.id)
+        .join(Textquelle, Textquelle.id == Vorlage.source_id)
+        .where(Vorlage.speaker_id == sprecher_id, Textquelle.aktiv.is_(True))
     )
 
 
@@ -56,7 +59,7 @@ def naechste(
     mitten im Ablesen risse einem den Satz weg.
     """
     erledigte_vorlagen = select(Aufnahme.prompt_id).where(Aufnahme.status == "ok")
-    offene = _aus_aktiven_quellen(sprecher_id)
+    offene = aus_aktiven_quellen(sprecher_id)
 
     # Zähler und Warteschlange müssen dieselbe Menge meinen, sonst steht dort
     # „12 von 30", während nur 20 erreichbar sind.
@@ -102,15 +105,10 @@ def _gestreut(
     Sitzung dieselbe — sie wird nur nach und nach abgearbeitet, genau wie die
     gewachsene.
     """
+    # Erst eine feste Ordnung, dann mischen: Sonst hinge das Ergebnis daran,
+    # in welcher Reihenfolge die Datenbank die Zeilen liefert.
     reihenfolge = list(
-        db.scalars(
-            select(Vorlage.id)
-            .join(Textquelle, Textquelle.id == Vorlage.source_id)
-            .where(Vorlage.speaker_id == sprecher_id, Textquelle.aktiv.is_(True))
-            # Erst eine feste Ordnung, dann mischen: Sonst hinge das Ergebnis
-            # daran, in welcher Reihenfolge die Datenbank die Zeilen liefert.
-            .order_by(Vorlage.position)
-        ).all()
+        db.scalars(aus_aktiven_quellen(sprecher_id).order_by(Vorlage.position)).all()
     )
     random.Random(streuung).shuffle(reihenfolge)
 
@@ -148,7 +146,7 @@ def _nachbar(db: Session, sprecher_id: str, position: int, *, vorwaerts: bool) -
     Aus stillgelegten Quellen kommt auch hier nichts: Sonst stünde als Ausblick
     ein Satz, der nie an die Reihe kommt.
     """
-    abfrage = select(Vorlage).where(Vorlage.id.in_(_aus_aktiven_quellen(sprecher_id)))
+    abfrage = select(Vorlage).where(Vorlage.id.in_(aus_aktiven_quellen(sprecher_id)))
     abfrage = (
         abfrage.where(Vorlage.position > position).order_by(Vorlage.position)
         if vorwaerts
