@@ -10,6 +10,7 @@
    */
   import {
     APPS,
+    DARSTELLUNG_PFAD,
     EINSTELLUNGEN_PFAD,
     PROJEKT_URL,
     type AppSchluessel,
@@ -63,11 +64,12 @@
   let knopf = $state<HTMLButtonElement | null>(null);
 
   const inEinstellungen = $derived(route === EINSTELLUNGEN_PFAD);
+  const inDarstellung = $derived(route === DARSTELLUNG_PFAD);
   // Auf einer übergreifenden Ansicht führt die Reiterreihe nicht zurück:
   // „schreiben" hat keine, „hören" blendet sie ohne gewählten Sprecher aus.
   // Ohne diesen Eintrag käme man nur über den Zurück-Knopf des Browsers heraus.
   const aussenstehend = $derived(
-    inEinstellungen || uebergreifend.some((punkt) => punkt.pfad === route),
+    inEinstellungen || inDarstellung || uebergreifend.some((punkt) => punkt.pfad === route),
   );
   const appName = $derived(APPS.find((eintrag) => eintrag.schluessel === app)?.name ?? '');
 
@@ -172,6 +174,15 @@
               class:aktiv={inEinstellungen}
               href="#{EINSTELLUNGEN_PFAD}"
               onclick={() => (offen = false)}>Einstellungen</a
+            >
+            <!-- Unter den Einstellungen: wer nach Mikrofon und Stimme sucht,
+                 hat die zuerst gesehen; wer nach Farbe und Schrift sucht,
+                 findet sie hier gleich darunter. -->
+            <a
+              class="eintrag"
+              class:aktiv={inDarstellung}
+              href="#{DARSTELLUNG_PFAD}"
+              onclick={() => (offen = false)}>Darstellung</a
             >
             <!-- Führt aus der App heraus: eigener Reiter, und das Pfeilzeichen
                  sagt es vorher. `noopener` verwehrt der geöffneten Seite den

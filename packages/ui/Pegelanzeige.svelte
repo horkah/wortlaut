@@ -78,14 +78,14 @@
     background: var(--gedaempft);
   }
   .fuellung.laut {
-    background: #b3261e;
+    background: var(--fehler);
   }
   .spitze {
     position: absolute;
     top: 0;
     bottom: 0;
     width: 2px;
-    background: #1c1b19;
+    background: var(--text);
   }
   .ablesung {
     display: flex;

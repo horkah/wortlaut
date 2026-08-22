@@ -91,12 +91,12 @@
     min-width: 16rem;
   }
   .laeuft {
-    background: #b3261e;
-    border-color: #b3261e;
+    background: var(--fehler);
+    border-color: var(--fehler);
     color: #fff;
   }
   .fehler {
-    color: #b3261e;
+    color: var(--fehler);
     margin: 0;
   }
 </style>

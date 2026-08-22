@@ -6,24 +6,26 @@
    * Hier steht nur die Bedienung dazu, mit Probe — ob ein Tempo passt und ob
    * ein Mikrofon taugt, hört man und liest man nicht ab.
    *
+   * Farben, Schriftart und Schriftgrößen stehen nicht hier, sondern in
+   * `Darstellung.svelte`, einem eigenen Menüpunkt (siehe `DARSTELLUNG_PFAD`
+   * in `apps.ts`): Mikrofon und Stimme misst man einmal ein, die Darstellung
+   * darf jeder anfassen, ohne durch Technisches zu blättern.
+   *
    * Was nur eine App angeht, kommt als `zugang` von außen herein: Der
    * Zugangstoken gehört zu „hören" und hat in „schreiben" nichts zu suchen
    * (Grundentscheidung 7).
    */
   import type { Snippet } from 'svelte';
   import Mikrofontest from './Mikrofontest.svelte';
-  import PromptView from './PromptView.svelte';
   import { beiStimmenAenderung, sprich, stimmen, stimmeNachUri } from './speak';
   import {
     einstellungen,
     setzeAutoPegel,
     setzeMikrofon,
-    setzeSchrift,
     setzeStimme,
     setzeTempo,
     setzeVerstaerkung,
     setzeZurueck,
-    SCHRIFT_SPANNE,
     TEMPO_SPANNE,
   } from './einstellungen.svelte';
 
@@ -104,30 +106,6 @@
   <button class="knopf" onclick={probe} disabled={liste.length === 0}>▶ Probe hören</button>
 </div>
 
-<h2>Anzeige</h2>
-
-<label>
-  <span>Schriftgröße der Vorlage — {einstellungen.schriftRem.toFixed(1)} rem</span>
-  <input
-    type="range"
-    class="schieber"
-    min={SCHRIFT_SPANNE.min}
-    max={SCHRIFT_SPANNE.max}
-    step={SCHRIFT_SPANNE.schritt}
-    value={einstellungen.schriftRem}
-    oninput={(ereignis) => setzeSchrift(Number(ereignis.currentTarget.value))}
-  />
-</label>
-
-<div class="karte">
-  <PromptView
-    vorher={null}
-    aktuell={{ id: 'probe', text: PROBE }}
-    nachher={null}
-    schriftRem={einstellungen.schriftRem}
-  />
-</div>
-
 {#if fehler}
   <p class="fehler">{fehler}</p>
 {/if}
@@ -135,7 +113,7 @@
 {@render zugang?.()}
 
 <h2>Zurücksetzen</h2>
-<p class="gedaempft">Setzt Mikrofon, Stimme, Tempo und Schriftgröße auf die Vorgaben zurück.</p>
+<p class="gedaempft">Setzt Mikrofon, Stimme und Tempo auf die Vorgaben zurück.</p>
 <button class="knopf" onclick={setzeZurueck}>Auf Vorgaben zurücksetzen</button>
 
 <style>
