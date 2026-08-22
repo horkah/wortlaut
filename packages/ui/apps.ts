@@ -62,3 +62,14 @@ export interface Menuepunkt {
  * damit Kopfleiste und Apps nicht getrennt voneinander raten.
  */
 export const EINSTELLUNGEN_PFAD = '/einstellungen';
+
+/**
+ * Wo der Sprecher gewählt und angelegt wird.
+ *
+ * Auch das gehört nicht in die Reiterreihe einer App: Der Sprecher ist die
+ * Klammer um alles — der Korpus hat je Sprecher eine eigene Datenbank, und
+ * „schreiben" wird später auf denselben Sprecher zurückgeführt. Er steht
+ * deshalb im selben Menü wie die Einstellungen und über ihnen: erst wer,
+ * dann womit.
+ */
+export const SPRECHER_PFAD = '/sprecher';

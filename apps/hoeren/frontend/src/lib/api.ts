@@ -97,6 +97,9 @@ function alsJson(rumpf: unknown): RequestInit {
 
 export const sprecherListe = () => anfrage<Sprecher[]>('/speakers');
 
+/** Ein einzelner Sprecher — für den Namen in der Kopfzeile. */
+export const sprecherHolen = (id: string) => anfrage<Sprecher>(`/speakers/${id}`);
+
 export const sprecherAnlegen = (eingabe: { name: string; basismodell: string }) =>
   anfrage<Sprecher>('/speakers', alsJson(eingabe));
 

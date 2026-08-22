@@ -22,10 +22,10 @@ für ein paar echte Aufnahmen.
 
 1. Seite öffnen. Erwartet: Kopfzeile mit einer Reihe — „wortlaut“, dahinter
    die drei Apps, „hören“ dunkelgrün hinterlegt, „schreiben“ anklickbar und
-   „lernen“ blass und tot (die gibt es noch nicht). Die zweite Reihe mit
-   den Ansichten fehlt noch. Darunter Überschrift „Sprecher“ und
-   „Noch kein Sprecherprofil vorhanden.“ — das ist der Leerzustand, keine
-   kaputte Seite.
+   „lernen“ blass und tot (die gibt es noch nicht). Rechts, vor dem Menüknopf,
+   steht kursiv „kein Sprecher“. Die zweite Reihe mit den Ansichten fehlt
+   noch. Darunter Überschrift „Sprecher“ und „Noch kein Sprecherprofil
+   vorhanden.“ — das ist der Leerzustand, keine kaputte Seite.
 2. Unter „Neues Profil“: Namen eintragen, Basismodell auf
    `whisper-small (Entwicklung ohne GPU)` oder, für noch weniger Rechenlast,
    `whisper-tiny (noch weniger Rechenlast)` stellen, **Anlegen**. Für den
@@ -33,10 +33,12 @@ für ein paar echte Aufnahmen.
    das Feld ist reine Metadaten für das spätere Training in `lernen`.
 3. Erwartet: Profil erscheint in der Liste, App springt automatisch zur
    Ansicht „Textquelle“; in der Kopfzeile steht jetzt eine zweite Reihe
-   (Sprecher, Textquelle, Aufnehmen, Fortschritt) mit „Textquelle“ hell
-   hinterlegt. Beim Wechsel der Ansicht wandert die Hinterlegung mit. Die
-   Einstellungen stehen nicht in dieser Reihe, sondern hinter dem Menüknopf
-   (☰) rechts oben — sie gehören zum Gerät und nicht zu dieser App.
+   (Textquelle, Aufnehmen, Fortschritt) mit „Textquelle“ hell hinterlegt.
+   Beim Wechsel der Ansicht wandert die Hinterlegung mit. Statt „kein
+   Sprecher“ steht rechts nun der eingetragene Name. Weder „Sprecher“ noch
+   „Einstellungen“ stehen in der Reiterreihe — beide gelten über diese App
+   hinaus und hängen hinter dem Menüknopf (☰) rechts oben, der Sprecher
+   über den Einstellungen.
 4. Falls `WORTLAUT_AUTH_TOKEN` gesetzt ist: stattdessen erscheint statt der
    Liste der Hinweis, dass der Server einen Zugangstoken verlangt, mit dem
    Knopf **Zu den Einstellungen**. Dort unter „Zugang“ den Token eintragen,
@@ -97,8 +99,10 @@ und ein Schlüssel hinterlegt ist):
    gerade aufgenommenen Modi (`gelesen` und ggf. `nachgesprochen`) und der
    Quelle (`vorlage`).
 3. **Abmelden.** Erwartet: zurück zur Sprecheransicht, die Ansichtenreihe
-   verschwindet, die App-Reihe bleibt; das angelegte Profil steht weiter in
-   der Sprecherliste und lässt sich erneut auswählen.
+   verschwindet, die App-Reihe bleibt, rechts steht wieder „kein Sprecher“;
+   das angelegte Profil steht weiter in der Sprecherliste und lässt sich
+   erneut auswählen — über den Menüknopf (☰) → „Sprecher“ ist die Ansicht
+   auch später jederzeit erreichbar.
 
 ## 5. Mikrofon
 
