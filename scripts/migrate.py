@@ -1,10 +1,20 @@
 """Migrationen auf alle vorhandenen Korpus-Datenbanken anwenden.
 
-    uv run python scripts/migrate.py
+    uv run python scripts/migrate.py                        # auf dem Wirt
+    docker compose exec wortlaut python scripts/migrate.py  # im Container
 
-Je Sprecher gibt es eine Datenbank; neue Sprecher bekommen ihre Migrationen
-beim Anlegen. Dieses Skript ist für den Fall, dass nach einem Update Migrationen
-für bestehende Sprecher offen sind.
+`make migrate` ist die erste Zeile, nur kürzer. Im Container gibt es sie nicht:
+Das Abbild trägt weder den Makefile noch `uv`, sondern Python, `packages/`,
+`apps/` und `scripts/` (siehe `Dockerfile`). Pfade oder Umgebung braucht der
+Aufruf dort nicht — `WORKDIR` steht auf `/srv/wortlaut`, `WORTLAUT_DATA_DIR`
+kommt aus der `compose.yaml`.
+
+Je Sprecher gibt es eine Datenbank. Nötig ist dieses Skript für ein Update
+nicht: Neue Sprecher bekommen ihre Migrationen beim Anlegen, bestehende beim
+ersten Zugriff auf ihre Datenbank (`deps.engine_fuer`). Es ist der Weg, das für
+alle Korpora auf einmal und vor dem ersten Aufruf zu tun — und die Ausgabe
+sagt, was offen war. Ein zweiter Lauf tut nichts: Was gelaufen ist, steht in
+`schema_migrations`.
 """
 
 from __future__ import annotations

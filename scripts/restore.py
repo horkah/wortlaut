@@ -84,7 +84,13 @@ def main() -> int:
         return 1
 
     print(f"\n{len(geschrieben)} Datei(en) nach {ziel} geschrieben.")
-    print("Danach einmal `make migrate`, falls die Sicherung älter ist als das Schema.")
+    # Nötig ist das nicht — bestehende Korpora werden beim ersten Zugriff
+    # fortgeschrieben (`deps.engine_fuer`). Aber wer gerade zurückgespielt hat,
+    # will meist wissen, dass der Stand passt, bevor jemand die Seite aufruft.
+    print("Ist die Sicherung älter als das Schema, wird beim ersten Zugriff fortgeschrieben.")
+    print("Vorziehen lässt sich das:")
+    print("  uv run python scripts/migrate.py                        # auf dem Wirt")
+    print("  docker compose exec wortlaut python scripts/migrate.py  # im Container")
     return 0
 
 
