@@ -51,6 +51,7 @@ def aus_llm(sprecher: str, auftrag: LLMAuftrag, db: Datenbank) -> QuellenAntwort
             anbieter=konfiguration.llm_provider,
             api_schluessel=konfiguration.llm_api_key,
             modell=konfiguration.llm_model,
+            basis_url=konfiguration.llm_base_url,
         )
     except ValueError as fehler:
         raise HTTPException(status_code=400, detail=str(fehler)) from fehler

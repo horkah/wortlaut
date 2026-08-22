@@ -15,8 +15,13 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     env_file: .env
+    depends_on:
+      - ollama
     networks:
+      # „caddy" bringt die Anfragen von draußen; „intern" führt allein zu
+      # Ollama und ist von außen nicht erreichbar.
       - caddy
+      - intern
     labels:
       # caddy-docker-proxy liest das vom Docker-Socket und baut daraus die
       # Route — keine Zeile in der Caddyfile des Wirts nötig. Der Port ist
@@ -45,9 +50,32 @@ services:
       start_period: 5m
       retries: 3
 
+  # Lokale Textquelle statt eines bezahlten Anbieters: Ollama auf der GPU des
+  # Wirts. Nichts verlässt die Maschine, und es kostet keinen Token. „hören"
+  # spricht es über die OpenAI-kompatible Schnittstelle an (WORTLAUT_LLM_*
+  # in der .env). Aus dem Netz ist es nicht erreichbar — kein „ports", nur das
+  # interne Netz.
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    networks:
+      - intern
+    volumes:
+      # Die geladenen Modelle überleben hier einen Neustart.
+      - ollama-models:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
 networks:
   caddy:
     external: true
+  intern: {}
 
 volumes:
   wortlaut-data:
+  ollama-models:
