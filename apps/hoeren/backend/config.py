@@ -23,7 +23,10 @@ class Einstellungen(BaseSettings):
     # Textquelle „LLM". Leer heißt: abgeschaltet, es bleibt der Textupload.
     llm_provider: str = ""
     llm_api_key: str = ""
-    llm_model: str = "claude-opus-4-8"
+    # Zum Vorgabeanbieter passend: das lokale Ollama-Modell aus der
+    # .env.example. Bei anbieter="anthropic" gehört hier eine Claude-Kennung
+    # hin, etwa claude-opus-4-8.
+    llm_model: str = "gemma2:9b"
     # Nur für OpenAI-kompatible Anbieter (anbieter="openai"): wohin die Anfrage
     # geht. Lokal etwa http://ollama:11434/v1, sonst die URL von Groq, Gemini,
     # Mistral … Bei anbieter="anthropic" ohne Bedeutung.

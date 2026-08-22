@@ -867,7 +867,7 @@ jede App ihre Werte aus der Umgebung.
 ```
 # gemeinsam
 WORTLAUT_DATA_DIR=/srv/wortlaut/data
-WORTLAUT_STORAGE=local              # local | s3
+WORTLAUT_STORAGE=local              # bislang nur local; s3 ist vorbereitet
 
 # hören
 WORTLAUT_LLM_PROVIDER=              # leer = Textquelle „LLM" abgeschaltet
@@ -885,14 +885,17 @@ WORTLAUT_ADMIN_TOKEN=               # Aufsicht: in jeden Korpus sehen,
                                     # umbenennen, sichern, löschen. Leer =
                                     # abgeschaltet (nicht offen).
 
-# lernen
-WORTLAUT_TRAINING_BACKEND=local     # local | remote
-WORTLAUT_BASE_MODEL=openai/whisper-large-v3
+# lernen — entworfen, noch von keiner config.py gelesen; steht deshalb auch
+# nicht in der .env.example.
+WORTLAUT_TRAINING_BACKEND=local     # local | remote. Das Basismodell steht
+                                    # nicht hier: Es gehört zum Sprecherprofil,
+                                    # eines je Sprecher.
 
 # schreiben — wessen Stimme steht hier nicht: Der Sprecher kommt aus dem
 # Zugang, den der Browser vorlegt (derselbe wie bei „hören").
 WORTLAUT_MODELL_REF=                # leer = je Sprecher sein eigener Stand
 WORTLAUT_ASR_MODELL=tiny            # gilt, solange kein Stand freigegeben ist
+WORTLAUT_SPRACHE=de                 # Sprache der Diktate, an Whisper gereicht
 WORTLAUT_ASR=local                  # local | remote
 WORTLAUT_ASR_ENDPOINT=
 WORTLAUT_ASR_API_KEY=
@@ -944,8 +947,8 @@ make train SPEAKER=spr_7f2a RECIPE=whisper_full
 make release JOB=42
 ```
 
-Ohne GPU: `WORTLAUT_BASE_MODEL=openai/whisper-small` und
-`WORTLAUT_TRAINING_BACKEND=remote`. Die Apps laufen lokal, das Training auf
+Ohne GPU: `WORTLAUT_TRAINING_BACKEND=remote` und im Sprecherprofil
+`openai/whisper-small` als Basismodell. Die Apps laufen lokal, das Training auf
 gemieteter Hardware.
 
 Betrieb, Endpunktliste und Fehlersuche stehen in [`docs/betrieb.md`](docs/betrieb.md).
