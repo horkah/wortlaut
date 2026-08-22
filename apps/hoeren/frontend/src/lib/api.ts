@@ -3,8 +3,12 @@
  *
  * Den Sprecher nennt keine Anfrage mehr: Der Server leitet ihn aus dem
  * vorgelegten Zugang ab (siehe backend/deps.py). Der Zugang ist entweder der
- * eines Sprechers — `<sprecher_id>.<geheimnis>`, gekommen über einen Link —
- * oder der Verwaltertoken.
+ * eines Sprechers — `<sprecher_id>.<geheimnis>`, gekommen über einen Link —,
+ * der Verwaltertoken oder der Aufsichtstoken.
+ *
+ * Genau eine Ausnahme gibt es: Die Wege unter `/api/admin/…` nennen ihren
+ * Sprecher in der Adresse. Sie gehören der Aufsicht, und die hat keinen
+ * eigenen — sie sieht über alle hinweg (siehe backend/api/admin.py).
  */
 
 export type Sprecher = {
@@ -19,7 +23,7 @@ export type Sprecher = {
 
 /** Wer der Server in diesem Browser sieht. */
 export type Wer = {
-  art: 'sprecher' | 'verwaltung';
+  art: 'sprecher' | 'verwaltung' | 'aufsicht';
   sprecher_id: string | null;
   name: string | null;
 };
@@ -87,7 +91,12 @@ export function setzeZugang(wert: string): void {
   localStorage.setItem(ZUGANG_SCHLUESSEL, wert.trim());
 }
 
-async function anfrage<T>(pfad: string, optionen: RequestInit = {}): Promise<T> {
+/**
+ * Eine Anfrage mit Zugang — die einzige Stelle, die ihn anhängt und einen
+ * Fehlschlag auswertet. Zurück kommt die rohe Antwort, denn nicht alles hier
+ * ist JSON: Texte und Archive gehen denselben Weg.
+ */
+async function hole(pfad: string, optionen: RequestInit = {}): Promise<Response> {
   const kopf = new Headers(optionen.headers);
   const angemeldet = zugang();
   if (angemeldet) kopf.set('Authorization', `Bearer ${angemeldet}`);
@@ -98,6 +107,11 @@ async function anfrage<T>(pfad: string, optionen: RequestInit = {}): Promise<T> 
     const rumpf = await antwort.json().catch(() => null);
     throw new ApiFehler(antwort.status, rumpf?.detail ?? `Fehler ${antwort.status}`);
   }
+  return antwort;
+}
+
+async function anfrage<T>(pfad: string, optionen: RequestInit = {}): Promise<T> {
+  const antwort = await hole(pfad, optionen);
   return antwort.status === 204 ? (undefined as T) : ((await antwort.json()) as T);
 }
 
@@ -155,21 +169,12 @@ export const quelleUmstellen = (quelle: string, aktiv: boolean) =>
 /**
  * Der geschnittene Text einer Quelle als Klartext.
  *
- * Eigene Anfrage statt `anfrage`: Hier kommt kein JSON zurück. Nötig ist das,
- * weil die API einen Zugang verlangt — ein `window.open` auf die Adresse
- * schickte keinen mit und liefe in ein 401.
+ * Über `hole` statt `anfrage`, weil hier kein JSON zurückkommt. Ein
+ * `window.open` auf die Adresse ginge nicht: Die API verlangt einen Zugang im
+ * Kopf der Anfrage und liefe sonst in ein 401.
  */
 export async function quelleText(quelle: string): Promise<string> {
-  const kopf = new Headers();
-  const angemeldet = zugang();
-  if (angemeldet) kopf.set('Authorization', `Bearer ${angemeldet}`);
-
-  const antwort = await fetch(`/api/sources/${quelle}/text`, { headers: kopf });
-  if (!antwort.ok) {
-    const rumpf = await antwort.json().catch(() => null);
-    throw new ApiFehler(antwort.status, rumpf?.detail ?? `Fehler ${antwort.status}`);
-  }
-  return antwort.text();
+  return (await hole(`/sources/${quelle}/text`)).text();
 }
 
 // ── Aufnehmen ───────────────────────────────────────────────────────────────
@@ -205,3 +210,145 @@ export const aufnahmeVerwerfen = (aufnahme: string) =>
 // ── Fortschritt ─────────────────────────────────────────────────────────────
 
 export const fortschritt = () => anfrage<Fortschritt>('/progress');
+
+// ── Aufsicht ────────────────────────────────────────────────────────────────
+//
+// Alles hier hängt am `WORTLAUT_ADMIN_TOKEN` des Servers. Ohne ihn antwortet
+// jeder dieser Wege mit 401 — auch in der Entwicklung.
+
+export type Kennzahlen = {
+  aufnahmen: number;
+  verworfen: number;
+  sekunden: number;
+  quellen: number;
+  einheiten: number;
+  sitzungen: number;
+  bytes_audio: number;
+};
+
+export type Uebersicht = Sprecher & { kennzahlen: Kennzahlen };
+
+export type AufsichtQuelle = {
+  id: string;
+  art: string;
+  titel: string;
+  parameter: Record<string, unknown>;
+  aktiv: boolean;
+  einheiten: number;
+  erstellt: string;
+};
+
+export type AufsichtSitzung = {
+  id: string;
+  begonnen: string;
+  zuletzt_aktiv: string;
+  aufnahmen: number;
+};
+
+export type AufsichtAufnahme = {
+  id: string;
+  prompt_id: string;
+  text: string;
+  quelle_art: string;
+  dauer_s: number;
+  pegel_dbfs: number;
+  modus: string;
+  status: string;
+  hinweise: string[];
+  externe_id: string | null;
+  audio_vorhanden: boolean;
+  erstellt: string;
+};
+
+export type Einsicht = {
+  sprecher: Uebersicht;
+  quellen: AufsichtQuelle[];
+  sitzungen: AufsichtSitzung[];
+};
+
+export type Aufnahmenseite = { gesamt: number; ab: number; aufnahmen: AufsichtAufnahme[] };
+
+export const alleSprecher = () => anfrage<Uebersicht[]>('/admin/speakers');
+
+export const einsicht = (sprecher: string) => anfrage<Einsicht>(`/admin/speakers/${sprecher}`);
+
+export const aufsichtAufnahmen = (sprecher: string, ab = 0) =>
+  anfrage<Aufnahmenseite>(`/admin/speakers/${sprecher}/recordings?ab=${ab}`);
+
+export const sprecherUmbenennen = (sprecher: string, name: string) =>
+  anfrage<Uebersicht>(`/admin/speakers/${sprecher}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+
+/**
+ * Löschen verlangt die Kennung ein zweites Mal — einmal als Ziel, einmal als
+ * Absicht. Der Server prüft das; hier steht es, damit kein Aufruf ohne
+ * gebaut werden kann.
+ */
+export const aufnahmeLoeschen = (sprecher: string, aufnahme: string) =>
+  anfrage<void>(`/admin/speakers/${sprecher}/recordings/${aufnahme}`, { method: 'DELETE' });
+
+export const alleAufnahmenLoeschen = (sprecher: string) =>
+  anfrage<{ geloescht: number }>(
+    `/admin/speakers/${sprecher}/recordings?bestaetigung=${encodeURIComponent(sprecher)}`,
+    { method: 'DELETE' },
+  );
+
+export const sprecherLoeschen = (sprecher: string) =>
+  anfrage<{ geloescht: string[]; zu_pruefen: string[] }>(
+    `/admin/speakers/${sprecher}?bestaetigung=${encodeURIComponent(sprecher)}`,
+    { method: 'DELETE' },
+  );
+
+/** Die Adresse einer Aufnahme zum Abhören — mit Zugang, deshalb über `blob()`. */
+export const aufnahmeAudio = (sprecher: string, aufnahme: string) =>
+  blob(`/admin/speakers/${sprecher}/recordings/${aufnahme}/audio`);
+
+// ── Ausleiten ───────────────────────────────────────────────────────────────
+
+/**
+ * Eine Datei vom Server holen und dem Browser zum Speichern geben.
+ *
+ * Warum nicht schlicht ein Link: Diese Wege verlangen einen Zugang im Kopf der
+ * Anfrage, und ein `window.open` schickte keinen mit — es liefe in ein 401.
+ * Also wird geholt, in einen Blob gelegt und ein unsichtbarer Verweis
+ * angeklickt.
+ *
+ * Der Preis: Die Datei liegt kurz im Arbeitsspeicher des Browsers. Für einen
+ * Korpus von einigen hundert Megabyte geht das; wer einen sehr großen Bestand
+ * wegsichert, nimmt besser `curl` (siehe docs/betrieb.md).
+ */
+export async function lade(pfad: string): Promise<void> {
+  const [inhalt, dateiname] = await blobMitNamen(pfad);
+  const adresse = URL.createObjectURL(inhalt);
+  const verweis = document.createElement('a');
+  verweis.href = adresse;
+  verweis.download = dateiname;
+  verweis.click();
+  // Erst freigeben, wenn der Browser den Download übernommen hat.
+  setTimeout(() => URL.revokeObjectURL(adresse), 10_000);
+}
+
+export const sicherungSprecher = (sprecher: string) =>
+  lade(`/admin/speakers/${sprecher}/sicherung`);
+
+export const datensatzSprecher = (sprecher: string) =>
+  lade(`/admin/speakers/${sprecher}/datensatz`);
+
+export const sicherungGesamt = () => lade('/admin/sicherung');
+
+/** Wie `anfrage`, aber für alles, was kein JSON ist. */
+async function blob(pfad: string): Promise<Blob> {
+  return (await blobMitNamen(pfad))[0];
+}
+
+async function blobMitNamen(pfad: string): Promise<[Blob, string]> {
+  const antwort = await hole(pfad);
+  // Den Namen bestimmt der Server (er kennt die Zeitmarke); ohne Angabe bleibt
+  // der letzte Teil des Pfades.
+  const angabe = antwort.headers.get('content-disposition') ?? '';
+  const treffer = angabe.match(/filename="?([^";]+)"?/);
+  return [await antwort.blob(), treffer?.[1] ?? (pfad.split('/').pop() || 'wortlaut')];
+}

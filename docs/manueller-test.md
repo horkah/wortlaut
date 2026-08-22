@@ -2,12 +2,13 @@
 
 Schritt-für-Schritt-Anleitung für einen Menschen im Browser. Abschnitte 1–6
 prüfen die App „hören" vom leeren Sprecherprofil bis zur ersten Aufnahme,
-Abschnitt 7 die App „schreiben" vom Diktat bis zur Korrektur im Korpus.
+Abschnitt 6b die Aufsicht (einsehen, sichern, löschen), Abschnitt 7 die App
+„schreiben" vom Diktat bis zur Korrektur im Korpus.
 Ergänzt `make test` (automatisiert, ohne Browser, ohne Mikrofon) — ersetzt es
 nicht.
 
-Dauer: etwa 10 Minuten für „hören", 10 weitere für „schreiben", plus die Zeit
-für ein paar echte Aufnahmen.
+Dauer: etwa 10 Minuten für „hören", 5 für die Aufsicht (6b), 10 weitere für
+„schreiben", plus die Zeit für ein paar echte Aufnahmen.
 
 ## Voraussetzungen
 
@@ -17,6 +18,8 @@ für ein paar echte Aufnahmen.
   (nicht `:8000` — das Backend liefert dort nur `/api/…` und `/gesundheit`,
   ein `404` auf `/` davor ist normal, kein Fehler)
 - `WORTLAUT_AUTH_TOKEN` in `.env` leer lassen, dann entfällt Schritt 1.4
+- Für Abschnitt 6b zusätzlich `WORTLAUT_ADMIN_TOKEN` setzen; leer heißt dort
+  **abgeschaltet**, nicht offen
 
 ## 1. Sprecherprofil und Zugang
 
@@ -191,6 +194,81 @@ Stelle und führt zu derselben Ansicht — nur ohne den Abschnitt „Zugang“.
 8. **Auf Vorgaben zurücksetzen** drücken. Erwartet: Tempo 0,9×, Schriftgröße
    2,0 rem, Stimme wieder die des Browsers, Verstärkung 1,0×, Mikrofon
    wieder die Vorgabe des Browsers, Pegelregelung an.
+
+## 6b. Aufsicht: einsehen, sichern, löschen
+
+Setzt einen Sprecher mit mindestens einer Aufnahme voraus (Abschnitt 3) und
+`WORTLAUT_ADMIN_TOKEN` in der `.env` — ohne den Wert ist die Aufsicht
+abgeschaltet, und das ist Absicht. Nach dem Setzen das Backend neu starten.
+
+1. Menüknopf (☰) → **Einstellungen**, unter „Zugang“ den Aufsichtstoken
+   eintragen, **Speichern und prüfen**. Erwartet: „Angenommen — dieser Browser
+   ist jetzt die Aufsicht.“ In der Kopfzeile steht dauerhaft „Aufsicht“ statt
+   eines Sprechernamens.
+
+   Der Sprecherzugang ist damit aus diesem Browser verdrängt; für Abschnitt 3
+   wird der persönliche Link erneut geöffnet. Ein Browser trägt genau einen
+   Zugang.
+2. **Weiter zu den Sprechern**. Erwartet: dieselbe Liste wie in Abschnitt 1,
+   je Sprecher aber zusätzlich eine Zeile mit Aufnahmen, Minuten und
+   Textquellen, und ein Knopf **Ansehen**.
+3. **Ansehen** beim bespielten Sprecher. Erwartet: Kennzahlen als Zahlenreihe,
+   darunter Textquellen, Sitzungen und die Aufnahmen — jede mit ihrem Text.
+   Bei einer Aufnahme **▶ Hören**: der Abspieler klappt auf und spielt genau
+   das, was aufgenommen wurde.
+4. **Umbenennen**, einen neuen Namen eingeben. Erwartet: Der Name ändert sich,
+   die Kennung `spr_…` bleibt. Wer parallel in einem zweiten Browser mit dem
+   Sprecherzugang angemeldet ist, sieht nach dem Neuladen den neuen Namen in
+   der Kopfzeile — der Zugang gilt unverändert weiter.
+5. **Sicherung (.tgz)**. Erwartet: eine Datei
+   `wortlaut-spr_…-<zeitmarke>.tgz` im Download-Ordner. Hineinsehen:
+
+   ```bash
+   tar tzf ~/Downloads/wortlaut-spr_*.tgz
+   ```
+
+   Erwartet: `sicherung.json`, `daten/korpus/spr_…/hoeren.sqlite` und je
+   Aufnahme eine `.wav`. **Keine** `-wal`- oder `-shm`-Datei — ihr Inhalt
+   steckt schon in der gesicherten Datenbank.
+6. **Datensatz (.zip)**. Erwartet: darin `metadaten.csv`, `metadaten.jsonl`,
+   `LIESMICH.txt` und ein `audio/`-Verzeichnis, in dem neben jeder `.wav` eine
+   gleichnamige `.txt` mit dem gesprochenen Satz liegt. Eine `.sqlite` ist
+   nicht darin — der Datensatz ist keine Sicherung.
+7. Zurück zu „Sprecher“, **Gesamtsicherung herunterladen**. Erwartet: eine
+   Datei mit den Korpora *aller* angelegten Sprecher.
+8. Die Probe aufs Ganze — zurückspielen in ein leeres Verzeichnis, ohne den
+   Bestand anzufassen:
+
+   ```bash
+   WORTLAUT_DATA_DIR=/tmp/wortlaut-probe \
+     uv run python scripts/restore.py ~/Downloads/wortlaut-gesamt-*.tgz
+   sqlite3 /tmp/wortlaut-probe/korpus/spr_*/hoeren.sqlite \
+     "select name from speakers; select count(*) from recordings;"
+   ```
+
+   Erwartet: der (umbenannte) Name und die Zahl der Aufnahmen. Das Skript
+   nennt vorher Zeitpunkt, Sprecher und Größe. Ein zweiter Lauf ohne
+   `--ueberschreiben` bricht ab, ohne etwas zu schreiben.
+9. Eine einzelne Aufnahme löschen: in der Einsicht bei einer Aufnahme
+   **Löschen**, bestätigen. Erwartet: Sie verschwindet aus der Liste, die
+   Zahl oben sinkt. Mit dem Sprecherzugang unter „Aufnehmen“ nachsehen:
+   Die Einheit wird wieder angeboten — anders als beim Verwerfen bleibt keine
+   Spur stehen.
+10. Ganz unten der rot umrandete Kasten. **Diesen Sprecher vollständig
+    löschen**: erst bestätigen, dann den Namen abschreiben. Absichtlich
+    falsch abschreiben. Erwartet: „Der Name stimmt nicht — es wurde nichts
+    gelöscht.“ Danach richtig: Der Sprecher verschwindet aus der Liste, und
+    `data/korpus/<sprecher_id>/` ist weg.
+11. Zum Schluss die Grenze: In der Oberfläche gibt es keinen Knopf, der mehr
+    als einen Sprecher löscht, und in der API auch nicht:
+
+    ```bash
+    curl -i -X DELETE http://localhost:8000/api/admin/speakers \
+      -H "Authorization: Bearer <Aufsichtstoken>"
+    ```
+
+    Erwartet: `405 Method Not Allowed`. Sichern über alle geht, löschen nur
+    einzeln.
 
 ## 7. App „schreiben“
 

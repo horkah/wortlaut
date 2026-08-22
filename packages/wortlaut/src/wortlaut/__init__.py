@@ -6,4 +6,14 @@ jeweiligen App übergeben (siehe deren `config.py`). Dadurch ist sie ohne
 Aufbau einer Umgebung benutz- und prüfbar.
 """
 
-__all__ = ["audio", "corpus", "db", "ids", "registry", "storage", "text", "whisper"]
+__all__ = [
+    "audio",
+    "corpus",
+    "db",
+    "ids",
+    "registry",
+    "sicherung",
+    "storage",
+    "text",
+    "whisper",
+]

@@ -5,25 +5,27 @@
 Das Recht auf Löschung muss ausführbar sein, nicht dokumentiert. Entfernt
 werden Profil, Vorlagen, Aufnahmen, Modellstände, die Schnappschüsse, die aus
 diesem Korpus entstanden sind, und die Diktate von „schreiben".
+
+Was dazugehört, steht nicht hier, sondern in
+`apps/hoeren/backend/services/loeschung.py` — dieselbe Stelle, die auch die
+Aufsicht in der Oberfläche fragt. Sonst löschten Kommandozeile und Oberfläche
+Verschiedenes, und der Unterschied fiele niemandem auf.
+
+Vor dem Löschen lässt sich der Stand sichern: die Aufsicht gibt ihn als `.tgz`
+aus (`/api/admin/speakers/{id}/sicherung`), zurück kommt er mit
+`scripts/restore.py`.
 """
 
 from __future__ import annotations
 
 import argparse
-import shutil
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from wortlaut import corpus, registry
-
 from apps.hoeren.backend.config import einstellungen
-from apps.schreiben.backend.config import sprecher_relpfad as diktate_relpfad
-
-# Schnappschüsse legt „lernen" an. Damit sie löschbar bleiben, ohne ihr
-# Manifest zu deuten, liegt neben dem Manifest eine Datei mit der Sprecher-ID.
-SCHNAPPSCHUSS_MARKE = "sprecher.txt"
+from apps.hoeren.backend.services import loeschung
 
 
 def main() -> int:
@@ -37,45 +39,27 @@ def main() -> int:
     argumente = parser.parse_args()
 
     datenverzeichnis = einstellungen().data_dir
-    ziele = [
-        datenverzeichnis / corpus.sprecher_relpfad(argumente.sprecher_id),
-        datenverzeichnis / registry.MODELLE / argumente.sprecher_id,
-        # Arbeitsstand von „schreiben": Diktate, die noch nicht übergeben sind.
-        datenverzeichnis / diktate_relpfad(argumente.sprecher_id),
-        *_schnappschuesse(datenverzeichnis, argumente.sprecher_id),
-    ]
-    vorhanden = [ziel for ziel in ziele if ziel.exists()]
+    vorhanden = loeschung.ziele(datenverzeichnis, argumente.sprecher_id)
+
+    for verzeichnis in loeschung.ohne_marke(datenverzeichnis):
+        print(
+            f"Achtung: {verzeichnis} hat keine {loeschung.SCHNAPPSCHUSS_MARKE} "
+            "— bitte von Hand prüfen."
+        )
 
     if not vorhanden:
         print(f"Nichts gefunden für {argumente.sprecher_id}.")
         return 1
 
-    for ziel in vorhanden:
-        if argumente.ja_wirklich:
-            shutil.rmtree(ziel)
-            print(f"gelöscht: {ziel}")
-        else:
-            print(f"würde löschen: {ziel}")
-
     if not argumente.ja_wirklich:
+        for ziel in vorhanden:
+            print(f"würde löschen: {ziel}")
         print("\nProbelauf. Mit --ja-wirklich wird tatsächlich gelöscht.")
+        return 0
+
+    for ziel in loeschung.loesche(datenverzeichnis, argumente.sprecher_id):
+        print(f"gelöscht: {ziel}")
     return 0
-
-
-def _schnappschuesse(datenverzeichnis: Path, sprecher_id: str) -> list[Path]:
-    wurzel = datenverzeichnis / "snapshots"
-    if not wurzel.is_dir():
-        return []
-    treffer = []
-    for verzeichnis in sorted(wurzel.iterdir()):
-        marke = verzeichnis / SCHNAPPSCHUSS_MARKE
-        if marke.is_file() and marke.read_text(encoding="utf-8").strip() == sprecher_id:
-            treffer.append(verzeichnis)
-        elif verzeichnis.is_dir() and not marke.exists():
-            print(
-                f"Achtung: {verzeichnis} hat keine {SCHNAPPSCHUSS_MARKE} — bitte von Hand prüfen."
-            )
-    return treffer
 
 
 if __name__ == "__main__":

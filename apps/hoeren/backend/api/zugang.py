@@ -3,8 +3,9 @@
 Drei Endpunkte, zwei Wächter:
 
 * `GET /api/zugang` beantwortet die Frage, für wen dieser Browser gerade
-  eingestellt ist. Er hat keinen eigenen Wächter, denn er ist die Antwort
-  darauf — die Kennung kommt aus dem Vorgelegten.
+  eingestellt ist — Sprecher, Verwaltung oder Aufsicht. Er hat keinen eigenen
+  Wächter, denn er ist die Antwort darauf: Die Kennung kommt aus dem
+  Vorgelegten.
 * `POST` und `DELETE` unter einem Sprecher gehören der Verwaltung. Sie geben
   den Zugang aus bzw. ziehen ihn zurück.
 
@@ -29,7 +30,7 @@ router = APIRouter(tags=["Zugang"])
 class WerAntwort(BaseModel):
     """Wer ruft — die Grundlage dafür, dass die Oberfläche es anzeigen kann."""
 
-    art: str  # sprecher | verwaltung
+    art: str  # sprecher | verwaltung | aufsicht
     sprecher_id: str | None = None
     name: str | None = None
 

@@ -94,9 +94,12 @@ kann das nicht: Der Postausgang sendet in einem Arbeitsfaden, während die
 Ereignisschleife die eingehende Lieferung annimmt.
 
 Die Daten liegen im Volume `wortlaut-data` — `korpus/` gehört „hören",
-`diktate/` gehört „schreiben". Eine Sicherung ist das Kopieren dieses Volumes
-bei angehaltenem Dienst (SQLite im WAL-Modus mag keine Kopie mitten im
-Schreibvorgang). Das Whisper-Modell liegt darin unter `.cache/huggingface`;
+`diktate/` gehört „schreiben". Gesichert wird nicht durch Kopieren dieses
+Volumes, sondern über die Aufsicht: Sie zieht ein Archiv, das den laufenden
+Dienst nicht anhält und trotzdem einen in sich stimmigen Stand enthält (siehe
+[Sichern und Wiederherstellen](#sichern-und-wiederherstellen)). Wer das Volume
+doch von Hand kopiert, hält den Dienst vorher an — SQLite im WAL-Modus mag
+keine Kopie mitten im Schreibvorgang. Das Whisper-Modell liegt darin unter `.cache/huggingface`;
 ohne das lüde jeder Neustart erneut herunter — der erste Start dauert deshalb
 einige Minuten, worauf die `start_period` der Healthcheck-Prüfung Rücksicht
 nimmt.
@@ -163,13 +166,18 @@ Wer eine App verschiebt, ändert drei Stellen zusammen: `BASIS` im Backend, das
 
    ```
    WORTLAUT_AUTH_TOKEN=<lange Zufallszeichenkette>
+   WORTLAUT_ADMIN_TOKEN=<eine andere lange Zufallszeichenkette>
    ```
 
-   Den Token mit `openssl rand -base64 32` erzeugen. **Ohne ihn steht die
-   Verwaltung offen im Netz** — jeder mit der Adresse kann Sprecher anlegen,
-   deren Zugänge ausgeben und die LLM-Textquelle auf deine Rechnung benutzen.
-   An die Aufnahmen kommt er damit nicht: Dorthin führt allein der Zugang des
-   jeweiligen Sprechers.
+   Beide mit `openssl rand -base64 33` erzeugen, und zwei verschiedene.
+   **Ohne den ersten steht die Verwaltung offen im Netz** — jeder mit der
+   Adresse kann Sprecher anlegen, deren Zugänge ausgeben und die LLM-Textquelle
+   auf deine Rechnung benutzen. An die Aufnahmen kommt er damit nicht: Dorthin
+   führt allein der Zugang des jeweiligen Sprechers.
+
+   Der zweite ist der Zugang zur Aufsicht — Einsicht in jeden Korpus,
+   Sicherungen und Löschungen. Bleibt er leer, ist die Aufsicht abgeschaltet;
+   Sichern geht dann nur noch über das Dateisystem des Wirts.
 
 3. **Den Reverse Proxy** auf `127.0.0.1:8000` zeigen lassen — eine Regel für
    die ganze Domain, die Verteilung macht die App selbst. Mit Caddy:
@@ -268,7 +276,29 @@ GET    /api/progress
 POST   /api/korpus/intake                         multipart: audio, text, externe_id
 ```
 
-Mit beiden erreichbar, weil er die Frage beantwortet, welches von beiden man
+Aufsicht — `Authorization: Bearer $WORTLAUT_ADMIN_TOKEN`. Als einzige Wege
+dieser App nennen sie ihren Sprecher in der Adresse: Die Aufsicht hat keinen
+eigenen, sie sieht über alle hinweg.
+
+```
+GET    /api/admin/speakers                        alle Sprecher mit Kennzahlen
+GET    /api/admin/speakers/{id}                   Quellen, Sitzungen, Umfang
+GET    /api/admin/speakers/{id}/recordings?ab=0   Aufnahmen mit ihrem Text
+GET    /api/admin/speakers/{id}/recordings/{r}/audio
+PATCH  /api/admin/speakers/{id}                   { name }  — umbenennen
+GET    /api/admin/speakers/{id}/sicherung         .tgz, wiederherstellbar
+GET    /api/admin/speakers/{id}/datensatz         .zip, Text-Audio-Paare
+GET    /api/admin/sicherung                       .tgz über alle Sprecher
+DELETE /api/admin/speakers/{id}/recordings/{r}    eine Aufnahme
+DELETE /api/admin/speakers/{id}/recordings?bestaetigung={id}
+DELETE /api/admin/speakers/{id}?bestaetigung={id}
+```
+
+Es gibt hier **keinen** Weg, der mehr als einen Sprecher löscht, und die beiden
+löschenden Wege verlangen die Kennung ein zweites Mal als `bestaetigung`. Ein
+Versehen soll höchstens eine Person kosten.
+
+Mit jedem der drei erreichbar, weil er die Frage beantwortet, welchen man
 vorgelegt hat:
 
 ```
@@ -317,7 +347,7 @@ Die interaktive API-Dokumentation liegt unter `/docs`.
 
 ## Authentifizierung
 
-Zwei Arten von Zugang, beide als `Authorization: Bearer …`:
+Drei Arten von Zugang, alle als `Authorization: Bearer …`:
 
 **Der Verwaltertoken** ist `WORTLAUT_AUTH_TOKEN`. Er legt Sprecherprofile an
 und gibt deren Zugänge aus. Leer → die Verwaltung steht offen, nur für die
@@ -341,9 +371,31 @@ deshalb nicht wiederhergestellt, sondern ersetzt — und damit ist er
 zurückgezogen. „Zurückziehen" ohne Ersatz gibt es auch; dann kommt niemand mehr
 an diesen Korpus, bis ein neuer Zugang ausgegeben wird.
 
+**Der Aufsichtstoken** ist `WORTLAUT_ADMIN_TOKEN`. Er ist der eine Zugang, der
+über allen Korpora steht: einsehen, umbenennen, sichern, ausleiten, löschen. Er
+darf zusätzlich alles, was der Verwaltertoken darf — wer jeden Korpus löschen
+kann, hätte an einem zweiten Token fürs Anlegen eines Profils nichts gewonnen.
+
+Erreichbar ist die Aufsicht aus **jedem** Browser: Der Token wird unter
+„Einstellungen → Zugang" in dasselbe Feld eingetragen wie ein Verwaltertoken,
+und der Server sieht am Vorgelegten, welches von beidem es ist. Eine zweite
+Adresse oder eine zweite Anmeldung gibt es nicht. Ein Browser trägt allerdings
+immer nur einen Zugang: Wer dort vorher den Link eines Sprechers geöffnet
+hatte, öffnet ihn danach einmal wieder.
+
+Leer heißt hier — anders als beim Verwaltertoken — **abgeschaltet** und nicht
+„offen". Ohne gesetzten Token antwortet jeder Weg unter `/api/admin/…` mit 401,
+auch in der Entwicklung: Ein Zugang, der löschen darf, soll nicht
+versehentlich offenstehen. Erzeugt wird er wie der andere, etwa mit
+`openssl rand -base64 33`. Mit dem Verwaltertoken darf er nicht
+übereinstimmen — dann wäre jeder Verwalter zugleich Aufsicht, und der Dienst
+bricht beim Start mit einer Meldung ab, statt still mehr zu erlauben.
+
 In der Kopfzeile steht dauerhaft, für wen der Browser gerade eingestellt ist —
 und zwar der Name, den der Server zum vorgelegten Zugang nennt, nicht der, den
-sich der Browser gemerkt hat.
+sich der Browser gemerkt hat. Bei der Aufsicht steht dort „Aufsicht"; sie sieht
+in fremde Korpora, und das soll nicht nur dann dastehen, wenn gerade gelöscht
+wird.
 
 „schreiben" hat bewusst keinen Zugang (Grundentscheidung 7): Die Zielperson
 kann schlecht lesen und schreiben, ein Anmeldefeld wäre eine unüberwindbare
@@ -353,6 +405,135 @@ Basisauthentifizierung im `/schreiben/`-Block des Proxys oder eine
 Beschränkung auf das eigene Netz. In
 umgekehrter Richtung braucht „schreiben" den Sprecherzugang von „hören"
 (`WORTLAUT_INTAKE_TOKEN`), um seine Korrekturen abliefern zu dürfen.
+
+## Sichern und Wiederherstellen
+
+Es gibt zwei Formate, und sie beantworten zwei verschiedene Fragen.
+
+| | Sicherung `.tgz` | Datensatz `.zip` |
+|---|---|---|
+| Frage | „Der Server ist weg, ich will den Stand zurück." | „Ich will die Paare aus Text und Audio ansehen oder trainieren." |
+| Inhalt | Datenbank und Aufnahmen, wie sie auf der Platte liegen | WAV-Dateien, je Aufnahme ihr Text, `metadaten.csv`/`.jsonl` |
+| Umfang | ein Sprecher oder alle | immer genau ein Sprecher |
+| Zurückspielbar | ja | **nein** |
+
+Zum Wegtragen also immer die `.tgz`.
+
+### Eine Sicherung ziehen
+
+In der Oberfläche als Aufsicht: unter „Sprecher" der Knopf
+**Gesamtsicherung** für alles, oder bei einem Sprecher „Ansehen" →
+**Sicherung (.tgz)**. Der Browser hält die Datei dabei kurz im Speicher; bei
+einem sehr großen Bestand deshalb lieber über die Kommandozeile:
+
+```bash
+curl -OJ https://wortlaut.example.org/api/admin/sicherung \
+  -H "Authorization: Bearer $WORTLAUT_ADMIN_TOKEN"
+
+curl -OJ https://wortlaut.example.org/api/admin/speakers/spr_…/sicherung \
+  -H "Authorization: Bearer $WORTLAUT_ADMIN_TOKEN"
+```
+
+`-OJ` übernimmt den Dateinamen, den der Server nennt — er trägt die Zeitmarke.
+
+**Der Dienst darf dabei laufen.** Die Datenbanken werden nicht kopiert, sondern
+über die Online-Backup-Schnittstelle von SQLite gezogen; das Ergebnis ist ein
+in sich stimmiger Stand, auch wenn gerade jemand aufnimmt. Ein schlichtes `cp`
+der `.sqlite`-Datei wäre das nicht: Im WAL-Modus steht ein Teil der Daten
+daneben in `…-wal`.
+
+Nicht in der Sicherung: die Modellstände unter `data/modelle/`. Sie sind groß
+und lassen sich aus dem Korpus neu rechnen — die Aufnahmen nicht. Wer sie
+trotzdem will, kopiert das Verzeichnis dazu.
+
+### Was drin ist
+
+```
+wortlaut-gesamt-20260822-174500.tgz
+├── sicherung.json               Zeitpunkt, Sprecher, je Datei Größe und SHA-256
+└── daten/
+    ├── korpus/spr_…/hoeren.sqlite
+    ├── korpus/spr_…/audio/rec_….wav
+    └── diktate/spr_…/…          Arbeitsstand von „schreiben"
+```
+
+`daten/` bildet `WORTLAUT_DATA_DIR` eins zu eins ab. Das ist Absicht: Eine
+Sicherung, die ein laufendes Programm zum Lesen braucht, ist im Ernstfall
+keine.
+
+### Zurückspielen
+
+**Erst den Dienst anhalten.** SQLite hält eine laufende Datenbank offen; wer
+sie unter dem Prozess austauscht, bekommt einen Mischmasch aus altem
+Zwischenspeicher und neuer Datei.
+
+```bash
+docker compose stop
+uv run python scripts/restore.py wortlaut-gesamt-20260822-174500.tgz --ueberschreiben
+docker compose start
+make migrate        # falls die Sicherung älter ist als das Schema
+```
+
+Ohne `--ueberschreiben` bricht das Skript ab, sobald eine Datei schon dasteht —
+und zwar bevor irgendetwas geschrieben wurde. `--nur-ansehen` zeigt nur, was in
+der Sicherung steht.
+
+Auf einer Maschine, auf der wortlaut gar nicht installiert ist, geht es auch
+ohne das Skript:
+
+```bash
+tar xzf wortlaut-gesamt-20260822-174500.tgz
+cp -a daten/. /srv/wortlaut/data/
+```
+
+### Datensatz zum Arbeiten
+
+Je Sprecher, in der Oberfläche unter „Ansehen" → **Datensatz (.zip)**:
+
+```
+spr_…/
+├── LIESMICH.txt
+├── metadaten.csv        file_name, transcription, dauer_s, modus, quelle, …
+├── metadaten.jsonl      dieselben Zeilen als JSON
+└── audio/
+    ├── rec_….wav        16 kHz mono, PCM 16 bit
+    └── rec_….txt        der gesprochene Text zu genau dieser Datei
+```
+
+Die Spalten `file_name` und `transcription` heißen so, weil das
+`audiofolder`-Format von Hugging Face genau diese Namen erwartet — der
+Datensatz lädt damit ohne eine Zeile Anpassungscode. Der Text steht doppelt
+darin: in der Tabelle fürs Training, als `.txt` neben dem Audio für jedes
+Werkzeug, das nur ein Verzeichnis sieht.
+
+Enthalten sind nur Aufnahmen mit Status `ok`. Verworfene haben kein Audio mehr.
+
+### Löschen
+
+Ebenfalls Sache der Aufsicht, in drei Stufen — jede enger als die vorige:
+
+| | Was verschwindet | Was bleibt |
+|---|---|---|
+| eine Aufnahme | Audio und Datensatz; die Einheit wird wieder offen | alles andere |
+| alle Aufnahmen eines Sprechers | jedes Audio, jede Aufnahmezeile | Profil, Textquellen, Warteschlange |
+| ein Sprecher | Korpus, Diktate, Modellstände, Schnappschüsse | nichts |
+
+Eine vierte Stufe „alle Sprecher" gibt es nicht, weder in der Oberfläche noch
+in der API. Sie wäre ein Knopf, der einmal im Leben gedrückt wird — und dann
+versehentlich. Wer zwei Personen löschen will, tut es zweimal.
+
+Beide großen Stufen verlangen zweimal eine Bestätigung: einen Klick und das
+Abschreiben des Namens. Ein zweites „Wirklich?" klickt man weg, ohne es gelesen
+zu haben; einen Namen abzuschreiben zwingt dazu hinzusehen, wen es trifft.
+
+Dasselbe geht auf der Kommandozeile, mit demselben Umfang
+(`apps/hoeren/backend/services/loeschung.py` ist für beide die eine Wahrheit
+darüber, was zu einer Person gehört):
+
+```bash
+uv run python scripts/purge_speaker.py spr_7f2a               # Probelauf
+uv run python scripts/purge_speaker.py spr_7f2a --ja-wirklich
+```
 
 ## Wenn etwas klemmt
 
@@ -376,6 +557,10 @@ umgekehrter Richtung braucht „schreiben" den Sprecherzugang von „hören"
 | Der Reiter „schreiben" landet wieder in „hören" | Im Betrieb: Der Proxy schneidet `/schreiben/` ab oder zeigt auf den falschen Port. Probe: `curl -I https://<domain>/schreiben/`. In der Entwicklung: „schreiben" läuft nicht mit — `make dev APP=schreiben`. |
 | `Address already in use` beim `make dev` | Der Port ist noch belegt, meist von einem älteren Lauf. Nachsehen mit `ss -tlnp \| grep -E "8000\|8001"`, dann die PID beenden. |
 | Korrekturen bleiben im Postausgang, Fehler nennt 404 „Unbekannter Sprecher" | `WORTLAUT_SPRECHER_ID` fehlt oder gehört zu keinem Sprecher in „hören" — siehe „Bevor die Korrekturen ankommen". |
+| Aufsicht: jeder Weg unter `/api/admin/…` antwortet 401 | `WORTLAUT_ADMIN_TOKEN` ist nicht gesetzt — dann ist die Aufsicht abgeschaltet, absichtlich auch in der Entwicklung. Nach dem Setzen den Dienst neu starten. |
+| Aufsicht: Token eingetragen, aber die Oberfläche zeigt weiter die Verwaltung | Der Token stimmt nicht mit dem des Servers überein; der Server fällt dann auf die Verwaltung zurück. Unter „Einstellungen → Zugang" prüft „Speichern und prüfen", was der Server tatsächlich sieht. |
+| Der Download einer großen Sicherung bricht ab | Der Browser hält die Datei im Speicher. Über `curl -OJ` mit dem Aufsichtstoken holen (siehe „Sichern und Wiederherstellen"). |
+| Nach dem Zurückspielen fehlen Daten oder die Datenbank ist kaputt | Der Dienst lief dabei. Anhalten, noch einmal einspielen, starten — SQLite hält die alte Datei sonst offen. |
 | `make frontend` startet ohne Fehlermeldung, aber `localhost:5173` bleibt unerreichbar | `node_modules` fehlt (`npm install` in `apps/hoeren/frontend` vergessen). `npm run dev` sucht `vite` dann über `$PATH` — auf manchen Systemen (z. B. Ubuntu/Debian) existiert dort ein gleichnamiges, aber völlig anderes Paket namens `vite` (ViTE, ein Trace-Viewer), das kommentarlos ein leeres GUI-Fenster statt des Dev-Servers öffnet. Prüfen mit `command -v vite` — zeigt der Pfad nicht auf `apps/hoeren/frontend/node_modules/.bin/vite`, fehlt die Installation. Abhilfe: `npm install` nachholen. |
 
 ## Leises Mikrofon unter Linux
