@@ -93,97 +93,106 @@
 
 <header class="kopf">
   <div class="ebene apps">
-    <h1 class="marke">
-      <span class="zeichen">{@html zeichen}</span>wortlaut
-    </h1>
-    <nav aria-label="Apps">
-      {#each APPS as eintrag (eintrag.schluessel)}
-        {#if eintrag.schluessel === app}
-          <span class="reiter aktiv" aria-current="page">{eintrag.name}</span>
-        {:else if eintrag.verfuegbar}
-          <a class="reiter" href={eintrag.pfad} title={eintrag.aufgabe}>{eintrag.name}</a>
-        {:else}
-          <span class="reiter spaeter" title="{eintrag.aufgabe} — kommt später"
-            >{eintrag.name}</span
-          >
-        {/if}
-      {/each}
-    </nav>
-    {#if hinweis}
-      <span class="hinweis">{hinweis}</span>
-    {/if}
+    <!-- Links darf umbrechen, rechts nicht: Auf einem Telefon im Hochformat
+         passen Marke und drei App-Reiter nicht neben Sprecher und Menüknopf.
+         Bräche die ganze Zeile gemeinsam um, landete der Menüknopf in einer
+         zweiten Reihe — und mit ihm die Klappe, die dann niemand mehr trifft. -->
+    <div class="links">
+      <h1 class="marke">
+        <span class="zeichen">{@html zeichen}</span>wortlaut
+      </h1>
+      <nav aria-label="Apps">
+        {#each APPS as eintrag (eintrag.schluessel)}
+          {#if eintrag.schluessel === app}
+            <span class="reiter aktiv" aria-current="page">{eintrag.name}</span>
+          {:else if eintrag.verfuegbar}
+            <a class="reiter" href={eintrag.pfad} title={eintrag.aufgabe}>{eintrag.name}</a>
+          {:else}
+            <span class="reiter spaeter" title="{eintrag.aufgabe} — kommt später"
+              >{eintrag.name}</span
+            >
+          {/if}
+        {/each}
+      </nav>
+    </div>
 
-    {#if sprecher !== undefined}
-      <!-- Wer gerade spricht, steht immer da: Alles, was die App tut, hängt
-           am Sprecher, und ein Griff in den falschen Korpus wäre teuer. -->
-      <span class="sprecher" class:leer={!sprecher} title="Gewählter Sprecher">
-        {sprecher ?? 'kein Sprecher'}
-      </span>
-    {/if}
+    <div class="rechts">
+      {#if hinweis}
+        <span class="hinweis">{hinweis}</span>
+      {/if}
 
-    <div class="menue" class:ohne-hinweis={!hinweis && sprecher === undefined} bind:this={huelle}>
-      <button
-        bind:this={knopf}
-        class="knopf-menue"
-        aria-label="Menü"
-        aria-expanded={offen}
-        aria-haspopup="true"
-        onclick={() => (offen = !offen)}
-      >
-        <!-- Strich und Maß stehen als Attribute, nicht nur im Stylesheet: Die
-             drei Linien haben keine Fläche, ein reiner `fill` zeichnet also
-             nichts. Bliebe das CSS einmal aus, wäre der Knopf unsichtbar
-             statt unschön. -->
-        <svg
-          viewBox="0 0 24 24"
-          width="24"
-          height="24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          aria-hidden="true"
+      {#if sprecher !== undefined}
+        <!-- Wer gerade spricht, steht immer da: Alles, was die App tut, hängt
+             am Sprecher, und ein Griff in den falschen Korpus wäre teuer. -->
+        <span class="sprecher" class:leer={!sprecher} title="Gewählter Sprecher">
+          {sprecher ?? 'kein Sprecher'}
+        </span>
+      {/if}
+
+      <div class="menue" bind:this={huelle}>
+        <button
+          bind:this={knopf}
+          class="knopf-menue"
+          aria-label="Menü"
+          aria-expanded={offen}
+          aria-haspopup="true"
+          onclick={() => (offen = !offen)}
         >
-          <path d="M3 6h18M3 12h18M3 18h18" />
-        </svg>
-      </button>
-      {#if offen}
-        <nav class="klappe" aria-label="Menü">
-          <!-- Erst wer, dann womit: Der Sprecher steht über den Einstellungen. -->
-          {#each uebergreifend as punkt (punkt.pfad)}
+          <!-- Strich und Maß stehen als Attribute, nicht nur im Stylesheet: Die
+               drei Linien haben keine Fläche, ein reiner `fill` zeichnet also
+               nichts. Bliebe das CSS einmal aus, wäre der Knopf unsichtbar
+               statt unschön. -->
+          <svg
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <path d="M3 6h18M3 12h18M3 18h18" />
+          </svg>
+        </button>
+        {#if offen}
+          <nav class="klappe" aria-label="Menü">
+            <!-- Erst wer, dann womit: Der Sprecher steht über den Einstellungen. -->
+            {#each uebergreifend as punkt (punkt.pfad)}
+              <a
+                class="eintrag"
+                class:aktiv={punkt.pfad === route}
+                href="#{punkt.pfad}"
+                onclick={() => (offen = false)}>{punkt.text}</a
+              >
+            {/each}
             <a
               class="eintrag"
-              class:aktiv={punkt.pfad === route}
-              href="#{punkt.pfad}"
-              onclick={() => (offen = false)}>{punkt.text}</a
+              class:aktiv={inEinstellungen}
+              href="#{EINSTELLUNGEN_PFAD}"
+              onclick={() => (offen = false)}>Einstellungen</a
             >
-          {/each}
-          <a
-            class="eintrag"
-            class:aktiv={inEinstellungen}
-            href="#{EINSTELLUNGEN_PFAD}"
-            onclick={() => (offen = false)}>Einstellungen</a
-          >
-          <!-- Führt aus der App heraus: eigener Reiter, und das Pfeilzeichen
-               sagt es vorher. `noopener` verwehrt der geöffneten Seite den
-               Zugriff auf dieses Fenster. -->
-          <a
-            class="eintrag auswaerts"
-            href={PROJEKT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Quelltext und Beschreibung auf GitHub — öffnet einen neuen Reiter"
-            onclick={() => (offen = false)}
-          >
-            Über wortlaut<span class="pfeil" aria-hidden="true">↗</span>
-          </a>
-          {#if aussenstehend}
-            <a class="eintrag zurueck" href="#/" onclick={() => (offen = false)}>
-              Zurück zu „{appName}“
+            <!-- Führt aus der App heraus: eigener Reiter, und das Pfeilzeichen
+                 sagt es vorher. `noopener` verwehrt der geöffneten Seite den
+                 Zugriff auf dieses Fenster. -->
+            <a
+              class="eintrag auswaerts"
+              href={PROJEKT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Quelltext und Beschreibung auf GitHub — öffnet einen neuen Reiter"
+              onclick={() => (offen = false)}
+            >
+              Über wortlaut<span class="pfeil" aria-hidden="true">↗</span>
             </a>
-          {/if}
-        </nav>
-      {/if}
+            {#if aussenstehend}
+              <a class="eintrag zurueck" href="#/" onclick={() => (offen = false)}>
+                Zurück zu „{appName}“
+              </a>
+            {/if}
+            </nav>
+        {/if}
+      </div>
     </div>
   </div>
 
@@ -217,8 +226,36 @@
     padding: 0 1.25rem;
   }
 
+  /* Diese Reihe bricht als Ganzes nicht um — nur ihre linke Hälfte darf das.
+     Sonst rutscht der Menüknopf auf einem schmalen Gerät in die zweite Zeile
+     und nimmt die Klappe mit. */
   .apps {
     padding-top: 0.6rem;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+  }
+
+  .links {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    /* Ohne `min-width: 0` weigert sich ein Flex-Element zu schrumpfen und
+       drückt den Nachbarn hinaus. */
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  /* Bleibt am rechten Rand der ersten Zeile, was links auch geschieht. */
+  .rechts {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+    min-width: 0;
+    margin-left: 0.75rem;
+    /* Auf gleicher Höhe mit der Marke, auch wenn links zwei Zeilen stehen. */
+    min-height: 2rem;
   }
 
   .marke {
@@ -245,9 +282,13 @@
     height: 1.5em;
   }
 
-  /* Randnotiz, kein Bedienelement: schiebt sich nach rechts und bleibt leise. */
+  /* Randnotiz, kein Bedienelement: bleibt leise und darf schrumpfen. */
   .hinweis {
-    margin-left: auto;
+    min-width: 0;
+    flex: 0 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: 0.8rem;
     color: var(--gedaempft);
     text-align: right;
@@ -257,19 +298,17 @@
      daneben: Das ist kein Fußnotentext, sondern die Antwort auf „für wen
      nehme ich hier eigentlich auf". */
   .sprecher {
-    margin-left: auto;
     max-width: 12rem;
+    min-width: 0;
+    /* Gibt als Erstes nach, wenn es eng wird: Der Menüknopf ist ein Ziel,
+       dieser Text nur eine Auskunft. */
+    flex: 0 1 auto;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--akzent);
-  }
-
-  /* Steht schon ein Hinweis rechts, teilen sich beide den Rand nicht auf. */
-  .hinweis + .sprecher {
-    margin-left: 0.6rem;
   }
 
   /* Noch keiner gewählt: sichtbar, aber ohne Gewicht. */
@@ -279,15 +318,11 @@
     color: var(--gedaempft);
   }
 
-  /* Ganz rechts, in jeder App an derselben Stelle. Steht links davon nichts,
-     muss der Knopf sich den Platz selbst nehmen. */
+  /* Ganz rechts, in jeder App an derselben Stelle — und niemals schrumpfend:
+     Ein Ziel für den Finger gibt keinen Platz her. */
   .menue {
     position: relative;
-    margin-left: 0.5rem;
-  }
-
-  .menue.ohne-hinweis {
-    margin-left: auto;
+    flex: none;
   }
 
   .knopf-menue {
@@ -321,6 +356,8 @@
     right: 0;
     z-index: 10;
     min-width: 11rem;
+    /* Auf einem schmalen Gerät darf sie nicht über den Rand hinauswachsen. */
+    max-width: calc(100vw - 2rem);
     padding: 0.25rem;
     border: 1px solid var(--rand);
     border-radius: 0.5rem;
