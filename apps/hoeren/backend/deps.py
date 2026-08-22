@@ -56,11 +56,33 @@ class Zugang:
 
 
 def engine_fuer(sprecher_id: str) -> Engine:
-    """Engine für die Datenbank eines Sprechers; legt nichts an."""
+    """Engine für die Datenbank eines Sprechers; legt nichts an, aber holt sie ein.
+
+    Vor dem ersten Zugriff laufen die offenen Migrationen. Ohne das trägt ein
+    Update das neue Schema nur in die Datenbanken, die danach entstehen: Beim
+    Anlegen eines Profils migriert `api/speakers.py`, sonst nichts und nirgends.
+    Wer eine Spalte hinzufügt, legt damit jeden bestehenden Korpus still — die
+    Modelle in `db/models.py` fragen die Spalte ab, SQLite kennt sie nicht, und
+    was scheitert, ist nicht bloß die neue Ansicht, sondern jedes `SELECT` auf
+    `speakers`: die Liste der Aufsicht ebenso wie die Zugangsprüfung weiter
+    unten, mit der sich jeder Sprecher anmeldet.
+
+    `make migrate` bleibt daneben bestehen — es ist der Weg, das für alle
+    Korpora auf einmal und vor dem ersten Aufruf zu tun. Es darf nur nicht der
+    einzige sein: Der Container startet uvicorn, nicht ein Skript, an das sich
+    beim Ausrollen jemand erinnern muss.
+
+    Die Prüfung auf die Datei bleibt davor, und zwar zwingend:
+    `wende_migrationen_an` legt eine fehlende Datenbank an. Ohne diese
+    Reihenfolge würde ein Tippfehler in der Kennung einen leeren Korpus
+    erzeugen, statt mit 404 zu antworten.
+    """
     if sprecher_id not in _engines:
-        pfad = corpus.datenbank_pfad(einstellungen().data_dir, sprecher_id)
+        konfiguration = einstellungen()
+        pfad = corpus.datenbank_pfad(konfiguration.data_dir, sprecher_id)
         if not pfad.is_file():
             raise HTTPException(status_code=404, detail=f"Unbekannter Sprecher: {sprecher_id}")
+        db.wende_migrationen_an(pfad, konfiguration.migrationsverzeichnis)
         _engines[sprecher_id] = db.verbinde(pfad)
     return _engines[sprecher_id]
 

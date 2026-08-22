@@ -429,8 +429,10 @@ eines Browsers, und wer den Link weitergibt, gibt den Korpus weiter — das ist
 ein Lesezeichen, kein Ausweis. Für die Zielgruppe ist genau das der Punkt.
 
 Und der Umbau ist nicht rückwärtsverträglich. Eine bestehende Installation
-braucht zwei Handgriffe: `make migrate` für die neue Spalte, und je Sprecher
-einen Zugang ausgeben und den Link auf sein Gerät bringen. Derselbe Link öffnet
+braucht einen Handgriff: je Sprecher einen Zugang ausgeben und den Link auf
+sein Gerät bringen. (Die neue Spalte holt sich die Datenbank beim ersten
+Zugriff selbst; als dieser Abschnitt geschrieben wurde, war dafür noch
+`make migrate` nötig.) Derselbe Link öffnet
 seither auch `schreiben`; `WORTLAUT_SPRECHER_ID` und `WORTLAUT_INTAKE_TOKEN`
 sind dafür ersatzlos entfallen. Bis das geschehen ist, kommt niemand an die
 Aufnahmen — was der Sinn der Sache ist, aber eben auch ihr Preis.
@@ -875,8 +877,17 @@ Neben und nicht im Korpus: `hören` ist dessen einziger Schreiber
 | `outbox` | offene Korrekturen mit Wiederholungszähler |
 
 Zugriff über SQLAlchemy 2.0 mit typisierten Modellen. Schemaänderungen als
-nummerierte `.sql`-Dateien, angewendet von `scripts/migrate.py`. Kein Alembic — bei
-diesem Schemaumfang ist die Migrationsmaschinerie größer als das Schema.
+nummerierte `.sql`-Dateien. Kein Alembic — bei diesem Schemaumfang ist die
+Migrationsmaschinerie größer als das Schema.
+
+Angewendet werden sie an drei Stellen, und die dritte ist die wichtigste: beim
+Anlegen eines Sprechers (`api/speakers.py`), beim ersten Zugriff auf dessen
+Datenbank (`deps.engine_fuer`) und für alle Korpora auf einmal mit
+`make migrate`. Der Zugriff musste dazukommen, nachdem `004_pin.sql` die Spalte
+`speakers.pin_hash` mitbrachte: Bestehende Korpora bekamen sie nie, die Modelle
+fragten sie ab, und danach scheiterte jedes `SELECT` auf `speakers` — die Liste
+der Aufsicht wie die Zugangsprüfung. Ein Update darf nicht davon abhängen, dass
+sich jemand an ein Skript erinnert; der Container startet uvicorn, sonst nichts.
 
 Zwei Spalten tragen mehr Bedeutung, als ihr Name verrät:
 
@@ -972,13 +983,15 @@ cd apps/hoeren/frontend && npm install && cd -
 
 make test                    # Testlauf, je nach Hardware 5-50 Sekunden
 make dev APP=hoeren          # Backend auf :8000, Vite auf :5173
-make migrate                 # nur nötig, wenn nach einem Update Migrationen offen sind
+make migrate                 # alle Korpora auf einmal fortschreiben
 ```
 
 Aufgerufen wird `http://localhost:5173`; Vite leitet `/api` an das Backend
-weiter, deshalb gibt es keine CORS-Regeln. Neue Sprecher bekommen ihre
-Datenbank beim Anlegen, `make migrate` ist also kein erster Schritt, sondern
-ein späterer.
+weiter, deshalb gibt es keine CORS-Regeln. `make migrate` ist kein erster
+Schritt: Neue Sprecher bekommen ihre Datenbank beim Anlegen, bestehende werden
+beim ersten Zugriff fortgeschrieben. Es ist der Weg, das für alle Korpora auf
+einmal und vor dem ersten Aufruf zu tun — etwa um zu sehen, was ein Update am
+Schema ändert.
 
 Für `schreiben` dasselbe mit eigenem Port — beide dürfen nebeneinander laufen:
 
@@ -1019,7 +1032,7 @@ Läuft in gut einer Sekunde: ohne GPU, ohne Netz, ohne Mikrofon.
 | Ort | Prüft |
 |---|---|
 | `packages/wortlaut/tests/` | Chunker, Textformate, Audiomessung und -schnitt, Ablage, Migrationen, Registry |
-| `apps/hoeren/tests/` | Endpunkte gegen eine echte SQLite-Datei im Temporärverzeichnis; dazu die Trennung: Der Zugang des einen öffnet den Korpus des anderen nicht, und eine fremde Kennung im Parameter endet mit 403 statt mit einem Schreibvorgang. Für die Aufsicht: dass sie ohne Token zu ist, dass ihre Sicherung sich wirklich zurückspielen lässt, und dass es keinen Weg gibt, der mehr als einen Sprecher löscht |
+| `apps/hoeren/tests/` | Endpunkte gegen eine echte SQLite-Datei im Temporärverzeichnis; dazu die Trennung: Der Zugang des einen öffnet den Korpus des anderen nicht, und eine fremde Kennung im Parameter endet mit 403 statt mit einem Schreibvorgang. Für die Aufsicht: dass sie ohne Token zu ist, dass ihre Sicherung sich wirklich zurückspielen lässt, und dass es keinen Weg gibt, der mehr als einen Sprecher löscht. Und, seit `004_pin.sql` es versäumte: dass ein Korpus im ältesten Schemastand beim ersten Zugriff eingeholt wird, statt die Ansicht stillzulegen |
 | `apps/schreiben/tests/` | Diktat und Abschnittsersatz, Postausgang, Modellauskunft |
 
 Zwei Regeln halten den Aufwand klein und die Aussagekraft hoch:
