@@ -22,7 +22,11 @@ class Einstellungen(BaseSettings):
     # Textquelle „LLM". Leer heißt: abgeschaltet, es bleibt der Textupload.
     llm_provider: str = ""
     llm_api_key: str = ""
-    llm_model: str = "claude-opus-5"
+    llm_model: str = "claude-opus-4-8"
+    # Nur für OpenAI-kompatible Anbieter (anbieter="openai"): wohin die Anfrage
+    # geht. Lokal etwa http://ollama:11434/v1, sonst die URL von Groq, Gemini,
+    # Mistral … Bei anbieter="anthropic" ohne Bedeutung.
+    llm_base_url: str = ""
 
     # Leer heißt: keine Authentifizierung. Nur für die lokale Entwicklung.
     auth_token: str = ""
