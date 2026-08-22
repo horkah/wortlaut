@@ -6,8 +6,13 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 const hier = dirname(fileURLToPath(import.meta.url));
 const repowurzel = resolve(hier, '../../..');
 
+// Das Baudatum wandert als fester Wert ins Bündel (siehe packages/ui/bau.ts);
+// der Seitenfuß zeigt es an. In der Entwicklung ist es der Serverstart.
+const baudatum = new Date().toISOString().slice(0, 10);
+
 export default defineConfig({
   plugins: [svelte()],
+  define: { __BAUDATUM__: JSON.stringify(baudatum) },
   // Diese App liegt unter der gemeinsamen Domain auf `/schreiben/` (siehe
   // `BASIS` in backend/main.py und packages/ui/apps.ts). Ohne `base` verwiese
   // das gebaute HTML auf `/assets/…` und träfe damit die App „hören" auf der

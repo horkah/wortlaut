@@ -73,3 +73,18 @@ export const EINSTELLUNGEN_PFAD = '/einstellungen';
  * dann womit.
  */
 export const SPRECHER_PFAD = '/sprecher';
+
+/**
+ * Das Projekt selbst — Quelltext und Beschreibung.
+ *
+ * Ziel ist die Startseite des Bestands: GitHub zeigt die README dort unter der
+ * Dateiliste ohnehin an, und zwar immer in der Fassung des Hauptzweigs. Der
+ * Anker `#readme-ov-file` springt gleich dorthin — es ist derselbe, den GitHub
+ * in seiner eigenen Seitenspalte unter „Readme" benutzt.
+ *
+ * Warum nicht `blob/main/README.md`: Das zeigte dieselbe Datei allein, hinge
+ * aber am Namen des Hauptzweigs. Wird der einmal umbenannt, ist der Verweis
+ * ein 404. Hier scheitert schlimmstenfalls der Sprung — die Seite steht
+ * trotzdem, und die README steht darauf.
+ */
+export const PROJEKT_URL = 'https://github.com/horkah/wortlaut#readme-ov-file';

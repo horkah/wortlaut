@@ -1,5 +1,6 @@
 <script lang="ts">
   import Kopfleiste from '$ui/Kopfleiste.svelte';
+  import Fusszeile from '$ui/Fusszeile.svelte';
   import { EINSTELLUNGEN_PFAD, SPRECHER_PFAD, type Menuepunkt } from '$ui/apps';
   import { sprecherHolen } from './lib/api';
   import { zustand } from './lib/zustand.svelte';
@@ -86,3 +87,5 @@
 <main>
   <Ansicht />
 </main>
+
+<Fusszeile />

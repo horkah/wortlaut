@@ -8,7 +8,13 @@
    * Ansicht darunter blasser — sonst streiten die beiden Reihen um die
    * Aufmerksamkeit.
    */
-  import { APPS, EINSTELLUNGEN_PFAD, type AppSchluessel, type Menuepunkt } from './apps';
+  import {
+    APPS,
+    EINSTELLUNGEN_PFAD,
+    PROJEKT_URL,
+    type AppSchluessel,
+    type Menuepunkt,
+  } from './apps';
   // Als Quelltext eingebunden und nicht als <img>, damit das Zeichen die
   // Schriftfarbe des Schriftzugs annimmt (die Datei zeichnet currentColor).
   import zeichen from '../../assets/wortlaut-logo.svg?raw';
@@ -158,6 +164,19 @@
             href="#{EINSTELLUNGEN_PFAD}"
             onclick={() => (offen = false)}>Einstellungen</a
           >
+          <!-- Führt aus der App heraus: eigener Reiter, und das Pfeilzeichen
+               sagt es vorher. `noopener` verwehrt der geöffneten Seite den
+               Zugriff auf dieses Fenster. -->
+          <a
+            class="eintrag auswaerts"
+            href={PROJEKT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Quelltext und Beschreibung auf GitHub — öffnet einen neuen Reiter"
+            onclick={() => (offen = false)}
+          >
+            Über wortlaut<span class="pfeil" aria-hidden="true">↗</span>
+          </a>
           {#if aussenstehend}
             <a class="eintrag zurueck" href="#/" onclick={() => (offen = false)}>
               Zurück zu „{appName}“
@@ -325,6 +344,19 @@
   .eintrag.aktiv {
     background: var(--akzent-hell);
     font-weight: 600;
+  }
+
+  /* Verlässt die App — der Pfeil steht rechts und hält Abstand. */
+  .eintrag.auswaerts {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .pfeil {
+    font-size: 0.85em;
+    color: var(--gedaempft);
   }
 
   /* Der Rückweg ist kein Ziel wie die anderen, sondern der Ausgang. */

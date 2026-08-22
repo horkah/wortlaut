@@ -15,6 +15,7 @@
    * bleibt, und zeigen keinen Zugang: den hat diese App nicht.
    */
   import Kopfleiste from '$ui/Kopfleiste.svelte';
+  import Fusszeile from '$ui/Fusszeile.svelte';
   import Einstellungen from '$ui/Einstellungen.svelte';
   import { EINSTELLUNGEN_PFAD } from '$ui/apps';
   import { modell, type Modell } from './lib/api';
@@ -45,3 +46,5 @@
 <main>
   <Ansicht />
 </main>
+
+<Fusszeile />
