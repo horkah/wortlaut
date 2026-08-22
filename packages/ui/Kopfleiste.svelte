@@ -43,6 +43,13 @@
   let huelle = $state<HTMLElement | null>(null);
   let knopf = $state<HTMLButtonElement | null>(null);
 
+  // In den Einstellungen braucht es einen Weg zurück, und zwar hier: „schreiben"
+  // hat gar keine Reiterreihe, und „hören" blendet sie ohne gewählten Sprecher
+  // aus. Ohne diesen Eintrag käme man nur über den Zurück-Knopf des Browsers
+  // wieder heraus.
+  const inEinstellungen = $derived(route === EINSTELLUNGEN_PFAD);
+  const appName = $derived(APPS.find((eintrag) => eintrag.schluessel === app)?.name ?? '');
+
   function schliesseWennDraussen(ereignis: MouseEvent) {
     if (offen && huelle && !huelle.contains(ereignis.target as Node)) offen = false;
   }
@@ -110,10 +117,15 @@
         <nav class="klappe" aria-label="Menü">
           <a
             class="eintrag"
-            class:aktiv={route === EINSTELLUNGEN_PFAD}
+            class:aktiv={inEinstellungen}
             href="#{EINSTELLUNGEN_PFAD}"
             onclick={() => (offen = false)}>Einstellungen</a
           >
+          {#if inEinstellungen}
+            <a class="eintrag" href="#/" onclick={() => (offen = false)}>
+              Zurück zu „{appName}“
+            </a>
+          {/if}
         </nav>
       {/if}
     </div>
