@@ -68,7 +68,13 @@ und ein Schlüssel hinterlegt ist):
 ## 3. Aufnehmen
 
 1. **Zur Aufnahme.** Erwartet: eine Sprecheinheit groß in der Mitte, Zeile
-   „0 von N Einheiten“, Fortschrittsbalken bei 0 %.
+   „0 von N Einheiten“, Fortschrittsbalken bei 0 %, darunter der Schalter
+   „Zufällige Reihenfolge“ — aus, und die Einheiten kommen wie im Text.
+1a. **Zufällige Reihenfolge einschalten.** Erwartet: die gezeigte Einheit
+   wechselt, „N“ bleibt gleich (dieselbe Menge, andere Reihenfolge). Seite
+   neu laden: **dieselbe** Einheit steht wieder da — die Streuung hängt an
+   der Sitzung, nicht am Aufruf, sonst risse ein Neuladen einem den Satz weg.
+   Wieder ausschalten: die erste Einheit des Textes ist zurück.
 2. Browser fragt beim ersten Mal nach Mikrofonzugriff — **erlauben**.
    (`MediaRecorder` verlangt `localhost` oder HTTPS; unter `:5173` ist das
    erfüllt.)

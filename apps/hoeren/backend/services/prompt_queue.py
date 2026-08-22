@@ -9,6 +9,7 @@ automatisch wieder offen.
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 
 from sqlalchemy import func, select
@@ -40,16 +41,22 @@ def _aus_aktiven_quellen(sprecher_id: str):
     )
 
 
-def naechste(db: Session, sprecher_id: str) -> Ausschnitt:
+def naechste(
+    db: Session, sprecher_id: str, *, zufall: bool = False, streuung: str = ""
+) -> Ausschnitt:
+    """Die nächste offene Einheit — der Reihe nach oder gestreut.
+
+    `zufall` mischt die Einheiten aller aktiven Quellen durcheinander. Gedacht
+    ist das gegen den Gewöhnungseffekt: Wer einen Text der Reihe nach spricht,
+    liest ihn nach ein paar Sätzen mit der Melodie des Zusammenhangs statt der
+    des einzelnen Satzes — für das Training ist das die schwächere Aufnahme.
+
+    `streuung` ist der Startwert des Mischens. Er muss über die Sitzung gleich
+    bleiben: Sonst zeigte jeder Aufruf eine andere Einheit, und ein Neuladen
+    mitten im Ablesen risse einem den Satz weg.
+    """
     erledigte_vorlagen = select(Aufnahme.prompt_id).where(Aufnahme.status == "ok")
     offene = _aus_aktiven_quellen(sprecher_id)
-
-    aktuell = db.scalars(
-        select(Vorlage)
-        .where(Vorlage.id.in_(offene), Vorlage.id.not_in(erledigte_vorlagen))
-        .order_by(Vorlage.position)
-        .limit(1)
-    ).first()
 
     # Zähler und Warteschlange müssen dieselbe Menge meinen, sonst steht dort
     # „12 von 30", während nur 20 erreichbar sind.
@@ -61,16 +68,77 @@ def naechste(db: Session, sprecher_id: str) -> Ausschnitt:
             Aufnahme.prompt_id.in_(offene),
         )
     )
+    zaehler = (erledigt or 0, gesamt or 0)
+
+    if zufall:
+        return _gestreut(db, sprecher_id, streuung, zaehler)
+
+    aktuell = db.scalars(
+        select(Vorlage)
+        .where(Vorlage.id.in_(offene), Vorlage.id.not_in(erledigte_vorlagen))
+        .order_by(Vorlage.position)
+        .limit(1)
+    ).first()
 
     if aktuell is None:
-        return Ausschnitt(None, None, None, erledigt or 0, gesamt or 0)
+        return Ausschnitt(None, None, None, *zaehler)
 
     return Ausschnitt(
         vorher=_nachbar(db, sprecher_id, aktuell.position, vorwaerts=False),
         aktuell=aktuell,
         nachher=_nachbar(db, sprecher_id, aktuell.position, vorwaerts=True),
-        erledigt=erledigt or 0,
-        gesamt=gesamt or 0,
+        erledigt=zaehler[0],
+        gesamt=zaehler[1],
+    )
+
+
+def _gestreut(
+    db: Session, sprecher_id: str, streuung: str, zaehler: tuple[int, int]
+) -> Ausschnitt:
+    """Dieselbe Auswahl, nur in gemischter statt gewachsener Reihenfolge.
+
+    Gemischt wird hier und nicht in SQL: `ORDER BY random()` würfelte bei jedem
+    Aufruf neu. Mit festem Startwert ist die Reihenfolge dagegen für die ganze
+    Sitzung dieselbe — sie wird nur nach und nach abgearbeitet, genau wie die
+    gewachsene.
+    """
+    reihenfolge = list(
+        db.scalars(
+            select(Vorlage.id)
+            .join(Textquelle, Textquelle.id == Vorlage.source_id)
+            .where(Vorlage.speaker_id == sprecher_id, Textquelle.aktiv.is_(True))
+            # Erst eine feste Ordnung, dann mischen: Sonst hinge das Ergebnis
+            # daran, in welcher Reihenfolge die Datenbank die Zeilen liefert.
+            .order_by(Vorlage.position)
+        ).all()
+    )
+    random.Random(streuung).shuffle(reihenfolge)
+
+    erledigte = set(
+        db.scalars(
+            select(Aufnahme.prompt_id).where(
+                Aufnahme.speaker_id == sprecher_id, Aufnahme.status == "ok"
+            )
+        ).all()
+    )
+    stelle = next((i for i, kennung in enumerate(reihenfolge) if kennung not in erledigte), None)
+    if stelle is None:
+        return Ausschnitt(None, None, None, *zaehler)
+
+    def an(index: int) -> Vorlage | None:
+        if not 0 <= index < len(reihenfolge):
+            return None
+        return db.get(Vorlage, reihenfolge[index])
+
+    # Nachbarn sind hier die im gemischten Ablauf — was zuletzt dran war und
+    # was als Nächstes kommt. Der Nachbar im Text wäre in dieser Betriebsart
+    # eine Vorschau auf etwas, das nie folgt.
+    return Ausschnitt(
+        vorher=an(stelle - 1),
+        aktuell=an(stelle),
+        nachher=an(stelle + 1),
+        erledigt=zaehler[0],
+        gesamt=zaehler[1],
     )
 
 

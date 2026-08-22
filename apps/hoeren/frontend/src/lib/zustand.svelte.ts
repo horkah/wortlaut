@@ -6,6 +6,7 @@
  */
 
 const SPRECHER_SCHLUESSEL = 'wortlaut.sprecher';
+const ZUFALL_SCHLUESSEL = 'wortlaut.zufall';
 
 function routeAusHash(): string {
   return window.location.hash.replace(/^#/, '') || '/';
@@ -14,6 +15,9 @@ function routeAusHash(): string {
 export const zustand = $state({
   route: routeAusHash(),
   sprecher: localStorage.getItem(SPRECHER_SCHLUESSEL),
+  // Gestreut statt der Reihe nach vorsprechen. Aus, solange nichts anderes
+  // dasteht: Der Text der Reihe nach ist der erwartete Fall.
+  zufall: localStorage.getItem(ZUFALL_SCHLUESSEL) === 'true',
 });
 
 window.addEventListener('hashchange', () => {
@@ -22,6 +26,11 @@ window.addEventListener('hashchange', () => {
 
 export function gehZu(route: string): void {
   window.location.hash = route;
+}
+
+export function setzeZufall(an: boolean): void {
+  zustand.zufall = an;
+  localStorage.setItem(ZUFALL_SCHLUESSEL, String(an));
 }
 
 export function waehleSprecher(id: string | null): void {

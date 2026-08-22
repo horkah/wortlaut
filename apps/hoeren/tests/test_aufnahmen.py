@@ -85,6 +85,84 @@ class TestWarteschlange:
         assert antwort.status_code == 404
 
 
+class TestGestreuteReihenfolge:
+    """`zufall=true`: dieselbe Auswahl, gemischt statt der Reihe nach."""
+
+    def test_ohne_schalter_bleibt_es_bei_der_reihenfolge(
+        self, klient: TestClient, sprecher: str, quelle: str
+    ) -> None:
+        # Vorgabe ist aus: Wer nichts einstellt, bekommt den Text wie gehabt.
+        ausschnitt = klient.get(f"/api/prompts/next?sprecher={sprecher}").json()
+        assert ausschnitt["aktuell"]["text"].startswith("Der Hund")
+
+    def test_streut_ueber_alle_aktiven_quellen(
+        self, klient: TestClient, sprecher: str, quelle: str
+    ) -> None:
+        klient.post(
+            f"/api/sources/upload?sprecher={sprecher}",
+            files={"datei": ("zweite.txt", "Ein Satz aus der zweiten Quelle.".encode(), "text/plain")},
+        )
+        # Über alle Sitzungen hinweg darf nicht immer dieselbe Einheit oben
+        # liegen — sonst wäre der Schalter wirkungslos.
+        gesehen: set[str] = set()
+        for _ in range(12):
+            sitzung = klient.post(f"/api/sessions?sprecher={sprecher}").json()["id"]
+            gesehen.add(
+                klient.get(
+                    f"/api/prompts/next?sprecher={sprecher}&session={sitzung}&zufall=true"
+                ).json()["aktuell"]["id"]
+            )
+        assert len(gesehen) > 1
+
+    def test_bleibt_innerhalb_einer_sitzung_stehen(
+        self, klient: TestClient, sprecher: str, quelle: str
+    ) -> None:
+        # Der wichtigste Teil: Ein Neuladen darf einem den Satz nicht wegreißen.
+        sitzung = klient.post(f"/api/sessions?sprecher={sprecher}").json()["id"]
+        adresse = f"/api/prompts/next?sprecher={sprecher}&session={sitzung}&zufall=true"
+        zuerst = klient.get(adresse).json()["aktuell"]["id"]
+        for _ in range(5):
+            assert klient.get(adresse).json()["aktuell"]["id"] == zuerst
+
+    def test_rueckt_nach_einer_aufnahme_vor(
+        self, klient: TestClient, sprecher: str, quelle: str, audio_datei: dict
+    ) -> None:
+        sitzung = klient.post(f"/api/sessions?sprecher={sprecher}").json()["id"]
+        adresse = f"/api/prompts/next?sprecher={sprecher}&session={sitzung}&zufall=true"
+
+        vorher = klient.get(adresse).json()
+        nimm_auf(klient, sprecher, vorher["aktuell"]["id"], audio_datei, session=sitzung)
+
+        danach = klient.get(adresse).json()
+        assert danach["aktuell"]["id"] != vorher["aktuell"]["id"]
+        # Das eben Gesprochene steht als Davor — der gemischte Ablauf, nicht
+        # der Nachbar im Text.
+        assert danach["vorher"]["id"] == vorher["aktuell"]["id"]
+        assert danach["erledigt"] == 1
+
+    def test_zaehler_meinen_dieselbe_menge(
+        self, klient: TestClient, sprecher: str, quelle: str
+    ) -> None:
+        der_reihe_nach = klient.get(f"/api/prompts/next?sprecher={sprecher}").json()
+        gestreut = klient.get(f"/api/prompts/next?sprecher={sprecher}&zufall=true").json()
+        assert gestreut["gesamt"] == der_reihe_nach["gesamt"]
+
+    def test_abgestellte_quelle_bleibt_auch_gestreut_draussen(
+        self, klient: TestClient, sprecher: str, quelle: str
+    ) -> None:
+        klient.patch(f"/api/sources/{quelle}?sprecher={sprecher}", json={"aktiv": False})
+        ausschnitt = klient.get(f"/api/prompts/next?sprecher={sprecher}&zufall=true").json()
+        assert ausschnitt["aktuell"] is None
+
+    def test_am_ende_bleibt_nichts_offen(
+        self, klient: TestClient, sprecher: str, quelle: str, audio_datei: dict
+    ) -> None:
+        adresse = f"/api/prompts/next?sprecher={sprecher}&zufall=true"
+        while (ausschnitt := klient.get(adresse).json())["aktuell"] is not None:
+            nimm_auf(klient, sprecher, ausschnitt["aktuell"]["id"], audio_datei)
+        assert ausschnitt["erledigt"] == ausschnitt["gesamt"]
+
+
 class TestAufnehmen:
     def test_speichert_messwerte_und_datei(
         self, klient: TestClient, sprecher: str, quelle: str, audio_datei: dict, tmp_path: Path
