@@ -51,7 +51,8 @@ class Einstellungen(BaseSettings):
     data_dir: Path = Path("./data")
     storage: str = "local"
 
-    # Wessen Stimme. Steht in jeder Korrektur, die an „hören" zurückgeht.
+    # Wessen Stimme. Bestimmt die eigene Ablage und geht als Behauptung an
+    # „hören" mit, das sie gegen den Zugang aus `intake_token` hält.
     sprecher_id: str = ""
 
     # Modellstand aus der Registry, Form `<sprecher_id>/<version>`. Leer heißt:
@@ -70,6 +71,9 @@ class Einstellungen(BaseSettings):
     # Wohin die bestätigten Korrekturen gehen. Leer heißt: sie bleiben im
     # Postausgang liegen, statt verloren zu gehen.
     intake_url: str = ""
+    # Der Zugang dieses Sprechers bei „hören" (`<sprecher_id>.<geheimnis>`,
+    # dort ausgegeben). Er bestimmt, in welchen Korpus geschrieben wird —
+    # `sprecher_id` oben wird von „hören" nur noch dagegen geprüft.
     intake_token: str = ""
 
     @property

@@ -34,10 +34,15 @@ services:
       WORTLAUT_DATA_DIR: /srv/wortlaut/data
       # Der Weg von „schreiben" zurück in den Korpus führt auch hier über die
       # API und nicht am Modell vorbei (Grundentscheidung 6) — nur zeigt er
-      # jetzt auf denselben Prozess. Der Token ist derselbe, den „hören"
-      # verlangt; ohne ihn weist es die Lieferung ab.
+      # jetzt auf denselben Prozess.
+      #
+      # Der Token ist hier **nicht** der Verwaltertoken, sondern der Zugang des
+      # Sprechers, für den diese Instanz konfiguriert ist: „hören" liest daraus
+      # ab, in welchen Korpus geschrieben wird. Ausgegeben wird er dort unter
+      # „Sprecher"; er gehört als WORTLAUT_INTAKE_TOKEN in die .env des Wirts.
+      # Ohne ihn weist „hören" die Lieferung ab, und der Postausgang wartet.
       WORTLAUT_INTAKE_URL: http://127.0.0.1:8000/api/korpus/intake
-      WORTLAUT_INTAKE_TOKEN: ${WORTLAUT_AUTH_TOKEN:-}
+      WORTLAUT_INTAKE_TOKEN: ${WORTLAUT_INTAKE_TOKEN:-}
     volumes:
       - wortlaut-data:/srv/wortlaut/data
     healthcheck:

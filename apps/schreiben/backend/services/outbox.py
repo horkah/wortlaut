@@ -119,6 +119,14 @@ def liefere_ein(konfiguration: Einstellungen, *, wav: Path, text: str, externe_i
 
     Eigene Funktion, damit der Weg nach draußen an genau einer Stelle steht —
     und damit ein Test ihn ersetzen kann, ohne einen Server zu starten.
+
+    `WORTLAUT_INTAKE_TOKEN` ist der Zugang **des** Sprechers bei „hören"; er
+    bestimmt dort, in welchen Korpus geschrieben wird. `sprecher` geht trotzdem
+    mit: nicht mehr als Wahl, sondern als Behauptung, die „hören" gegen den
+    Zugang hält. Passen die beiden nicht zusammen — hier der eine Sprecher
+    konfiguriert, dort der Zugang eines anderen —, kommt ein 403 zurück und der
+    Eintrag bleibt offen, statt dass Korrekturen still im fremden Korpus
+    landen.
     """
     import httpx
 
