@@ -135,6 +135,21 @@ class TestEinsicht:
         assert all(eintrag["text"] for eintrag in seite["aufnahmen"])
         assert all(eintrag["audio_vorhanden"] for eintrag in seite["aufnahmen"])
 
+    def test_sitzungen_werden_geseitet(
+        self, aufsicht: TestClient, klient: TestClient, bespielt: str
+    ) -> None:
+        for _ in range(3):
+            antwort = klient.post(f"/api/sessions?sprecher={bespielt}")
+            assert antwort.status_code == 201
+
+        erste_seite = aufsicht.get(f"/api/admin/speakers/{bespielt}/sessions?ab=0&anzahl=2").json()
+        assert erste_seite["gesamt"] == 3
+        assert erste_seite["ab"] == 0
+        assert len(erste_seite["sitzungen"]) == 2
+
+        zweite_seite = aufsicht.get(f"/api/admin/speakers/{bespielt}/sessions?ab=2&anzahl=2").json()
+        assert len(zweite_seite["sitzungen"]) == 1
+
     def test_audio_ist_abhoerbar(self, aufsicht: TestClient, bespielt: str) -> None:
         erste = aufsicht.get(f"/api/admin/speakers/{bespielt}/recordings").json()["aufnahmen"][0]
         antwort = aufsicht.get(
