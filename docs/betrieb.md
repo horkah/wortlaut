@@ -46,8 +46,9 @@ die Vorgabe und läuft auch auf schwacher Hardware.
 
 Damit die Korrekturen ankommen, muss in der `.env` `WORTLAUT_INTAKE_URL` auf
 die laufende „hören"-Instanz zeigen (in der Entwicklung
-`http://localhost:8000/api/korpus/intake`) und `WORTLAUT_INTAKE_TOKEN` deren
-`WORTLAUT_AUTH_TOKEN` enthalten. Fehlt beides, sammelt der Postausgang die
+`http://localhost:8000/api/korpus/intake`) und `WORTLAUT_INTAKE_TOKEN` den
+**Zugang des Sprechers** enthalten, den „hören" unter „Sprecher" ausgibt —
+nicht den `WORTLAUT_AUTH_TOKEN`. Fehlt beides, sammelt der Postausgang die
 Korrekturen, statt sie zu verwerfen.
 
 `make migrate` wird nur gebraucht, wenn nach einem Update Migrationen für
@@ -105,9 +106,10 @@ werden beim `docker build` einmal gebaut und vom Prozess mit ausgeliefert.
 
 ### Bevor die Korrekturen ankommen: der Sprecher
 
-„schreiben" gehört zu genau einer Person, und ihre Kennung vergibt „hören"
-beim Anlegen des Sprechers. Beim ersten Aufbau also erst den Sprecher anlegen,
-dann seine Kennung in die `.env` schreiben und den Container neu starten:
+„schreiben" gehört zu genau einer Person. Ihre Kennung vergibt „hören" beim
+Anlegen des Sprechers, und ihren Zugang gibt „hören" gesondert aus. Beim ersten
+Aufbau also erst den Sprecher anlegen, dann beides in die `.env` schreiben und
+den Container neu starten:
 
 ```bash
 curl -X POST https://wortlaut.example.org/api/speakers \
@@ -115,11 +117,20 @@ curl -X POST https://wortlaut.example.org/api/speakers \
   -H 'Content-Type: application/json' \
   -d '{"name":"Vorname","sprache":"de","basismodell":"tiny"}'
 # → {"id":"spr_…"}  in die .env als WORTLAUT_SPRECHER_ID
+
+curl -X POST https://wortlaut.example.org/api/speakers/spr_…/zugang \
+  -H "Authorization: Bearer $WORTLAUT_AUTH_TOKEN"
+# → {"zugang":"spr_….…"}  in die .env als WORTLAUT_INTAKE_TOKEN
 docker compose up -d
 ```
 
-Fehlt die Kennung, sammelt der Postausgang die Korrekturen, statt sie zu
-verwerfen — nachzuholen mit „Noch einmal senden" in der Oberfläche.
+Der Zugang ist nur in dieser Antwort im Klartext zu sehen; gespeichert ist nur
+sein Prüfwert. Wer ihn verliert, gibt einen neuen aus — der alte gilt dann
+nicht mehr, und die `.env` von „schreiben" braucht den neuen.
+
+Fehlt eines von beiden oder passen sie nicht zusammen, sammelt der Postausgang
+die Korrekturen, statt sie zu verwerfen — nachzuholen mit „Noch einmal senden"
+in der Oberfläche.
 
 ### Getrennte Container
 
@@ -154,9 +165,11 @@ Wer eine App verschiebt, ändert drei Stellen zusammen: `BASIS` im Backend, das
    WORTLAUT_AUTH_TOKEN=<lange Zufallszeichenkette>
    ```
 
-   Den Token mit `openssl rand -base64 32` erzeugen. **Ohne ihn steht die App
-   offen im Netz** — jeder mit der Adresse kann Sprecher anlegen, Aufnahmen
-   lesen und die LLM-Textquelle auf deine Rechnung benutzen.
+   Den Token mit `openssl rand -base64 32` erzeugen. **Ohne ihn steht die
+   Verwaltung offen im Netz** — jeder mit der Adresse kann Sprecher anlegen,
+   deren Zugänge ausgeben und die LLM-Textquelle auf deine Rechnung benutzen.
+   An die Aufnahmen kommt er damit nicht: Dorthin führt allein der Zugang des
+   jeweiligen Sprechers.
 
 3. **Den Reverse Proxy** auf `127.0.0.1:8000` zeigen lassen — eine Regel für
    die ganze Domain, die Verteilung macht die App selbst. Mit Caddy:
@@ -214,7 +227,7 @@ Wer eine App verschiebt, ändert drei Stellen zusammen: `BASIS` im Backend, das
    „hören" statt der von „schreiben", zeigt der Proxy nicht auf diesen Port
    oder schneidet den Pfad ab.
 
-`/gesundheit` verlangt bewusst keinen Token und eignet sich als Prüfpunkt für
+`/gesundheit` verlangt bewusst keinen Zugang und eignet sich als Prüfpunkt für
 eine Überwachung.
 
 **HTTPS ist nicht optional.** Der Aufnahmeknopf benutzt `MediaRecorder`, und
@@ -226,23 +239,41 @@ IP-Adresse oder blankes HTTP bleibt die App unbenutzbar.
 App „hören":
 
 ```
+Verwaltung — `Authorization: Bearer $WORTLAUT_AUTH_TOKEN`:
+
+```
 POST   /api/speakers                              { name, sprache, basismodell }
 GET    /api/speakers
 GET    /api/speakers/{id}
-POST   /api/sources/llm?sprecher=…                { thema, altersspanne, umfang }
-POST   /api/sources/upload?sprecher=…             multipart: datei
-GET    /api/sources?sprecher=…
-GET    /api/sources/{id}/text?sprecher=…          Klartext, eine Einheit je Absatz
-PATCH  /api/sources/{id}?sprecher=…               { aktiv }  — abstellen/aufnehmen
-DELETE /api/sources/{id}?sprecher=…               409, wenn Aufnahmen daran hängen
-POST   /api/sessions?sprecher=…
-GET    /api/prompts/next?sprecher=…&session=…
-POST   /api/recordings?sprecher=…                 multipart: audio, prompt_id, modus, session
-GET    /api/recordings/{id}/audio?sprecher=…
-DELETE /api/recordings/{id}?sprecher=…
-GET    /api/progress?sprecher=…
-POST   /api/korpus/intake?sprecher=…              multipart: audio, text, externe_id
-GET    /gesundheit                                ohne Token
+POST   /api/speakers/{id}/zugang                  neuen Zugang ausgeben
+DELETE /api/speakers/{id}/zugang                  Zugang zurückziehen
+```
+
+Daten — `Authorization: Bearer <sprecher_id>.<geheimnis>`; der Sprecher steht
+im Zugang und in keinem Parameter:
+
+```
+POST   /api/sources/llm                           { thema, altersspanne, umfang }
+POST   /api/sources/upload                        multipart: datei
+GET    /api/sources
+GET    /api/sources/{id}/text                     Klartext, eine Einheit je Absatz
+PATCH  /api/sources/{id}                          { aktiv }  — abstellen/aufnehmen
+DELETE /api/sources/{id}                          409, wenn Aufnahmen daran hängen
+POST   /api/sessions
+GET    /api/prompts/next?session=…
+POST   /api/recordings                            multipart: audio, prompt_id, modus, session
+GET    /api/recordings/{id}/audio
+DELETE /api/recordings/{id}
+GET    /api/progress
+POST   /api/korpus/intake                         multipart: audio, text, externe_id
+```
+
+Mit beiden erreichbar, weil er die Frage beantwortet, welches von beiden man
+vorgelegt hat:
+
+```
+GET    /api/zugang                                { art, sprecher_id, name }
+GET    /gesundheit                                ohne alles
 ```
 
 App „schreiben" (kein Token, kein Sprecherparameter — beides steht in der
@@ -269,20 +300,50 @@ Im gemeinsamen Container (`apps/gesamt.py`) gibt es nur eine Wurzel, also auch
 nur ein `/gesundheit` — das von „hören". Für eine Überwachung genügt es: Der
 Prozess ist derselbe.
 
-**Warum überall `sprecher=…`:** Das Korpus hat je Sprecher eine eigene
-Datenbank (`data/korpus/<sprecher_id>/hoeren.sqlite`). Ohne die Sprecher-ID
-wüsste der Server nicht, welche Datei er öffnen soll. Der Parameter steht immer
-in der Abfragezeichenkette — auch bei POST mit Rumpf, damit eine einzige
-Abhängigkeit ihn auswerten kann.
+**Warum kein `sprecher=…` mehr:** Das Korpus hat je Sprecher eine eigene
+Datenbank (`data/korpus/<sprecher_id>/hoeren.sqlite`), und der Server muss
+wissen, welche Datei er öffnen soll. Früher stand die Kennung als Parameter da
+— eine Behauptung, die jeder mit dem Token beliebig setzen konnte, versehentlich
+auch aus einem alten Reiter. Jetzt trägt der Zugang die Kennung, und der Server
+leitet sie daraus ab.
+
+Der Parameter wird trotzdem noch angenommen, aber nur als Behauptung, die
+stimmen muss: Weicht sie ab, antwortet der Server mit 403 und nennt beide
+Kennungen. Genau davon lebt die Absicherung von „schreiben" — es schickt seinen
+`WORTLAUT_SPRECHER_ID` weiter mit und erfährt so, wenn er nicht zum Zugang
+in `WORTLAUT_INTAKE_TOKEN` passt.
 
 Die interaktive API-Dokumentation liegt unter `/docs`.
 
 ## Authentifizierung
 
-`WORTLAUT_AUTH_TOKEN` gesetzt → alle `/api`-Endpunkte von „hören" verlangen
-`Authorization: Bearer <token>`. Leer → offen, nur für die lokale Entwicklung
-gedacht. Das Frontend fragt den Token einmal ab und legt ihn im
-`localStorage` ab.
+Zwei Arten von Zugang, beide als `Authorization: Bearer …`:
+
+**Der Verwaltertoken** ist `WORTLAUT_AUTH_TOKEN`. Er legt Sprecherprofile an
+und gibt deren Zugänge aus. Leer → die Verwaltung steht offen, nur für die
+lokale Entwicklung gedacht. An die Aufnahmen kommt er nicht.
+
+**Der Sprecherzugang** hat die Form `<sprecher_id>.<geheimnis>` und ist
+zugleich die Kennung: „hören" spaltet ihn am Punkt, öffnet die Datenbank dieses
+Sprechers und prüft dort den Prüfwert des Geheimnisses. Er ist der einzige Weg
+zu den Daten — auch für die Verwaltung.
+
+Ausgegeben wird ein Zugang in der Oberfläche unter „Sprecher"; dabei entsteht
+ein Link der Form `https://…/#/zugang/<zugang>`. Den öffnet die Person einmal
+auf ihrem Gerät und legt ihn als Lesezeichen ab; danach ist nichts mehr zu
+merken und nichts zu tippen (Grundentscheidung 7). Das Geheimnis steht im
+Fragment und geht deshalb nie an den Server, landet also in keinem
+Zugriffsprotokoll.
+
+Im Klartext gibt es einen Zugang nur genau einmal, beim Ausgeben; gespeichert
+ist nur sein Prüfwert (`speakers.zugang_hash`). Ein verlorener Zugang wird
+deshalb nicht wiederhergestellt, sondern ersetzt — und damit ist er
+zurückgezogen. „Zurückziehen" ohne Ersatz gibt es auch; dann kommt niemand mehr
+an diesen Korpus, bis ein neuer Zugang ausgegeben wird.
+
+In der Kopfzeile steht dauerhaft, für wen der Browser gerade eingestellt ist —
+und zwar der Name, den der Server zum vorgelegten Zugang nennt, nicht der, den
+sich der Browser gemerkt hat.
 
 „schreiben" hat bewusst keinen Zugang (Grundentscheidung 7): Die Zielperson
 kann schlecht lesen und schreiben, ein Anmeldefeld wäre eine unüberwindbare
@@ -290,7 +351,7 @@ Hürde. Eine solche Instanz gehört deshalb ins private Netz oder hinter einen
 Zugang, den jemand anderes einrichtet — etwa eine
 Basisauthentifizierung im `/schreiben/`-Block des Proxys oder eine
 Beschränkung auf das eigene Netz. In
-umgekehrter Richtung braucht „schreiben" den Token von „hören"
+umgekehrter Richtung braucht „schreiben" den Sprecherzugang von „hören"
 (`WORTLAUT_INTAKE_TOKEN`), um seine Korrekturen abliefern zu dürfen.
 
 ## Wenn etwas klemmt
@@ -310,7 +371,7 @@ umgekehrter Richtung braucht „schreiben" den Token von „hören"
 | „schreiben": erstes Diktat hängt lange | faster-whisper lädt beim ersten Aufruf sein Modell herunter. Danach kommt es aus dem Cache. Ohne Netz schlägt es fehl — dann `WORTLAUT_ASR_MODELL` auf ein bereits geladenes Modell setzen. |
 | „schreiben": `ModuleNotFoundError: faster_whisper` | `uv sync --extra asr` vergessen (oder `WORTLAUT_ASR=remote` setzen) |
 | „schreiben": „Aus der Aufnahme wurde kein Wort verstanden" | Whisper hat nichts erkannt. Mit `tiny` ist das bei leiser Aufnahme oder starker Sprechstörung der Normalfall — erst Mikrofon einmessen (Menüknopf oben rechts → Einstellungen; die Werte gelten für beide Apps), dann ein größeres Modell versuchen. |
-| „schreiben": Postausgang bleibt offen | `WORTLAUT_INTAKE_URL` fehlt oder zeigt ins Leere, oder der Token passt nicht zum `WORTLAUT_AUTH_TOKEN` von „hören". Nichts geht verloren: „Noch einmal senden" nach dem Richten genügt. |
+| „schreiben": Postausgang bleibt offen | `WORTLAUT_INTAKE_URL` fehlt oder zeigt ins Leere; oder `WORTLAUT_INTAKE_TOKEN` ist kein gültiger Sprecherzugang (401); oder er gehört zu einem anderen Sprecher als `WORTLAUT_SPRECHER_ID` (403, mit beiden Kennungen im Grund). Nichts geht verloren: „Noch einmal senden" nach dem Richten genügt. |
 | `localhost:5174` zeigt eine leere Seite | Der Pfad fehlt: `http://localhost:5174/schreiben/` aufrufen. |
 | Der Reiter „schreiben" landet wieder in „hören" | Im Betrieb: Der Proxy schneidet `/schreiben/` ab oder zeigt auf den falschen Port. Probe: `curl -I https://<domain>/schreiben/`. In der Entwicklung: „schreiben" läuft nicht mit — `make dev APP=schreiben`. |
 | `Address already in use` beim `make dev` | Der Port ist noch belegt, meist von einem älteren Lauf. Nachsehen mit `ss -tlnp \| grep -E "8000\|8001"`, dann die PID beenden. |

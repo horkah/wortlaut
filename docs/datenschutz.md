@@ -60,10 +60,21 @@ wissen kann — sie gehören in die Löschroutine des Betriebs.
 
 ## Zugang
 
-`hören` und `lernen` stehen hinter einem Token (`WORTLAUT_AUTH_TOKEN`);
+In `hören` hat jeder Sprecher seinen eigenen Zugang, und dieser Zugang ist
+zugleich seine Kennung: Der Server liest aus ihm ab, welches Korpusverzeichnis
+er öffnet, statt sich die Kennung sagen zu lassen. Nutzen mehrere Personen
+dieselbe Instanz, kommt damit keine an die Stimmaufnahmen einer anderen — auch
+nicht aus Versehen, denn eine Anfrage, die eine fremde Kennung behauptet, wird
+mit 403 abgewiesen statt still ausgeführt. Ein verlorener Zugang wird
+zurückgezogen, indem ein neuer ausgegeben wird; Einzelheiten in
+[`betrieb.md`](betrieb.md#authentifizierung).
+
+`WORTLAUT_AUTH_TOKEN` schützt daneben nur noch die Verwaltung — Profile
+anlegen, Zugänge ausgeben — und öffnet selbst kein Korpus.
+
 `schreiben` hat bewusst kein Nutzerkonto, weil die Zielperson schlecht lesen
 und schreiben kann. Eine `schreiben`-Instanz gehört deshalb ins private Netz
-oder hinter einen Zugang, den jemand anderes einrichtet — Wege dazu stehen in
-[`betrieb.md`](betrieb.md#authentifizierung). Umgekehrt braucht sie den Token
-von `hören`, um Korrekturen abliefern zu dürfen: Der Rückweg steht offen, der
-Hinweg nicht.
+oder hinter einen Zugang, den jemand anderes einrichtet. Umgekehrt braucht sie
+den Sprecherzugang von `hören`, um Korrekturen abliefern zu dürfen: Der Rückweg
+steht offen, der Hinweg nicht — und er führt in genau den Korpus, zu dem dieser
+Zugang gehört.
