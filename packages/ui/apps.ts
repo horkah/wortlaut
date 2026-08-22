@@ -51,6 +51,15 @@ export const APPS: AppEintrag[] = [
 export interface Menuepunkt {
   pfad: string;
   text: string;
+  /**
+   * Nur setzen, wenn dieser Punkt aus dieser App heraus in eine andere führt:
+   * eine volle Adresse statt der Hash-Route dieser App (siehe
+   * `MEINE_DATEN_PFAD`). `Kopfleiste.svelte` verlinkt dann dorthin statt auf
+   * `#${pfad}` — eine ganze Seite lädt neu, statt nur den Hash zu ändern.
+   * `pfad` bleibt trotzdem gesetzt: Er ist der Schlüssel für `{#each}` und
+   * markiert (zu Recht) nie den aktiven Reiter dieser App.
+   */
+  href?: string;
 }
 
 /**
@@ -93,6 +102,16 @@ export const DARSTELLUNG_PFAD = '/darstellung';
  * deshalb selbst ins Menü, wie jeden anderen app-eigenen Punkt auch.
  */
 export const ZUGANGSDATEN_PFAD = '/zugangsdaten';
+
+/**
+ * Wo ein Sprecher seine eigenen Daten ansieht — Profil, Sitzungen, Aufnahmen.
+ *
+ * Anders als `ZUGANGSDATEN_PFAD` gehört diese Ansicht nur „hören": Dort liegt
+ * der Korpus, den sie zeigt. `schreiben` kennt den Pfad trotzdem — es stellt
+ * den Menüpunkt mit einem `href` (siehe `Menuepunkt`), das auf die laufende
+ * „hören"-Seite verweist, statt eine eigene, leere Ansicht dafür zu bauen.
+ */
+export const MEINE_DATEN_PFAD = '/meine-daten';
 
 /**
  * Die Menüpunkte, die zum Gerät gehören — in jeder App dieselben.

@@ -18,7 +18,6 @@ höchstens eine Person kosten, nie den ganzen Bestand.
 
 from __future__ import annotations
 
-import json
 import shutil
 import tempfile
 from collections.abc import Callable
@@ -28,21 +27,24 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
-from wortlaut import corpus, sicherung, storage
+from wortlaut import corpus, sicherung
 
 from ..config import einstellungen
-from ..db.models import Aufnahme, Sitzung, Sprecher, Textquelle, Vorlage
+from ..db.models import Aufnahme, Sprecher
 from ..deps import Ablage, Aufsicht, engine_fuer, vergiss_engine
-from ..services import export, loeschung
+from ..services import export, loeschung, uebersicht
+from ..services.uebersicht import (
+    SEITE,
+    AufnahmenAntwort,
+    QuelleAntwort,
+    SitzungenAntwort,
+    UebersichtAntwort,
+)
 
 router = APIRouter(prefix="/api/admin", tags=["Aufsicht"], dependencies=[Aufsicht])
-
-# Ein Auszug ohne Grenze wäre bei zehntausend Aufnahmen eine Antwort, die
-# niemand liest und kein Browser gern darstellt.
-SEITE = 200
 
 Bestaetigung = Annotated[
     str,
@@ -56,79 +58,16 @@ Bestaetigung = Annotated[
 
 
 # ── Ansehen ─────────────────────────────────────────────────────────────────
-
-
-class Kennzahlen(BaseModel):
-    aufnahmen: int
-    verworfen: int
-    sekunden: float
-    quellen: int
-    einheiten: int
-    sitzungen: int
-    bytes_audio: int
-
-
-class UebersichtAntwort(BaseModel):
-    """Ein Sprecher in der Liste der Aufsicht — Profil plus Umfang."""
-
-    id: str
-    name: str
-    sprache: str
-    basismodell: str
-    erstellt: str
-    zugang_erneuert: str | None
-    kennzahlen: Kennzahlen
-
-
-class QuelleAntwort(BaseModel):
-    id: str
-    art: str
-    titel: str
-    parameter: dict
-    aktiv: bool
-    einheiten: int
-    erstellt: str
-
-
-class SitzungAntwort(BaseModel):
-    id: str
-    begonnen: str
-    zuletzt_aktiv: str
-    aufnahmen: int
-
-
-class SitzungenAntwort(BaseModel):
-    gesamt: int
-    ab: int
-    sitzungen: list[SitzungAntwort]
-
-
-class AufnahmeAntwort(BaseModel):
-    """Eine Aufnahme mit dem Text, zu dem sie gehört — sonst wäre sie stumm."""
-
-    id: str
-    prompt_id: str
-    text: str
-    quelle_art: str
-    dauer_s: float
-    pegel_dbfs: float
-    modus: str
-    status: str
-    hinweise: list[str]
-    externe_id: str | None
-    audio_vorhanden: bool
-    erstellt: str
+#
+# Die Modelle und das Auslesen selbst — Profil, Kennzahlen, Textquellen,
+# Sitzungen, Aufnahmen — stehen in `services/uebersicht.py`: „hören" zeigt
+# dieselben Daten noch an einer zweiten Stelle, dem Sprecher selbst
+# (`api/konto.py`), und beide sollen dieselbe Zählung benutzen.
 
 
 class EinsichtAntwort(BaseModel):
     sprecher: UebersichtAntwort
     quellen: list[QuelleAntwort]
-
-
-class AufnahmenAntwort(BaseModel):
-    gesamt: int
-    ab: int
-    aufnahmen: list[AufnahmeAntwort]
 
 
 class Umbenennung(BaseModel):
@@ -144,14 +83,14 @@ class Umbenennung(BaseModel):
 
 
 @router.get("/speakers", response_model=list[UebersichtAntwort])
-def uebersicht(ablage: Ablage) -> list[UebersichtAntwort]:
+def uebersicht_aller(ablage: Ablage) -> list[UebersichtAntwort]:
     """Alle Sprecher mit dem Umfang ihrer Daten — die Startseite der Aufsicht."""
     antworten = []
     for sprecher_id in corpus.sprecher_ids(einstellungen().data_dir):
         with Session(engine_fuer(sprecher_id)) as sitzung:
             sprecher = sitzung.get(Sprecher, sprecher_id)
             if sprecher is not None:
-                antworten.append(_uebersicht(sitzung, sprecher, ablage))
+                antworten.append(uebersicht.profil(sitzung, sprecher, ablage))
     return antworten
 
 
@@ -166,8 +105,8 @@ def einsicht(sprecher_id: str, ablage: Ablage) -> EinsichtAntwort:
     with Session(engine_fuer(sprecher_id)) as sitzung:
         sprecher = _hole(sitzung, sprecher_id)
         return EinsichtAntwort(
-            sprecher=_uebersicht(sitzung, sprecher, ablage),
-            quellen=_quellen(sitzung),
+            sprecher=uebersicht.profil(sitzung, sprecher, ablage),
+            quellen=uebersicht.quellen(sitzung),
         )
 
 
@@ -176,7 +115,7 @@ def sitzungen(sprecher_id: str, ab: int = 0, anzahl: int = SEITE) -> SitzungenAn
     """Die Sitzungen eines Sprechers, jüngste zuerst, seitenweise."""
     with Session(engine_fuer(sprecher_id)) as sitzung:
         _hole(sitzung, sprecher_id)
-        return _sitzungen(sitzung, ab, anzahl)
+        return uebersicht.sitzungen_seite(sitzung, ab, anzahl)
 
 
 @router.get("/speakers/{sprecher_id}/recordings", response_model=AufnahmenAntwort)
@@ -186,37 +125,7 @@ def aufnahmen(
     """Die Aufnahmen eines Sprechers, neueste zuerst, seitenweise."""
     with Session(engine_fuer(sprecher_id)) as sitzung:
         _hole(sitzung, sprecher_id)
-        gesamt = sitzung.scalar(select(func.count()).select_from(Aufnahme)) or 0
-        treffer = sitzung.execute(
-            select(Aufnahme, Vorlage, Textquelle)
-            .join(Vorlage, Vorlage.id == Aufnahme.prompt_id)
-            .join(Textquelle, Textquelle.id == Vorlage.source_id)
-            .order_by(Aufnahme.erstellt.desc())
-            .offset(max(ab, 0))
-            .limit(min(max(anzahl, 1), SEITE))
-        ).all()
-
-        return AufnahmenAntwort(
-            gesamt=gesamt,
-            ab=max(ab, 0),
-            aufnahmen=[
-                AufnahmeAntwort(
-                    id=aufnahme.id,
-                    prompt_id=aufnahme.prompt_id,
-                    text=vorlage.text,
-                    quelle_art=quelle.art,
-                    dauer_s=aufnahme.dauer_s,
-                    pegel_dbfs=aufnahme.pegel_dbfs,
-                    modus=aufnahme.modus,
-                    status=aufnahme.status,
-                    hinweise=json.loads(aufnahme.hinweise),
-                    externe_id=aufnahme.externe_id,
-                    audio_vorhanden=ablage.pfad(aufnahme.blob).is_file(),
-                    erstellt=aufnahme.erstellt,
-                )
-                for aufnahme, vorlage, quelle in treffer
-            ],
-        )
+        return uebersicht.aufnahmen_seite(sitzung, ablage, ab, anzahl)
 
 
 @router.get("/speakers/{sprecher_id}/recordings/{aufnahme_id}/audio")
@@ -246,7 +155,7 @@ def benenne_um(sprecher_id: str, aenderung: Umbenennung, ablage: Ablage) -> Uebe
         sprecher = _hole(sitzung, sprecher_id)
         sprecher.name = aenderung.name
         sitzung.commit()
-        return _uebersicht(sitzung, sprecher, ablage)
+        return uebersicht.profil(sitzung, sprecher, ablage)
 
 
 # ── Sichern und ausleiten ───────────────────────────────────────────────────
@@ -426,99 +335,6 @@ def _pruefe_bestaetigung(sprecher_id: str, bestaetigung: str) -> None:
 
 def _kurz(sprecher: Sprecher) -> dict[str, str]:
     return {"id": sprecher.id, "name": sprecher.name}
-
-
-def _uebersicht(
-    sitzung: Session, sprecher: Sprecher, ablage: storage.Ablage
-) -> UebersichtAntwort:
-    gueltig = Aufnahme.status == "ok"
-    bloecke = sitzung.scalars(select(Aufnahme.blob).where(gueltig)).all()
-    dauer = select(func.coalesce(func.sum(Aufnahme.dauer_s), 0.0)).where(gueltig)
-    return UebersichtAntwort(
-        id=sprecher.id,
-        name=sprecher.name,
-        sprache=sprecher.sprache,
-        basismodell=sprecher.basismodell,
-        erstellt=sprecher.erstellt,
-        zugang_erneuert=sprecher.zugang_erneuert,
-        kennzahlen=Kennzahlen(
-            aufnahmen=_zaehle(sitzung, Aufnahme, gueltig),
-            verworfen=_zaehle(sitzung, Aufnahme, Aufnahme.status == "verworfen"),
-            sekunden=float(sitzung.scalar(dauer) or 0.0),
-            quellen=_zaehle(sitzung, Textquelle),
-            einheiten=_zaehle(sitzung, Vorlage),
-            sitzungen=_zaehle(sitzung, Sitzung),
-            bytes_audio=_bytes(ablage, bloecke),
-        ),
-    )
-
-
-def _zaehle(sitzung: Session, tabelle: type, *bedingungen) -> int:
-    return sitzung.scalar(select(func.count()).select_from(tabelle).where(*bedingungen)) or 0
-
-
-def _bytes(ablage: storage.Ablage, bloecke: list[str]) -> int:
-    """Wie viel Platz die Aufnahmen brauchen — die Zahl, die eine Sicherung plant."""
-    gesamt = 0
-    for relpfad in bloecke:
-        pfad = ablage.pfad(relpfad)
-        if pfad.is_file():
-            gesamt += pfad.stat().st_size
-    return gesamt
-
-
-def _quellen(sitzung: Session) -> list[QuelleAntwort]:
-    anzahl = (
-        select(Vorlage.source_id, func.count().label("einheiten"))
-        .group_by(Vorlage.source_id)
-        .subquery()
-    )
-    zeilen = sitzung.execute(
-        select(Textquelle, func.coalesce(anzahl.c.einheiten, 0))
-        .outerjoin(anzahl, anzahl.c.source_id == Textquelle.id)
-        .order_by(Textquelle.erstellt)
-    ).all()
-    return [
-        QuelleAntwort(
-            id=quelle.id,
-            art=quelle.art,
-            titel=quelle.titel,
-            parameter=json.loads(quelle.parameter),
-            aktiv=quelle.aktiv,
-            einheiten=einheiten,
-            erstellt=quelle.erstellt,
-        )
-        for quelle, einheiten in zeilen
-    ]
-
-
-def _sitzungen(sitzung: Session, ab: int = 0, anzahl: int = SEITE) -> SitzungenAntwort:
-    gesamt = sitzung.scalar(select(func.count()).select_from(Sitzung)) or 0
-    aufnahmen_pro_sitzung = (
-        select(Aufnahme.session_id, func.count().label("aufnahmen"))
-        .group_by(Aufnahme.session_id)
-        .subquery()
-    )
-    zeilen = sitzung.execute(
-        select(Sitzung, func.coalesce(aufnahmen_pro_sitzung.c.aufnahmen, 0))
-        .outerjoin(aufnahmen_pro_sitzung, aufnahmen_pro_sitzung.c.session_id == Sitzung.id)
-        .order_by(Sitzung.begonnen.desc())
-        .offset(max(ab, 0))
-        .limit(min(max(anzahl, 1), SEITE))
-    ).all()
-    return SitzungenAntwort(
-        gesamt=gesamt,
-        ab=max(ab, 0),
-        sitzungen=[
-            SitzungAntwort(
-                id=eintrag.id,
-                begonnen=eintrag.begonnen,
-                zuletzt_aktiv=eintrag.zuletzt_aktiv,
-                aufnahmen=aufnahmen_je,
-            )
-            for eintrag, aufnahmen_je in zeilen
-        ],
-    )
 
 
 def _archiv(dateiname: str, baue: Callable[[Path], Path], medientyp: str) -> FileResponse:

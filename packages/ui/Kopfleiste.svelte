@@ -27,7 +27,9 @@
     /**
      * Ansichten, die nicht in die Reiterreihe gehören, sondern ins Menü — über
      * die gerätebezogenen Punkte, denn erst kommt wer, dann womit. „hören"
-     * reicht hier Sprecher und Zugangsdaten herein, „schreiben" nichts.
+     * reicht hier Sprecher, Zugangsdaten und „Meine Daten" herein, „schreiben"
+     * nur die Zugangsdaten und einen `href`-Verweis auf „Meine Daten" bei
+     * „hören" (siehe `Menuepunkt`).
      *
      * Sie kommen als Daten und nicht als Schalter: Die Kopfleiste soll in
      * jeder App dieselbe sein und nicht wissen müssen, welche App welche
@@ -150,7 +152,7 @@
               <a
                 class="eintrag"
                 class:aktiv={punkt.pfad === route}
-                href="#{punkt.pfad}"
+                href={punkt.href ?? `#${punkt.pfad}`}
                 onclick={() => (offen = false)}>{punkt.text}</a
               >
             {/each}

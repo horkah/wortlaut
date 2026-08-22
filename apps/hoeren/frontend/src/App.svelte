@@ -4,10 +4,17 @@
    * `$ui/Rahmen.svelte` und ist in jeder App derselbe.
    */
   import Rahmen from '$ui/Rahmen.svelte';
-  import { GERAETE_PUNKTE, SPRECHER_PFAD, ZUGANGSDATEN_PFAD, type Menuepunkt } from '$ui/apps';
+  import {
+    GERAETE_PUNKTE,
+    MEINE_DATEN_PFAD,
+    SPRECHER_PFAD,
+    ZUGANGSDATEN_PFAD,
+    type Menuepunkt,
+  } from '$ui/apps';
   import { EINSICHT_ROUTE, ladeZugang, zustand } from './lib/zustand.svelte';
   import Verwaltung from './routes/Verwaltung.svelte';
   import Einsicht from './routes/Einsicht.svelte';
+  import MeineDaten from './routes/MeineDaten.svelte';
   import Quelle from './routes/Quelle.svelte';
   import Aufnahme from './routes/Aufnahme.svelte';
   import Fortschritt from './routes/Fortschritt.svelte';
@@ -43,13 +50,18 @@
         // zurück derselbe Weg.
         beaufsichtigt && zustand.route.startsWith(EINSICHT_ROUTE)
         ? Einsicht
-        : !spricht
-          ? Verwaltung
-          : ({
-              '/quelle': Quelle,
-              '/aufnahme': Aufnahme,
-              '/fortschritt': Fortschritt,
-            }[zustand.route] ?? Quelle),
+        : // Dasselbe für den Sprecher selbst — dieselbe Ansicht wie die
+          // Einsicht der Aufsicht, nur auf die eigenen Daten (siehe
+          // `MeineDaten.svelte`).
+          zustand.route === MEINE_DATEN_PFAD
+          ? MeineDaten
+          : !spricht
+            ? Verwaltung
+            : ({
+                '/quelle': Quelle,
+                '/aufnahme': Aufnahme,
+                '/fortschritt': Fortschritt,
+              }[zustand.route] ?? Quelle),
   );
 
   // Nur wer aufnimmt, hat Ansichten zu wechseln; die Verwaltung hat eine
@@ -67,7 +79,9 @@
   // hinein, und ein Menü, das ihn erst nach erfolgreicher Anmeldung zeigt,
   // hätte die Tür hinter dem Schloss.
   const uebergreifend = $derived([
-    ...(spricht ? [] : [{ pfad: SPRECHER_PFAD, text: 'Sprecher' }]),
+    ...(spricht
+      ? [{ pfad: MEINE_DATEN_PFAD, text: 'Meine Daten' }]
+      : [{ pfad: SPRECHER_PFAD, text: 'Sprecher' }]),
     { pfad: ZUGANGSDATEN_PFAD, text: 'Zugangsdaten' },
   ]);
 

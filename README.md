@@ -267,8 +267,10 @@ Marke, App-Reiter, Sprecherzeile und Menüknopf gibt es genau einmal, und keine
 App baut sie sich selbst zusammen: `packages/ui/Rahmen.svelte` klammert
 Kopfzeile, Inhalt und Fußzeile und beantwortet die gerätebezogenen Menüpunkte
 gleich mit. Eine App liefert nur ihre eigenen Ansichten und, was sie darüber
-hinaus ins Menü stellt — `hören` den Sprecher und die Zugangsdaten,
-`schreiben` nichts. Was im Menü steht, ist damit eine Liste (`GERAETE_PUNKTE`
+hinaus ins Menü stellt — `hören` den Sprecher (oder, sobald einer spricht,
+**Meine Daten** statt seiner) und die Zugangsdaten, `schreiben` **Meine
+Daten** als Verweis auf dieselbe Seite bei `hören` und die Zugangsdaten. Was
+im Menü steht, ist damit eine Liste (`GERAETE_PUNKTE`
 in `apps.ts` und der Durchreichung der App) und keine Folge fester Zeilen mit
 Schaltern davor; ein neuer gerätebezogener Punkt ist ein Eintrag und eine
 Zeile im Rahmen, statt einer Änderung in jeder App.
@@ -545,6 +547,23 @@ Was zu einer Person gehört, steht an einer Stelle
 fragt. Sonst löschten Oberfläche und Kommandozeile Verschiedenes, und der
 Unterschied fiele niemandem auf.
 
+#### Meine Daten — dieselbe Ansicht, für sich selbst
+
+Unter **Meine Daten** sieht ein Sprecher dieselben Profildaten, Textquellen,
+Sitzungen und Aufnahmen, die die Aufsicht für ihn sähe (`api/konto.py`,
+`MeineDaten.svelte`) — ohne eine Kennung in der Adresse: Sie kommt wie bei
+jedem anderen Weg dieser App aus dem vorgelegten Zugang, ein Sprecher kann
+also von vornherein nur seine eigene Datenbank öffnen.
+
+Die drei Löschstufen von oben bleiben der Aufsicht vorbehalten. Was bleibt,
+ist die vertraute Grenze aus `api/recordings.py`: eine einzelne Aufnahme
+verwerfen, dieselbe Handlung, die während des Aufnehmens schon zur Verfügung
+steht. Kein Massenlöschen, kein vollständiges Löschen des eigenen Profils —
+ein Versehen soll höchstens eine Aufnahme kosten.
+
+`schreiben` verlinkt auf dieselbe Seite, statt eine eigene Ansicht zu bauen:
+Die Daten liegen im Korpus, den nur `hören` schreibt (Grundentscheidung 6).
+
 ### Endpunkte
 
 Verwaltung — hinter `WORTLAUT_AUTH_TOKEN`; ohne ihn zu:
@@ -573,6 +592,9 @@ GET    /api/recordings/{id}/audio
 DELETE /api/recordings/{id}
 GET    /api/progress
 POST   /api/korpus/intake                   ← von „schreiben"
+GET    /api/konto                           Profil, Kennzahlen, Textquellen — die eigenen
+GET    /api/konto/sessions?ab=&anzahl=      seitenweise, zu zehnt
+GET    /api/konto/recordings?ab=&anzahl=    seitenweise, mit Text
 ```
 
 Aufsicht — hinter `WORTLAUT_ADMIN_TOKEN`. Als einzige Wege dieser App nennen
@@ -580,8 +602,9 @@ sie ihren Sprecher in der Adresse; die Aufsicht hat keinen eigenen:
 
 ```
 GET    /api/admin/speakers                  alle Sprecher mit Kennzahlen
-GET    /api/admin/speakers/{id}             Quellen, Sitzungen, Umfang
-GET    /api/admin/speakers/{id}/recordings  Aufnahmen mit ihrem Text
+GET    /api/admin/speakers/{id}             Quellen, Umfang
+GET    /api/admin/speakers/{id}/sessions?ab=&anzahl=   seitenweise, zu zehnt
+GET    /api/admin/speakers/{id}/recordings  Aufnahmen mit ihrem Text, seitenweise
 GET    /api/admin/speakers/{id}/recordings/{r}/audio
 PATCH  /api/admin/speakers/{id}             { name }  — umbenennen
 GET    /api/admin/speakers/{id}/sicherung   .tgz, wiederherstellbar
