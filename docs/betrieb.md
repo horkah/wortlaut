@@ -112,6 +112,35 @@ nimmt.
 Vite läuft nicht mit — es ist reines Entwicklungswerkzeug. Beide Frontends
 werden beim `docker build` einmal gebaut und vom Prozess mit ausgeliefert.
 
+### Migrationen im Container
+
+Ein Update braucht dafür keinen Schritt. Neue Sprecher bekommen ihre
+Migrationen beim Anlegen, bestehende beim ersten Zugriff auf ihre Datenbank
+(`deps.engine_fuer`) — ein `docker compose up -d --build` genügt, die Korpora
+holen sich das neue Schema selbst.
+
+Das war einmal anders, und der Fehler ist die Erklärung für diesen Abschnitt:
+`004_pin.sql` brachte eine Spalte mit, bestehende Korpora bekamen sie nie, und
+weil die Modelle sie schon abfragten, scheiterte danach jedes `SELECT` auf
+`speakers` — kein Sprecher mehr in der Aufsicht, und niemand mehr herein, denn
+die Zugangsprüfung liest dieselbe Tabelle.
+
+Von Hand geht es weiterhin: um vor dem ersten Aufruf alle Korpora auf einmal
+fortzuschreiben, oder um zu sehen, was ein Update am Schema ändert.
+
+```bash
+docker compose exec wortlaut python scripts/migrate.py
+# spr_…: 004_pin      ← war offen, ist jetzt eingespielt
+# spr_…: aktuell      ← nichts zu tun
+```
+
+**`make migrate` gibt es im Container nicht.** Das Abbild trägt weder den
+Makefile noch `uv` — nur Python und `scripts/` (siehe `Dockerfile`); die
+Kurzform ist dem Wirt vorbehalten. Pfade oder Umgebung braucht der Aufruf
+nicht: `WORKDIR` steht auf `/srv/wortlaut`, `WORTLAUT_DATA_DIR` kommt aus der
+`compose.yaml`. Zweimal aufgerufen tut er beim zweiten Mal nichts — was
+gelaufen ist, steht in `schema_migrations`.
+
 ### Bevor die Korrekturen ankommen: der Sprecher
 
 „schreiben" gehört zu genau einer Person. Ihre Kennung vergibt „hören" beim
@@ -478,7 +507,14 @@ Zwischenspeicher und neuer Datei.
 docker compose stop
 uv run python scripts/restore.py wortlaut-gesamt-20260822-174500.tgz --ueberschreiben
 docker compose start
-make migrate        # falls die Sicherung älter ist als das Schema
+```
+
+Ist die Sicherung älter als das Schema, wird sie beim ersten Zugriff
+fortgeschrieben. Wer nicht warten mag, zieht es vor — im Container, wo
+`make` fehlt (siehe [Migrationen im Container](#migrationen-im-container)):
+
+```bash
+docker compose exec wortlaut python scripts/migrate.py
 ```
 
 Ohne `--ueberschreiben` bricht das Skript ab, sobald eine Datei schon dasteht —
@@ -564,6 +600,7 @@ uv run python scripts/purge_speaker.py spr_7f2a --ja-wirklich
 | Der Reiter „schreiben" landet wieder in „hören" | Im Betrieb: Der Proxy schneidet `/schreiben/` ab oder zeigt auf den falschen Port. Probe: `curl -I https://<domain>/schreiben/`. In der Entwicklung: „schreiben" läuft nicht mit — `make dev APP=schreiben`. |
 | `Address already in use` beim `make dev` | Der Port ist noch belegt, meist von einem älteren Lauf. Nachsehen mit `ss -tlnp \| grep -E "8000\|8001"`, dann die PID beenden. |
 | „schreiben" zeigt „Kein Zugang" | In diesem Browser wurde noch kein persönlicher Link geöffnet, oder der Zugang wurde in „hören" zurückgezogen. Ein neuer Link, einmal geöffnet, genügt; beide Apps lesen denselben Eintrag. |
+| Nach einem Update ist in der Aufsicht kein Sprecher mehr zu sehen, und keiner kommt mehr herein | Für bestehende Korpora steht eine Migration offen, während die Modelle die neue Spalte schon abfragen — dann scheitert jedes `SELECT` auf `speakers`, die Liste wie die Zugangsprüfung. Seit `deps.engine_fuer` beim ersten Zugriff migriert, sollte das nicht mehr vorkommen; auf einem älteren Stand hilft `docker compose exec wortlaut python scripts/migrate.py` — dessen Ausgabe nennt auch, was offen war. |
 | Aufsicht: jeder Weg unter `/api/admin/…` antwortet 401 | `WORTLAUT_ADMIN_TOKEN` ist nicht gesetzt — dann ist die Aufsicht abgeschaltet, absichtlich auch in der Entwicklung. Nach dem Setzen den Dienst neu starten. |
 | Aufsicht: Token eingetragen, aber die Oberfläche zeigt weiter die Verwaltung | Der Token stimmt nicht mit dem des Servers überein; der Server fällt dann auf die Verwaltung zurück. Unter „Menü → Zugangsdaten" prüft „Speichern und prüfen", was der Server tatsächlich sieht. |
 | „schreiben": ein zweiter Mensch am selben Gerät sieht fremde Diktate | Kann nicht sein — die Diktate hängen am Zugang, und ein Browser trägt genau einen. Wer das Gerät teilt, gibt den Zugang mit; dann öffnet die andere Person einmal ihren eigenen Link. |

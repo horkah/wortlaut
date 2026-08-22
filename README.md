@@ -883,7 +883,8 @@ Migrationsmaschinerie größer als das Schema.
 Angewendet werden sie an drei Stellen, und die dritte ist die wichtigste: beim
 Anlegen eines Sprechers (`api/speakers.py`), beim ersten Zugriff auf dessen
 Datenbank (`deps.engine_fuer`) und für alle Korpora auf einmal mit
-`make migrate`. Der Zugriff musste dazukommen, nachdem `004_pin.sql` die Spalte
+`make migrate` — im Container `docker compose exec wortlaut python
+scripts/migrate.py`, denn dort gibt es weder `make` noch `uv`. Der Zugriff musste dazukommen, nachdem `004_pin.sql` die Spalte
 `speakers.pin_hash` mitbrachte: Bestehende Korpora bekamen sie nie, die Modelle
 fragten sie ab, und danach scheiterte jedes `SELECT` auf `speakers` — die Liste
 der Aufsicht wie die Zugangsprüfung. Ein Update darf nicht davon abhängen, dass
