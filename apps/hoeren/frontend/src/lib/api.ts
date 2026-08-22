@@ -1,8 +1,10 @@
 /**
  * Der einzige Ort, an dem diese App mit dem Backend spricht.
  *
- * Jede Anfrage nennt den Sprecher als Abfrageparameter — das Korpus hat je
- * Sprecher eine eigene Datenbank (siehe docs/betrieb.md).
+ * Den Sprecher nennt keine Anfrage mehr: Der Server leitet ihn aus dem
+ * vorgelegten Zugang ab (siehe backend/deps.py). Der Zugang ist entweder der
+ * eines Sprechers — `<sprecher_id>.<geheimnis>`, gekommen über einen Link —
+ * oder der Verwaltertoken.
  */
 
 export type Sprecher = {
@@ -11,7 +13,19 @@ export type Sprecher = {
   sprache: string;
   basismodell: string;
   erstellt: string;
+  /** Wann der geltende Zugang ausgegeben wurde; null heißt: noch keiner da. */
+  zugang_erneuert: string | null;
 };
+
+/** Wer der Server in diesem Browser sieht. */
+export type Wer = {
+  art: 'sprecher' | 'verwaltung';
+  sprecher_id: string | null;
+  name: string | null;
+};
+
+/** Ein frisch ausgegebener Zugang — im Klartext nur genau hier. */
+export type NeuerZugang = { sprecher_id: string; zugang: string; erneuert: string };
 
 export type Einheit = { id: string; text: string; dauer_geschaetzt_s: number };
 
@@ -61,19 +75,21 @@ export class ApiFehler extends Error {
   }
 }
 
-const TOKEN_SCHLUESSEL = 'wortlaut.token';
+// Was hier liegt, ist entweder ein Sprecherzugang oder der Verwaltertoken —
+// der Server sieht am Aufbau, welches von beidem (backend/services/zugang.py).
+const ZUGANG_SCHLUESSEL = 'wortlaut.zugang';
 
-export function token(): string {
-  return localStorage.getItem(TOKEN_SCHLUESSEL) ?? '';
+export function zugang(): string {
+  return localStorage.getItem(ZUGANG_SCHLUESSEL) ?? '';
 }
 
-export function setzeToken(wert: string): void {
-  localStorage.setItem(TOKEN_SCHLUESSEL, wert.trim());
+export function setzeZugang(wert: string): void {
+  localStorage.setItem(ZUGANG_SCHLUESSEL, wert.trim());
 }
 
 async function anfrage<T>(pfad: string, optionen: RequestInit = {}): Promise<T> {
   const kopf = new Headers(optionen.headers);
-  const angemeldet = token();
+  const angemeldet = zugang();
   if (angemeldet) kopf.set('Authorization', `Bearer ${angemeldet}`);
 
   const antwort = await fetch(`/api${pfad}`, { ...optionen, headers: kopf });
@@ -93,41 +109,44 @@ function alsJson(rumpf: unknown): RequestInit {
   };
 }
 
-// ── Sprecher ────────────────────────────────────────────────────────────────
+// ── Wer ruft ────────────────────────────────────────────────────────────────
+
+/** Für wen dieser Browser eingestellt ist — die Antwort kommt vom Server. */
+export const werRuft = () => anfrage<Wer>('/zugang');
+
+// ── Verwaltung ──────────────────────────────────────────────────────────────
 
 export const sprecherListe = () => anfrage<Sprecher[]>('/speakers');
-
-/** Ein einzelner Sprecher — für den Namen in der Kopfzeile. */
-export const sprecherHolen = (id: string) => anfrage<Sprecher>(`/speakers/${id}`);
 
 export const sprecherAnlegen = (eingabe: { name: string; basismodell: string }) =>
   anfrage<Sprecher>('/speakers', alsJson(eingabe));
 
+/** Neuen Zugang ausgeben. Ein vorhandener gilt danach nicht mehr. */
+export const zugangAusgeben = (sprecher: string) =>
+  anfrage<NeuerZugang>(`/speakers/${sprecher}/zugang`, { method: 'POST' });
+
+export const zugangZurueckziehen = (sprecher: string) =>
+  anfrage<void>(`/speakers/${sprecher}/zugang`, { method: 'DELETE' });
+
 // ── Textquellen ─────────────────────────────────────────────────────────────
 
-export const quellen = (sprecher: string) =>
-  anfrage<Quelle[]>(`/sources?sprecher=${sprecher}`);
+export const quellen = () => anfrage<Quelle[]>('/sources');
 
-export const quelleAusLLM = (
-  sprecher: string,
-  auftrag: { thema: string; altersspanne: string; umfang: number },
-) => anfrage<Quelle>(`/sources/llm?sprecher=${sprecher}`, alsJson(auftrag));
+export const quelleAusLLM = (auftrag: { thema: string; altersspanne: string; umfang: number }) =>
+  anfrage<Quelle>('/sources/llm', alsJson(auftrag));
 
-export function quelleAusDatei(sprecher: string, datei: File) {
+export function quelleAusDatei(datei: File) {
   const formular = new FormData();
   formular.append('datei', datei);
-  return anfrage<Quelle>(`/sources/upload?sprecher=${sprecher}`, {
-    method: 'POST',
-    body: formular,
-  });
+  return anfrage<Quelle>('/sources/upload', { method: 'POST', body: formular });
 }
 
-export const quelleLoeschen = (sprecher: string, quelle: string) =>
-  anfrage<void>(`/sources/${quelle}?sprecher=${sprecher}`, { method: 'DELETE' });
+export const quelleLoeschen = (quelle: string) =>
+  anfrage<void>(`/sources/${quelle}`, { method: 'DELETE' });
 
 /** Stilllegen oder wieder aufnehmen; gibt die Quelle im neuen Zustand zurück. */
-export const quelleUmstellen = (sprecher: string, quelle: string, aktiv: boolean) =>
-  anfrage<Quelle>(`/sources/${quelle}?sprecher=${sprecher}`, {
+export const quelleUmstellen = (quelle: string, aktiv: boolean) =>
+  anfrage<Quelle>(`/sources/${quelle}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ aktiv }),
@@ -137,17 +156,15 @@ export const quelleUmstellen = (sprecher: string, quelle: string, aktiv: boolean
  * Der geschnittene Text einer Quelle als Klartext.
  *
  * Eigene Anfrage statt `anfrage`: Hier kommt kein JSON zurück. Nötig ist das,
- * weil die API einen Token verlangt — ein `window.open` auf die Adresse
+ * weil die API einen Zugang verlangt — ein `window.open` auf die Adresse
  * schickte keinen mit und liefe in ein 401.
  */
-export async function quelleText(sprecher: string, quelle: string): Promise<string> {
+export async function quelleText(quelle: string): Promise<string> {
   const kopf = new Headers();
-  const angemeldet = token();
+  const angemeldet = zugang();
   if (angemeldet) kopf.set('Authorization', `Bearer ${angemeldet}`);
 
-  const antwort = await fetch(`/api/sources/${quelle}/text?sprecher=${sprecher}`, {
-    headers: kopf,
-  });
+  const antwort = await fetch(`/api/sources/${quelle}/text`, { headers: kopf });
   if (!antwort.ok) {
     const rumpf = await antwort.json().catch(() => null);
     throw new ApiFehler(antwort.status, rumpf?.detail ?? `Fehler ${antwort.status}`);
@@ -157,32 +174,34 @@ export async function quelleText(sprecher: string, quelle: string): Promise<stri
 
 // ── Aufnehmen ───────────────────────────────────────────────────────────────
 
-export const sitzungBeginnen = (sprecher: string) =>
-  anfrage<{ id: string; begonnen: string }>(`/sessions?sprecher=${sprecher}`, { method: 'POST' });
+export const sitzungBeginnen = () =>
+  anfrage<{ id: string; begonnen: string }>('/sessions', { method: 'POST' });
 
-export const naechsteEinheit = (sprecher: string, sitzung: string | null, zufall = false) =>
-  anfrage<Naechste>(
-    `/prompts/next?sprecher=${sprecher}` +
-      (sitzung ? `&session=${sitzung}` : '') +
-      (zufall ? '&zufall=true' : ''),
-  );
+export const naechsteEinheit = (sitzung: string | null, zufall = false) => {
+  const suche = new URLSearchParams();
+  if (sitzung) suche.set('session', sitzung);
+  if (zufall) suche.set('zufall', 'true');
+  const anhang = suche.toString();
+  return anfrage<Naechste>(`/prompts/next${anhang ? `?${anhang}` : ''}`);
+};
 
-export function aufnahmeSenden(
-  sprecher: string,
-  eingabe: { audio: Blob; prompt_id: string; modus: string; session: string | null },
-) {
+export function aufnahmeSenden(eingabe: {
+  audio: Blob;
+  prompt_id: string;
+  modus: string;
+  session: string | null;
+}) {
   const formular = new FormData();
   formular.append('audio', eingabe.audio, 'aufnahme.webm');
   formular.append('prompt_id', eingabe.prompt_id);
   formular.append('modus', eingabe.modus);
   if (eingabe.session) formular.append('session', eingabe.session);
-  return anfrage<Aufnahme>(`/recordings?sprecher=${sprecher}`, { method: 'POST', body: formular });
+  return anfrage<Aufnahme>('/recordings', { method: 'POST', body: formular });
 }
 
-export const aufnahmeVerwerfen = (sprecher: string, aufnahme: string) =>
-  anfrage<void>(`/recordings/${aufnahme}?sprecher=${sprecher}`, { method: 'DELETE' });
+export const aufnahmeVerwerfen = (aufnahme: string) =>
+  anfrage<void>(`/recordings/${aufnahme}`, { method: 'DELETE' });
 
 // ── Fortschritt ─────────────────────────────────────────────────────────────
 
-export const fortschritt = (sprecher: string) =>
-  anfrage<Fortschritt>(`/progress?sprecher=${sprecher}`);
+export const fortschritt = () => anfrage<Fortschritt>('/progress');

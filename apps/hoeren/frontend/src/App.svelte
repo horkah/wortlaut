@@ -2,38 +2,38 @@
   import Kopfleiste from '$ui/Kopfleiste.svelte';
   import Fusszeile from '$ui/Fusszeile.svelte';
   import { EINSTELLUNGEN_PFAD, SPRECHER_PFAD, type Menuepunkt } from '$ui/apps';
-  import { sprecherHolen } from './lib/api';
-  import { zustand } from './lib/zustand.svelte';
-  import Start from './routes/Start.svelte';
+  import { ladeZugang, zustand } from './lib/zustand.svelte';
+  import Verwaltung from './routes/Verwaltung.svelte';
   import Quelle from './routes/Quelle.svelte';
   import Aufnahme from './routes/Aufnahme.svelte';
   import Fortschritt from './routes/Fortschritt.svelte';
   import Einstellungen from './routes/Einstellungen.svelte';
 
   // Die Reihenfolge ist der Weg durch die Arbeit an einem Sprecher: Text
-  // holen, aufnehmen, nachsehen, was zusammengekommen ist. Sprecher und
-  // Einstellungen stehen bewusst nicht darin, sondern im Menü der Kopfleiste
-  // (warum: `apps.ts`).
+  // holen, aufnehmen, nachsehen, was zusammengekommen ist. Die Einstellungen
+  // stehen bewusst nicht darin, sondern im Menü der Kopfleiste (warum:
+  // `apps.ts`).
   const MENUE: Menuepunkt[] = [
     { pfad: '/quelle', text: 'Textquelle' },
     { pfad: '/aufnahme', text: 'Aufnehmen' },
     { pfad: '/fortschritt', text: 'Fortschritt' },
   ];
 
-  const UEBERGREIFEND: Menuepunkt[] = [{ pfad: SPRECHER_PFAD, text: 'Sprecher' }];
+  // Wer der Server in diesem Browser sieht, entscheidet, was es zu sehen gibt:
+  // Ein Sprecher nimmt auf, die Verwaltung legt Profile an und gibt Zugänge
+  // aus. Auswählen kann niemand mehr etwas — die Kennung steckt im Zugang.
+  const spricht = $derived(zustand.art === 'sprecher');
 
   // Großgeschriebene Variablen sind in Svelte 5 als Komponente verwendbar.
   //
-  // Die Einstellungen stehen vor der Sprecherprüfung: Ohne Token liefert
-  // `/api/speakers` nichts, und der Token wird genau dort eingetragen. Läge
-  // die Ansicht hinter „erst ein Sprecher", käme niemand je an sie heran.
-  // Ohne gewählten Sprecher führt sonst jeder Weg zur Sprecherwahl — mit ihm
-  // ist die Textquelle der erste Schritt.
+  // Die Einstellungen stehen vor der Zugangsprüfung: Ohne Zugang liefert die
+  // API nichts, und der Verwaltertoken wird genau dort eingetragen. Läge die
+  // Ansicht dahinter, käme niemand je an sie heran.
   const Ansicht = $derived(
     zustand.route === EINSTELLUNGEN_PFAD
       ? Einstellungen
-      : zustand.route === SPRECHER_PFAD || !zustand.sprecher
-        ? Start
+      : !spricht
+        ? Verwaltung
         : ({
             '/quelle': Quelle,
             '/aufnahme': Aufnahme,
@@ -41,43 +41,40 @@
           }[zustand.route] ?? Quelle),
   );
 
-  // Ohne Sprecher gibt es nur eine Ansicht — dann wäre das Menü eine Zeile
-  // voller Sackgassen.
-  const menue = $derived(zustand.sprecher ? MENUE : []);
-  // Auf einer übergreifenden Ansicht ist kein Reiter offen, sondern der
-  // Menüpunkt; jeder unbekannte Hash landet bei der Textquelle.
+  // Nur wer aufnimmt, hat Ansichten zu wechseln; die Verwaltung hat eine
+  // einzige Seite, und eine Reiterreihe wäre dort eine Zeile voller
+  // Sackgassen.
+  const menue = $derived(spricht ? MENUE : []);
+  // Der Sprecher steht nicht mehr im Menü: Er wird nicht gewählt, sondern
+  // abgeleitet. Für die Verwaltung ist er der einzige Punkt.
+  const uebergreifend = $derived(spricht ? [] : [{ pfad: SPRECHER_PFAD, text: 'Sprecher' }]);
   const offen = $derived(
-    zustand.route === EINSTELLUNGEN_PFAD || zustand.route === SPRECHER_PFAD
+    zustand.route === EINSTELLUNGEN_PFAD
       ? zustand.route
-      : MENUE.some((punkt) => punkt.pfad === zustand.route)
-        ? zustand.route
-        : '/quelle',
+      : !spricht
+        ? SPRECHER_PFAD
+        : MENUE.some((punkt) => punkt.pfad === zustand.route)
+          ? zustand.route
+          : '/quelle',
   );
 
-  // Der Name für die Kopfzeile. Gespeichert ist nur die Kennung — den Namen
-  // holt diese Anfrage, sobald sich der Sprecher ändert. Schlägt sie fehl
-  // (kein Token, gelöschter Sprecher), bleibt der Platzhalter stehen; die
-  // Kopfzeile ist kein Ort für Fehlermeldungen.
-  let name = $state<string | null>(null);
-  $effect(() => {
-    const kennung = zustand.sprecher;
-    if (!kennung) {
-      name = null;
-      return;
-    }
-    let gilt_noch = true;
-    sprecherHolen(kennung)
-      .then((sprecher) => gilt_noch && (name = sprecher.name))
-      .catch(() => gilt_noch && (name = null));
-    return () => (gilt_noch = false);
-  });
+  // Für die Kopfzeile: der Name, den der Server zum vorgelegten Zugang nennt —
+  // nicht der, den sich der Browser gemerkt hat. `undefined` heißt „führt
+  // keinen Sprecher" (die Verwaltung), `null` heißt „kein gültiger Zugang".
+  const name = $derived(zustand.art === 'verwaltung' ? undefined : zustand.name);
+  // Die Verwaltung sagt, was sie ist — sonst sähe eine Seite ohne
+  // Aufnahmeansichten aus wie ein Fehler.
+  const hinweis = $derived(zustand.art === 'verwaltung' ? 'Verwaltung' : '');
+
+  ladeZugang();
 </script>
 
 <Kopfleiste
   app="hoeren"
   punkte={menue}
-  uebergreifend={UEBERGREIFEND}
+  {uebergreifend}
   sprecher={name}
+  {hinweis}
   route={offen}
 />
 
