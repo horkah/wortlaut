@@ -13,7 +13,7 @@ from starlette.concurrency import run_in_threadpool
 
 from ..config import einstellungen
 from ..db.models import Postausgang
-from ..deps import Ablage, Datenbank
+from ..deps import Ablage, Datenbank, SprecherId, Zugangstoken
 from ..services import outbox as postausgang
 
 router = APIRouter(prefix="/api/outbox", tags=["Postausgang"])
@@ -46,7 +46,11 @@ def stand(db: Datenbank) -> PostausgangAntwort:
 
 
 @router.post("/senden", response_model=VersandAntwort)
-async def sende(db: Datenbank, ablage: Ablage) -> VersandAntwort:
+async def sende(
+    db: Datenbank, ablage: Ablage, sprecher: SprecherId, token: Zugangstoken
+) -> VersandAntwort:
     """Noch einmal versuchen. Wiederholen ist gefahrlos (siehe services/outbox.py)."""
-    bericht = await run_in_threadpool(postausgang.sende_offene, db, ablage, einstellungen())
+    bericht = await run_in_threadpool(
+        postausgang.sende_offene, db, ablage, einstellungen(), sprecher, token
+    )
     return VersandAntwort(gesendet=bericht.gesendet, offen=bericht.offen, fehler=bericht.fehler)

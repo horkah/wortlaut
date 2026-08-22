@@ -20,9 +20,10 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from wortlaut import zugang as zugangsdienst
+
 from ..db.models import Sprecher, jetzt
 from ..deps import Verwaltung, Wer, engine_fuer
-from ..services import zugang as zugangsdienst
 
 router = APIRouter(tags=["Zugang"])
 

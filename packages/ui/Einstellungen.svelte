@@ -10,9 +10,8 @@
    * `Darstellung.svelte`, einem eigenen Menüpunkt (siehe `DARSTELLUNG_PFAD`
    * in `apps.ts`): Mikrofon und Stimme misst man einmal ein, die Darstellung
    * darf jeder anfassen, ohne durch Technisches zu blättern. Aus demselben
-   * Grund stehen die Zugangsdaten (Verwalter- und Aufsichtstoken) ebenfalls
-   * nicht hier, sondern unter `ZUGANGSDATEN_PFAD` — und die gibt es ohnehin
-   * nur bei „hören" (Grundentscheidung 7).
+   * Grund steht der Zugang dieses Browsers ebenfalls nicht hier, sondern unter
+   * `ZUGANGSDATEN_PFAD`.
    */
   import Mikrofontest from './Mikrofontest.svelte';
   import { beiStimmenAenderung, sprich, stimmen, stimmeNachUri } from './speak';

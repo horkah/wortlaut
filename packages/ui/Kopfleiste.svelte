@@ -8,15 +8,7 @@
    * Ansicht darunter blasser — sonst streiten die beiden Reihen um die
    * Aufmerksamkeit.
    */
-  import {
-    APPS,
-    DARSTELLUNG_PFAD,
-    EINSTELLUNGEN_PFAD,
-    PROJEKT_URL,
-    ZUGANGSDATEN_PFAD,
-    type AppSchluessel,
-    type Menuepunkt,
-  } from './apps';
+  import { APPS, GERAETE_PUNKTE, PROJEKT_URL, type AppSchluessel, type Menuepunkt } from './apps';
   // Als Quelltext eingebunden und nicht als <img>, damit das Zeichen die
   // Schriftfarbe des Schriftzugs annimmt (die Datei zeichnet currentColor).
   import zeichen from '../../assets/wortlaut-logo.svg?raw';
@@ -28,16 +20,19 @@
     sprecher,
     route = '/',
     hinweis = '',
-    zugangsdaten = false,
   }: {
     /** Welche der drei Apps diese Seite ist. */
     app: AppSchluessel;
     /** Die Ansichten dieser App; leer lassen heißt: zweite Reihe ausblenden. */
     punkte?: Menuepunkt[];
     /**
-     * Ansichten, die nicht zu dieser App gehören, sondern zur ganzen
-     * Anwendung — sie stehen im Menü über den Einstellungen. „hören" reicht
-     * hier den Sprecher herein; „schreiben" hat noch keine solche Ansicht.
+     * Ansichten, die nicht in die Reiterreihe gehören, sondern ins Menü — über
+     * die gerätebezogenen Punkte, denn erst kommt wer, dann womit. „hören"
+     * reicht hier Sprecher und Zugangsdaten herein, „schreiben" nichts.
+     *
+     * Sie kommen als Daten und nicht als Schalter: Die Kopfleiste soll in
+     * jeder App dieselbe sein und nicht wissen müssen, welche App welche
+     * Sonderansicht hat.
      */
     uebergreifend?: Menuepunkt[];
     /**
@@ -56,13 +51,6 @@
      * muss sehen, welcher Stand sie erzeugt hat.
      */
     hinweis?: string;
-    /**
-     * Ob der Menüpunkt „Zugangsdaten" erscheint — Verwalter- und
-     * Aufsichtstoken dieser Instanz. Nur „hören" hat welche zu verwalten
-     * (Grundentscheidung 7); ohne diesen Schalter stünde der Punkt in jeder
-     * App, auch dort, wo er ins Leere führt.
-     */
-    zugangsdaten?: boolean;
   } = $props();
 
   // Warum Sprecher und Einstellungen hier hängen und nicht in der Reiterreihe:
@@ -72,18 +60,12 @@
   let huelle = $state<HTMLElement | null>(null);
   let knopf = $state<HTMLButtonElement | null>(null);
 
-  const inEinstellungen = $derived(route === EINSTELLUNGEN_PFAD);
-  const inDarstellung = $derived(route === DARSTELLUNG_PFAD);
-  const inZugangsdaten = $derived(route === ZUGANGSDATEN_PFAD);
-  // Auf einer übergreifenden Ansicht führt die Reiterreihe nicht zurück:
-  // „schreiben" hat keine, „hören" blendet sie ohne gewählten Sprecher aus.
-  // Ohne diesen Eintrag käme man nur über den Zurück-Knopf des Browsers heraus.
-  const aussenstehend = $derived(
-    inEinstellungen ||
-      inDarstellung ||
-      inZugangsdaten ||
-      uebergreifend.some((punkt) => punkt.pfad === route),
-  );
+  // Erst wer, dann womit: die Punkte dieser App über den gerätebezogenen.
+  const eintraege = $derived([...uebergreifend, ...GERAETE_PUNKTE]);
+  // Auf einer Menüansicht führt die Reiterreihe nicht zurück: „schreiben" hat
+  // keine, „hören" blendet sie ohne Sprecherzugang aus. Ohne diesen Eintrag
+  // käme man nur über den Zurück-Knopf des Browsers heraus.
+  const aussenstehend = $derived(eintraege.some((punkt) => punkt.pfad === route));
   const appName = $derived(APPS.find((eintrag) => eintrag.schluessel === app)?.name ?? '');
 
   function schliesseWennDraussen(ereignis: MouseEvent) {
@@ -173,8 +155,9 @@
         </button>
         {#if offen}
           <nav class="klappe" aria-label="Menü">
-            <!-- Erst wer, dann womit: Der Sprecher steht über den Einstellungen. -->
-            {#each uebergreifend as punkt (punkt.pfad)}
+            <!-- Eine Schleife über eine Liste: was im Menü steht, entscheiden
+                 `uebergreifend` und `GERAETE_PUNKTE`, nicht diese Zeilen. -->
+            {#each eintraege as punkt (punkt.pfad)}
               <a
                 class="eintrag"
                 class:aktiv={punkt.pfad === route}
@@ -182,30 +165,6 @@
                 onclick={() => (offen = false)}>{punkt.text}</a
               >
             {/each}
-            <a
-              class="eintrag"
-              class:aktiv={inEinstellungen}
-              href="#{EINSTELLUNGEN_PFAD}"
-              onclick={() => (offen = false)}>Einstellungen</a
-            >
-            <!-- Unter den Einstellungen: wer nach Mikrofon und Stimme sucht,
-                 hat die zuerst gesehen; wer nach Farbe und Schrift sucht,
-                 findet sie hier gleich darunter. -->
-            <a
-              class="eintrag"
-              class:aktiv={inDarstellung}
-              href="#{DARSTELLUNG_PFAD}"
-              onclick={() => (offen = false)}>Darstellung</a
-            >
-            <!-- Nur „hören" verwaltet Zugangsdaten (Grundentscheidung 7). -->
-            {#if zugangsdaten}
-              <a
-                class="eintrag"
-                class:aktiv={inZugangsdaten}
-                href="#{ZUGANGSDATEN_PFAD}"
-                onclick={() => (offen = false)}>Zugangsdaten</a
-              >
-            {/if}
             <!-- Führt aus der App heraus: eigener Reiter, und das Pfeilzeichen
                  sagt es vorher. `noopener` verwehrt der geöffneten Seite den
                  Zugriff auf dieses Fenster. -->

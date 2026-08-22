@@ -82,12 +82,34 @@ export const DARSTELLUNG_PFAD = '/darstellung';
  *
  * Eine eigene Ansicht aus demselben Grund wie `DARSTELLUNG_PFAD`: Wer ein
  * Mikrofon einmisst, will nicht an einem Formular für Serverzugänge
- * vorbeiblättern, und umgekehrt. Es gibt sie nur bei „hören" — die Tokens
- * verwalten diese Instanz, „schreiben" hat damit nichts zu tun
- * (Grundentscheidung 7). Deshalb keine Konstante, die alle drei Apps
- * gleichermaßen einbinden, sondern eine, die „hören" allein benutzt.
+ * vorbeiblättern, und umgekehrt.
+ *
+ * Beide Apps kennen den Punkt, denn beide lesen denselben Zugang aus demselben
+ * Browser (`zugang.ts`); die Ansicht dazu gibt es ebenfalls nur einmal
+ * (`Zugangsdaten.svelte`). Trotzdem steht der Pfad hier und nicht in
+ * `GERAETE_PUNKTE`: Ein Zugang gehört nicht zum Gerät, sondern zum Menschen,
+ * und was er in der jeweiligen App bedeutet, weiß nur sie — „hören" nimmt in
+ * dasselbe Feld auch Verwalter- und Aufsichtstoken. Jede App stellt ihn
+ * deshalb selbst ins Menü, wie jeden anderen app-eigenen Punkt auch.
  */
 export const ZUGANGSDATEN_PFAD = '/zugangsdaten';
+
+/**
+ * Die Menüpunkte, die zum Gerät gehören — in jeder App dieselben.
+ *
+ * Sie stehen hier als Daten und nicht als feste Zeilen in der Kopfleiste,
+ * weil zwei Stellen sie brauchen: die Kopfleiste, um sie ins Menü zu
+ * schreiben, und der Rahmen, um ihre Ansichten zu zeigen (`Rahmen.svelte`).
+ * Ein vierter gerätebezogener Punkt ist damit ein Eintrag in dieser Liste
+ * und eine Zeile im Rahmen — und keine Änderung in jeder App.
+ */
+export const GERAETE_PUNKTE: Menuepunkt[] = [
+  { pfad: EINSTELLUNGEN_PFAD, text: 'Einstellungen' },
+  // Unter den Einstellungen: wer nach Mikrofon und Stimme sucht, hat die
+  // zuerst gesehen; wer nach Farbe und Schrift sucht, findet sie gleich
+  // darunter.
+  { pfad: DARSTELLUNG_PFAD, text: 'Darstellung' },
+];
 
 /**
  * Wo der Sprecher gewählt und angelegt wird.

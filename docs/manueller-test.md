@@ -42,9 +42,10 @@ gemacht, und was dabei herauskommt, ist ein Link.
    Liste mit „Zugang ausgegeben am …“. **Link kopieren**.
 4. Falls `WORTLAUT_AUTH_TOKEN` gesetzt ist: Statt der Liste erscheint der
    Hinweis, dass dieser Browser keinen gültigen Zugang hat, mit dem Knopf
-   **Zu den Einstellungen**. Dort unter „Zugang“ den Verwaltertoken eintragen,
-   **Speichern und prüfen**, dann mit **Weiter zu den Sprechern** zurück und
-   Schritt 2 wiederholen.
+   **Zu den Zugangsdaten**. Dort den Verwaltertoken eintragen, **Speichern und
+   prüfen**, dann mit **Weiter zu den Sprechern** zurück und Schritt 2
+   wiederholen. Derselbe Punkt steht auch im Menü (☰) rechts oben, und zwar
+   immer — auch ohne gültigen Zugang, denn genau dann braucht man ihn.
 
 ## 1b. Den Zugang benutzen
 
@@ -55,7 +56,9 @@ gemacht, und was dabei herauskommt, ist ein Link.
    hinterlegt, und vor dem Menüknopf steht der eingetragene Name. Weder
    „Sprecher“ noch „Einstellungen“ stehen in der Reiterreihe — die
    Einstellungen hängen hinter dem Menüknopf (☰) rechts oben, einen Punkt
-   „Sprecher“ gibt es hier nicht mehr: Wer man ist, steht im Zugang.
+   „Sprecher“ gibt es hier nicht mehr: Wer man ist, steht im Zugang. Der Punkt
+   „Zugangsdaten“ steht auch hier im Menü; er zeigt dann kein Eingabefeld,
+   sondern nur, wessen Zugang in diesem Browser liegt.
 2. Seite neu laden. Erwartet: Es bleibt alles, wie es war — der Zugang liegt
    in diesem Browser. Genau das ist der Alltag: einmal einrichten, danach nie
    wieder etwas eintragen.
@@ -138,7 +141,8 @@ und ein Schlüssel hinterlegt ist):
 
 Die Einstellungen über den Menüknopf (☰) rechts oben öffnen; der Abschnitt
 „Mikrofon“ steht ganz oben. Derselbe Knopf steht in „schreiben“ an derselben
-Stelle und führt zu derselben Ansicht — nur ohne den Abschnitt „Zugang“.
+Stelle und führt zu genau derselben Ansicht — beide Apps zeigen sie aus dem
+gemeinsamen Rahmen (`packages/ui/Rahmen.svelte`).
 
 1. **▶ Mikrofon testen** drücken. Beim ersten Mal fragt der Browser nach
    Zugriff — **erlauben**. Erwartet: ein Pegelbalken erscheint und bewegt
@@ -201,8 +205,8 @@ Setzt einen Sprecher mit mindestens einer Aufnahme voraus (Abschnitt 3) und
 `WORTLAUT_ADMIN_TOKEN` in der `.env` — ohne den Wert ist die Aufsicht
 abgeschaltet, und das ist Absicht. Nach dem Setzen das Backend neu starten.
 
-1. Menüknopf (☰) → **Einstellungen**, unter „Zugang“ den Aufsichtstoken
-   eintragen, **Speichern und prüfen**. Erwartet: „Angenommen — dieser Browser
+1. Menüknopf (☰) → **Zugangsdaten**, den Aufsichtstoken in dasselbe Feld
+   eintragen wie den Verwaltertoken, **Speichern und prüfen**. Erwartet: „Angenommen — dieser Browser
    ist jetzt die Aufsicht.“ In der Kopfzeile steht dauerhaft „Aufsicht“ statt
    eines Sprechernamens.
 
@@ -274,55 +278,69 @@ abgeschaltet, und das ist Absicht. Nach dem Setzen das Backend neu starten.
 
 Eigener Server, eigene Ports: `make dev APP=schreiben` (Backend `:8001`, Vite
 `:5174`). „hören“ darf daneben weiterlaufen — für Schritt 7.6 muss es das
-sogar. Vorher in der `.env`:
+sogar. Vorher in der `.env` genügt eine Zeile:
 
 ```
-WORTLAUT_SPRECHER_ID=<die ID aus Schritt 1>
 WORTLAUT_INTAKE_URL=http://localhost:8000/api/korpus/intake
-WORTLAUT_INTAKE_TOKEN=<der Zugang aus Schritt 1.3, also spr_….…>
 ```
 
-Der Zugang und nicht der Verwaltertoken: Er sagt „hören“, in welchen Korpus
-die Korrekturen gehören. Passt er nicht zu `WORTLAUT_SPRECHER_ID`, bleibt der
-Postausgang mit einem 403 offen — das ist gewollt und in Schritt 7.6 zu sehen,
-wenn man die beiden absichtlich falsch zusammensteckt.
+Kein Sprecher und kein Token mehr in der Konfiguration: Diese App führt
+denselben Sprecher wie „hören“ und leitet ihn aus dem Zugang ab, den der
+Browser vorlegt. Gesendet wird später mit genau diesem Zugang — die
+Korrekturen können damit gar nicht mehr im falschen Korpus landen.
 
 Aufgerufen wird **`http://localhost:5174/schreiben/`** — mit Pfad; ohne ihn
 bleibt die Seite leer, das ist kein Fehler.
 
-1. Seite öffnen. Erwartet: dieselbe Kopfzeile, jetzt mit „schreiben“
-   hinterlegt, keine zweite Reihe, und rechts oben blass der Modellstand —
-   ohne `WORTLAUT_MODELL_REF` steht dort „whisper-tiny · unverändert“.
-   Darunter mittig „Sprechen Sie einfach los.“ und ein großer Knopf.
-2. **● Aufnehmen**, zwei bis drei kurze Sätze sprechen, **■ Fertig**.
+1. Seite in einem **frischen** Browserprofil öffnen (oder vorher im
+   Entwicklerwerkzeug `localStorage.removeItem('wortlaut.zugang')`). Erwartet:
+   „Kein Zugang“ mit dem Knopf **Zu den Zugangsdaten** — kein Aufnahmeknopf,
+   der ohnehin abgewiesen würde. In der Kopfzeile steht kursiv „kein Zugang“.
+2. Den persönlichen Link aus Schritt 1.3 hier öffnen, also
+   `http://localhost:5174/schreiben/#/zugang/spr_….…`. Erwartet: Die Adresse
+   springt sofort zurück auf `.../#/`, und in der Kopfzeile steht der Name.
+   Derselbe Link öffnet beide Apps; wer ihn vorher in „hören“ geöffnet hat,
+   findet hier schon seinen Namen — beide lesen denselben Eintrag im
+   `localStorage` derselben Domain.
+3. Erwartet: dieselbe Kopfzeile, jetzt mit „schreiben“ hinterlegt, keine
+   zweite Reihe. Darunter mittig „Sprechen Sie einfach los.“, ein großer Knopf
+   und darunter blass der Modellstand — solange „lernen“ für diesen Sprecher
+   nichts freigegeben hat, steht dort „whisper-tiny · unverändert“.
+4. **● Aufnehmen**, zwei bis drei kurze Sätze sprechen, **■ Fertig**.
    Erwartet: „Wird verstanden …“. Beim allerersten Mal dauert das länger, weil
    faster-whisper sein Modell herunterlädt (Fortschritt in der
    Backend-Konsole). Danach wechselt die Ansicht zum Text.
-3. Erwartet: die Sätze stehen als einzeln umrandete Abschnitte untereinander,
+5. Erwartet: die Sätze stehen als einzeln umrandete Abschnitte untereinander,
    und die App liest von selbst vor; der gerade gesprochene Abschnitt ist
    blass hinterlegt. **■ Anhalten** stoppt sofort, **▶ Vorlesen** beginnt von
    vorn. Dass `tiny` dabei Unsinn versteht, ist erwartet und der Grund für
    die App „lernen“.
-4. Einen falschen Abschnitt **anklicken**. Erwartet: er bekommt einen
+6. Einen falschen Abschnitt **anklicken**. Erwartet: er bekommt einen
    kräftigen Rahmen, darunter erscheint eine Karte mit dem Text groß, einem
    Abspieler „So klang es“ und einem Aufnahmeknopf. Diesen Satz noch einmal
    sprechen. Erwartet: nur dieser Abschnitt ändert sich, alle anderen stehen
    unverändert; links am Abschnitt bleibt eine schmale Markierung („neu“).
    Ein zweiter Klick auf denselben Abschnitt schließt die Karte wieder.
-5. **Weitersprechen** drücken, einen weiteren Satz diktieren. Erwartet: die
+7. **Weitersprechen** drücken, einen weiteren Satz diktieren. Erwartet: die
    neuen Abschnitte hängen hinten an, die alten bleiben stehen.
-6. **Fertig** drücken. Erwartet: „Der Text ist abgeschickt.“ und „N von N
+8. **Fertig** drücken. Erwartet: „Der Text ist abgeschickt.“ und „N von N
    Abschnitten sind bei „hören“ angekommen.“ Zur Probe in „hören“ unter
    **Fortschritt** nachsehen: in der Tabelle „Zusammensetzung“ steht jetzt
    Quelle `korrektur` und Modus `frei`, mit der Zahl der Abschnitte.
-7. Den Postausgang prüfen: „hören“ anhalten (`Strg-C` im Terminal), in
+9. Den Postausgang prüfen: „hören“ anhalten (`Strg-C` im Terminal), in
    „schreiben“ **Neuer Text**, kurz diktieren, **Fertig**. Erwartet: „Noch
    nicht alles übergeben“ mit dem Grund und einem Knopf **Noch einmal
    senden**. „hören“ wieder starten, den Knopf drücken. Erwartet: alles
    angekommen, kein doppelter Eintrag im Fortschritt von „hören“ (die
    Abschnittskennung verhindert das).
-8. Seite neu laden (F5), solange ein Text unbestätigt ist. Erwartet: der Text
+10. Seite neu laden (F5), solange ein Text unbestätigt ist. Erwartet: der Text
    ist wieder da. Einen neuen Tab öffnen: dort ein leeres Blatt.
+11. Die Trennung zweier Menschen prüfen: In „hören“ ein zweites Profil anlegen
+   und dessen Link in einem **privaten** Fenster öffnen, dort auf
+   `/schreiben/` wechseln und einen Satz diktieren. Erwartet: ein leeres
+   Blatt, nicht der Text des ersten — und unter `data/diktate/` liegen zwei
+   Verzeichnisse mit je einer eigenen `schreiben.sqlite`. Zurück im ersten
+   Fenster steht der erste Text unverändert.
 
 ## Aufräumen
 

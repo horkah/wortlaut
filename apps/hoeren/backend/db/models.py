@@ -30,7 +30,7 @@ class Sprecher(Basis):
     sprache: Mapped[str]
     basismodell: Mapped[str]
     erstellt: Mapped[str]
-    # Prüfwert des Sprecherzugangs, siehe `services/zugang.py`. NULL heißt:
+    # Prüfwert des Sprecherzugangs, siehe `wortlaut.zugang`. NULL heißt:
     # zurückgezogen — dann kommt niemand an diesen Korpus heran.
     zugang_hash: Mapped[str | None] = mapped_column(default=None)
     zugang_erneuert: Mapped[str | None] = mapped_column(default=None)

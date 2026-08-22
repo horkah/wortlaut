@@ -60,9 +60,20 @@ Der Server braucht keine GPU; er kann eine haben.
 Modell-Registry, `schreiben` liest sie. Keine geteilten Schreibrechte, keine
 verteilten Transaktionen.
 
-**7. `schreiben` hat kein Nutzerkonto.**
-Die Zielperson kann schlecht lesen und schreiben. Eine Instanz ist auf ein
-Sprecherprofil und einen Modellstand konfiguriert. Ein großer Knopf, sonst nichts.
+**7. `schreiben` verlangt keine Anmeldung — führt aber denselben Sprecher.**
+Die Zielperson kann schlecht lesen und schreiben; ein Anmeldefeld wäre eine
+unüberwindbare Hürde, und ein großer Knopf bleibt der ganze Zweck der App.
+Trotzdem ist eine Instanz nicht mehr auf **einen** Sprecher konfiguriert: Sie
+leitet ihn aus dem Zugang ab, den der Browser vorlegt — demselben, den `hören`
+ausgibt. Beide Apps liegen unter einer Domain und teilen sich damit den
+`localStorage`, also genügt weiterhin ein persönlicher Link, einmal geöffnet,
+gleich in welcher der beiden Apps.
+
+Aufgehoben hat die alte Fassung, was seither dazugekommen ist: Jeder Sprecher
+bekommt aus `lernen` sein **eigenes** Modell (Grundentscheidung 3), und was er
+hier diktiert, fließt als Korrektur in **seinen** Korpus zurück. Beides braucht
+die Kennung zur Laufzeit; eine Instanz je Person wäre eine Instanz je Modell
+und je Korpus gewesen.
 
 ---
 
@@ -100,7 +111,6 @@ wortlaut/
 │   │   │   ├── services/
 │   │   │   │   ├── prompt_queue.py    # Reihenfolge, Wiederaufnahme
 │   │   │   │   ├── quality.py         # Pegel, Clipping, Dauerplausibilität
-│   │   │   │   ├── zugang.py          # Zugang erzeugen, zerlegen, prüfen
 │   │   │   │   ├── export.py          # Datensatz als .zip (Text-Audio-Paare)
 │   │   │   │   └── loeschung.py       # was zu einem Sprecher gehört
 │   │   │   └── db/
@@ -119,21 +129,22 @@ wortlaut/
 │   └── schreiben/                 # App „schreiben"
 │       ├── Dockerfile
 │       ├── backend/
-│       │   ├── main.py            # FastAPI ohne Token (Grundentscheidung 7)
-│       │   ├── config.py          # Sprecher, Modellstand, ASR, Intake-Adresse
-│       │   ├── deps.py            # Datenbank, Ablage, Transkriptor
+│       │   ├── main.py            # FastAPI hinter dem Zugang des Sprechers
+│       │   ├── config.py          # Modellstand, ASR, Intake-Adresse
+│       │   ├── deps.py            # Zugang, Datenbank, Ablage, Transkriptor
 │       │   ├── api/
 │       │   │   ├── sessions.py    # Diktiersitzung, Bestätigen
 │       │   │   ├── segments.py    # diktieren, Abschnitt neu einsprechen
-│       │   │   ├── model.py       # welcher Modellstand läuft
-│       │   │   └── outbox.py      # Postausgang ansehen, noch einmal senden
+│       │   │   ├── model.py       # welcher Modellstand für diesen Sprecher läuft
+│       │   │   ├── outbox.py      # Postausgang ansehen, noch einmal senden
+│       │   │   └── zugang.py      # wer ruft — für die Kopfzeile
 │       │   ├── services/
 │       │   │   ├── segmenter.py   # transkribieren, an Zeitmarken schneiden
 │       │   │   └── outbox.py      # Korrekturen zurück an „hören"
 │       │   └── db/                # models.py, migrations/
 │       ├── frontend/
-│       │   └── src/routes/        # Aufnahme, Ergebnis — mehr braucht es nicht
-│       └── tests/                 # Diktat, Korrekturen, Modellauskunft
+│       │   └── src/routes/        # Aufnahme, Ergebnis, Zugangsdaten, KeinZugang
+│       └── tests/                 # Diktat, Korrekturen, Modell, Zugang
 │
 ├── tests/                         # was keine einzelne App betrifft: gesamt.py
 │
@@ -147,6 +158,7 @@ wortlaut/
 │   │   │   ├── sicherung.py       # Sicherungsarchiv schreiben und einspielen
 │   │   │   ├── db.py              # SQLite-Verbindung, Migrationen, Sicherungskopie
 │   │   │   ├── ids.py             # zeitlich sortierbare Kennungen
+│   │   │   ├── zugang.py          # Sprecherzugang: Form, Prüfwert, Prüfung
 │   │   │   ├── text/
 │   │   │   │   ├── llm.py         # Thema + Altersspanne → Text
 │   │   │   │   ├── upload.py      # txt, md, pdf, epub, docx → Reintext
@@ -157,8 +169,14 @@ wortlaut/
 │   │   └── tests/                 # Chunker, Textformate, Audio, Ablage
 │   │
 │   └── ui/                        # geteilte Svelte-Komponenten und Einstellungen
-│       ├── Kopfleiste.svelte      # App-Reiter oben, Ansichten-Reiter darunter
-│       ├── apps.ts                # die drei Apps: Name, Pfad, schon da oder nicht
+│       ├── Rahmen.svelte          # Kopf, Inhalt, Fuß — der Rahmen jeder App
+│       ├── Kopfleiste.svelte      # Marke, App-Reiter, Sprecher, Menüknopf
+│       ├── Fusszeile.svelte       # eine Zeile: welcher Stand hier läuft
+│       ├── Einstellungen.svelte   # Mikrofon, Stimme, Tempo — für alle Apps
+│       ├── Darstellung.svelte     # Farben, Schriftart, Schriftgrößen
+│       ├── Zugangsdaten.svelte    # der Zugang dieses Browsers, in jeder App
+│       ├── zugang.ts              # wo der Zugang liegt; ein Eintrag für alle
+│       ├── apps.ts                # die drei Apps und die Punkte im Menü
 │       ├── app.css                # das gemeinsame Aussehen aller Apps
 │       ├── Recorder.svelte
 │       ├── AudioPlayer.svelte
@@ -244,6 +262,27 @@ die Ansichten der offenen App, die aktuelle hell hinterlegt. Beides steht in
 `packages/ui/Kopfleiste.svelte` — deshalb hat `schreiben` dieselbe Leiste
 bekommen, ohne ein eigenes Menü zu erfinden. Am rechten Rand der oberen Reihe
 ist Platz für eine Randnotiz; `schreiben` schreibt seinen Modellstand hinein.
+
+Marke, App-Reiter, Sprecherzeile und Menüknopf gibt es genau einmal, und keine
+App baut sie sich selbst zusammen: `packages/ui/Rahmen.svelte` klammert
+Kopfzeile, Inhalt und Fußzeile und beantwortet die gerätebezogenen Menüpunkte
+gleich mit. Eine App liefert nur ihre eigenen Ansichten und, was sie darüber
+hinaus ins Menü stellt — `hören` den Sprecher und die Zugangsdaten,
+`schreiben` nichts. Was im Menü steht, ist damit eine Liste (`GERAETE_PUNKTE`
+in `apps.ts` und der Durchreichung der App) und keine Folge fester Zeilen mit
+Schaltern davor; ein neuer gerätebezogener Punkt ist ein Eintrag und eine
+Zeile im Rahmen, statt einer Änderung in jeder App.
+
+Der Punkt **Zugangsdaten** steht in **beiden** Apps immer im Menü, auch und
+gerade ohne gültigen Zugang: Dann ist er der einzige Weg herein, und ein Menü,
+das ihn erst nach der Anmeldung zeigte, hätte die Tür hinter das Schloss
+gelegt. Wer mit dem Zugang eines Sprechers da ist, findet die Seite ebenfalls,
+aber ohne Eingabefeld — sie sagt ihm nur, wessen Zugang in diesem Browser
+liegt. Die Ansicht selbst gibt es ebenfalls nur einmal
+(`packages/ui/Zugangsdaten.svelte`), denn es ist derselbe Zugang: Beide Apps
+lesen denselben Eintrag im `localStorage` (`packages/ui/zugang.ts`). Was die
+Apps unterscheidet, ist eine Eigenschaft — nur `hören` nimmt in dasselbe Feld
+auch Verwalter- und Aufsichtstoken.
 
 Alle drei liegen unter einer Adresse (`wortlaut.example.org`), nicht unter drei
 Subdomains: ein Zertifikat, eine Proxy-Regel je App, und der Wechsel zwischen
@@ -342,9 +381,10 @@ dessen Geheimnis passt dort nicht.
 **Ein Fehlgriff wird laut.** `?sprecher=…` wird weiterhin angenommen, aber nur
 noch als Behauptung, die stimmen muss. Weicht sie ab, antwortet der Server mit
 403 und nennt beide Kennungen, statt still ins falsche Verzeichnis zu schreiben.
-Davon lebt die Absicherung von `schreiben`: Es schickt seinen
-`WORTLAUT_SPRECHER_ID` mit und erfährt so, wenn er nicht zum Zugang in
-`WORTLAUT_INTAKE_TOKEN` passt.
+Davon lebt die Absicherung von `schreiben`: Es schickt die abgeleitete Kennung
+mit dem Zugang mit, mit dem sie abgeleitet wurde — auseinanderfallen können die
+beiden damit nicht mehr, und die 403 bleibt als Netz für den Fall, dass doch
+einmal jemand daran vorbeibaut.
 
 **Der Zugang kostet die Person nichts.** Ausgegeben wird er in der Verwaltung;
 dabei entsteht ein Link `…/#/zugang/<zugang>`. Den öffnet die Person einmal auf
@@ -381,11 +421,11 @@ eines Browsers, und wer den Link weitergibt, gibt den Korpus weiter — das ist
 ein Lesezeichen, kein Ausweis. Für die Zielgruppe ist genau das der Punkt.
 
 Und der Umbau ist nicht rückwärtsverträglich. Eine bestehende Installation
-braucht drei Handgriffe: `make migrate` für die neue Spalte, je Sprecher einen
-Zugang ausgeben und den Link auf sein Gerät bringen, und in der `.env` von
-`schreiben` den `WORTLAUT_INTAKE_TOKEN` gegen diesen Zugang tauschen. Bis das
-geschehen ist, kommt niemand an die Aufnahmen — was der Sinn der Sache ist, aber
-eben auch ihr Preis.
+braucht zwei Handgriffe: `make migrate` für die neue Spalte, und je Sprecher
+einen Zugang ausgeben und den Link auf sein Gerät bringen. Derselbe Link öffnet
+seither auch `schreiben`; `WORTLAUT_SPRECHER_ID` und `WORTLAUT_INTAKE_TOKEN`
+sind dafür ersatzlos entfallen. Bis das geschehen ist, kommt niemand an die
+Aufnahmen — was der Sinn der Sache ist, aber eben auch ihr Preis.
 
 ### Die Aufsicht — der eine Zugang über allen Korpora
 
@@ -402,9 +442,9 @@ leitet Sicherungen und Datensätze aus und löscht. Sie darf zusätzlich alles,
 was die Verwaltung darf; umgekehrt nicht.
 
 **Aus jedem Browser erreichbar, ohne zweite Adresse.** Der Aufsichtstoken wird
-unter „Einstellungen → Zugang" in dasselbe Feld eingetragen wie ein
+unter „Menü → Zugangsdaten" in dasselbe Feld eingetragen wie ein
 Verwaltertoken; der Server sieht am Vorgelegten, welches von beidem er vor sich
-hat (`services/zugang.py` unterscheidet die Formen). Ein Browser trägt dabei
+hat (`wortlaut.zugang` unterscheidet die Formen). Ein Browser trägt dabei
 weiterhin genau einen Zugang — wer dort vorher den Link eines Sprechers
 geöffnet hatte, öffnet ihn danach einmal wieder. Zwei gleichzeitige Identitäten
 in einem Browser wären genau die Doppeldeutigkeit, gegen die der ganze vorige
@@ -671,7 +711,9 @@ eine zweite Kopie derselben Stimmdaten und wird nicht mehr gebraucht.
 ### Ein großer Knopf
 
 Die Zielperson kann schlecht lesen und schreiben (Grundentscheidung 7). Daraus
-folgt mehr als der Verzicht auf ein Anmeldefeld:
+folgt mehr als der Verzicht auf ein Anmeldefeld — und der Verzicht bleibt, auch
+seit die App einen Sprecher führt: Der Zugang kommt über den persönlichen Link
+und liegt danach im Browser, hier wie in `hören`.
 
 - **Zwei Ansichten, keine Menüführung.** Sprechen und Ergebnis; der Weg
   dazwischen ergibt sich, statt gewählt zu werden. Die zweite Reiterreihe der
@@ -679,9 +721,12 @@ folgt mehr als der Verzicht auf ein Anmeldefeld:
 - **Vorgelesen wird von selbst.** Wer den Text nicht sicher lesen kann, hört
   den Fehler — deshalb liest die Ergebnisansicht sofort los und markiert
   mitlaufend, wo sie gerade ist.
-- **Keine Einstellungsansicht.** Mikrofon, Stimme, Tempo und Schriftgröße
-  stehen in `hören` und gelten hier mit: beide Apps liegen unter derselben
-  Adresse und teilen sich damit den `localStorage`.
+- **Nichts zu tippen, auch nicht zum Anmelden.** Der Zugang kommt über den
+  persönlichen Link und liegt danach im Browser — derselbe Eintrag, den `hören`
+  liest, denn beide Apps liegen unter derselben Adresse.
+- **Einstellungen nur im Menü.** Mikrofon, Stimme, Tempo und Schriftgröße
+  gelten für beide Apps und stehen eingeklappt hinter dem Menüknopf, damit die
+  Oberfläche ein großer Knopf bleibt.
 - **Bearbeitet wird durch Sprechen.** Der fertige Text ist zum Kopieren da,
   nicht zum Tippen.
 
@@ -714,18 +759,21 @@ POST   /schreiben/api/sessions/{id}/segments        multipart: audio → Abschni
 POST   /schreiben/api/sessions/{id}/bestaetigen     → Postausgang, sofort senden
 POST   /schreiben/api/segments/{id}/neu     multipart: audio, ersetzt einen
 GET    /schreiben/api/segments/{id}/audio
-GET    /schreiben/api/model                 Modellstand für die Kopfzeile
+GET    /schreiben/api/model                 Modellstand dieses Sprechers
 GET    /schreiben/api/outbox
 POST   /schreiben/api/outbox/senden         noch einmal versuchen
-GET    /gesundheit                          ohne Token, auf der Wurzel
+GET    /schreiben/api/zugang                wer ruft — für die Kopfzeile
+GET    /gesundheit                          ohne Zugang, auf der Wurzel
 ```
 
 Alles unter `/schreiben` — dem Ort dieser App unter der gemeinsamen Domain.
 Nur `/gesundheit` bleibt auf der Wurzel: Eine Überwachung spricht den Container
 unmittelbar an.
 
-Kein Sprecherparameter und kein Token: Eine Instanz gehört zu genau einer
-Person und einem Modellstand, beides steht in der Konfiguration.
+Kein Sprecherparameter, aber ein Zugang: Jeder Weg außer `/gesundheit` verlangt
+den Sprecherzugang aus `hören` und leitet die Kennung daraus ab — dieselbe
+Regel wie drüben, aus demselben Grund (die Bindung zieht der Server, nicht der
+Aufrufer).
 
 ### Ablage
 
@@ -799,7 +847,7 @@ Zwei Spalten tragen mehr Bedeutung, als ihr Name verrät:
 | Textquelle | LLM über einen Adapter, OpenAI-kompatibel oder Anthropic | Thema und Altersspanne als Prompt-Parameter; derselbe Adapter bedient ein lokales Ollama und die bezahlten Anbieter — für ein paar Vorlesesätze genügt ein kleines Modell auf der eigenen GPU |
 | Jobs | `jobs`-Tabelle plus Poll-Worker | keine Broker-Abhängigkeit für eine Warteschlange mit selten mehr als einem Eintrag |
 | Proxy | der vorhandene Reverse Proxy des Wirts | TLS und Pfadverteilung gehören zur Maschine, nicht in dieses Projekt |
-| Auth | in `hören` je Sprecher ein Zugang, der zugleich die Kennung ist; der Token davor schützt nur die Verwaltung, ein zweiter die Aufsicht. `schreiben` ohne | die Bindung zwischen Aufrufer und Verzeichnis muss der Server ziehen, nicht der Aufrufer; siehe Grundentscheidung 7 |
+| Auth | je Sprecher ein Zugang, der zugleich die Kennung ist — derselbe in beiden Apps; der Token davor schützt nur die Verwaltung, ein zweiter die Aufsicht | die Bindung zwischen Aufrufer und Verzeichnis muss der Server ziehen, nicht der Aufrufer; ein Mensch, ein Link, beide Apps |
 | Tests | pytest, FastAPI-TestClient | echte SQLite-Datei, echte Endpunkte, kein Nachbau |
 | Werkzeug | uv | eine Abhängigkeitsdatei, ein Befehl, keine Diskussion |
 
@@ -837,17 +885,16 @@ WORTLAUT_ADMIN_TOKEN=               # Aufsicht: in jeden Korpus sehen,
 WORTLAUT_TRAINING_BACKEND=local     # local | remote
 WORTLAUT_BASE_MODEL=openai/whisper-large-v3
 
-# schreiben
-WORTLAUT_SPRECHER_ID=spr_7f2a
-WORTLAUT_MODELL_REF=                # leer = noch kein Stand aus „lernen"
-WORTLAUT_ASR_MODELL=tiny            # gilt, solange MODELL_REF leer ist
+# schreiben — wessen Stimme steht hier nicht: Der Sprecher kommt aus dem
+# Zugang, den der Browser vorlegt (derselbe wie bei „hören").
+WORTLAUT_MODELL_REF=                # leer = je Sprecher sein eigener Stand
+WORTLAUT_ASR_MODELL=tiny            # gilt, solange kein Stand freigegeben ist
 WORTLAUT_ASR=local                  # local | remote
 WORTLAUT_ASR_ENDPOINT=
 WORTLAUT_ASR_API_KEY=
 WORTLAUT_INTAKE_URL=https://wortlaut.example.org/api/korpus/intake
-WORTLAUT_INTAKE_TOKEN=              # der Zugang dieses Sprechers bei „hören",
-                                    # nicht dessen AUTH_TOKEN. Er bestimmt, in
-                                    # welchen Korpus geschrieben wird.
+                                    # kein Token: gesendet wird mit dem Zugang
+                                    # dessen, der den Text bestätigt hat.
 ```
 
 ---
@@ -863,7 +910,7 @@ cp .env.example .env
 uv sync                      # Abhängigkeiten und die Bibliothek `wortlaut`
 cd apps/hoeren/frontend && npm install && cd -
 
-make test                    # Testlauf, je nach Hard 5-50 Sekunden
+make test                    # Testlauf, je nach Hardware 5-50 Sekunden
 make dev APP=hoeren          # Backend auf :8000, Vite auf :5173
 make migrate                 # nur nötig, wenn nach einem Update Migrationen offen sind
 ```

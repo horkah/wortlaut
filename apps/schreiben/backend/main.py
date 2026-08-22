@@ -4,11 +4,11 @@ Start in der Entwicklung (aus dem Repository-Wurzelverzeichnis):
 
     uv run uvicorn apps.schreiben.backend.main:app --reload --port 8001
 
-Anders als „hören" hängt hier nichts hinter einem Token: Die Zielperson kann
-schlecht lesen und schreiben, ein Anmeldefeld wäre eine unüberwindbare Hürde
-(Grundentscheidung 7). Eine Instanz gehört deshalb ins private Netz oder
-hinter einen Zugang, den jemand anderes einrichtet — siehe
-`docs/datenschutz.md`.
+Wie „hören" hängt hier alles hinter dem Zugang **eines** Sprechers: Was
+diktiert wird, gehört einem Menschen, läuft auf seinem Modell und fließt in
+seinen Korpus zurück (siehe `deps.py`). Ein Anmeldefeld ist das trotzdem nicht
+— der Zugang kommt über denselben persönlichen Link wie bei „hören", einmal
+geöffnet und danach im Browser. Wer schlecht liest, tippt weiterhin nichts.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from wortlaut.web import FrontendDateien
 
-from .api import model, outbox, segments, sessions
+from .api import model, outbox, segments, sessions, zugang
 
 # Der Ort dieser App unter der gemeinsamen Domain. Alles hängt darunter, auch
 # die API: So genügt vor den Containern eine Regel, die den Pfad unverändert
@@ -33,7 +33,7 @@ BASIS = "/schreiben"
 
 app = FastAPI(title="wortlaut · schreiben", version="0.1.0")
 
-for router in (sessions.router, segments.router, model.router, outbox.router):
+for router in (sessions.router, segments.router, model.router, outbox.router, zugang.router):
     app.include_router(router, prefix=BASIS)
 
 

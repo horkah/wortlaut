@@ -46,10 +46,13 @@ die Vorgabe und läuft auch auf schwacher Hardware.
 
 Damit die Korrekturen ankommen, muss in der `.env` `WORTLAUT_INTAKE_URL` auf
 die laufende „hören"-Instanz zeigen (in der Entwicklung
-`http://localhost:8000/api/korpus/intake`) und `WORTLAUT_INTAKE_TOKEN` den
-**Zugang des Sprechers** enthalten, den „hören" unter „Sprecher" ausgibt —
-nicht den `WORTLAUT_AUTH_TOKEN`. Fehlt beides, sammelt der Postausgang die
-Korrekturen, statt sie zu verwerfen.
+`http://localhost:8000/api/korpus/intake`). Einen Token braucht es dafür nicht
+mehr: Gesendet wird mit dem Zugang dessen, der den Text bestätigt hat. Fehlt
+die Adresse, sammelt der Postausgang die Korrekturen, statt sie zu verwerfen.
+
+Diktieren kann in „schreiben", wer seinen persönlichen Link einmal geöffnet
+hat — denselben wie in „hören". Ohne ihn zeigt die App „Kein Zugang" statt
+eines Aufnahmeknopfes, der ins Leere liefe.
 
 `make migrate` wird nur gebraucht, wenn nach einem Update Migrationen für
 bereits bestehende Sprecher offen sind — neue Sprecher bekommen ihre Datenbank
@@ -119,11 +122,12 @@ curl -X POST https://wortlaut.example.org/api/speakers \
   -H "Authorization: Bearer $WORTLAUT_AUTH_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"name":"Vorname","sprache":"de","basismodell":"tiny"}'
-# → {"id":"spr_…"}  in die .env als WORTLAUT_SPRECHER_ID
+# → {"id":"spr_…"}
 
 curl -X POST https://wortlaut.example.org/api/speakers/spr_…/zugang \
   -H "Authorization: Bearer $WORTLAUT_AUTH_TOKEN"
-# → {"zugang":"spr_….…"}  in die .env als WORTLAUT_INTAKE_TOKEN
+# → {"zugang":"spr_….…"}  wird zum Link …/#/zugang/<zugang> und geht an
+#    die Person. Er öffnet beide Apps; in die .env gehört er nicht.
 docker compose up -d
 ```
 
@@ -339,9 +343,8 @@ leitet sie daraus ab.
 
 Der Parameter wird trotzdem noch angenommen, aber nur als Behauptung, die
 stimmen muss: Weicht sie ab, antwortet der Server mit 403 und nennt beide
-Kennungen. Genau davon lebt die Absicherung von „schreiben" — es schickt seinen
-`WORTLAUT_SPRECHER_ID` weiter mit und erfährt so, wenn er nicht zum Zugang
-in `WORTLAUT_INTAKE_TOKEN` passt.
+Kennungen. Genau davon lebt die Absicherung von „schreiben" — es schickt die
+abgeleitete Kennung mit dem Zugang mit, mit dem sie abgeleitet wurde.
 
 Die interaktive API-Dokumentation liegt unter `/docs`.
 
@@ -377,7 +380,7 @@ darf zusätzlich alles, was der Verwaltertoken darf — wer jeden Korpus lösche
 kann, hätte an einem zweiten Token fürs Anlegen eines Profils nichts gewonnen.
 
 Erreichbar ist die Aufsicht aus **jedem** Browser: Der Token wird unter
-„Einstellungen → Zugang" in dasselbe Feld eingetragen wie ein Verwaltertoken,
+„Menü → Zugangsdaten" in dasselbe Feld eingetragen wie ein Verwaltertoken,
 und der Server sieht am Vorgelegten, welches von beidem es ist. Eine zweite
 Adresse oder eine zweite Anmeldung gibt es nicht. Ein Browser trägt allerdings
 immer nur einen Zugang: Wer dort vorher den Link eines Sprechers geöffnet
@@ -403,8 +406,9 @@ Hürde. Eine solche Instanz gehört deshalb ins private Netz oder hinter einen
 Zugang, den jemand anderes einrichtet — etwa eine
 Basisauthentifizierung im `/schreiben/`-Block des Proxys oder eine
 Beschränkung auf das eigene Netz. In
-umgekehrter Richtung braucht „schreiben" den Sprecherzugang von „hören"
-(`WORTLAUT_INTAKE_TOKEN`), um seine Korrekturen abliefern zu dürfen.
+umgekehrter Richtung braucht „schreiben" den Sprecherzugang von „hören", um
+seine Korrekturen abliefern zu dürfen — und zwar denselben, mit dem der Mensch
+dort gerade bestätigt hat.
 
 ## Sichern und Wiederherstellen
 
@@ -552,13 +556,14 @@ uv run python scripts/purge_speaker.py spr_7f2a --ja-wirklich
 | „schreiben": erstes Diktat hängt lange | faster-whisper lädt beim ersten Aufruf sein Modell herunter. Danach kommt es aus dem Cache. Ohne Netz schlägt es fehl — dann `WORTLAUT_ASR_MODELL` auf ein bereits geladenes Modell setzen. |
 | „schreiben": `ModuleNotFoundError: faster_whisper` | `uv sync --extra asr` vergessen (oder `WORTLAUT_ASR=remote` setzen) |
 | „schreiben": „Aus der Aufnahme wurde kein Wort verstanden" | Whisper hat nichts erkannt. Mit `tiny` ist das bei leiser Aufnahme oder starker Sprechstörung der Normalfall — erst Mikrofon einmessen (Menüknopf oben rechts → Einstellungen; die Werte gelten für beide Apps), dann ein größeres Modell versuchen. |
-| „schreiben": Postausgang bleibt offen | `WORTLAUT_INTAKE_URL` fehlt oder zeigt ins Leere; oder `WORTLAUT_INTAKE_TOKEN` ist kein gültiger Sprecherzugang (401); oder er gehört zu einem anderen Sprecher als `WORTLAUT_SPRECHER_ID` (403, mit beiden Kennungen im Grund). Nichts geht verloren: „Noch einmal senden" nach dem Richten genügt. |
+| „schreiben": Postausgang bleibt offen | `WORTLAUT_INTAKE_URL` fehlt oder zeigt ins Leere; oder der Zugang des Sprechers gilt bei „hören" nicht mehr (401), weil dort inzwischen ein neuer ausgegeben wurde. Nichts geht verloren: „Noch einmal senden" nach dem Richten genügt — nötigenfalls nach dem Öffnen des neuen Links. |
 | `localhost:5174` zeigt eine leere Seite | Der Pfad fehlt: `http://localhost:5174/schreiben/` aufrufen. |
 | Der Reiter „schreiben" landet wieder in „hören" | Im Betrieb: Der Proxy schneidet `/schreiben/` ab oder zeigt auf den falschen Port. Probe: `curl -I https://<domain>/schreiben/`. In der Entwicklung: „schreiben" läuft nicht mit — `make dev APP=schreiben`. |
 | `Address already in use` beim `make dev` | Der Port ist noch belegt, meist von einem älteren Lauf. Nachsehen mit `ss -tlnp \| grep -E "8000\|8001"`, dann die PID beenden. |
-| Korrekturen bleiben im Postausgang, Fehler nennt 404 „Unbekannter Sprecher" | `WORTLAUT_SPRECHER_ID` fehlt oder gehört zu keinem Sprecher in „hören" — siehe „Bevor die Korrekturen ankommen". |
+| „schreiben" zeigt „Kein Zugang" | In diesem Browser wurde noch kein persönlicher Link geöffnet, oder der Zugang wurde in „hören" zurückgezogen. Ein neuer Link, einmal geöffnet, genügt; beide Apps lesen denselben Eintrag. |
 | Aufsicht: jeder Weg unter `/api/admin/…` antwortet 401 | `WORTLAUT_ADMIN_TOKEN` ist nicht gesetzt — dann ist die Aufsicht abgeschaltet, absichtlich auch in der Entwicklung. Nach dem Setzen den Dienst neu starten. |
-| Aufsicht: Token eingetragen, aber die Oberfläche zeigt weiter die Verwaltung | Der Token stimmt nicht mit dem des Servers überein; der Server fällt dann auf die Verwaltung zurück. Unter „Einstellungen → Zugang" prüft „Speichern und prüfen", was der Server tatsächlich sieht. |
+| Aufsicht: Token eingetragen, aber die Oberfläche zeigt weiter die Verwaltung | Der Token stimmt nicht mit dem des Servers überein; der Server fällt dann auf die Verwaltung zurück. Unter „Menü → Zugangsdaten" prüft „Speichern und prüfen", was der Server tatsächlich sieht. |
+| „schreiben": ein zweiter Mensch am selben Gerät sieht fremde Diktate | Kann nicht sein — die Diktate hängen am Zugang, und ein Browser trägt genau einen. Wer das Gerät teilt, gibt den Zugang mit; dann öffnet die andere Person einmal ihren eigenen Link. |
 | Der Download einer großen Sicherung bricht ab | Der Browser hält die Datei im Speicher. Über `curl -OJ` mit dem Aufsichtstoken holen (siehe „Sichern und Wiederherstellen"). |
 | Nach dem Zurückspielen fehlen Daten oder die Datenbank ist kaputt | Der Dienst lief dabei. Anhalten, noch einmal einspielen, starten — SQLite hält die alte Datei sonst offen. |
 | `make frontend` startet ohne Fehlermeldung, aber `localhost:5173` bleibt unerreichbar | `node_modules` fehlt (`npm install` in `apps/hoeren/frontend` vergessen). `npm run dev` sucht `vite` dann über `$PATH` — auf manchen Systemen (z. B. Ubuntu/Debian) existiert dort ein gleichnamiges, aber völlig anderes Paket namens `vite` (ViTE, ein Trace-Viewer), das kommentarlos ein leeres GUI-Fenster statt des Dev-Servers öffnet. Prüfen mit `command -v vite` — zeigt der Pfad nicht auf `apps/hoeren/frontend/node_modules/.bin/vite`, fehlt die Installation. Abhilfe: `npm install` nachholen. |

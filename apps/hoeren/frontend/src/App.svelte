@@ -1,21 +1,16 @@
 <script lang="ts">
-  import Kopfleiste from '$ui/Kopfleiste.svelte';
-  import Fusszeile from '$ui/Fusszeile.svelte';
-  import Darstellung from '$ui/Darstellung.svelte';
-  import {
-    DARSTELLUNG_PFAD,
-    EINSTELLUNGEN_PFAD,
-    SPRECHER_PFAD,
-    ZUGANGSDATEN_PFAD,
-    type Menuepunkt,
-  } from '$ui/apps';
+  /**
+   * Was „hören" an eigenen Ansichten hat — der Rahmen darum steht in
+   * `$ui/Rahmen.svelte` und ist in jeder App derselbe.
+   */
+  import Rahmen from '$ui/Rahmen.svelte';
+  import { GERAETE_PUNKTE, SPRECHER_PFAD, ZUGANGSDATEN_PFAD, type Menuepunkt } from '$ui/apps';
   import { EINSICHT_ROUTE, ladeZugang, zustand } from './lib/zustand.svelte';
   import Verwaltung from './routes/Verwaltung.svelte';
   import Einsicht from './routes/Einsicht.svelte';
   import Quelle from './routes/Quelle.svelte';
   import Aufnahme from './routes/Aufnahme.svelte';
   import Fortschritt from './routes/Fortschritt.svelte';
-  import Einstellungen from './routes/Einstellungen.svelte';
   import Zugangsdaten from './routes/Zugangsdaten.svelte';
 
   // Die Reihenfolge ist der Weg durch die Arbeit an einem Sprecher: Text
@@ -37,42 +32,50 @@
 
   // Großgeschriebene Variablen sind in Svelte 5 als Komponente verwendbar.
   //
-  // Die Einstellungen stehen vor der Zugangsprüfung: Ohne Zugang liefert die
+  // Die Zugangsdaten stehen vor der Zugangsprüfung: Ohne Zugang liefert die
   // API nichts, und der Verwaltertoken wird genau dort eingetragen. Läge die
   // Ansicht dahinter, käme niemand je an sie heran.
   const Ansicht = $derived(
-    zustand.route === EINSTELLUNGEN_PFAD
-      ? Einstellungen
-      : zustand.route === DARSTELLUNG_PFAD
-        ? Darstellung
-        : zustand.route === ZUGANGSDATEN_PFAD
-          ? Zugangsdaten
-          : // Die Einsicht der Aufsicht in einen einzelnen Korpus. Sie steht in
-          // keiner Reiterreihe: Hierher führt ein Klick aus der Sprecherliste,
-          // zurück derselbe Weg.
-          beaufsichtigt && zustand.route.startsWith(EINSICHT_ROUTE)
-          ? Einsicht
-          : !spricht
-            ? Verwaltung
-            : ({
-                '/quelle': Quelle,
-                '/aufnahme': Aufnahme,
-                '/fortschritt': Fortschritt,
-              }[zustand.route] ?? Quelle),
+    zustand.route === ZUGANGSDATEN_PFAD
+      ? Zugangsdaten
+      : // Die Einsicht der Aufsicht in einen einzelnen Korpus. Sie steht in
+        // keiner Reiterreihe: Hierher führt ein Klick aus der Sprecherliste,
+        // zurück derselbe Weg.
+        beaufsichtigt && zustand.route.startsWith(EINSICHT_ROUTE)
+        ? Einsicht
+        : !spricht
+          ? Verwaltung
+          : ({
+              '/quelle': Quelle,
+              '/aufnahme': Aufnahme,
+              '/fortschritt': Fortschritt,
+            }[zustand.route] ?? Quelle),
   );
 
   // Nur wer aufnimmt, hat Ansichten zu wechseln; die Verwaltung hat eine
   // einzige Seite, und eine Reiterreihe wäre dort eine Zeile voller
   // Sackgassen.
   const menue = $derived(spricht ? MENUE : []);
-  // Der Sprecher steht nicht mehr im Menü: Er wird nicht gewählt, sondern
-  // abgeleitet. Für Verwaltung und Aufsicht ist er der einzige Punkt — bei der
-  // Aufsicht zugleich der Rückweg aus der Einsicht in einen einzelnen Korpus.
-  const uebergreifend = $derived(spricht ? [] : [{ pfad: SPRECHER_PFAD, text: 'Sprecher' }]);
+  // Was diese App über die gerätebezogenen Punkte hinaus ins Menü stellt.
+  //
+  // Der Sprecher steht nicht mehr im Menü, wenn einer spricht: Er wird nicht
+  // gewählt, sondern abgeleitet. Für Verwaltung und Aufsicht ist er der
+  // Rückweg aus der Einsicht in einen einzelnen Korpus.
+  //
+  // Die Zugangsdaten stehen immer da — auch und gerade, wenn dieser Browser
+  // keinen gültigen Zugang hat: Genau dann ist der Punkt der einzige Weg
+  // hinein, und ein Menü, das ihn erst nach erfolgreicher Anmeldung zeigt,
+  // hätte die Tür hinter dem Schloss.
+  const uebergreifend = $derived([
+    ...(spricht ? [] : [{ pfad: SPRECHER_PFAD, text: 'Sprecher' }]),
+    { pfad: ZUGANGSDATEN_PFAD, text: 'Zugangsdaten' },
+  ]);
+
+  // Was die Kopfleiste als offen markiert. Menüansichten markieren sich
+  // selbst; alles andere fällt auf den Reiter zurück, der wirklich dasteht —
+  // ohne das markierte eine unbekannte Route (altes Lesezeichen) nichts.
   const offen = $derived(
-    zustand.route === EINSTELLUNGEN_PFAD ||
-      zustand.route === DARSTELLUNG_PFAD ||
-      zustand.route === ZUGANGSDATEN_PFAD
+    [...uebergreifend, ...GERAETE_PUNKTE].some((punkt) => punkt.pfad === zustand.route)
       ? zustand.route
       : !spricht
         ? SPRECHER_PFAD
@@ -93,25 +96,10 @@
   const hinweis = $derived(
     beaufsichtigt ? 'Aufsicht' : zustand.art === 'verwaltung' ? 'Verwaltung' : '',
   );
-  // Zugangsdaten verwaltet, wer keinen Sprecher führt — dieselbe Zielgruppe
-  // wie die Seite selbst (siehe `Zugangsdaten.svelte`).
-  const zugangsdaten = $derived(!spricht);
 
   ladeZugang();
 </script>
 
-<Kopfleiste
-  app="hoeren"
-  punkte={menue}
-  {uebergreifend}
-  sprecher={name}
-  {hinweis}
-  {zugangsdaten}
-  route={offen}
-/>
-
-<main>
+<Rahmen app="hoeren" punkte={menue} {uebergreifend} sprecher={name} {hinweis} route={offen}>
   <Ansicht />
-</main>
-
-<Fusszeile />
+</Rahmen>

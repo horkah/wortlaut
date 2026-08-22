@@ -95,9 +95,17 @@ betreibt, sollte ihnen sagen, dass es diese Rolle gibt und wer sie hat: Für die
 betroffenen Personen ist das eine Auskunft nach Art. 13/14 DSGVO und keine
 technische Fußnote.
 
-`schreiben` hat bewusst kein Nutzerkonto, weil die Zielperson schlecht lesen
-und schreiben kann. Eine `schreiben`-Instanz gehört deshalb ins private Netz
-oder hinter einen Zugang, den jemand anderes einrichtet. Umgekehrt braucht sie
-den Sprecherzugang von `hören`, um Korrekturen abliefern zu dürfen: Der Rückweg
-steht offen, der Hinweg nicht — und er führt in genau den Korpus, zu dem dieser
-Zugang gehört.
+`schreiben` verlangt kein Anmeldeformular, weil die Zielperson schlecht lesen
+und schreiben kann — aber offen steht es deshalb nicht mehr: Jede Anfrage trägt
+denselben Sprecherzugang wie `hören`, und der Server leitet daraus ab, wessen
+Diktate er öffnet. Zwei Menschen an derselben Instanz sehen die Diktate des
+anderen nicht.
+
+Der Zugang kommt dabei nicht über ein Feld, sondern über den persönlichen Link,
+der einmal geöffnet wird; beide Apps liegen unter derselben Domain und lesen
+denselben Eintrag im `localStorage`. Ein Browser trägt weiterhin genau einen
+Zugang — wer ein Gerät weitergibt, gibt den Zugang mit.
+
+Mit demselben Zugang geht auch der Rückweg in den Korpus: Was jemand bestätigt,
+wird mit *seinem* Zugang eingeliefert und landet in genau dem Korpus, zu dem er
+gehört. Der Rückweg steht damit offen, der Hinweg nicht.

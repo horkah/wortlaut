@@ -19,7 +19,7 @@ from wortlaut import audio as klang
 
 from ..config import einstellungen
 from ..db.models import Abschnitt, jetzt
-from ..deps import Ablage, Datenbank, Whisper
+from ..deps import Ablage, Datenbank, SprecherId, Whisper
 from ..services import segmenter
 from .sessions import SitzungAntwort, abschnitte_von, als_antwort, hole
 
@@ -35,6 +35,7 @@ async def sprich(
     db: Datenbank,
     ablage: Ablage,
     whisper: Whisper,
+    sprecher: SprecherId,
     audio: UploadFile = File(),
 ) -> SitzungAntwort:
     """Eine Aufnahme diktieren; die Abschnitte hängen hinten an den Text an."""
@@ -51,7 +52,7 @@ async def sprich(
             whisper,
             ablage,
             konfiguration.sprache,
-            konfiguration.sprecher_id,
+            sprecher,
         )
     except klang.AudioFehler as fehler:
         raise HTTPException(status_code=400, detail=str(fehler)) from fehler
@@ -82,6 +83,7 @@ async def sprich_neu(
     db: Datenbank,
     ablage: Ablage,
     whisper: Whisper,
+    sprecher: SprecherId,
     audio: UploadFile = File(),
 ) -> SitzungAntwort:
     """Genau diesen Abschnitt neu einsprechen — der übrige Text bleibt stehen."""
@@ -99,7 +101,7 @@ async def sprich_neu(
             whisper,
             ablage,
             konfiguration.sprache,
-            konfiguration.sprecher_id,
+            sprecher,
             abschnitt_id,
         )
     except klang.AudioFehler as fehler:

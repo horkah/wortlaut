@@ -1,8 +1,8 @@
 """Welcher Modellstand läuft — die Auskunft für die Kopfzeile.
 
-Ein Modellwechsel ist eine Konfigurationsänderung mit Neustart. Wer eine
-Ausgabe beurteilt, muss deshalb jederzeit sehen können, welcher Stand sie
-erzeugt hat.
+Ein Modell gehört zu genau einem Sprecher (Grundentscheidung 3). Geprüft wird
+deshalb beides: dass die Auskunft den freigegebenen Stand **dieses** Sprechers
+nennt, und dass der Stand eines anderen hier nichts zu suchen hat.
 """
 
 from __future__ import annotations
@@ -62,17 +62,62 @@ class TestModellauskunft:
         assert "nicht gefunden" in klient.get("/schreiben/api/model").json()["beschriftung"]
 
 
-class TestModellpfad:
-    def test_ohne_ref_ist_es_der_blosse_name(self, _umgebung: None) -> None:
-        # faster-whisper lädt dann das unveränderte Whisper-Modell selbst.
-        assert modellpfad(einstellungen()) == "tiny"
+class TestEigenesModell:
+    """Jeder Sprecher läuft auf dem Stand, den „lernen" für ihn freigegeben hat."""
 
-    def test_mit_ref_ist_es_das_ct2_verzeichnis(
+    def test_nimmt_den_freigegebenen_stand_dieses_sprechers(
+        self, klient: TestClient, datenverzeichnis: Path, sprecher: str
+    ) -> None:
+        # Ohne WORTLAUT_MODELL_REF — der Betriebsfall, sobald es „lernen" gibt.
+        registry.schreibe_stand(datenverzeichnis, MANIFEST)
+
+        antwort = klient.get("/schreiben/api/model").json()
+
+        assert antwort["sprecher_id"] == sprecher
+        assert antwort["ref"] == MANIFEST["id"]
+        assert antwort["basismodell"] == "openai/whisper-large-v3"
+
+    def test_der_stand_eines_anderen_sprechers_gilt_hier_nicht(
+        self, klient: TestClient, datenverzeichnis: Path
+    ) -> None:
+        # Sonst spräche jemand auf der Stimme eines Fremden — und das Ergebnis
+        # sähe aus wie ein schlechtes Modell statt wie ein Fehlgriff.
+        registry.schreibe_stand(datenverzeichnis, {**MANIFEST, "id": "spr_fremd/2026-08-15T1420"})
+
+        antwort = klient.get("/schreiben/api/model").json()
+
+        assert antwort["ref"] == ""
+        assert antwort["beschriftung"] == "whisper-tiny · unverändert"
+
+    def test_ein_nicht_freigegebener_stand_zaehlt_nicht(
+        self, klient: TestClient, datenverzeichnis: Path
+    ) -> None:
+        registry.schreibe_stand(datenverzeichnis, {**MANIFEST, "status": "draft"})
+
+        assert klient.get("/schreiben/api/model").json()["ref"] == ""
+
+
+class TestModellpfad:
+    def test_ohne_stand_ist_es_der_blosse_name(self, _umgebung: None, sprecher: str) -> None:
+        # faster-whisper lädt dann das unveränderte Whisper-Modell selbst.
+        assert modellpfad(einstellungen(), sprecher) == "tiny"
+
+    def test_mit_stand_ist_es_das_ct2_verzeichnis(
+        self, _umgebung: None, datenverzeichnis: Path, sprecher: str
+    ) -> None:
+        registry.schreibe_stand(datenverzeichnis, MANIFEST)
+
+        pfad = modellpfad(einstellungen(), sprecher)
+
+        assert pfad == datenverzeichnis / "modelle" / "spr_test" / "2026-08-15T1420" / "ct2"
+
+    def test_die_vorgabe_aus_der_umgebung_schlaegt_alles(
         self, _umgebung: None, datenverzeichnis: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        # Zum Erproben eines Standes gedacht; im Betrieb bleibt die Variable leer.
         monkeypatch.setenv("WORTLAUT_MODELL_REF", MANIFEST["id"])
         einstellungen.cache_clear()
 
-        pfad = modellpfad(einstellungen())
-
-        assert pfad == datenverzeichnis / "modelle" / "spr_test" / "2026-08-15T1420" / "ct2"
+        assert modellpfad(einstellungen(), "spr_jemand_anderes") == (
+            datenverzeichnis / "modelle" / "spr_test" / "2026-08-15T1420" / "ct2"
+        )

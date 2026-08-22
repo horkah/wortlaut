@@ -11,6 +11,8 @@
  * eigenen — sie sieht über alle hinweg (siehe backend/api/admin.py).
  */
 
+import { mitZugang } from '$ui/zugang';
+
 export type Sprecher = {
   id: string;
   name: string;
@@ -79,17 +81,9 @@ export class ApiFehler extends Error {
   }
 }
 
-// Was hier liegt, ist entweder ein Sprecherzugang oder der Verwaltertoken —
-// der Server sieht am Aufbau, welches von beidem (backend/services/zugang.py).
-const ZUGANG_SCHLUESSEL = 'wortlaut.zugang';
-
-export function zugang(): string {
-  return localStorage.getItem(ZUGANG_SCHLUESSEL) ?? '';
-}
-
-export function setzeZugang(wert: string): void {
-  localStorage.setItem(ZUGANG_SCHLUESSEL, wert.trim());
-}
+// Wo der Zugang liegt und wie er an eine Anfrage kommt, steht in `$ui/zugang`:
+// Beide Apps lesen denselben Eintrag desselben Browsers (siehe dort).
+export { setzeZugang, zugang } from '$ui/zugang';
 
 /**
  * Eine Anfrage mit Zugang — die einzige Stelle, die ihn anhängt und einen
@@ -97,11 +91,7 @@ export function setzeZugang(wert: string): void {
  * ist JSON: Texte und Archive gehen denselben Weg.
  */
 async function hole(pfad: string, optionen: RequestInit = {}): Promise<Response> {
-  const kopf = new Headers(optionen.headers);
-  const angemeldet = zugang();
-  if (angemeldet) kopf.set('Authorization', `Bearer ${angemeldet}`);
-
-  const antwort = await fetch(`/api${pfad}`, { ...optionen, headers: kopf });
+  const antwort = await fetch(`/api${pfad}`, { ...optionen, headers: mitZugang(optionen.headers) });
   if (!antwort.ok) {
     // FastAPI antwortet mit {"detail": …}; bei Netzfehlern bleibt der Status.
     const rumpf = await antwort.json().catch(() => null);

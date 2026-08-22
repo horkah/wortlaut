@@ -66,11 +66,23 @@ def stelle_ein(db: Session, abschnitte: list[Abschnitt]) -> int:
     return len(neu)
 
 
-def sende_offene(db: Session, ablage: storage.Ablage, konfiguration: Einstellungen) -> Bericht:
+def sende_offene(
+    db: Session,
+    ablage: storage.Ablage,
+    konfiguration: Einstellungen,
+    sprecher_id: str,
+    token: str,
+) -> Bericht:
     """Versucht, alle offenen Einträge zuzustellen.
 
     Ohne `WORTLAUT_INTAKE_URL` wird nichts gesendet und nichts als gescheitert
     gezählt: Der Postausgang ist dann ein Puffer, der auf seine Adresse wartet.
+
+    `sprecher_id` und `token` sind der Zugang dessen, der gerade bestätigt oder
+    einen zweiten Versuch angestoßen hat. Sie werden durchgereicht und nicht
+    gespeichert: Ein Geheimnis, das in dieser Datenbank läge, wäre eines mehr,
+    das dort verloren gehen kann — und ein Sendelauf ohne Menschen davor gibt
+    es nicht.
     """
     offene = list(
         db.scalars(
@@ -96,6 +108,8 @@ def sende_offene(db: Session, ablage: storage.Ablage, konfiguration: Einstellung
                 wav=ablage.pfad(abschnitt.blob),
                 text=abschnitt.text,
                 externe_id=abschnitt.id,
+                sprecher_id=sprecher_id,
+                token=token,
             )
         except Exception as fehler:  # Netz, Server, fehlende Datei — alles gleich
             eintrag.letzter_fehler = f"{type(fehler).__name__}: {fehler}"[:500]
@@ -114,32 +128,34 @@ def sende_offene(db: Session, ablage: storage.Ablage, konfiguration: Einstellung
     return Bericht(gesendet=gesendet, offen=len(offene) - gesendet, fehler=letzter_fehler)
 
 
-def liefere_ein(konfiguration: Einstellungen, *, wav: Path, text: str, externe_id: str) -> None:
+def liefere_ein(
+    konfiguration: Einstellungen,
+    *,
+    wav: Path,
+    text: str,
+    externe_id: str,
+    sprecher_id: str,
+    token: str,
+) -> None:
     """Eine Korrektur an „hören" übergeben. Wirft, wenn es nicht geklappt hat.
 
     Eigene Funktion, damit der Weg nach draußen an genau einer Stelle steht —
     und damit ein Test ihn ersetzen kann, ohne einen Server zu starten.
 
-    `WORTLAUT_INTAKE_TOKEN` ist der Zugang **des** Sprechers bei „hören"; er
-    bestimmt dort, in welchen Korpus geschrieben wird. `sprecher` geht trotzdem
-    mit: nicht mehr als Wahl, sondern als Behauptung, die „hören" gegen den
-    Zugang hält. Passen die beiden nicht zusammen — hier der eine Sprecher
-    konfiguriert, dort der Zugang eines anderen —, kommt ein 403 zurück und der
-    Eintrag bleibt offen, statt dass Korrekturen still im fremden Korpus
-    landen.
+    Der Token ist der Zugang des Sprechers, der diesen Text bestätigt hat; er
+    bestimmt bei „hören", in welchen Korpus geschrieben wird. `sprecher` geht
+    trotzdem mit: nicht als Wahl, sondern als Behauptung, die „hören" gegen den
+    Zugang hält. Beide stammen hier aus derselben Anfrage und können deshalb
+    gar nicht mehr auseinanderfallen — die 403 von drüben bleibt als Netz für
+    den Fall, dass doch einmal jemand daran vorbeibaut.
     """
     import httpx
 
-    kopf = (
-        {"Authorization": f"Bearer {konfiguration.intake_token}"}
-        if konfiguration.intake_token
-        else {}
-    )
     with wav.open("rb") as datei:
         antwort = httpx.post(
             konfiguration.intake_url,
-            params={"sprecher": konfiguration.sprecher_id},
-            headers=kopf,
+            params={"sprecher": sprecher_id},
+            headers={"Authorization": f"Bearer {token}"},
             files={"audio": (wav.name, datei, "audio/wav")},
             data={"text": text, "externe_id": externe_id},
             timeout=60,

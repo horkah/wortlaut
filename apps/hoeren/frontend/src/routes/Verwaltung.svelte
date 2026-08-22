@@ -15,7 +15,7 @@
    * (`Einsicht.svelte`). Zwei getrennte Seiten wären zwei Listen derselben
    * Sprecher — eine davon immer die falsche.
    */
-  import { EINSTELLUNGEN_PFAD } from '$ui/apps';
+  import { ZUGANGSDATEN_PFAD } from '$ui/apps';
   import {
     ApiFehler,
     alleSprecher,
@@ -145,11 +145,12 @@
       Dieser Browser hat keinen gültigen Zugang. Wer aufnehmen will, öffnet einmal seinen
       persönlichen Link; wer verwaltet, trägt den Verwaltertoken ein.
     </p>
-    <button class="knopf haupt" onclick={() => gehZu(EINSTELLUNGEN_PFAD)}>
-      Zu den Einstellungen
+    <button class="knopf haupt" onclick={() => gehZu(ZUGANGSDATEN_PFAD)}>
+      Zu den Zugangsdaten
     </button>
     <p class="gedaempft">
-      Der Token steht dort unter „Zugang". Er bleibt in diesem Browser gespeichert.
+      Dieselbe Seite steht immer im Menü (☰) rechts oben. Der Token bleibt danach in diesem
+      Browser gespeichert.
     </p>
   </div>
 {:else}

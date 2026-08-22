@@ -1,18 +1,21 @@
-"""Welcher Modellstand hier läuft — dauerhaft sichtbar in der Kopfzeile.
+"""Welcher Modellstand für **diesen** Sprecher läuft.
 
-Ein Modellwechsel ist eine Konfigurationsänderung mit Neustart und kein
-Laufzeitereignis. Genau deshalb muss die Oberfläche jederzeit zeigen können,
-welcher Stand die Ausgabe erzeugt hat: Wer eine Fehlererkennung beurteilt,
-beurteilt immer ein bestimmtes Modell.
+Ein Modell gehört zu genau einem Menschen (Grundentscheidung 3), und wer hier
+diktiert, diktiert auf seinem eigenen: `lernen` gibt je Sprecher einen Stand
+frei, und der gilt für den, der ihn vorlegt. Deshalb hängt diese Auskunft am
+Zugang und nicht mehr an der Konfiguration.
+
+Die Oberfläche muss sie jederzeit zeigen können: Wer eine Fehlererkennung
+beurteilt, beurteilt immer ein bestimmtes Modell.
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter
 from pydantic import BaseModel
-from wortlaut import registry
 
 from ..config import einstellungen
+from ..deps import SprecherId, modellstand
 
 router = APIRouter(prefix="/api/model", tags=["Modell"])
 
@@ -31,13 +34,15 @@ class ModellAntwort(BaseModel):
 
 
 @router.get("", response_model=ModellAntwort)
-def modell() -> ModellAntwort:
+def modell(sprecher: SprecherId) -> ModellAntwort:
     konfiguration = einstellungen()
+    stand = modellstand(konfiguration, sprecher)
 
-    if not konfiguration.modell_ref:
-        # Der Normalfall, solange es „lernen" nicht gibt: unverändertes Whisper.
+    if stand is None:
+        # Der Normalfall, solange „lernen" für diesen Sprecher nichts
+        # freigegeben hat: unverändertes Whisper.
         return ModellAntwort(
-            sprecher_id=konfiguration.sprecher_id,
+            sprecher_id=sprecher,
             ref="",
             basismodell=konfiguration.asr_modell,
             methode=None,
@@ -47,28 +52,27 @@ def modell() -> ModellAntwort:
             beschriftung=f"whisper-{konfiguration.asr_modell} · unverändert",
         )
 
-    sprecher_id, version = konfiguration.modell_ref.split("/", 1)
-    try:
-        manifest = registry.lies_stand(konfiguration.data_dir, sprecher_id, version)
-    except (OSError, ValueError):
-        # Falsch gesetzte Umgebung soll man sehen, nicht raten müssen.
+    ref, manifest = stand
+    if not manifest:
+        # Ein vorgegebener Stand, den es nicht gibt: Falsch gesetzte Umgebung
+        # soll man sehen, nicht raten müssen.
         return ModellAntwort(
-            sprecher_id=sprecher_id,
-            ref=konfiguration.modell_ref,
+            sprecher_id=sprecher,
+            ref=ref,
             basismodell="?",
             methode=None,
             erstellt=None,
             wer=None,
             laufzeit=konfiguration.asr,
-            beschriftung=f"Modellstand {konfiguration.modell_ref} nicht gefunden",
+            beschriftung=f"Modellstand {ref} nicht gefunden",
         )
 
     metriken = manifest.get("metriken") or {}
     wer = metriken.get("wer")
     erstellt = manifest.get("erstellt")
     return ModellAntwort(
-        sprecher_id=sprecher_id,
-        ref=konfiguration.modell_ref,
+        sprecher_id=sprecher,
+        ref=ref,
         basismodell=manifest.get("basismodell", "?"),
         methode=manifest.get("methode"),
         erstellt=erstellt,

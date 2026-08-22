@@ -19,7 +19,7 @@ from wortlaut import ids
 
 from ..config import einstellungen
 from ..db.models import Abschnitt, Sitzung, jetzt
-from ..deps import Ablage, Datenbank
+from ..deps import Ablage, Datenbank, SprecherId, Zugangstoken
 from ..services import outbox
 
 router = APIRouter(prefix="/api/sessions", tags=["Sitzungen"])
@@ -66,11 +66,21 @@ def zeige(sitzung_id: str, db: Datenbank) -> SitzungAntwort:
 
 
 @router.post("/{sitzung_id}/bestaetigen", response_model=VersandAntwort)
-async def bestaetige(sitzung_id: str, db: Datenbank, ablage: Ablage) -> VersandAntwort:
+async def bestaetige(
+    sitzung_id: str,
+    db: Datenbank,
+    ablage: Ablage,
+    sprecher: SprecherId,
+    token: Zugangstoken,
+) -> VersandAntwort:
     """Text abnicken: jeder Abschnitt geht als Korrekturpaar an „hören".
 
     Eingestellt wird immer, gesendet wird gleich versucht. Klappt das Senden
     nicht, bleibt der Eintrag im Postausgang und die Antwort sagt, warum.
+
+    Gesendet wird mit dem Zugang, mit dem hier bestätigt wurde: Die Korrektur
+    landet damit zwingend im Korpus dessen, der sie abgenickt hat, und nicht in
+    dem, den eine Konfiguration einmal genannt hat.
     """
     sitzung = hole(db, sitzung_id)
     abschnitte = abschnitte_von(db, sitzung_id)
@@ -84,7 +94,9 @@ async def bestaetige(sitzung_id: str, db: Datenbank, ablage: Ablage) -> VersandA
 
     # Der Versand spricht über das Netz und blockiert; deshalb nicht im
     # Ereignisfaden von uvicorn, sondern in einem Arbeitsfaden.
-    bericht = await run_in_threadpool(outbox.sende_offene, db, ablage, einstellungen())
+    bericht = await run_in_threadpool(
+        outbox.sende_offene, db, ablage, einstellungen(), sprecher, token
+    )
     return VersandAntwort(
         eingestellt=eingestellt,
         gesendet=bericht.gesendet,
