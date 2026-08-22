@@ -253,17 +253,20 @@ export type AufsichtAufnahme = {
 export type Einsicht = {
   sprecher: Uebersicht;
   quellen: AufsichtQuelle[];
-  sitzungen: AufsichtSitzung[];
 };
 
 export type Aufnahmenseite = { gesamt: number; ab: number; aufnahmen: AufsichtAufnahme[] };
+export type Sitzungenseite = { gesamt: number; ab: number; sitzungen: AufsichtSitzung[] };
 
 export const alleSprecher = () => anfrage<Uebersicht[]>('/admin/speakers');
 
 export const einsicht = (sprecher: string) => anfrage<Einsicht>(`/admin/speakers/${sprecher}`);
 
-export const aufsichtAufnahmen = (sprecher: string, ab = 0) =>
-  anfrage<Aufnahmenseite>(`/admin/speakers/${sprecher}/recordings?ab=${ab}`);
+export const aufsichtSitzungen = (sprecher: string, ab = 0, anzahl = 10) =>
+  anfrage<Sitzungenseite>(`/admin/speakers/${sprecher}/sessions?ab=${ab}&anzahl=${anzahl}`);
+
+export const aufsichtAufnahmen = (sprecher: string, ab = 0, anzahl = 10) =>
+  anfrage<Aufnahmenseite>(`/admin/speakers/${sprecher}/recordings?ab=${ab}&anzahl=${anzahl}`);
 
 export const sprecherUmbenennen = (sprecher: string, name: string) =>
   anfrage<Uebersicht>(`/admin/speakers/${sprecher}`, {

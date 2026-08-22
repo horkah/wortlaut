@@ -97,6 +97,12 @@ class SitzungAntwort(BaseModel):
     aufnahmen: int
 
 
+class SitzungenAntwort(BaseModel):
+    gesamt: int
+    ab: int
+    sitzungen: list[SitzungAntwort]
+
+
 class AufnahmeAntwort(BaseModel):
     """Eine Aufnahme mit dem Text, zu dem sie gehört — sonst wäre sie stumm."""
 
@@ -117,7 +123,6 @@ class AufnahmeAntwort(BaseModel):
 class EinsichtAntwort(BaseModel):
     sprecher: UebersichtAntwort
     quellen: list[QuelleAntwort]
-    sitzungen: list[SitzungAntwort]
 
 
 class AufnahmenAntwort(BaseModel):
@@ -152,18 +157,26 @@ def uebersicht(ablage: Ablage) -> list[UebersichtAntwort]:
 
 @router.get("/speakers/{sprecher_id}", response_model=EinsichtAntwort)
 def einsicht(sprecher_id: str, ablage: Ablage) -> EinsichtAntwort:
-    """Was in der Datenbank **eines** Sprechers steht: Quellen und Sitzungen.
+    """Was in der Datenbank **eines** Sprechers steht: Profil und Quellen.
 
-    Die Aufnahmen stehen nicht darin, sondern hinter einem eigenen Weg: Es sind
-    Tausende, und sie sind das Einzige, was seitenweise geholt werden muss.
+    Sitzungen und Aufnahmen stehen nicht darin, sondern hinter eigenen Wegen:
+    Es können Hunderte oder Tausende sein, und sie sind das Einzige, was
+    seitenweise geholt werden muss.
     """
     with Session(engine_fuer(sprecher_id)) as sitzung:
         sprecher = _hole(sitzung, sprecher_id)
         return EinsichtAntwort(
             sprecher=_uebersicht(sitzung, sprecher, ablage),
             quellen=_quellen(sitzung),
-            sitzungen=_sitzungen(sitzung),
         )
+
+
+@router.get("/speakers/{sprecher_id}/sessions", response_model=SitzungenAntwort)
+def sitzungen(sprecher_id: str, ab: int = 0, anzahl: int = SEITE) -> SitzungenAntwort:
+    """Die Sitzungen eines Sprechers, jüngste zuerst, seitenweise."""
+    with Session(engine_fuer(sprecher_id)) as sitzung:
+        _hole(sitzung, sprecher_id)
+        return _sitzungen(sitzung, ab, anzahl)
 
 
 @router.get("/speakers/{sprecher_id}/recordings", response_model=AufnahmenAntwort)
@@ -479,26 +492,33 @@ def _quellen(sitzung: Session) -> list[QuelleAntwort]:
     ]
 
 
-def _sitzungen(sitzung: Session) -> list[SitzungAntwort]:
-    anzahl = (
+def _sitzungen(sitzung: Session, ab: int = 0, anzahl: int = SEITE) -> SitzungenAntwort:
+    gesamt = sitzung.scalar(select(func.count()).select_from(Sitzung)) or 0
+    aufnahmen_pro_sitzung = (
         select(Aufnahme.session_id, func.count().label("aufnahmen"))
         .group_by(Aufnahme.session_id)
         .subquery()
     )
     zeilen = sitzung.execute(
-        select(Sitzung, func.coalesce(anzahl.c.aufnahmen, 0))
-        .outerjoin(anzahl, anzahl.c.session_id == Sitzung.id)
+        select(Sitzung, func.coalesce(aufnahmen_pro_sitzung.c.aufnahmen, 0))
+        .outerjoin(aufnahmen_pro_sitzung, aufnahmen_pro_sitzung.c.session_id == Sitzung.id)
         .order_by(Sitzung.begonnen.desc())
+        .offset(max(ab, 0))
+        .limit(min(max(anzahl, 1), SEITE))
     ).all()
-    return [
-        SitzungAntwort(
-            id=eintrag.id,
-            begonnen=eintrag.begonnen,
-            zuletzt_aktiv=eintrag.zuletzt_aktiv,
-            aufnahmen=aufnahmen_je,
-        )
-        for eintrag, aufnahmen_je in zeilen
-    ]
+    return SitzungenAntwort(
+        gesamt=gesamt,
+        ab=max(ab, 0),
+        sitzungen=[
+            SitzungAntwort(
+                id=eintrag.id,
+                begonnen=eintrag.begonnen,
+                zuletzt_aktiv=eintrag.zuletzt_aktiv,
+                aufnahmen=aufnahmen_je,
+            )
+            for eintrag, aufnahmen_je in zeilen
+        ],
+    )
 
 
 def _archiv(dateiname: str, baue: Callable[[Path], Path], medientyp: str) -> FileResponse:

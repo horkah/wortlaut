@@ -9,26 +9,42 @@
    * will, öffnet sie nacheinander.
    */
   import AudioPlayer from '$ui/AudioPlayer.svelte';
+  import Pager from '$ui/Pager.svelte';
   import {
     alleAufnahmenLoeschen,
     aufnahmeAudio,
     aufnahmeLoeschen,
     aufsichtAufnahmen,
+    aufsichtSitzungen,
     datensatzSprecher,
     einsicht as ladeEinsicht,
     sicherungSprecher,
     sprecherLoeschen,
     sprecherUmbenennen,
     type AufsichtAufnahme,
+    type AufsichtSitzung,
     type Einsicht,
   } from '../lib/api';
   import { gehZu, sprecherAusRoute, zustand } from '../lib/zustand.svelte';
 
+  // Wie viele Zeilen eine Seite hat — für Sitzungen und Aufnahmen gleich, denn
+  // beides sind Listen derselben Art (siehe `Pager.svelte`).
+  const PRO_SEITE = 10;
+
   const sprecherId = $derived(sprecherAusRoute(zustand.route));
 
   let daten = $state<Einsicht | null>(null);
+
+  let sitzungen = $state<AufsichtSitzung[]>([]);
+  let sitzungenSeite = $state(1);
+  let sitzungenGesamt = $state(0);
+  const sitzungenSeiten = $derived(Math.max(1, Math.ceil(sitzungenGesamt / PRO_SEITE)));
+
   let aufnahmen = $state<AufsichtAufnahme[]>([]);
-  let gesamt = $state(0);
+  let aufnahmenSeite = $state(1);
+  let aufnahmenGesamt = $state(0);
+  const aufnahmenSeiten = $derived(Math.max(1, Math.ceil(aufnahmenGesamt / PRO_SEITE)));
+
   let fehler = $state('');
   let meldung = $state('');
   let laeuft = $state('');
@@ -36,13 +52,41 @@
   // Der Browser hielte sonst Dutzende Aufnahmen im Speicher.
   let hoerprobe = $state<{ id: string; adresse: string } | null>(null);
 
+  async function ladeSitzungen() {
+    const seite = await aufsichtSitzungen(sprecherId, (sitzungenSeite - 1) * PRO_SEITE, PRO_SEITE);
+    sitzungen = seite.sitzungen;
+    sitzungenGesamt = seite.gesamt;
+  }
+
+  async function ladeAufnahmen() {
+    const seite = await aufsichtAufnahmen(sprecherId, (aufnahmenSeite - 1) * PRO_SEITE, PRO_SEITE);
+    aufnahmen = seite.aufnahmen;
+    aufnahmenGesamt = seite.gesamt;
+  }
+
   async function lade() {
     fehler = '';
     try {
       daten = await ladeEinsicht(sprecherId);
-      const seite = await aufsichtAufnahmen(sprecherId);
-      aufnahmen = seite.aufnahmen;
-      gesamt = seite.gesamt;
+      await Promise.all([ladeSitzungen(), ladeAufnahmen()]);
+    } catch (ursache) {
+      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+    }
+  }
+
+  async function wechsleSitzungenSeite(seite: number) {
+    sitzungenSeite = seite;
+    try {
+      await ladeSitzungen();
+    } catch (ursache) {
+      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+    }
+  }
+
+  async function wechsleAufnahmenSeite(seite: number) {
+    aufnahmenSeite = seite;
+    try {
+      await ladeAufnahmen();
     } catch (ursache) {
       fehler = ursache instanceof Error ? ursache.message : String(ursache);
     }
@@ -101,7 +145,7 @@
     const name = daten.sprecher.name;
     if (
       !confirm(
-        `Alle ${gesamt} Aufnahmen von „${name}“ endgültig löschen?\n\n` +
+        `Alle ${aufnahmenGesamt} Aufnahmen von „${name}“ endgültig löschen?\n\n` +
           'Profil, Textquellen und Warteschlange bleiben stehen — gesprochen ist danach nichts ' +
           'mehr. Das lässt sich nicht rückgängig machen.',
       )
@@ -110,6 +154,7 @@
     if (!bestaetigeMitNamen(name)) return;
     await tue('leeren', async () => {
       const ergebnis = await alleAufnahmenLoeschen(sprecherId);
+      aufnahmenSeite = 1;
       await lade();
       meldung = `${ergebnis.geloescht} Aufnahme(n) gelöscht.`;
     }, '');
@@ -241,21 +286,16 @@
   {/each}
 
   <h2>Sitzungen</h2>
-  {#each daten.sitzungen.slice(0, 20) as sitzung (sitzung.id)}
+  {#each sitzungen as sitzung (sitzung.id)}
     <div class="karte gedaempft">
       {tag(sitzung.begonnen)} · {sitzung.aufnahmen} Aufnahme(n) · {sitzung.id}
     </div>
   {:else}
     <p class="gedaempft">Keine Sitzung.</p>
   {/each}
+  <Pager seite={sitzungenSeite} gesamtSeiten={sitzungenSeiten} aendere={wechsleSitzungenSeite} />
 
   <h2>Aufnahmen</h2>
-  {#if gesamt > aufnahmen.length}
-    <p class="gedaempft">
-      Die {aufnahmen.length} neuesten von {gesamt}. Der Rest steht im Datensatz.
-    </p>
-  {/if}
-
   {#each aufnahmen as aufnahme (aufnahme.id)}
     <div class="karte">
       <div class="reihe">
@@ -285,6 +325,7 @@
   {:else}
     <p class="gedaempft">Keine Aufnahme.</p>
   {/each}
+  <Pager seite={aufnahmenSeite} gesamtSeiten={aufnahmenSeiten} aendere={wechsleAufnahmenSeite} />
 
   <!-- Ganz unten und abgesetzt: Was hier steht, ist nicht rückgängig zu
        machen, und niemand soll versehentlich darauf stoßen. -->
@@ -295,7 +336,11 @@
       Sicherung ziehen — mit ihr lässt sich der Stand zurückholen, ohne sie nicht.
     </p>
     <div class="reihe">
-      <button class="knopf" disabled={!gesamt || laeuft === 'leeren'} onclick={loescheAlleAufnahmen}>
+      <button
+        class="knopf"
+        disabled={!aufnahmenGesamt || laeuft === 'leeren'}
+        onclick={loescheAlleAufnahmen}
+      >
         Alle Aufnahmen löschen
       </button>
       <button class="knopf" disabled={laeuft === 'loeschen'} onclick={loescheSprecher}>
