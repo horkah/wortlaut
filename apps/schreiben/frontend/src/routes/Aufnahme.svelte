@@ -12,6 +12,11 @@
   import { diktieren, sitzungBeginnen } from '../lib/api';
   import { gehZu, setzeSitzung, zustand } from '../lib/zustand.svelte';
 
+  // Der Modellstand steht hier, nicht in der Kopfzeile: Ein Modellwechsel ist
+  // eine Konfigurationsänderung, und wer eine Ausgabe beurteilt, muss sehen,
+  // welcher Stand sie erzeugt hat — direkt bei der Aufnahme, die ihn erzeugt.
+  const beschriftung = $derived(zustand.modellstand?.beschriftung ?? '');
+
   let stand = $state<'bereit' | 'verstehe'>('bereit');
   let fehler = $state('');
 
@@ -56,6 +61,10 @@
   {#if fehler}
     <p class="fehler">{fehler}</p>
   {/if}
+
+  {#if beschriftung}
+    <p class="modellstand gedaempft">{beschriftung}</p>
+  {/if}
 </div>
 
 <style>
@@ -68,6 +77,11 @@
   }
   .ansage {
     font-size: 1.4rem;
+    margin: 0;
+  }
+  /* Randnotiz unter dem Aufnahmeknopf, kein Bedienelement — bleibt leise. */
+  .modellstand {
+    font-size: 0.8rem;
     margin: 0;
   }
 </style>

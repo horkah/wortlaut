@@ -1,5 +1,6 @@
 /**
- * Was alle Ansichten teilen: die Route und die laufende Diktiersitzung.
+ * Was alle Ansichten teilen: die Route, die laufende Diktiersitzung und der
+ * Modellstand.
  *
  * Die Route steht im Hash (`#/text`). Das genügt für zwei Ansichten und spart
  * ein Routing-Paket samt Server-Konfiguration.
@@ -7,8 +8,13 @@
  * Die Sitzung liegt zusätzlich im `sessionStorage`: Ein versehentliches
  * Neuladen soll den gesprochenen Text nicht verlieren, ein neuer Tab dagegen
  * mit einem leeren Blatt anfangen.
+ *
+ * Der Modellstand steht hier und nicht nur lokal in `App.svelte`, weil ihn
+ * zwei Stellen brauchen: die Kopfzeile den Sprecher (den diese Instanz fest
+ * führt, siehe `Modell.sprecher_id`), die Aufnahmeansicht die Beschriftung
+ * daneben dem Aufnahmeknopf.
  */
-import { sitzungHolen, type Sitzung } from './api';
+import { modell, sitzungHolen, type Modell, type Sitzung } from './api';
 
 const SITZUNG_SCHLUESSEL = 'wortlaut.diktat';
 
@@ -19,6 +25,7 @@ function routeAusHash(): string {
 export const zustand = $state({
   route: routeAusHash(),
   sitzung: null as Sitzung | null,
+  modellstand: null as Modell | null,
 });
 
 window.addEventListener('hashchange', () => {
@@ -27,6 +34,16 @@ window.addEventListener('hashchange', () => {
 
 export function gehZu(route: string): void {
   window.location.hash = route;
+}
+
+/** Ohne Auskunft bleibt der Modellstand leer — dann zeigen Kopfzeile und
+ *  Aufnahmeansicht schlicht nichts an, statt einen Fehler vorzutäuschen. */
+export async function ladeModellstand(): Promise<void> {
+  try {
+    zustand.modellstand = await modell();
+  } catch {
+    zustand.modellstand = null;
+  }
 }
 
 /** Die Sitzung übernehmen, wie der Server sie zuletzt gesehen hat. */
