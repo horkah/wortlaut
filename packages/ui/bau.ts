@@ -12,11 +12,16 @@
  */
 declare const __BAUDATUM__: string;
 
-/** Das Baudatum als ISO-Datum (`2026-08-22`). */
+/** Das Baudatum als ISO-Zeitstempel (`2026-08-22T14:03:00.000Z`). */
 export const BAUDATUM: string = __BAUDATUM__;
 
-/** Dasselbe Datum, wie man es hierzulande schreibt (`22.08.2026`). */
+/** Dasselbe Datum mit Uhrzeit, wie man es hierzulande schreibt (`22.08.2026, 14:03`). */
 export function baudatumLesbar(): string {
-  const teile = BAUDATUM.split('-');
-  return teile.length === 3 ? `${teile[2]}.${teile[1]}.${teile[0]}` : BAUDATUM;
+  const datum = new Date(BAUDATUM);
+  if (Number.isNaN(datum.getTime())) return BAUDATUM;
+  const tag = String(datum.getDate()).padStart(2, '0');
+  const monat = String(datum.getMonth() + 1).padStart(2, '0');
+  const stunde = String(datum.getHours()).padStart(2, '0');
+  const minute = String(datum.getMinutes()).padStart(2, '0');
+  return `${tag}.${monat}.${datum.getFullYear()}, ${stunde}:${minute}`;
 }

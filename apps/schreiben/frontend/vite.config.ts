@@ -8,7 +8,7 @@ const repowurzel = resolve(hier, '../../..');
 
 // Das Baudatum wandert als fester Wert ins Bündel (siehe packages/ui/bau.ts);
 // der Seitenfuß zeigt es an. In der Entwicklung ist es der Serverstart.
-const baudatum = new Date().toISOString().slice(0, 10);
+const baudatum = new Date().toISOString();
 
 export default defineConfig({
   plugins: [svelte()],
