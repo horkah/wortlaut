@@ -16,35 +16,57 @@ für ein paar echte Aufnahmen.
 - Browser mit Mikrofonzugriff, aufgerufen über **`http://localhost:5173`**
   (nicht `:8000` — das Backend liefert dort nur `/api/…` und `/gesundheit`,
   ein `404` auf `/` davor ist normal, kein Fehler)
-- `WORTLAUT_AUTH_TOKEN` in `.env` leer lassen, dann entfällt Schritt 1c
+- `WORTLAUT_AUTH_TOKEN` in `.env` leer lassen, dann entfällt Schritt 1.4
 
-## 1. Sprecherprofil
+## 1. Sprecherprofil und Zugang
+
+Dieser Schritt ist die Verwaltung, nicht der Alltag: Er wird einmal je Person
+gemacht, und was dabei herauskommt, ist ein Link.
 
 1. Seite öffnen. Erwartet: Kopfzeile mit einer Reihe — „wortlaut“, dahinter
    die drei Apps, „hören“ dunkelgrün hinterlegt, „schreiben“ anklickbar und
-   „lernen“ blass und tot (die gibt es noch nicht). Rechts, vor dem Menüknopf,
-   steht kursiv „kein Sprecher“. Die zweite Reihe mit den Ansichten fehlt
-   noch. Darunter Überschrift „Sprecher“ und „Noch kein Sprecherprofil
-   vorhanden.“ — das ist der Leerzustand, keine kaputte Seite.
+   „lernen“ blass und tot (die gibt es noch nicht). Die zweite Reihe mit den
+   Ansichten fehlt noch. Darunter Überschrift „Sprecher“ und „Noch kein
+   Sprecherprofil vorhanden.“ — das ist der Leerzustand, keine kaputte Seite.
 2. Unter „Neues Profil“: Namen eintragen, Basismodell auf
    `whisper-small (Entwicklung ohne GPU)` oder, für noch weniger Rechenlast,
-   `whisper-tiny (noch weniger Rechenlast)` stellen, **Anlegen**. Für den
-   Testablauf hier ohne Belang: `hören` selbst ruft Whisper nirgends auf —
-   das Feld ist reine Metadaten für das spätere Training in `lernen`.
-3. Erwartet: Profil erscheint in der Liste, App springt automatisch zur
-   Ansicht „Textquelle“; in der Kopfzeile steht jetzt eine zweite Reihe
-   (Textquelle, Aufnehmen, Fortschritt) mit „Textquelle“ hell hinterlegt.
-   Beim Wechsel der Ansicht wandert die Hinterlegung mit. Statt „kein
-   Sprecher“ steht rechts nun der eingetragene Name. Weder „Sprecher“ noch
-   „Einstellungen“ stehen in der Reiterreihe — beide gelten über diese App
-   hinaus und hängen hinter dem Menüknopf (☰) rechts oben, der Sprecher
-   über den Einstellungen.
-4. Falls `WORTLAUT_AUTH_TOKEN` gesetzt ist: stattdessen erscheint statt der
-   Liste der Hinweis, dass der Server einen Zugangstoken verlangt, mit dem
-   Knopf **Zu den Einstellungen**. Dort unter „Zugang“ den Token eintragen,
+   `whisper-tiny (noch weniger Rechenlast)` stellen, **Anlegen und Zugang
+   ausgeben**. Für den Testablauf hier ohne Belang: `hören` selbst ruft
+   Whisper nirgends auf — das Feld ist reine Metadaten für das spätere
+   Training in `lernen`.
+3. Erwartet: Oben erscheint der Kasten „Zugang ausgegeben“ mit einem Link der
+   Form `http://localhost:5173/#/zugang/spr_….…`, darunter das Profil in der
+   Liste mit „Zugang ausgegeben am …“. **Link kopieren**.
+4. Falls `WORTLAUT_AUTH_TOKEN` gesetzt ist: Statt der Liste erscheint der
+   Hinweis, dass dieser Browser keinen gültigen Zugang hat, mit dem Knopf
+   **Zu den Einstellungen**. Dort unter „Zugang“ den Verwaltertoken eintragen,
    **Speichern und prüfen**, dann mit **Weiter zu den Sprechern** zurück und
-   Schritt 2 wiederholen. Ein Eingabefeld für den Token gibt es bewusst nur
-   an dieser einen Stelle.
+   Schritt 2 wiederholen.
+
+## 1b. Den Zugang benutzen
+
+1. Den kopierten Link in die Adresszeile einfügen und öffnen. Erwartet: Die
+   Adresse springt sofort zurück auf `.../#/` — das Geheimnis steht nicht mehr
+   dort. Die App zeigt die Ansicht „Textquelle“, in der Kopfzeile steht eine
+   zweite Reihe (Textquelle, Aufnehmen, Fortschritt) mit „Textquelle“ hell
+   hinterlegt, und vor dem Menüknopf steht der eingetragene Name. Weder
+   „Sprecher“ noch „Einstellungen“ stehen in der Reiterreihe — die
+   Einstellungen hängen hinter dem Menüknopf (☰) rechts oben, einen Punkt
+   „Sprecher“ gibt es hier nicht mehr: Wer man ist, steht im Zugang.
+2. Seite neu laden. Erwartet: Es bleibt alles, wie es war — der Zugang liegt
+   in diesem Browser. Genau das ist der Alltag: einmal einrichten, danach nie
+   wieder etwas eintragen.
+3. Probe auf den Fehlgriff: `#/fortschritt` öffnen und in der Adresszeile
+   `?sprecher=spr_irgendwas` anhängen — das geht nur über die Entwicklerkonsole
+   oder `curl`, denn die App hängt nichts mehr an. Mit `curl`:
+
+   ```bash
+   curl -i "http://localhost:8000/api/progress?sprecher=spr_falsch" \
+     -H "Authorization: Bearer <der Zugang aus dem Link>"
+   ```
+
+   Erwartet: `403` und eine Meldung, die beide Kennungen nennt. Früher wäre
+   hier still der fremde Korpus geöffnet worden.
 
 ## 2. Textquelle
 
@@ -104,11 +126,10 @@ und ein Schlüssel hinterlegt ist):
    gegen die Marken „Brauchbar“ und „Gut“; Tabelle „Zusammensetzung“ mit den
    gerade aufgenommenen Modi (`gelesen` und ggf. `nachgesprochen`) und der
    Quelle (`vorlage`).
-3. **Abmelden.** Erwartet: zurück zur Sprecheransicht, die Ansichtenreihe
-   verschwindet, die App-Reihe bleibt, rechts steht wieder „kein Sprecher“;
-   das angelegte Profil steht weiter in der Sprecherliste und lässt sich
-   erneut auswählen — über den Menüknopf (☰) → „Sprecher“ ist die Ansicht
-   auch später jederzeit erreichbar.
+3. Einen Abmeldeknopf gibt es hier bewusst nicht: Wer aufnimmt, hat nichts
+   abzumelden, und der Knopf wäre für die Zielgruppe nur ein Weg, den eigenen
+   Zugang loszuwerden. Soll das Gerät die Person wechseln, wird einfach der
+   Link der anderen geöffnet — er ersetzt den vorhandenen Zugang.
 
 ## 5. Mikrofon
 
@@ -180,8 +201,13 @@ sogar. Vorher in der `.env`:
 ```
 WORTLAUT_SPRECHER_ID=<die ID aus Schritt 1>
 WORTLAUT_INTAKE_URL=http://localhost:8000/api/korpus/intake
-WORTLAUT_INTAKE_TOKEN=<derselbe Wert wie WORTLAUT_AUTH_TOKEN, falls gesetzt>
+WORTLAUT_INTAKE_TOKEN=<der Zugang aus Schritt 1.3, also spr_….…>
 ```
+
+Der Zugang und nicht der Verwaltertoken: Er sagt „hören“, in welchen Korpus
+die Korrekturen gehören. Passt er nicht zu `WORTLAUT_SPRECHER_ID`, bleibt der
+Postausgang mit einem 403 offen — das ist gewollt und in Schritt 7.6 zu sehen,
+wenn man die beiden absichtlich falsch zusammensteckt.
 
 Aufgerufen wird **`http://localhost:5174/schreiben/`** — mit Pfad; ohne ihn
 bleibt die Seite leer, das ist kein Fehler.
