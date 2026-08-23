@@ -2,7 +2,7 @@
 
 Eine Sitzung ist ein Text im Entstehen: gesprochen, abschnittsweise
 korrigiert, am Ende bestätigt. Erst das Bestätigen macht daraus Daten für
-„hören" — vorher ist alles Arbeitsstand.
+„hören" - vorher ist alles Arbeitsstand.
 
 Die Wege heißen englisch wie die Tabellen (`sessions`, `segments`, `outbox`),
 die Handlungen daran deutsch wie der übrige Code (`…/bestaetigen`).
@@ -44,7 +44,7 @@ class SitzungAntwort(BaseModel):
 
 
 class VersandAntwort(BaseModel):
-    """Was aus dem Bestätigen geworden ist — Zahlen, keine Protokollzeilen."""
+    """Was aus dem Bestätigen geworden ist - Zahlen, keine Protokollzeilen."""
 
     eingestellt: int
     gesendet: int

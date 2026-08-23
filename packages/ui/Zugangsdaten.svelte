@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Der Zugang dieses Browsers — dieselbe Ansicht in jeder App.
+   * Der Zugang dieses Browsers - dieselbe Ansicht in jeder App.
    *
    * Sie steht hier und nicht in einer App, weil es nur **einen** Zugang gibt:
    * Beide Apps lesen denselben Eintrag desselben Browsers (siehe `zugang.ts`),
@@ -18,7 +18,7 @@
    * Anmeldung zeigte, hätte die Tür hinter das Schloss gelegt.
    *
    * Wer mit dem Zugang eines Sprechers hier ist, sieht zuerst nur, wessen
-   * Zugang in diesem Browser liegt — kein Feld, in das er nichts einzutragen
+   * Zugang in diesem Browser liegt - kein Feld, in das er nichts einzutragen
    * hat und an dem er seinen Zugang nur kaputtmachen könnte. Zugeklappt ist
    * aber nicht verschlossen: Ein Browser trägt genau **einen** Zugang, und ihn
    * gegen den Verwalter- oder Aufsichtstoken zu tauschen, ist der einzige Weg
@@ -47,7 +47,7 @@
      */
     verwaltet?: boolean;
     /**
-     * Beim Server nachfragen, wer jetzt ruft — wirft, wenn der Zugang nicht
+     * Beim Server nachfragen, wer jetzt ruft - wirft, wenn der Zugang nicht
      * gilt. Jede App reicht ihren eigenen Weg herein; die Antwort ist
      * dieselbe.
      */
@@ -63,7 +63,7 @@
   // Nur für den Sprecherfall: Das Feld ist da, aber es drängt sich nicht auf.
   let wechseln = $state(false);
 
-  // Speichern allein sagt noch nicht, ob der Zugang stimmt — darum eine echte
+  // Speichern allein sagt noch nicht, ob der Zugang stimmt - darum eine echte
   // Anfrage hinterher. Ein falscher Token fällt sonst erst viel später auf.
   async function speichern() {
     setzeZugang(eingabe);
@@ -72,9 +72,9 @@
       const wer = await pruefe();
       meldung =
         wer.art === 'sprecher'
-          ? `Angenommen — dieser Browser gehört jetzt zu „${wer.name}“.`
+          ? `Angenommen - dieser Browser gehört jetzt zu „${wer.name}“.`
           : wer.art === 'aufsicht'
-            ? 'Angenommen — dieser Browser ist jetzt die Aufsicht.'
+            ? 'Angenommen - dieser Browser ist jetzt die Aufsicht.'
             : 'Token gespeichert, der Server nimmt ihn an.';
       angenommen = true;
     } catch (ursache) {
@@ -117,7 +117,7 @@
 {#if art === 'sprecher'}
   <p>
     Dieser Browser hat den persönlichen Zugang von <strong>{name}</strong>. Er kam über den Link,
-    der einmal geöffnet wurde, und gilt weiter — hier ist nichts einzutragen.
+    der einmal geöffnet wurde, und gilt weiter - hier ist nichts einzutragen.
   </p>
   <p class="gedaempft">
     Derselbe Zugang gilt in beiden Apps: einmal geöffnet, überall angemeldet. Geht er verloren,
@@ -135,7 +135,7 @@
         Ein Browser trägt genau einen Zugang. Wird hier der
         <code>WORTLAUT_AUTH_TOKEN</code> (Verwaltung) oder der
         <code>WORTLAUT_ADMIN_TOKEN</code> (Aufsicht) eingetragen, gilt der persönliche Zugang von
-        <strong>{name}</strong> in diesem Browser nicht mehr — er kommt mit einem Klick auf den
+        <strong>{name}</strong> in diesem Browser nicht mehr - er kommt mit einem Klick auf den
         persönlichen Link zurück. Der Server sieht am Vorgelegten, welches von beidem es ist.
       </p>
       {@render formular()}
@@ -149,7 +149,7 @@
   {/if}
 {:else}
   <p class="gedaempft">
-    Wer aufnehmen oder diktieren will, braucht hier nichts einzutragen — dafür gibt es den
+    Wer aufnehmen oder diktieren will, braucht hier nichts einzutragen - dafür gibt es den
     persönlichen Link. Er wird einmal geöffnet und gilt danach in beiden Apps.
   </p>
   {#if verwaltet}
@@ -161,7 +161,7 @@
     <p class="gedaempft">
       Für die <strong>Aufsicht</strong>: der <code>WORTLAUT_ADMIN_TOKEN</code>, in dasselbe Feld.
       Sie sieht in jeden Korpus, benennt um, sichert und löscht. Dieser Browser gehört danach der
-      Aufsicht — ein Sprecher, der ihn vorher benutzt hat, öffnet einmal wieder seinen
+      Aufsicht - ein Sprecher, der ihn vorher benutzt hat, öffnet einmal wieder seinen
       persönlichen Link.
     </p>
   {/if}

@@ -10,7 +10,7 @@
  * Ursprung, und alle drei Apps liegen unter derselben Adresse. Wer das
  * Mikrofon in „hören" einmisst, hat es damit auch in „schreiben" eingemessen.
  *
- * Weil die Werte geteilt sind, ist es auch die Ansicht dazu — sie steht einmal
+ * Weil die Werte geteilt sind, ist es auch die Ansicht dazu - sie steht einmal
  * in `Einstellungen.svelte` (Mikrofon, Vorlesen) und einmal in
  * `Darstellung.svelte` (Farben, Schrift).
  */
@@ -40,8 +40,8 @@ export const AUTOPEGEL_VORGABE = true;
 /**
  * Die Farbtöne, die die App tatsächlich benutzt (siehe `app.css`), mit dem
  * Namen für die Ansicht und der Vorgabe, auf die „Auf Vorgaben zurücksetzen"
- * zurückfällt. `schluessel` ist zugleich der Name der CSS-Variable — ohne die
- * beiden führenden Bindestriche — und der Teil hinter `FARBE_SCHLUESSEL_VORSILBE`.
+ * zurückfällt. `schluessel` ist zugleich der Name der CSS-Variable - ohne die
+ * beiden führenden Bindestriche - und der Teil hinter `FARBE_SCHLUESSEL_VORSILBE`.
  */
 export const FARBEN: { schluessel: string; name: string; vorgabe: string }[] = [
   { schluessel: 'akzent', name: 'Akzentfarbe', vorgabe: '#1b4d3e' },
@@ -92,7 +92,7 @@ export const einstellungen = $state({
 
 /**
  * Farben, Schriftart und Grundschriftgröße als Stil auf das Wurzelelement
- * schreiben — der einzige Weg, wie diese drei über `app.css` hinaus wirken,
+ * schreiben - der einzige Weg, wie diese drei über `app.css` hinaus wirken,
  * ohne dass jede Komponente ihren eigenen Stil mitbrächte. Ein Inline-Stil
  * auf `:root` sticht die Variable aus dem Stylesheet, ein entfernter Stil
  * lässt die Vorgabe aus `app.css` wieder durch.
@@ -163,7 +163,7 @@ export function setzeZurueck(): void {
   setzeTempo(TEMPO_VORGABE);
 }
 
-/** Nur die Darstellung zurücksetzen — eigener Knopf in `Darstellung.svelte`. */
+/** Nur die Darstellung zurücksetzen - eigener Knopf in `Darstellung.svelte`. */
 export function setzeDarstellungZurueck(): void {
   for (const farbe of FARBEN) setzeFarbe(farbe.schluessel, farbe.vorgabe);
   setzeSchriftart(SCHRIFTART_VORGABE);

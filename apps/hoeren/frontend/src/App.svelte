@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Was „hören" an eigenen Ansichten hat — der Rahmen darum steht in
+   * Was „hören" an eigenen Ansichten hat - der Rahmen darum steht in
    * `$ui/Rahmen.svelte` und ist in jeder App derselbe.
    */
   import Rahmen from '$ui/Rahmen.svelte';
@@ -33,7 +33,7 @@
   // Wer der Server in diesem Browser sieht, entscheidet, was es zu sehen gibt:
   // Ein Sprecher nimmt auf, die Verwaltung legt Profile an und gibt Zugänge
   // aus, die Aufsicht sieht über alle Korpora. Auswählen kann niemand mehr
-  // etwas — die Kennung steckt im Zugang.
+  // etwas - die Kennung steckt im Zugang.
   const spricht = $derived(zustand.art === 'sprecher');
   const beaufsichtigt = $derived(zustand.art === 'aufsicht');
 
@@ -50,7 +50,7 @@
         // zurück derselbe Weg.
         beaufsichtigt && zustand.route.startsWith(EINSICHT_ROUTE)
         ? Einsicht
-        : // Dasselbe für den Sprecher selbst — dieselbe Ansicht wie die
+        : // Dasselbe für den Sprecher selbst - dieselbe Ansicht wie die
           // Einsicht der Aufsicht, nur auf die eigenen Daten (siehe
           // `MeineDaten.svelte`).
           zustand.route === MEINE_DATEN_PFAD
@@ -74,7 +74,7 @@
   // gewählt, sondern abgeleitet. Für Verwaltung und Aufsicht ist er der
   // Rückweg aus der Einsicht in einen einzelnen Korpus.
   //
-  // Die Zugangsdaten stehen immer da — auch und gerade, wenn dieser Browser
+  // Die Zugangsdaten stehen immer da - auch und gerade, wenn dieser Browser
   // keinen gültigen Zugang hat: Genau dann ist der Punkt der einzige Weg
   // hinein, und ein Menü, das ihn erst nach erfolgreicher Anmeldung zeigt,
   // hätte die Tür hinter dem Schloss.
@@ -86,7 +86,7 @@
   ]);
 
   // Was die Kopfleiste als offen markiert. Menüansichten markieren sich
-  // selbst; alles andere fällt auf den Reiter zurück, der wirklich dasteht —
+  // selbst; alles andere fällt auf den Reiter zurück, der wirklich dasteht -
   // ohne das markierte eine unbekannte Route (altes Lesezeichen) nichts.
   const offen = $derived(
     [...uebergreifend, ...GERAETE_PUNKTE].some((punkt) => punkt.pfad === zustand.route)
@@ -98,15 +98,15 @@
           : '/quelle',
   );
 
-  // Für die Kopfzeile: der Name, den der Server zum vorgelegten Zugang nennt —
+  // Für die Kopfzeile: der Name, den der Server zum vorgelegten Zugang nennt -
   // nicht der, den sich der Browser gemerkt hat. `undefined` heißt „führt
-  // keinen Sprecher, und ist auch nicht Verwaltung oder Aufsicht" — der Fall
+  // keinen Sprecher, und ist auch nicht Verwaltung oder Aufsicht" - der Fall
   // tritt praktisch nicht ein, da `art` dann eines von beiden ist.
   //
   // Verwaltung und Aufsicht stehen genau hier und nicht mehr als eigener
   // Hinweis links: Sie sagen, wer hier unterwegs ist, genau wie ein
   // Sprechername das tut, und sollen deshalb genauso aussehen und genauso
-  // rechtsbündig stehen — nicht in der Reiterreihe verschwinden.
+  // rechtsbündig stehen - nicht in der Reiterreihe verschwinden.
   const name = $derived(
     spricht || zustand.art === 'keiner'
       ? zustand.name

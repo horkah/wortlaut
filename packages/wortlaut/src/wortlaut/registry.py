@@ -1,4 +1,4 @@
-"""Die Modell-Registry — Dateien statt Tabelle.
+"""Die Modell-Registry - Dateien statt Tabelle.
 
     data/modelle/<sprecher_id>/<version>/
     ├── manifest.json
@@ -6,8 +6,8 @@
     └── checkpoint/                 Rohgewichte, optional
 
 Ein Modellstand ist damit ein Verzeichnis, das man kopieren, sichern und per
-`scp` verschieben kann. Geschrieben wird die Registry von „lernen" — die App
-gibt es noch nicht —, gelesen von „schreiben", das ohne einen Stand mit dem
+`scp` verschieben kann. Geschrieben wird die Registry von „lernen" - die App
+gibt es noch nicht -, gelesen von „schreiben", das ohne einen Stand mit dem
 unveränderten Whisper-Modell arbeitet. Das Format ist die Nahtstelle zwischen
 beiden und gehört deshalb an genau eine Stelle.
 """
@@ -54,7 +54,7 @@ def alle_staende(datenverzeichnis: Path, sprecher_id: str) -> list[dict[str, Any
 
 
 def aktiver_stand(datenverzeichnis: Path, sprecher_id: str) -> dict[str, Any] | None:
-    """Der freigegebene Stand — höchstens einer je Sprecher."""
+    """Der freigegebene Stand - höchstens einer je Sprecher."""
     freigegeben = [
         stand
         for stand in alle_staende(datenverzeichnis, sprecher_id)

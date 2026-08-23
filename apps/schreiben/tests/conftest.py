@@ -1,19 +1,19 @@
 """Testaufbau für „schreiben".
 
 Jeder Test bekommt ein eigenes Datenverzeichnis und einen frischen Zustand.
-Drei Dinge sind ersetzt, alles andere ist echt — echte SQLite-Datei, echte
+Drei Dinge sind ersetzt, alles andere ist echt - echte SQLite-Datei, echte
 Endpunkte, echte WAV-Dateien:
 
-* **ffmpeg** — die Umwandlung selbst ist in `packages/wortlaut/tests` geprüft.
-* **Whisper** — sonst bräuchte jeder Testlauf ein Modell, eine GPU und Geduld.
+* **ffmpeg** - die Umwandlung selbst ist in `packages/wortlaut/tests` geprüft.
+* **Whisper** - sonst bräuchte jeder Testlauf ein Modell, eine GPU und Geduld.
   Der Ersatz liefert feste Abschnitte mit Zeitmarken, wie das echte auch.
-* **der Weg zu „hören"** — `outbox.liefere_ein` wird aufgezeichnet statt
+* **der Weg zu „hören"** - `outbox.liefere_ein` wird aufgezeichnet statt
   gesendet; ob die Zustellung klappt, ist je Test einstellbar.
 
 Nicht ersetzt ist der Zugang: Jeder Test legt einen echten Korpus mit einem
 echten Sprecher an und ruft mit einem echten Zugang. Diese App leitet ihren
 Sprecher daraus ab (`backend/deps.py`), und was abgeleitet wird, soll auch im
-Test abgeleitet werden — ein untergeschobener Sprecher prüfte den Weg nicht,
+Test abgeleitet werden - ein untergeschobener Sprecher prüfte den Weg nicht,
 auf dem er im Betrieb entsteht.
 """
 
@@ -44,7 +44,7 @@ SPRECHER = "spr_test"
 NAME = "Testperson"
 
 # Der Korpus gehört „hören"; „schreiben" liest ihn nur, um einen Zugang zu
-# prüfen. Für den Test muss er trotzdem echt sein — also mit den Migrationen
+# prüfen. Für den Test muss er trotzdem echt sein - also mit den Migrationen
 # von „hören" angelegt und nicht mit einem nachgebauten Schema, das mit dem
 # ersten Spaltenwechsel drüben auseinanderliefe.
 HOEREN_MIGRATIONEN = pathlib.Path(hoeren_config.__file__).parent / "db" / "migrations"
@@ -74,7 +74,7 @@ class Testtranskriptor:
 
 @dataclass
 class Testintake:
-    """Nimmt entgegen, was an „hören" gegangen wäre — oder scheitert absichtlich."""
+    """Nimmt entgegen, was an „hören" gegangen wäre - oder scheitert absichtlich."""
 
     lieferungen: list[dict] = field(default_factory=list)
     scheitert: bool = False
@@ -109,7 +109,7 @@ def datenverzeichnis(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def audioverzeichnis(datenverzeichnis: Path) -> Path:
-    """Wo die WAV-Dateien der Abschnitte liegen — je Sprecher ein Ordner."""
+    """Wo die WAV-Dateien der Abschnitte liegen - je Sprecher ein Ordner."""
     return datenverzeichnis / "diktate" / SPRECHER / "audio"
 
 
@@ -117,7 +117,7 @@ def lege_sprecher_an(datenverzeichnis: Path, sprecher_id: str = SPRECHER) -> str
     """Einen Sprecher im Korpus anlegen und seinen Zugang zurückgeben.
 
     Dasselbe, was „hören" beim Anlegen eines Profils und beim Ausgeben eines
-    Zugangs tut — hier ohne dessen App, damit die Tests dieser App keinen
+    Zugangs tut - hier ohne dessen App, damit die Tests dieser App keinen
     zweiten Server brauchen.
     """
     pfad = corpus.datenbank_pfad(datenverzeichnis, sprecher_id)
@@ -134,13 +134,13 @@ def lege_sprecher_an(datenverzeichnis: Path, sprecher_id: str = SPRECHER) -> str
 
 @pytest.fixture
 def sprecher() -> str:
-    """Die Kennung des Testsprechers — dieselbe, die sein Zugang trägt."""
+    """Die Kennung des Testsprechers - dieselbe, die sein Zugang trägt."""
     return SPRECHER
 
 
 @pytest.fixture
 def zugang(datenverzeichnis: Path) -> str:
-    """Der Zugang des Testsprechers — dasselbe Format wie im Betrieb."""
+    """Der Zugang des Testsprechers - dasselbe Format wie im Betrieb."""
     return lege_sprecher_an(datenverzeichnis)
 
 
@@ -167,7 +167,7 @@ def _umgebung(
 
 @pytest.fixture
 def whisper(_umgebung: None) -> Iterator[Testtranskriptor]:
-    """Der Ersatz für Whisper — die Abschnitte sind im Test veränderbar."""
+    """Der Ersatz für Whisper - die Abschnitte sind im Test veränderbar."""
     ersatz = Testtranskriptor()
     app.dependency_overrides[deps._transkriptor] = lambda: ersatz
     yield ersatz
@@ -183,7 +183,7 @@ def intake(monkeypatch: pytest.MonkeyPatch) -> Testintake:
 
 @pytest.fixture
 def klient(whisper: Testtranskriptor, zugang: str) -> Iterator[TestClient]:
-    """Der Zugang eines Sprechers — der Normalfall in allen Tests dieser App."""
+    """Der Zugang eines Sprechers - der Normalfall in allen Tests dieser App."""
     with TestClient(app, headers={"Authorization": f"Bearer {zugang}"}) as klient:
         yield klient
 
@@ -197,7 +197,7 @@ def klient_ohne_zugang(whisper: Testtranskriptor) -> Iterator[TestClient]:
 
 @pytest.fixture
 def aufnahme() -> dict[str, tuple[str, bytes, str]]:
-    """Der Inhalt ist gleichgültig — die Umwandlung ist ersetzt."""
+    """Der Inhalt ist gleichgültig - die Umwandlung ist ersetzt."""
     return {"audio": ("aufnahme.webm", b"opus-artige Bytes", "audio/webm")}
 
 

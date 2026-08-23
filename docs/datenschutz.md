@@ -20,15 +20,15 @@ Löschung, die man auch nachweisen kann.
 
 Voreingestellt: nichts. Zwei Schalter können das ändern, beide bewusst:
 
-- `WORTLAUT_LLM_PROVIDER` — schickt **Thema und Altersspanne** an einen
+- `WORTLAUT_LLM_PROVIDER` - schickt **Thema und Altersspanne** an einen
   LLM-Anbieter, um Vorlesetexte zu erzeugen. Keine Stimm- und keine
   Personendaten. Ohne diesen Wert bleibt der Textupload als einzige Quelle.
-- `WORTLAUT_ASR=remote` mit `WORTLAUT_ASR_ENDPOINT` (App „schreiben") —
+- `WORTLAUT_ASR=remote` mit `WORTLAUT_ASR_ENDPOINT` (App „schreiben") -
   schickt **Stimmaufnahmen** an einen Dritten. Wer diesen Schalter umlegt,
   verarbeitet Gesundheitsdaten außer Haus und braucht dafür eine
   Rechtsgrundlage und einen Auftragsverarbeitungsvertrag. Voreingestellt ist
   `local`: faster-whisper rechnet im eigenen Prozess, es geht nichts hinaus.
-- `WORTLAUT_INTAKE_URL` (App „schreiben") — der Weg zurück zu „hören". Zeigt er
+- `WORTLAUT_INTAKE_URL` (App „schreiben") - der Weg zurück zu „hören". Zeigt er
   auf die eigene Instanz, verlässt nichts den Server; er kann aber auf einen
   fremden zeigen, und dann tut es das.
 
@@ -59,14 +59,14 @@ demselben Umfang: Was zu einer Person gehört, steht an einer Stelle
 (`apps/hoeren/backend/services/loeschung.py`), damit Oberfläche und
 Kommandozeile nicht Verschiedenes löschen.
 
-Feiner geht es auch — eine einzelne Aufnahme oder alle Aufnahmen einer Person,
+Feiner geht es auch - eine einzelne Aufnahme oder alle Aufnahmen einer Person,
 ohne ihr Profil anzutasten. Einen Weg, der mehrere Personen auf einmal löscht,
 gibt es bewusst nicht.
 
 **Sicherungen sind Kopien und müssen mitgelöscht werden.** Die Aufsicht kann
 Korpora als `.tgz` ausleiten; was einmal heruntergeladen ist, weiß dieses
 Projekt nicht mehr. Solche Archive enthalten vollständige Stimmaufnahmen und
-gehören damit in die Löschroutine des Betriebs — ebenso wie ausgeleitete
+gehören damit in die Löschroutine des Betriebs - ebenso wie ausgeleitete
 Datensätze (`.zip`) und jede Sicherung außerhalb von `WORTLAUT_DATA_DIR`.
 Aufbewahrungsfrist und Ablageort dafür festzulegen ist eine organisatorische
 Entscheidung, die kein Skript abnehmen kann.
@@ -76,20 +76,20 @@ Entscheidung, die kein Skript abnehmen kann.
 In `hören` hat jeder Sprecher seinen eigenen Zugang, und dieser Zugang ist
 zugleich seine Kennung: Der Server liest aus ihm ab, welches Korpusverzeichnis
 er öffnet, statt sich die Kennung sagen zu lassen. Nutzen mehrere Personen
-dieselbe Instanz, kommt damit keine an die Stimmaufnahmen einer anderen — auch
+dieselbe Instanz, kommt damit keine an die Stimmaufnahmen einer anderen - auch
 nicht aus Versehen, denn eine Anfrage, die eine fremde Kennung behauptet, wird
 mit 403 abgewiesen statt still ausgeführt. Ein verlorener Zugang wird
 zurückgezogen, indem ein neuer ausgegeben wird; Einzelheiten in
 [`betrieb.md`](betrieb.md#authentifizierung).
 
-`WORTLAUT_AUTH_TOKEN` schützt daneben nur noch die Verwaltung — Profile
-anlegen, Zugänge ausgeben — und öffnet selbst kein Korpus. Ist er nicht
+`WORTLAUT_AUTH_TOKEN` schützt daneben nur noch die Verwaltung - Profile
+anlegen, Zugänge ausgeben - und öffnet selbst kein Korpus. Ist er nicht
 gesetzt, ist die Verwaltung zu und nicht offen.
 
 `WORTLAUT_ADMIN_TOKEN` dagegen schon: Er ist der Zugang der **Aufsicht**, die
 in jedes Korpus sieht, Aufnahmen abhört, sichert und löscht. Damit ist er der
 einzige Schlüssel, der an die Stimmaufnahmen aller Personen kommt, und
-entsprechend zu behandeln — lang und zufällig, nicht in einem geteilten
+entsprechend zu behandeln - lang und zufällig, nicht in einem geteilten
 Dokument, und getrennt vom Verwaltertoken. Ist er nicht gesetzt, ist die
 Aufsicht abgeschaltet; das ist die Voreinstellung. Wer eine Instanz für andere
 betreibt, sollte ihnen sagen, dass es diese Rolle gibt und wer sie hat: Für die
@@ -97,7 +97,7 @@ betroffenen Personen ist das eine Auskunft nach Art. 13/14 DSGVO und keine
 technische Fußnote.
 
 `schreiben` verlangt kein Anmeldeformular, weil die Zielperson schlecht lesen
-und schreiben kann — aber offen steht es deshalb nicht mehr: Jede Anfrage trägt
+und schreiben kann - aber offen steht es deshalb nicht mehr: Jede Anfrage trägt
 denselben Sprecherzugang wie `hören`, und der Server leitet daraus ab, wessen
 Diktate er öffnet. Zwei Menschen an derselben Instanz sehen die Diktate des
 anderen nicht.
@@ -105,7 +105,7 @@ anderen nicht.
 Der Zugang kommt dabei nicht über ein Feld, sondern über den persönlichen Link,
 der einmal geöffnet wird; beide Apps liegen unter derselben Domain und lesen
 denselben Eintrag im `localStorage`. Ein Browser trägt weiterhin genau einen
-Zugang — wer ein Gerät weitergibt, gibt den Zugang mit.
+Zugang - wer ein Gerät weitergibt, gibt den Zugang mit.
 
 Mit demselben Zugang geht auch der Rückweg in den Korpus: Was jemand bestätigt,
 wird mit *seinem* Zugang eingeliefert und landet in genau dem Korpus, zu dem er

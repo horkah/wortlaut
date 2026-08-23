@@ -5,7 +5,7 @@
 
     Die Linie zeichnet `currentColor`, nimmt also die Textfarbe der Umgebung an.
     Deshalb gehört diese Datei in die Seite hinein (`?raw` + `{@html}`), nicht
-    in ein <img> — dort bliebe sie schwarz. Fürs <img> gibt es die
+    in ein <img> - dort bliebe sie schwarz. Fürs <img> gibt es die
     Geschwisterdateien -invers.svg und -favicon.svg.
   -->
   <path

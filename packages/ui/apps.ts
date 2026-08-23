@@ -10,7 +10,7 @@
  * und liegt auf der Wurzel, jede weitere App bekommt einen Pfad; der Reverse
  * Proxy des Wirts verteilt sie unverändert auf die Container (siehe
  * `docs/betrieb.md`). Derselbe Pfad steht im `base` der jeweiligen
- * Vite-Konfiguration und im `BASIS` ihres Backends — alle drei müssen
+ * Vite-Konfiguration und im `BASIS` ihres Backends - alle drei müssen
  * zusammenpassen, sonst führt der Reiter ins Leere oder auf die falsche App.
  */
 export type AppSchluessel = 'hoeren' | 'lernen' | 'schreiben';
@@ -55,7 +55,7 @@ export interface Menuepunkt {
    * Nur setzen, wenn dieser Punkt aus dieser App heraus in eine andere führt:
    * eine volle Adresse statt der Hash-Route dieser App (siehe
    * `MEINE_DATEN_PFAD`). `Kopfleiste.svelte` verlinkt dann dorthin statt auf
-   * `#${pfad}` — eine ganze Seite lädt neu, statt nur den Hash zu ändern.
+   * `#${pfad}` - eine ganze Seite lädt neu, statt nur den Hash zu ändern.
    * `pfad` bleibt trotzdem gesetzt: Er ist der Schlüssel für `{#each}` und
    * markiert (zu Recht) nie den aktiven Reiter dieser App.
    */
@@ -63,7 +63,7 @@ export interface Menuepunkt {
 }
 
 /**
- * Wo die Einstellungen liegen — in jeder App dieselbe Hash-Route.
+ * Wo die Einstellungen liegen - in jeder App dieselbe Hash-Route.
  *
  * Sie gehören zum Gerät und nicht zu einer App (Mikrofon, Stimme, Schrift
  * teilen sich alle drei über den `localStorage`), stehen deshalb in keiner
@@ -76,7 +76,7 @@ export const EINSTELLUNGEN_PFAD = '/einstellungen';
  * Wo Farben, Schriftart und Schriftgrößen eingestellt werden.
  *
  * Eine eigene Ansicht und kein Abschnitt in `Einstellungen.svelte`: Dort
- * stehen Mikrofon und Stimme — etwas, das man einmal einmisst und dann in
+ * stehen Mikrofon und Stimme - etwas, das man einmal einmisst und dann in
  * Ruhe lässt. Die Darstellung dagegen darf jeder anfassen, der die Schrift zu
  * klein oder den Kontrast zu schwach findet, ohne durch Technisches zu
  * blättern. Aus demselben Grund wie `EINSTELLUNGEN_PFAD` gerätebezogen und
@@ -86,7 +86,7 @@ export const EINSTELLUNGEN_PFAD = '/einstellungen';
 export const DARSTELLUNG_PFAD = '/darstellung';
 
 /**
- * Wo die Zugangsdaten dieser Instanz verwaltet werden — Verwalter- und
+ * Wo die Zugangsdaten dieser Instanz verwaltet werden - Verwalter- und
  * Aufsichtstoken.
  *
  * Eine eigene Ansicht aus demselben Grund wie `DARSTELLUNG_PFAD`: Wer ein
@@ -97,30 +97,30 @@ export const DARSTELLUNG_PFAD = '/darstellung';
  * Browser (`zugang.ts`); die Ansicht dazu gibt es ebenfalls nur einmal
  * (`Zugangsdaten.svelte`). Trotzdem steht der Pfad hier und nicht in
  * `GERAETE_PUNKTE`: Ein Zugang gehört nicht zum Gerät, sondern zum Menschen,
- * und was er in der jeweiligen App bedeutet, weiß nur sie — „hören" nimmt in
+ * und was er in der jeweiligen App bedeutet, weiß nur sie - „hören" nimmt in
  * dasselbe Feld auch Verwalter- und Aufsichtstoken. Jede App stellt ihn
  * deshalb selbst ins Menü, wie jeden anderen app-eigenen Punkt auch.
  */
 export const ZUGANGSDATEN_PFAD = '/zugangsdaten';
 
 /**
- * Wo ein Sprecher seine eigenen Daten ansieht — Profil, Sitzungen, Aufnahmen.
+ * Wo ein Sprecher seine eigenen Daten ansieht - Profil, Sitzungen, Aufnahmen.
  *
  * Anders als `ZUGANGSDATEN_PFAD` gehört diese Ansicht nur „hören": Dort liegt
- * der Korpus, den sie zeigt. `schreiben` kennt den Pfad trotzdem — es stellt
+ * der Korpus, den sie zeigt. `schreiben` kennt den Pfad trotzdem - es stellt
  * den Menüpunkt mit einem `href` (siehe `Menuepunkt`), das auf die laufende
  * „hören"-Seite verweist, statt eine eigene, leere Ansicht dafür zu bauen.
  */
 export const MEINE_DATEN_PFAD = '/meine-daten';
 
 /**
- * Die Menüpunkte, die zum Gerät gehören — in jeder App dieselben.
+ * Die Menüpunkte, die zum Gerät gehören - in jeder App dieselben.
  *
  * Sie stehen hier als Daten und nicht als feste Zeilen in der Kopfleiste,
  * weil zwei Stellen sie brauchen: die Kopfleiste, um sie ins Menü zu
  * schreiben, und der Rahmen, um ihre Ansichten zu zeigen (`Rahmen.svelte`).
  * Ein vierter gerätebezogener Punkt ist damit ein Eintrag in dieser Liste
- * und eine Zeile im Rahmen — und keine Änderung in jeder App.
+ * und eine Zeile im Rahmen - und keine Änderung in jeder App.
  */
 export const GERAETE_PUNKTE: Menuepunkt[] = [
   { pfad: EINSTELLUNGEN_PFAD, text: 'Einstellungen' },
@@ -134,7 +134,7 @@ export const GERAETE_PUNKTE: Menuepunkt[] = [
  * Wo der Sprecher gewählt und angelegt wird.
  *
  * Auch das gehört nicht in die Reiterreihe einer App: Der Sprecher ist die
- * Klammer um alles — der Korpus hat je Sprecher eine eigene Datenbank, und
+ * Klammer um alles - der Korpus hat je Sprecher eine eigene Datenbank, und
  * „schreiben" wird später auf denselben Sprecher zurückgeführt. Er steht
  * deshalb im selben Menü wie die Einstellungen und über ihnen: erst wer,
  * dann womit.
@@ -142,16 +142,16 @@ export const GERAETE_PUNKTE: Menuepunkt[] = [
 export const SPRECHER_PFAD = '/sprecher';
 
 /**
- * Das Projekt selbst — Quelltext und Beschreibung.
+ * Das Projekt selbst - Quelltext und Beschreibung.
  *
  * Ziel ist die Startseite des Bestands: GitHub zeigt die README dort unter der
  * Dateiliste ohnehin an, und zwar immer in der Fassung des Hauptzweigs. Der
- * Anker `#readme-ov-file` springt gleich dorthin — es ist derselbe, den GitHub
+ * Anker `#readme-ov-file` springt gleich dorthin - es ist derselbe, den GitHub
  * in seiner eigenen Seitenspalte unter „Readme" benutzt.
  *
  * Warum nicht `blob/main/README.md`: Das zeigte dieselbe Datei allein, hinge
  * aber am Namen des Hauptzweigs. Wird der einmal umbenannt, ist der Verweis
- * ein 404. Hier scheitert schlimmstenfalls der Sprung — die Seite steht
+ * ein 404. Hier scheitert schlimmstenfalls der Sprung - die Seite steht
  * trotzdem, und die README steht darauf.
  */
 export const PROJEKT_URL = 'https://github.com/horkah/wortlaut#readme-ov-file';

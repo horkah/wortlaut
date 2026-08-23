@@ -6,7 +6,7 @@
  *
  * Der Sprecher steht bewusst **nicht** mehr im `localStorage`. Er kommt vom
  * Server, der ihn aus dem vorgelegten Zugang ableitet: Ein gemerkter Wert
- * konnte auf einen fremden Korpus zeigen — genau der Fehlgriff, den dieser
+ * konnte auf einen fremden Korpus zeigen - genau der Fehlgriff, den dieser
  * Umbau ausschließt. Was der Browser aufbewahrt, ist allein der Zugang.
  */
 

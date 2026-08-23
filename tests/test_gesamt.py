@@ -5,7 +5,7 @@ der richtigen App, und die Zugangsregeln bleiben dabei die der jeweiligen App.
 Ginge das beim Zusammenlegen verloren, stünde der Korpus offen im Netz.
 
 Beide Apps hängen inzwischen hinter dem Zugang eines Sprechers, und es ist
-derselbe: Ein Mensch, ein Link, beide Apps. Genau das steht hier geprüft — der
+derselbe: Ein Mensch, ein Link, beide Apps. Genau das steht hier geprüft - der
 Zugang, den „hören" ausgibt, öffnet ohne weiteres Zutun auch „schreiben".
 """
 
@@ -63,7 +63,7 @@ def zugang(klient: TestClient) -> str:
 
 class TestVerteilung:
     def test_unter_dem_pfad_antwortet_schreiben(self, klient: TestClient, zugang: str) -> None:
-        # Derselbe Zugang wie drüben — die Kennung der Antwort fängt mit `dik_`
+        # Derselbe Zugang wie drüben - die Kennung der Antwort fängt mit `dik_`
         # an, das kann nur aus dieser App kommen.
         antwort = klient.post(
             "/schreiben/api/sessions", headers={"Authorization": f"Bearer {zugang}"}
@@ -93,7 +93,7 @@ class TestVerteilung:
         assert klient.get("/api/speakers").status_code == 401
 
     def test_gesundheit_beantwortet_hoeren(self, klient: TestClient) -> None:
-        # Nur eine Wurzel, also nur ein Prüfpunkt — der von „hören".
+        # Nur eine Wurzel, also nur ein Prüfpunkt - der von „hören".
         assert klient.get("/gesundheit").json() == {"status": "ok"}
 
 

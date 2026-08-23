@@ -1,4 +1,4 @@
-"""Sprechen und nachbessern — der eigentliche Ablauf dieser App.
+"""Sprechen und nachbessern - der eigentliche Ablauf dieser App.
 
 1. Sprechen: eine Aufnahme, daraus Text mit Segmentgrenzen, daraus Abschnitte.
 2. Ein Abschnitt ist falsch: nur diesen neu einsprechen. Das neue Audio ersetzt
@@ -86,7 +86,7 @@ async def sprich_neu(
     sprecher: SprecherId,
     audio: UploadFile = File(),
 ) -> SitzungAntwort:
-    """Genau diesen Abschnitt neu einsprechen — der übrige Text bleibt stehen."""
+    """Genau diesen Abschnitt neu einsprechen - der übrige Text bleibt stehen."""
     abschnitt = _hole_abschnitt(db, abschnitt_id)
     sitzung = hole(db, abschnitt.session_id)
     if sitzung.status != "offen":
@@ -108,7 +108,7 @@ async def sprich_neu(
         raise HTTPException(status_code=400, detail=str(fehler)) from fehler
     if not roh.text:
         # Die alte Fassung steht noch; das neue Audio liegt schon unter
-        # derselben Kennung — beides zusammen wäre eine Lüge. Also zurück.
+        # derselben Kennung - beides zusammen wäre eine Lüge. Also zurück.
         raise HTTPException(status_code=422, detail="Aus der Aufnahme wurde kein Wort verstanden.")
 
     abschnitt.text = roh.text
@@ -121,7 +121,7 @@ async def sprich_neu(
 
 @router.get("/api/segments/{abschnitt_id}/audio")
 def hoere_ab(abschnitt_id: str, db: Datenbank, ablage: Ablage) -> FileResponse:
-    """Den eigenen Abschnitt anhören — zum Vergleich mit dem, was dasteht."""
+    """Den eigenen Abschnitt anhören - zum Vergleich mit dem, was dasteht."""
     abschnitt = _hole_abschnitt(db, abschnitt_id)
     if abschnitt.blob is None:
         raise HTTPException(status_code=404, detail="Aufnahme ist bereits übergeben.")

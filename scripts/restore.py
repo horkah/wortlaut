@@ -5,7 +5,7 @@
     uv run python scripts/restore.py sicherung.tgz --nur-ansehen
 
 Die Gegenrichtung zu den Sicherungen der Aufsicht (`/api/admin/…/sicherung`).
-Ohne `--ueberschreiben` bricht der Lauf ab, sobald eine Datei schon dasteht —
+Ohne `--ueberschreiben` bricht der Lauf ab, sobald eine Datei schon dasteht -
 und zwar bevor irgendetwas geschrieben wurde.
 
 **Der Dienst soll dabei stehen.** SQLite hält eine laufende Datenbank offen;
@@ -21,7 +21,7 @@ Wer diese Anwendung gar nicht mehr hat, kommt genauso weit mit
 
     tar xzf sicherung.tgz && cp -a daten/. /srv/wortlaut/data/
 
-— das Archiv bildet das Datenverzeichnis eins zu eins ab (siehe
+- das Archiv bildet das Datenverzeichnis eins zu eins ab (siehe
 `packages/wortlaut/src/wortlaut/sicherung.py`). Dieses Skript nimmt einem nur
 die Prüfungen und das Nachzählen ab.
 """
@@ -84,7 +84,7 @@ def main() -> int:
         return 1
 
     print(f"\n{len(geschrieben)} Datei(en) nach {ziel} geschrieben.")
-    # Nötig ist das nicht — bestehende Korpora werden beim ersten Zugriff
+    # Nötig ist das nicht - bestehende Korpora werden beim ersten Zugriff
     # fortgeschrieben (`deps.engine_fuer`). Aber wer gerade zurückgespielt hat,
     # will meist wissen, dass der Stand passt, bevor jemand die Seite aufruft.
     print("Ist die Sicherung älter als das Schema, wird beim ersten Zugriff fortgeschrieben.")

@@ -3,7 +3,7 @@
 Der Fehler, gegen den diese Tests stehen, ist unsichtbar und teuer: Ohne
 `Cache-Control` schätzt der Browser die Frische der `index.html` selbst und
 fragt tagelang nicht nach. Nach einem Ausrollen sieht er dann weiter die alte
-App — nicht kaputt, nur alt, und niemand merkt es am Server.
+App - nicht kaputt, nur alt, und niemand merkt es am Server.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ class TestCacheRegeln:
         assert antwort.headers["cache-control"] == IMMER_NACHFRAGEN
 
     def test_gehashtes_buendel_darf_der_browser_behalten(self, klient: TestClient) -> None:
-        # Ändert sich der Inhalt, ändert Vite den Namen — Nachfragen wäre
+        # Ändert sich der Inhalt, ändert Vite den Namen - Nachfragen wäre
         # verschenkte Zeit.
         antwort = klient.get("/assets/index-Dw8ROtVv.js")
         assert antwort.status_code == 200

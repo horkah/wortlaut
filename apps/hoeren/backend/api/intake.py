@@ -3,7 +3,7 @@
 Bestätigt die Zielperson dort einen Abschnitt, wandert er als Audio-Text-Paar
 hierher. Diese Paare sind schwächere Daten: Der Text ist keine Vorgabe, sondern
 eine vom Nutzer abgenickte Maschinenausgabe. Deshalb bekommen sie eine eigene
-Quelle (`art = 'korrektur'`) und im Rezept ein niedrigeres Gewicht — wer sie
+Quelle (`art = 'korrektur'`) und im Rezept ein niedrigeres Gewicht - wer sie
 gleichrangig einspeist, trainiert dem Modell seine eigenen Fehler an.
 
 Die Outbox von „schreiben" wiederholt bei Netzfehlern. `externe_id` sorgt
@@ -108,7 +108,7 @@ async def nimm_korrektur_an(
 
 
 def _korrekturquelle(db: Session, sprecher_id: str) -> Textquelle:
-    """Eine Sammelquelle je Sprecher — Korrekturen haben keine eigene Herkunft."""
+    """Eine Sammelquelle je Sprecher - Korrekturen haben keine eigene Herkunft."""
     quelle = db.scalars(
         select(Textquelle).where(
             Textquelle.speaker_id == sprecher_id, Textquelle.art == "korrektur"

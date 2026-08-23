@@ -2,7 +2,7 @@
 
 Aufbau wie eine ULID: 48 Bit Millisekunden seit 1970, danach 80 Bit Zufall,
 zusammen in Base32 ohne die verwechselbaren Zeichen I, L, O und U. Als Text
-sortiert stehen sie damit grob in Entstehungsreihenfolge — praktisch für
+sortiert stehen sie damit grob in Entstehungsreihenfolge - praktisch für
 Verzeichnislisten.
 
 Grob heißt: auf die Millisekunde genau. Kennungen aus derselben Millisekunde

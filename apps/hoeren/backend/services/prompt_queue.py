@@ -32,7 +32,7 @@ class Ausschnitt:
 def aus_aktiven_quellen(sprecher_id: str):
     """Kennungen der Vorlagen eines Sprechers, deren Quelle nicht stillgelegt ist.
 
-    Die eine Stelle, an der „was zählt überhaupt mit" festgelegt ist — auch der
+    Die eine Stelle, an der „was zählt überhaupt mit" festgelegt ist - auch der
     Fortschritt fragt hier. Eine stillgelegte Quelle verschwindet damit aus der
     Warteschlange, ohne dass an ihren Einheiten etwas geändert würde: Wird sie
     wieder aufgenommen, stehen sie an derselben Stelle wie zuvor.
@@ -47,12 +47,12 @@ def aus_aktiven_quellen(sprecher_id: str):
 def naechste(
     db: Session, sprecher_id: str, *, zufall: bool = False, streuung: str = ""
 ) -> Ausschnitt:
-    """Die nächste offene Einheit — der Reihe nach oder gestreut.
+    """Die nächste offene Einheit - der Reihe nach oder gestreut.
 
     `zufall` mischt die Einheiten aller aktiven Quellen durcheinander. Gedacht
     ist das gegen den Gewöhnungseffekt: Wer einen Text der Reihe nach spricht,
     liest ihn nach ein paar Sätzen mit der Melodie des Zusammenhangs statt der
-    des einzelnen Satzes — für das Training ist das die schwächere Aufnahme.
+    des einzelnen Satzes - für das Training ist das die schwächere Aufnahme.
 
     `streuung` ist der Startwert des Mischens. Er muss über die Sitzung gleich
     bleiben: Sonst zeigte jeder Aufruf eine andere Einheit, und ein Neuladen
@@ -102,7 +102,7 @@ def _gestreut(
 
     Gemischt wird hier und nicht in SQL: `ORDER BY random()` würfelte bei jedem
     Aufruf neu. Mit festem Startwert ist die Reihenfolge dagegen für die ganze
-    Sitzung dieselbe — sie wird nur nach und nach abgearbeitet, genau wie die
+    Sitzung dieselbe - sie wird nur nach und nach abgearbeitet, genau wie die
     gewachsene.
     """
     # Erst eine feste Ordnung, dann mischen: Sonst hinge das Ergebnis daran,
@@ -128,7 +128,7 @@ def _gestreut(
             return None
         return db.get(Vorlage, reihenfolge[index])
 
-    # Nachbarn sind hier die im gemischten Ablauf — was zuletzt dran war und
+    # Nachbarn sind hier die im gemischten Ablauf - was zuletzt dran war und
     # was als Nächstes kommt. Der Nachbar im Text wäre in dieser Betriebsart
     # eine Vorschau auf etwas, das nie folgt.
     return Ausschnitt(
@@ -141,7 +141,7 @@ def _gestreut(
 
 
 def _nachbar(db: Session, sprecher_id: str, position: int, *, vorwaerts: bool) -> Vorlage | None:
-    """Nachbar im Text — unabhängig davon, ob er schon aufgenommen wurde.
+    """Nachbar im Text - unabhängig davon, ob er schon aufgenommen wurde.
 
     Aus stillgelegten Quellen kommt auch hier nichts: Sonst stünde als Ausblick
     ein Satz, der nie an die Reihe kommt.
@@ -156,7 +156,7 @@ def _nachbar(db: Session, sprecher_id: str, position: int, *, vorwaerts: bool) -
 
 
 def naechste_position(db: Session, sprecher_id: str) -> int:
-    """Erste freie Position — neue Quellen hängen hinten an."""
+    """Erste freie Position - neue Quellen hängen hinten an."""
     hoechste = db.scalar(
         select(func.max(Vorlage.position)).where(Vorlage.speaker_id == sprecher_id)
     )

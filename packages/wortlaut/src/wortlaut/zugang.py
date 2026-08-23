@@ -1,4 +1,4 @@
-"""Der Zugang zu einem Sprecher — zugleich seine Kennung.
+"""Der Zugang zu einem Sprecher - zugleich seine Kennung.
 
 Diese Datei liegt in der Bibliothek und nicht in einer App, weil zwei Apps
 denselben Zugang lesen: „hören" gibt ihn aus und prüft ihn am eigenen Korpus,
@@ -14,12 +14,12 @@ Er trägt die Kennung sichtbar vor sich her, und genau das ist der Zweck: Der
 Server spaltet am Punkt, öffnet **die** Datenbank dieses Sprechers und prüft
 dort den Prüfwert des Geheimnisses. Die Kennung ist damit abgeleitet und nicht
 behauptet, und der Nachschlag geht auf dieselbe Datei, die die Anfrage ohnehin
-öffnet — kein Durchsuchen aller Sprecher.
+öffnet - kein Durchsuchen aller Sprecher.
 
 Dass die Kennung offen dasteht, kostet nichts: Wer sie in einen fremden Zugang
 schreibt, dessen Geheimnis passt dort nicht, und die Antwort ist 401.
 
-Gespeichert wird nur der Prüfwert. Ein einfacher SHA-256 genügt dafür — anders
+Gespeichert wird nur der Prüfwert. Ein einfacher SHA-256 genügt dafür - anders
 als ein Passwort ist das Geheimnis kein gemerktes Wort, sondern 160 Bit aus
 `os.urandom`; ein Wörterbuchangriff hat daran nichts zu holen.
 """
@@ -43,7 +43,7 @@ def erzeuge(sprecher_id: str) -> tuple[str, str]:
     """Ein neuer Zugang: `(zugang, pruefwert)`.
 
     Der Zugang geht einmal an den Menschen, der Prüfwert in die Datenbank. Ein
-    zweites Mal ist der Zugang nirgends zu haben — verloren heißt ersetzen.
+    zweites Mal ist der Zugang nirgends zu haben - verloren heißt ersetzen.
     """
     geheimnis = secrets.token_urlsafe(GEHEIMNIS_BYTES)
     return f"{sprecher_id}{TRENNER}{geheimnis}", pruefwert(geheimnis)
@@ -54,7 +54,7 @@ def pruefwert(geheimnis: str) -> str:
 
 
 def zerlege(vorgelegt: str) -> tuple[str, str] | None:
-    """`(sprecher_id, geheimnis)` — oder None, wenn das kein Sprecherzugang ist.
+    """`(sprecher_id, geheimnis)` - oder None, wenn das kein Sprecherzugang ist.
 
     Die Form entscheidet, nicht der Inhalt: Nur so lässt sich ein
     Sprecherzugang von einem Verwaltertoken unterscheiden, ohne beide gegen
@@ -82,11 +82,11 @@ class Sprecherzugang:
 
 
 def pruefe(datenverzeichnis: Path, vorgelegt: str) -> Sprecherzugang | None:
-    """Den Sprecher zu einem vorgelegten Zugang — oder None, wenn er nicht gilt.
+    """Den Sprecher zu einem vorgelegten Zugang - oder None, wenn er nicht gilt.
 
     Der Nachschlag geht lesend in die Korpusdatenbank des Sprechers, dessen
     Kennung der Zugang vor sich herträgt: eine Datei, kein Durchsuchen. Das ist
-    derselbe Weg, den „hören" in seiner `deps.py` geht — dort mit der ohnehin
+    derselbe Weg, den „hören" in seiner `deps.py` geht - dort mit der ohnehin
     offenen Sitzung, hier ohne, weil „schreiben" den Korpus nur lesen darf und
     keinen Schreiber darauf öffnen soll (Grundentscheidung 6). `mode=ro` hält
     das fest: Diese Verbindung kann nicht schreiben, auch nicht aus Versehen.
@@ -110,7 +110,7 @@ def pruefe(datenverzeichnis: Path, vorgelegt: str) -> Sprecherzugang | None:
             ).fetchone()
     except sqlite3.Error:
         # Eine Datenbank, die es noch nicht gibt oder gerade angelegt wird, ist
-        # kein Fehler dieser Anfrage — sie ist ein Zugang, der nicht gilt.
+        # kein Fehler dieser Anfrage - sie ist ein Zugang, der nicht gilt.
         return None
 
     if zeile is None or not stimmt(geheimnis, zeile[1]):

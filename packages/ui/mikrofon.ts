@@ -1,7 +1,7 @@
 /**
  * Mikrofon: auswählen, verstärken, messen.
  *
- * Die Aufnahmekette ist überall dieselbe — im Mikrofontest wie in der
+ * Die Aufnahmekette ist überall dieselbe - im Mikrofontest wie in der
  * eigentlichen Aufnahme:
  *
  *     getUserMedia → GainNode → MediaStreamDestination → MediaRecorder
@@ -13,7 +13,7 @@
  *
  * Die Kette entsteht auch bei Faktor 1,0. Ein zweiter, verstärkungsfreier
  * Weg wäre schneller zu lesen, aber es gäbe ihn nur, um im Alltag ungenutzt
- * zu bleiben — und er würde sich anders verhalten als der Weg, den der
+ * zu bleiben - und er würde sich anders verhalten als der Weg, den der
  * Mikrofontest vorführt.
  *
  * Wichtig: Der Analyser wird bewusst *nicht* mit `kontext.destination`
@@ -22,7 +22,7 @@
 
 /**
  * Grenzen der Verstärkung. Über 20× wird jedes Mikrofon nur noch rauschen,
- * unter 1 wird gedämpft — auch ein zu heißer Eingang ist ein Fall für den
+ * unter 1 wird gedämpft - auch ein zu heißer Eingang ist ein Fall für den
  * Regler, solange er noch nicht am Anschlag war.
  */
 export const VERSTAERKUNG_SPANNE = { min: 0.5, max: 20, schritt: 0.5 };
@@ -68,7 +68,7 @@ export function auswahlMoeglich(): boolean {
 /**
  * Die verfügbaren Mikrofone.
  *
- * Vor der ersten Erlaubnis liefert der Browser die Geräte ohne Namen — aus
+ * Vor der ersten Erlaubnis liefert der Browser die Geräte ohne Namen - aus
  * gutem Grund, denn die Liste verrät sonst ungefragt etwas über das Gerät.
  * Solche Einträge bekommen hier einen Behelfsnamen; sobald einmal ein Strom
  * offen war, stehen die echten Namen bereit und ein zweiter Aufruf liefert
@@ -95,7 +95,7 @@ export function beiGeraeteAenderung(melde: () => void): () => void {
 /**
  * Verstärkungsfaktor, der eine gemessene Spitze auf `ZIEL_SPITZE_DBFS` bringt.
  *
- * `bisher` ist der Faktor, der beim Messen schon aktiv war — die Messung
+ * `bisher` ist der Faktor, der beim Messen schon aktiv war - die Messung
  * enthält ihn ja bereits.
  */
 export function faktorFuerSpitze(spitzeDbfs: number, bisher = 1): number {
@@ -112,7 +112,7 @@ export type Kettenoptionen = {
   autoPegel?: boolean;
 };
 
-/** Der Zugriff aufs Mikrofon ist gescheitert — mit einem Satz, der vorlesbar ist. */
+/** Der Zugriff aufs Mikrofon ist gescheitert - mit einem Satz, der vorlesbar ist. */
 export class MikrofonFehler extends Error {}
 
 /**
@@ -136,7 +136,7 @@ function alsFehler(ursache: unknown): MikrofonFehler {
     case 'NotFoundError':
       return new MikrofonFehler('Es ist kein Mikrofon angeschlossen.');
     case 'NotReadableError':
-      return new MikrofonFehler('Das Mikrofon ist belegt — ein anderes Programm hört mit.');
+      return new MikrofonFehler('Das Mikrofon ist belegt - ein anderes Programm hört mit.');
     default:
       return new MikrofonFehler('Aufnahme nicht möglich. Braucht HTTPS oder localhost.');
   }
@@ -149,7 +149,7 @@ function alsFehler(ursache: unknown): MikrofonFehler {
  * laufen, sonst bleibt die Aufnahmeanzeige des Browsers stehen.
  */
 export class Aufnahmekette {
-  /** Der Strom, der aufgezeichnet gehört — nach der Verstärkung. */
+  /** Der Strom, der aufgezeichnet gehört - nach der Verstärkung. */
   readonly strom: MediaStream;
   /** Das gewünschte Gerät war nicht da, es wurde die Vorgabe geöffnet. */
   readonly ersatzGeraet: boolean;
@@ -220,7 +220,7 @@ export class Aufnahmekette {
     return kette;
   }
 
-  /** Welches Gerät tatsächlich offen ist — nach einem Ersatz nicht das gewünschte. */
+  /** Welches Gerät tatsächlich offen ist - nach einem Ersatz nicht das gewünschte. */
   get geraeteId(): string | null {
     return this.#roh.getAudioTracks()[0]?.getSettings().deviceId ?? null;
   }

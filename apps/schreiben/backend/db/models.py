@@ -1,7 +1,7 @@
 """Typisierte Modelle zum Schema aus `migrations/`.
 
 Die Migrationen sind die Wahrheit über das Schema; diese Klassen bilden es für
-den Zugriff ab. Wer eine Spalte hinzufügt, ändert beides — eine neue
+den Zugriff ab. Wer eine Spalte hinzufügt, ändert beides - eine neue
 `.sql`-Datei und die passende Zeile hier.
 """
 

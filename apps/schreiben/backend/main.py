@@ -1,4 +1,4 @@
-"""App „schreiben" — diktieren, vorlesen lassen, Fehler neu einsprechen.
+"""App „schreiben" - diktieren, vorlesen lassen, Fehler neu einsprechen.
 
 Start in der Entwicklung (aus dem Repository-Wurzelverzeichnis):
 
@@ -7,7 +7,7 @@ Start in der Entwicklung (aus dem Repository-Wurzelverzeichnis):
 Wie „hören" hängt hier alles hinter dem Zugang **eines** Sprechers: Was
 diktiert wird, gehört einem Menschen, läuft auf seinem Modell und fließt in
 seinen Korpus zurück (siehe `deps.py`). Ein Anmeldefeld ist das trotzdem nicht
-— der Zugang kommt über denselben persönlichen Link wie bei „hören", einmal
+- der Zugang kommt über denselben persönlichen Link wie bei „hören", einmal
 geöffnet und danach im Browser. Wer schlecht liest, tippt weiterhin nichts.
 """
 
@@ -24,7 +24,7 @@ from .api import model, outbox, segments, sessions, zugang
 # Der Ort dieser App unter der gemeinsamen Domain. Alles hängt darunter, auch
 # die API: So genügt vor den Containern eine Regel, die den Pfad unverändert
 # durchreicht (`/schreiben/` → dieser Dienst). Ein Proxy, der das Präfix
-# abschneidet, ist damit nicht mehr nötig — dass genau das einmal vergessen
+# abschneidet, ist damit nicht mehr nötig - dass genau das einmal vergessen
 # wurde, hat die App unerreichbar gemacht.
 #
 # Wer die App verschiebt, ändert drei Stellen zusammen: dieses `BASIS`, das
@@ -54,7 +54,7 @@ def wurzel() -> RedirectResponse:
 
 
 # Das gebaute Frontend, falls vorhanden. Es hängt unter demselben `BASIS` wie
-# die API — dort sucht auch das gebaute HTML seine Dateien (`base` in der
+# die API - dort sucht auch das gebaute HTML seine Dateien (`base` in der
 # Vite-Konfiguration). `html=True` liefert für `/schreiben/` die index.html;
 # die Ansichten dieser App stehen im Hash und brauchen nichts weiter.
 _frontend = Path(__file__).parents[1] / "frontend" / "dist"

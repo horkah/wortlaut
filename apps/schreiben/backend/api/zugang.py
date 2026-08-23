@@ -3,7 +3,7 @@
 Ein einziger Weg, und er ist zugleich seine eigene Antwort: Die Kennung kommt
 aus dem vorgelegten Zugang (`deps.py`), nicht aus einem Parameter. Die
 Oberfläche braucht ihn, um den Namen in der Kopfzeile zu zeigen und um zu
-merken, dass hier noch kein Zugang liegt — dann führt sie zum persönlichen
+merken, dass hier noch kein Zugang liegt - dann führt sie zum persönlichen
 Link statt in ein Diktat, das ohnehin abgewiesen würde.
 
 Denselben Weg gibt es in „hören" (`GET /api/zugang`), mit derselben Antwort.
@@ -22,7 +22,7 @@ router = APIRouter(tags=["Zugang"])
 
 
 class WerAntwort(BaseModel):
-    art: str  # hier immer „sprecher" — alles andere ist ein 401
+    art: str  # hier immer „sprecher" - alles andere ist ein 401
     sprecher_id: str
     name: str
 

@@ -1,7 +1,7 @@
 """Transkription über einen OpenAI-kompatiblen Endpunkt.
 
 Ein Adapter deckt damit mehrere Anbieter ab. Achtung: Wer diesen Schalter
-umlegt, schickt Stimmdaten an Dritte — siehe `docs/datenschutz.md`.
+umlegt, schickt Stimmdaten an Dritte - siehe `docs/datenschutz.md`.
 """
 
 from __future__ import annotations

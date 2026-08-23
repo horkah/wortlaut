@@ -1,4 +1,4 @@
-"""wortlaut — geteilte Bausteine für „hören", „lernen" und „schreiben".
+"""wortlaut - geteilte Bausteine für „hören", „lernen" und „schreiben".
 
 Die Bibliothek enthält nur Fachlogik ohne Web- oder Datenbankrahmen und liest
 selbst niemals Umgebungsvariablen: alle Pfade und Schlüssel werden ihr von der

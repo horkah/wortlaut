@@ -1,7 +1,7 @@
-"""Ein Sprecher sieht sich selbst an — dieselben Daten, die die Aufsicht sieht.
+"""Ein Sprecher sieht sich selbst an - dieselben Daten, die die Aufsicht sieht.
 
 Der Unterschied zu `api/admin.py`: Hier steht kein Sprecher in der Adresse.
-Es gibt keinen — die Kennung kommt wie bei jedem anderen Weg dieser App aus
+Es gibt keinen - die Kennung kommt wie bei jedem anderen Weg dieser App aus
 dem vorgelegten Zugang (`SprecherId`/`Datenbank`, siehe `deps.py`). Wer hier
 ruft, kann also von vornherein nur die eigene Datenbank öffnen, nie eine
 fremde; ein Sprecher, der versucht, eine andere Kennung hineinzuschreiben,
@@ -15,16 +15,16 @@ was „diese Aufnahme loswerden" heißt.
 Was ein Sprecher hier **nicht** kann, anders als die Aufsicht: alle Aufnahmen
 auf einmal löschen und sich selbst vollständig löschen. Genau diese beiden
 Stufen bleiben der Aufsicht vorbehalten (`api/admin.py`); alles Übrige darf
-jeder über seine eigenen Daten — ansehen, anhören, einzelne Aufnahmen
+jeder über seine eigenen Daten - ansehen, anhören, einzelne Aufnahmen
 verwerfen, sich umbenennen und beides mitnehmen, Sicherung wie Datensatz.
 
 Dass Ausleiten hier steht, ist keine Bequemlichkeit, sondern die naheliegende
 Seite der Sache: Es sind seine Aufnahmen, seine Stimme. Gepackt wird darum
 auch nicht ein zweites Mal, sondern über denselben Dienst wie bei der Aufsicht
-(`services/ausleitung.py`) — zwei Wege dorthin, eine Datei.
+(`services/ausleitung.py`) - zwei Wege dorthin, eine Datei.
 
 Wer eine PIN gesetzt hat (siehe `services/pin.py`), braucht sie zusätzlich zum
-Zugang — als `X-Pin`-Kopfzeile an jedem Weg dieser Datei bis auf zwei.
+Zugang - als `X-Pin`-Kopfzeile an jedem Weg dieser Datei bis auf zwei.
 `GET .../pin` bleibt absichtlich ungeschützt (sonst könnte die Oberfläche gar
 nicht erst fragen, ob sie nach einer PIN fragen soll), ebenso `PATCH .../pin`:
 Die eigene PIN zu ändern ist nicht das Versehen, gegen das sie schützt.
@@ -63,7 +63,7 @@ def _pruefe_pin(
     sprecher: SprecherId,
     x_pin: Annotated[str | None, Header()] = None,
 ) -> None:
-    """Wächter dieser Ansicht — nur scharf, wenn eine PIN gesetzt ist."""
+    """Wächter dieser Ansicht - nur scharf, wenn eine PIN gesetzt ist."""
     person = _hole(db, sprecher)
     if person.pin_hash is not None and not pin.stimmt(x_pin or "", person.pin_hash):
         raise HTTPException(status_code=401, detail="Falsche oder fehlende PIN.")
@@ -77,7 +77,7 @@ def _hole(db: Datenbank, sprecher: SprecherId) -> Sprecher:
 
 @router.get("/pin", response_model=PinAntwort)
 def pin_stand(db: Datenbank, sprecher: SprecherId) -> PinAntwort:
-    """Ob eine PIN gesetzt ist — ungeschützt, denn davon hängt ab, ob gefragt wird."""
+    """Ob eine PIN gesetzt ist - ungeschützt, denn davon hängt ab, ob gefragt wird."""
     return PinAntwort(gesetzt=_hole(db, sprecher).pin_hash is not None)
 
 
@@ -92,7 +92,7 @@ def pin_setzen(aenderung: PinAenderung, db: Datenbank, sprecher: SprecherId) -> 
 
 @router.get("", response_model=KontoAntwort, dependencies=[Depends(_pruefe_pin)])
 def konto(sprecher: SprecherId, db: Datenbank, ablage: Ablage) -> KontoAntwort:
-    """Profil, Kennzahlen und Textquellen — die eigenen, wie die Aufsicht sie sieht."""
+    """Profil, Kennzahlen und Textquellen - die eigenen, wie die Aufsicht sie sieht."""
     person = _hole(db, sprecher)
     return KontoAntwort(
         sprecher=uebersicht.profil(db, person, ablage),
@@ -110,7 +110,7 @@ def sitzungen(db: Datenbank, ab: int = 0, anzahl: int = 10) -> SitzungenAntwort:
 def aufnahmen(db: Datenbank, ablage: Ablage, ab: int = 0, anzahl: int = 10) -> AufnahmenAntwort:
     """Die eigenen Aufnahmen mit ihrem Text, neueste zuerst, seitenweise.
 
-    Anhören und Verwerfen bleiben bei `api/recordings.py` — beides sind
+    Anhören und Verwerfen bleiben bei `api/recordings.py` - beides sind
     bereits sprecherbezogene Wege und brauchen keinen zweiten hier.
     """
     return uebersicht.aufnahmen_seite(db, ablage, ab, anzahl)
@@ -120,7 +120,7 @@ def aufnahmen(db: Datenbank, ablage: Ablage, ab: int = 0, anzahl: int = 10) -> A
 def umbenennen(
     aenderung: Umbenennung, db: Datenbank, sprecher: SprecherId, ablage: Ablage
 ) -> UebersichtAntwort:
-    """Den eigenen Namen ändern — dieselbe Beschriftung, die die Aufsicht ändert.
+    """Den eigenen Namen ändern - dieselbe Beschriftung, die die Aufsicht ändert.
 
     Die Kennung bleibt, was sie ist (siehe `api/admin.py`): Sie steckt in jedem
     ausgegebenen Zugang und in den Pfaden der Ablage. Ein Name ist eine
@@ -134,11 +134,11 @@ def umbenennen(
 
 @router.get("/sicherung", dependencies=[Depends(_pruefe_pin)])
 def sicherung(db: Datenbank, sprecher: SprecherId) -> FileResponse:
-    """Der eigene Stand als `.tgz` — dieselbe Datei, die die Aufsicht zieht."""
+    """Der eigene Stand als `.tgz` - dieselbe Datei, die die Aufsicht zieht."""
     return ausleitung.sicherung_eines(_hole(db, sprecher))
 
 
 @router.get("/datensatz", dependencies=[Depends(_pruefe_pin)])
 def datensatz(db: Datenbank, sprecher: SprecherId, ablage: Ablage) -> FileResponse:
-    """Die eigenen Text-Audio-Paare als `.zip` — zum Mitnehmen, nicht zum Sichern."""
+    """Die eigenen Text-Audio-Paare als `.zip` - zum Mitnehmen, nicht zum Sichern."""
     return ausleitung.datensatz_eines(db, _hole(db, sprecher), ablage)

@@ -1,8 +1,8 @@
-"""Was ein Sprecher an Daten hat — Profil, Textquellen, Sitzungen, Aufnahmen.
+"""Was ein Sprecher an Daten hat - Profil, Textquellen, Sitzungen, Aufnahmen.
 
 Zwei Wege lesen dasselbe: `api/admin.py`, wo die Aufsicht einen fremden
 Sprecher ansieht, und `api/konto.py`, wo ein Sprecher seine eigenen Daten
-ansieht. Beide zeigen dieselben Zahlen über dieselbe Datenbank — nur wer
+ansieht. Beide zeigen dieselben Zahlen über dieselbe Datenbank - nur wer
 fragen darf, unterscheidet sich, und das entscheiden die Wächter der beiden
 Router, nicht diese Datei. Sie kennt keinen Zugang und keinen Token, nur eine
 offene `Session` und, wo nötig, die `Sprecher`-Zeile selbst.
@@ -35,7 +35,7 @@ class Kennzahlen(BaseModel):
 
 
 class UebersichtAntwort(BaseModel):
-    """Ein Sprecher mit dem Umfang seiner Daten — Profil plus Kennzahlen."""
+    """Ein Sprecher mit dem Umfang seiner Daten - Profil plus Kennzahlen."""
 
     id: str
     name: str
@@ -43,21 +43,21 @@ class UebersichtAntwort(BaseModel):
     basismodell: str
     erstellt: str
     zugang_erneuert: str | None
-    # Nie die PIN selbst oder ihr Prüfwert — nur, ob eine gesetzt ist (siehe
+    # Nie die PIN selbst oder ihr Prüfwert - nur, ob eine gesetzt ist (siehe
     # `services/pin.py`).
     pin_gesetzt: bool
     kennzahlen: Kennzahlen
 
 
 class Umbenennung(BaseModel):
-    """Der neue Name — von der Aufsicht vergeben (`api/admin.py`) oder selbst (`api/konto.py`)."""
+    """Der neue Name - von der Aufsicht vergeben (`api/admin.py`) oder selbst (`api/konto.py`)."""
 
     name: str = Field(min_length=1, max_length=200)
 
     @field_validator("name")
     @classmethod
     def _nicht_nur_leerzeichen(cls, wert: str) -> str:
-        """Sonst käme ein Sprecher namens „ " heraus — eine leere Zeile in der Liste."""
+        """Sonst käme ein Sprecher namens „ " heraus - eine leere Zeile in der Liste."""
         if not wert.strip():
             raise ValueError("Der Name darf nicht leer sein.")
         return wert.strip()
@@ -87,7 +87,7 @@ class SitzungenAntwort(BaseModel):
 
 
 class AufnahmeAntwort(BaseModel):
-    """Eine Aufnahme mit dem Text, zu dem sie gehört — sonst wäre sie stumm."""
+    """Eine Aufnahme mit dem Text, zu dem sie gehört - sonst wäre sie stumm."""
 
     id: str
     prompt_id: str
@@ -230,7 +230,7 @@ def _zaehle(sitzung: Session, tabelle: type, *bedingungen) -> int:
 
 
 def _bytes(ablage: storage.Ablage, bloecke: list[str]) -> int:
-    """Wie viel Platz die Aufnahmen brauchen — die Zahl, die eine Sicherung plant."""
+    """Wie viel Platz die Aufnahmen brauchen - die Zahl, die eine Sicherung plant."""
     gesamt = 0
     for relpfad in bloecke:
         pfad = ablage.pfad(relpfad)

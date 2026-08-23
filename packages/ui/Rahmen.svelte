@@ -1,18 +1,18 @@
 <script lang="ts">
   /**
-   * Der Rahmen jeder App: Kopfzeile, Inhalt, Fußzeile — einmal gebaut.
+   * Der Rahmen jeder App: Kopfzeile, Inhalt, Fußzeile - einmal gebaut.
    *
    * Marke, App-Reiter, Sprecherzeile und Menüknopf stehen in
    * `Kopfleiste.svelte` und damit ohnehin nur an einer Stelle. Was bisher
    * fehlte, war der Rahmen darum: Jede App hängte Kopf- und Fußzeile selbst
-   * auf und beantwortete die gerätebezogenen Menüpunkte selbst — dieselbe
+   * auf und beantwortete die gerätebezogenen Menüpunkte selbst - dieselbe
    * Kette aus `route === EINSTELLUNGEN_PFAD ? … : route === DARSTELLUNG_PFAD`
    * in jeder `App.svelte`. Ein vierter solcher Punkt hätte jede App angefasst,
    * und wer einen vergisst, hat einen Menüeintrag, der ins Leere führt.
    *
    * Darum hier: Der Rahmen kennt die gerätebezogenen Ansichten
    * (`GERAETE_PUNKTE` in `apps.ts`) und zeigt sie selbst. Die App liefert nur
-   * noch ihre eigenen Ansichten — als Inhalt zwischen den Klammern.
+   * noch ihre eigenen Ansichten - als Inhalt zwischen den Klammern.
    *
    * Was die App darüber hinaus ins Menü stellt (Sprecher, Zugangsdaten),
    * reicht sie als `uebergreifend` durch: Punkte, die diese App auflöst, aber
@@ -46,7 +46,7 @@
     /** Menüpunkte dieser App, über den gerätebezogenen (siehe `Kopfleiste`). */
     uebergreifend?: Menuepunkt[];
     /**
-     * Wer hier angemeldet ist — ein Sprechername oder, für „hören", auch
+     * Wer hier angemeldet ist - ein Sprechername oder, für „hören", auch
      * „Verwaltung"/„Aufsicht". `undefined` heißt „führt keinen Sprecher".
      */
     sprecher?: string | null;

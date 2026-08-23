@@ -1,13 +1,13 @@
 <script lang="ts">
   /**
-   * Eine Seite aus vielen: „‹ 1 … 4 5 6 … 12 ›" — für lange Listen, die eine
+   * Eine Seite aus vielen: „‹ 1 … 4 5 6 … 12 ›" - für lange Listen, die eine
    * Aufnahme oder Sitzung je Zeile zeigen und bei Hunderten Einträgen sonst
    * eine einzige, unlesbare Seite wären.
    *
    * Bewusst zustandslos: Diese Komponente zählt nur mit, sie lädt nichts
    * selbst nach. Wer sie einsetzt, hält `seite` selbst (meist als
    * `$state`), reicht die Gesamtzahl der Seiten herein und lädt in `aendere`
-   * neu — genau wie bei jeder anderen Liste in dieser App auch.
+   * neu - genau wie bei jeder anderen Liste in dieser App auch.
    */
   let {
     seite,

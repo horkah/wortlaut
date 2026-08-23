@@ -1,6 +1,6 @@
 """Kennungen, Datenbank, Blob-Ablage, Korpus-Layout, Modell-Registry.
 
-Alles kleine Bausteine — geprüft wird jeweils nur die Zusage, auf die sich der
+Alles kleine Bausteine - geprüft wird jeweils nur die Zusage, auf die sich der
 Rest des Systems verlässt.
 """
 
@@ -44,7 +44,7 @@ class TestDatenbank:
         datenbank = tmp_path / "tief" / "test.sqlite"
 
         assert db.wende_migrationen_an(datenbank, verzeichnis) == ["001_init"]
-        # Der zweite Lauf darf die Migration nicht wiederholen — sonst schlüge
+        # Der zweite Lauf darf die Migration nicht wiederholen - sonst schlüge
         # das INSERT mit einem Schlüsselkonflikt fehl.
         assert db.wende_migrationen_an(datenbank, verzeichnis) == []
 

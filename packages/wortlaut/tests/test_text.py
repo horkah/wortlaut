@@ -1,6 +1,6 @@
 """Schneiden und Einlesen von Texten.
 
-Der Chunker ist die Stelle, an der die Sprecheinheit entsteht — und damit die
+Der Chunker ist die Stelle, an der die Sprecheinheit entsteht - und damit die
 Einheit, an der später jedes Audio-Text-Paar hängt. Deshalb wird hier genauer
 geprüft als anderswo.
 """

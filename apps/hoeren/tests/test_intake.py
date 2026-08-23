@@ -61,7 +61,7 @@ class TestIntake:
         self, klient: TestClient, sprecher: str, quelle: str, audio_datei: dict
     ) -> None:
         # Korrekturen sind schwächere Daten und bekommen im Rezept ein
-        # niedrigeres Gewicht — dafür müssen sie zählbar getrennt bleiben.
+        # niedrigeres Gewicht - dafür müssen sie zählbar getrennt bleiben.
         einheit = klient.get(f"/api/prompts/next?sprecher={sprecher}").json()["aktuell"]
         klient.post(
             f"/api/recordings?sprecher={sprecher}",

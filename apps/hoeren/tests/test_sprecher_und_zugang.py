@@ -72,7 +72,7 @@ class TestVerwaltung:
         self, _umgebung: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         # Ein Token mit Nicht-ASCII-Zeichen (etwa ein Umlaut) brachte
-        # secrets.compare_digest zum Abbruch — jede Anfrage endete mit 500
+        # secrets.compare_digest zum Abbruch - jede Anfrage endete mit 500
         # statt eines sauberen 401. Ohne Token muss abgewiesen, nicht
         # abgestürzt werden, sonst zeigt das Frontend nie das Token-Feld.
         monkeypatch.setenv("WORTLAUT_AUTH_TOKEN", "geheimnis-öäü")
@@ -85,7 +85,7 @@ class TestVerwaltung:
     ) -> None:
         # Der Prüfling ist direkt aufgerufen, nicht über den Testklienten: dessen
         # HTTP-Schicht kodiert Kopfzeilen anders als ein Browser. Was der Server
-        # im Betrieb tatsächlich sieht, ist der Wert mit echten Umlauten — genau
+        # im Betrieb tatsächlich sieht, ist der Wert mit echten Umlauten - genau
         # der, den auch die Umgebung trägt. Er muss klaglos durchgehen.
         geheim = "geheimnis-öäü"
         monkeypatch.setenv("WORTLAUT_AUTH_TOKEN", geheim)
@@ -114,7 +114,7 @@ class TestSprecher:
         self, verwalter: TestClient, sprecher: str, zugang_ausgeben: Callable[[str], str]
     ) -> None:
         # Sonst wüsste die Verwaltung nicht, welches Profil noch niemandem
-        # gehört — und ein Profil ohne Zugang ist für niemanden erreichbar.
+        # gehört - und ein Profil ohne Zugang ist für niemanden erreichbar.
         assert verwalter.get(f"/api/speakers/{sprecher}").json()["zugang_erneuert"] is None
         zugang_ausgeben(sprecher)
         assert verwalter.get(f"/api/speakers/{sprecher}").json()["zugang_erneuert"] is not None
@@ -142,7 +142,7 @@ class TestBindung:
         assert verwalter.get(f"/api/progress?sprecher={sprecher}").status_code == 401
 
     def test_kennung_kommt_aus_dem_zugang(self, klient: TestClient, sprecher: str) -> None:
-        # Ohne jeden Parameter — der Server weiß trotzdem, wessen Korpus er meint.
+        # Ohne jeden Parameter - der Server weiß trotzdem, wessen Korpus er meint.
         antwort = klient.get("/api/progress")
         assert antwort.status_code == 200
         assert antwort.json()["aufnahmen"] == 0
@@ -185,7 +185,7 @@ class TestBindung:
         self, klient_ohne_token: TestClient
     ) -> None:
         # 401 und nicht 404: Die Kennung stammt aus dem Zugang selbst, es hat
-        # sie niemand geraten — ein 404 verriete nur, welche Korpora es gibt.
+        # sie niemand geraten - ein 404 verriete nur, welche Korpora es gibt.
         antwort = klient_ohne_token.get(
             "/api/progress", headers={"Authorization": "Bearer spr_gibtsnicht.egal"}
         )
@@ -194,7 +194,7 @@ class TestBindung:
 
 class TestZugangAusgeben:
     def test_auskunft_nennt_den_sprecher(self, klient: TestClient, sprecher: str) -> None:
-        # Damit die Oberfläche zeigen kann, wer eingestellt ist — und zwar das,
+        # Damit die Oberfläche zeigen kann, wer eingestellt ist - und zwar das,
         # was der Server sieht, nicht das, was der Browser sich gemerkt hat.
         auskunft = klient.get("/api/zugang").json()
         assert auskunft == {"art": "sprecher", "sprecher_id": sprecher, "name": "Testperson"}

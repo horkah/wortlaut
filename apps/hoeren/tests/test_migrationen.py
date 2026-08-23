@@ -1,19 +1,19 @@
 """Bestehende Korpora und ein neues Schema.
 
 Der Test, der gefehlt hat. Alle anderen Tests legen ihren Sprecher über
-`POST /api/speakers` an — und dort laufen die Migrationen mit. Damit prüft
+`POST /api/speakers` an - und dort laufen die Migrationen mit. Damit prüft
 jeder von ihnen dasselbe: eine Datenbank, die genau zum Schema dieses Standes
 passt. Die Datenbank, die ein Update wirklich vorfindet, kam in keinem vor.
 
 Genau daran ging es schief: Die PIN brachte `speakers.pin_hash` mit
 (`004_pin.sql`), bestehende Korpora bekamen die Spalte nie, und danach
-scheiterte jedes `SELECT` auf `speakers` — die Liste der Aufsicht ebenso wie
+scheiterte jedes `SELECT` auf `speakers` - die Liste der Aufsicht ebenso wie
 die Zugangsprüfung, mit der sich jeder Sprecher anmeldet. Die Testsammlung
 blieb grün, weil sie den Fall nicht kannte.
 
 Deshalb steht hier ein Korpus im ältesten Zustand, den es gibt: nur
 `001_init.sql`. Der Test bleibt damit auch für die nächste Spalte gültig, ohne
-dass jemand ihn anfassen muss — er nennt keine einzelne Migration beim Namen.
+dass jemand ihn anfassen muss - er nennt keine einzelne Migration beim Namen.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ ALTBESTAND = "spr_altbestand"
 def altkorpus(_umgebung: None, tmp_path: Path) -> str:
     """Ein Sprecher, dessen Datenbank auf dem Stand von `001_init` stehen blieb.
 
-    Angelegt wird er an der API vorbei — über die API ginge es nicht, denn
+    Angelegt wird er an der API vorbei - über die API ginge es nicht, denn
     `POST /api/speakers` bringt gerade die Migrationen mit, um die es hier
     geht. Eingefügt wird mit rohem SQL und nur mit den Spalten aus `001_init`:
     Die Modelle aus `db/models.py` kennen bereits die neuen und wären in dieser
@@ -88,7 +88,7 @@ class TestAltbestandWirdEingeholt:
     def test_der_sprecher_kommt_wieder_herein(
         self, klient_fuer: Callable[[str], TestClient], altkorpus: str
     ) -> None:
-        """Ein Zugang für einen alten Korpus — ausgeben, vorlegen, hereinkommen.
+        """Ein Zugang für einen alten Korpus - ausgeben, vorlegen, hereinkommen.
 
         Das ist der Weg, der bei einer fehlenden Spalte ebenfalls bricht: Die
         Zugangsprüfung liest den Sprecher, bevor sie irgendetwas anderes tut.
@@ -121,7 +121,7 @@ class TestKeinKorpusAusVersehen:
     def test_unbekannte_kennung_legt_nichts_an(
         self, aufsicht: TestClient, _umgebung: None
     ) -> None:
-        """Migrieren darf die Datei nicht anlegen — sonst wäre ein Tippfehler ein Korpus.
+        """Migrieren darf die Datei nicht anlegen - sonst wäre ein Tippfehler ein Korpus.
 
         `wende_migrationen_an` legt eine fehlende Datenbank an. In `engine_fuer`
         steht die Prüfung auf die Datei deshalb davor und muss dort bleiben.

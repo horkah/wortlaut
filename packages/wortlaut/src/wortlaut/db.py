@@ -3,13 +3,13 @@
 Drei Aufgaben, bewusst getrennt:
 
 * `verbinde()` liefert eine SQLAlchemy-Engine mit den Einstellungen, die für
-  diesen Anwendungsfall wichtig sind — vor allem WAL, damit „lernen" lesen
+  diesen Anwendungsfall wichtig sind - vor allem WAL, damit „lernen" lesen
   kann, während „hören" schreibt.
 * `wende_migrationen_an()` spielt nummerierte `.sql`-Dateien ein und merkt sich
   in `schema_migrations`, welche schon liefen. Kein Alembic: bei fünf Tabellen
   wäre die Migrationsmaschinerie größer als das Schema.
 * `sichere_kopie()` zieht eine in sich stimmige Kopie einer laufenden Datenbank
-  — die Grundlage jeder Sicherung (siehe `wortlaut/sicherung.py`).
+  - die Grundlage jeder Sicherung (siehe `wortlaut/sicherung.py`).
 """
 
 from __future__ import annotations
@@ -80,12 +80,12 @@ def sichere_kopie(quelle: Path, ziel: Path) -> Path:
     Ein `cp` genügt hier nicht: Im WAL-Modus steht ein Teil der Daten in
     `…-wal`, und wer nur die `.sqlite` kopiert, sichert einen Stand, den es nie
     gegeben hat. Die Online-Backup-Schnittstelle von SQLite schreibt stattdessen
-    eine vollständige, abgeschlossene Datenbank — auch während geschrieben wird,
+    eine vollständige, abgeschlossene Datenbank - auch während geschrieben wird,
     ohne den Dienst anzuhalten.
     """
     ziel.parent.mkdir(parents=True, exist_ok=True)
     # `closing`, weil `sqlite3.connect` als Kontext nur festschreibt und die
-    # Verbindung offen lässt — bei einer Sicherung über viele Sprecher liefen
+    # Verbindung offen lässt - bei einer Sicherung über viele Sprecher liefen
     # sonst die Dateizeiger voll.
     with closing(sqlite3.connect(quelle)) as gelesen, closing(sqlite3.connect(ziel)) as geschrieben:
         gelesen.backup(geschrieben)

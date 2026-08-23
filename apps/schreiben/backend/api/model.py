@@ -28,7 +28,7 @@ class ModellAntwort(BaseModel):
     erstellt: str | None
     wer: float | None
     laufzeit: str  # local | remote
-    # Eine Zeile für die Kopfzeile — hier gebaut, damit alle Ansichten
+    # Eine Zeile für die Kopfzeile - hier gebaut, damit alle Ansichten
     # dieselbe Auskunft geben.
     beschriftung: str
 

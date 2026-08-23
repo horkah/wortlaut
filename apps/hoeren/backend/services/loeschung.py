@@ -1,10 +1,10 @@
-"""Was zu einem Sprecher gehört — und damit, was seine Löschung umfasst.
+"""Was zu einem Sprecher gehört - und damit, was seine Löschung umfasst.
 
 Das Recht auf Löschung muss ausführbar sein, nicht dokumentiert. Ausführbar
 heißt: an **einer** Stelle festgehalten, welche Verzeichnisse einer Person
 gehören. Sonst löscht die Aufsicht in der Oberfläche etwas anderes als
 `scripts/purge_speaker.py` auf der Kommandozeile, und der Unterschied fällt
-niemandem auf — bis er auffällt.
+niemandem auf - bis er auffällt.
 
 Beide benutzen deshalb dieses Modul.
 
@@ -12,7 +12,7 @@ Warum hier der Blick über die App-Grenze geht: Die Diktate von „schreiben"
 sind Stimmaufnahmen derselben Person. Eine Löschung, die an der Grenze der App
 haltmacht, wäre unvollständig, und Unvollständigkeit ist bei Gesundheitsdaten
 kein Schönheitsfehler. Herübergeholt wird ausdrücklich nur die Layout-Funktion
-— ein reiner Pfadbau, der keine Umgebung liest und keinen Dienst startet.
+- ein reiner Pfadbau, der keine Umgebung liest und keinen Dienst startet.
 """
 
 from __future__ import annotations
@@ -35,14 +35,14 @@ def datenverzeichnisse(sprecher_id: str) -> list[str]:
 
     Ohne die Schnappschüsse: Die stehen nicht unter seinem Namen, sondern unter
     einer Job-Kennung, und werden deshalb gesondert gesucht (`ziele`). Für die
-    Sicherung sind sie ohnehin nicht gemeint — ein Schnappschuss ist eine
+    Sicherung sind sie ohnehin nicht gemeint - ein Schnappschuss ist eine
     Kopie, und eine Kopie sichert man nicht mit.
     """
     return [corpus.sprecher_relpfad(sprecher_id), diktate_relpfad(sprecher_id)]
 
 
 def ziele(datenverzeichnis: Path, sprecher_id: str) -> list[Path]:
-    """Alles, was bei einer vollständigen Löschung verschwindet — nur Vorhandenes.
+    """Alles, was bei einer vollständigen Löschung verschwindet - nur Vorhandenes.
 
     Der Korpus, der Arbeitsstand von „schreiben", die Modellstände aus
     „lernen" und die Schnappschüsse, die aus diesem Korpus entstanden sind.
@@ -77,7 +77,7 @@ def schnappschuesse(datenverzeichnis: Path, sprecher_id: str) -> list[Path]:
 
 
 def ohne_marke(datenverzeichnis: Path) -> list[Path]:
-    """Schnappschüsse ohne `sprecher.txt` — von Hand zu prüfen, nie geraten.
+    """Schnappschüsse ohne `sprecher.txt` - von Hand zu prüfen, nie geraten.
 
     Wem ein solcher Schnappschuss gehört, steht nur in seinem Manifest. Ihn
     beim Löschen zu übergehen, hinterlässt Stimmdaten; ihn mitzunehmen, könnte

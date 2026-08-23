@@ -2,12 +2,12 @@
 
 Zwei Formate, weil es zwei Fragen sind:
 
-* **Sicherung** (`.tgz`, `wortlaut/sicherung.py`) — „Der Server ist weg, ich
+* **Sicherung** (`.tgz`, `wortlaut/sicherung.py`) - „Der Server ist weg, ich
   will den Stand zurück." Sie enthält die Dateien, wie sie unter
   `WORTLAUT_DATA_DIR` liegen, Datenbank inbegriffen. Nichts darin ist
   aufbereitet; genau deshalb lässt sie sich vollständig zurückspielen.
 
-* **Datensatz** (`.zip`, hier) — „Ich will die Paare aus Text und Audio ansehen
+* **Datensatz** (`.zip`, hier) - „Ich will die Paare aus Text und Audio ansehen
   oder trainieren, mit Werkzeugen, die von wortlaut nichts wissen." Er enthält
   keine Datenbank, sondern ein Verzeichnis Audiodateien, neben jeder ihren Text
   als `.txt`, dazu eine `metadaten.csv` und eine `metadaten.jsonl`.
@@ -33,7 +33,7 @@ from ..db.models import Aufnahme, Sprecher, Textquelle, Vorlage
 
 # Die Spalten der `metadaten.csv`. `file_name` und `transcription` stehen
 # vorn und heißen englisch, weil genau diese beiden Namen das
-# `audiofolder`-Format von Hugging Face erwartet — damit lädt der Datensatz
+# `audiofolder`-Format von Hugging Face erwartet - damit lädt der Datensatz
 # ohne eine Zeile Anpassungscode. Alles Weitere steht dahinter und stört dort
 # niemanden.
 SPALTEN = (
@@ -98,7 +98,7 @@ def datensatz_zip(
 
 
 def _zeilen(sitzung: Session, sprecher_id: str) -> list[tuple[dict[str, object], Aufnahme]]:
-    """Aufnahme, Vorlage und Herkunft in einem Zug — eine Zeile je Paar."""
+    """Aufnahme, Vorlage und Herkunft in einem Zug - eine Zeile je Paar."""
     treffer = sitzung.execute(
         select(Aufnahme, Vorlage, Textquelle)
         .join(Vorlage, Vorlage.id == Aufnahme.prompt_id)
@@ -139,7 +139,7 @@ def _als_jsonl(zeilen: list[dict[str, object]]) -> str:
 
 
 def _liesmich(sprecher: Sprecher, anzahl: int) -> str:
-    """Was in diesem Archiv liegt — für den, der es in einem Jahr wiederfindet."""
+    """Was in diesem Archiv liegt - für den, der es in einem Jahr wiederfindet."""
     return f"""Datensatz aus wortlaut · hören
 
 Sprecher     {sprecher.name} ({sprecher.id})
@@ -158,7 +158,7 @@ metadaten.jsonl            dieselben Zeilen als JSON, eine je Zeile
 
 Spalte `modus`: gelesen | nachgesprochen | frei.
 Spalte `quelle`: vorlage-Herkunft (llm, upload) oder korrektur.
-Korrekturen sind schwächere Daten — der Text ist keine Vorgabe, sondern eine
+Korrekturen sind schwächere Daten - der Text ist keine Vorgabe, sondern eine
 abgenickte Maschinenausgabe. Wer sie gleichrangig einspeist, trainiert dem
 Modell seine eigenen Fehler an.
 

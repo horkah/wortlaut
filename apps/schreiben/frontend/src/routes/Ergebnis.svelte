@@ -2,7 +2,7 @@
   /**
    * Der Text, abschnittsweise: vorlesen, anklicken, neu einsprechen, bestätigen.
    *
-   * Vorgelesen wird, weil die Zielperson den Text nicht sicher lesen kann —
+   * Vorgelesen wird, weil die Zielperson den Text nicht sicher lesen kann -
    * gehört wird der Fehler, nicht gesehen. Deshalb liest die Ansicht von
    * selbst los, sobald sie erscheint, und markiert dabei, wo sie gerade ist.
    *
@@ -127,7 +127,7 @@
     gehZu('/');
   }
 
-  // Von selbst vorlesen, sobald der Text dasteht — genau dafür ist die
+  // Von selbst vorlesen, sobald der Text dasteht - genau dafür ist die
   // Ansicht da. Ohne Stimme im System bleibt es beim Lesen.
   if (stimmeVerfuegbar() && !bestaetigt) lies();
 </script>
@@ -221,7 +221,7 @@
     align-items: center;
     gap: 0.75rem;
   }
-  /* Der zusammenhängende Text — zum Kopieren, nicht zum Bearbeiten:
+  /* Der zusammenhängende Text - zum Kopieren, nicht zum Bearbeiten:
      geändert wird er, indem man ihn neu spricht. */
   .ganz {
     width: 100%;

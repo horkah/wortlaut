@@ -5,7 +5,7 @@ anzulegen. Alle anderen Endpunkte setzen ein bestehendes Profil voraus.
 
 Diese Wege gehören der Verwaltung (`WORTLAUT_AUTH_TOKEN`, siehe `deps.py`).
 Ein frisch angelegtes Profil hat noch keinen Zugang und ist damit für
-niemanden erreichbar — der Zugang wird gesondert ausgegeben (`api/zugang.py`).
+niemanden erreichbar - der Zugang wird gesondert ausgegeben (`api/zugang.py`).
 `zugang_erneuert` sagt in der Liste, ob schon einer besteht.
 """
 
@@ -36,7 +36,7 @@ class SprecherAntwort(BaseModel):
     basismodell: str
     erstellt: str
     # Wann der geltende Zugang ausgegeben wurde; None heißt: keiner da. Der
-    # Zugang selbst steht hier nie — er ist nur beim Ausgeben zu sehen.
+    # Zugang selbst steht hier nie - er ist nur beim Ausgeben zu sehen.
     zugang_erneuert: str | None = None
 
 
@@ -65,7 +65,7 @@ def lege_an(eingabe: NeuerSprecher) -> SprecherAntwort:
 
 @router.get("", response_model=list[SprecherAntwort])
 def liste() -> list[SprecherAntwort]:
-    """Alle Profile — die Verzeichnisse unter `data/korpus/` sind die Liste."""
+    """Alle Profile - die Verzeichnisse unter `data/korpus/` sind die Liste."""
     antworten: list[SprecherAntwort] = []
     for sprecher_id in corpus.sprecher_ids(einstellungen().data_dir):
         with Session(engine_fuer(sprecher_id)) as sitzung:

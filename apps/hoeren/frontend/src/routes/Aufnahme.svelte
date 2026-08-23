@@ -40,7 +40,7 @@
   );
 
   async function beginne() {
-    // Sitzung überdauert einen Neuladen des Browsers, aber nicht den Tab —
+    // Sitzung überdauert einen Neuladen des Browsers, aber nicht den Tab -
     // genau die Lebensdauer, die zu „unterbrechbar" passt.
     sitzung = sessionStorage.getItem(SITZUNG_SCHLUESSEL);
     if (!sitzung) {
@@ -178,7 +178,7 @@
             {#each letzte.hinweise as hinweis}<li>{hinweis}</li>{/each}
           </ul>
           <p class="gedaempft">
-            Das ist ein Hinweis, keine Ablehnung — die Aufnahme ist gespeichert.
+            Das ist ein Hinweis, keine Ablehnung - die Aufnahme ist gespeichert.
           </p>
         </div>
       {/if}

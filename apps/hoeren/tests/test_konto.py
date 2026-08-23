@@ -1,9 +1,9 @@
-"""Ein Sprecher sieht sich selbst — dieselben Zahlen wie die Aufsicht, aber nur die eigenen.
+"""Ein Sprecher sieht sich selbst - dieselben Zahlen wie die Aufsicht, aber nur die eigenen.
 
 `/api/konto/…` nennt keine Kennung in der Adresse: Sie kommt aus dem
 vorgelegten Zugang, genau wie bei jedem anderen Weg dieser App. Ein zweiter
 Sprecher, der denselben Weg mit seinem eigenen Zugang ruft, sieht darum
-zwangsläufig nur seine eigenen Daten — das prüft `test_sieht_nur_die_eigenen_aufnahmen`.
+zwangsläufig nur seine eigenen Daten - das prüft `test_sieht_nur_die_eigenen_aufnahmen`.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ class TestZugriff:
         assert klient_ohne_token.get("/api/konto").status_code == 401
 
     def test_verwaltung_kommt_nicht_heran(self, verwalter: TestClient) -> None:
-        # Die Verwaltung führt keinen eigenen Sprecher — sie legt Profile an.
+        # Die Verwaltung führt keinen eigenen Sprecher - sie legt Profile an.
         assert verwalter.get("/api/konto").status_code == 401
 
     def test_aufsicht_kommt_nicht_heran(self, aufsicht: TestClient) -> None:
@@ -71,7 +71,7 @@ class TestEigeneDaten:
     def test_anhoeren_und_verwerfen_bleiben_bei_recordings(
         self, klient: TestClient, quelle: str, audio_datei: dict
     ) -> None:
-        # Kein eigener Weg unter `/api/konto/…` dafür — die bestehenden,
+        # Kein eigener Weg unter `/api/konto/…` dafür - die bestehenden,
         # ebenfalls sprecherbezogenen Wege genügen (siehe `konto.py`).
         naechste = klient.get("/api/prompts/next").json()["aktuell"]
         aufnahme = klient.post(
@@ -154,7 +154,7 @@ class TestSelbstVerwalten:
         antwort = klient.patch("/api/konto", json={"name": "Neuer Name"})
         assert antwort.status_code == 200
         assert antwort.json()["name"] == "Neuer Name"
-        # Die Kennung bleibt, was sie ist — sie steckt im ausgegebenen Zugang.
+        # Die Kennung bleibt, was sie ist - sie steckt im ausgegebenen Zugang.
         assert antwort.json()["id"] == sprecher
         assert klient.get("/api/konto").json()["sprecher"]["name"] == "Neuer Name"
 
@@ -182,7 +182,7 @@ class TestSelbstVerwalten:
         assert datensatz.content[:2] == b"PK"  # zip
 
     def test_loeschstufen_der_aufsicht_gibt_es_hier_nicht(self, klient: TestClient) -> None:
-        # Weder alle Aufnahmen noch sich selbst — dafür gibt es unter
+        # Weder alle Aufnahmen noch sich selbst - dafür gibt es unter
         # `/api/konto/…` gar keinen Weg.
         assert klient.delete("/api/konto/recordings").status_code == 405
         assert klient.delete("/api/konto").status_code == 405

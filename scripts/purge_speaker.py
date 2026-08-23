@@ -7,7 +7,7 @@ werden Profil, Vorlagen, Aufnahmen, Modellstände, die Schnappschüsse, die aus
 diesem Korpus entstanden sind, und die Diktate von „schreiben".
 
 Was dazugehört, steht nicht hier, sondern in
-`apps/hoeren/backend/services/loeschung.py` — dieselbe Stelle, die auch die
+`apps/hoeren/backend/services/loeschung.py` - dieselbe Stelle, die auch die
 Aufsicht in der Oberfläche fragt. Sonst löschten Kommandozeile und Oberfläche
 Verschiedenes, und der Unterschied fiele niemandem auf.
 
@@ -44,7 +44,7 @@ def main() -> int:
     for verzeichnis in loeschung.ohne_marke(datenverzeichnis):
         print(
             f"Achtung: {verzeichnis} hat keine {loeschung.SCHNAPPSCHUSS_MARKE} "
-            "— bitte von Hand prüfen."
+            "- bitte von Hand prüfen."
         )
 
     if not vorhanden:

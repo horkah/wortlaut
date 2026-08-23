@@ -1,9 +1,9 @@
-"""Wer hier diktiert — und dass niemand in fremde Diktate sieht.
+"""Wer hier diktiert - und dass niemand in fremde Diktate sieht.
 
 Diese App führt seit dem Wegfall der Einzelnutzer-Instanz denselben Sprecher
 wie „hören": Sie leitet ihn aus dem vorgelegten Zugang ab (`backend/deps.py`).
 Zwei Dinge hängen daran, und beide wären teuer, wenn sie stillschweigend
-danebengriffen — das Modell, auf dem jemand spricht, und der Korpus, in den
+danebengriffen - das Modell, auf dem jemand spricht, und der Korpus, in den
 seine Korrekturen zurückfließen.
 
 Geprüft wird deshalb nicht nur, dass ein gültiger Zugang hereinkommt, sondern
@@ -23,7 +23,7 @@ from conftest import NAME, lege_sprecher_an
 
 
 class TestOhneZugang:
-    """Ohne gültigen Zugang gibt es hier nichts — auch nichts zum Anlegen."""
+    """Ohne gültigen Zugang gibt es hier nichts - auch nichts zum Anlegen."""
 
     def test_sitzung_beginnen_wird_abgewiesen(self, klient_ohne_zugang: TestClient) -> None:
         assert klient_ohne_zugang.post("/schreiben/api/sessions").status_code == 401

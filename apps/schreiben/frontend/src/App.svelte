@@ -3,11 +3,11 @@
    * Zwei Ansichten, mehr nicht: sprechen und den Text ansehen.
    *
    * Die zweite Reiterreihe bleibt leer. Der Weg durch diese App ist keine
-   * Auswahl, sondern eine Folge — sprechen, hören, bessern, bestätigen —, und
+   * Auswahl, sondern eine Folge - sprechen, hören, bessern, bestätigen -, und
    * die Zielperson kann schlecht lesen (Grundentscheidung 7). Welcher
    * Modellstand hier arbeitet, steht darum nicht in der Kopfzeile, sondern
    * bei der Aufnahme selbst (siehe `Aufnahme`); die Kopfzeile zeigt
-   * stattdessen den Sprecher, genau wie „hören" — beide führen dieselbe
+   * stattdessen den Sprecher, genau wie „hören" - beide führen dieselbe
    * Person, und ihr gesprochenes Wort soll später nach „hören" und „lernen"
    * zurückfließen.
    *
@@ -15,11 +15,11 @@
    * kennt: Sie gehören zum Gerät und damit in den gemeinsamen Rahmen
    * (`$ui/Rahmen.svelte`). Diese App liest Mikrofon, Stimme und Schriftgröße
    * (siehe `Aufnahme` und `Ergebnis`), konnte sie aber lange als einzige nicht
-   * ändern — wer hier ein leises Mikrofon hatte, musste dafür in „hören"
+   * ändern - wer hier ein leises Mikrofon hatte, musste dafür in „hören"
    * hinüber.
    *
    * Dazu kommt ein eigener Menüpunkt: die Zugangsdaten. Diese App führt seit
-   * dem Wegfall der Einzelnutzer-Instanz denselben Sprecher wie „hören" — sein
+   * dem Wegfall der Einzelnutzer-Instanz denselben Sprecher wie „hören" - sein
    * Zugang entscheidet, auf welchem Modell hier gesprochen wird und in welchen
    * Korpus die Korrekturen zurückgehen. Ein zweites Anmeldefeld ist das nicht:
    * Der Zugang kommt über denselben persönlichen Link und liegt in demselben
@@ -42,7 +42,7 @@
   //
   // Die Zugangsdaten stehen vor der Zugangsprüfung: Ohne gültigen Zugang gibt
   // die API nichts her, und genau dort wird er eingesetzt. Ohne Text gibt es
-  // nichts anzusehen — dann führt jeder Weg zur Aufnahme.
+  // nichts anzusehen - dann führt jeder Weg zur Aufnahme.
   const Ansicht = $derived(
     zustand.route === ZUGANGSDATEN_PFAD
       ? Zugangsdaten
@@ -53,7 +53,7 @@
           : Aufnahme,
   );
 
-  // Die Zugangsdaten stehen immer da — auch und gerade ohne gültigen Zugang:
+  // Die Zugangsdaten stehen immer da - auch und gerade ohne gültigen Zugang:
   // Dann ist der Punkt der einzige Weg herein. „Meine Daten" kommt dazu,
   // sobald ein Sprecher feststeht: Dieselbe Ansicht wie bei „hören" (dort
   // liegt der Korpus), darum ein `href` auf die laufende „hören"-Seite statt

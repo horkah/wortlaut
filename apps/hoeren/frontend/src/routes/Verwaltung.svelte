@@ -2,18 +2,18 @@
   /**
    * Die Verwaltung: Profile anlegen und Zugänge ausgeben.
    *
-   * Hier wird nicht mehr ausgewählt, wer man ist — das entscheidet der Zugang,
+   * Hier wird nicht mehr ausgewählt, wer man ist - das entscheidet der Zugang,
    * mit dem der Browser ruft. Was hier passiert, ist die Übergabe: Für jeden
    * Sprecher wird einmal ein Link erzeugt, und den bekommt die Person als
    * Lesezeichen. Danach nie wieder etwas merken oder tippen.
    *
    * Den Link gibt es genau einmal zu sehen; gespeichert ist nur sein Prüfwert.
-   * Verloren heißt deshalb: einen neuen ausgeben — und damit ist der alte tot.
+   * Verloren heißt deshalb: einen neuen ausgeben - und damit ist der alte tot.
    *
    * Dieselbe Seite sieht die Aufsicht, nur mit mehr darauf: Zu jedem Sprecher
    * steht dann, wie viel er gesammelt hat, und ein Weg in seine Daten
    * (`Einsicht.svelte`). Zwei getrennte Seiten wären zwei Listen derselben
-   * Sprecher — eine davon immer die falsche.
+   * Sprecher - eine davon immer die falsche.
    */
   import { ZUGANGSDATEN_PFAD } from '$ui/apps';
   import {
@@ -36,7 +36,7 @@
   let name = $state('');
   let basismodell = $state('openai/whisper-large-v3');
 
-  // Die Aufsicht sieht dieselbe Liste, holt sie aber über ihren eigenen Weg —
+  // Die Aufsicht sieht dieselbe Liste, holt sie aber über ihren eigenen Weg -
   // nur der bringt die Kennzahlen mit.
   const beaufsichtigt = $derived(zustand.art === 'aufsicht');
 
@@ -156,7 +156,7 @@
 {:else}
   {#if frisch}
     <!-- Nur jetzt zu sehen: Gespeichert ist nur der Prüfwert. Wer den Link
-         wegklickt, gibt einen neuen aus — und der alte gilt dann nicht mehr. -->
+         wegklickt, gibt einen neuen aus - und der alte gilt dann nicht mehr. -->
     <div class="karte neuer-zugang">
       <strong>Zugang ausgegeben</strong>
       <p class="gedaempft">
@@ -181,7 +181,7 @@
         <div class="gedaempft">
           {person.zugang_erneuert
             ? `Zugang ausgegeben am ${person.zugang_erneuert.slice(0, 10)}`
-            : 'Kein Zugang — für niemanden erreichbar'}
+            : 'Kein Zugang - für niemanden erreichbar'}
         </div>
         {#if 'kennzahlen' in person}
           <!-- Nur die Aufsicht bekommt diese Zahlen mitgeliefert. Sie stehen
@@ -230,7 +230,7 @@
     <h2>Gesamtsicherung</h2>
     <div class="karte">
       <p class="gedaempft">
-        Alle Korpora und alle Aufnahmen in <strong>einer</strong> Datei — die Sicherung, die man
+        Alle Korpora und alle Aufnahmen in <strong>einer</strong> Datei - die Sicherung, die man
         wegträgt. Zurück kommt der Stand mit <code>scripts/restore.py</code>. Modellstände sind
         nicht darin: Sie sind groß und lassen sich neu rechnen, die Aufnahmen nicht.
       </p>
@@ -239,7 +239,7 @@
       </button>
       <p class="gedaempft">
         Bei einem großen Bestand dauert das Packen; der Browser hält die Datei so lange im
-        Speicher. Für sehr große Bestände besser <code>curl</code> — siehe
+        Speicher. Für sehr große Bestände besser <code>curl</code> - siehe
         <code>docs/betrieb.md</code>.
       </p>
     </div>
@@ -251,7 +251,7 @@
     border-color: var(--akzent);
   }
 
-  /* Der Link ist lang und darf umbrechen — abgeschnitten wäre er unbrauchbar,
+  /* Der Link ist lang und darf umbrechen - abgeschnitten wäre er unbrauchbar,
      und er wird nicht gelesen, sondern kopiert. */
   .link {
     display: block;

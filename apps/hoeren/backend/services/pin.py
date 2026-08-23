@@ -1,15 +1,15 @@
-"""Die PIN vor „Meine Daten" — vier Ziffern, ein anderes Bedrohungsmodell.
+"""Die PIN vor „Meine Daten" - vier Ziffern, ein anderes Bedrohungsmodell.
 
 Nicht dieselbe Rechnung wie beim Zugang (`wortlaut.zugang`): Dort ist das
-Geheimnis 160 zufällige Bit, hier vier Ziffern — zehntausend Möglichkeiten,
+Geheimnis 160 zufällige Bit, hier vier Ziffern - zehntausend Möglichkeiten,
 mit blankem SHA-256 in Sekunden durchprobiert, wäre der Prüfwert je zu sehen.
 Das ist hier keine Lücke, sondern die Absicht: Die PIN ist eine zusätzliche
 Hürde gegen den Klick aus Versehen (eine Zielperson, die kaum liest, siehe
-Grundentscheidung 7), nicht das Schloss selbst — das bleibt der Zugang. Wer
+Grundentscheidung 7), nicht das Schloss selbst - das bleibt der Zugang. Wer
 den Zugang eines Sprechers vorlegt, hat also schon die eigentliche Kennung in
 der Hand; die PIN schützt nur noch vor der eigenen, unbeabsichtigten Geste.
 
-Trotzdem zeitkonstant verglichen, aus Gewohnheit und weil es nichts kostet —
+Trotzdem zeitkonstant verglichen, aus Gewohnheit und weil es nichts kostet -
 nicht, weil es hier tragend wäre.
 """
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Farben, Schriftart und Schriftgrößen — eine eigene Ansicht neben
+   * Farben, Schriftart und Schriftgrößen - eine eigene Ansicht neben
    * `Einstellungen.svelte`.
    *
    * Warum getrennt: siehe `DARSTELLUNG_PFAD` in `apps.ts`. Die Werte selbst,
@@ -26,7 +26,7 @@
 
 <h2>Farben</h2>
 <p class="gedaempft">
-  Wirkt sofort und in jeder App — dieser Browser merkt sich die Wahl, wie bei Mikrofon und Stimme
+  Wirkt sofort und in jeder App - dieser Browser merkt sich die Wahl, wie bei Mikrofon und Stimme
   auch.
 </p>
 
@@ -65,7 +65,7 @@
 
 <h2>Schriftgröße</h2>
 <label>
-  <span>Grundschriftgröße der Oberfläche — {einstellungen.grundschriftPx} px</span>
+  <span>Grundschriftgröße der Oberfläche - {einstellungen.grundschriftPx} px</span>
   <input
     type="range"
     class="schieber"
@@ -76,10 +76,10 @@
     oninput={(ereignis) => setzeGrundschrift(Number(ereignis.currentTarget.value))}
   />
 </label>
-<p class="gedaempft">Betrifft Knöpfe, Beschriftungen und Fließtext — alles außer der Vorlage unten.</p>
+<p class="gedaempft">Betrifft Knöpfe, Beschriftungen und Fließtext - alles außer der Vorlage unten.</p>
 
 <label>
-  <span>Schriftgröße der Vorlage — {einstellungen.schriftRem.toFixed(1)} rem</span>
+  <span>Schriftgröße der Vorlage - {einstellungen.schriftRem.toFixed(1)} rem</span>
   <input
     type="range"
     class="schieber"

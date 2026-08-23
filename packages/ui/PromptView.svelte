@@ -3,7 +3,7 @@
    * Eine Einheit groß, davor und dahinter je eine blass.
    *
    * Der Kontext hilft beim Verstehen des Zusammenhangs, ohne zum Ablesen zu
-   * verleiten — deshalb blass und deutlich kleiner.
+   * verleiten - deshalb blass und deutlich kleiner.
    */
   type Einheit = { id: string; text: string } | null;
 

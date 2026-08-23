@@ -36,7 +36,7 @@ class AufnahmeAntwort(BaseModel):
     pegel_dbfs: float
     modus: str
     status: str
-    hinweise: list[str]  # aus services/quality.py — Hinweise, keine Ablehnung
+    hinweise: list[str]  # aus services/quality.py - Hinweise, keine Ablehnung
 
 
 @router.post("", response_model=AufnahmeAntwort, status_code=201)
@@ -126,7 +126,7 @@ def verwirf(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablag
     """Verwerfen heißt: Audio löschen, Datensatz als `verworfen` behalten.
 
     Die Vorlage wird dadurch wieder offen (die Warteschlange zählt nur
-    Aufnahmen mit Status `ok`). Das Audio selbst wird wirklich gelöscht —
+    Aufnahmen mit Status `ok`). Das Audio selbst wird wirklich gelöscht -
     verworfene Stimmaufnahmen werden nicht gebraucht, und weniger
     Gesundheitsdaten sind besser als mehr.
     """

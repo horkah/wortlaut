@@ -70,7 +70,7 @@ class TestWandleInWav:
 
 
 class TestSchneideAusschnitt:
-    """Der Schnitt an Whisper-Segmentgrenzen — Grundlage der App „schreiben"."""
+    """Der Schnitt an Whisper-Segmentgrenzen - Grundlage der App „schreiben"."""
 
     def test_schneidet_den_gewuenschten_bereich(self, tmp_path: Path, wav_schreiben) -> None:
         quelle = wav_schreiben(tmp_path / "ganz.wav", sekunden=6.0)

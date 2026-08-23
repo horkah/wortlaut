@@ -2,9 +2,9 @@
   /**
    * Der Seitenfuß: eine Zeile, die sagt, welcher Stand hier läuft (`bau.ts`).
    *
-   * Bewusst leise und ganz unten — wer sie nicht braucht, soll sie nicht
+   * Bewusst leise und ganz unten - wer sie nicht braucht, soll sie nicht
    * bemerken. „Ganz unten" heißt: am Fuß des Fensters, nicht bloß am Ende des
-   * Inhalts — bei kurzem Inhalt bleibt sonst darüber eine Lücke, die wie ein
+   * Inhalts - bei kurzem Inhalt bleibt sonst darüber eine Lücke, die wie ein
    * Fehler aussieht. Das erledigt `main { flex: 1 }` in `app.css`.
    */
   import { BAUDATUM, baudatumLesbar } from './bau';

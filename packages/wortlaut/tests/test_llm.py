@@ -1,8 +1,8 @@
-"""Die Textquelle „LLM" — Auswahl des Anbieters und der Weg nach draußen.
+"""Die Textquelle „LLM" - Auswahl des Anbieters und der Weg nach draußen.
 
 Ohne Netz: Der einzige Punkt, an dem diese Datei die Maschine verlässt, ist
 `httpx.post`, und der wird hier ersetzt. Geprüft wird, was der Adapter
-verschickt und was er aus einer Antwort macht — besonders aus einer kaputten.
+verschickt und was er aus einer Antwort macht - besonders aus einer kaputten.
 Ein Modell, das nicht antwortet, ist im Betrieb der Normalfall (Container aus,
 Modell nicht geladen), und die Meldung muss dann sagen, wo man nachsehen soll.
 """

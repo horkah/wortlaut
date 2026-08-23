@@ -138,7 +138,7 @@ def _hole(db: Session, sprecher: str, quelle_id: str) -> Textquelle:
 
 @router.get("/{quelle_id}/text", response_class=PlainTextResponse)
 def text_ansehen(sprecher: SprecherId, quelle_id: str, db: Datenbank) -> str:
-    """Der Text, wie er in der Warteschlange steht — eine Einheit je Absatz.
+    """Der Text, wie er in der Warteschlange steht - eine Einheit je Absatz.
 
     Nicht das Original, sondern das Geschnittene: Genau das wird vorgesprochen,
     und genau das will nachsehen, wer prüft, ob eine Quelle taugt.
@@ -154,7 +154,7 @@ def text_ansehen(sprecher: SprecherId, quelle_id: str, db: Datenbank) -> str:
 def stelle_um(
     sprecher: SprecherId, quelle_id: str, aenderung: AktivAenderung, db: Datenbank
 ) -> QuellenAntwort:
-    """Quelle stilllegen oder wieder aufnehmen — ohne Datenverlust."""
+    """Quelle stilllegen oder wieder aufnehmen - ohne Datenverlust."""
     quelle = _hole(db, sprecher, quelle_id)
     quelle.aktiv = aenderung.aktiv
     db.commit()
@@ -167,12 +167,12 @@ def stelle_um(
 
 @router.delete("/{quelle_id}", status_code=204)
 def loesche(sprecher: SprecherId, quelle_id: str, db: Datenbank) -> None:
-    """Quelle mitsamt ihren Einheiten löschen — solange nichts daran hängt.
+    """Quelle mitsamt ihren Einheiten löschen - solange nichts daran hängt.
 
     Gibt es zu einer Einheit eine gültige Aufnahme, wird nicht gelöscht: Das
     Audio ist der Ertrag der ganzen Arbeit, und die Quelle ist seine Herkunft
     (`parameter` hält fest, woher der Text stammt). Wer sie loswerden will,
-    legt sie stattdessen still — dafür gibt es den Schalter.
+    legt sie stattdessen still - dafür gibt es den Schalter.
 
     Verworfene Aufnahmen stehen dem nicht im Weg: Ihr Audio ist schon gelöscht,
     die Zeile ist nur noch ein Vermerk und geht mit.
@@ -190,7 +190,7 @@ def loesche(sprecher: SprecherId, quelle_id: str, db: Datenbank) -> None:
             status_code=409,
             detail=(
                 f"Zu dieser Quelle gibt es {gueltige} Aufnahme(n). "
-                "Sie lässt sich deshalb nicht löschen — stelle sie stattdessen ab."
+                "Sie lässt sich deshalb nicht löschen - stelle sie stattdessen ab."
             ),
         )
 

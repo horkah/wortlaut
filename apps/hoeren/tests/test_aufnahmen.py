@@ -1,4 +1,4 @@
-"""Aufnehmen, Prüfen, Verwerfen — und was die Warteschlange daraus macht.
+"""Aufnehmen, Prüfen, Verwerfen - und was die Warteschlange daraus macht.
 
 Das ist der Kern der App: Die Position in der Warteschlange wird nirgends
 gespeichert, sondern aus den vorhandenen Aufnahmen abgeleitet. Genau das wird
@@ -103,7 +103,7 @@ class TestGestreuteReihenfolge:
             files={"datei": ("zweite.txt", "Ein Satz aus der zweiten Quelle.".encode(), "text/plain")},
         )
         # Über alle Sitzungen hinweg darf nicht immer dieselbe Einheit oben
-        # liegen — sonst wäre der Schalter wirkungslos.
+        # liegen - sonst wäre der Schalter wirkungslos.
         gesehen: set[str] = set()
         for _ in range(12):
             sitzung = klient.post(f"/api/sessions?sprecher={sprecher}").json()["id"]
@@ -135,7 +135,7 @@ class TestGestreuteReihenfolge:
 
         danach = klient.get(adresse).json()
         assert danach["aktuell"]["id"] != vorher["aktuell"]["id"]
-        # Das eben Gesprochene steht als Davor — der gemischte Ablauf, nicht
+        # Das eben Gesprochene steht als Davor - der gemischte Ablauf, nicht
         # der Nachbar im Text.
         assert danach["vorher"]["id"] == vorher["aktuell"]["id"]
         assert danach["erledigt"] == 1

@@ -36,7 +36,7 @@ x 10,5 … 89,49      y 6,5 … 93,48      Mitte (49,99 | 49,99)
 ```
 
 Er ist damit von sich aus auf (50 | 50) zentriert, und `viewBox="0 0 100 100"`
-ist der richtige Beschnitt — ohne jede Verschiebung. Der Rand beträgt links und
+ist der richtige Beschnitt - ohne jede Verschiebung. Der Rand beträgt links und
 rechts 10,5 %, oben und unten 6,5 %.
 
 ## Die abgeleiteten Dateien
@@ -60,7 +60,7 @@ apps/hoeren/frontend/public/apple-touch-icon.png  180 × 180, weißer Grund
 
 Das PNG braucht es, weil iOS beim Ablegen auf dem Startbildschirm kein SVG
 annimmt und keine Transparenz mag. Es ist aus der PNG-Quelle geschnitten,
-Bildausschnitt 160 … 1040 px in beiden Achsen — dasselbe Quadrat wie oben.
+Bildausschnitt 160 … 1040 px in beiden Achsen - dasselbe Quadrat wie oben.
 
 ## Wenn sich das Zeichen ändert
 

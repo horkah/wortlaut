@@ -4,7 +4,7 @@
    *
    * Ein Abschnitt ist die Einheit, in der Whisper den Text zerlegt hat, und
    * zugleich die Einheit der Korrektur: Wer einen anklickt, spricht genau
-   * diesen einen neu ein — der Rest bleibt stehen. Deshalb ist jeder
+   * diesen einen neu ein - der Rest bleibt stehen. Deshalb ist jeder
    * Abschnitt eine eigene Schaltfläche und nicht ein Stück Fließtext.
    *
    * Zwei Markierungen, absichtlich verschieden: `gesprochen` wandert beim
@@ -86,7 +86,7 @@
     border-color: var(--akzent);
   }
 
-  /* Schon einmal neu eingesprochen — eine Spur, kein Alarm. */
+  /* Schon einmal neu eingesprochen - eine Spur, kein Alarm. */
   .abschnitt.neu {
     border-left: 4px solid var(--akzent-hell);
   }

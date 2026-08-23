@@ -1,6 +1,6 @@
 """Wo diese App liegt.
 
-Alles hängt unter `/schreiben` — die API eingeschlossen —, damit vor den
+Alles hängt unter `/schreiben` - die API eingeschlossen -, damit vor den
 Containern eine Regel genügt, die den Pfad unverändert durchreicht. Als das
 einmal nicht galt, beantwortete „hören" den Klick auf den Reiter mit der
 eigenen Seite und die App war nicht erreichbar; deshalb steht es hier geprüft.
@@ -18,7 +18,7 @@ class TestPfad:
         assert klient.post(f"{BASIS}/api/sessions").status_code == 201
 
     def test_ausserhalb_des_pfades_gibt_es_nichts(self, klient: TestClient) -> None:
-        # Ohne Präfix müsste ein Proxy es abschneiden — genau die Regel, die
+        # Ohne Präfix müsste ein Proxy es abschneiden - genau die Regel, die
         # beim Wechsel auf einen vorhandenen Reverse Proxy verlorenging.
         assert klient.post("/api/sessions").status_code == 404
 

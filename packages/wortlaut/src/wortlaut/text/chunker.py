@@ -1,7 +1,7 @@
 """Text → sprechbare Einheiten von grob 3–12 Sekunden.
 
 Die Aufnahme erfolgt äußerungsweise: eine Einheit, eine Aufnahme. Deshalb
-entsteht hier die Einheit, an der später alles hängt — Audio-Text-Paare sind
+entsteht hier die Einheit, an der später alles hängt - Audio-Text-Paare sind
 dadurch von Haus aus ausgerichtet, ohne Forced Alignment.
 
 Geschnitten wird in drei Stufen, jeweils nur so tief wie nötig:
@@ -26,7 +26,7 @@ MAX_SEKUNDEN = 12.0
 # ausgenommen, weil ihr Punkt kein Satzende ist.
 _SATZENDE = re.compile(r"(?<=[.!?…])\s+")
 _ABKUERZUNG = re.compile(r"(?:\b[A-Za-zÄÖÜäöü]|\bz|\bd|\bu|\bevtl|\bbzw|\bDr|\bNr|\bAbb)\.$")
-_TEILSATZ = re.compile(r"(?<=[,;:])\s+|\s+(?=–|—)")
+_TEILSATZ = re.compile(r"(?<=[,;:])\s+|\s+(?=–|-)")
 _LEERRAUM = re.compile(r"\s+")
 
 

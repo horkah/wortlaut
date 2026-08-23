@@ -2,7 +2,7 @@
   /**
    * Ein Knopf, eine Aufnahme.
    *
-   * Gerätewahl, Verstärkung und Format stecken in `mikrofon.ts` — dieselbe
+   * Gerätewahl, Verstärkung und Format stecken in `mikrofon.ts` - dieselbe
    * Kette, die der Mikrofontest in den Einstellungen vorführt. Hier bleibt
    * nur, was den Knopf betrifft.
    */
@@ -37,7 +37,7 @@
     try {
       kette = await Aufnahmekette.oeffne({ geraeteId, verstaerkung, autoPegel });
       if (kette.ersatzGeraet) {
-        fehler = 'Das gewählte Mikrofon ist nicht da — es läuft die Vorgabe des Browsers.';
+        fehler = 'Das gewählte Mikrofon ist nicht da - es läuft die Vorgabe des Browsers.';
       }
       beende = zeichneAuf(kette);
       laeuft = true;

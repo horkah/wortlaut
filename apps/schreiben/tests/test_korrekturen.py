@@ -28,7 +28,7 @@ class TestBestaetigen:
 
         assert antwort.status_code == 200
         assert antwort.json() == {"eingestellt": 3, "gesendet": 3, "offen": 0, "fehler": None}
-        # Die Abschnittskennung geht als `externe_id` mit — daran erkennt
+        # Die Abschnittskennung geht als `externe_id` mit - daran erkennt
         # „hören" eine Wiederholung.
         assert [lieferung["externe_id"] for lieferung in intake.lieferungen] == [
             a["id"] for a in diktat["abschnitte"]

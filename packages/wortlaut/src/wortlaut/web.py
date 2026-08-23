@@ -1,9 +1,9 @@
-"""Das gebaute Frontend ausliefern — mit Ansage, was der Browser behalten darf.
+"""Das gebaute Frontend ausliefern - mit Ansage, was der Browser behalten darf.
 
 Starlettes `StaticFiles` schickt `ETag` und `Last-Modified`, aber kein
 `Cache-Control`. Ohne das darf ein Browser selbst schätzen, wie lange eine
 Antwort frisch bleibt (die übliche Faustregel: ein Zehntel des Alters seit
-`Last-Modified`) — und er fragt in dieser Zeit gar nicht erst nach. Für die
+`Last-Modified`) - und er fragt in dieser Zeit gar nicht erst nach. Für die
 `index.html` einer Single-Page-App ist das der Unterschied zwischen „neu
 ausgerollt" und „sieht weiter die alte App": Sie ist die einzige Datei, die
 auf die Namen der Bündel zeigt, und ihr eigener Name ändert sich nie.
@@ -11,7 +11,7 @@ auf die Namen der Bündel zeigt, und ihr eigener Name ändert sich nie.
 Deshalb zwei Regeln statt keiner:
 
 * Alles unter `assets/` trägt einen Inhalts-Hash im Namen (Vite vergibt ihn).
-  Ändert sich der Inhalt, ändert sich der Name — solche Dateien darf der
+  Ändert sich der Inhalt, ändert sich der Name - solche Dateien darf der
   Browser für immer behalten.
 * Alles andere, allen voran die `index.html`, bekommt `no-cache`. Das heißt
   nicht „nicht speichern", sondern „vor jeder Benutzung nachfragen"; dank

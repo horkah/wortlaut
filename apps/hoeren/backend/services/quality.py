@@ -1,7 +1,7 @@
 """Serverseitige Prüfung: Pegel, Clipping, Randstille, Dauerplausibilität.
 
 Wichtig ist, was diese Datei *nicht* tut: Sie lehnt nichts ab. Bei
-Sprechstörungen sind Ausreißer normal — ungewöhnlich langsam, ungewöhnlich
+Sprechstörungen sind Ausreißer normal - ungewöhnlich langsam, ungewöhnlich
 leise, mit langen Pausen. Wer das wegautomatisiert, wirft genau die Daten weg,
 für die das Projekt existiert. Es entstehen Hinweise, mehr nicht; die
 Entscheidung trifft der Mensch vor dem Mikrofon.
@@ -21,13 +21,13 @@ DAUER_FAKTOR_LANG = 3.0
 
 
 def pruefe(befund: Befund, dauer_erwartet_s: float) -> list[str]:
-    """Gibt lesbare Hinweise zurück — leere Liste heißt: nichts aufgefallen."""
+    """Gibt lesbare Hinweise zurück - leere Liste heißt: nichts aufgefallen."""
     hinweise: list[str] = []
 
     if befund.pegel_dbfs < PEGEL_LEISE_DBFS:
-        hinweise.append("Sehr leise — näher ans Mikrofon oder Eingangspegel erhöhen.")
+        hinweise.append("Sehr leise - näher ans Mikrofon oder Eingangspegel erhöhen.")
     elif befund.pegel_dbfs > PEGEL_LAUT_DBFS:
-        hinweise.append("Sehr laut — Eingangspegel senken.")
+        hinweise.append("Sehr laut - Eingangspegel senken.")
 
     if befund.clipping_anteil > CLIPPING_ANTEIL:
         hinweise.append("Übersteuert: Teile der Aufnahme liegen am Anschlag.")
@@ -41,8 +41,8 @@ def pruefe(befund: Befund, dauer_erwartet_s: float) -> list[str]:
     # Abweichungen sind ein Hinweis wert.
     if dauer_erwartet_s > 0:
         if befund.dauer_s < dauer_erwartet_s * DAUER_FAKTOR_KURZ:
-            hinweise.append("Deutlich kürzer als erwartet — wurde alles gesprochen?")
+            hinweise.append("Deutlich kürzer als erwartet - wurde alles gesprochen?")
         elif befund.dauer_s > dauer_erwartet_s * DAUER_FAKTOR_LANG:
-            hinweise.append("Deutlich länger als erwartet — Aufnahme läuft womöglich nach.")
+            hinweise.append("Deutlich länger als erwartet - Aufnahme läuft womöglich nach.")
 
     return hinweise

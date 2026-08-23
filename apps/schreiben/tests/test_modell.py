@@ -1,4 +1,4 @@
-"""Welcher Modellstand läuft — die Auskunft für die Kopfzeile.
+"""Welcher Modellstand läuft - die Auskunft für die Kopfzeile.
 
 Ein Modell gehört zu genau einem Sprecher (Grundentscheidung 3). Geprüft wird
 deshalb beides: dass die Auskunft den freigegebenen Stand **dieses** Sprechers
@@ -68,7 +68,7 @@ class TestEigenesModell:
     def test_nimmt_den_freigegebenen_stand_dieses_sprechers(
         self, klient: TestClient, datenverzeichnis: Path, sprecher: str
     ) -> None:
-        # Ohne WORTLAUT_MODELL_REF — der Betriebsfall, sobald es „lernen" gibt.
+        # Ohne WORTLAUT_MODELL_REF - der Betriebsfall, sobald es „lernen" gibt.
         registry.schreibe_stand(datenverzeichnis, MANIFEST)
 
         antwort = klient.get("/schreiben/api/model").json()
@@ -80,7 +80,7 @@ class TestEigenesModell:
     def test_der_stand_eines_anderen_sprechers_gilt_hier_nicht(
         self, klient: TestClient, datenverzeichnis: Path
     ) -> None:
-        # Sonst spräche jemand auf der Stimme eines Fremden — und das Ergebnis
+        # Sonst spräche jemand auf der Stimme eines Fremden - und das Ergebnis
         # sähe aus wie ein schlechtes Modell statt wie ein Fehlgriff.
         registry.schreibe_stand(datenverzeichnis, {**MANIFEST, "id": "spr_fremd/2026-08-15T1420"})
 

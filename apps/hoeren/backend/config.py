@@ -1,4 +1,4 @@
-"""Einstellungen aus der Umgebung — ein Ort, nirgends sonst `os.environ`.
+"""Einstellungen aus der Umgebung - ein Ort, nirgends sonst `os.environ`.
 
 Die Feldnamen entsprechen den Variablen mit dem Präfix `WORTLAUT_`,
 `data_dir` also `WORTLAUT_DATA_DIR`.
@@ -33,7 +33,7 @@ class Einstellungen(BaseSettings):
     llm_base_url: str = ""
 
     # Die Verwaltung: legt Sprecherprofile an, gibt Zugänge aus und zieht sie
-    # zurück. Leer heißt **abgeschaltet**, nicht „offen" — auch nicht für die
+    # zurück. Leer heißt **abgeschaltet**, nicht „offen" - auch nicht für die
     # Entwicklung: Keine Installation weiß, ob sie eine ist.
     auth_token: str = ""
 
@@ -46,7 +46,7 @@ class Einstellungen(BaseSettings):
     def _tokens_muessen_sich_unterscheiden(self) -> Einstellungen:
         """Ein Token, zwei Rollen wäre eine stille Rechteausweitung.
 
-        Wer beide Werte gleich setzt — etwa beim Kopieren der `.env` —, macht
+        Wer beide Werte gleich setzt - etwa beim Kopieren der `.env` -, macht
         jeden Verwalter unbemerkt zur Aufsicht: Der Server prüft die Aufsicht
         zuerst und käme gar nicht mehr zur Verwaltung. Das fällt niemandem auf,
         weil nichts fehlschlägt; es geht bloß plötzlich mehr. Also lieber

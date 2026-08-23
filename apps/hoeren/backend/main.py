@@ -1,4 +1,4 @@
-"""App „hören" — Sprachproben sammeln.
+"""App „hören" - Sprachproben sammeln.
 
 Start in der Entwicklung (aus dem Repository-Wurzelverzeichnis):
 
@@ -29,10 +29,10 @@ from .deps import Verwaltung
 app = FastAPI(title="wortlaut · hören", version="0.1.0")
 
 # Die Verwaltung: Profile anlegen und ansehen. Sie kommt an keine Aufnahme
-# heran — dafür braucht auch sie den Zugang des jeweiligen Sprechers.
+# heran - dafür braucht auch sie den Zugang des jeweiligen Sprechers.
 app.include_router(speakers.router, dependencies=[Verwaltung])
 
-# Die Aufsicht: der eine Zugang, der über alle Korpora sieht — einsehen,
+# Die Aufsicht: der eine Zugang, der über alle Korpora sieht - einsehen,
 # sichern, umbenennen, löschen. Sie trägt ihren Wächter selbst
 # (`WORTLAUT_ADMIN_TOKEN`) und ist ohne gesetzten Token vollständig zu.
 app.include_router(admin.router)
@@ -62,7 +62,7 @@ def gesundheit() -> dict[str, str]:
 
 # Das gebaute Frontend, falls vorhanden. `html=True` liefert für unbekannte
 # Pfade die index.html aus, damit die Routen im Browser direkt aufrufbar sind.
-# `FrontendDateien` setzt dazu die Cache-Regeln — ohne die zeigt ein Browser
+# `FrontendDateien` setzt dazu die Cache-Regeln - ohne die zeigt ein Browser
 # nach dem Ausrollen weiter die alte App (siehe `wortlaut/web.py`).
 _frontend = Path(__file__).parents[1] / "frontend" / "dist"
 if _frontend.is_dir():

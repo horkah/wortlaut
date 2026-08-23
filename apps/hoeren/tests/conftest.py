@@ -5,16 +5,16 @@ Es gibt drei Klienten, weil es drei Arten von Zugang gibt (siehe
 ist der Zugang **eines** Sprechers und damit der Weg zu dessen Daten, und
 `aufsicht` sieht über alle Korpora hinweg.
 
-Die Aufrufe hängen `?sprecher=…` weiterhin an — nicht mehr, um den Sprecher zu
+Die Aufrufe hängen `?sprecher=…` weiterhin an - nicht mehr, um den Sprecher zu
 wählen, sondern damit die Behauptung gegen die abgeleitete Kennung geprüft
 wird.
 
 Jeder Test bekommt ein eigenes Datenverzeichnis und einen frischen Zustand.
 Zwei Dinge werden ersetzt:
 
-* **ffmpeg** — die Umwandlung selbst ist in `packages/wortlaut/tests` geprüft;
+* **ffmpeg** - die Umwandlung selbst ist in `packages/wortlaut/tests` geprüft;
   hier soll nicht jeder Endpunkt-Test ein externes Programm brauchen.
-* **die zwischengespeicherten Engines und Einstellungen** — sie zeigen sonst
+* **die zwischengespeicherten Engines und Einstellungen** - sie zeigen sonst
   auf das Datenverzeichnis des vorigen Tests.
 """
 
@@ -109,7 +109,7 @@ def klient_fuer(zugang_ausgeben: Callable[[str], str]) -> Callable[[str], TestCl
 
 @pytest.fixture
 def klient(klient_fuer: Callable[[str], TestClient], sprecher: str) -> Iterator[TestClient]:
-    """Der Zugang eines Sprechers — der Normalfall in allen Datentests."""
+    """Der Zugang eines Sprechers - der Normalfall in allen Datentests."""
     with klient_fuer(sprecher) as klient:
         yield klient
 
@@ -132,5 +132,5 @@ def quelle(klient: TestClient, sprecher: str) -> str:
 
 @pytest.fixture
 def audio_datei() -> dict[str, tuple[str, bytes, str]]:
-    """Der Inhalt ist gleichgültig — die Umwandlung ist ersetzt."""
+    """Der Inhalt ist gleichgültig - die Umwandlung ist ersetzt."""
     return {"audio": ("aufnahme.webm", b"opus-artige Bytes", "audio/webm")}

@@ -1,7 +1,7 @@
 <script lang="ts" module>
   /**
    * Die Grenzen stehen doppelt: hier und in
-   * `apps/hoeren/backend/services/quality.py`. Absicht — die Anzeige soll
+   * `apps/hoeren/backend/services/quality.py`. Absicht - die Anzeige soll
    * vorwegnehmen, was der Server nachher meldet, und das geht nur, wenn sie
    * dieselben Zahlen benutzt. Wer dort etwas ändert, ändert es hier mit.
    */
@@ -26,9 +26,9 @@
   );
   const text = $derived(
     urteil === 'leise'
-      ? 'zu leise — Verstärkung erhöhen oder näher ans Mikrofon'
+      ? 'zu leise - Verstärkung erhöhen oder näher ans Mikrofon'
       : urteil === 'laut'
-        ? 'zu laut — Verstärkung senken'
+        ? 'zu laut - Verstärkung senken'
         : 'guter Pegel',
   );
 </script>

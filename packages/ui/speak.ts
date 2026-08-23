@@ -6,7 +6,7 @@
  * deshalb wird eine so entstandene Aufnahme als `nachgesprochen` markiert.
  *
  * Welche Stimmen es gibt und wie gut sie klingen, entscheidet allein das
- * Betriebssystem — dieselbe Seite klingt auf macOS natürlich und unter
+ * Betriebssystem - dieselbe Seite klingt auf macOS natürlich und unter
  * Linux mit espeak-ng blechern. Von hier aus lässt sich das nicht ändern,
  * nur zur Auswahl stellen; siehe `docs/betrieb.md`.
  */
@@ -14,7 +14,7 @@
 /** Etwas langsamer als normal: die Vorgabe soll nachgesprochen werden. */
 export const TEMPO_VORGABE = 0.9;
 
-/** Wie gesprochen wird — alles optional, alles mit brauchbarer Vorgabe. */
+/** Wie gesprochen wird - alles optional, alles mit brauchbarer Vorgabe. */
 export type Sprechweise = {
   stimme?: SpeechSynthesisVoice | null;
   /** Faktor auf die Normalgeschwindigkeit, 1 ist unverändert. */
@@ -43,7 +43,7 @@ export function stimmen(sprache = 'de'): SpeechSynthesisVoice[] {
  * Gemerkt wird nur die `voiceURI`, weil ein `SpeechSynthesisVoice` sich nicht
  * speichern lässt. Fehlt die Stimme auf diesem Gerät, entscheidet der Browser.
  *
- * `aus` nimmt eine bereits geholte Liste entgegen — nötig für Ansichten, die
+ * `aus` nimmt eine bereits geholte Liste entgegen - nötig für Ansichten, die
  * die Liste im Zustand halten, weil `getVoices()` selbst nichts meldet, wenn
  * sich etwas ändert.
  */
@@ -59,7 +59,7 @@ export function stimmeNachUri(
  * zurück, die die Anmeldung wieder löst.
  *
  * Nötig, weil die Liste auf manchen Systemen erst asynchron nach dem Laden
- * der Seite eintrifft — vorher wäre eine Auswahl leer.
+ * der Seite eintrifft - vorher wäre eine Auswahl leer.
  */
 export function beiStimmenAenderung(anhoerer: () => void): () => void {
   if (!('speechSynthesis' in window)) return () => {};

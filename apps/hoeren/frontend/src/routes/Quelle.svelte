@@ -123,8 +123,8 @@
       aria-checked={quelle.aktiv}
       aria-label={quelle.aktiv ? 'Quelle abstellen' : 'Quelle wieder aufnehmen'}
       title={quelle.aktiv
-        ? 'Aktiv — abstellen nimmt die Einheiten aus der Warteschlange'
-        : 'Abgestellt — wieder aufnehmen stellt die Einheiten zurück'}
+        ? 'Aktiv - abstellen nimmt die Einheiten aus der Warteschlange'
+        : 'Abgestellt - wieder aufnehmen stellt die Einheiten zurück'}
       disabled={laeuft}
       onclick={() => stelleUm(quelle)}
     >
@@ -168,7 +168,7 @@
 {/if}
 
 <style>
-  /* Schalter — Titel — Löschen. Die Mitte nimmt den Platz, die beiden Felder
+  /* Schalter - Titel - Löschen. Die Mitte nimmt den Platz, die beiden Felder
      behalten ihre Größe, auch wenn der Titel lang ist. */
   .zeile {
     display: flex;
@@ -182,7 +182,7 @@
   }
 
   /* Beide Felder gleich groß und quadratisch: 2,75rem sind bei üblicher
-     Grundschrift 44 px — das Maß, das ein Finger sicher trifft. */
+     Grundschrift 44 px - das Maß, das ein Finger sicher trifft. */
   .feld {
     flex: none;
     display: grid;
@@ -215,7 +215,7 @@
     color: var(--fehler);
   }
 
-  /* Der Titel ist der Weg zum Text — als Knopf, damit der Token mitgeht,
+  /* Der Titel ist der Weg zum Text - als Knopf, damit der Token mitgeht,
      aber wie ein Verweis anzusehen. */
   .titel {
     display: block;

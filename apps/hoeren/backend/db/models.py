@@ -1,7 +1,7 @@
 """Typisierte Modelle zum Schema aus `migrations/`.
 
 Die Migrationen sind die Wahrheit über das Schema; diese Klassen bilden es für
-den Zugriff ab. Wer eine Spalte hinzufügt, ändert beides — eine neue
+den Zugriff ab. Wer eine Spalte hinzufügt, ändert beides - eine neue
 `.sql`-Datei und die passende Zeile hier.
 """
 
@@ -31,7 +31,7 @@ class Sprecher(Basis):
     basismodell: Mapped[str]
     erstellt: Mapped[str]
     # Prüfwert des Sprecherzugangs, siehe `wortlaut.zugang`. NULL heißt:
-    # zurückgezogen — dann kommt niemand an diesen Korpus heran.
+    # zurückgezogen - dann kommt niemand an diesen Korpus heran.
     zugang_hash: Mapped[str | None] = mapped_column(default=None)
     zugang_erneuert: Mapped[str | None] = mapped_column(default=None)
     # Prüfwert der PIN vor „Meine Daten", siehe `services/pin.py`. NULL heißt:

@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 # faster-whisper zieht CTranslate2 und Modelldateien nach und wird allein von
-# „schreiben" im Betrieb mit WORTLAUT_ASR=local gebraucht — für Tests und für
+# „schreiben" im Betrieb mit WORTLAUT_ASR=local gebraucht - für Tests und für
 # „hören" wäre das unnötiger Ballast. Installiert mit:
 #     uv sync --extra asr
 [project.optional-dependencies]
@@ -45,6 +45,6 @@ packages = ["packages/wortlaut/src/wortlaut"]
 [tool.pytest.ini_options]
 testpaths = ["packages/wortlaut/tests", "apps/hoeren/tests", "apps/schreiben/tests", "tests"]
 # Die Apps sind keine installierten Pakete, sondern werden aus dem
-# Wurzelverzeichnis importiert — wie beim Start über uvicorn.
+# Wurzelverzeichnis importiert - wie beim Start über uvicorn.
 pythonpath = ["."]
 addopts = "-q"
