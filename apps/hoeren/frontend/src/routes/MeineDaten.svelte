@@ -2,20 +2,23 @@
   /**
    * Ein Sprecher sieht seine eigenen Daten an — dieselbe Ansicht, die die
    * Aufsicht für ihn hätte (`Einsicht.svelte`), nur auf die eigene Kennung
-   * beschränkt und ohne das, was hier nichts zu suchen hat: Ausleiten und
-   * die drei Löschstufen bleiben der Aufsicht vorbehalten (siehe
-   * `api/konto.py`). Was bleibt, ist Ansehen, Anhören und eine einzelne
-   * Aufnahme verwerfen — dasselbe Verwerfen, das während des Aufnehmens
-   * schon zur Verfügung steht (`Aufnahme.svelte`).
+   * beschränkt. Genau **eine** Karte von dort fehlt hier: die beiden
+   * Löschstufen „alle Aufnahmen" und „diesen Sprecher vollständig". Alles Übrige darf
+   * jeder über seine eigenen Daten — ansehen, anhören, eine einzelne Aufnahme
+   * verwerfen (dasselbe Verwerfen wie beim Aufnehmen, `Aufnahme.svelte`),
+   * sich umbenennen und beides mitnehmen, Sicherung wie Datensatz.
    */
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Pager from '$ui/Pager.svelte';
   import {
     aufnahmeVerwerfen,
+    meinDatensatz,
     meinKonto,
     meineAufnahmeAudio,
     meineAufnahmen,
+    meineSicherung,
     meineSitzungen,
+    michUmbenennen,
     pinSetzen,
     pinStand,
     type AufsichtAufnahme,
@@ -124,14 +127,29 @@
       return;
     }
 
+    // Wer zum ersten Mal eine PIN einrichtet, bekommt die Seite gleich wieder
+    // zugesperrt und muss sie einmal eingeben. Nicht als Schikane: Eine PIN,
+    // die man setzt und nie tippt, merkt man sich nicht — und wer sich hier
+    // vertippt hat, erfährt es in derselben Minute, statt beim nächsten
+    // Besuch vor einer Seite zu stehen, die ihn nicht mehr hereinlässt.
+    const ersteinrichtung = !meinePin;
+
     await tue(
       'pin',
       async () => {
         await pinSetzen(neue);
-        meinePin = neue;
         neuePin = '';
+        if (ersteinrichtung) {
+          meinePin = undefined;
+          daten = null;
+          stand = 'noetig';
+        } else {
+          meinePin = neue;
+        }
       },
-      'PIN gespeichert.',
+      ersteinrichtung
+        ? 'PIN gesetzt. Bitte einmal mit der neuen PIN entsperren.'
+        : 'PIN geändert.',
     );
   }
 
@@ -143,6 +161,20 @@
         meinePin = undefined;
       },
       'PIN entfernt.',
+    );
+  }
+
+  async function benenneUm() {
+    if (!daten) return;
+    const neuer = prompt('Neuer Name:', daten.sprecher.name);
+    if (neuer === null || !neuer.trim()) return;
+    await tue(
+      'umbenennen',
+      async () => {
+        await michUmbenennen(neuer.trim(), meinePin);
+        await lade();
+      },
+      'Umbenannt.',
     );
   }
 
@@ -237,11 +269,15 @@
     <p>Diese Seite ist mit einer PIN gesichert.</p>
     <p class="gedaempft">Geben Sie Ihre vierstellige PIN ein (4 Ziffern).</p>
     <form class="reihe" onsubmit={entsperren}>
+      <!-- `pattern` als Ausdruck, nicht als Text: In einer Vorlage ist `{4}`
+           eine Einsetzung, `pattern="[0-9]{4}"` käme als `[0-9]4` beim Browser
+           an — und der wiese dann jede richtige PIN ab, ohne dass `onsubmit`
+           je liefe. -->
       <input
         bind:value={pinEingabe}
         type="text"
         inputmode="numeric"
-        pattern="[0-9]{4}"
+        pattern={'[0-9]{4}'}
         maxlength="4"
         placeholder="z.B. 1234"
         title="Genau 4 Ziffern (0–9)"
@@ -258,7 +294,7 @@
   {@const person = daten.sprecher}
   {@const zahlen = person.kennzahlen}
 
-  <h2>Meine Daten</h2>
+  <h2>{person.name}</h2>
   <p class="gedaempft">
     {person.basismodell} · {person.sprache} · angelegt am {tag(person.erstellt)}
   </p>
@@ -271,6 +307,37 @@
     <div><strong>{zahlen.quellen}</strong><span>Textquellen</span></div>
     <div><strong>{zahlen.sitzungen}</strong><span>Sitzungen</span></div>
     <div><strong>{zahlen.verworfen}</strong><span>verworfen</span></div>
+  </div>
+
+  <h2>Ausleiten</h2>
+  <div class="karte">
+    <div class="reihe">
+      <button
+        class="knopf haupt"
+        disabled={laeuft === 'sicherung'}
+        onclick={() =>
+          tue('sicherung', () => meineSicherung(meinePin), 'Sicherung heruntergeladen.')}
+      >
+        {laeuft === 'sicherung' ? 'Wird gepackt …' : 'Sicherung (.tgz)'}
+      </button>
+      <button
+        class="knopf"
+        disabled={laeuft === 'datensatz'}
+        onclick={() =>
+          tue('datensatz', () => meinDatensatz(meinePin), 'Datensatz heruntergeladen.')}
+      >
+        {laeuft === 'datensatz' ? 'Wird gepackt …' : 'Datensatz (.zip)'}
+      </button>
+      <button class="knopf" disabled={laeuft === 'umbenennen'} onclick={benenneUm}>
+        Umbenennen
+      </button>
+    </div>
+    <p class="gedaempft">
+      Die <strong>Sicherung</strong> enthält Datenbank und Aufnahmen, wie sie auf dem Server
+      liegen; sie lässt sich mit <code>scripts/restore.py</code> vollständig zurückspielen. Der
+      <strong>Datensatz</strong> enthält zu jeder Aufnahme die WAV-Datei und ihren Text — für
+      Training und für Werkzeuge, die von wortlaut nichts wissen. Zum Sichern taugt er nicht.
+    </p>
   </div>
 
   <h2>Textquellen</h2>
@@ -340,7 +407,7 @@
         bind:value={neuePin}
         type="text"
         inputmode="numeric"
-        pattern="[0-9]{4}"
+        pattern={'[0-9]{4}'}
         maxlength="4"
         placeholder="z.B. 1234"
         title="Genau 4 Ziffern (0–9)"

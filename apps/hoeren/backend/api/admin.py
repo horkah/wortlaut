@@ -18,24 +18,19 @@ höchstens eine Person kosten, nie den ganzen Bestand.
 
 from __future__ import annotations
 
-import shutil
-import tempfile
-from collections.abc import Callable
-from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
-from starlette.background import BackgroundTask
 from wortlaut import corpus, sicherung
 
 from ..config import einstellungen
 from ..db.models import Aufnahme, Sprecher
 from ..deps import Ablage, Aufsicht, engine_fuer, vergiss_engine
-from ..services import export, loeschung, pin, uebersicht
+from ..services import ausleitung, loeschung, pin, uebersicht
 from ..services.pin import PinAenderung, PinAntwort
 from ..services.uebersicht import (
     SEITE,
@@ -43,6 +38,7 @@ from ..services.uebersicht import (
     QuelleAntwort,
     SitzungenAntwort,
     UebersichtAntwort,
+    Umbenennung,
 )
 
 router = APIRouter(prefix="/api/admin", tags=["Aufsicht"], dependencies=[Aufsicht])
@@ -69,18 +65,6 @@ Bestaetigung = Annotated[
 class EinsichtAntwort(BaseModel):
     sprecher: UebersichtAntwort
     quellen: list[QuelleAntwort]
-
-
-class Umbenennung(BaseModel):
-    name: str = Field(min_length=1, max_length=200)
-
-    @field_validator("name")
-    @classmethod
-    def _nicht_nur_leerzeichen(cls, wert: str) -> str:
-        """Sonst käme ein Sprecher namens „ " heraus — eine leere Zeile in der Liste."""
-        if not wert.strip():
-            raise ValueError("Der Name darf nicht leer sein.")
-        return wert.strip()
 
 
 @router.get("/speakers", response_model=list[UebersichtAntwort])
@@ -181,25 +165,12 @@ def setze_pin(sprecher_id: str, aenderung: PinAenderung) -> PinAntwort:
 def sicherung_eines(sprecher_id: str) -> FileResponse:
     """Der vollständige Stand eines Sprechers als `.tgz` — zum Zurückspielen.
 
-    Enthält Korpus und Diktate, wie sie im Datenverzeichnis liegen, mit einer
-    in sich stimmigen Kopie der Datenbank. Zurück kommt der Stand mit
-    `scripts/restore.py` oder schlicht mit `tar xzf` (siehe
-    `wortlaut/sicherung.py`).
+    Gepackt wird in `services/ausleitung.py`: Denselben Griff hat ein Sprecher
+    für seine eigenen Daten (`api/konto.py`), und beide sollen dieselbe Datei
+    bekommen.
     """
     with Session(engine_fuer(sprecher_id)) as sitzung:
-        sprecher = _hole(sitzung, sprecher_id)
-        beschreibung = {"umfang": "sprecher", "sprecher": [_kurz(sprecher)]}
-
-    return _archiv(
-        f"wortlaut-{sprecher_id}-{sicherung.zeitmarke()}.tgz",
-        lambda ziel: sicherung.schreibe_archiv(
-            einstellungen().data_dir,
-            loeschung.datenverzeichnisse(sprecher_id),
-            ziel,
-            beschreibung=beschreibung,
-        ),
-        "application/gzip",
-    )
+        return ausleitung.sicherung_eines(_hole(sitzung, sprecher_id))
 
 
 @router.get("/sicherung")
@@ -219,10 +190,10 @@ def sicherung_aller() -> FileResponse:
         with Session(engine_fuer(sprecher_id)) as sitzung:
             sprecher = sitzung.get(Sprecher, sprecher_id)
             if sprecher is not None:
-                sprecher_liste.append(_kurz(sprecher))
+                sprecher_liste.append(ausleitung.kurz(sprecher))
 
     beschreibung = {"umfang": "gesamt", "sprecher": sprecher_liste}
-    return _archiv(
+    return ausleitung.archiv(
         f"wortlaut-gesamt-{sicherung.zeitmarke()}.tgz",
         lambda ziel: sicherung.schreibe_archiv(
             konfiguration.data_dir, verzeichnisse, ziel, beschreibung=beschreibung
@@ -240,11 +211,7 @@ def datensatz(sprecher_id: str, ablage: Ablage) -> FileResponse:
     """
     with Session(engine_fuer(sprecher_id)) as sitzung:
         sprecher = _hole(sitzung, sprecher_id)
-        return _archiv(
-            f"wortlaut-{sprecher_id}-datensatz-{sicherung.zeitmarke()}.zip",
-            lambda ziel: export.datensatz_zip(sitzung, sprecher, ablage, ziel),
-            "application/zip",
-        )
+        return ausleitung.datensatz_eines(sitzung, sprecher, ablage)
 
 
 # ── Löschen ─────────────────────────────────────────────────────────────────
@@ -347,29 +314,3 @@ def _pruefe_bestaetigung(sprecher_id: str, bestaetigung: str) -> None:
                 f"({sprecher_id})."
             ),
         )
-
-
-def _kurz(sprecher: Sprecher) -> dict[str, str]:
-    return {"id": sprecher.id, "name": sprecher.name}
-
-
-def _archiv(dateiname: str, baue: Callable[[Path], Path], medientyp: str) -> FileResponse:
-    """Ein Archiv bauen, ausliefern und danach wieder wegräumen.
-
-    Gebaut wird in eine temporäre Datei und nicht in den Arbeitsspeicher: Ein
-    Korpus kann Gigabyte groß sein. Aufgeräumt wird über eine
-    Hintergrundaufgabe — sie läuft, nachdem die Antwort durch ist, denn vorher
-    liest Starlette noch aus genau dieser Datei.
-    """
-    verzeichnis = Path(tempfile.mkdtemp(prefix="wortlaut-ausleitung-"))
-    try:
-        baue(verzeichnis / dateiname)
-    except Exception:
-        shutil.rmtree(verzeichnis, ignore_errors=True)
-        raise
-    return FileResponse(
-        verzeichnis / dateiname,
-        media_type=medientyp,
-        filename=dateiname,
-        background=BackgroundTask(shutil.rmtree, verzeichnis, ignore_errors=True),
-    )

@@ -139,3 +139,61 @@ class TestPin:
         klient.patch("/api/konto/pin", json={"pin": "1234"})
         einsicht = aufsicht.get("/api/admin/speakers").json()
         assert einsicht[0]["pin_gesetzt"] is True
+
+
+class TestSelbstVerwalten:
+    """Umbenennen und Ausleiten kann jeder über die eigenen Daten.
+
+    Der Unterschied zur Aufsicht ist nicht, *was* geht, sondern *wessen* Daten
+    es trifft: Hier steht keine Kennung in der Adresse (siehe `api/konto.py`).
+    Was der eigenen Ansicht fehlt, sind allein die beiden Löschstufen „alle
+    Aufnahmen" und „diesen Sprecher vollständig".
+    """
+
+    def test_umbenennen_aendert_nur_den_namen(self, klient: TestClient, sprecher: str) -> None:
+        antwort = klient.patch("/api/konto", json={"name": "Neuer Name"})
+        assert antwort.status_code == 200
+        assert antwort.json()["name"] == "Neuer Name"
+        # Die Kennung bleibt, was sie ist — sie steckt im ausgegebenen Zugang.
+        assert antwort.json()["id"] == sprecher
+        assert klient.get("/api/konto").json()["sprecher"]["name"] == "Neuer Name"
+
+    def test_leerer_name_wird_abgewiesen(self, klient: TestClient) -> None:
+        for ungueltig in ("", "   "):
+            assert klient.patch("/api/konto", json={"name": ungueltig}).status_code == 422
+
+    def test_sicherung_und_datensatz_kommen_als_archiv(
+        self, klient: TestClient, quelle: str, audio_datei: dict
+    ) -> None:
+        naechste = klient.get("/api/prompts/next").json()["aktuell"]
+        klient.post(
+            "/api/recordings",
+            files=audio_datei,
+            data={"prompt_id": naechste["id"], "modus": "gelesen"},
+        )
+
+        sicherung = klient.get("/api/konto/sicherung")
+        assert sicherung.status_code == 200
+        assert sicherung.headers["content-type"] == "application/gzip"
+        assert sicherung.content[:2] == b"\x1f\x8b"  # gzip
+
+        datensatz = klient.get("/api/konto/datensatz")
+        assert datensatz.status_code == 200
+        assert datensatz.content[:2] == b"PK"  # zip
+
+    def test_loeschstufen_der_aufsicht_gibt_es_hier_nicht(self, klient: TestClient) -> None:
+        # Weder alle Aufnahmen noch sich selbst — dafür gibt es unter
+        # `/api/konto/…` gar keinen Weg.
+        assert klient.delete("/api/konto/recordings").status_code == 405
+        assert klient.delete("/api/konto").status_code == 405
+
+    def test_die_pin_sperrt_auch_umbenennen_und_ausleiten(self, klient: TestClient) -> None:
+        klient.patch("/api/konto/pin", json={"pin": "2468"})
+
+        assert klient.patch("/api/konto", json={"name": "Fremd"}).status_code == 401
+        assert klient.get("/api/konto/sicherung").status_code == 401
+        assert klient.get("/api/konto/datensatz").status_code == 401
+
+        mit = {"X-Pin": "2468"}
+        assert klient.patch("/api/konto", json={"name": "Ich"}, headers=mit).status_code == 200
+        assert klient.get("/api/konto/sicherung", headers=mit).status_code == 200
