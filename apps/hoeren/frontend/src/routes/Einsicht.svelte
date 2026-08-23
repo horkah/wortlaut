@@ -141,6 +141,13 @@
   async function pinAendern(ereignis: SubmitEvent) {
     ereignis.preventDefault();
     const neue = neuePin.trim();
+
+    // Validierung: genau 4 Ziffern
+    if (!neue || neue.length !== 4 || !/^[0-9]{4}$/.test(neue)) {
+      fehler = 'Die PIN muss aus genau 4 Ziffern bestehen.';
+      return;
+    }
+
     await tue('pin', async () => {
       await pinSetzenAdmin(sprecherId, neue);
       neuePin = '';
@@ -304,6 +311,7 @@
       Versehen, nicht als zweites Passwort. Setzen oder ändern verlangt die alte PIN nicht: Das
       ist der Rückweg, wenn sie vergessen wurde.
     </p>
+    <p class="gedaempft">Geben Sie eine vierstellige PIN ein (4 Ziffern).</p>
     <form class="reihe" onsubmit={pinAendern}>
       <input
         bind:value={neuePin}
@@ -311,7 +319,8 @@
         inputmode="numeric"
         pattern="[0-9]{4}"
         maxlength="4"
-        placeholder="Neue PIN"
+        placeholder="z.B. 1234"
+        title="Genau 4 Ziffern (0–9)"
         autocomplete="off"
         required
       />
