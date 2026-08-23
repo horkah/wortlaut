@@ -94,6 +94,13 @@
   async function entsperren(ereignis: SubmitEvent) {
     ereignis.preventDefault();
     pinFehler = '';
+
+    // Validierung: genau 4 Ziffern
+    if (!pinEingabe || pinEingabe.length !== 4 || !/^[0-9]{4}$/.test(pinEingabe)) {
+      pinFehler = 'Die PIN muss aus genau 4 Ziffern bestehen.';
+      return;
+    }
+
     try {
       // Ein Testabruf: Er wirft, wenn die PIN nicht stimmt, und sagt damit
       // beides in einem — ob sie stimmt und, wenn ja, gleich die Daten.
@@ -110,6 +117,13 @@
   async function pinAendern(ereignis: SubmitEvent) {
     ereignis.preventDefault();
     const neue = neuePin.trim();
+
+    // Validierung: genau 4 Ziffern
+    if (!neue || neue.length !== 4 || !/^[0-9]{4}$/.test(neue)) {
+      fehler = 'Die PIN muss aus genau 4 Ziffern bestehen.';
+      return;
+    }
+
     await tue(
       'pin',
       async () => {
@@ -221,6 +235,7 @@
   <h2>Meine Daten</h2>
   <div class="karte">
     <p>Diese Seite ist mit einer PIN gesichert.</p>
+    <p class="gedaempft">Geben Sie Ihre vierstellige PIN ein (4 Ziffern).</p>
     <form class="reihe" onsubmit={entsperren}>
       <input
         bind:value={pinEingabe}
@@ -228,7 +243,8 @@
         inputmode="numeric"
         pattern="[0-9]{4}"
         maxlength="4"
-        placeholder="PIN"
+        placeholder="z.B. 1234"
+        title="Genau 4 Ziffern (0–9)"
         autocomplete="off"
         required
       />
@@ -318,6 +334,7 @@
       Eine PIN sichert diese Seite zusätzlich zum Zugang — gedacht gegen den Klick aus Versehen,
       nicht als zweites Passwort.
     </p>
+    <p class="gedaempft">Geben Sie eine vierstellige PIN ein (4 Ziffern).</p>
     <form class="reihe" onsubmit={pinAendern}>
       <input
         bind:value={neuePin}
@@ -325,7 +342,8 @@
         inputmode="numeric"
         pattern="[0-9]{4}"
         maxlength="4"
-        placeholder="Neue PIN"
+        placeholder="z.B. 1234"
+        title="Genau 4 Ziffern (0–9)"
         autocomplete="off"
         required
       />
