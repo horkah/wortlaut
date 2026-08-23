@@ -10,6 +10,7 @@
    */
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Pager from '$ui/Pager.svelte';
+  import { tag, tagUndZeit } from '$ui/zeit';
   import {
     alleAufnahmenLoeschen,
     aufnahmeAudio,
@@ -228,7 +229,6 @@
 
   const minuten = (sekunden: number) => `${Math.round(sekunden / 60)} min`;
   const megabyte = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  const tag = (zeitpunkt: string) => zeitpunkt.slice(0, 10);
 
   $effect(() => {
     if (zustand.art === 'aufsicht' && sprecherId) lade();
@@ -355,7 +355,7 @@
   <h2>Sitzungen</h2>
   {#each sitzungen as sitzung (sitzung.id)}
     <div class="karte gedaempft">
-      {tag(sitzung.begonnen)} · {sitzung.aufnahmen} Aufnahme(n) · {sitzung.id}
+      {tagUndZeit(sitzung.begonnen)} · {sitzung.aufnahmen} Aufnahme(n) · {sitzung.id}
     </div>
   {:else}
     <p class="gedaempft">Keine Sitzung.</p>

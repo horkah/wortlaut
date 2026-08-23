@@ -138,6 +138,11 @@ class TestEinsicht:
     def test_sitzungen_werden_geseitet(
         self, aufsicht: TestClient, klient: TestClient, bespielt: str
     ) -> None:
+        """Auch die leeren: Der Aufsicht sagt gerade der leere Anlauf etwas.
+
+        Die eigene Ansicht lässt sie weg (`test_konto.py`), hier bleiben sie
+        stehen - jemand hat die Aufnahmeseite geöffnet und nichts gesprochen.
+        """
         for _ in range(3):
             antwort = klient.post(f"/api/sessions?sprecher={bespielt}")
             assert antwort.status_code == 201

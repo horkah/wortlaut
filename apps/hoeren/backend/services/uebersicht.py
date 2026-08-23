@@ -23,6 +23,15 @@ from ..db.models import Aufnahme, Sitzung, Sprecher, Textquelle, Vorlage
 # niemand liest und kein Browser gern darstellt.
 SEITE = 200
 
+# Eine Sitzung ohne Aufnahme ist nichts weiter als ein geöffneter Reiter: Sie
+# entsteht schon beim Aufrufen der Aufnahmeseite (`Aufnahme.svelte: beginne`),
+# bevor irgendjemand gesprochen hat. In der eigenen Ansicht (`api/konto.py`)
+# steht sie darum nur zwischen den Sitzungen, in denen wirklich etwas
+# entstanden ist, und lässt den eigenen Fleiß kleiner aussehen, als er war.
+# Der Aufsicht (`api/admin.py`) bleibt sie erhalten: Dort ist gerade der leere
+# Anlauf eine Auskunft - jemand hat es versucht und nichts aufgenommen.
+_HAT_AUFNAHMEN = select(1).where(Aufnahme.session_id == Sitzung.id).exists()
+
 
 class Kennzahlen(BaseModel):
     aufnahmen: int
@@ -109,8 +118,20 @@ class AufnahmenAntwort(BaseModel):
     aufnahmen: list[AufnahmeAntwort]
 
 
-def profil(sitzung: Session, sprecher: Sprecher, ablage: storage.Ablage) -> UebersichtAntwort:
+def profil(
+    sitzung: Session,
+    sprecher: Sprecher,
+    ablage: storage.Ablage,
+    nur_sitzungen_mit_aufnahmen: bool = False,
+) -> UebersichtAntwort:
+    """Profil und Kennzahlen eines Sprechers.
+
+    `nur_sitzungen_mit_aufnahmen` zählt die Sitzungen so, wie `sitzungen_seite`
+    sie mit `nur_mit_aufnahmen` auflistet - sonst nennte die Kennzahl eine Zahl,
+    die sich in der Liste darunter nicht wiederfinden lässt.
+    """
     gueltig = Aufnahme.status == "ok"
+    sitzungsfilter = (_HAT_AUFNAHMEN,) if nur_sitzungen_mit_aufnahmen else ()
     bloecke = sitzung.scalars(select(Aufnahme.blob).where(gueltig)).all()
     dauer = select(func.coalesce(func.sum(Aufnahme.dauer_s), 0.0)).where(gueltig)
     return UebersichtAntwort(
@@ -127,7 +148,7 @@ def profil(sitzung: Session, sprecher: Sprecher, ablage: storage.Ablage) -> Uebe
             sekunden=float(sitzung.scalar(dauer) or 0.0),
             quellen=_zaehle(sitzung, Textquelle),
             einheiten=_zaehle(sitzung, Vorlage),
-            sitzungen=_zaehle(sitzung, Sitzung),
+            sitzungen=_zaehle(sitzung, Sitzung, *sitzungsfilter),
             bytes_audio=_bytes(ablage, bloecke),
         ),
     )
@@ -158,21 +179,33 @@ def quellen(sitzung: Session) -> list[QuelleAntwort]:
     ]
 
 
-def sitzungen_seite(sitzung: Session, ab: int = 0, anzahl: int = SEITE) -> SitzungenAntwort:
-    """Die Sitzungen eines Sprechers, jüngste zuerst, seitenweise."""
-    gesamt = sitzung.scalar(select(func.count()).select_from(Sitzung)) or 0
+def sitzungen_seite(
+    sitzung: Session, ab: int = 0, anzahl: int = SEITE, nur_mit_aufnahmen: bool = False
+) -> SitzungenAntwort:
+    """Die Sitzungen eines Sprechers, jüngste zuerst, seitenweise.
+
+    Mit `nur_mit_aufnahmen` bleiben die leeren Sitzungen draußen - Zeilen wie
+    Gesamtzahl, sonst zeigte der Pager Seiten, auf denen nichts steht (siehe
+    `_HAT_AUFNAHMEN`).
+    """
+    gesamt_abfrage = select(func.count()).select_from(Sitzung)
     aufnahmen_pro_sitzung = (
         select(Aufnahme.session_id, func.count().label("aufnahmen"))
         .group_by(Aufnahme.session_id)
         .subquery()
     )
-    zeilen = sitzung.execute(
+    seite = (
         select(Sitzung, func.coalesce(aufnahmen_pro_sitzung.c.aufnahmen, 0))
         .outerjoin(aufnahmen_pro_sitzung, aufnahmen_pro_sitzung.c.session_id == Sitzung.id)
         .order_by(Sitzung.begonnen.desc())
         .offset(max(ab, 0))
         .limit(min(max(anzahl, 1), SEITE))
-    ).all()
+    )
+    if nur_mit_aufnahmen:
+        gesamt_abfrage = gesamt_abfrage.where(_HAT_AUFNAHMEN)
+        seite = seite.where(_HAT_AUFNAHMEN)
+    gesamt = sitzung.scalar(gesamt_abfrage) or 0
+    zeilen = sitzung.execute(seite).all()
     return SitzungenAntwort(
         gesamt=gesamt,
         ab=max(ab, 0),

@@ -13,6 +13,19 @@ from collections.abc import Callable
 from fastapi.testclient import TestClient
 
 
+def _sitzung_mit_aufnahme(klient: TestClient, audio_datei: dict) -> str:
+    """Eine Sitzung, in der auch gesprochen wurde; gibt deren Kennung zurück."""
+    sitzung = klient.post("/api/sessions").json()["id"]
+    naechste = klient.get(f"/api/prompts/next?session={sitzung}").json()["aktuell"]
+    antwort = klient.post(
+        "/api/recordings",
+        files=audio_datei,
+        data={"prompt_id": naechste["id"], "modus": "gelesen", "session": sitzung},
+    )
+    assert antwort.status_code == 201, antwort.text
+    return sitzung
+
+
 class TestZugriff:
     def test_ohne_zugang_kein_zugriff(self, klient_ohne_token: TestClient) -> None:
         assert klient_ohne_token.get("/api/konto").status_code == 401
@@ -60,13 +73,48 @@ class TestEigeneDaten:
         assert eigene["gesamt"] == 1
         assert eigene["aufnahmen"][0]["text"]
 
-    def test_sitzungen_werden_geseitet(self, klient: TestClient) -> None:
+    def test_sitzungen_werden_geseitet(
+        self, klient: TestClient, quelle: str, audio_datei: dict
+    ) -> None:
         for _ in range(3):
-            assert klient.post("/api/sessions").status_code == 201
+            _sitzung_mit_aufnahme(klient, audio_datei)
 
         erste_seite = klient.get("/api/konto/sessions?ab=0&anzahl=2").json()
         assert erste_seite["gesamt"] == 3
         assert len(erste_seite["sitzungen"]) == 2
+
+        zweite_seite = klient.get("/api/konto/sessions?ab=2&anzahl=2").json()
+        assert len(zweite_seite["sitzungen"]) == 1
+
+    def test_sitzungen_ohne_aufnahme_bleiben_draussen(
+        self, klient: TestClient, quelle: str, audio_datei: dict
+    ) -> None:
+        """Wer die Aufnahmeseite nur geöffnet hat, hat hier nichts erlebt.
+
+        Eine Sitzung entsteht schon beim Öffnen des Reiters
+        (`Aufnahme.svelte: beginne`). In den eigenen Daten stünde sie dann
+        zwischen den Sitzungen, in denen wirklich gesprochen wurde - der
+        Aufsicht bleibt sie erhalten, siehe
+        `test_aufsicht.py::test_sitzungen_werden_geseitet`.
+        """
+        gesprochen = _sitzung_mit_aufnahme(klient, audio_datei)
+        leer = klient.post("/api/sessions").json()["id"]
+
+        seite = klient.get("/api/konto/sessions").json()
+        assert seite["gesamt"] == 1
+        assert [eintrag["id"] for eintrag in seite["sitzungen"]] == [gesprochen]
+        assert leer not in [eintrag["id"] for eintrag in seite["sitzungen"]]
+
+    def test_kennzahl_sitzungen_zaehlt_wie_die_liste(
+        self, klient: TestClient, quelle: str, audio_datei: dict
+    ) -> None:
+        # Sonst nennte die Kachel eine Zahl, die sich darunter nicht
+        # wiederfinden lässt - und das liest sich wie ein Fehler.
+        _sitzung_mit_aufnahme(klient, audio_datei)
+        klient.post("/api/sessions")
+
+        assert klient.get("/api/konto").json()["sprecher"]["kennzahlen"]["sitzungen"] == 1
+        assert klient.get("/api/konto/sessions").json()["gesamt"] == 1
 
     def test_anhoeren_und_verwerfen_bleiben_bei_recordings(
         self, klient: TestClient, quelle: str, audio_datei: dict
