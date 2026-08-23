@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from wortlaut import storage
@@ -47,6 +47,20 @@ class UebersichtAntwort(BaseModel):
     # `services/pin.py`).
     pin_gesetzt: bool
     kennzahlen: Kennzahlen
+
+
+class Umbenennung(BaseModel):
+    """Der neue Name — von der Aufsicht vergeben (`api/admin.py`) oder selbst (`api/konto.py`)."""
+
+    name: str = Field(min_length=1, max_length=200)
+
+    @field_validator("name")
+    @classmethod
+    def _nicht_nur_leerzeichen(cls, wert: str) -> str:
+        """Sonst käme ein Sprecher namens „ " heraus — eine leere Zeile in der Liste."""
+        if not wert.strip():
+            raise ValueError("Der Name darf nicht leer sein.")
+        return wert.strip()
 
 
 class QuelleAntwort(BaseModel):

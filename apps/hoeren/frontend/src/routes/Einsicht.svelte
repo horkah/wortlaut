@@ -313,11 +313,15 @@
     </p>
     <p class="gedaempft">Geben Sie eine vierstellige PIN ein (4 Ziffern).</p>
     <form class="reihe" onsubmit={pinAendern}>
+      <!-- `pattern` als Ausdruck, nicht als Text: In einer Vorlage ist `{4}`
+           eine Einsetzung, `pattern="[0-9]{4}"` käme als `[0-9]4` beim Browser
+           an — und der wiese dann jede richtige PIN ab, ohne dass `onsubmit`
+           je liefe. -->
       <input
         bind:value={neuePin}
         type="text"
         inputmode="numeric"
-        pattern="[0-9]{4}"
+        pattern={'[0-9]{4}'}
         maxlength="4"
         placeholder="z.B. 1234"
         title="Genau 4 Ziffern (0–9)"

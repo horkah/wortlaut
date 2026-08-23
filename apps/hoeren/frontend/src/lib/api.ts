@@ -331,8 +331,8 @@ export const aufnahmeAudio = (sprecher: string, aufnahme: string) =>
  * Korpus von einigen hundert Megabyte geht das; wer einen sehr großen Bestand
  * wegsichert, nimmt besser `curl` (siehe docs/betrieb.md).
  */
-export async function lade(pfad: string): Promise<void> {
-  const [inhalt, dateiname] = await blobMitNamen(pfad);
+export async function lade(pfad: string, optionen: RequestInit = {}): Promise<void> {
+  const [inhalt, dateiname] = await blobMitNamen(pfad, optionen);
   const adresse = URL.createObjectURL(inhalt);
   const verweis = document.createElement('a');
   verweis.href = adresse;
@@ -351,12 +351,12 @@ export const datensatzSprecher = (sprecher: string) =>
 export const sicherungGesamt = () => lade('/admin/sicherung');
 
 /** Wie `anfrage`, aber für alles, was kein JSON ist. */
-async function blob(pfad: string): Promise<Blob> {
-  return (await blobMitNamen(pfad))[0];
+async function blob(pfad: string, optionen: RequestInit = {}): Promise<Blob> {
+  return (await blobMitNamen(pfad, optionen))[0];
 }
 
-async function blobMitNamen(pfad: string): Promise<[Blob, string]> {
-  const antwort = await hole(pfad);
+async function blobMitNamen(pfad: string, optionen: RequestInit = {}): Promise<[Blob, string]> {
+  const antwort = await hole(pfad, optionen);
   // Den Namen bestimmt der Server (er kennt die Zeitmarke); ohne Angabe bleibt
   // der letzte Teil des Pfades.
   const angabe = antwort.headers.get('content-disposition') ?? '';
@@ -400,3 +400,19 @@ export const meineSitzungen = (ab = 0, anzahl = 10, pin?: string) =>
 
 export const meineAufnahmen = (ab = 0, anzahl = 10, pin?: string) =>
   anfrage<Aufnahmenseite>(`/konto/recordings?ab=${ab}&anzahl=${anzahl}`, mitPin(pin));
+
+/** Sich selbst umbenennen — dieselbe Beschriftung, die die Aufsicht ändert. */
+export const michUmbenennen = (name: string, pin?: string) =>
+  anfrage<Uebersicht>('/konto', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...(pin ? { 'X-Pin': pin } : {}) },
+    body: JSON.stringify({ name }),
+  });
+
+/**
+ * Die eigenen Daten mitnehmen — dieselben zwei Dateien, die die Aufsicht zieht
+ * (der Server packt sie über denselben Dienst, siehe `services/ausleitung.py`).
+ */
+export const meineSicherung = (pin?: string) => lade('/konto/sicherung', mitPin(pin));
+
+export const meinDatensatz = (pin?: string) => lade('/konto/datensatz', mitPin(pin));
