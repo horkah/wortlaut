@@ -81,7 +81,7 @@ class TestTextAnsehen:
     def test_liefert_die_einheiten_der_reihe_nach(
         self, klient: TestClient, sprecher: str, quelle: str
     ) -> None:
-        # Nicht das Original, sondern das Geschnittene — genau das wird
+        # Nicht das Original, sondern das Geschnittene - genau das wird
         # vorgesprochen.
         antwort = klient.get(f"/api/sources/{quelle}/text?sprecher={sprecher}")
         assert antwort.status_code == 200
@@ -148,7 +148,7 @@ class TestLoeschen:
     def test_mit_aufnahme_wird_nicht_geloescht(
         self, klient: TestClient, sprecher: str, quelle: str, audio_datei: dict
     ) -> None:
-        # Das Audio ist der Ertrag der Arbeit — es darf nicht an einer
+        # Das Audio ist der Ertrag der Arbeit - es darf nicht an einer
         # Aufräumaktion hängen.
         vorlage = klient.get(f"/api/prompts/next?sprecher={sprecher}").json()["aktuell"]["id"]
         klient.post(

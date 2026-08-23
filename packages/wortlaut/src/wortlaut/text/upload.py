@@ -4,7 +4,7 @@ txt, md, docx und epub kommen mit der Standardbibliothek aus: docx und epub
 sind ZIP-Archive mit XML bzw. HTML darin. Nur für PDF gibt es keine Lösung
 ohne Fremdpaket, dafür ist `pypdf` da.
 
-Der Rückgabewert ist immer Fließtext mit Leerzeile zwischen Absätzen — genau
+Der Rückgabewert ist immer Fließtext mit Leerzeile zwischen Absätzen - genau
 das, was `chunker.schneide()` erwartet.
 """
 
@@ -105,7 +105,7 @@ def _epub_kapitel(archiv: zipfile.ZipFile) -> list[str]:
         if kapitel:
             return kapitel
     except (KeyError, AttributeError, ElementTree.ParseError):
-        pass  # kaputtes oder ungewöhnliches epub — unten weiter
+        pass  # kaputtes oder ungewöhnliches epub - unten weiter
 
     return sorted(
         name for name in archiv.namelist() if name.lower().endswith((".xhtml", ".html", ".htm"))

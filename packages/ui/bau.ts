@@ -7,7 +7,7 @@
  *
  * Wozu: Eine Single-Page-App sieht nach einem Ausrollen genauso aus wie
  * vorher. Ohne sichtbares Datum lässt sich „ist das schon die neue Fassung?"
- * nur am Netzwerk-Reiter des Browsers beantworten — mit Datum genügt ein Blick
+ * nur am Netzwerk-Reiter des Browsers beantworten - mit Datum genügt ein Blick
  * an den Seitenfuß.
  */
 declare const __BAUDATUM__: string;

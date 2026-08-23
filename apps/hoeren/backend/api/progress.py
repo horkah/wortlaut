@@ -40,7 +40,7 @@ def fortschritt(sprecher: SprecherId, db: Datenbank) -> FortschrittAntwort:
     sekunden = db.scalar(select(func.coalesce(func.sum(Aufnahme.dauer_s), 0.0)).where(*gueltig))
     aufnahmen = db.scalar(select(func.count()).select_from(Aufnahme).where(*gueltig))
 
-    # Offen ist, was noch vorzusprechen ist — dieselbe Menge, die auch die
+    # Offen ist, was noch vorzusprechen ist - dieselbe Menge, die auch die
     # Warteschlange meint (`prompt_queue.aus_aktiven_quellen`). Direkt gezählt
     # und nicht als Differenz: Sonst geriete die Zahl ins Minus, sobald eine
     # Quelle mit Aufnahmen abgestellt wird.

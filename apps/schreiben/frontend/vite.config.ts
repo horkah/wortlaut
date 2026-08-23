@@ -28,7 +28,7 @@ export default defineConfig({
     // Ohne diese Freigabe verweigert Vite Dateien oberhalb des Projektordners.
     fs: { allow: [repowurzel] },
     // Statt CORS: der Entwicklungsserver reicht die API an das Backend durch.
-    // Der Pfad bleibt dabei unverändert — das Backend hängt sie selbst unter
+    // Der Pfad bleibt dabei unverändert - das Backend hängt sie selbst unter
     // `/schreiben` (siehe `BASIS` dort). Port 8001, damit beide Backends
     // gleichzeitig laufen können (Makefile).
     proxy: { '/schreiben/api': 'http://localhost:8001' },

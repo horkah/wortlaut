@@ -3,12 +3,12 @@
  *
  * Den Sprecher nennt keine Anfrage mehr: Der Server leitet ihn aus dem
  * vorgelegten Zugang ab (siehe backend/deps.py). Der Zugang ist entweder der
- * eines Sprechers — `<sprecher_id>.<geheimnis>`, gekommen über einen Link —,
+ * eines Sprechers - `<sprecher_id>.<geheimnis>`, gekommen über einen Link -,
  * der Verwaltertoken oder der Aufsichtstoken.
  *
  * Genau eine Ausnahme gibt es: Die Wege unter `/api/admin/…` nennen ihren
  * Sprecher in der Adresse. Sie gehören der Aufsicht, und die hat keinen
- * eigenen — sie sieht über alle hinweg (siehe backend/api/admin.py).
+ * eigenen - sie sieht über alle hinweg (siehe backend/api/admin.py).
  */
 
 import { mitZugang } from '$ui/zugang';
@@ -30,7 +30,7 @@ export type Wer = {
   name: string | null;
 };
 
-/** Ein frisch ausgegebener Zugang — im Klartext nur genau hier. */
+/** Ein frisch ausgegebener Zugang - im Klartext nur genau hier. */
 export type NeuerZugang = { sprecher_id: string; zugang: string; erneuert: string };
 
 export type Einheit = { id: string; text: string; dauer_geschaetzt_s: number };
@@ -86,7 +86,7 @@ export class ApiFehler extends Error {
 export { setzeZugang, zugang } from '$ui/zugang';
 
 /**
- * Eine Anfrage mit Zugang — die einzige Stelle, die ihn anhängt und einen
+ * Eine Anfrage mit Zugang - die einzige Stelle, die ihn anhängt und einen
  * Fehlschlag auswertet. Zurück kommt die rohe Antwort, denn nicht alles hier
  * ist JSON: Texte und Archive gehen denselben Weg.
  */
@@ -115,7 +115,7 @@ function alsJson(rumpf: unknown): RequestInit {
 
 // ── Wer ruft ────────────────────────────────────────────────────────────────
 
-/** Für wen dieser Browser eingestellt ist — die Antwort kommt vom Server. */
+/** Für wen dieser Browser eingestellt ist - die Antwort kommt vom Server. */
 export const werRuft = () => anfrage<Wer>('/zugang');
 
 // ── Verwaltung ──────────────────────────────────────────────────────────────
@@ -197,7 +197,7 @@ export function aufnahmeSenden(eingabe: {
 export const aufnahmeVerwerfen = (aufnahme: string) =>
   anfrage<void>(`/recordings/${aufnahme}`, { method: 'DELETE' });
 
-/** Eine eigene Aufnahme anhören — für „Meine Daten" (siehe unten). */
+/** Eine eigene Aufnahme anhören - für „Meine Daten" (siehe unten). */
 export const meineAufnahmeAudio = (aufnahme: string) => blob(`/recordings/${aufnahme}/audio`);
 
 // ── Fortschritt ─────────────────────────────────────────────────────────────
@@ -207,7 +207,7 @@ export const fortschritt = () => anfrage<Fortschritt>('/progress');
 // ── Aufsicht ────────────────────────────────────────────────────────────────
 //
 // Alles hier hängt am `WORTLAUT_ADMIN_TOKEN` des Servers. Ohne ihn antwortet
-// jeder dieser Wege mit 401 — auch in der Entwicklung.
+// jeder dieser Wege mit 401 - auch in der Entwicklung.
 
 export type Kennzahlen = {
   aufnahmen: number;
@@ -278,11 +278,11 @@ export const sprecherUmbenennen = (sprecher: string, name: string) =>
     body: JSON.stringify({ name }),
   });
 
-/** Ob eine PIN gesetzt ist — nie die PIN selbst; siehe `Uebersicht.pin_gesetzt`. */
+/** Ob eine PIN gesetzt ist - nie die PIN selbst; siehe `Uebersicht.pin_gesetzt`. */
 export type PinStand = { gesetzt: boolean };
 
 /**
- * Die PIN einer Person setzen, ändern oder (mit `pin: null`) wegnehmen — ohne
+ * Die PIN einer Person setzen, ändern oder (mit `pin: null`) wegnehmen - ohne
  * die alte zu kennen. Die Aufsicht ist der Rückweg, wenn jemand seine PIN
  * vergessen hat.
  */
@@ -294,7 +294,7 @@ export const pinSetzenAdmin = (sprecher: string, pin: string | null) =>
   });
 
 /**
- * Löschen verlangt die Kennung ein zweites Mal — einmal als Ziel, einmal als
+ * Löschen verlangt die Kennung ein zweites Mal - einmal als Ziel, einmal als
  * Absicht. Der Server prüft das; hier steht es, damit kein Aufruf ohne
  * gebaut werden kann.
  */
@@ -313,7 +313,7 @@ export const sprecherLoeschen = (sprecher: string) =>
     { method: 'DELETE' },
   );
 
-/** Die Adresse einer Aufnahme zum Abhören — mit Zugang, deshalb über `blob()`. */
+/** Die Adresse einer Aufnahme zum Abhören - mit Zugang, deshalb über `blob()`. */
 export const aufnahmeAudio = (sprecher: string, aufnahme: string) =>
   blob(`/admin/speakers/${sprecher}/recordings/${aufnahme}/audio`);
 
@@ -323,7 +323,7 @@ export const aufnahmeAudio = (sprecher: string, aufnahme: string) =>
  * Eine Datei vom Server holen und dem Browser zum Speichern geben.
  *
  * Warum nicht schlicht ein Link: Diese Wege verlangen einen Zugang im Kopf der
- * Anfrage, und ein `window.open` schickte keinen mit — es liefe in ein 401.
+ * Anfrage, und ein `window.open` schickte keinen mit - es liefe in ein 401.
  * Also wird geholt, in einen Blob gelegt und ein unsichtbarer Verweis
  * angeklickt.
  *
@@ -366,7 +366,7 @@ async function blobMitNamen(pfad: string, optionen: RequestInit = {}): Promise<[
 
 // ── Konto ───────────────────────────────────────────────────────────────────
 //
-// Ein Sprecher sieht sich selbst — dieselben Formen wie oben bei der Aufsicht
+// Ein Sprecher sieht sich selbst - dieselben Formen wie oben bei der Aufsicht
 // (`Uebersicht`, `AufsichtQuelle`, `Sitzungenseite`, `Aufnahmenseite`), denn
 // der Server füllt sie über dieselbe Zählung (`services/uebersicht.py`). Nur
 // der Weg ist ein anderer: keine Kennung in der Adresse, sie steckt im
@@ -374,7 +374,7 @@ async function blobMitNamen(pfad: string, optionen: RequestInit = {}): Promise<[
 // `meineAufnahmeAudio` und `aufnahmeVerwerfen` weiter oben.
 //
 // Ist eine PIN gesetzt, verlangen die drei lesenden Wege sie zusätzlich als
-// `X-Pin`-Kopfzeile — deshalb der optionale `pin`-Parameter unten. `pinStand`
+// `X-Pin`-Kopfzeile - deshalb der optionale `pin`-Parameter unten. `pinStand`
 // selbst bleibt ungeschützt: Er beantwortet ja gerade die Frage, ob überhaupt
 // nach einer PIN gefragt werden muss.
 
@@ -401,7 +401,7 @@ export const meineSitzungen = (ab = 0, anzahl = 10, pin?: string) =>
 export const meineAufnahmen = (ab = 0, anzahl = 10, pin?: string) =>
   anfrage<Aufnahmenseite>(`/konto/recordings?ab=${ab}&anzahl=${anzahl}`, mitPin(pin));
 
-/** Sich selbst umbenennen — dieselbe Beschriftung, die die Aufsicht ändert. */
+/** Sich selbst umbenennen - dieselbe Beschriftung, die die Aufsicht ändert. */
 export const michUmbenennen = (name: string, pin?: string) =>
   anfrage<Uebersicht>('/konto', {
     method: 'PATCH',
@@ -410,7 +410,7 @@ export const michUmbenennen = (name: string, pin?: string) =>
   });
 
 /**
- * Die eigenen Daten mitnehmen — dieselben zwei Dateien, die die Aufsicht zieht
+ * Die eigenen Daten mitnehmen - dieselben zwei Dateien, die die Aufsicht zieht
  * (der Server packt sie über denselben Dienst, siehe `services/ausleitung.py`).
  */
 export const meineSicherung = (pin?: string) => lade('/konto/sicherung', mitPin(pin));

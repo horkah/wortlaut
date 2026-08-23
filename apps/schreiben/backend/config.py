@@ -1,4 +1,4 @@
-"""Einstellungen aus der Umgebung — ein Ort, nirgends sonst `os.environ`.
+"""Einstellungen aus der Umgebung - ein Ort, nirgends sonst `os.environ`.
 
 Die Feldnamen entsprechen den Variablen mit dem Präfix `WORTLAUT_`,
 `modell_ref` also `WORTLAUT_MODELL_REF`.
@@ -6,7 +6,7 @@ Die Feldnamen entsprechen den Variablen mit dem Präfix `WORTLAUT_`,
 Wer hier spricht, steht **nicht** mehr in der Konfiguration: Diese App führt
 denselben Sprecher wie „hören", und den bringt der Aufrufer als Zugang mit
 (siehe `deps.py`). Eine Instanz bedient damit so viele Sprecher, wie Zugänge
-vorgelegt werden — nötig geworden, weil jeder Sprecher sein eigenes,
+vorgelegt werden - nötig geworden, weil jeder Sprecher sein eigenes,
 feingetuntes Modell bekommt und weil seine Diktate als Korrekturen in seinen
 Korpus zurückfließen. Beides braucht die Kennung, und geraten werden darf sie
 nicht.
@@ -22,7 +22,7 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Ablage dieser App — bewusst neben und nicht im Korpus: „hören" ist dessen
+# Ablage dieser App - bewusst neben und nicht im Korpus: „hören" ist dessen
 # einziger Schreiber (Grundentscheidung 6). Was hier liegt, ist Arbeitsstand;
 # was bleiben soll, geht als Korrektur an „hören".
 #
@@ -33,7 +33,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Nach Sprecher gegliedert wie der Korpus: Jeder Mensch hat hier seine eigene
 # Datei, und `scripts/purge_speaker.py` löscht mit dem Verzeichnis alles, was
 # von ihm da war. Eine gemeinsame Datenbank mit einer Spalte „sprecher" wäre
-# ein Filter, den man vergessen kann — ein Verzeichnis nicht.
+# ein Filter, den man vergessen kann - ein Verzeichnis nicht.
 DIKTATE = "diktate"
 DATENBANKNAME = "schreiben.sqlite"
 
@@ -58,7 +58,7 @@ class Einstellungen(BaseSettings):
     # ist der Normalfall: Dann bekommt jeder Sprecher den Stand, den „lernen"
     # für ihn freigegeben hat (`registry.aktiver_stand`), und solange es keinen
     # gibt, das unveränderte `asr_modell`. Gesetzt gilt der eine Stand für
-    # jeden, der hier ruft — gedacht zum Erproben eines Standes, nicht für den
+    # jeden, der hier ruft - gedacht zum Erproben eines Standes, nicht für den
     # Betrieb.
     modell_ref: str = ""
     asr_modell: str = "tiny"

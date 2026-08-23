@@ -1,8 +1,8 @@
-# Alles, was man im Alltag braucht — mehr nicht.
+# Alles, was man im Alltag braucht - mehr nicht.
 #
 #   make test                    Testlauf (Bibliothek und Apps)
 #   make migrate                 Datenbanken anlegen bzw. fortschreiben
-#                                (im Container: python scripts/migrate.py —
+#                                (im Container: python scripts/migrate.py -
 #                                 dort gibt es weder make noch uv)
 #   make dev APP=hoeren          Backend und Vite parallel starten
 #   make dev APP=schreiben       dasselbe für „schreiben" (Backend :8001, Vite :5174)
@@ -37,7 +37,7 @@ install: $(NODE_MODULES)
 
 # Ohne node_modules sucht „npm run dev" das Kommando vite über $$PATH und
 # findet auf Debian/Ubuntu womöglich den gleichnamigen Trace-Viewer statt
-# des Dev-Servers (siehe docs/betrieb.md). Darum hier erzwungen — „npm ci"
+# des Dev-Servers (siehe docs/betrieb.md). Darum hier erzwungen - „npm ci"
 # statt „npm install", weil package-lock.json bewusst im Git liegt.
 $(NODE_MODULES): $(FRONTEND)/package-lock.json
 	cd $(FRONTEND) && npm ci

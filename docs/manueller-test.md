@@ -4,7 +4,7 @@ Schritt-für-Schritt-Anleitung für einen Menschen im Browser. Abschnitte 1–6
 prüfen die App „hören" vom leeren Sprecherprofil bis zur ersten Aufnahme,
 Abschnitt 6b die Aufsicht (einsehen, sichern, löschen), Abschnitt 7 die App
 „schreiben" vom Diktat bis zur Korrektur im Korpus.
-Ergänzt `make test` (automatisiert, ohne Browser, ohne Mikrofon) — ersetzt es
+Ergänzt `make test` (automatisiert, ohne Browser, ohne Mikrofon) - ersetzt es
 nicht.
 
 Dauer: etwa 10 Minuten für „hören", 5 für die Aufsicht (6b), 10 weitere für
@@ -12,12 +12,12 @@ Dauer: etwa 10 Minuten für „hören", 5 für die Aufsicht (6b), 10 weitere fü
 
 ## Voraussetzungen
 
-- Server läuft: `make dev APP=hoeren` (Backend `:8000`, Vite `:5173`) —
+- Server läuft: `make dev APP=hoeren` (Backend `:8000`, Vite `:5173`) -
   siehe [`docs/betrieb.md`](betrieb.md#entwicklung)
 - Browser mit Mikrofonzugriff, aufgerufen über **`http://localhost:5173`**
-  (nicht `:8000` — das Backend liefert dort nur `/api/…` und `/gesundheit`,
+  (nicht `:8000` - das Backend liefert dort nur `/api/…` und `/gesundheit`,
   ein `404` auf `/` davor ist normal, kein Fehler)
-- `WORTLAUT_AUTH_TOKEN` in `.env` setzen — leer heißt abgeschaltet, dann
+- `WORTLAUT_AUTH_TOKEN` in `.env` setzen - leer heißt abgeschaltet, dann
   führt Schritt 1.2 zu nichts
 - Für Abschnitt 6b zusätzlich `WORTLAUT_ADMIN_TOKEN` setzen; auch dort heißt
   leer **abgeschaltet**, nicht offen
@@ -27,21 +27,21 @@ Dauer: etwa 10 Minuten für „hören", 5 für die Aufsicht (6b), 10 weitere fü
 Dieser Schritt ist die Verwaltung, nicht der Alltag: Er wird einmal je Person
 gemacht, und was dabei herauskommt, ist ein Link.
 
-1. Seite öffnen. Erwartet: Kopfzeile mit einer Reihe — „wortlaut“, dahinter
+1. Seite öffnen. Erwartet: Kopfzeile mit einer Reihe - „wortlaut“, dahinter
    die drei Apps, „hören“ dunkelgrün hinterlegt, „schreiben“ anklickbar und
    „lernen“ blass und tot (die gibt es noch nicht). Die zweite Reihe mit den
    Ansichten fehlt noch. Darunter Überschrift „Sprecher“ und der Hinweis, dass
    dieser Browser keinen gültigen Zugang hat, mit dem Knopf **Zu den
    Zugangsdaten**. Dort den Verwaltertoken eintragen, **Speichern und prüfen**,
    dann mit **Weiter zu den Sprechern** zurück. Erwartet jetzt: „Noch kein
-   Sprecherprofil vorhanden.“ — der Leerzustand, keine kaputte Seite. Derselbe
-   Punkt steht auch im Menü (☰) rechts oben, und zwar immer — auch ohne
+   Sprecherprofil vorhanden.“ - der Leerzustand, keine kaputte Seite. Derselbe
+   Punkt steht auch im Menü (☰) rechts oben, und zwar immer - auch ohne
    gültigen Zugang, denn genau dann braucht man ihn.
 2. Unter „Neues Profil“: Namen eintragen, Basismodell auf
    `whisper-small (Entwicklung ohne GPU)` oder, für noch weniger Rechenlast,
    `whisper-tiny (noch weniger Rechenlast)` stellen, **Anlegen und Zugang
    ausgeben**. Für den Testablauf hier ohne Belang: `hören` selbst ruft
-   Whisper nirgends auf — das Feld ist reine Metadaten für das spätere
+   Whisper nirgends auf - das Feld ist reine Metadaten für das spätere
    Training in `lernen`.
 3. Erwartet: Oben erscheint der Kasten „Zugang ausgegeben“ mit einem Link der
    Form `http://localhost:5173/#/zugang/spr_….…`, darunter das Profil in der
@@ -49,21 +49,21 @@ gemacht, und was dabei herauskommt, ist ein Link.
 ## 1b. Den Zugang benutzen
 
 1. Den kopierten Link in die Adresszeile einfügen und öffnen. Erwartet: Die
-   Adresse springt sofort zurück auf `.../#/` — das Geheimnis steht nicht mehr
+   Adresse springt sofort zurück auf `.../#/` - das Geheimnis steht nicht mehr
    dort. Die App zeigt die Ansicht „Textquelle“, in der Kopfzeile steht eine
    zweite Reihe (Textquelle, Aufnehmen, Fortschritt) mit „Textquelle“ hell
    hinterlegt, und vor dem Menüknopf steht der eingetragene Name. Weder
-   „Sprecher“ noch „Einstellungen“ stehen in der Reiterreihe — die
+   „Sprecher“ noch „Einstellungen“ stehen in der Reiterreihe - die
    Einstellungen hängen hinter dem Menüknopf (☰) rechts oben, einen Punkt
    „Sprecher“ gibt es hier nicht mehr: Wer man ist, steht im Zugang. Der Punkt
    „Zugangsdaten“ steht auch hier im Menü; er zeigt dann nicht sofort ein
-   Eingabefeld, sondern zuerst, wessen Zugang in diesem Browser liegt —
+   Eingabefeld, sondern zuerst, wessen Zugang in diesem Browser liegt -
    darunter **Zugang wechseln** für Verwaltung und Aufsicht (Abschnitt 6).
-2. Seite neu laden. Erwartet: Es bleibt alles, wie es war — der Zugang liegt
+2. Seite neu laden. Erwartet: Es bleibt alles, wie es war - der Zugang liegt
    in diesem Browser. Genau das ist der Alltag: einmal einrichten, danach nie
    wieder etwas eintragen.
 3. Probe auf den Fehlgriff: `#/fortschritt` öffnen und in der Adresszeile
-   `?sprecher=spr_irgendwas` anhängen — das geht nur über die Entwicklerkonsole
+   `?sprecher=spr_irgendwas` anhängen - das geht nur über die Entwicklerkonsole
    oder `curl`, denn die App hängt nichts mehr an. Mit `curl`:
 
    ```bash
@@ -90,26 +90,26 @@ und ein Schlüssel hinterlegt ist):
 1. Thema eintragen (z. B. „Einkaufen im Wochenmarkt“), Altersspanne und
    Umfang auf den Vorgaben belassen, **Text erzeugen**.
 2. Erwartet: nach kurzer Wartezeit erscheint die Quelle wie bei (a). Ohne
-   gesetzten Anbieter erscheint stattdessen eine Fehlermeldung — das ist
+   gesetzten Anbieter erscheint stattdessen eine Fehlermeldung - das ist
    der erwartete Zustand „Keine Textquelle konfiguriert“, kein Bug.
 
 ## 3. Aufnehmen
 
 1. **Zur Aufnahme.** Erwartet: eine Sprecheinheit groß in der Mitte, Zeile
    „0 von N Einheiten“, Fortschrittsbalken bei 0 %, darunter der Schalter
-   „Zufällige Reihenfolge“ — aus, und die Einheiten kommen wie im Text.
+   „Zufällige Reihenfolge“ - aus, und die Einheiten kommen wie im Text.
 1a. **Zufällige Reihenfolge einschalten.** Erwartet: die gezeigte Einheit
    wechselt, „N“ bleibt gleich (dieselbe Menge, andere Reihenfolge). Seite
-   neu laden: **dieselbe** Einheit steht wieder da — die Streuung hängt an
+   neu laden: **dieselbe** Einheit steht wieder da - die Streuung hängt an
    der Sitzung, nicht am Aufruf, sonst risse ein Neuladen einem den Satz weg.
    Wieder ausschalten: die erste Einheit des Textes ist zurück.
-2. Browser fragt beim ersten Mal nach Mikrofonzugriff — **erlauben**.
+2. Browser fragt beim ersten Mal nach Mikrofonzugriff - **erlauben**.
    (`MediaRecorder` verlangt `localhost` oder HTTPS; unter `:5173` ist das
    erfüllt.)
 3. Aufnehmen, stoppen. Erwartet: Ansicht wechselt zu „Wird geprüft …“, dann
    zur Wiedergabe der eigenen Aufnahme mit Dauer und Pegel in dBFS.
 4. Falls Auffälligkeiten (Stille, Clipping, Dauer weit ab der Schätzung):
-   Hinweistext unter „Aufgefallen ist:“ prüfen — er darf erscheinen, ohne
+   Hinweistext unter „Aufgefallen ist:“ prüfen - er darf erscheinen, ohne
    dass die Aufnahme verworfen wird.
 5. **Verwerfen und noch einmal** testen: dieselbe Einheit muss danach wieder
    offen sein (Zähler „N von …“ bleibt gleich, nicht +1).
@@ -135,25 +135,25 @@ und ein Schlüssel hinterlegt ist):
 3. Einen Abmeldeknopf gibt es hier bewusst nicht: Wer aufnimmt, hat nichts
    abzumelden, und der Knopf wäre für die Zielgruppe nur ein Weg, den eigenen
    Zugang loszuwerden. Soll das Gerät die Person wechseln, wird einfach der
-   Link der anderen geöffnet — er ersetzt den vorhandenen Zugang.
+   Link der anderen geöffnet - er ersetzt den vorhandenen Zugang.
 
 ## 5. Mikrofon
 
 Die Einstellungen über den Menüknopf (☰) rechts oben öffnen; der Abschnitt
 „Mikrofon“ steht ganz oben. Derselbe Knopf steht in „schreiben“ an derselben
-Stelle und führt zu genau derselben Ansicht — beide Apps zeigen sie aus dem
+Stelle und führt zu genau derselben Ansicht - beide Apps zeigen sie aus dem
 gemeinsamen Rahmen (`packages/ui/Rahmen.svelte`).
 
 1. **▶ Mikrofon testen** drücken. Beim ersten Mal fragt der Browser nach
-   Zugriff — **erlauben**. Erwartet: ein Pegelbalken erscheint und bewegt
+   Zugriff - **erlauben**. Erwartet: ein Pegelbalken erscheint und bewegt
    sich beim Sprechen; darunter steht der Wert in dBFS und eine Einordnung
    („guter Pegel“ / „zu leise“ / „zu laut“). Die Grenzen sind dieselben, die
-   der Server nach dem Absenden prüft — was hier „gut“ ist, gibt später
+   der Server nach dem Absenden prüft - was hier „gut“ ist, gibt später
    keinen Hinweis.
 2. Nicht sprechen. Erwartet: die Anzeige fällt auf „still“ zurück.
 3. **Verstärkung** verschieben, dabei weitersprechen. Erwartet: der Balken
    folgt sofort, ohne dass der Test neu startet.
-4. **Automatisch einmessen** drücken und fünf Sekunden lang normal sprechen —
+4. **Automatisch einmessen** drücken und fünf Sekunden lang normal sprechen -
    im selben Abstand wie später bei der Aufnahme. Erwartet: der Zähler läuft
    von 5 herunter, danach steht „Verstärkung auf N,N× gesetzt“ und der Regler
    ist entsprechend gesprungen. Wer während der fünf Sekunden schweigt,
@@ -164,25 +164,25 @@ gemeinsamen Rahmen (`packages/ui/Rahmen.svelte`).
 6. Sind mehrere Mikrofone da: bei laufendem Test ein anderes **Mikrofon**
    wählen. Erwartet: der Test startet von selbst neu und der Balken reagiert
    auf das andere Gerät. Vor dem ersten Test heißen die Geräte nur
-   „Mikrofon 1“, „Mikrofon 2“ — die echten Namen gibt der Browser erst nach
+   „Mikrofon 1“, „Mikrofon 2“ - die echten Namen gibt der Browser erst nach
    erteilter Erlaubnis heraus.
 7. **Pegel automatisch nachregeln** aus- und wieder einschalten. Erwartet:
    der Test startet jedes Mal neu (die Regelung sitzt in der Aufnahme des
    Browsers und lässt sich nur beim Öffnen setzen).
 8. **■ Test beenden**. Erwartet: die Aufnahmeanzeige des Browsers im Tab
-   erlischt. Sie darf nicht stehen bleiben — sonst hört die App weiter mit.
+   erlischt. Sie darf nicht stehen bleiben - sonst hört die App weiter mit.
 9. Zur **Aufnahme** wechseln und eine Einheit aufnehmen. Erwartet: der Wert
    „… dBFS“ unter der Wiedergabe liegt in derselben Gegend wie im Test.
 10. Ein gewähltes Mikrofon abziehen (USB-Headset) und aufnehmen. Erwartet:
     die Aufnahme läuft mit der Vorgabe des Browsers und darüber steht „Das
-    gewählte Mikrofon ist nicht da“ — keine verweigerte Aufnahme.
+    gewählte Mikrofon ist nicht da“ - keine verweigerte Aufnahme.
 
 ## 6. Vorlesen und Anzeige
 
 1. Weiter unten in denselben **Einstellungen**.
 2. **Probe hören** drücken. Erwartet: der Probesatz wird vorgelesen. (Meldet
    der Browser keine deutsche Stimme, steht statt der Auswahl ein Hinweis und
-   der Knopf ist ausgegraut — siehe `docs/betrieb.md`.)
+   der Knopf ist ausgegraut - siehe `docs/betrieb.md`.)
 3. **Sprechtempo** verschieben, erneut **Probe hören**. Erwartet: die Anzeige
    neben dem Regler ändert sich (z. B. „0,7×“) und die Probe wird hörbar
    langsamer beziehungsweise schneller.
@@ -202,13 +202,13 @@ gemeinsamen Rahmen (`packages/ui/Rahmen.svelte`).
 ## 6b. Aufsicht: einsehen, sichern, löschen
 
 Setzt einen Sprecher mit mindestens einer Aufnahme voraus (Abschnitt 3) und
-`WORTLAUT_ADMIN_TOKEN` in der `.env` — ohne den Wert ist die Aufsicht
+`WORTLAUT_ADMIN_TOKEN` in der `.env` - ohne den Wert ist die Aufsicht
 abgeschaltet, und das ist Absicht. Nach dem Setzen das Backend neu starten.
 
 1. Menüknopf (☰) → **Zugangsdaten**. Steht dort der Zugang eines Sprechers
-   (nach Abschnitt 1b ist das so), erst **Zugang wechseln** drücken — ein
+   (nach Abschnitt 1b ist das so), erst **Zugang wechseln** drücken - ein
    Browser trägt genau einen Zugang. Dann den Aufsichtstoken in dasselbe Feld
-   eintragen wie den Verwaltertoken, **Speichern und prüfen**. Erwartet: „Angenommen — dieser Browser
+   eintragen wie den Verwaltertoken, **Speichern und prüfen**. Erwartet: „Angenommen - dieser Browser
    ist jetzt die Aufsicht.“ In der Kopfzeile steht dauerhaft „Aufsicht“ statt
    eines Sprechernamens.
 
@@ -219,13 +219,13 @@ abgeschaltet, und das ist Absicht. Nach dem Setzen das Backend neu starten.
    je Sprecher aber zusätzlich eine Zeile mit Aufnahmen, Minuten und
    Textquellen, und ein Knopf **Ansehen**.
 3. **Ansehen** beim bespielten Sprecher. Erwartet: Kennzahlen als Zahlenreihe,
-   darunter Textquellen, Sitzungen und die Aufnahmen — jede mit ihrem Text.
+   darunter Textquellen, Sitzungen und die Aufnahmen - jede mit ihrem Text.
    Bei einer Aufnahme **▶ Hören**: der Abspieler klappt auf und spielt genau
    das, was aufgenommen wurde.
 4. **Umbenennen**, einen neuen Namen eingeben. Erwartet: Der Name ändert sich,
    die Kennung `spr_…` bleibt. Wer parallel in einem zweiten Browser mit dem
    Sprecherzugang angemeldet ist, sieht nach dem Neuladen den neuen Namen in
-   der Kopfzeile — der Zugang gilt unverändert weiter.
+   der Kopfzeile - der Zugang gilt unverändert weiter.
 5. **Sicherung (.tgz)**. Erwartet: eine Datei
    `wortlaut-spr_…-<zeitmarke>.tgz` im Download-Ordner. Hineinsehen:
 
@@ -234,15 +234,15 @@ abgeschaltet, und das ist Absicht. Nach dem Setzen das Backend neu starten.
    ```
 
    Erwartet: `sicherung.json`, `daten/korpus/spr_…/hoeren.sqlite` und je
-   Aufnahme eine `.wav`. **Keine** `-wal`- oder `-shm`-Datei — ihr Inhalt
+   Aufnahme eine `.wav`. **Keine** `-wal`- oder `-shm`-Datei - ihr Inhalt
    steckt schon in der gesicherten Datenbank.
 6. **Datensatz (.zip)**. Erwartet: darin `metadaten.csv`, `metadaten.jsonl`,
    `LIESMICH.txt` und ein `audio/`-Verzeichnis, in dem neben jeder `.wav` eine
    gleichnamige `.txt` mit dem gesprochenen Satz liegt. Eine `.sqlite` ist
-   nicht darin — der Datensatz ist keine Sicherung.
+   nicht darin - der Datensatz ist keine Sicherung.
 7. Zurück zu „Sprecher“, **Gesamtsicherung herunterladen**. Erwartet: eine
    Datei mit den Korpora *aller* angelegten Sprecher.
-8. Die Probe aufs Ganze — zurückspielen in ein leeres Verzeichnis, ohne den
+8. Die Probe aufs Ganze - zurückspielen in ein leeres Verzeichnis, ohne den
    Bestand anzufassen:
 
    ```bash
@@ -258,11 +258,11 @@ abgeschaltet, und das ist Absicht. Nach dem Setzen das Backend neu starten.
 9. Eine einzelne Aufnahme löschen: in der Einsicht bei einer Aufnahme
    **Löschen**, bestätigen. Erwartet: Sie verschwindet aus der Liste, die
    Zahl oben sinkt. Mit dem Sprecherzugang unter „Aufnehmen“ nachsehen:
-   Die Einheit wird wieder angeboten — anders als beim Verwerfen bleibt keine
+   Die Einheit wird wieder angeboten - anders als beim Verwerfen bleibt keine
    Spur stehen.
 10. Ganz unten der rot umrandete Kasten. **Diesen Sprecher vollständig
     löschen**: erst bestätigen, dann den Namen abschreiben. Absichtlich
-    falsch abschreiben. Erwartet: „Der Name stimmt nicht — es wurde nichts
+    falsch abschreiben. Erwartet: „Der Name stimmt nicht - es wurde nichts
     gelöscht.“ Danach richtig: Der Sprecher verschwindet aus der Liste, und
     `data/korpus/<sprecher_id>/` ist weg.
 11. Zum Schluss die Grenze: In der Oberfläche gibt es keinen Knopf, der mehr
@@ -279,7 +279,7 @@ abgeschaltet, und das ist Absicht. Nach dem Setzen das Backend neu starten.
 ## 7. App „schreiben“
 
 Eigener Server, eigene Ports: `make dev APP=schreiben` (Backend `:8001`, Vite
-`:5174`). „hören“ darf daneben weiterlaufen — für Schritt 7.6 muss es das
+`:5174`). „hören“ darf daneben weiterlaufen - für Schritt 7.6 muss es das
 sogar. Vorher in der `.env` genügt eine Zeile:
 
 ```
@@ -288,25 +288,25 @@ WORTLAUT_INTAKE_URL=http://localhost:8000/api/korpus/intake
 
 Kein Sprecher und kein Token mehr in der Konfiguration: Diese App führt
 denselben Sprecher wie „hören“ und leitet ihn aus dem Zugang ab, den der
-Browser vorlegt. Gesendet wird später mit genau diesem Zugang — die
+Browser vorlegt. Gesendet wird später mit genau diesem Zugang - die
 Korrekturen können damit gar nicht mehr im falschen Korpus landen.
 
-Aufgerufen wird **`http://localhost:5174/schreiben/`** — mit Pfad; ohne ihn
+Aufgerufen wird **`http://localhost:5174/schreiben/`** - mit Pfad; ohne ihn
 bleibt die Seite leer, das ist kein Fehler.
 
 1. Seite in einem **frischen** Browserprofil öffnen (oder vorher im
    Entwicklerwerkzeug `localStorage.removeItem('wortlaut.zugang')`). Erwartet:
-   „Kein Zugang“ mit dem Knopf **Zu den Zugangsdaten** — kein Aufnahmeknopf,
+   „Kein Zugang“ mit dem Knopf **Zu den Zugangsdaten** - kein Aufnahmeknopf,
    der ohnehin abgewiesen würde. In der Kopfzeile steht kursiv „kein Zugang“.
 2. Den persönlichen Link aus Schritt 1.3 hier öffnen, also
    `http://localhost:5174/schreiben/#/zugang/spr_….…`. Erwartet: Die Adresse
    springt sofort zurück auf `.../#/`, und in der Kopfzeile steht der Name.
    Derselbe Link öffnet beide Apps; wer ihn vorher in „hören“ geöffnet hat,
-   findet hier schon seinen Namen — beide lesen denselben Eintrag im
+   findet hier schon seinen Namen - beide lesen denselben Eintrag im
    `localStorage` derselben Domain.
 3. Erwartet: dieselbe Kopfzeile, jetzt mit „schreiben“ hinterlegt, keine
    zweite Reihe. Darunter mittig „Sprechen Sie einfach los.“, ein großer Knopf
-   und darunter blass der Modellstand — solange „lernen“ für diesen Sprecher
+   und darunter blass der Modellstand - solange „lernen“ für diesen Sprecher
    nichts freigegeben hat, steht dort „whisper-tiny · unverändert“.
 4. **● Aufnehmen**, zwei bis drei kurze Sätze sprechen, **■ Fertig**.
    Erwartet: „Wird verstanden …“. Beim allerersten Mal dauert das länger, weil
@@ -340,7 +340,7 @@ bleibt die Seite leer, das ist kein Fehler.
 11. Die Trennung zweier Menschen prüfen: In „hören“ ein zweites Profil anlegen
    und dessen Link in einem **privaten** Fenster öffnen, dort auf
    `/schreiben/` wechseln und einen Satz diktieren. Erwartet: ein leeres
-   Blatt, nicht der Text des ersten — und unter `data/diktate/` liegen zwei
+   Blatt, nicht der Text des ersten - und unter `data/diktate/` liegen zwei
    Verzeichnisse mit je einer eigenen `schreiben.sqlite`. Zurück im ersten
    Fenster steht der erste Text unverändert.
 
@@ -350,15 +350,15 @@ Testdaten liegen unter `data/korpus/<sprecher_id>/` und
 `data/diktate/<sprecher_id>/` (Pfad aus `WORTLAUT_DATA_DIR`). Löschen genügt
 ein Entfernen der Verzeichnisse, oder
 `uv run python scripts/purge_speaker.py <sprecher_id>` für den vollständigen
-Weg über das Löschskript — es räumt beide zugleich weg.
+Weg über das Löschskript - es räumt beide zugleich weg.
 
 ## Bekannte, keine Fehler
 
 | Beobachtung | Ursache |
 |---|---|
-| `GET / → 404` und `GET /favicon.ico → 404` in der Backend-Konsole | normal in der Entwicklung — das Backend liefert `/` nur aus, wenn unter `frontend/dist` ein gebautes Frontend liegt; in der Entwicklung läuft die Oberfläche über Vite auf `:5173` |
+| `GET / → 404` und `GET /favicon.ico → 404` in der Backend-Konsole | normal in der Entwicklung - das Backend liefert `/` nur aus, wenn unter `frontend/dist` ein gebautes Frontend liegt; in der Entwicklung läuft die Oberfläche über Vite auf `:5173` |
 | Startseite zeigt nur „Sprecher“ und ein leeres Formular | Leerzustand vor dem ersten Profil, keine kaputte Seite |
-| „schreiben“ versteht mit `tiny` erkennbar Falsches | erwartet — genau dafür gibt es die App „lernen“ |
+| „schreiben“ versteht mit `tiny` erkennbar Falsches | erwartet - genau dafür gibt es die App „lernen“ |
 | `http://localhost:5174` ohne `/schreiben/` bleibt leer | die App liegt unter einem Pfad (`base` in ihrer `vite.config.ts`, `BASIS` in ihrer `main.py`) |
 | Der Reiter „schreiben" bleibt in „hören" stehen | „schreiben" läuft nicht (`make dev APP=schreiben`); im Betrieb: der Proxy verteilt `/schreiben/` nicht |
 

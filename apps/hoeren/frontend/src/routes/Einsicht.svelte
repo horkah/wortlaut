@@ -4,7 +4,7 @@
    * und was sich damit tun lässt.
    *
    * Immer nur einer. Eine Ansicht, die alle Aufnahmen aller Personen
-   * nebeneinanderlegt, lädt dazu ein, quer darüber zu löschen — und das ist
+   * nebeneinanderlegt, lädt dazu ein, quer darüber zu löschen - und das ist
    * genau der Griff, den es hier nicht geben soll. Wer zwei Korpora ansehen
    * will, öffnet sie nacheinander.
    */
@@ -28,7 +28,7 @@
   } from '../lib/api';
   import { gehZu, sprecherAusRoute, zustand } from '../lib/zustand.svelte';
 
-  // Wie viele Zeilen eine Seite hat — für Sitzungen und Aufnahmen gleich, denn
+  // Wie viele Zeilen eine Seite hat - für Sitzungen und Aufnahmen gleich, denn
   // beides sind Listen derselben Art (siehe `Pager.svelte`).
   const PRO_SEITE = 10;
 
@@ -94,7 +94,7 @@
     }
   }
 
-  /** Ein Knopf, der arbeitet: sperren, tun, entsperren — und Fehler zeigen. */
+  /** Ein Knopf, der arbeitet: sperren, tun, entsperren - und Fehler zeigen. */
   async function tue(name: string, arbeit: () => Promise<void>, danach = 'Fertig.') {
     fehler = '';
     meldung = '';
@@ -134,7 +134,7 @@
   }
 
   /**
-   * PIN setzen oder ändern — ohne die alte zu kennen. Die Aufsicht ist der
+   * PIN setzen oder ändern - ohne die alte zu kennen. Die Aufsicht ist der
    * Rückweg, wenn jemand seine PIN vergessen oder aus Versehen eine falsche
    * eingetippt hat (siehe `services/pin.py`).
    */
@@ -177,7 +177,7 @@
     if (
       !confirm(
         `Alle ${aufnahmenGesamt} Aufnahmen von „${name}“ endgültig löschen?\n\n` +
-          'Profil, Textquellen und Warteschlange bleiben stehen — gesprochen ist danach nichts ' +
+          'Profil, Textquellen und Warteschlange bleiben stehen - gesprochen ist danach nichts ' +
           'mehr. Das lässt sich nicht rückgängig machen.',
       )
     )
@@ -198,7 +198,7 @@
       !confirm(
         `„${name}“ vollständig löschen?\n\n` +
           'Profil, Aufnahmen, Textquellen, Diktate, Modellstände und Schnappschüsse. ' +
-          'Das lässt sich nicht rückgängig machen — vorher eine Sicherung ziehen.',
+          'Das lässt sich nicht rückgängig machen - vorher eine Sicherung ziehen.',
       )
     )
       return;
@@ -213,14 +213,14 @@
    * Die zweite Frage, und die verlangt Tippen.
    *
    * Ein zweites „Wirklich?" klickt man weg, ohne es gelesen zu haben. Den
-   * Namen abzuschreiben zwingt dazu, hinzusehen, wen es trifft — und genau
+   * Namen abzuschreiben zwingt dazu, hinzusehen, wen es trifft - und genau
    * diese Verwechslung ist der Fehler, den es hier zu verhindern gilt.
    */
   function bestaetigeMitNamen(name: string): boolean {
     const getippt = prompt(`Zur Bestätigung den Namen abschreiben: ${name}`);
     if (getippt === null) return false;
     if (getippt.trim() !== name) {
-      fehler = 'Der Name stimmt nicht — es wurde nichts gelöscht.';
+      fehler = 'Der Name stimmt nicht - es wurde nichts gelöscht.';
       return false;
     }
     return true;
@@ -258,7 +258,7 @@
     {#if person.zugang_erneuert}
       · Zugang vom {tag(person.zugang_erneuert)}
     {:else}
-      · kein Zugang — für niemanden erreichbar
+      · kein Zugang - für niemanden erreichbar
     {/if}
     · PIN {person.pin_gesetzt ? 'gesetzt' : 'nicht gesetzt'}
   </p>
@@ -299,7 +299,7 @@
     <p class="gedaempft">
       Die <strong>Sicherung</strong> enthält Datenbank und Aufnahmen, wie sie auf dem Server
       liegen; sie lässt sich mit <code>scripts/restore.py</code> vollständig zurückspielen. Der
-      <strong>Datensatz</strong> enthält zu jeder Aufnahme die WAV-Datei und ihren Text — für
+      <strong>Datensatz</strong> enthält zu jeder Aufnahme die WAV-Datei und ihren Text - für
       Training und für Werkzeuge, die von wortlaut nichts wissen. Zum Sichern taugt er nicht.
     </p>
   </div>
@@ -307,7 +307,7 @@
   <h2>PIN vor „Meine Daten"</h2>
   <div class="karte">
     <p class="gedaempft">
-      Sichert die Ansicht, in der diese Person ihre eigenen Daten sieht — gegen den Klick aus
+      Sichert die Ansicht, in der diese Person ihre eigenen Daten sieht - gegen den Klick aus
       Versehen, nicht als zweites Passwort. Setzen oder ändern verlangt die alte PIN nicht: Das
       ist der Rückweg, wenn sie vergessen wurde.
     </p>
@@ -315,7 +315,7 @@
     <form class="reihe" onsubmit={pinAendern}>
       <!-- `pattern` als Ausdruck, nicht als Text: In einer Vorlage ist `{4}`
            eine Einsetzung, `pattern="[0-9]{4}"` käme als `[0-9]4` beim Browser
-           an — und der wiese dann jede richtige PIN ab, ohne dass `onsubmit`
+           an - und der wiese dann jede richtige PIN ab, ohne dass `onsubmit`
            je liefe. -->
       <input
         bind:value={neuePin}
@@ -400,7 +400,7 @@
   <div class="karte gefahr">
     <p class="gedaempft">
       Beides ist endgültig und trifft <strong>nur diesen einen Sprecher</strong>. Vorher eine
-      Sicherung ziehen — mit ihr lässt sich der Stand zurückholen, ohne sie nicht.
+      Sicherung ziehen - mit ihr lässt sich der Stand zurückholen, ohne sie nicht.
     </p>
     <div class="reihe">
       <button
@@ -423,7 +423,7 @@
   }
 
   /* Die Kennzahlen als Reihe kleiner Blöcke: Sie werden überflogen, nicht
-     gelesen — die Zahl groß, ihre Bedeutung klein darunter. */
+     gelesen - die Zahl groß, ihre Bedeutung klein darunter. */
   .zahlen {
     display: flex;
     flex-wrap: wrap;

@@ -4,7 +4,7 @@
    *
    * Ohne Zugang gäbe es hier nur abgewiesene Anfragen: kein Modell, keine
    * Sitzung, kein Diktat (siehe `backend/deps.py`). Ein Aufnahmeknopf, der
-   * jedes Mal in einen Fehler läuft, wäre die schlechtere Antwort — also
+   * jedes Mal in einen Fehler läuft, wäre die schlechtere Antwort - also
    * steht hier der eine Schritt, der weiterführt.
    *
    * Der persönliche Link ist der übliche Weg und braucht niemanden, der tippt.
@@ -23,7 +23,7 @@
     läuft auf seinem Modell und geht in seinen Korpus zurück.
   </p>
   <p>
-    Der persönliche Link, einmal geöffnet, genügt — derselbe wie bei „hören". Danach ist hier
+    Der persönliche Link, einmal geöffnet, genügt - derselbe wie bei „hören". Danach ist hier
     nichts mehr einzutragen.
   </p>
   <button class="knopf haupt" onclick={() => gehZu(ZUGANGSDATEN_PFAD)}>Zu den Zugangsdaten</button>

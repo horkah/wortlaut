@@ -43,7 +43,7 @@ def zerlege(
     """Aufnahme des Browsers → Abschnitte mit je eigener WAV-Datei.
 
     Wirft `AudioFehler`, wenn die Umwandlung scheitert; eine Aufnahme ohne
-    verstandenes Wort ergibt eine leere Liste — das ist kein Fehler, sondern
+    verstandenes Wort ergibt eine leere Liste - das ist kein Fehler, sondern
     eine Antwort, mit der die Oberfläche umgehen kann.
     """
     with tempfile.TemporaryDirectory() as verzeichnis:
@@ -58,7 +58,7 @@ def zerlege(
             ausschnitt = Path(verzeichnis) / f"{nummer}.wav"
             klang.schneide_ausschnitt(wav, ausschnitt, abschnitt.start_s, abschnitt.ende_s)
             relpfad = audio_relpfad(sprecher_id, kennung)
-            # `lege_ab` verschiebt — die Ausschnitte sind temporäre Dateien.
+            # `lege_ab` verschiebt - die Ausschnitte sind temporäre Dateien.
             ablage.lege_ab(relpfad, ausschnitt)
             abschnitte.append(
                 Rohabschnitt(
@@ -82,7 +82,7 @@ def sprich_neu_ein(
     """Eine einzelne, kurze Aufnahme für genau einen Abschnitt.
 
     Hier wird nicht geschnitten: Was der Mensch für einen Abschnitt gesprochen
-    hat, *ist* der Abschnitt — auch wenn Whisper darin mehrere Segmente sieht.
+    hat, *ist* der Abschnitt - auch wenn Whisper darin mehrere Segmente sieht.
     Deren Texte werden deshalb wieder zusammengefügt.
     """
     with tempfile.TemporaryDirectory() as verzeichnis:

@@ -1,4 +1,4 @@
-"""Die nächste Sprecheinheit ausliefern — samt Sitzungsverwaltung.
+"""Die nächste Sprecheinheit ausliefern - samt Sitzungsverwaltung.
 
 Eine Sitzung ist nicht mehr als ein Zeitstempelpaar: Sie hält fest, dass
 aufgenommen wird, aber nicht wo. Die Position ergibt sich aus den vorhandenen
@@ -64,7 +64,7 @@ def naechste_einheit(
     # Die Sitzung ist der Startwert des Mischens: Sie überdauert ein Neuladen,
     # aber nicht den Tag, und hält die gestreute Reihenfolge damit genau so
     # lange fest, wie am Stück aufgenommen wird. Ohne Sitzung tut es der
-    # Sprecher — irgendetwas Festes muss es sein.
+    # Sprecher - irgendetwas Festes muss es sein.
     ausschnitt = prompt_queue.naechste(
         db, sprecher, zufall=zufall, streuung=session or sprecher
     )

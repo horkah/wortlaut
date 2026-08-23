@@ -2,9 +2,9 @@
 
 Zwei Dinge stehen hier im Mittelpunkt, und beide sind Grenzen:
 
-* `TestGrenze` — die Aufsicht ist ohne gesetzten Token zu, und kein anderer
+* `TestGrenze` - die Aufsicht ist ohne gesetzten Token zu, und kein anderer
   Zugang kommt an ihre Wege heran.
-* `TestNiemalsAlle` — es gibt keinen Weg, der mehr als einen Sprecher löscht,
+* `TestNiemalsAlle` - es gibt keinen Weg, der mehr als einen Sprecher löscht,
   und der eine, der einen löscht, verlangt dessen Kennung als Bestätigung.
 
 Der Rest prüft, dass die ausgeleiteten Archive das enthalten, was daraufsteht:
@@ -51,7 +51,7 @@ class TestGrenze:
         assert klient_ohne_token.get("/api/admin/speakers").status_code == 401
 
     def test_verwalter_ist_keine_aufsicht(self, verwalter: TestClient) -> None:
-        # Der Verwaltertoken legt Profile an — er sieht deshalb noch lange
+        # Der Verwaltertoken legt Profile an - er sieht deshalb noch lange
         # nicht in fremde Korpora und löscht erst recht nichts.
         assert verwalter.get("/api/admin/speakers").status_code == 401
 
@@ -80,7 +80,7 @@ class TestGrenze:
     def test_gleiche_tokens_sind_ein_startfehler(
         self, _umgebung: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        # Wären beide gleich, würde jeder Verwalter unbemerkt zur Aufsicht —
+        # Wären beide gleich, würde jeder Verwalter unbemerkt zur Aufsicht -
         # der Server prüft sie zuerst. Nichts schlüge fehl, es ginge bloß
         # plötzlich mehr. Also beim Start abbrechen.
         monkeypatch.setenv("WORTLAUT_ADMIN_TOKEN", TOKEN)
@@ -129,7 +129,7 @@ class TestEinsicht:
 
     def test_aufnahmen_tragen_ihren_text(self, aufsicht: TestClient, bespielt: str) -> None:
         # Eine Aufnahme ohne den Text, zu dem sie gehört, ist für die Aufsicht
-        # nur eine Kennung — sie soll sehen, was gesprochen wurde.
+        # nur eine Kennung - sie soll sehen, was gesprochen wurde.
         seite = aufsicht.get(f"/api/admin/speakers/{bespielt}/recordings").json()
         assert seite["gesamt"] == 2
         assert all(eintrag["text"] for eintrag in seite["aufnahmen"])
@@ -260,7 +260,7 @@ class TestDatensatz:
             namen = archiv.namelist()
             wavs = [name for name in namen if name.endswith(".wav")]
             assert len(wavs) == 2
-            # Neben jeder Aufnahme ihr Text als eigene Datei — damit ein
+            # Neben jeder Aufnahme ihr Text als eigene Datei - damit ein
             # Werkzeug, das nur ein Verzeichnis sieht, ohne Tabelle auskommt.
             for wav in wavs:
                 txt = wav.removesuffix(".wav") + ".txt"
@@ -282,7 +282,7 @@ class TestDatensatz:
             }
 
     def test_zip_enthaelt_keine_datenbank(self, aufsicht: TestClient, bespielt: str) -> None:
-        # Der Datensatz ist ausdrücklich keine Sicherung — wer sichern will,
+        # Der Datensatz ist ausdrücklich keine Sicherung - wer sichern will,
         # soll nicht die falsche Datei wegtragen.
         with zipfile.ZipFile(
             io.BytesIO(aufsicht.get(f"/api/admin/speakers/{bespielt}/datensatz").content)
@@ -321,7 +321,7 @@ class TestLoeschen:
         assert antwort.status_code == 200
         assert antwort.json() == {"geloescht": 2}
 
-        # Das Profil und die Warteschlange stehen noch — das ist „neu
+        # Das Profil und die Warteschlange stehen noch - das ist „neu
         # anfangen", nicht „Person löschen".
         assert not list((tmp_path / "data" / corpus.sprecher_relpfad(bespielt) / "audio").iterdir())
         assert klient.get("/api/progress").json()["aufnahmen"] == 0
@@ -338,7 +338,7 @@ class TestLoeschen:
         self, aufsicht: TestClient, klient: TestClient, bespielt: str, tmp_path: Path
     ) -> None:
         # Eine offene Engine auf die gelöschte Datei legte sie beim nächsten
-        # Zugriff wieder an — ein leeres Verzeichnis, das wie ein Sprecher aussieht.
+        # Zugriff wieder an - ein leeres Verzeichnis, das wie ein Sprecher aussieht.
         aufsicht.delete(f"/api/admin/speakers/{bespielt}?bestaetigung={bespielt}")
         assert klient.get("/api/progress").status_code == 401
         assert not corpus.datenbank_pfad(tmp_path / "data", bespielt).exists()

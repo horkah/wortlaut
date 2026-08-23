@@ -1,4 +1,4 @@
--- Schema der App „schreiben". Eine Datenbank für die ganze Instanz — anders
+-- Schema der App „schreiben". Eine Datenbank für die ganze Instanz - anders
 -- als bei „hören" gibt es hier nur einen Sprecher (Grundentscheidung 7).
 --
 -- Zeitangaben sind ISO-8601-Text in UTC. Was hier steht, ist Arbeitsstand:
@@ -14,7 +14,7 @@ CREATE TABLE sessions (
 
 -- Ein Abschnitt ist, was Whisper als Segment geliefert hat: die Einheit zum
 -- Vorlesen und zugleich die Einheit der Korrektur. `blob` wird NULL, sobald
--- die Aufnahme im Korpus von „hören" angekommen ist — zweimal braucht sie
+-- die Aufnahme im Korpus von „hören" angekommen ist - zweimal braucht sie
 -- niemand, und weniger Gesundheitsdaten sind besser als mehr.
 CREATE TABLE segments (
     id          TEXT PRIMARY KEY,

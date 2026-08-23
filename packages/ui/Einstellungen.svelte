@@ -1,9 +1,9 @@
 <script lang="ts">
   /**
-   * Die Einstellungen aller Apps — eine Ansicht, nicht drei.
+   * Die Einstellungen aller Apps - eine Ansicht, nicht drei.
    *
    * Die Werte selbst und warum sie geteilt sind: `einstellungen.svelte.ts`.
-   * Hier steht nur die Bedienung dazu, mit Probe — ob ein Tempo passt und ob
+   * Hier steht nur die Bedienung dazu, mit Probe - ob ein Tempo passt und ob
    * ein Mikrofon taugt, hört man und liest man nicht ab.
    *
    * Farben, Schriftart und Schriftgrößen stehen nicht hier, sondern in
@@ -84,7 +84,7 @@
 {/if}
 
 <label>
-  <span>Sprechtempo — {einstellungen.tempo.toFixed(1)}×</span>
+  <span>Sprechtempo - {einstellungen.tempo.toFixed(1)}×</span>
   <input
     type="range"
     class="schieber"
@@ -110,7 +110,7 @@
 <button class="knopf" onclick={setzeZurueck}>Auf Vorgaben zurücksetzen</button>
 
 <style>
-  /* Die globale Regel für `input` gibt Rahmen und Polster — beides steht
+  /* Die globale Regel für `input` gibt Rahmen und Polster - beides steht
      einem Schieberegler schlecht. */
   .schieber {
     border: 0;

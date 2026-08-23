@@ -1,10 +1,10 @@
 <script lang="ts">
   /**
-   * Ein Sprecher sieht seine eigenen Daten an — dieselbe Ansicht, die die
+   * Ein Sprecher sieht seine eigenen Daten an - dieselbe Ansicht, die die
    * Aufsicht für ihn hätte (`Einsicht.svelte`), nur auf die eigene Kennung
    * beschränkt. Genau **eine** Karte von dort fehlt hier: die beiden
    * Löschstufen „alle Aufnahmen" und „diesen Sprecher vollständig". Alles Übrige darf
-   * jeder über seine eigenen Daten — ansehen, anhören, eine einzelne Aufnahme
+   * jeder über seine eigenen Daten - ansehen, anhören, eine einzelne Aufnahme
    * verwerfen (dasselbe Verwerfen wie beim Aufnehmen, `Aufnahme.svelte`),
    * sich umbenennen und beides mitnehmen, Sicherung wie Datensatz.
    */
@@ -31,7 +31,7 @@
 
   // Ob und womit diese Seite offen ist. `noetig` heißt: eine PIN ist gesetzt
   // und noch nicht eingegeben. Die PIN selbst liegt nur hier im Speicher,
-  // nie in `localStorage` — dort steht schon der Zugang, und ein zweites
+  // nie in `localStorage` - dort steht schon der Zugang, und ein zweites
   // dauerhaft gemerktes Geheimnis nähme der PIN genau den Sinn, den sie haben
   // soll (siehe `services/pin.py`).
   let stand = $state<'unbekannt' | 'noetig' | 'offen'>('unbekannt');
@@ -106,7 +106,7 @@
 
     try {
       // Ein Testabruf: Er wirft, wenn die PIN nicht stimmt, und sagt damit
-      // beides in einem — ob sie stimmt und, wenn ja, gleich die Daten.
+      // beides in einem - ob sie stimmt und, wenn ja, gleich die Daten.
       daten = await meinKonto(pinEingabe);
       meinePin = pinEingabe;
       pinEingabe = '';
@@ -129,7 +129,7 @@
 
     // Wer zum ersten Mal eine PIN einrichtet, bekommt die Seite gleich wieder
     // zugesperrt und muss sie einmal eingeben. Nicht als Schikane: Eine PIN,
-    // die man setzt und nie tippt, merkt man sich nicht — und wer sich hier
+    // die man setzt und nie tippt, merkt man sich nicht - und wer sich hier
     // vertippt hat, erfährt es in derselben Minute, statt beim nächsten
     // Besuch vor einer Seite zu stehen, die ihn nicht mehr hereinlässt.
     const ersteinrichtung = !meinePin;
@@ -196,7 +196,7 @@
     }
   }
 
-  /** Ein Knopf, der arbeitet: sperren, tun, entsperren — und Fehler zeigen. */
+  /** Ein Knopf, der arbeitet: sperren, tun, entsperren - und Fehler zeigen. */
   async function tue(name: string, arbeit: () => Promise<void>, danach = 'Fertig.') {
     fehler = '';
     meldung = '';
@@ -271,7 +271,7 @@
     <form class="reihe" onsubmit={entsperren}>
       <!-- `pattern` als Ausdruck, nicht als Text: In einer Vorlage ist `{4}`
            eine Einsetzung, `pattern="[0-9]{4}"` käme als `[0-9]4` beim Browser
-           an — und der wiese dann jede richtige PIN ab, ohne dass `onsubmit`
+           an - und der wiese dann jede richtige PIN ab, ohne dass `onsubmit`
            je liefe. -->
       <input
         bind:value={pinEingabe}
@@ -335,7 +335,7 @@
     <p class="gedaempft">
       Die <strong>Sicherung</strong> enthält Datenbank und Aufnahmen, wie sie auf dem Server
       liegen; sie lässt sich mit <code>scripts/restore.py</code> vollständig zurückspielen. Der
-      <strong>Datensatz</strong> enthält zu jeder Aufnahme die WAV-Datei und ihren Text — für
+      <strong>Datensatz</strong> enthält zu jeder Aufnahme die WAV-Datei und ihren Text - für
       Training und für Werkzeuge, die von wortlaut nichts wissen. Zum Sichern taugt er nicht.
     </p>
   </div>
@@ -398,7 +398,7 @@
   <h2>PIN</h2>
   <div class="karte">
     <p class="gedaempft">
-      Eine PIN sichert diese Seite zusätzlich zum Zugang — gedacht gegen den Klick aus Versehen,
+      Eine PIN sichert diese Seite zusätzlich zum Zugang - gedacht gegen den Klick aus Versehen,
       nicht als zweites Passwort.
     </p>
     <p class="gedaempft">Geben Sie eine vierstellige PIN ein (4 Ziffern).</p>
@@ -428,7 +428,7 @@
 
 <style>
   /* Die Kennzahlen als Reihe kleiner Blöcke: Sie werden überflogen, nicht
-     gelesen — die Zahl groß, ihre Bedeutung klein darunter. */
+     gelesen - die Zahl groß, ihre Bedeutung klein darunter. */
   .zahlen {
     display: flex;
     flex-wrap: wrap;

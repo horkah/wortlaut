@@ -3,7 +3,7 @@
 Drei Endpunkte, zwei Wächter:
 
 * `GET /api/zugang` beantwortet die Frage, für wen dieser Browser gerade
-  eingestellt ist — Sprecher, Verwaltung oder Aufsicht. Er hat keinen eigenen
+  eingestellt ist - Sprecher, Verwaltung oder Aufsicht. Er hat keinen eigenen
   Wächter, denn er ist die Antwort darauf: Die Kennung kommt aus dem
   Vorgelegten.
 * `POST` und `DELETE` unter einem Sprecher gehören der Verwaltung. Sie geben
@@ -11,7 +11,7 @@ Drei Endpunkte, zwei Wächter:
 
 Der Zugang wird genau einmal im Klartext zurückgegeben, beim Ausgeben.
 Gespeichert ist nur sein Prüfwert; ein zweites Mal ist er nicht zu haben. Wer
-ihn verliert, lässt einen neuen ausgeben — und der alte gilt damit nicht mehr.
+ihn verliert, lässt einen neuen ausgeben - und der alte gilt damit nicht mehr.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ router = APIRouter(tags=["Zugang"])
 
 
 class WerAntwort(BaseModel):
-    """Wer ruft — die Grundlage dafür, dass die Oberfläche es anzeigen kann."""
+    """Wer ruft - die Grundlage dafür, dass die Oberfläche es anzeigen kann."""
 
     art: str  # sprecher | verwaltung | aufsicht
     sprecher_id: str | None = None
@@ -38,7 +38,7 @@ class WerAntwort(BaseModel):
 
 class ZugangAntwort(BaseModel):
     sprecher_id: str
-    # Der Zugang im Klartext — nur hier, nur dieses eine Mal.
+    # Der Zugang im Klartext - nur hier, nur dieses eine Mal.
     zugang: str
     erneuert: str
 
@@ -77,7 +77,7 @@ def zieh_zurueck(sprecher_id: str) -> None:
     """Den Zugang zurückziehen, ohne Ersatz. Danach kommt niemand mehr herein.
 
     Für einen verlorenen Zugang genügt das Ausgeben eines neuen; das hier ist
-    der Fall, in dem gar niemand mehr hineinsoll — bis ein neuer ausgegeben
+    der Fall, in dem gar niemand mehr hineinsoll - bis ein neuer ausgegeben
     wird.
     """
     with Session(engine_fuer(sprecher_id)) as sitzung:

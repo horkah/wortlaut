@@ -10,7 +10,7 @@ diese App gebaut ist.
    Segmentgrenzen; genau an diesen Grenzen wird die Aufnahme zerschnitten, und
    jeder Abschnitt bekommt seine eigene WAV-Datei.
 2. **Vorlesen.** Die Ergebnisansicht liest von selbst los und markiert dabei,
-   wo sie gerade ist. Gehört wird der Fehler, nicht gelesen — die Zielperson
+   wo sie gerade ist. Gehört wird der Fehler, nicht gelesen - die Zielperson
    kann den Text nicht sicher lesen.
 3. **Bessern.** Ein Klick auf einen Abschnitt spricht genau diesen neu ein. Das
    neue Audio ersetzt den alten Ausschnitt, alle anderen bleiben stehen.
@@ -20,7 +20,7 @@ diese App gebaut ist.
 
 Kein Nutzerkonto (Grundentscheidung 7): Eine Instanz ist auf ein Sprecher-
 profil und einen Modellstand konfiguriert. Deshalb gibt es hier auch keine
-Einstellungsansicht — Mikrofon, Stimme und Sprechtempo werden in `hören`
+Einstellungsansicht - Mikrofon, Stimme und Sprechtempo werden in `hören`
 eingestellt und gelten mit, weil beide Apps unter derselben Adresse liegen und
 sich damit den `localStorage` teilen.
 
@@ -48,7 +48,7 @@ frontend/src/
 
 Geteilt mit `hören` und über `$ui` eingebunden: `Kopfleiste`, `Recorder`,
 `AudioPlayer`, `SegmentList`, `mikrofon.ts`, `speak.ts`,
-`einstellungen.svelte.ts` und `app.css` — alles in `packages/ui/`.
+`einstellungen.svelte.ts` und `app.css` - alles in `packages/ui/`.
 
 ## Endpunkte
 
@@ -65,7 +65,7 @@ POST   /schreiben/api/outbox/senden           noch einmal versuchen
 GET    /gesundheit                            auf der Wurzel, für die Überwachung
 ```
 
-Alles hängt unter `/schreiben` — dem Ort dieser App unter der gemeinsamen
+Alles hängt unter `/schreiben` - dem Ort dieser App unter der gemeinsamen
 Domain (`BASIS` in `backend/main.py`). So genügt vor den Containern eine
 Regel, die den Weg unverändert durchreicht; ein Proxy, der das Präfix
 abschneidet, wird nicht gebraucht.
@@ -73,7 +73,7 @@ abschneidet, wird nicht gebraucht.
 **Der Sprecher kommt aus dem Zugang.** Jede Anfrage trägt denselben Zugang,
 den „hören" für diese Person ausgegeben hat (`<sprecher_id>.<geheimnis>`);
 der Server leitet die Kennung daraus ab und öffnet die Diktatdatenbank dieses
-Sprechers — je Mensch eine Datei unter `data/diktate/<sprecher_id>/`. Ein
+Sprechers - je Mensch eine Datei unter `data/diktate/<sprecher_id>/`. Ein
 Anmeldefeld ist das nicht: Beide Apps liegen unter einer Domain und lesen
 denselben Eintrag im `localStorage`, der persönliche Link ist also einmal zu
 öffnen, gleich wo. Siehe Grundentscheidung 7 und `docs/datenschutz.md`.
@@ -88,7 +88,7 @@ denselben Eintrag im `localStorage`, der persönliche Link ist also einmal zu
 | `WORTLAUT_INTAKE_URL` | wohin die Korrekturen gehen; gesendet wird mit dem Zugang des Bestätigenden |
 
 **Ohne `lernen` fängt man mit `tiny` an.** Ist `WORTLAUT_MODELL_REF` leer, lädt
-faster-whisper das unveränderte `whisper-tiny` — schnell, anspruchslos und für
+faster-whisper das unveränderte `whisper-tiny` - schnell, anspruchslos und für
 die Zielgruppe absichtlich noch nicht gut. Genau daran wird später sichtbar,
 was das eigene Modell bringt. Die Kopfzeile schreibt deshalb dauerhaft hin,
 welcher Stand gerade arbeitet.
@@ -107,7 +107,7 @@ wäre unvollständig.
 
 Bewusst **neben** und nicht **im** Korpus: `hören` ist dessen einziger
 Schreiber (Grundentscheidung 6). Was hier liegt, ist Arbeitsstand. Sobald ein
-Abschnitt im Korpus angekommen ist, wird seine Audiodatei hier gelöscht —
+Abschnitt im Korpus angekommen ist, wird seine Audiodatei hier gelöscht -
 zweimal braucht sie niemand, und es sind Gesundheitsdaten.
 
 ## Entwicklung

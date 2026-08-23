@@ -1,4 +1,4 @@
-"""Das Korpus-Layout — ein Verzeichnis, kein Dienst.
+"""Das Korpus-Layout - ein Verzeichnis, kein Dienst.
 
     data/korpus/<sprecher_id>/
     ├── audio/<aufnahme_id>.wav     16 kHz mono, PCM 16 bit
@@ -30,7 +30,7 @@ def datenbank_pfad(datenverzeichnis: Path, sprecher_id: str) -> Path:
 
 
 def sprecher_ids(datenverzeichnis: Path) -> list[str]:
-    """Alle Sprecher, für die ein Korpus existiert — sortiert, also nach Alter."""
+    """Alle Sprecher, für die ein Korpus existiert - sortiert, also nach Alter."""
     wurzel = datenverzeichnis / KORPUS
     if not wurzel.is_dir():
         return []

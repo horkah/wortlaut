@@ -34,7 +34,7 @@ class TestDiktieren:
     def test_legt_je_abschnitt_eine_wav_datei_an(
         self, diktat: dict, audioverzeichnis: Path
     ) -> None:
-        # Jeder Abschnitt geht später einzeln als Korrekturpaar an „hören" —
+        # Jeder Abschnitt geht später einzeln als Korrekturpaar an „hören" -
         # ohne eigene Datei ginge das nicht.
         dateien = audiodateien(audioverzeichnis)
         assert len(dateien) == 3
@@ -110,7 +110,7 @@ class TestNeuEinsprechen:
     def test_fasst_mehrere_segmente_zu_einem_abschnitt_zusammen(
         self, klient: TestClient, diktat: dict, aufnahme: dict, whisper: Testtranskriptor
     ) -> None:
-        # Was der Mensch für einen Abschnitt gesprochen hat, ist der Abschnitt —
+        # Was der Mensch für einen Abschnitt gesprochen hat, ist der Abschnitt -
         # auch wenn Whisper darin zwei Segmente sieht.
         kennung = diktat["abschnitte"][0]["id"]
         whisper.abschnitte = [

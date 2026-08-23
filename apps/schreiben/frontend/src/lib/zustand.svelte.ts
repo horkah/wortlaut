@@ -14,7 +14,7 @@
  * dieselbe neben dem Aufnahmeknopf. Wessen Stand es ist, entscheidet der
  * Zugang: Jeder Sprecher läuft auf seinem eigenen Modell.
  *
- * Wer hier ruft, steht ebenfalls hier — abgeleitet vom Server aus dem
+ * Wer hier ruft, steht ebenfalls hier - abgeleitet vom Server aus dem
  * vorgelegten Zugang, nicht gemerkt. Ohne gültigen Zugang gibt es nichts zu
  * diktieren, und die Oberfläche sagt das, statt an einer Wand aus 401ern zu
  * scheitern.
@@ -51,7 +51,7 @@ export function gehZu(route: string): void {
  * Beim Server nachfragen, für wen dieser Browser eingestellt ist.
  *
  * Derselbe Weg wie in „hören", und mit demselben Zugang: Ein persönlicher
- * Link, einmal geöffnet — gleich in welcher der beiden Apps —, meldet in
+ * Link, einmal geöffnet - gleich in welcher der beiden Apps -, meldet in
  * beiden an (siehe `$ui/zugang`).
  */
 export async function ladeZugang(): Promise<void> {
@@ -70,7 +70,7 @@ export async function ladeZugang(): Promise<void> {
   }
 }
 
-/** Ohne Auskunft bleibt der Modellstand leer — dann zeigen Kopfzeile und
+/** Ohne Auskunft bleibt der Modellstand leer - dann zeigen Kopfzeile und
  *  Aufnahmeansicht schlicht nichts an, statt einen Fehler vorzutäuschen. */
 export async function ladeModellstand(): Promise<void> {
   try {
@@ -90,7 +90,7 @@ export function setzeSitzung(sitzung: Sitzung | null): void {
 /**
  * Nach einem Neuladen die begonnene Sitzung zurückholen.
  *
- * Ist sie fort oder schon bestätigt, wird nichts wiederhergestellt — dann
+ * Ist sie fort oder schon bestätigt, wird nichts wiederhergestellt - dann
  * fängt die App mit einem leeren Blatt an, was hier das Richtige ist.
  */
 export async function stelleSitzungWiederHer(): Promise<void> {

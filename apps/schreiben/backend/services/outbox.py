@@ -2,7 +2,7 @@
 
 Bestätigt die Person ihren Text, wird jeder Abschnitt zu einem Korrekturpaar
 (Audio + Text) und geht an `POST /api/korpus/intake` von „hören". Dass diese
-App und „hören" beide erreichbar sind, ist nicht garantiert — deshalb liegt
+App und „hören" beide erreichbar sind, ist nicht garantiert - deshalb liegt
 zwischen beiden eine Tabelle und kein direkter Aufruf.
 
 Zwei Zusagen halten das einfach:
@@ -30,7 +30,7 @@ from ..db.models import Abschnitt, Postausgang, jetzt
 
 @dataclass(frozen=True)
 class Bericht:
-    """Ergebnis eines Sendelaufs — Zahlen für die Oberfläche, kein Protokoll."""
+    """Ergebnis eines Sendelaufs - Zahlen für die Oberfläche, kein Protokoll."""
 
     gesendet: int
     offen: int
@@ -40,7 +40,7 @@ class Bericht:
 def stelle_ein(db: Session, abschnitte: list[Abschnitt]) -> int:
     """Legt für jeden Abschnitt einen offenen Eintrag an. Gibt die Zahl zurück.
 
-    Ein zweiter Aufruf für dieselben Abschnitte legt nichts nach — bestätigen
+    Ein zweiter Aufruf für dieselben Abschnitte legt nichts nach - bestätigen
     darf man auch zweimal.
     """
     vorhanden = set(
@@ -81,7 +81,7 @@ def sende_offene(
     `sprecher_id` und `token` sind der Zugang dessen, der gerade bestätigt oder
     einen zweiten Versuch angestoßen hat. Sie werden durchgereicht und nicht
     gespeichert: Ein Geheimnis, das in dieser Datenbank läge, wäre eines mehr,
-    das dort verloren gehen kann — und ein Sendelauf ohne Menschen davor gibt
+    das dort verloren gehen kann - und ein Sendelauf ohne Menschen davor gibt
     es nicht.
     """
     offene = list(
@@ -100,7 +100,7 @@ def sende_offene(
         eintrag.zuletzt = jetzt()
         try:
             if abschnitt is None or abschnitt.blob is None:
-                # Kann nur eintreten, wenn die Audiodatei fehlt — dann ist die
+                # Kann nur eintreten, wenn die Audiodatei fehlt - dann ist die
                 # Korrektur wertlos, aber der Eintrag darf nicht ewig hängen.
                 raise FileNotFoundError("Aufnahme des Abschnitts ist nicht mehr vorhanden.")
             liefere_ein(
@@ -111,7 +111,7 @@ def sende_offene(
                 sprecher_id=sprecher_id,
                 token=token,
             )
-        except Exception as fehler:  # Netz, Server, fehlende Datei — alles gleich
+        except Exception as fehler:  # Netz, Server, fehlende Datei - alles gleich
             eintrag.letzter_fehler = f"{type(fehler).__name__}: {fehler}"[:500]
             letzter_fehler = eintrag.letzter_fehler
             continue
@@ -139,14 +139,14 @@ def liefere_ein(
 ) -> None:
     """Eine Korrektur an „hören" übergeben. Wirft, wenn es nicht geklappt hat.
 
-    Eigene Funktion, damit der Weg nach draußen an genau einer Stelle steht —
+    Eigene Funktion, damit der Weg nach draußen an genau einer Stelle steht -
     und damit ein Test ihn ersetzen kann, ohne einen Server zu starten.
 
     Der Token ist der Zugang des Sprechers, der diesen Text bestätigt hat; er
     bestimmt bei „hören", in welchen Korpus geschrieben wird. `sprecher` geht
     trotzdem mit: nicht als Wahl, sondern als Behauptung, die „hören" gegen den
     Zugang hält. Beide stammen hier aus derselben Anfrage und können deshalb
-    gar nicht mehr auseinanderfallen — die 403 von drüben bleibt als Netz für
+    gar nicht mehr auseinanderfallen - die 403 von drüben bleibt als Netz für
     den Fall, dass doch einmal jemand daran vorbeibaut.
     """
     import httpx

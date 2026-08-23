@@ -1,11 +1,11 @@
 /**
  * Der einzige Ort, an dem diese App mit ihrem Backend spricht.
  *
- * Jede Anfrage trägt den Zugang des Sprechers — denselben, den „hören" für ihn
+ * Jede Anfrage trägt den Zugang des Sprechers - denselben, den „hören" für ihn
  * ausgegeben hat und der in demselben Browser liegt (siehe `$ui/zugang`). Den
  * Sprecher nennt trotzdem keine Anfrage: Der Server leitet ihn aus dem Zugang
  * ab (`backend/deps.py`). So kann diese App gar nicht erst in ein fremdes
- * Verzeichnis schreiben, und der Mensch muss dafür nichts tun — sein Link war
+ * Verzeichnis schreiben, und der Mensch muss dafür nichts tun - sein Link war
  * einmal zu öffnen, hier oder drüben.
  */
 
@@ -50,7 +50,7 @@ export type PostausgangStand = { offen: number; gesendet: number; letzter_fehler
 
 /**
  * Alle Wege dieser App liegen unter ihrem Pfad, die API eingeschlossen.
- * `BASE_URL` ist das `base` aus der Vite-Konfiguration (`/schreiben/`) — so
+ * `BASE_URL` ist das `base` aus der Vite-Konfiguration (`/schreiben/`) - so
  * steht der Ort an einer Stelle und nicht zweimal.
  */
 const API = `${import.meta.env.BASE_URL}api`;
@@ -110,7 +110,7 @@ export const postausgangSenden = () =>
 
 // ── Kopfzeile ───────────────────────────────────────────────────────────────
 
-/** Für wen dieser Browser eingestellt ist — die Antwort kommt vom Server. */
+/** Für wen dieser Browser eingestellt ist - die Antwort kommt vom Server. */
 export const werRuft = () => anfrage<Wer>('/zugang');
 
 /** Der Modellstand **dieses** Sprechers; „lernen" gibt ihn je Person frei. */

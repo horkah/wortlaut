@@ -6,7 +6,7 @@
     Medienabfrage auf `:root` stehen. Ohne sie wäre das schwarze Zeichen in
     einer dunklen Tableiste kaum zu sehen.
 
-    Kopie unter apps/hoeren/frontend/public/favicon.svg — siehe README.md.
+    Kopie unter apps/hoeren/frontend/public/favicon.svg - siehe README.md.
   -->
   <style>
     :root { color: #1c1b19 }

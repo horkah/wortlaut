@@ -1,7 +1,7 @@
 # Ein Abbild für die ganze App: „hören" auf der Wurzel, „schreiben" unter
 # /schreiben, beide hinter einem uvicorn (siehe apps/gesamt.py).
 #
-# Die beiden Dockerfiles unter apps/ bleiben daneben bestehen — sie sind der
+# Die beiden Dockerfiles unter apps/ bleiben daneben bestehen - sie sind der
 # Weg, die Apps getrennt zu betreiben. Dieses hier ist der Weg für einen
 # einzelnen Wirt: ein Abbild, ein Port, eine Regel im Reverse Proxy.
 

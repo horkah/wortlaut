@@ -2,7 +2,7 @@
 
 Browser nehmen mit `MediaRecorder` in Opus auf, das Training braucht 16 kHz
 Mono-WAV. Die Umwandlung passiert genau hier, mit ffmpeg als einzigem externen
-Werkzeug. Die Messungen laufen ohne numpy, allein mit der Standardbibliothek —
+Werkzeug. Die Messungen laufen ohne numpy, allein mit der Standardbibliothek -
 bei Ausschnitten von wenigen Sekunden ist das schnell genug und spart eine
 schwere Abhängigkeit im Web-Prozess.
 """
@@ -18,7 +18,7 @@ from pathlib import Path
 
 ABTASTRATE = 16_000
 VOLLAUSSCHLAG = 32768.0  # Betrag eines 16-Bit-Abtastwerts bei Vollaussteuerung
-FENSTER = 320  # 20 ms bei 16 kHz — feinste sinnvolle Auflösung für Pegelverläufe
+FENSTER = 320  # 20 ms bei 16 kHz - feinste sinnvolle Auflösung für Pegelverläufe
 
 
 class AudioFehler(RuntimeError):
@@ -69,7 +69,7 @@ def untersuche(wav: Path) -> Befund:
     """Misst Dauer, Pegel, Clipping und Randstille einer WAV-Datei."""
     with wave.open(str(wav), "rb") as datei:
         if datei.getsampwidth() != 2 or datei.getnchannels() != 1:
-            raise AudioFehler("Erwartet wird mono mit 16 bit — bitte erst umwandeln.")
+            raise AudioFehler("Erwartet wird mono mit 16 bit - bitte erst umwandeln.")
         abtastrate = datei.getframerate()
         werte = array.array("h")
         werte.frombytes(datei.readframes(datei.getnframes()))
@@ -121,12 +121,12 @@ def schneide_ausschnitt(quelle: Path, ziel: Path, start_s: float, ende_s: float)
     """Schreibt den Bereich [start_s, ende_s) einer WAV-Datei in eine neue Datei.
 
     Gebraucht von „schreiben": Whisper liefert Abschnittsgrenzen, und jeder
-    Abschnitt braucht sein eigenes Audio — er kann einzeln neu eingesprochen
+    Abschnitt braucht sein eigenes Audio - er kann einzeln neu eingesprochen
     werden und geht einzeln als Korrekturpaar an „hören".
 
     Reine Standardbibliothek und ohne Umkodieren: ein Schnitt an
     Rahmengrenzen ist das Kopieren eines Byte-Bereichs. Grenzen außerhalb der
-    Datei werden auf sie zurechtgestutzt, statt zu scheitern — Whisper meldet
+    Datei werden auf sie zurechtgestutzt, statt zu scheitern - Whisper meldet
     gelegentlich ein Ende hinter dem letzten Abtastwert.
     """
     with wave.open(str(quelle), "rb") as datei:

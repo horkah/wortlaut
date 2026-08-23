@@ -4,7 +4,7 @@
 /* Die Vorgaben hier sind zugleich die Werte, auf die „Darstellung →
    Vorgaben" zurücksetzt (siehe `einstellungen.svelte.ts`, `FARBEN`). Wer eine
    Farbe dort ändert, überschreibt die zugehörige Variable per Inline-Stil auf
-   diesem Wurzelelement — deshalb stehen alle einstellbaren Werte als
+   diesem Wurzelelement - deshalb stehen alle einstellbaren Werte als
    Variable und nicht als literaler Wert in dieser Regel. */
 :root {
   --rand: #d8d4cd;

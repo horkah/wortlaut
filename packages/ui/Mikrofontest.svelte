@@ -3,7 +3,7 @@
    * Mikrofon wählen, Pegel sehen, sich selbst hören.
    *
    * Der Test benutzt dieselbe Kette wie die echte Aufnahme. Was hier gut
-   * klingt und gut aussieht, kommt später genauso auf dem Server an — sonst
+   * klingt und gut aussieht, kommt später genauso auf dem Server an - sonst
    * wäre der Test wertlos.
    *
    * Alles läuft nur, solange der Test offen ist: ein Mikrofon, das im
@@ -64,7 +64,7 @@
     try {
       liste = await mikrofone();
     } catch {
-      liste = []; // Ohne Liste bleibt die Vorgabe des Browsers — kein Grund zu klagen.
+      liste = []; // Ohne Liste bleibt die Vorgabe des Browsers - kein Grund zu klagen.
     }
   }
 
@@ -112,7 +112,7 @@
     einmessUhr = null;
     misstEin = 0;
     // Eine noch laufende Probeaufnahme erst beenden, dann das Mikrofon
-    // schließen — ein `MediaRecorder` auf einer toten Quelle bleibt sonst
+    // schließen - ein `MediaRecorder` auf einer toten Quelle bleibt sonst
     // offen und die Aufnahmeanzeige des Browsers steht weiter.
     const laufende = beendeAufnahme;
     beendeAufnahme = null;
@@ -146,7 +146,7 @@
   async function schalteAutoPegel(an: boolean) {
     onautoPegel(an);
     // Die Pegelregelung sitzt in der Aufnahme des Browsers, nicht in der
-    // Kette dahinter — sie lässt sich nur beim Öffnen setzen.
+    // Kette dahinter - sie lässt sich nur beim Öffnen setzen.
     if (kette) {
       halt();
       await starte();
@@ -177,7 +177,7 @@
     schiebe(faktor);
     einmessErgebnis =
       faktor >= VERSTAERKUNG_SPANNE.max
-        ? `Verstärkung auf das Maximum von ${faktor.toFixed(1)}× gesetzt — dieses Mikrofon ist ` +
+        ? `Verstärkung auf das Maximum von ${faktor.toFixed(1)}× gesetzt - dieses Mikrofon ist ` +
           'auch damit noch leise. Näher heran oder ein anderes Mikrofon hilft mehr.'
         : `Verstärkung auf ${faktor.toFixed(1)}× gesetzt.`;
   }
@@ -240,7 +240,7 @@
   {/if}
   {#if misstEin > 0}
     <p class="gedaempft">
-      Bitte jetzt so sprechen, wie später aufgenommen wird — gleicher Abstand, gleiche Lautstärke.
+      Bitte jetzt so sprechen, wie später aufgenommen wird - gleicher Abstand, gleiche Lautstärke.
     </p>
   {/if}
 {:else}
@@ -254,7 +254,7 @@
 {/if}
 
 <label>
-  <span>Verstärkung — {verstaerkung.toFixed(1)}×</span>
+  <span>Verstärkung - {verstaerkung.toFixed(1)}×</span>
   <input
     type="range"
     class="schieber"
@@ -267,7 +267,7 @@
 </label>
 <p class="gedaempft">
   Wird vor der Aufzeichnung angewandt und ist in der gespeicherten Aufnahme enthalten. Verstärkt
-  wird alles, auch das Rauschen des Raumes — so viel wie nötig, nicht so viel wie möglich.
+  wird alles, auch das Rauschen des Raumes - so viel wie nötig, nicht so viel wie möglich.
 </p>
 
 <label class="kasten">
@@ -280,7 +280,7 @@
 </label>
 <p class="gedaempft">
   Die Pegelregelung des Browsers gleicht aus, wenn mal lauter und mal leiser gesprochen wird. Sie
-  hebt einen durchweg zu leisen Eingang aber nicht an — dafür ist die Verstärkung da.
+  hebt einen durchweg zu leisen Eingang aber nicht an - dafür ist die Verstärkung da.
 </p>
 
 {#if einmessErgebnis}
@@ -291,7 +291,7 @@
 {/if}
 
 <style>
-  /* Die globale Regel für `input` gibt Rahmen und Polster — beides steht
+  /* Die globale Regel für `input` gibt Rahmen und Polster - beides steht
      einem Schieberegler und einem Kästchen schlecht. */
   .schieber {
     border: 0;

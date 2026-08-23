@@ -5,7 +5,7 @@
 
 # wortlaut
 
-Personalisierte Spracherkennung für Deutsch, wenn die Standardmodelle versagen —
+Personalisierte Spracherkennung für Deutsch, wenn die Standardmodelle versagen -
 bei Dialekt, starkem Akzent, Dysarthrie oder anderen Sprechstörungen.
 
 Aus dem Laut wird das Wort, und zwar der Wortlaut: was die Person gesagt hat, nicht
@@ -15,7 +15,7 @@ Drei Apps, die nacheinander greifen:
 
 | App | Aufgabe | Status |
 |---|---|---|
-| **hören** | Sprachproben sammeln — zu LLM-erzeugten oder hochgeladenen Texten | läuft, mit Tests |
+| **hören** | Sprachproben sammeln - zu LLM-erzeugten oder hochgeladenen Texten | läuft, mit Tests |
 | **lernen** | aus den Proben ein sprecherspezifisches Whisper-Modell feintunen | entworfen |
 | **schreiben** | mit diesem Modell diktieren, vorlesen lassen, Fehler neu einsprechen | läuft, mit Tests |
 
@@ -32,15 +32,15 @@ einer abweichenden Aussprache anstellt, ist der Grund für das ganze Projekt.
 
 **1. Whisper ist gesetzt.**
 Basis ist `openai/whisper-large-v3`, Laufzeit faster-whisper (CTranslate2), Training
-über HF Transformers. Nicht weil Whisper das genaueste Modell ist — das ist es seit
-2026 nicht mehr — sondern weil es das einzige ist, bei dem Trainingsrezept,
+über HF Transformers. Nicht weil Whisper das genaueste Modell ist - das ist es seit
+2026 nicht mehr - sondern weil es das einzige ist, bei dem Trainingsrezept,
 Laufzeit-Ökosystem und dokumentierte Ergebnisse für genau diesen Fall vollständig
 vorliegen. MIT-Lizenz, keine Attributionspflicht. Für die Entwicklung ohne GPU
 genügt `whisper-small`, für noch weniger Rechenlast `whisper-tiny`.
 
 **2. Aufnahme erfolgt äußerungsweise, nicht am Stück.**
 `hören` zeigt immer genau eine kurze Einheit und nimmt genau dazu auf. Jedes
-Audio-Text-Paar ist damit von Haus aus ausgerichtet — kein Forced Alignment, keine
+Audio-Text-Paar ist damit von Haus aus ausgerichtet - kein Forced Alignment, keine
 Segmentierungsheuristik, kein Timestamp-Drift. Das ist der größte
 Komplexitätsgewinn im ganzen Entwurf.
 
@@ -60,11 +60,11 @@ Der Server braucht keine GPU; er kann eine haben.
 Modell-Registry, `schreiben` liest sie. Keine geteilten Schreibrechte, keine
 verteilten Transaktionen.
 
-**7. `schreiben` verlangt keine Anmeldung — führt aber denselben Sprecher.**
+**7. `schreiben` verlangt keine Anmeldung - führt aber denselben Sprecher.**
 Die Zielperson kann schlecht lesen und schreiben; ein Anmeldefeld wäre eine
 unüberwindbare Hürde, und ein großer Knopf bleibt der ganze Zweck der App.
 Trotzdem ist eine Instanz nicht mehr auf **einen** Sprecher konfiguriert: Sie
-leitet ihn aus dem Zugang ab, den der Browser vorlegt — demselben, den `hören`
+leitet ihn aus dem Zugang ab, den der Browser vorlegt - demselben, den `hören`
 ausgibt. Beide Apps liegen unter einer Domain und teilen sich damit den
 `localStorage`, also genügt weiterhin ein persönlicher Link, einmal geöffnet,
 gleich in welcher der beiden Apps.
@@ -124,7 +124,7 @@ wortlaut/
 │   │   │                          # Fortschritt, Einsicht, Einstellungen
 │   │   └── tests/                 # Endpunkte, Warteschlange, Intake, Aufsicht
 │   │
-│   ├── lernen/                    # App „lernen" — entworfen, siehe README dort
+│   ├── lernen/                    # App „lernen" - entworfen, siehe README dort
 │   │
 │   └── schreiben/                 # App „schreiben"
 │       ├── Dockerfile
@@ -137,7 +137,7 @@ wortlaut/
 │       │   │   ├── segments.py    # diktieren, Abschnitt neu einsprechen
 │       │   │   ├── model.py       # welcher Modellstand für diesen Sprecher läuft
 │       │   │   ├── outbox.py      # Postausgang ansehen, noch einmal senden
-│       │   │   └── zugang.py      # wer ruft — für die Kopfzeile
+│       │   │   └── zugang.py      # wer ruft - für die Kopfzeile
 │       │   ├── services/
 │       │   │   ├── segmenter.py   # transkribieren, an Zeitmarken schneiden
 │       │   │   └── outbox.py      # Korrekturen zurück an „hören"
@@ -169,10 +169,10 @@ wortlaut/
 │   │   └── tests/                 # Chunker, Textformate, Audio, Ablage
 │   │
 │   └── ui/                        # geteilte Svelte-Komponenten und Einstellungen
-│       ├── Rahmen.svelte          # Kopf, Inhalt, Fuß — der Rahmen jeder App
+│       ├── Rahmen.svelte          # Kopf, Inhalt, Fuß - der Rahmen jeder App
 │       ├── Kopfleiste.svelte      # Marke, App-Reiter, Sprecher, Menüknopf
 │       ├── Fusszeile.svelte       # eine Zeile: welcher Stand hier läuft
-│       ├── Einstellungen.svelte   # Mikrofon, Stimme, Tempo — für alle Apps
+│       ├── Einstellungen.svelte   # Mikrofon, Stimme, Tempo - für alle Apps
 │       ├── Darstellung.svelte     # Farben, Schriftart, Schriftgrößen
 │       ├── Zugangsdaten.svelte    # der Zugang dieses Browsers, in jeder App
 │       ├── zugang.ts              # wo der Zugang liegt; ein Eintrag für alle
@@ -208,12 +208,12 @@ wortlaut/
 
 ---
 
-## App „hören" — der aktuelle Arbeitsstand
+## App „hören" - der aktuelle Arbeitsstand
 
 ### Ablauf
 
 1. **Sprecherprofil** anlegen: Name, Sprache, Basismodell. Sonst nichts. Dazu
-   einen Zugang ausgeben — daraus wird ein Link, und der ist alles, was die
+   einen Zugang ausgeben - daraus wird ein Link, und der ist alles, was die
    Person je braucht (siehe „Der Zugang ist die Kennung").
 2. **Textquelle wählen.** Entweder ein Thema oder Stichwort plus Altersspanne, aus
    dem ein LLM Text erzeugt; oder ein hochgeladener Text, aus dem zufällige Proben
@@ -225,18 +225,18 @@ wortlaut/
    Aufnehmen, anhören, verwerfen und wiederholen, weiter. Sitzung ist jederzeit
    unterbrechbar und wird an derselben Stelle fortgesetzt. Die Stelle wird
    nirgends gespeichert, sondern abgeleitet: offen ist jede Vorlage ohne gültige
-   Aufnahme. Verwerfen macht eine Vorlage damit von selbst wieder offen — und
+   Aufnahme. Verwerfen macht eine Vorlage damit von selbst wieder offen - und
    löscht die Audiodatei wirklich, statt sie nur zu markieren.
 5. **Prüfen.** Serverseitig: Pegel, Clipping, führende und schließende Stille, Dauer
    gegen die geschätzte Sprechdauer. Auffälligkeiten werden angezeigt, nicht
-   erzwungen — bei Sprechstörungen sind Ausreißer normal und dürfen nicht
+   erzwungen - bei Sprechstörungen sind Ausreißer normal und dürfen nicht
    wegautomatisiert werden.
 6. **Fortschritt.** Gesammelte Minuten gegen zwei Marken: ab etwa 1,5 Stunden wird
    ein Modell brauchbar, ab etwa 20 Stunden gut. Danach flacht der Gewinn ab.
 
 ### Vorsprechen statt Vorlesen
 
-Die Zielgruppe kann teilweise nicht flüssig lesen — das ist der Grund für das ganze
+Die Zielgruppe kann teilweise nicht flüssig lesen - das ist der Grund für das ganze
 Projekt und zugleich ein Problem beim Sammeln, denn Sammeln heißt Vorlagen ablesen.
 Deshalb hat die Aufnahmeansicht einen Modus, in dem die Einheit erst per Web Speech
 API vorgesprochen und dann nachgesprochen wird.
@@ -247,7 +247,7 @@ getrennt geführt, damit man den Effekt später messen und die Gewichtung anpass
 kann.
 
 Weil dieser Effekt am Sprechtempo der Vorgabe hängt, ist das Tempo einstellbar
-(Vorgabe 0,9× — langsamer ist leichter nachzusprechen, ermüdet aber über eine lange
+(Vorgabe 0,9× - langsamer ist leichter nachzusprechen, ermüdet aber über eine lange
 Sitzung). Ebenso die Stimme: welche zur Wahl stehen und wie natürlich sie klingen,
 entscheidet allein das Betriebssystem. Dieselbe Seite klingt auf macOS natürlich und
 unter Linux mit espeak-ng blechern; die App kann das nur zur Auswahl stellen, nicht
@@ -255,11 +255,11 @@ verbessern. Wege zu einer besseren Stimme stehen in `docs/betrieb.md`.
 
 ### Menüführung
 
-Die Kopfzeile hat zwei Reihen, weil es zwei Ebenen gibt. Oben die drei Apps —
-`hören`, `lernen`, `schreiben` —, die offene dunkelgrün hinterlegt; das noch
+Die Kopfzeile hat zwei Reihen, weil es zwei Ebenen gibt. Oben die drei Apps -
+`hören`, `lernen`, `schreiben` -, die offene dunkelgrün hinterlegt; das noch
 nicht gebaute `lernen` steht blass daneben und ist nicht anklickbar. Darunter
 die Ansichten der offenen App, die aktuelle hell hinterlegt. Beides steht in
-`packages/ui/Kopfleiste.svelte` — deshalb hat `schreiben` dieselbe Leiste
+`packages/ui/Kopfleiste.svelte` - deshalb hat `schreiben` dieselbe Leiste
 bekommen, ohne ein eigenes Menü zu erfinden. Am rechten Rand der oberen Reihe
 ist Platz für eine Randnotiz; `schreiben` schreibt seinen Modellstand hinein.
 
@@ -267,7 +267,7 @@ Marke, App-Reiter, Sprecherzeile und Menüknopf gibt es genau einmal, und keine
 App baut sie sich selbst zusammen: `packages/ui/Rahmen.svelte` klammert
 Kopfzeile, Inhalt und Fußzeile und beantwortet die gerätebezogenen Menüpunkte
 gleich mit. Eine App liefert nur ihre eigenen Ansichten und, was sie darüber
-hinaus ins Menü stellt — `hören` den Sprecher (oder, sobald einer spricht,
+hinaus ins Menü stellt - `hören` den Sprecher (oder, sobald einer spricht,
 **Meine Daten** statt seiner) und die Zugangsdaten, `schreiben` **Meine
 Daten** als Verweis auf dieselbe Seite bei `hören` und die Zugangsdaten. Was
 im Menü steht, ist damit eine Liste (`GERAETE_PUNKTE`
@@ -283,11 +283,11 @@ sie sagt ihm zunächst nur, wessen Zugang in diesem Browser liegt, statt ihm ein
 Feld hinzustellen, an dem er ihn kaputtmachen kann. Darunter steht **Zugang
 wechseln**: Ein Browser trägt genau einen Zugang, und ihn gegen den Verwalter-
 oder Aufsichtstoken zu tauschen, ist der einzige Weg in die Verwaltung und in
-die Aufsicht — auch von einem Gerät aus, auf dem gerade jemand aufnimmt. Der
+die Aufsicht - auch von einem Gerät aus, auf dem gerade jemand aufnimmt. Der
 persönliche Zugang kommt danach mit einem Klick auf den Link zurück. Die Ansicht selbst gibt es ebenfalls nur einmal
 (`packages/ui/Zugangsdaten.svelte`), denn es ist derselbe Zugang: Beide Apps
 lesen denselben Eintrag im `localStorage` (`packages/ui/zugang.ts`). Was die
-Apps unterscheidet, ist eine Eigenschaft — nur `hören` nimmt in dasselbe Feld
+Apps unterscheidet, ist eine Eigenschaft - nur `hören` nimmt in dasselbe Feld
 auch Verwalter- und Aufsichtstoken.
 
 Alle drei liegen unter einer Adresse (`wortlaut.example.org`), nicht unter drei
@@ -299,7 +299,7 @@ steht in `packages/ui/apps.ts`.
 Der Pfad gehört dabei der App, nicht dem Proxy: `schreiben` hängt seine
 Oberfläche *und* seine API selbst unter `/schreiben/` (`BASIS` in seiner
 `main.py`, `base` in seiner `vite.config.ts`). Der Proxy reicht den Weg
-unverändert weiter und muss nichts abschneiden — als er es einmal gar nicht
+unverändert weiter und muss nichts abschneiden - als er es einmal gar nicht
 verteilte, beantwortete `hören` den Klick auf den Reiter mit der eigenen Seite,
 und `schreiben` war nicht erreichbar.
 
@@ -307,38 +307,38 @@ Weil die Pfade so an den Apps hängen, ist der Betrieb frei in der Aufteilung.
 Auf einem einzelnen Wirt läuft alles in **einem** Container: `apps/gesamt.py`
 verteilt im Prozess, was sonst der Proxy verteilte, und draußen genügt eine
 Regel auf einen Port. Wer die Apps trennen will, nimmt die Dockerfiles unter
-`apps/` und gibt dem Proxy zwei Regeln — am Code ändert das nichts.
+`apps/` und gibt dem Proxy zwei Regeln - am Code ändert das nichts.
 
 Wer mit dem Verwaltertoken hier ist, sieht keine zweite Reihe: Es gibt für ihn
 nur die eine Seite, auf der Profile angelegt und Zugänge ausgegeben werden.
-Jede Aufnahmeansicht bräuchte einen Sprecher, und den hat er nicht — er hat
+Jede Aufnahmeansicht bräuchte einen Sprecher, und den hat er nicht - er hat
 einen Verwaltertoken. In der Kopfzeile steht dann „Verwaltung" statt eines
 Namens, damit die fehlende Reiterreihe nicht wie ein Fehler aussieht.
 
 ### Einstellungen
 
 Unter `#/einstellungen` liegen Mikrofon, Stimme, Sprechtempo und Schriftgröße der
-Vorlage, je mit Probe. Sie hängen am Gerät und nicht am Sprecherprofil — welche
+Vorlage, je mit Probe. Sie hängen am Gerät und nicht am Sprecherprofil - welche
 Stimmen und welche Mikrofone es gibt, bestimmt das Betriebssystem, und wer die App
 auf zwei Geräten benutzt, braucht dort verschiedene Werte. Gespeichert wird deshalb
 im `localStorage` des Browsers (`wortlaut.mikrofon`, `wortlaut.verstaerkung`,
 `wortlaut.autopegel`, `wortlaut.stimme`, `wortlaut.tempo`, `wortlaut.schrift`),
-nicht im Korpus. Daneben liegt dort der Zugang selbst (`wortlaut.zugang`) —
+nicht im Korpus. Daneben liegt dort der Zugang selbst (`wortlaut.zugang`) -
 das Einzige, was dieser Browser über den Sprecher weiß.
 
 Ein Feld für den Zugang steht hier nur, wenn keiner vorliegt oder wenn es der
 Verwaltertoken ist. Wer mit dem Zugang eines Sprechers hier ist, sieht es
-nicht: Er hat nichts einzutragen, sein Zugang kam über einen Link — ein Feld
+nicht: Er hat nichts einzutragen, sein Zugang kam über einen Link - ein Feld
 daneben wäre bloß ein Weg, ihn kaputtzumachen.
 
-Die Schriftgröße ist einstellbar, weil die Zielgruppe sehr verschieden gut liest —
+Die Schriftgröße ist einstellbar, weil die Zielgruppe sehr verschieden gut liest -
 dieselbe Vorgabe, die einer Person zu klein ist, drängt bei einer anderen den
 Kontext aus dem Bild.
 
 #### Mikrofon
 
 Der Mikrofontest zeigt den Pegel live, gegen dieselben Grenzen, die der Server nach
-dem Absenden prüft (`services/quality.py`) — was im Test „guter Pegel" ist, gibt
+dem Absenden prüft (`services/quality.py`) - was im Test „guter Pegel" ist, gibt
 später keinen Hinweis. Dazu die Wahl unter den vorhandenen Geräten und eine Probe
 zum Anhören.
 
@@ -346,7 +346,7 @@ Zu leise Eingänge lassen sich auf zwei Arten heben, und die beiden tun
 Verschiedenes:
 
 - **Verstärkung** ist ein fester Faktor (1–20×) vor der Aufzeichnung. Er behebt ein
-  Mikrofon, das durchweg zu leise ist — unter Linux der Normalfall bei eingebauten
+  Mikrofon, das durchweg zu leise ist - unter Linux der Normalfall bei eingebauten
   Mikrofonen, siehe `docs/betrieb.md`. **Automatisch einmessen** hört fünf Sekunden
   zu und setzt den Faktor so, dass die Spitze bei −6 dBFS landet; eingemessen wird
   auf die Spitze und nicht auf den Mittelwert, weil ein Wert am Anschlag verloren
@@ -355,7 +355,7 @@ Verschiedenes:
   aus, wenn mal lauter und mal leiser gesprochen wird, hebt einen durchweg zu leisen
   Eingang aber nicht an.
 
-Beides steckt in der gespeicherten Aufnahme — sie ist Trainingsmaterial, und was
+Beides steckt in der gespeicherten Aufnahme - sie ist Trainingsmaterial, und was
 hier verstärkt wird, ist später verstärkt. Das ist gewollt: eine Aufnahme knapp über
 dem Rauschen nützt dem Training nicht. Was aber *nicht* passiert, ist eine
 nachträgliche Normalisierung auf dem Server. Wie laut jemand spricht, gehört zu den
@@ -364,11 +364,11 @@ Daten, für die dieses Projekt existiert.
 ### Der Zugang ist die Kennung
 
 Mehrere Personen dürfen dieselbe Instanz benutzen, ohne dass eine an die Daten
-einer anderen kommt. Die Trennung dafür liegt längst in der Ablage — je Sprecher
+einer anderen kommt. Die Trennung dafür liegt längst in der Ablage - je Sprecher
 eine eigene Datenbank. Was fehlte, war die Bindung zwischen Aufrufer und
 Verzeichnis: Der Sprecher stand als Abfrageparameter da, und ein Parameter ist
 eine Behauptung. Wer den Token hatte, konnte jede Kennung hinschreiben, auch
-versehentlich aus einem alten Reiter oder einem falschen Lesezeichen — und dann
+versehentlich aus einem alten Reiter oder einem falschen Lesezeichen - und dann
 landeten Aufnahmen im fremden Korpus.
 
 Ein Zugang hat deshalb die Form
@@ -379,7 +379,7 @@ spr_01J8ZQ…8K.7f2ac1…            <sprecher_id>.<geheimnis>
 
 und wird als `Authorization: Bearer …` vorgelegt. Der Server spaltet ihn am
 Punkt, öffnet **die** Datenbank dieses Sprechers und prüft dort den Prüfwert des
-Geheimnisses. Die Kennung ist damit abgeleitet und nicht behauptet — und der
+Geheimnisses. Die Kennung ist damit abgeleitet und nicht behauptet - und der
 Nachschlag geht auf dieselbe Datei, die die Anfrage ohnehin öffnet. Dass die
 Kennung offen dasteht, kostet nichts: Wer sie in einen fremden Zugang schreibt,
 dessen Geheimnis passt dort nicht.
@@ -388,13 +388,13 @@ dessen Geheimnis passt dort nicht.
 noch als Behauptung, die stimmen muss. Weicht sie ab, antwortet der Server mit
 403 und nennt beide Kennungen, statt still ins falsche Verzeichnis zu schreiben.
 Davon lebt die Absicherung von `schreiben`: Es schickt die abgeleitete Kennung
-mit dem Zugang mit, mit dem sie abgeleitet wurde — auseinanderfallen können die
+mit dem Zugang mit, mit dem sie abgeleitet wurde - auseinanderfallen können die
 beiden damit nicht mehr, und die 403 bleibt als Netz für den Fall, dass doch
 einmal jemand daran vorbeibaut.
 
 **Der Zugang kostet die Person nichts.** Ausgegeben wird er in der Verwaltung;
 dabei entsteht ein Link `…/#/zugang/<zugang>`. Den öffnet die Person einmal auf
-ihrem Gerät und legt ihn als Lesezeichen ab — nichts zu merken, nichts zu
+ihrem Gerät und legt ihn als Lesezeichen ab - nichts zu merken, nichts zu
 tippen, danach nie wieder (Grundentscheidung 7). Das Geheimnis steht im
 Fragment und geht deshalb nie an den Server; es landet in keinem
 Zugriffsprotokoll. Einen Abmeldeknopf gibt es nicht: Er wäre für diese
@@ -403,29 +403,29 @@ Gerät die Person, wird der andere Link geöffnet und ersetzt den vorhandenen.
 
 **Ein verlorener Zugang lässt sich zurückziehen.** Gespeichert ist nur der
 Prüfwert (`speakers.zugang_hash`), im Klartext gibt es einen Zugang genau
-einmal — beim Ausgeben. Verloren heißt deshalb: einen neuen ausgeben, und damit
+einmal - beim Ausgeben. Verloren heißt deshalb: einen neuen ausgeben, und damit
 ist der alte tot. Ohne Ersatz zurückziehen geht auch; dann kommt niemand mehr
 an diesen Korpus.
 
 **Sichtbar ist es auch.** In der Kopfzeile steht dauerhaft, für wen dieser
-Browser eingestellt ist — der Name, den der Server zum vorgelegten Zugang nennt
+Browser eingestellt ist - der Name, den der Server zum vorgelegten Zugang nennt
 (`GET /api/zugang`), nicht der, den sich der Browser gemerkt hat. Der Sprecher
 steht dafür in keinem `localStorage` mehr.
 
 `WORTLAUT_AUTH_TOKEN` schützt damit nicht mehr die Daten, sondern nur noch die
 **Verwaltung**: Profile anlegen, Zugänge ausgeben und zurückziehen. An die
-Korpora kommt außer den Sprechern nur die Aufsicht — der eine Zugang, der über
+Korpora kommt außer den Sprechern nur die Aufsicht - der eine Zugang, der über
 ihnen steht (siehe unten). Ist er nicht gesetzt, ist die Verwaltung zu, nicht
 offen: Keine Installation weiß, ob sie Entwicklung ist, und ein vergessener
 Token darf nicht die großzügigste Einstellung sein.
 
 **Der Preis.** Es gibt genau einen Weg zu den Daten, und der leitet seine
-Kennung ab — also kommt auch die Verwaltung nicht an die Korpora. Wer eine
+Kennung ab - also kommt auch die Verwaltung nicht an die Korpora. Wer eine
 Instanz betreibt und selbst aufnehmen will, gibt sich einen Zugang aus und
 öffnet den Link wie alle anderen. Das ist eine Unbequemlichkeit; sie ist die
 Gegenleistung dafür, dass es keine zweite Tür gibt, hinter der die Kennung doch
 wieder eine Behauptung wäre. Dazu kommt: Ein Zugang liegt im `localStorage`
-eines Browsers, und wer den Link weitergibt, gibt den Korpus weiter — das ist
+eines Browsers, und wer den Link weitergibt, gibt den Korpus weiter - das ist
 ein Lesezeichen, kein Ausweis. Für die Zielgruppe ist genau das der Punkt.
 
 Und der Umbau ist nicht rückwärtsverträglich. Eine bestehende Installation
@@ -435,14 +435,14 @@ Zugriff selbst; als dieser Abschnitt geschrieben wurde, war dafür noch
 `make migrate` nötig.) Derselbe Link öffnet
 seither auch `schreiben`; `WORTLAUT_SPRECHER_ID` und `WORTLAUT_INTAKE_TOKEN`
 sind dafür ersatzlos entfallen. Bis das geschehen ist, kommt niemand an die
-Aufnahmen — was der Sinn der Sache ist, aber eben auch ihr Preis.
+Aufnahmen - was der Sinn der Sache ist, aber eben auch ihr Preis.
 
-### Die Aufsicht — der eine Zugang über allen Korpora
+### Die Aufsicht - der eine Zugang über allen Korpora
 
 Der Preis des vorigen Abschnitts war, dass niemand mehr über die Korpora
 hinwegsieht: Die Verwaltung legt Profile an und kommt an keine Aufnahme. Für
 den Alltag ist das richtig. Für den Betrieb fehlte damit alles, was ein Betrieb
-braucht — nachsehen, was gesammelt wurde, einen Tippfehler im Namen
+braucht - nachsehen, was gesammelt wurde, einen Tippfehler im Namen
 richtigstellen, sichern, aufräumen. Nichts davon ging ohne eine SSH-Sitzung und
 `sqlite3` von Hand.
 
@@ -455,12 +455,12 @@ was die Verwaltung darf; umgekehrt nicht.
 unter „Menü → Zugangsdaten" in dasselbe Feld eingetragen wie ein
 Verwaltertoken; der Server sieht am Vorgelegten, welches von beidem er vor sich
 hat (`wortlaut.zugang` unterscheidet die Formen). Ein Browser trägt dabei
-weiterhin genau einen Zugang — wer dort vorher den Link eines Sprechers
+weiterhin genau einen Zugang - wer dort vorher den Link eines Sprechers
 geöffnet hatte, öffnet ihn danach einmal wieder. Zwei gleichzeitige Identitäten
 in einem Browser wären genau die Doppeldeutigkeit, gegen die der ganze vorige
 Abschnitt angetreten ist.
 
-**Der Sprecher steht hier in der Adresse** — als einzige Wege dieser App
+**Der Sprecher steht hier in der Adresse** - als einzige Wege dieser App
 (`/api/admin/…`). Das ist kein Rückfall in die alte Behauptung: Die Aufsicht
 hat keinen eigenen Sprecher, sie sieht über alle hinweg, und geprüft wird ihr
 Token und nicht die Kennung daneben. Damit der Unterschied sichtbar bleibt,
@@ -477,8 +477,8 @@ offenstehen.
 Ausgeleitet wird in zwei Formaten, weil zwei verschiedene Fragen dahinterstehen.
 
 Die **Sicherung** (`.tgz`) beantwortet „Der Server ist weg, ich will den Stand
-zurück." Sie enthält die Dateien, wie sie unter `WORTLAUT_DATA_DIR` liegen —
-Datenbanken und Aufnahmen —, und ihr Inneres bildet das Datenverzeichnis eins
+zurück." Sie enthält die Dateien, wie sie unter `WORTLAUT_DATA_DIR` liegen -
+Datenbanken und Aufnahmen -, und ihr Inneres bildet das Datenverzeichnis eins
 zu eins ab:
 
 ```
@@ -492,7 +492,7 @@ wortlaut-gesamt-20260822-174500.tgz
 
 Das ist der ganze Trick der Wiederherstellung: Sie ist ein Auspacken an die
 richtige Stelle, kein Einspielen. `scripts/restore.py` nimmt einem die
-Prüfungen ab, aber `tar xzf` käme genauso weit — eine Sicherung, die ein
+Prüfungen ab, aber `tar xzf` käme genauso weit - eine Sicherung, die ein
 laufendes Programm zum Lesen braucht, ist im Ernstfall keine.
 
 Es gibt sie je Sprecher und über alle auf einmal, letztere als **eine** Datei.
@@ -516,14 +516,14 @@ spr_…/
 ```
 
 Die Spalten `file_name` und `transcription` heißen englisch, weil das
-`audiofolder`-Format von Hugging Face genau diese Namen erwartet — der
+`audiofolder`-Format von Hugging Face genau diese Namen erwartet - der
 Datensatz lädt damit ohne eine Zeile Anpassungscode. Der Text steht doppelt
 darin: in der Tabelle fürs Training, als `.txt` neben dem Audio für jedes
 Werkzeug, das nur ein Verzeichnis sieht. Ein paar Kilobyte gegen den Umweg über
 eine Tabelle.
 
-Der Datensatz ist ausdrücklich **keine** Sicherung — Sitzungen und
-Warteschlange fehlen —, und die `LIESMICH.txt` sagt das auch demjenigen, der
+Der Datensatz ist ausdrücklich **keine** Sicherung - Sitzungen und
+Warteschlange fehlen -, und die `LIESMICH.txt` sagt das auch demjenigen, der
 das Archiv in einem Jahr wiederfindet.
 
 #### Löschen: drei Stufen, und die vierte gibt es nicht
@@ -535,7 +535,7 @@ das Archiv in einem Jahr wiederfindet.
 | ein Sprecher | Korpus, Diktate, Modellstände, Schnappschüsse | nichts |
 
 Eine vierte Stufe „alle Sprecher" gibt es nicht, weder in der Oberfläche noch
-in der API. Sie wäre ein Knopf, der einmal im Leben gedrückt wird — und dann
+in der API. Sie wäre ein Knopf, der einmal im Leben gedrückt wird - und dann
 versehentlich. Wer zwei Personen löschen will, tut es zweimal und denkt dabei
 zweimal nach. Sichern über alle geht; löschen nur einzeln.
 
@@ -545,22 +545,22 @@ zweites „Wirklich?" klickt man weg, ohne es gelesen zu haben; einen Namen
 abzuschreiben zwingt dazu hinzusehen, wen es trifft.
 
 Was zu einer Person gehört, steht an einer Stelle
-(`services/loeschung.py`) — dieselbe, die auch `scripts/purge_speaker.py`
+(`services/loeschung.py`) - dieselbe, die auch `scripts/purge_speaker.py`
 fragt. Sonst löschten Oberfläche und Kommandozeile Verschiedenes, und der
 Unterschied fiele niemandem auf.
 
-#### Meine Daten — dieselbe Ansicht, für sich selbst
+#### Meine Daten - dieselbe Ansicht, für sich selbst
 
 Unter **Meine Daten** sieht ein Sprecher dieselben Profildaten, Textquellen,
 Sitzungen und Aufnahmen, die die Aufsicht für ihn sähe (`api/konto.py`,
-`MeineDaten.svelte`) — ohne eine Kennung in der Adresse: Sie kommt wie bei
+`MeineDaten.svelte`) - ohne eine Kennung in der Adresse: Sie kommt wie bei
 jedem anderen Weg dieser App aus dem vorgelegten Zugang, ein Sprecher kann
 also von vornherein nur seine eigene Datenbank öffnen.
 
 Die drei Löschstufen von oben bleiben der Aufsicht vorbehalten. Was bleibt,
 ist die vertraute Grenze aus `api/recordings.py`: eine einzelne Aufnahme
 verwerfen, dieselbe Handlung, die während des Aufnehmens schon zur Verfügung
-steht. Kein Massenlöschen, kein vollständiges Löschen des eigenen Profils —
+steht. Kein Massenlöschen, kein vollständiges Löschen des eigenen Profils -
 ein Versehen soll höchstens eine Aufnahme kosten.
 
 `schreiben` verlinkt auf dieselbe Seite, statt eine eigene Ansicht zu bauen:
@@ -568,28 +568,28 @@ Die Daten liegen im Korpus, den nur `hören` schreibt (Grundentscheidung 6).
 
 ##### Eine PIN davor
 
-Wer mag — die Person selbst oder die Aufsicht an ihrer Stelle — sichert
+Wer mag - die Person selbst oder die Aufsicht an ihrer Stelle - sichert
 **Meine Daten** zusätzlich mit einer vierstelligen PIN (`services/pin.py`,
 Spalte `pin_hash`, Migration `004_pin.sql`). Vier Ziffern und keine
 Anmeldung mit Text: dieselbe Grundentscheidung 7, die auch `schreiben` einen
 Text- statt Passwortfeld erspart.
 
 Es ist ausdrücklich kein zweites Schloss, sondern eine zusätzliche Hürde
-gegen den Klick aus Versehen — die eigentliche Kennung bleibt der Zugang.
+gegen den Klick aus Versehen - die eigentliche Kennung bleibt der Zugang.
 Eine PIN ist deshalb bewusst leichtgewichtig geprüft (zeitkonstanter
 Vergleich, kein Sperren nach Fehlversuchen; siehe `services/pin.py`) und
 schützt nur die drei lesenden Wege unter `/api/konto/…`, nicht das Anhören
-oder Verwerfen einer Aufnahme selbst — wer erst einmal drin ist, braucht sie
+oder Verwerfen einer Aufnahme selbst - wer erst einmal drin ist, braucht sie
 nicht ein zweites Mal.
 
 Gesetzt und geändert wird sie ohne die alte zu kennen: über `/api/konto/pin`
 von der Person selbst oder über `/api/admin/speakers/{id}/pin` von der
-Aufsicht — der Rückweg, wenn eine PIN vergessen wurde oder aus Versehen
+Aufsicht - der Rückweg, wenn eine PIN vergessen wurde oder aus Versehen
 gesetzt ist.
 
 ### Endpunkte
 
-Verwaltung — hinter `WORTLAUT_AUTH_TOKEN`; ohne ihn zu:
+Verwaltung - hinter `WORTLAUT_AUTH_TOKEN`; ohne ihn zu:
 
 ```
 POST   /api/speakers                        { name, sprache, basismodell }
@@ -599,14 +599,14 @@ POST   /api/speakers/{id}/zugang            neuen Zugang ausgeben
 DELETE /api/speakers/{id}/zugang            Zugang zurückziehen
 ```
 
-Daten — hinter dem Zugang eines Sprechers, der zugleich sagt, welcher:
+Daten - hinter dem Zugang eines Sprechers, der zugleich sagt, welcher:
 
 ```
 POST   /api/sources/llm                     { thema, altersspanne, umfang }
 POST   /api/sources/upload                  multipart: datei
 GET    /api/sources
 GET    /api/sources/{id}/text               Klartext, eine Einheit je Absatz
-PATCH  /api/sources/{id}                    { aktiv }  — abstellen/aufnehmen
+PATCH  /api/sources/{id}                    { aktiv }  - abstellen/aufnehmen
 DELETE /api/sources/{id}                    409, wenn Aufnahmen daran hängen
 POST   /api/sessions
 GET    /api/prompts/next?session=…
@@ -615,17 +615,17 @@ GET    /api/recordings/{id}/audio
 DELETE /api/recordings/{id}
 GET    /api/progress
 POST   /api/korpus/intake                   ← von „schreiben"
-GET    /api/konto                           Profil, Kennzahlen, Textquellen — die eigenen
+GET    /api/konto                           Profil, Kennzahlen, Textquellen - die eigenen
 GET    /api/konto/sessions?ab=&anzahl=      seitenweise, zu zehnt
 GET    /api/konto/recordings?ab=&anzahl=    seitenweise, mit Text
-GET    /api/konto/pin                       { gesetzt }  — ungeschützt
-PATCH  /api/konto/pin                       { pin }  — vier Ziffern oder null
+GET    /api/konto/pin                       { gesetzt }  - ungeschützt
+PATCH  /api/konto/pin                       { pin }  - vier Ziffern oder null
 ```
 
 Die drei ersten `/api/konto/…`-Wege verlangen zusätzlich die Kopfzeile
 `X-Pin: …`, sobald eine PIN gesetzt ist.
 
-Aufsicht — hinter `WORTLAUT_ADMIN_TOKEN`. Als einzige Wege dieser App nennen
+Aufsicht - hinter `WORTLAUT_ADMIN_TOKEN`. Als einzige Wege dieser App nennen
 sie ihren Sprecher in der Adresse; die Aufsicht hat keinen eigenen:
 
 ```
@@ -634,8 +634,8 @@ GET    /api/admin/speakers/{id}             Quellen, Umfang
 GET    /api/admin/speakers/{id}/sessions?ab=&anzahl=   seitenweise, zu zehnt
 GET    /api/admin/speakers/{id}/recordings  Aufnahmen mit ihrem Text, seitenweise
 GET    /api/admin/speakers/{id}/recordings/{r}/audio
-PATCH  /api/admin/speakers/{id}             { name }  — umbenennen
-PATCH  /api/admin/speakers/{id}/pin         { pin }  — setzen, ändern, löschen; alte PIN egal
+PATCH  /api/admin/speakers/{id}             { name }  - umbenennen
+PATCH  /api/admin/speakers/{id}/pin         { pin }  - setzen, ändern, löschen; alte PIN egal
 GET    /api/admin/speakers/{id}/sicherung   .tgz, wiederherstellbar
 GET    /api/admin/speakers/{id}/datensatz   .zip, Text-Audio-Paare
 GET    /api/admin/sicherung                 .tgz über alle Sprecher
@@ -645,7 +645,7 @@ DELETE /api/admin/speakers/{id}?bestaetigung={id}
 ```
 
 Mit jedem der drei erreichbar, weil er die Frage beantwortet, welcher
-vorliegt — und ohne alles:
+vorliegt - und ohne alles:
 
 ```
 GET    /api/zugang                          { art, sprecher_id, name }
@@ -656,7 +656,7 @@ Die interaktive Dokumentation liegt unter `/docs`.
 
 ---
 
-## Der Korpus — die Nahtstelle zu „lernen"
+## Der Korpus - die Nahtstelle zu „lernen"
 
 Ein Verzeichnis, kein Dienst. `hören` ist der einzige Schreiber, `lernen` liest.
 Beide laufen auf demselben Server, SQLite im WAL-Modus erlaubt gleichzeitige Leser.
@@ -708,7 +708,7 @@ statt an Vermutungen ausrichten kann.
 
 ---
 
-## Die Modell-Registry — die Nahtstelle zu „schreiben"
+## Die Modell-Registry - die Nahtstelle zu „schreiben"
 
 Ebenfalls Dateien statt Tabelle. Ein Modellstand ist ein Verzeichnis, das man
 kopieren, sichern und per `scp` verschieben kann.
@@ -738,7 +738,7 @@ data/modelle/<sprecher_id>/<version>/
 
 `schreiben` wird über `WORTLAUT_MODELL_REF` auf genau eine `id` festgenagelt und
 zeigt Basismodell und Datum dauerhaft in der Kopfzeile. Ein Modellwechsel ist eine
-Konfigurationsänderung mit Neustart, kein Laufzeitereignis — sonst weiß hinterher
+Konfigurationsänderung mit Neustart, kein Laufzeitereignis - sonst weiß hinterher
 niemand, welcher Stand welche Ausgabe erzeugt hat.
 
 ---
@@ -760,7 +760,7 @@ niemand, welcher Stand welche Ausgabe erzeugt hat.
 Was `hören` die Vorlage ist, ist `schreiben` der Abschnitt: die Einheit, an der
 alles hängt. Whisper meldet zu jedem Segment Anfang und Ende, und genau dort
 wird die Aufnahme zerschnitten (`wortlaut.audio.schneide_ausschnitt`). Jeder
-Abschnitt hat deshalb seine eigene WAV-Datei — anders ließe er sich weder
+Abschnitt hat deshalb seine eigene WAV-Datei - anders ließe er sich weder
 einzeln ersetzen noch einzeln als Audio-Text-Paar zurückgeben.
 
 Die zusammenhängende Aufnahme wird nach dem Schnitt nicht behalten. Sie wäre
@@ -769,7 +769,7 @@ eine zweite Kopie derselben Stimmdaten und wird nicht mehr gebraucht.
 ### Ein großer Knopf
 
 Die Zielperson kann schlecht lesen und schreiben (Grundentscheidung 7). Daraus
-folgt mehr als der Verzicht auf ein Anmeldefeld — und der Verzicht bleibt, auch
+folgt mehr als der Verzicht auf ein Anmeldefeld - und der Verzicht bleibt, auch
 seit die App einen Sprecher führt: Der Zugang kommt über den persönlichen Link
 und liegt danach im Browser, hier wie in `hören`.
 
@@ -777,10 +777,10 @@ und liegt danach im Browser, hier wie in `hören`.
   dazwischen ergibt sich, statt gewählt zu werden. Die zweite Reiterreihe der
   Kopfzeile bleibt leer.
 - **Vorgelesen wird von selbst.** Wer den Text nicht sicher lesen kann, hört
-  den Fehler — deshalb liest die Ergebnisansicht sofort los und markiert
+  den Fehler - deshalb liest die Ergebnisansicht sofort los und markiert
   mitlaufend, wo sie gerade ist.
 - **Nichts zu tippen, auch nicht zum Anmelden.** Der Zugang kommt über den
-  persönlichen Link und liegt danach im Browser — derselbe Eintrag, den `hören`
+  persönlichen Link und liegt danach im Browser - derselbe Eintrag, den `hören`
   liest, denn beide Apps liegen unter derselben Adresse.
 - **Einstellungen nur im Menü.** Mikrofon, Stimme, Tempo und Schriftgröße
   gelten für beide Apps und stehen eingeklappt hinter dem Menüknopf, damit die
@@ -793,14 +793,14 @@ und liegt danach im Browser, hier wie in `hören`.
 Ist `WORTLAUT_MODELL_REF` leer, lädt faster-whisper das unveränderte
 `whisper-tiny`. Die Kopfzeile schreibt dauerhaft hin, was gerade arbeitet
 (`whisper-tiny · unverändert`, später `whisper-large-v3 · Stand 2026-08-15 ·
-WER 14,6 %`) — wer eine Ausgabe beurteilt, beurteilt immer ein bestimmtes
+WER 14,6 %`) - wer eine Ausgabe beurteilt, beurteilt immer ein bestimmtes
 Modell.
 
 ### Der Postausgang
 
 Zwischen `schreiben` und `hören` liegt eine Tabelle und kein direkter Aufruf:
 Dass beide gleichzeitig erreichbar sind, ist nicht zugesichert. Zwei Zusagen
-halten das einfach — Wiederholen ist gefahrlos (`hören` erkennt die
+halten das einfach - Wiederholen ist gefahrlos (`hören` erkennt die
 Abschnittskennung als `externe_id` wieder), und nichts wird stillschweigend
 verworfen: Ein Fehlschlag zählt hoch und schreibt seinen Grund in die Zeile,
 der Eintrag bleibt offen.
@@ -820,16 +820,16 @@ GET    /schreiben/api/segments/{id}/audio
 GET    /schreiben/api/model                 Modellstand dieses Sprechers
 GET    /schreiben/api/outbox
 POST   /schreiben/api/outbox/senden         noch einmal versuchen
-GET    /schreiben/api/zugang                wer ruft — für die Kopfzeile
+GET    /schreiben/api/zugang                wer ruft - für die Kopfzeile
 GET    /gesundheit                          ohne Zugang, auf der Wurzel
 ```
 
-Alles unter `/schreiben` — dem Ort dieser App unter der gemeinsamen Domain.
+Alles unter `/schreiben` - dem Ort dieser App unter der gemeinsamen Domain.
 Nur `/gesundheit` bleibt auf der Wurzel: Eine Überwachung spricht den Container
 unmittelbar an.
 
 Kein Sprecherparameter, aber ein Zugang: Jeder Weg außer `/gesundheit` verlangt
-den Sprecherzugang aus `hören` und leitet die Kennung daraus ab — dieselbe
+den Sprecherzugang aus `hören` und leitet die Kennung daraus ab - dieselbe
 Regel wie drüben, aus demselben Grund (die Bindung zieht der Server, nicht der
 Aufrufer).
 
@@ -856,7 +856,7 @@ Neben und nicht im Korpus: `hören` ist dessen einziger Schreiber
 
 | Tabelle | Zweck |
 |---|---|
-| `speakers` | Profil, Sprache, Basismodell, Prüfwert des Zugangs — genau eine Zeile je Datenbank |
+| `speakers` | Profil, Sprache, Basismodell, Prüfwert des Zugangs - genau eine Zeile je Datenbank |
 | `text_sources` | LLM-Auftrag, hochgeladener Text oder Korrektur, mit Parametern |
 | `prompts` | eine Sprecheinheit, Herkunft, fortlaufende Position |
 | `sessions` | Aufnahmesitzung: begonnen, zuletzt aktiv |
@@ -877,16 +877,16 @@ Neben und nicht im Korpus: `hören` ist dessen einziger Schreiber
 | `outbox` | offene Korrekturen mit Wiederholungszähler |
 
 Zugriff über SQLAlchemy 2.0 mit typisierten Modellen. Schemaänderungen als
-nummerierte `.sql`-Dateien. Kein Alembic — bei diesem Schemaumfang ist die
+nummerierte `.sql`-Dateien. Kein Alembic - bei diesem Schemaumfang ist die
 Migrationsmaschinerie größer als das Schema.
 
 Angewendet werden sie an drei Stellen, und die dritte ist die wichtigste: beim
 Anlegen eines Sprechers (`api/speakers.py`), beim ersten Zugriff auf dessen
 Datenbank (`deps.engine_fuer`) und für alle Korpora auf einmal mit
-`make migrate` — im Container `docker compose exec wortlaut python
+`make migrate` - im Container `docker compose exec wortlaut python
 scripts/migrate.py`, denn dort gibt es weder `make` noch `uv`. Der Zugriff musste dazukommen, nachdem `004_pin.sql` die Spalte
 `speakers.pin_hash` mitbrachte: Bestehende Korpora bekamen sie nie, die Modelle
-fragten sie ab, und danach scheiterte jedes `SELECT` auf `speakers` — die Liste
+fragten sie ab, und danach scheiterte jedes `SELECT` auf `speakers` - die Liste
 der Aufsicht wie die Zugangsprüfung. Ein Update darf nicht davon abhängen, dass
 sich jemand an ein Skript erinnert; der Container startet uvicorn, sonst nichts.
 
@@ -908,14 +908,14 @@ Zwei Spalten tragen mehr Bedeutung, als ihr Name verrät:
 | Datenbank | SQLite (WAL) | ein Server, ein Sprecher; Backup heißt Datei kopieren |
 | Frontend | Svelte 5, Vite, TypeScript | kompiliert weg, kein Laufzeit-Framework auf schwachen Geräten |
 | Aufnahme | `MediaRecorder` (Opus), serverseitig ffmpeg → 16 kHz mono WAV | Browser liefern kein WAV, Konvertierung an einer Stelle |
-| Vorlesen | Web Speech API | deutsche Stimmen fast überall vorhanden, keine Infrastruktur, keine Latenz — dafür schwankt die Qualität je nach Betriebssystem stark, Stimme und Tempo sind deshalb einstellbar |
+| Vorlesen | Web Speech API | deutsche Stimmen fast überall vorhanden, keine Infrastruktur, keine Latenz - dafür schwankt die Qualität je nach Betriebssystem stark, Stimme und Tempo sind deshalb einstellbar |
 | ASR | faster-whisper (CTranslate2) | schnellste brauchbare Whisper-Laufzeit auf CPU und kleiner GPU |
 | ASR entfernt | OpenAI-kompatibler Endpunkt | ein Adapter deckt mehrere Anbieter ab |
 | Training | HF Transformers, Datasets, Accelerate | Standardrezept für Whisper, breit dokumentiert |
-| Textquelle | LLM über einen Adapter, OpenAI-kompatibel oder Anthropic | Thema und Altersspanne als Prompt-Parameter; derselbe Adapter bedient ein lokales Ollama und die bezahlten Anbieter — für ein paar Vorlesesätze genügt ein kleines Modell auf der eigenen GPU |
+| Textquelle | LLM über einen Adapter, OpenAI-kompatibel oder Anthropic | Thema und Altersspanne als Prompt-Parameter; derselbe Adapter bedient ein lokales Ollama und die bezahlten Anbieter - für ein paar Vorlesesätze genügt ein kleines Modell auf der eigenen GPU |
 | Jobs | `jobs`-Tabelle plus Poll-Worker | keine Broker-Abhängigkeit für eine Warteschlange mit selten mehr als einem Eintrag |
 | Proxy | der vorhandene Reverse Proxy des Wirts | TLS und Pfadverteilung gehören zur Maschine, nicht in dieses Projekt |
-| Auth | je Sprecher ein Zugang, der zugleich die Kennung ist — derselbe in beiden Apps; der Token davor schützt nur die Verwaltung, ein zweiter die Aufsicht | die Bindung zwischen Aufrufer und Verzeichnis muss der Server ziehen, nicht der Aufrufer; ein Mensch, ein Link, beide Apps |
+| Auth | je Sprecher ein Zugang, der zugleich die Kennung ist - derselbe in beiden Apps; der Token davor schützt nur die Verwaltung, ein zweiter die Aufsicht | die Bindung zwischen Aufrufer und Verzeichnis muss der Server ziehen, nicht der Aufrufer; ein Mensch, ein Link, beide Apps |
 | Tests | pytest, FastAPI-TestClient | echte SQLite-Datei, echte Endpunkte, kein Nachbau |
 | Werkzeug | uv | eine Abhängigkeitsdatei, ein Befehl, keine Diskussion |
 
@@ -944,19 +944,19 @@ WORTLAUT_LLM_BASE_URL=http://ollama:11434/v1   # nur bei openai
 WORTLAUT_AUTH_TOKEN=                # Verwaltung: Profile anlegen, Zugänge
                                     # ausgeben. Leer = abgeschaltet, auch in
                                     # der Entwicklung. Öffnet selbst kein
-                                    # Korpus — dorthin führt der Zugang des
+                                    # Korpus - dorthin führt der Zugang des
                                     # Sprechers.
 WORTLAUT_ADMIN_TOKEN=               # Aufsicht: in jeden Korpus sehen,
                                     # umbenennen, sichern, löschen. Leer =
                                     # abgeschaltet (nicht offen).
 
-# lernen — entworfen, noch von keiner config.py gelesen; steht deshalb auch
+# lernen - entworfen, noch von keiner config.py gelesen; steht deshalb auch
 # nicht in der .env.example.
 WORTLAUT_TRAINING_BACKEND=local     # local | remote. Das Basismodell steht
                                     # nicht hier: Es gehört zum Sprecherprofil,
                                     # eines je Sprecher.
 
-# schreiben — wessen Stimme steht hier nicht: Der Sprecher kommt aus dem
+# schreiben - wessen Stimme steht hier nicht: Der Sprecher kommt aus dem
 # Zugang, den der Browser vorlegt (derselbe wie bei „hören").
 WORTLAUT_MODELL_REF=                # leer = je Sprecher sein eigener Stand
 WORTLAUT_ASR_MODELL=tiny            # gilt, solange kein Stand freigegeben ist
@@ -974,7 +974,7 @@ WORTLAUT_INTAKE_URL=https://wortlaut.example.org/api/korpus/intake
 ## Entwicklung
 
 Voraussetzungen: Python 3.12 mit [uv](https://docs.astral.sh/uv/), Node 20 oder
-neuer für das Frontend — und **ffmpeg im Pfad**, sonst schlägt jeder
+neuer für das Frontend - und **ffmpeg im Pfad**, sonst schlägt jeder
 Aufnahme-Upload fehl.
 
 ```bash
@@ -991,10 +991,10 @@ Aufgerufen wird `http://localhost:5173`; Vite leitet `/api` an das Backend
 weiter, deshalb gibt es keine CORS-Regeln. `make migrate` ist kein erster
 Schritt: Neue Sprecher bekommen ihre Datenbank beim Anlegen, bestehende werden
 beim ersten Zugriff fortgeschrieben. Es ist der Weg, das für alle Korpora auf
-einmal und vor dem ersten Aufruf zu tun — etwa um zu sehen, was ein Update am
+einmal und vor dem ersten Aufruf zu tun - etwa um zu sehen, was ein Update am
 Schema ändert.
 
-Für `schreiben` dasselbe mit eigenem Port — beide dürfen nebeneinander laufen:
+Für `schreiben` dasselbe mit eigenem Port - beide dürfen nebeneinander laufen:
 
 ```bash
 uv sync --extra asr          # zusätzlich faster-whisper (nur für WORTLAUT_ASR=local)
@@ -1002,7 +1002,7 @@ cd apps/schreiben/frontend && npm install && cd -
 make dev APP=schreiben       # Backend auf :8001, Vite auf :5174
 ```
 
-Aufgerufen wird `http://localhost:5174/schreiben/` — mit Pfad, weil die App
+Aufgerufen wird `http://localhost:5174/schreiben/` - mit Pfad, weil die App
 dort liegt, in der Entwicklung wie im Betrieb. Laufen beide Apps, führt auch
 der Reiter auf `http://localhost:5173` hinüber. Beim ersten Diktat lädt faster-whisper sein Modell herunter;
 das dauert einmalig und braucht Netz.
@@ -1053,8 +1053,8 @@ statt zu scheitern.
 Was noch fehlt: das Frontend hat keine eigenen Tests. `npm run check`
 (svelte-check) prüft dort bislang nur die Typen.
 
-Den kompletten Weg im Browser — Sprecher anlegen, Textquelle, Aufnehmen,
-Fortschritt — deckt kein automatisierter Test ab. Dafür gibt es eine
+Den kompletten Weg im Browser - Sprecher anlegen, Textquelle, Aufnehmen,
+Fortschritt - deckt kein automatisierter Test ab. Dafür gibt es eine
 Schritt-für-Schritt-Anleitung zum Selbst-Durchklicken:
 [`docs/manueller-test.md`](docs/manueller-test.md).
 
@@ -1077,7 +1077,7 @@ DSGVO. Das hat Folgen für den Aufbau, nicht nur für einen Hinweistext:
   im Korpus angekommen ist, wird seine Datei dort gelöscht.
 - `scripts/purge_speaker.py` entfernt Profil, Aufnahmen, Schnappschüsse und Modelle
   vollständig. Das Recht auf Löschung muss ausführbar sein, nicht dokumentiert.
-- **Meine Daten** zeigt einer Person nur ihre eigenen Aufnahmen, nie fremde —
+- **Meine Daten** zeigt einer Person nur ihre eigenen Aufnahmen, nie fremde -
   aus demselben Grund wie oben, nicht durch eine zweite Prüfung. Eine
   optionale PIN sichert die Ansicht zusätzlich gegen den Klick aus Versehen;
   sie ist kein Ersatz für den Zugang, nur eine Hürde davor (siehe
@@ -1093,7 +1093,7 @@ Einzelheiten in [`docs/datenschutz.md`](docs/datenschutz.md).
   beliebig. Eine dritte Textquelle aus einer festen, phonetisch abgedeckten
   Satzliste wäre für Sprechstörungen wirksamer und steht auf der Liste.
 - **Rollen und Mandanten.** Mehrere Personen an einer `hören`-Instanz gehen,
-  seit der Zugang die Kennung trägt — aber es gibt genau drei Arten von
+  seit der Zugang die Kennung trägt - aber es gibt genau drei Arten von
   Aufrufer, den Sprecher, die Verwaltung und die Aufsicht, und keine
   Rechtematrix dazwischen. Jede ist ein Token, keine ist ein Konto. Ein
   Benutzerkonzept wäre größer als das, was es zu trennen gibt.

@@ -4,7 +4,7 @@ Ein Adapter, ein Anbieter. Weitere Anbieter kommen als weitere Funktion in
 `_ANBIETER` dazu; der Rest des Systems sieht nur `erzeuge_text()`.
 
 Wichtig für den Datenschutz: Hier verlässt nur das *Thema* den Server, nie
-Stimm- oder Personendaten. Der Schalter ist trotzdem bewusst gesetzt — ohne
+Stimm- oder Personendaten. Der Schalter ist trotzdem bewusst gesetzt - ohne
 `WORTLAUT_LLM_PROVIDER` bleibt die Quelle abgeschaltet.
 """
 
@@ -61,7 +61,7 @@ def _nutzeranweisung(auftrag: Auftrag) -> str:
 
 
 def _openai(auftrag: Auftrag, *, api_schluessel: str, modell: str, basis_url: str) -> str:
-    """Jeder Anbieter mit OpenAI-kompatibler Schnittstelle — dieselbe Funktion
+    """Jeder Anbieter mit OpenAI-kompatibler Schnittstelle - dieselbe Funktion
     für Ollama (lokal), Groq, Gemini oder Mistral; sie unterscheiden sich nur
     in `basis_url` und (außer Ollama) im Schlüssel.
     """

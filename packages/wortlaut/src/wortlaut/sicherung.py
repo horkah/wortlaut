@@ -1,4 +1,4 @@
-"""Sicherung und Wiederherstellung — ein Archiv, kein Dienst.
+"""Sicherung und Wiederherstellung - ein Archiv, kein Dienst.
 
 Eine Sicherung ist ein `.tar.gz`, das den Datenbestand so enthält, wie er unter
 `WORTLAUT_DATA_DIR` liegt:
@@ -13,14 +13,14 @@ Eine Sicherung ist ein `.tar.gz`, das den Datenbestand so enthält, wie er unter
 `daten/` bildet das Datenverzeichnis eins zu eins ab. Das ist der ganze Trick
 der Wiederherstellung: Sie ist ein Auspacken an die richtige Stelle, kein
 Einspielen. Wer keinen Server mehr hat, auf dem diese Anwendung läuft, kommt
-mit `tar xzf` genauso weit wie mit `scripts/restore.py` — eine Sicherung, die
+mit `tar xzf` genauso weit wie mit `scripts/restore.py` - eine Sicherung, die
 ein laufendes Programm zum Lesen braucht, ist im Ernstfall keine.
 
 Die Datenbanken werden dabei nicht kopiert, sondern über `db.sichere_kopie()`
 gezogen: Im WAL-Modus steht ein Teil der Daten neben der `.sqlite`-Datei, und
 eine schlichte Kopie wäre ein Stand, den es nie gegeben hat.
 
-Diese Datei ist die einzige Stelle, die das Archivformat kennt — so wie
+Diese Datei ist die einzige Stelle, die das Archivformat kennt - so wie
 `corpus.py` die einzige ist, die das Korpus-Layout kennt.
 """
 
@@ -67,11 +67,11 @@ def schreibe_archiv(
     """Sichert die genannten Unterverzeichnisse des Datenverzeichnisses nach `ziel`.
 
     `verzeichnisse` sind relative Pfade wie `korpus/spr_…` oder `diktate/spr_…`.
-    Was es nicht gibt, wird übergangen — ein Sprecher ohne Diktate ist kein
+    Was es nicht gibt, wird übergangen - ein Sprecher ohne Diktate ist kein
     Fehlerfall, sondern der Normalfall.
 
     `beschreibung` wandert unverändert ins Manifest; dort steht, wofür diese
-    Sicherung gezogen wurde — ein Sprecher oder der ganze Bestand.
+    Sicherung gezogen wurde - ein Sprecher oder der ganze Bestand.
     """
     ziel.parent.mkdir(parents=True, exist_ok=True)
     dateien: dict[str, dict[str, Any]] = {}
@@ -106,7 +106,7 @@ def lies_manifest(archiv: Path) -> dict[str, Any]:
     with tarfile.open(archiv, "r:gz") as geoeffnet:
         eintrag = geoeffnet.extractfile(MANIFEST)
         if eintrag is None:
-            raise ValueError(f"{archiv} enthält kein {MANIFEST} — das ist keine Sicherung.")
+            raise ValueError(f"{archiv} enthält kein {MANIFEST} - das ist keine Sicherung.")
         manifest = json.loads(eintrag.read().decode("utf-8"))
     if manifest.get("format") != FORMAT:
         raise ValueError(f"{archiv} ist keine wortlaut-Sicherung.")
@@ -119,7 +119,7 @@ def stelle_wieder_her(
     """Packt `daten/` aus dem Archiv ins Datenverzeichnis; gibt die Pfade zurück.
 
     Ohne `ueberschreiben` bricht der Vorgang ab, sobald eine Datei schon da
-    ist — und zwar bevor irgendetwas geschrieben wurde. Eine Wiederherstellung,
+    ist - und zwar bevor irgendetwas geschrieben wurde. Eine Wiederherstellung,
     die einen laufenden Bestand halb überschreibt, wäre schlimmer als keine.
     """
     manifest = lies_manifest(archiv)

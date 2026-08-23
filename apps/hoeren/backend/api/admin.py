@@ -1,7 +1,7 @@
 """Die Aufsicht: über alle Korpora sehen, sichern, umbenennen, löschen.
 
 Alles hier hängt an `WORTLAUT_ADMIN_TOKEN` (siehe `deps.py`). Ohne gesetzten
-Token ist dieser ganze Router zu — auch in der Entwicklung.
+Token ist dieser ganze Router zu - auch in der Entwicklung.
 
 Der Unterschied zu jedem anderen Weg dieser App: Hier steht der Sprecher
 **in der Adresse**. Er ist nicht abgeleitet, weil die Aufsicht keinen eigenen
@@ -56,8 +56,8 @@ Bestaetigung = Annotated[
 
 # ── Ansehen ─────────────────────────────────────────────────────────────────
 #
-# Die Modelle und das Auslesen selbst — Profil, Kennzahlen, Textquellen,
-# Sitzungen, Aufnahmen — stehen in `services/uebersicht.py`: „hören" zeigt
+# Die Modelle und das Auslesen selbst - Profil, Kennzahlen, Textquellen,
+# Sitzungen, Aufnahmen - stehen in `services/uebersicht.py`: „hören" zeigt
 # dieselben Daten noch an einer zweiten Stelle, dem Sprecher selbst
 # (`api/konto.py`), und beide sollen dieselbe Zählung benutzen.
 
@@ -69,7 +69,7 @@ class EinsichtAntwort(BaseModel):
 
 @router.get("/speakers", response_model=list[UebersichtAntwort])
 def uebersicht_aller(ablage: Ablage) -> list[UebersichtAntwort]:
-    """Alle Sprecher mit dem Umfang ihrer Daten — die Startseite der Aufsicht."""
+    """Alle Sprecher mit dem Umfang ihrer Daten - die Startseite der Aufsicht."""
     antworten = []
     for sprecher_id in corpus.sprecher_ids(einstellungen().data_dir):
         with Session(engine_fuer(sprecher_id)) as sitzung:
@@ -115,7 +115,7 @@ def aufnahmen(
 
 @router.get("/speakers/{sprecher_id}/recordings/{aufnahme_id}/audio")
 def abhoeren(sprecher_id: str, aufnahme_id: str, ablage: Ablage) -> FileResponse:
-    """Hineinhören, bevor gelöscht wird — sonst löscht die Aufsicht blind."""
+    """Hineinhören, bevor gelöscht wird - sonst löscht die Aufsicht blind."""
     with Session(engine_fuer(sprecher_id)) as sitzung:
         _hole(sitzung, sprecher_id)
         aufnahme = _hole_aufnahme(sitzung, aufnahme_id)
@@ -163,7 +163,7 @@ def setze_pin(sprecher_id: str, aenderung: PinAenderung) -> PinAntwort:
 
 @router.get("/speakers/{sprecher_id}/sicherung")
 def sicherung_eines(sprecher_id: str) -> FileResponse:
-    """Der vollständige Stand eines Sprechers als `.tgz` — zum Zurückspielen.
+    """Der vollständige Stand eines Sprechers als `.tgz` - zum Zurückspielen.
 
     Gepackt wird in `services/ausleitung.py`: Denselben Griff hat ein Sprecher
     für seine eigenen Daten (`api/konto.py`), und beide sollen dieselbe Datei
@@ -175,10 +175,10 @@ def sicherung_eines(sprecher_id: str) -> FileResponse:
 
 @router.get("/sicherung")
 def sicherung_aller() -> FileResponse:
-    """Der ganze Bestand als **eine** `.tgz` — alle Korpora, alle Diktate.
+    """Der ganze Bestand als **eine** `.tgz` - alle Korpora, alle Diktate.
 
     Das ist die Sicherung, die man wegträgt: Ein Server weniger, und dieses
-    eine Archiv stellt alles wieder her. Modellstände sind nicht darin — sie
+    eine Archiv stellt alles wieder her. Modellstände sind nicht darin - sie
     sind groß und lassen sich aus dem Korpus neu rechnen; die Aufnahmen sind
     das, was unwiederbringlich ist.
     """
@@ -204,7 +204,7 @@ def sicherung_aller() -> FileResponse:
 
 @router.get("/speakers/{sprecher_id}/datensatz")
 def datensatz(sprecher_id: str, ablage: Ablage) -> FileResponse:
-    """Text-Audio-Paare als `.zip` — für Training und Ansehen von außen.
+    """Text-Audio-Paare als `.zip` - für Training und Ansehen von außen.
 
     Keine Sicherung, sondern ein Auszug in Ordnerform (siehe
     `services/export.py`).
@@ -218,7 +218,7 @@ def datensatz(sprecher_id: str, ablage: Ablage) -> FileResponse:
 #
 # Drei Stufen, jede enger als die vorige: eine Aufnahme, alle Aufnahmen einer
 # Person, die Person. Eine vierte Stufe „alle Personen" gibt es nicht und soll
-# es nicht geben — sie wäre ein Knopf, der einmal im Leben gedrückt wird, und
+# es nicht geben - sie wäre ein Knopf, der einmal im Leben gedrückt wird, und
 # dann versehentlich.
 
 
@@ -228,7 +228,7 @@ def loesche_aufnahme(sprecher_id: str, aufnahme_id: str, ablage: Ablage) -> None
 
     Der Unterschied zum Verwerfen durch den Sprecher (`api/recordings.py`):
     Dort bleibt die Zeile als Spur stehen, damit die Warteschlange die Vorlage
-    wieder anbietet. Hier räumt jemand auf — dann soll auch nichts stehen
+    wieder anbietet. Hier räumt jemand auf - dann soll auch nichts stehen
     bleiben. Die Vorlage wird dadurch ebenfalls wieder offen.
     """
     with Session(engine_fuer(sprecher_id)) as sitzung:
@@ -243,11 +243,11 @@ def loesche_aufnahme(sprecher_id: str, aufnahme_id: str, ablage: Ablage) -> None
 def loesche_alle_aufnahmen(
     sprecher_id: str, bestaetigung: Bestaetigung, ablage: Ablage
 ) -> dict[str, int]:
-    """Alle Aufnahmen eines Sprechers — Profil, Quellen und Vorlagen bleiben.
+    """Alle Aufnahmen eines Sprechers - Profil, Quellen und Vorlagen bleiben.
 
     Danach steht die Warteschlange wieder ganz am Anfang: Der Text ist noch da,
     gesprochen ist nichts mehr. Das ist der Fall „neu anfangen", nicht der Fall
-    „Person löschen" — dafür gibt es den Weg darunter.
+    „Person löschen" - dafür gibt es den Weg darunter.
     """
     _pruefe_bestaetigung(sprecher_id, bestaetigung)
     with Session(engine_fuer(sprecher_id)) as sitzung:
@@ -262,7 +262,7 @@ def loesche_alle_aufnahmen(
 
 @router.delete("/speakers/{sprecher_id}", status_code=200)
 def loesche_sprecher(sprecher_id: str, bestaetigung: Bestaetigung) -> dict[str, list[str]]:
-    """Eine Person vollständig löschen — Korpus, Diktate, Modelle, Schnappschüsse.
+    """Eine Person vollständig löschen - Korpus, Diktate, Modelle, Schnappschüsse.
 
     Dasselbe, was `scripts/purge_speaker.py` auf der Kommandozeile tut; beide
     fragen `services/loeschung.py`, damit es nicht zwei Vorstellungen davon
@@ -270,7 +270,7 @@ def loesche_sprecher(sprecher_id: str, bestaetigung: Bestaetigung) -> dict[str, 
 
     Es gibt hier bewusst keine Mehrzahl: Der Weg nimmt genau eine Kennung, und
     die muss zur Bestätigung ein zweites Mal dastehen. Wer zwei Personen
-    löschen will, tut es zweimal — und denkt dabei zweimal nach.
+    löschen will, tut es zweimal - und denkt dabei zweimal nach.
     """
     _pruefe_bestaetigung(sprecher_id, bestaetigung)
     konfiguration = einstellungen()
@@ -305,7 +305,7 @@ def _hole_aufnahme(sitzung: Session, aufnahme_id: str) -> Aufnahme:
 
 
 def _pruefe_bestaetigung(sprecher_id: str, bestaetigung: str) -> None:
-    """Die Kennung muss zweimal dastehen — einmal als Ziel, einmal als Absicht."""
+    """Die Kennung muss zweimal dastehen - einmal als Ziel, einmal als Absicht."""
     if bestaetigung != sprecher_id:
         raise HTTPException(
             status_code=400,

@@ -1,5 +1,5 @@
 # Was nicht in den Bau-Kontext gehört. Ohne diese Datei schickt `docker build`
-# das ganze Verzeichnis an den Daemon — samt Aufnahmen und virtueller
+# das ganze Verzeichnis an den Daemon - samt Aufnahmen und virtueller
 # Umgebung, beides groß und beides falsch am Platz.
 
 # Stimmaufnahmen sind Gesundheitsdaten (Art. 9 DSGVO) und haben in einem

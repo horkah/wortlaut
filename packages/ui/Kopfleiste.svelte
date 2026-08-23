@@ -5,7 +5,7 @@
    * Zwei Reihen, weil es zwei Ebenen sind. Wer hier steht, soll ohne Nachdenken
    * beides sehen: in welcher der drei Apps er ist und welche Ansicht davon
    * gerade offen ist. Beides ist farbig hinterlegt, die App kräftig, die
-   * Ansicht darunter blasser — sonst streiten die beiden Reihen um die
+   * Ansicht darunter blasser - sonst streiten die beiden Reihen um die
    * Aufmerksamkeit.
    */
   import { APPS, GERAETE_PUNKTE, PROJEKT_URL, type AppSchluessel, type Menuepunkt } from './apps';
@@ -25,7 +25,7 @@
     /** Die Ansichten dieser App; leer lassen heißt: zweite Reihe ausblenden. */
     punkte?: Menuepunkt[];
     /**
-     * Ansichten, die nicht in die Reiterreihe gehören, sondern ins Menü — über
+     * Ansichten, die nicht in die Reiterreihe gehören, sondern ins Menü - über
      * die gerätebezogenen Punkte, denn erst kommt wer, dann womit. „hören"
      * reicht hier Sprecher, Zugangsdaten und „Meine Daten" herein, „schreiben"
      * nur die Zugangsdaten und einen `href`-Verweis auf „Meine Daten" bei
@@ -37,7 +37,7 @@
      */
     uebergreifend?: Menuepunkt[];
     /**
-     * Wer hier angemeldet ist — als Statuszeile neben dem Menüknopf. Meist ein
+     * Wer hier angemeldet ist - als Statuszeile neben dem Menüknopf. Meist ein
      * Sprechername; „hören" setzt hier auch „Verwaltung" oder „Aufsicht" ein,
      * denn beide sollen genauso auffallen wie ein Sprecher es tut. `null`
      * heißt „kein gültiger Zugang" und zeigt einen Platzhalter; ausgelassen
@@ -50,7 +50,7 @@
 
   // Warum Sprecher und Einstellungen hier hängen und nicht in der Reiterreihe:
   // siehe die Konstanten in `apps.ts`. Eingeklappt, weil sie selten gebraucht
-  // werden — „schreiben" soll ein großer Knopf bleiben (Grundentscheidung 7).
+  // werden - „schreiben" soll ein großer Knopf bleiben (Grundentscheidung 7).
   let offen = $state(false);
   let huelle = $state<HTMLElement | null>(null);
   let knopf = $state<HTMLButtonElement | null>(null);
@@ -67,7 +67,7 @@
     if (offen && huelle && !huelle.contains(ereignis.target as Node)) offen = false;
   }
 
-  // Nach Escape gehört die Marke dorthin zurück, wo sie herkam — sonst steht
+  // Nach Escape gehört die Marke dorthin zurück, wo sie herkam - sonst steht
   // sie im Nichts und die nächste Tabulatortaste fängt von vorn an.
   function schliesseMitTaste(ereignis: KeyboardEvent) {
     if (ereignis.key !== 'Escape' || !offen) return;
@@ -82,7 +82,7 @@
   <div class="ebene apps">
     <!-- Zwei Blöcke: links Marke und App-Reiter, rechts Sprecher und
          Menüknopf, dazwischen eine flexible Lücke. Jeder Block darf für sich
-         umbrechen — nur so bleiben Sprecher und Menüknopf beieinander, dicht
+         umbrechen - nur so bleiben Sprecher und Menüknopf beieinander, dicht
          am rechten Rand, statt dass der Sprecher irgendwo in der Mitte
          hängen bleibt. Reicht die Breite nicht für eine Zeile, weicht der
          rechte Block als Ganzes in eine zweite aus. -->
@@ -97,7 +97,7 @@
           {:else if eintrag.verfuegbar}
             <a class="reiter" href={eintrag.pfad} title={eintrag.aufgabe}>{eintrag.name}</a>
           {:else}
-            <span class="reiter spaeter" title="{eintrag.aufgabe} — kommt später"
+            <span class="reiter spaeter" title="{eintrag.aufgabe} - kommt später"
               >{eintrag.name}</span
             >
           {/if}
@@ -110,7 +110,7 @@
         <!-- Wer gerade angemeldet ist, steht immer da: Alles, was die App
              tut, hängt daran, und ein Griff in den falschen Korpus wäre
              teuer. Der Wert kommt vom Server, der ihn aus dem vorgelegten
-             Zugang ableitet — meist ein Sprechername, bei „hören" auch
+             Zugang ableitet - meist ein Sprechername, bei „hören" auch
              „Verwaltung" oder „Aufsicht". Er steht direkt neben dem
              Menüknopf: beides betrifft, wer hier gerade unterwegs ist. -->
         <span class="sprecher" class:leer={!sprecher} title="Angemeldet als">
@@ -164,7 +164,7 @@
               href={PROJEKT_URL}
               target="_blank"
               rel="noopener noreferrer"
-              title="Quelltext und Beschreibung auf GitHub — öffnet einen neuen Reiter"
+              title="Quelltext und Beschreibung auf GitHub - öffnet einen neuen Reiter"
               onclick={() => (offen = false)}
             >
               Über wortlaut<span class="pfeil" aria-hidden="true">↗</span>
@@ -212,7 +212,7 @@
 
   /* Zwei Blöcke, dazwischen eine flexible Lücke (siehe `.rechts`). Reicht die
      Breite nicht, weicht der rechte Block als Ganzes in eine zweite Zeile
-     aus — beide Blöcke bleiben dabei in sich zusammenhängend. */
+     aus - beide Blöcke bleiben dabei in sich zusammenhängend. */
   .apps {
     padding-top: 0.6rem;
     flex-wrap: wrap;
@@ -234,7 +234,7 @@
 
   /* Sprecher und Menüknopf: Beide betreffen, wer hier unterwegs ist, darum
      stehen sie beieinander, dicht am rechten Rand. `margin-left: auto`
-     erzeugt die flexible Lücke zum linken Block — bleibt Platz, wandert
+     erzeugt die flexible Lücke zum linken Block - bleibt Platz, wandert
      dieser Block ganz nach rechts, statt in der Mitte zu verharren. Kein
      eigenes Umbrechen: Rutscht der Knopf weg, ist die Klappe nicht mehr zu
      treffen. */
@@ -295,7 +295,7 @@
     color: var(--gedaempft);
   }
 
-  /* In jeder App an derselben Stelle, nie schrumpfend — ein Ziel für den
+  /* In jeder App an derselben Stelle, nie schrumpfend - ein Ziel für den
      Finger gibt keinen Platz her. */
   .menue {
     position: relative;
@@ -360,7 +360,7 @@
     font-weight: 600;
   }
 
-  /* Verlässt die App — der Pfeil steht rechts und hält Abstand. */
+  /* Verlässt die App - der Pfeil steht rechts und hält Abstand. */
   .eintrag.auswaerts {
     display: flex;
     align-items: center;

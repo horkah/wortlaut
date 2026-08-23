@@ -6,7 +6,7 @@ COPY apps/schreiben/frontend/package*.json ./apps/schreiben/frontend/
 RUN cd apps/schreiben/frontend && npm ci
 COPY packages/ui ./packages/ui
 # Die Kopfzeile bindet das Zeichen als Quelltext ein
-# (packages/ui/Kopfleiste.svelte) — ohne assets/ bricht der Bau ab.
+# (packages/ui/Kopfleiste.svelte) - ohne assets/ bricht der Bau ab.
 COPY assets ./assets
 COPY apps/schreiben/frontend ./apps/schreiben/frontend
 RUN cd apps/schreiben/frontend && npm run build

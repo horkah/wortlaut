@@ -1,11 +1,11 @@
-"""Transkription — zwei austauschbare Umsetzungen hinter einem Protokoll.
+"""Transkription - zwei austauschbare Umsetzungen hinter einem Protokoll.
 
 GPU-Arbeit läuft nie im Web-Prozess (Grundentscheidung 5): `local` lädt
 faster-whisper in den eigenen Prozess, `remote` spricht einen
 OpenAI-kompatiblen Endpunkt an. Genutzt wird das von der App „schreiben"; die
 Schnittstelle steht hier, weil sie zum geteilten Vertrag gehört.
 
-Beide Umsetzungen importieren ihre Abhängigkeiten erst beim Aufruf — „hören"
+Beide Umsetzungen importieren ihre Abhängigkeiten erst beim Aufruf - „hören"
 zieht dadurch weder Modelle noch HTTP-Clients mit.
 """
 

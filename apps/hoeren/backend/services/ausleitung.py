@@ -1,8 +1,8 @@
-"""Ein Archiv bauen, ausliefern und danach wegräumen — für beide Wege dorthin.
+"""Ein Archiv bauen, ausliefern und danach wegräumen - für beide Wege dorthin.
 
 Zwei Aufrufer holen dieselben zwei Dateien: die Aufsicht für einen fremden
 Korpus (`api/admin.py`) und ein Sprecher für den eigenen (`api/konto.py`).
-Gepackt wird beides Mal dasselbe, und zwar hier — sonst gäbe es zwei
+Gepackt wird beides Mal dasselbe, und zwar hier - sonst gäbe es zwei
 Vorstellungen davon, was „diese Daten mitnehmen" heißt, und sie liefen mit der
 Zeit auseinander.
 
@@ -33,7 +33,7 @@ def kurz(sprecher: Sprecher) -> dict[str, str]:
 
 
 def sicherung_eines(sprecher: Sprecher) -> FileResponse:
-    """Der vollständige Stand eines Sprechers als `.tgz` — zum Zurückspielen.
+    """Der vollständige Stand eines Sprechers als `.tgz` - zum Zurückspielen.
 
     Enthält Korpus und Diktate, wie sie im Datenverzeichnis liegen, mit einer
     in sich stimmigen Kopie der Datenbank. Zurück kommt der Stand mit
@@ -54,7 +54,7 @@ def sicherung_eines(sprecher: Sprecher) -> FileResponse:
 
 
 def datensatz_eines(sitzung: Session, sprecher: Sprecher, ablage: storage.Ablage) -> FileResponse:
-    """Text-Audio-Paare als `.zip` — für Training und Ansehen von außen.
+    """Text-Audio-Paare als `.zip` - für Training und Ansehen von außen.
 
     Keine Sicherung, sondern ein Auszug in Ordnerform (siehe
     `services/export.py`).
@@ -71,7 +71,7 @@ def archiv(dateiname: str, baue: Callable[[Path], Path], medientyp: str) -> File
 
     Gebaut wird in eine temporäre Datei und nicht in den Arbeitsspeicher: Ein
     Korpus kann Gigabyte groß sein. Aufgeräumt wird über eine
-    Hintergrundaufgabe — sie läuft, nachdem die Antwort durch ist, denn vorher
+    Hintergrundaufgabe - sie läuft, nachdem die Antwort durch ist, denn vorher
     liest Starlette noch aus genau dieser Datei.
     """
     verzeichnis = Path(tempfile.mkdtemp(prefix="wortlaut-ausleitung-"))

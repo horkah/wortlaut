@@ -3,18 +3,18 @@
 Hier hängt die Bindung zwischen Aufrufer und Verzeichnis. Es gibt drei Arten
 von Zugang, alle als `Authorization: Bearer …`:
 
-* **Verwaltung** — `WORTLAUT_AUTH_TOKEN`. Legt Sprecherprofile an, gibt deren
+* **Verwaltung** - `WORTLAUT_AUTH_TOKEN`. Legt Sprecherprofile an, gibt deren
   Zugänge aus und zieht sie zurück. Sie kommt an keine Aufnahme heran; wer für
   einen Sprecher aufnehmen will, benutzt dessen Zugang. Das ist der Preis
   dafür, dass es nur **einen** Weg zu den Daten gibt und der die Kennung
-  ableitet. Ist der Token nicht gesetzt, ist die Verwaltung zu — auch in der
+  ableitet. Ist der Token nicht gesetzt, ist die Verwaltung zu - auch in der
   Entwicklung.
-* **Sprecherzugang** — `<sprecher_id>.<geheimnis>` (siehe `wortlaut.zugang`).
+* **Sprecherzugang** - `<sprecher_id>.<geheimnis>` (siehe `wortlaut.zugang`).
   Er ist zugleich die Kennung: Der Server spaltet ihn, öffnet die Datenbank
   dieses Sprechers und prüft dort den Prüfwert.
-* **Aufsicht** — `WORTLAUT_ADMIN_TOKEN`. Der eine Zugang, der über allen
+* **Aufsicht** - `WORTLAUT_ADMIN_TOKEN`. Der eine Zugang, der über allen
   Korpora steht: einsehen, umbenennen, sichern, löschen. Er wählt seinen
-  Sprecher ausdrücklich in der Adresse, denn er hat keinen eigenen — deshalb
+  Sprecher ausdrücklich in der Adresse, denn er hat keinen eigenen - deshalb
   liegen seine Wege unter `/api/admin/…` und nirgends sonst (siehe
   `api/admin.py`). Er darf alles, was die Verwaltung darf; umgekehrt nicht.
 
@@ -22,8 +22,8 @@ von Zugang, alle als `Authorization: Bearer …`:
   löschen darf, wäre kein Entwicklungskomfort, sondern ein Unfall mit Ansage.
 
 `?sprecher=` gibt es weiterhin, aber nur noch als Behauptung, die stimmen muss.
-Weicht sie von der abgeleiteten Kennung ab — alter Reiter, falsches Lesezeichen,
-falsch konfiguriertes „schreiben" —, ist die Antwort 403. Ein Fehlgriff wird so
+Weicht sie von der abgeleiteten Kennung ab - alter Reiter, falsches Lesezeichen,
+falsch konfiguriertes „schreiben" -, ist die Antwort 403. Ein Fehlgriff wird so
 laut, statt still ins falsche Verzeichnis zu schreiben.
 """
 
@@ -61,13 +61,13 @@ def engine_fuer(sprecher_id: str) -> Engine:
     Vor dem ersten Zugriff laufen die offenen Migrationen. Ohne das trägt ein
     Update das neue Schema nur in die Datenbanken, die danach entstehen: Beim
     Anlegen eines Profils migriert `api/speakers.py`, sonst nichts und nirgends.
-    Wer eine Spalte hinzufügt, legt damit jeden bestehenden Korpus still — die
+    Wer eine Spalte hinzufügt, legt damit jeden bestehenden Korpus still - die
     Modelle in `db/models.py` fragen die Spalte ab, SQLite kennt sie nicht, und
     was scheitert, ist nicht bloß die neue Ansicht, sondern jedes `SELECT` auf
     `speakers`: die Liste der Aufsicht ebenso wie die Zugangsprüfung weiter
     unten, mit der sich jeder Sprecher anmeldet.
 
-    `make migrate` bleibt daneben bestehen — es ist der Weg, das für alle
+    `make migrate` bleibt daneben bestehen - es ist der Weg, das für alle
     Korpora auf einmal und vor dem ersten Aufruf zu tun. Es darf nur nicht der
     einzige sein: Der Container startet uvicorn, nicht ein Skript, an das sich
     beim Ausrollen jemand erinnern muss.
@@ -103,7 +103,7 @@ def _gleich(vorgelegt: str, erwartet: str) -> bool:
 
     Zeitkonstant, weil sonst die Antwortzeit den Anfang des Tokens verrät.
     Ausdrücklich in Bytes, weil `compare_digest` Zeichenketten mit
-    Nicht-ASCII-Zeichen abweist — ein Umlaut im Token genügte sonst für einen
+    Nicht-ASCII-Zeichen abweist - ein Umlaut im Token genügte sonst für einen
     500er statt eines sauberen 401.
     """
     return secrets.compare_digest(vorgelegt.encode("utf-8"), erwartet.encode("utf-8"))
@@ -118,7 +118,7 @@ def _ist_aufsicht(vorgelegt: str) -> bool:
 def _pruefe_aufsicht(authorization: Annotated[str | None, Header()] = None) -> None:
     """Wächter der Wege unter `/api/admin/…`.
 
-    Ohne gesetzten `WORTLAUT_ADMIN_TOKEN` kommt hier niemand durch — auch nicht
+    Ohne gesetzten `WORTLAUT_ADMIN_TOKEN` kommt hier niemand durch - auch nicht
     in der Entwicklung. Diese Wege löschen Korpora; ein offener Zugang dazu
     wäre kein Komfort, sondern der Unfall.
     """
@@ -137,12 +137,12 @@ def _pruefe_verwaltung(authorization: Annotated[str | None, Header()] = None) ->
     Die Aufsicht kommt hier ebenfalls durch: Wer jeden Korpus löschen darf,
     hätte an einem zweiten Token für das Anlegen eines Profils nichts gewonnen.
 
-    Ohne gesetzten Token kommt hier niemand durch — wie bei der Aufsicht und
+    Ohne gesetzten Token kommt hier niemand durch - wie bei der Aufsicht und
     aus demselben Grund. Früher stand die Verwaltung dann offen, gedacht als
     Bequemlichkeit für die Entwicklung. Nur unterscheidet keine Installation
     zwischen „Entwicklung" und „Betrieb": Wer den Token beim Aufsetzen
     vergisst, hat eine Seite im Netz, auf der jeder Profile anlegt und
-    ausgegebene Zugänge zurückzieht — und nichts daran sieht falsch aus, weil
+    ausgegebene Zugänge zurückzieht - und nichts daran sieht falsch aus, weil
     genau das die Oberfläche der Verwaltung ist. Ein vergessener Token darf
     nicht die großzügigste aller Einstellungen sein.
     """
@@ -156,7 +156,7 @@ def _pruefe_verwaltung(authorization: Annotated[str | None, Header()] = None) ->
         )
     # Ein Sprecherzugang ist hier kein schwächerer Verwalter, sondern etwas
     # anderes. Er scheiterte auch am Vergleich weiter unten, aber mit
-    # „Nicht angemeldet" — und wer seinen persönlichen Link vorlegt, sucht dann
+    # „Nicht angemeldet" - und wer seinen persönlichen Link vorlegt, sucht dann
     # den Fehler beim Link statt an der Stelle, an der er steht.
     if zugangsdienst.zerlege(vorgelegt) is not None:
         raise HTTPException(
@@ -168,7 +168,7 @@ def _pruefe_verwaltung(authorization: Annotated[str | None, Header()] = None) ->
 
 
 def _wer_ruft(authorization: Annotated[str | None, Header()] = None) -> Zugang:
-    """Die Kennung aus dem Vorgelegten ableiten — die einzige Stelle, die das tut."""
+    """Die Kennung aus dem Vorgelegten ableiten - die einzige Stelle, die das tut."""
     vorgelegt = _vorgelegt(authorization)
     # Die Aufsicht zuerst: Sonst fiele sie in die Verwaltung und die Oberfläche
     # bekäme nie zu sehen, dass sie mehr darf.
@@ -196,7 +196,7 @@ def _wer_ruft(authorization: Annotated[str | None, Header()] = None) -> Zugang:
 def _sprecher_id(
     zugang: Annotated[Zugang, Depends(_wer_ruft)], sprecher: str | None = None
 ) -> str:
-    """Der Sprecher dieser Anfrage — aus dem Zugang, nie aus dem Parameter."""
+    """Der Sprecher dieser Anfrage - aus dem Zugang, nie aus dem Parameter."""
     if zugang.art != "sprecher":
         raise HTTPException(
             status_code=401, detail="Für diesen Weg braucht es den Zugang eines Sprechers."

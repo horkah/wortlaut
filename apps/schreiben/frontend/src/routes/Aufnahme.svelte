@@ -3,7 +3,7 @@
    * Ein großer Knopf, sonst nichts (Grundentscheidung 7).
    *
    * Gesprochen wird frei, nicht abgelesen: Was hier entsteht, sind eigene
-   * Sätze. Nach dem Sprechen dauert es einen Augenblick — die Transkription
+   * Sätze. Nach dem Sprechen dauert es einen Augenblick - die Transkription
    * läuft auf dem Server und braucht je nach Modell ein paar Sekunden. Diese
    * Wartezeit muss man sehen, sonst drückt jemand ein zweites Mal.
    */
@@ -14,7 +14,7 @@
 
   // Der Modellstand steht hier, nicht in der Kopfzeile: Ein Modellwechsel ist
   // eine Konfigurationsänderung, und wer eine Ausgabe beurteilt, muss sehen,
-  // welcher Stand sie erzeugt hat — direkt bei der Aufnahme, die ihn erzeugt.
+  // welcher Stand sie erzeugt hat - direkt bei der Aufnahme, die ihn erzeugt.
   const beschriftung = $derived(zustand.modellstand?.beschriftung ?? '');
 
   let stand = $state<'bereit' | 'verstehe'>('bereit');
@@ -79,7 +79,7 @@
     font-size: 1.4rem;
     margin: 0;
   }
-  /* Randnotiz unter dem Aufnahmeknopf, kein Bedienelement — bleibt leise. */
+  /* Randnotiz unter dem Aufnahmeknopf, kein Bedienelement - bleibt leise. */
   .modellstand {
     font-size: 0.8rem;
     margin: 0;
