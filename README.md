@@ -557,6 +557,16 @@ Sitzungen und Aufnahmen, die die Aufsicht für ihn sähe (`api/konto.py`,
 jedem anderen Weg dieser App aus dem vorgelegten Zugang, ein Sprecher kann
 also von vornherein nur seine eigene Datenbank öffnen.
 
+Ein Unterschied zur Aufsicht ist geblieben, und er betrifft die Sitzungen:
+Hier stehen nur die, in denen auch aufgenommen wurde - Liste wie Kennzahl
+(`services/uebersicht.py`, `nur_mit_aufnahmen`). Eine Sitzung entsteht schon
+beim Öffnen der Aufnahmeseite, noch bevor jemand gesprochen hat; wer zweimal
+hineingesehen und einmal geübt hat, sähe sonst drei Zeilen für einen Abend.
+Die Aufsicht bekommt sie weiterhin alle zu sehen: Dort ist gerade der leere
+Anlauf eine Auskunft. Jede Sitzung trägt Datum **und** Uhrzeit, in der
+Zeitzone des Betrachters umgerechnet (`packages/ui/zeit.ts`) - drei Sitzungen
+an einem Tag wären mit dem Datum allein nicht auseinanderzuhalten.
+
 Die drei Löschstufen von oben bleiben der Aufsicht vorbehalten. Was bleibt,
 ist die vertraute Grenze aus `api/recordings.py`: eine einzelne Aufnahme
 verwerfen, dieselbe Handlung, die während des Aufnehmens schon zur Verfügung

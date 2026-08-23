@@ -92,18 +92,27 @@ def pin_setzen(aenderung: PinAenderung, db: Datenbank, sprecher: SprecherId) -> 
 
 @router.get("", response_model=KontoAntwort, dependencies=[Depends(_pruefe_pin)])
 def konto(sprecher: SprecherId, db: Datenbank, ablage: Ablage) -> KontoAntwort:
-    """Profil, Kennzahlen und Textquellen - die eigenen, wie die Aufsicht sie sieht."""
+    """Profil, Kennzahlen und Textquellen - die eigenen, wie die Aufsicht sie sieht.
+
+    Mit einem Unterschied: Die Kennzahl „Sitzungen" zählt hier nur die, in
+    denen auch aufgenommen wurde - genau wie die Liste unter `/sessions`.
+    """
     person = _hole(db, sprecher)
     return KontoAntwort(
-        sprecher=uebersicht.profil(db, person, ablage),
+        sprecher=uebersicht.profil(db, person, ablage, nur_sitzungen_mit_aufnahmen=True),
         quellen=uebersicht.quellen(db),
     )
 
 
 @router.get("/sessions", response_model=SitzungenAntwort, dependencies=[Depends(_pruefe_pin)])
 def sitzungen(db: Datenbank, ab: int = 0, anzahl: int = 10) -> SitzungenAntwort:
-    """Die eigenen Sitzungen, jüngste zuerst, seitenweise."""
-    return uebersicht.sitzungen_seite(db, ab, anzahl)
+    """Die eigenen Sitzungen, jüngste zuerst, seitenweise.
+
+    Ohne die leeren: Wer nur die Aufnahmeseite geöffnet und nichts gesprochen
+    hat, hat damit keine Sitzung erlebt, die ihm hier etwas sagen würde. Die
+    Aufsicht sieht sie weiterhin (`api/admin.py`, `services/uebersicht.py`).
+    """
+    return uebersicht.sitzungen_seite(db, ab, anzahl, nur_mit_aufnahmen=True)
 
 
 @router.get("/recordings", response_model=AufnahmenAntwort, dependencies=[Depends(_pruefe_pin)])
@@ -129,7 +138,7 @@ def umbenennen(
     person = _hole(db, sprecher)
     person.name = aenderung.name
     db.commit()
-    return uebersicht.profil(db, person, ablage)
+    return uebersicht.profil(db, person, ablage, nur_sitzungen_mit_aufnahmen=True)
 
 
 @router.get("/sicherung", dependencies=[Depends(_pruefe_pin)])
