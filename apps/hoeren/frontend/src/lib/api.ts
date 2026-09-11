@@ -416,3 +416,79 @@ export const michUmbenennen = (name: string, pin?: string) =>
 export const meineSicherung = (pin?: string) => lade('/konto/sicherung', mitPin(pin));
 
 export const meinDatensatz = (pin?: string) => lade('/konto/datensatz', mitPin(pin));
+
+// ── Auswertung ──────────────────────────────────────────────────────────────
+//
+// Wie gut verschiedene Modelle diesem Sprecher zuhören, gemessen an seinen
+// eigenen Aufnahmen (`backend/api/auswertung.py`). Zwei Auskünfte, absichtlich
+// getrennt: `auswertung()` liefert die Zahlen für die Kurve und wird abgefragt,
+// solange die Seite offen ist; `vergleich()` liefert die Texte einer einzelnen
+// Aufnahme und erst auf Klick. Die Texte in jede Abfrage zu packen hieße, bei
+// jedem Takt ein Vielfaches der Zahlen zu übertragen, die gemeint sind.
+
+export type Metrik = {
+  schluessel: string;
+  name: string;
+  erklaerung: string;
+  /** Ob ein hoher Wert der bessere ist - die Fehlerraten sind andersherum. */
+  hoch_ist_gut: boolean;
+  einheit: string;
+  /** Feste Obergrenze der Achse; `null` heißt: nach den Daten richten. */
+  obergrenze: number | null;
+};
+
+export type Laufstand = {
+  laeuft: boolean;
+  erledigt: number;
+  gesamt: number;
+  uebersprungen: number;
+  aktuell: string;
+  fehler: string | null;
+  /** Es rechnet gerade jemand anderes - es läuft immer nur ein Lauf. */
+  fremder_lauf: boolean;
+};
+
+export type Punkt = {
+  nummer: number;
+  aufnahme_id: string;
+  dauer_s: number;
+  erstellt: string;
+  /** modell → maß → Wert. Fehlt ein Modell, ist es noch nicht gerechnet. */
+  werte: Record<string, Record<string, number>>;
+};
+
+export type Auswertung = {
+  modelle: string[];
+  metriken: Metrik[];
+  stand: Laufstand;
+  punkte: Punkt[];
+};
+
+export type Erkennung = {
+  modell: string;
+  text: string;
+  wer: number;
+  cer: number;
+  mer: number;
+  wil: number;
+  genauigkeit: number;
+  rechenzeit_s: number;
+};
+
+export type Vergleich = {
+  nummer: number;
+  aufnahme_id: string;
+  referenz: string;
+  dauer_s: number;
+  erkennungen: Erkennung[];
+};
+
+export const auswertung = () => anfrage<Auswertung>('/auswertung');
+
+export const vergleich = (aufnahme: string) => anfrage<Vergleich>(`/auswertung/${aufnahme}`);
+
+export const auswertungStarten = () =>
+  anfrage<Laufstand>('/auswertung/start', { method: 'POST' });
+
+export const auswertungStoppen = () =>
+  anfrage<Laufstand>('/auswertung/stopp', { method: 'POST' });
