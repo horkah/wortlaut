@@ -420,7 +420,7 @@ export const meinDatensatz = (pin?: string) => lade('/konto/datensatz', mitPin(p
 // ── Auswertung ──────────────────────────────────────────────────────────────
 //
 // Wie gut verschiedene Modelle diesem Sprecher zuhören, gemessen an seinen
-// eigenen Aufnahmen (`backend/api/auswertung.py`). Zwei Auskünfte, absichtlich
+// eigenen Aufnahmen und drei Abwandlungen davon (`backend/api/auswertung.py`). Zwei Auskünfte, absichtlich
 // getrennt: `auswertung()` liefert die Zahlen für die Kurve und wird abgefragt,
 // solange die Seite offen ist; `vergleich()` liefert die Texte einer einzelnen
 // Aufnahme und erst auf Klick. Die Texte in jede Abfrage zu packen hieße, bei
@@ -448,17 +448,30 @@ export type Laufstand = {
   fremder_lauf: boolean;
 };
 
+/** Eine Fassung der Aufnahme: das Original oder eine der drei Abwandlungen. */
+export type Variante = {
+  schluessel: string;
+  name: string;
+  erklaerung: string;
+};
+
 export type Punkt = {
   nummer: number;
   aufnahme_id: string;
   dauer_s: number;
   erstellt: string;
-  /** modell → maß → Wert. Fehlt ein Modell, ist es noch nicht gerechnet. */
-  werte: Record<string, Record<string, number>>;
+  /**
+   * modell → fassung → maß → Wert. Fehlt ein Eintrag, ist er noch nicht
+   * gerechnet. Der Server rechnet hier nichts zusammen: Welche der vier Zahlen
+   * die Kurve zeigt, hängt am gewählten Maß, und die Tabelle zeigt ohnehin
+   * alle vier.
+   */
+  werte: Record<string, Record<string, Record<string, number>>>;
 };
 
 export type Auswertung = {
   modelle: string[];
+  varianten: Variante[];
   metriken: Metrik[];
   stand: Laufstand;
   punkte: Punkt[];
@@ -466,6 +479,7 @@ export type Auswertung = {
 
 export type Erkennung = {
   modell: string;
+  variante: string;
   text: string;
   wer: number;
   cer: number;

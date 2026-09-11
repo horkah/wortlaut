@@ -98,10 +98,10 @@ class Aufnahme(Basis):
 class Erkennung(Basis):
     """Was ein Modell aus einer Aufnahme gemacht hat, samt Maßen dagegen.
 
-    Je Aufnahme und Modell eine Zeile (siehe `005_auswertung.sql`). Die
-    Fehlerraten sind Maße gegen die Vorlage, `genauigkeit` fasst sie zu einer
-    Zahl zusammen - beides gerechnet in `wortlaut/metriken.py`, hier nur
-    aufbewahrt.
+    Je Aufnahme, Modell und Fassung eine Zeile (siehe `005_auswertung.sql`
+    und `007_varianten.sql`). Die Fehlerraten sind Maße gegen die Vorlage,
+    `genauigkeit` fasst sie zu einer Zahl zusammen - beides gerechnet in
+    `wortlaut/metriken.py`, hier nur aufbewahrt.
     """
 
     __tablename__ = "erkennungen"
@@ -109,6 +109,9 @@ class Erkennung(Basis):
     id: Mapped[str] = mapped_column(primary_key=True)
     recording_id: Mapped[str] = mapped_column(ForeignKey("recordings.id"))
     modell: Mapped[str]
+    # Welche Fassung der Aufnahme gemessen wurde: `original` oder eine der
+    # Abwandlungen aus `wortlaut/augmentierung.py` (siehe `007_varianten.sql`).
+    variante: Mapped[str]
     text: Mapped[str]
     wer: Mapped[float]
     cer: Mapped[float]

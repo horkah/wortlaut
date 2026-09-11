@@ -210,6 +210,7 @@ wortlaut/
 │   └── betrieb.md
 └── scripts/
     ├── migrate.py
+    ├── augmentieren.py            # abgewandelte Fassungen aller Aufnahmen
     ├── restore.py                 # eine Sicherung zurückspielen
     └── purge_speaker.py           # Löschung, vollständig
 ```
@@ -543,6 +544,7 @@ wortlaut-gesamt-20260822-174500.tgz
 └── daten/
     ├── korpus/spr_…/hoeren.sqlite
     ├── korpus/spr_…/audio/rec_….wav
+    ├── korpus/spr_…/audio/varianten/rec_….<fassung>.wav
     └── diktate/spr_…/…          Arbeitsstand von „schreiben"
 ```
 
@@ -586,9 +588,13 @@ das Archiv in einem Jahr wiederfindet.
 
 | | Was verschwindet | Was bleibt |
 |---|---|---|
-| eine Aufnahme | Audio und Datensatz; die Einheit wird wieder offen | alles andere |
-| alle Aufnahmen eines Sprechers | jedes Audio, jede Aufnahmezeile | Profil, Textquellen, Warteschlange |
+| eine Aufnahme | Audio samt abgewandelten Fassungen und Datensatz; die Einheit wird wieder offen | alles andere |
+| alle Aufnahmen eines Sprechers | jedes Audio samt Fassungen, jede Aufnahmezeile | Profil, Textquellen, Warteschlange |
 | ein Sprecher | Korpus, Diktate, Modellstände, Schnappschüsse | nichts |
+
+Die abgewandelten Fassungen gehen überall mit: Sie sind dieselbe Stimme, nur
+lauter oder verrauscht, und damit derselbe Gesundheitsdatensatz. Wer eine
+Aufnahme verwirft, hat nicht drei Kopien davon gemeint.
 
 Eine vierte Stufe „alle Sprecher" gibt es nicht, weder in der Oberfläche noch
 in der API. Sie wäre ein Knopf, der einmal im Leben gedrückt wird - und dann
@@ -703,6 +709,62 @@ deutlich hinter der Vorlage, ist genau das das Argument für ein eigenes
 Feintuning; trifft es, war der Weg nicht nötig. Wer wenig Maschine hat, kürzt
 die Liste - gerechnet wird nur, was darin steht.
 
+#### Vier Fassungen je Aufnahme
+
+Eine Aufnahme ist ein einzelner Fall: diese Stimme, dieses Mikrofon, dieser
+Abstand, dieser Raum, dieser Pegel. Ein Modell, das damit zurechtkommt, muss
+den Sprecher noch nicht verstanden haben - es kann auch bloß diese eine
+Aufnahmesituation gut vertragen. Zu wissen, was von beidem zutrifft, ist der
+eigentliche Zweck der Auswertung, denn die nächste Aufnahme entsteht mit
+anderem Pegel und anderem Grundgeräusch.
+
+Gemessen wird deshalb nicht die Aufnahme, sondern die Aufnahme und drei
+Abwandlungen davon (`packages/wortlaut/src/wortlaut/augmentierung.py`):
+
+| Fassung | was sie tut | wonach sie fragt |
+| --- | --- | --- |
+| `original` | nichts - die Aufnahme, wie sie gesprochen wurde | der Ausgangswert |
+| `pegel` | lauter, bis die Spitze bei −1 dBFS steht | lag es nur daran, dass es zu leise war? |
+| `lauter` | alles mal 1,15, für jede Aufnahme derselbe Faktor | was passiert, wenn jemand pauschal aufdreht? |
+| `rauschen` | weißes Rauschen, 20 dB unter der Aufnahme | hält es einem Lüfter, einer Straße stand? |
+
+Vier Zahlen je Modell und Aufnahme also, und erst ihr Zusammenhang ist die
+Auskunft: Liegen die vier dicht beieinander, versteht das Modell den Sprecher.
+Fallen sie auseinander, verträgt es eine bestimmte Aufnahmesituation.
+
+Drei Entscheidungen stecken darin:
+
+* **`pegel` und `lauter` sind nicht dasselbe.** `pegel` schöpft den
+  Wertebereich aus - jede Aufnahme landet danach gleich laut, und wer schon am
+  Anschlag stand, wird dabei leiser: „optimal ausnutzen" heißt auch, den
+  Bereich nicht zu verlassen. `lauter` lässt den Abstand zwischen leisen und
+  lauten Aufnahmen stehen und schneidet ab, wo es nicht mehr passt. Das erste
+  ist der Regler, den ein Programm stellt, das zweite der, an dem ein Mensch
+  dreht.
+* **Das Rauschen liegt in festem Abstand zur Aufnahme, nicht auf festem
+  Pegel.** Ein absoluter Rauschpegel träfe eine leise Aufnahme viel härter als
+  eine laute; die Abwandlung wäre für jede Aufnahme eine andere, und der
+  Vergleich zweier Aufnahmen sagte mehr über deren Aussteuerung als über das
+  Modell.
+* **Das Rauschen ist gewürfelt und trotzdem wiederholbar.** Der Würfel bekommt
+  die Kennung der Aufnahme als Keim. Dieselbe Aufnahme ergibt auf jeder
+  Maschine dasselbe Rauschen, und eine gelöschte Datei kommt Byte für Byte so
+  zurück, wie sie war - sonst wäre eine wiederholte Messung keine Wiederholung.
+
+Die Fassungen werden **aufbewahrt**, nicht im Speicher hergestellt und wieder
+vergessen. Damit hat nicht nur die Auswertung etwas davon: Auf der Platte steht
+ein viermal so großer Datensatz, den ein späteres Feintuning ohne weiteres
+Zutun mitnehmen kann, und der in jeder Sicherung liegt. Sie entstehen beim
+Hochladen einer Aufnahme und, falls eine fehlt, spätestens kurz bevor der Lauf
+sie braucht - so kommt auch jeder Korpus, der vor dieser Änderung angelegt
+wurde, ohne Zutun zu seinen Dateien. `make augmentieren` (im Container
+`python scripts/augmentieren.py`) zieht das für alle Korpora auf einmal vor.
+
+Beim Löschen gehen sie mit: Eine abgewandelte Fassung ist dieselbe Stimme, nur
+lauter oder verrauscht, und damit derselbe Gesundheitsdatensatz
+(Grundentscheidung 6). Wer eine Aufnahme verwirft, hat nicht drei Kopien davon
+gemeint.
+
 #### Vier Maße und eine Zahl
 
 Die Fehlerraten stehen in `wortlaut/metriken.py`, weil sie reine Textmathematik
@@ -741,8 +803,9 @@ echten Unterschied sieht.
 
 #### Der Lauf
 
-Ein Hintergrundlauf arbeitet die offenen Paare aus Aufnahme und Modell ab,
-eines nach dem anderen. Vier Eigenschaften sind Absicht:
+Ein Hintergrundlauf arbeitet die offenen Tripel aus Aufnahme, Modell und
+Fassung ab, eines nach dem anderen - bei vier Modellen und vier Fassungen also
+sechzehn Messungen je Aufnahme. Vier Eigenschaften sind Absicht:
 
 * **Von Hand angestoßen.** Der Lauf startet nicht beim Hochfahren des Servers.
   Whisper rechnet, und zwar auf derselben Maschine, auf der jemand gerade
@@ -754,9 +817,10 @@ eines nach dem anderen. Vier Eigenschaften sind Absicht:
   wird das damit, dass alle Erkenner gleichzeitig im Speicher liegen; bei
   `base,small,medium,large-v3` in `int8` gut zweieinhalb Gigabyte.
 * **Wiederaufnehmbar.** Fertig ist, was in `erkennungen` steht
-  (`005_auswertung.sql`). Ein zweiter Lauf rechnet nur, was fehlt - nach einem
-  Neustart, nach neuen Aufnahmen oder nach einem hinzugefügten Modell. Nichts
-  wird doppelt gerechnet, nichts geht verloren, wenn der Lauf mitten darin
+  (`005_auswertung.sql`, `007_varianten.sql`). Ein zweiter Lauf rechnet nur,
+  was fehlt - nach einem Neustart, nach neuen Aufnahmen, nach einem
+  hinzugefügten Modell und nach einer hinzugefügten Fassung. Nichts wird
+  doppelt gerechnet, nichts geht verloren, wenn der Lauf mitten darin
   abbricht.
 * **Ein Lauf zur Zeit, über alle Sprecher.** Nicht aus Bequemlichkeit: Zwei
   Läufe teilten sich eine CPU und dieselben Modelle im Speicher und wären
@@ -779,20 +843,39 @@ statt auf null zu fallen: Eine Null wäre ein Modell, das nichts verstanden hat.
 Der Fortschritt steht darüber, und die Seite fragt im Takt nach, solange
 gerechnet wird.
 
-Unter dem Bild steht die Bilanz: je Modell **Median und Mittel** im gewählten
-Maß, dazu, über wie viele Aufnahmen sie gehen. Beide, und nicht eines von
-beiden - das Mittel nimmt jeden Ausreißer mit, etwa die eine Aufnahme, bei der
-Whisper in eine Wiederholungsschleife gerät, während der Median den Normalfall
-nennt. Stehen sie weit auseinander, ist das die Auskunft: Das Modell ist nicht
+Gemessen sind vier Werte je Modell und Aufnahme, im Bild steht einer davon:
+der **beste** der vier. Alle sechzehn Reihen über dieselben Aufnahmen zu legen
+hieße, nichts mehr zu sehen; der beste sagt, was ein Modell aus dieser Aufnahme
+herausholen kann, wenn der Ton stimmt. „Am besten" heißt dabei je nach Maß
+größer oder kleiner - bei den Fehlerraten und der Rechenzeit ist der kleinste
+Wert der beste. Eine Kurve, die beim Wechsel des Maßes stillschweigend vom
+besten auf den schlechtesten Fall umschaltete, wäre eine Falle.
+
+Unter dem Bild steht die Bilanz: **Median und Mittel** im gewählten Maß, dazu,
+über wie viele Aufnahmen sie gehen. Beide, und nicht eines von beiden - das
+Mittel nimmt jeden Ausreißer mit, etwa die eine Aufnahme, bei der Whisper in
+eine Wiederholungsschleife gerät, während der Median den Normalfall nennt.
+Stehen sie weit auseinander, ist das die Auskunft: Das Modell ist nicht
 gleichmäßig schlechter, es verreißt einzelne Aufnahmen - welche, steht in der
 Kurve darüber. Gerechnet wird das im Browser aus den Zahlen, die die Kurve
 ohnehin mitbringt; ein Maßwechsel wartet so auf keine Antwort. Ein Modell, für
 das noch nichts gerechnet ist, bekommt keine Zeile: Zwei Nullen wären eine
 Behauptung.
 
-Ein Tipp auf eine Spalte - irgendwo in die Spalte, nicht auf den Balken; auf
-einem Telefon ist ein 20 Pixel breiter Balken kein Ziel - zeigt darunter die
-Vorlage und jede erkannte Fassung, Unterschiede zeichenweise ausgezeichnet:
+Je Modell stehen dort fünf Zeilen: **je Fassung eine** - das ist die Stelle, an
+der die vier Zahlen vollständig zu sehen sind - und darüber die beste der vier.
+Die letzte ist die Zeile zur Kurve; ohne sie stünde im Bild eine Reihe, zu der
+unten keine Zahl gehört, und man suchte sie in den vieren darunter, wo sie nicht
+steht: Der Median der besten Werte ist nicht der beste der vier Mediane.
+
+Ein Tipp auf eine Spalte zeigt darunter die Texte, und zwar **eine Fassung zur
+Zeit** - vier Schalter wechseln zwischen ihnen, das Original zuerst. Sechzehn
+Texte untereinander wären keine Ansicht mehr, sondern eine Liste; gefragt ist
+beim Lesen immer „was haben die Modelle aus *dieser* Aufnahme gemacht?".
+
+Getippt wird irgendwo in die Spalte, nicht auf den Balken; auf einem Telefon
+ist ein 20 Pixel breiter Balken kein Ziel. Darunter stehen dann die Vorlage und
+jede erkannte Fassung, Unterschiede zeichenweise ausgezeichnet:
 fehlend grau durchgestrichen, hinzugekommen farbig und fett, wie eine
 Textverarbeitung Änderungen nachverfolgt (`packages/ui/diff.ts`,
 `Textvergleich.svelte`). Auf Zeichen und nicht auf Wörtern, weil ein
@@ -902,9 +985,22 @@ Beide laufen auf demselben Server, SQLite im WAL-Modus erlaubt gleichzeitige Les
 
 ```
 data/korpus/<sprecher_id>/
-├── audio/<aufnahme_id>.wav     # 16 kHz mono, PCM 16 bit
-└── hoeren.sqlite               # Vorlagen, Aufnahmen, Sitzungen
+├── audio/
+│   ├── <aufnahme_id>.wav                    # 16 kHz mono, PCM 16 bit
+│   └── varianten/
+│       └── <aufnahme_id>.<fassung>.wav      # abgewandelt, gerechnet
+└── hoeren.sqlite                            # Vorlagen, Aufnahmen, Sitzungen
 ```
+
+Unter `varianten/` liegen die abgewandelten Fassungen jeder Aufnahme
+(siehe „Vier Fassungen je Aufnahme"). Sie liegen ein Stockwerk tiefer und
+nicht daneben, und das ist der ganze Schutz gegen Verwechslung: `audio/` ist
+genau das, was in `recordings.blob` steht - was ein Mensch gesprochen hat -,
+`audio/varianten/` ist das Abgeleitete, das sich jederzeit neu rechnen lässt.
+Ein Werkzeug, das über `audio/` läuft, muss den Unterschied nicht am
+Dateinamen erraten. Der Name trägt trotzdem beides, erst die Aufnahme, dann
+die Fassung: Ein sortiertes Verzeichnis liegt damit nach Aufnahmen geordnet
+da, und Aufnahmekennungen enthalten keinen Punkt.
 
 Die Datenbank liegt **innerhalb** des Sprecherverzeichnisses, also eine je
 Sprecher. Das hat drei Folgen: `lernen` liest genau eine Datei statt einer

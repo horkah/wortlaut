@@ -21,6 +21,8 @@ from wortlaut.whisper import Transkript
 from apps.hoeren.backend.services import auswertung
 
 MODELLE = "small,medium"
+# Zwei Modelle mal vier Fassungen: So viele Zeilen entstehen je Aufnahme.
+JE_AUFNAHME = 2 * 4
 
 
 class PlatzhalterErkenner:
@@ -119,7 +121,7 @@ class TestOhneAufnahmen:
 
 
 class TestLauf:
-    def test_rechnet_jede_aufnahme_durch_jedes_modell(
+    def test_rechnet_jede_fassung_jeder_aufnahme_durch_jedes_modell(
         self, klient: TestClient, quelle: str, sprich, antworten: dict
     ) -> None:
         vorlage = sprich()
@@ -128,9 +130,65 @@ class TestLauf:
 
         stand = _laufe_bis_fertig(klient)
 
-        assert stand["gesamt"] == 4  # zwei Aufnahmen, zwei Modelle
-        assert stand["erledigt"] == 4
+        # Zwei Aufnahmen, zwei Modelle, vier Fassungen.
+        assert stand["gesamt"] == 2 * JE_AUFNAHME
+        assert stand["erledigt"] == 2 * JE_AUFNAHME
         assert stand["fehler"] is None
+
+    def test_misst_jede_fassung_einzeln(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict
+    ) -> None:
+        sprich()
+        antworten.update({"small": "etwas", "medium": "etwas"})
+        _laufe_bis_fertig(klient)
+
+        antwort = klient.get("/api/auswertung").json()
+        gemessen = antwort["punkte"][0]["werte"]
+        assert set(gemessen) == {"small", "medium"}
+        # Die Fassungen kommen vom Server, samt Namen und Erklärung - die
+        # Oberfläche führt keine eigene Liste.
+        namen = [eintrag["schluessel"] for eintrag in antwort["varianten"]]
+        assert namen == ["original", "pegel", "lauter", "rauschen"]
+        assert set(gemessen["small"]) == set(namen)
+
+    def test_die_abgewandelten_fassungen_liegen_geordnet_im_korpus(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict, tmp_path: Path
+    ) -> None:
+        # Jede Fassung trägt erst die Aufnahme, dann ihren Namen, und sie liegt
+        # nicht bei den Aufnahmen, sondern darunter. Damit kann keine Datei mit
+        # einer Aufnahme verwechselt werden, und ein sortiertes Verzeichnis
+        # liegt nach Aufnahmen geordnet da.
+        sprich()
+        aufnahme = _erste(klient)
+        antworten.update({"small": "etwas", "medium": "etwas"})
+        _laufe_bis_fertig(klient)
+
+        korpus = tmp_path / "data" / "korpus"
+        varianten = sorted(pfad.name for pfad in korpus.rglob("varianten/*.wav"))
+        assert varianten == [
+            f"{aufnahme}.lauter.wav",
+            f"{aufnahme}.pegel.wav",
+            f"{aufnahme}.rauschen.wav",
+        ]
+        # Das Original bleibt, wo es war: `audio/` ist unverändert das, was in
+        # der Datenbank steht.
+        assert [pfad.name for pfad in sorted(korpus.rglob("audio/*.wav"))] == [
+            f"{aufnahme}.wav"
+        ]
+
+    def test_verworfene_aufnahme_nimmt_ihre_fassungen_mit(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict, tmp_path: Path
+    ) -> None:
+        # Eine abgewandelte Fassung ist dieselbe Stimme, nur lauter oder
+        # verrauscht - wer die Aufnahme wegwirft, hat nicht drei Kopien gemeint.
+        sprich()
+        antworten.update({"small": "etwas", "medium": "etwas"})
+        _laufe_bis_fertig(klient)
+        korpus = tmp_path / "data" / "korpus"
+        assert list(korpus.rglob("varianten/*.wav"))
+
+        assert klient.delete(f"/api/recordings/{_erste(klient)}").status_code == 204
+        assert not list(korpus.rglob("*.wav"))
 
     def test_nummeriert_luecklos_von_eins_an(
         self, klient: TestClient, quelle: str, sprich, antworten: dict
@@ -151,9 +209,12 @@ class TestLauf:
         _laufe_bis_fertig(klient)
 
         werte = klient.get("/api/auswertung").json()["punkte"][0]["werte"]
-        assert werte["medium"]["genauigkeit"] == pytest.approx(100.0)
-        assert werte["medium"]["wer"] == 0
-        assert werte["small"]["genauigkeit"] < werte["medium"]["genauigkeit"]
+        assert werte["medium"]["original"]["genauigkeit"] == pytest.approx(100.0)
+        assert werte["medium"]["original"]["wer"] == 0
+        assert (
+            werte["small"]["original"]["genauigkeit"]
+            < werte["medium"]["original"]["genauigkeit"]
+        )
 
     def test_zweiter_lauf_rechnet_nichts_doppelt(
         self, klient: TestClient, quelle: str, sprich, antworten: dict
@@ -165,8 +226,9 @@ class TestLauf:
         # Ein zweiter Lauf über denselben Stand: Es gibt nichts mehr zu tun,
         # und vor allem kommt nichts hinzu.
         stand = _laufe_bis_fertig(klient)
-        assert stand["erledigt"] == 2
-        assert len(klient.get(f"/api/auswertung/{_erste(klient)}").json()["erkennungen"]) == 2
+        assert stand["erledigt"] == JE_AUFNAHME
+        erkennungen = klient.get(f"/api/auswertung/{_erste(klient)}").json()["erkennungen"]
+        assert len(erkennungen) == JE_AUFNAHME
 
     def test_neue_aufnahme_wird_beim_naechsten_lauf_nachgeholt(
         self, klient: TestClient, quelle: str, sprich, antworten: dict
@@ -176,9 +238,9 @@ class TestLauf:
         _laufe_bis_fertig(klient)
 
         sprich()
-        assert klient.get("/api/auswertung").json()["stand"]["erledigt"] == 2
+        assert klient.get("/api/auswertung").json()["stand"]["erledigt"] == JE_AUFNAHME
         stand = _laufe_bis_fertig(klient)
-        assert (stand["erledigt"], stand["gesamt"]) == (4, 4)
+        assert (stand["erledigt"], stand["gesamt"]) == (2 * JE_AUFNAHME, 2 * JE_AUFNAHME)
 
     def test_verworfene_aufnahme_zaehlt_nicht_mit(
         self, klient: TestClient, quelle: str, sprich, antworten: dict
@@ -202,12 +264,66 @@ class TestLauf:
 
         stand = _laufe_bis_fertig(klient)
 
-        assert stand["uebersprungen"] == 1
+        # Übersprungen wird fassungsweise: Das Modell scheitert an jeder der
+        # vier, und jede wird einzeln vermerkt statt die Aufnahme als Ganzes.
+        assert stand["uebersprungen"] == 4
         assert "Modell nicht ladbar" in (stand["fehler"] or "")
-        # Das andere Modell ist trotzdem durchgelaufen.
+        # Das andere Modell ist trotzdem durchgelaufen, und zwar vollständig.
         werte = klient.get("/api/auswertung").json()["punkte"][0]["werte"]
-        assert "medium" in werte
+        assert len(werte["medium"]) == 4
         assert "small" not in werte
+
+
+class TestNachtraeglich:
+    """Aufnahmen, die vor der Einführung der Fassungen im Korpus lagen.
+
+    Nachgestellt, indem die Dateien wieder verschwinden - für den Server ist
+    das derselbe Fall wie ein Korpus, in dem es sie nie gab.
+    """
+
+    def test_der_lauf_holt_fehlende_fassungen_nach(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict, tmp_path: Path
+    ) -> None:
+        sprich()
+        korpus = tmp_path / "data" / "korpus"
+        for pfad in korpus.rglob("varianten/*.wav"):
+            pfad.unlink()
+
+        antworten.update({"small": "etwas", "medium": "etwas"})
+        stand = _laufe_bis_fertig(klient)
+
+        assert stand["erledigt"] == JE_AUFNAHME
+        assert len(list(korpus.rglob("varianten/*.wav"))) == 3
+
+    def test_das_skript_holt_sie_fuer_alle_korpora_nach(
+        self, klient: TestClient, quelle: str, sprich, tmp_path: Path
+    ) -> None:
+        # `scripts/augmentieren.py` ist der Weg, das vor einem Lauf und für
+        # alle Sprecher auf einmal zu tun.
+        from scripts import augmentieren
+
+        sprich()
+        korpus = tmp_path / "data" / "korpus"
+        vorher = {pfad.name: pfad.read_bytes() for pfad in korpus.rglob("varianten/*.wav")}
+        for pfad in korpus.rglob("varianten/*.wav"):
+            pfad.unlink()
+
+        assert augmentieren.main() == 0
+
+        nachher = {pfad.name: pfad.read_bytes() for pfad in korpus.rglob("varianten/*.wav")}
+        # Byte für Byte dieselben Dateien: Das Rauschen hängt an der Kennung
+        # der Aufnahme und nicht am Zufall des Tages. Ohne das wäre eine
+        # wiederholte Messung keine Wiederholung.
+        assert nachher == vorher
+
+    def test_ein_zweiter_lauf_des_skripts_rechnet_nichts_neu(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        from scripts import augmentieren
+
+        sprich()
+        assert augmentieren.main() == 0
+        assert augmentieren.main() == 0
 
 
 class TestVergleich:
@@ -221,9 +337,19 @@ class TestVergleich:
         vergleich = klient.get(f"/api/auswertung/{_erste(klient)}").json()
         assert vergleich["nummer"] == 1
         assert vergleich["referenz"] == vorlage
-        # In der Reihenfolge der Konfiguration, nicht in der der Datenbank.
-        assert [e["modell"] for e in vergleich["erkennungen"]] == ["small", "medium"]
-        assert vergleich["erkennungen"][1]["text"] == vorlage
+        # In der Reihenfolge der Konfiguration, nicht in der der Datenbank -
+        # und Fassung innen, Modell außen.
+        assert [(e["modell"], e["variante"]) for e in vergleich["erkennungen"]] == [
+            ("small", "original"),
+            ("small", "pegel"),
+            ("small", "lauter"),
+            ("small", "rauschen"),
+            ("medium", "original"),
+            ("medium", "pegel"),
+            ("medium", "lauter"),
+            ("medium", "rauschen"),
+        ]
+        assert vergleich["erkennungen"][4]["text"] == vorlage
 
     def test_unbekannte_aufnahme_ist_vierhundertvier(self, klient: TestClient) -> None:
         assert klient.get("/api/auswertung/rec_gibtesnicht").status_code == 404

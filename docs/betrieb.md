@@ -141,6 +141,23 @@ nicht: `WORKDIR` steht auf `/srv/wortlaut`, `WORTLAUT_DATA_DIR` kommt aus der
 `compose.yaml`. Zweimal aufgerufen tut er beim zweiten Mal nichts - was
 gelaufen ist, steht in `schema_migrations`.
 
+Daneben steht `scripts/augmentieren.py`. Es rechnet die abgewandelten Fassungen
+aller Aufnahmen - ausgesteuert, pauschal lauter, mit Rauschen; jede Aufnahme
+wird damit viermal gemessen (siehe README, „Vier Fassungen je Aufnahme").
+Nötig ist es nicht: Die Fassungen entstehen beim Hochladen einer Aufnahme und
+spätestens dann, wenn die Auswertung sie braucht. Es ist der Weg, das für alle
+Korpora auf einmal und **vor** einem Lauf zu tun - oder vor einer Sicherung,
+die den vollständigen Datensatz enthalten soll.
+
+```bash
+docker compose exec wortlaut python scripts/augmentieren.py
+# spr_…: 42 Aufnahmen, 126 Fassungen neu gerechnet
+# spr_…: 12 Aufnahmen, 0 Fassungen neu gerechnet   ← war schon vollständig
+```
+
+Auf dem Wirt heißt dasselbe `make augmentieren`. Ein zweiter Lauf rechnet
+nichts neu, und er kostet Platz: Der Korpus wird dadurch etwa viermal so groß.
+
 ### Bevor die Korrekturen ankommen: der Sprecher
 
 „schreiben" gehört zu genau einer Person. Ihre Kennung vergibt „hören" beim

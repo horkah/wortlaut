@@ -20,6 +20,18 @@
    * `kennzahlen`) - und gerade das Auseinanderfallen der beiden ist dieselbe
    * Auskunft wie der Einbruch in der Kurve, nur als Zahl.
    *
+   * **Warum im Bild nur eine von vier Zahlen steht.** Gemessen wird jede
+   * Aufnahme viermal je Modell: einmal, wie sie gesprochen wurde, und einmal
+   * je Abwandlung (ausgesteuert, pauschal lauter, mit Rauschen - siehe
+   * `wortlaut/augmentierung.py`). Alle vier in die Kurve zu legen ergäbe bei
+   * vier Modellen sechzehn Reihen über denselben Aufnahmen; man sähe nichts
+   * mehr. Die Kurve zeigt deshalb je Modell den **besten** der vier Werte -
+   * was das Modell aus dieser Aufnahme herausholen kann, wenn der Ton stimmt.
+   * „Am besten" heißt dabei je nach Maß größer oder kleiner: Bei den
+   * Fehlerraten ist der kleinste Wert der beste, und eine Kurve, die beim
+   * Wechsel des Maßes stillschweigend die Bedeutung tauschte, wäre eine Falle.
+   * Die vollständigen vier Zahlen stehen in der Tabelle darunter.
+   *
    * **Warum ECharts.** Diese eine Kurve käme mit weniger aus. Kommen sollen
    * aber mehrere, die sich gegenseitig folgen - und dafür ist die Wahl schon
    * jetzt zu treffen, weil ein Wechsel später jede Ansicht anfasst. ECharts
@@ -56,6 +68,11 @@
   const PUNKTFARBEN = ['#d55e00', '#0072b2', '#009e73', '#cc79a7', '#8a5aa8'];
   const PUNKTFORMEN = ['circle', 'diamond', 'triangle', 'rect', 'pin'];
 
+  // Der Schlüssel der Zeile, die nicht zu einer Fassung gehört, sondern zur
+  // Kurve: die beste der vier. Kein Name, den der Server je schickt - deshalb
+  // ein Zeichen, das in keiner Kennung vorkommt.
+  const BESTE = '*';
+
   let daten = $state<Auswertung | null>(null);
   let fehler = $state('');
   let laeuftGerade = $state('');
@@ -80,6 +97,12 @@
   // Aufnahme - man schaltet hin und her, nicht einmal um.
   let hervorheben = $state(true);
 
+  // Welche Fassung im Textvergleich gelesen wird. Alle sechzehn Texte
+  // untereinander wären keine Ansicht mehr, sondern eine Liste; gefragt ist
+  // beim Lesen immer „was haben die Modelle aus *dieser* Aufnahme gemacht?".
+  // Vorgabe ist das Original - die Aufnahme, wie sie gesprochen wurde.
+  let gewaehlteFassung = $state('original');
+
   let huelle = $state<HTMLDivElement | null>(null);
   // Das Diagramm selbst, ohne `$state`: ECharts führt seinen eigenen Zustand,
   // und ein Proxy darum herum brächte nur Ärger.
@@ -88,6 +111,7 @@
   const metriken = $derived(daten?.metriken ?? []);
   const aktuelleMetrik = $derived(metriken.find((m) => m.schluessel === metrik) ?? metriken[0]);
   const modelle = $derived(daten?.modelle ?? []);
+  const varianten = $derived(daten?.varianten ?? []);
 
   /**
    * Welches Modell den Balken bekommt. Die Vorgabe ist `small` - der
@@ -101,6 +125,13 @@
       : modelle.includes('small')
         ? 'small'
         : (modelle[Math.floor((modelle.length - 1) / 2)] ?? ''),
+  );
+
+  // Die Fassungen sind je Modell viermal da; gelesen wird immer eine.
+  const gelesen = $derived(
+    (gewaehlt?.erkennungen ?? []).filter(
+      (erkennung) => erkennung.variante === gewaehlteFassung,
+    ),
   );
 
   const stand = $derived(daten?.stand ?? null);
@@ -122,11 +153,35 @@
     return wert || ersatz;
   }
 
-  function wertVon(punkt: { werte: Record<string, Record<string, number>> }, modell: string) {
+  type Werte = Record<string, Record<string, Record<string, number>>>;
+
+  function wertVon(punkt: { werte: Werte }, modell: string, variante: string) {
     // `null` und nicht `0`: Was nicht gerechnet ist, ist keine Null, und eine
     // Null in der Kurve wäre ein Modell, das nichts verstanden hat.
-    const gemessen = punkt.werte[modell]?.[metrik];
+    const gemessen = punkt.werte[modell]?.[variante]?.[metrik];
     return gemessen === undefined ? null : gemessen;
+  }
+
+  /**
+   * Der beste der vier Werte eines Modells - die Zahl, die in die Kurve geht.
+   *
+   * Welcher der beste ist, sagt das Maß und nicht diese Funktion: Bei der
+   * Genauigkeit der größte, bei jeder Fehlerrate und bei der Rechenzeit der
+   * kleinste. Ohne diese Unterscheidung zeigte dieselbe Kurve beim Wechsel des
+   * Maßes einmal den besten und einmal den schlechtesten Fall, ohne es zu
+   * sagen.
+   *
+   * Gezählt wird nur, was gerechnet ist: Während ein Lauf läuft, steht hier
+   * vielleicht das Beste aus zweien. Das ist richtig so - es wächst mit.
+   */
+  function bestesVon(punkt: { werte: Werte }, modell: string) {
+    const gemessen = Object.values(punkt.werte[modell] ?? {})
+      .map((fassung) => fassung[metrik])
+      .filter((wert): wert is number => wert !== undefined);
+    if (!gemessen.length) return null;
+    return aktuelleMetrik?.hoch_ist_gut === false
+      ? Math.min(...gemessen)
+      : Math.max(...gemessen);
   }
 
   /**
@@ -150,14 +205,21 @@
     return modell === balkenmodell ? akzent : PUNKTFARBEN[nummer % PUNKTFARBEN.length];
   }
 
-  /** Was in der Zeile unter dem Bild steht: eine Reihe, zu einer Zahl gerafft. */
+  /** Eine Zeile der Tabelle: eine Reihe von Werten, zu zwei Zahlen gerafft. */
   type Kennzahl = {
-    modell: string;
-    nummer: number;
+    schluessel: string;
+    name: string;
     /** Wie viele Aufnahmen dahinterstehen - ohne die sind die Zahlen nicht zu lesen. */
     anzahl: number;
     median: number;
     mittel: number;
+  };
+
+  /** Ein Modell mit seinen Zeilen: die beste der Fassungen, dann jede einzeln. */
+  type Modellzahlen = {
+    modell: string;
+    nummer: number;
+    zeilen: Kennzahl[];
   };
 
   function median(werte: number[]): number {
@@ -168,42 +230,71 @@
       : (sortiert[mitte - 1] + sortiert[mitte]) / 2;
   }
 
+  function gerafft(schluessel: string, name: string, werte: number[]): Kennzahl {
+    return {
+      schluessel,
+      name,
+      anzahl: werte.length,
+      median: werte.length ? median(werte) : 0,
+      mittel: werte.length ? werte.reduce((summe, wert) => summe + wert, 0) / werte.length : 0,
+    };
+  }
+
   /**
-   * Median und Mittel je Modell, im gerade gewählten Maß.
+   * Median und Mittel je Modell und Fassung, im gerade gewählten Maß.
    *
-   * **Warum beide.** Das Mittel nimmt jeden Ausreißer mit: Eine Aufnahme, bei
-   * der Whisper in eine Wiederholungsschleife gerät, zieht es über den ganzen
-   * Korpus hinweg. Der Median sagt dagegen den Normalfall - die Aufnahme in
-   * der Mitte. Stehen die beiden weit auseinander, liegt genau darin die
-   * Auskunft: Das Modell ist nicht gleichmäßig schlechter, es verreißt
-   * einzelne Aufnahmen. Deshalb beide nebeneinander und keine der beiden
-   * allein.
+   * **Warum beide Zahlen.** Das Mittel nimmt jeden Ausreißer mit: Eine
+   * Aufnahme, bei der Whisper in eine Wiederholungsschleife gerät, zieht es
+   * über den ganzen Korpus hinweg. Der Median sagt dagegen den Normalfall -
+   * die Aufnahme in der Mitte. Stehen die beiden weit auseinander, liegt genau
+   * darin die Auskunft: Das Modell ist nicht gleichmäßig schlechter, es
+   * verreißt einzelne Aufnahmen. Deshalb beide nebeneinander und keine der
+   * beiden allein.
+   *
+   * **Warum je Fassung eine Zeile.** Weil erst der Vergleich der vier die
+   * Frage beantwortet, für die sie gerechnet wurden: Liegt ein Modell nur
+   * deshalb vorn, weil der Ton gut ausgesteuert war? Bricht es bei etwas
+   * Rauschen ein? Vier Zeilen, die dicht beieinanderliegen, sagen „dieses
+   * Modell versteht den Sprecher"; vier, die auseinanderfallen, sagen „es
+   * verträgt diese eine Aufnahmesituation".
+   *
+   * **Warum die beste obendrüber.** Sie ist die Zeile zur Kurve. Ohne sie
+   * stünde im Bild eine Reihe, zu der unten keine Zahl gehört - und man
+   * suchte sie in den vieren darunter, wo sie nicht steht: Der Median der
+   * besten Werte ist nicht der beste der Mediane.
    *
    * **Warum im Browser gerechnet.** Die Zahlen stehen schon da - die Kurve
    * bringt sie ohnehin mit. Sie beim Wechsel des Maßes erneut beim Server zu
    * holen hieße, auf eine Antwort zu warten, für die kein Byte fehlt.
-   *
-   * Gezählt wird nur, was gerechnet ist. Während ein Lauf läuft, stehen hier
-   * also die Modelle unterschiedlich weit - `anzahl` sagt es dazu, damit
-   * niemand eine halbe Reihe gegen eine ganze liest.
    */
-  const kennzahlen = $derived<Kennzahl[]>(
+  const kennzahlen = $derived<Modellzahlen[]>(
     modelle
       .map((modell, nummer) => {
-        const werte = (daten?.punkte ?? [])
-          .map((punkt) => wertVon(punkt, modell))
-          .filter((wert): wert is number => wert !== null);
+        const punkte = daten?.punkte ?? [];
+        const gefiltert = (werte: (number | null)[]) =>
+          werte.filter((wert): wert is number => wert !== null);
         return {
           modell,
           nummer,
-          anzahl: werte.length,
-          median: werte.length ? median(werte) : 0,
-          mittel: werte.length ? werte.reduce((summe, wert) => summe + wert, 0) / werte.length : 0,
+          zeilen: [
+            gerafft(
+              BESTE,
+              'Beste der vier',
+              gefiltert(punkte.map((punkt) => bestesVon(punkt, modell))),
+            ),
+            ...varianten.map((variante) =>
+              gerafft(
+                variante.schluessel,
+                variante.name,
+                gefiltert(punkte.map((punkt) => wertVon(punkt, modell, variante.schluessel))),
+              ),
+            ),
+          ],
         };
       })
       // Ein Modell ohne eine einzige Erkennung bekommt keine Zeile: Zwei
       // Nullen wären eine Behauptung über ein Modell, das nichts gerechnet hat.
-      .filter((zeile) => zeile.anzahl > 0),
+      .filter((gruppe) => gruppe.zeilen[0].anzahl > 0),
   );
 
   function option() {
@@ -215,7 +306,7 @@
     const einheit = aktuelleMetrik?.einheit ?? '';
 
     const reihen = modelle.map((modell, nummer) => {
-      const werte = punkte.map((punkt) => wertVon(punkt, modell));
+      const werte = punkte.map((punkt) => bestesVon(punkt, modell));
       if (modell === balkenmodell) {
         return {
           id: modell,
@@ -525,6 +616,9 @@
     <p class="gedaempft">
       {aktuelleMetrik.erklaerung}
       {aktuelleMetrik.hoch_ist_gut ? 'Höher ist besser.' : 'Niedriger ist besser.'}
+      Im Bild steht je Modell der beste seiner vier Werte - die Aufnahme wird
+      viermal gemessen, einmal wie gesprochen und einmal je Abwandlung. Alle
+      vier stehen in der Tabelle darunter.
     </p>
   {/if}
 
@@ -537,32 +631,42 @@
       <thead>
         <tr>
           <th scope="col">Modell</th>
+          <th scope="col">Fassung</th>
           <th scope="col">Median</th>
           <th scope="col">Mittel</th>
           <th scope="col">Aufnahmen</th>
         </tr>
       </thead>
-      <tbody>
-        {#each kennzahlen as zeile (zeile.modell)}
-          <tr>
-            <th scope="row">
-              <!-- Dieselbe Farbe wie im Bild, und für den Balken ein Rechteck
-                   statt eines Punktes: So findet man die Zeile zur Reihe auch
-                   dann, wenn man Farben nicht unterscheiden kann. -->
-              <span
-                class="marker"
-                class:balken={zeile.modell === balkenmodell}
-                style="background: {reihenfarbe(zeile.modell, zeile.nummer, 'var(--akzent)')}"
-                aria-hidden="true"
-              ></span>
-              {zeile.modell}
-            </th>
-            <td>{zeige(zeile.median)}</td>
-            <td>{zeige(zeile.mittel)}</td>
-            <td class="wenig">{zeile.anzahl}</td>
-          </tr>
-        {/each}
-      </tbody>
+      <!-- Je Modell ein eigener Rumpf: Die fünf Zeilen gehören zusammen, und
+           ein `tbody` sagt das auch einer Vorlesestimme - nicht nur der Linie
+           dazwischen. -->
+      {#each kennzahlen as gruppe (gruppe.modell)}
+        <tbody>
+          {#each gruppe.zeilen as zeile, stelle (zeile.schluessel)}
+            <tr class:beste={zeile.schluessel === BESTE}>
+              {#if stelle === 0}
+                <!-- Der Name steht einmal und gilt für die Zeilen darunter.
+                     Dieselbe Farbe wie im Bild, und für den Balken ein Rechteck
+                     statt eines Punktes: So findet man die Zeile zur Reihe auch
+                     dann, wenn man Farben nicht unterscheiden kann. -->
+                <th scope="rowgroup" rowspan={gruppe.zeilen.length}>
+                  <span
+                    class="marker"
+                    class:balken={gruppe.modell === balkenmodell}
+                    style="background: {reihenfarbe(gruppe.modell, gruppe.nummer, 'var(--akzent)')}"
+                    aria-hidden="true"
+                  ></span>
+                  {gruppe.modell}
+                </th>
+              {/if}
+              <th scope="row" class="fassung">{zeile.name}</th>
+              <td>{zeige(zeile.median)}</td>
+              <td>{zeige(zeile.mittel)}</td>
+              <td class="wenig">{zeile.anzahl}</td>
+            </tr>
+          {/each}
+        </tbody>
+      {/each}
     </table>
     <p class="gedaempft">
       Über alle gerechneten Aufnahmen. Der Median ist der Normalfall - die
@@ -570,10 +674,26 @@
       beiden weit auseinander, ist das Modell nicht gleichmäßig schlechter,
       sondern verreißt einzelne Aufnahmen. Welche, zeigt die Kurve darüber.
     </p>
+    <p class="gedaempft">
+      Die Fassungen sind dieselbe Aufnahme unter veränderten Bedingungen:
+    </p>
+    <ul class="fassungsliste gedaempft">
+      {#each varianten as variante (variante.schluessel)}
+        <li><strong>{variante.name}</strong> - {variante.erklaerung}</li>
+      {/each}
+    </ul>
+    <p class="gedaempft">
+      Liegen die Zeilen eines Modells dicht beieinander, versteht es den
+      Sprecher. Fallen sie auseinander, verträgt es bloß eine bestimmte
+      Aufnahmesituation. Die oberste Zeile je Modell ist die Reihe im Bild - je
+      Aufnahme die beste der vier, und deshalb nicht der beste der vier Mediane
+      darunter.
+    </p>
   {/if}
 
   <p class="gedaempft">
-    Auf eine Spalte tippen zeigt die Vorlage und jede erkannte Fassung darunter.
+    Auf eine Spalte tippen zeigt die Vorlage und darunter, was jedes Modell
+    daraus gemacht hat - eine Fassung zur Zeit, umschaltbar.
   </p>
 {/if}
 
@@ -595,7 +715,30 @@
     <p class="vorlage">{gewaehlt.referenz}</p>
   </div>
 
-  {#each gewaehlt.erkennungen as erkennung (erkennung.modell)}
+  {#if varianten.length > 1}
+    <!-- Die Fassungen als Reihe von Schaltern und nicht als Auswahlliste: Es
+         sind vier, sie stehen nebeneinander, und man springt zwischen ihnen
+         hin und her, statt einmal eine auszusuchen. -->
+    <div class="fassungen" role="group" aria-label="Fassung der Aufnahme">
+      {#each varianten as variante (variante.schluessel)}
+        <button
+          type="button"
+          class="knopf schmal"
+          class:haupt={gewaehlteFassung === variante.schluessel}
+          aria-pressed={gewaehlteFassung === variante.schluessel}
+          title={variante.erklaerung}
+          onclick={() => (gewaehlteFassung = variante.schluessel)}
+        >
+          {variante.name}
+        </button>
+      {/each}
+    </div>
+    <p class="gedaempft">
+      {varianten.find((variante) => variante.schluessel === gewaehlteFassung)?.erklaerung ?? ''}
+    </p>
+  {/if}
+
+  {#each gelesen as erkennung (erkennung.modell)}
     <div class="karte">
       <p class="marke">
         {erkennung.modell}
@@ -607,6 +750,10 @@
       <Textvergleich vorlage={gewaehlt.referenz} erkannt={erkennung.text} {hervorheben} />
     </div>
   {/each}
+
+  {#if !gelesen.length}
+    <p class="gedaempft">Für diese Fassung ist noch nichts gerechnet.</p>
+  {/if}
 
   {#if hervorheben}
     <p class="gedaempft">
@@ -700,10 +847,16 @@
   .kennzahlen {
     border-collapse: collapse;
     margin: 0.9rem 0 0.6rem;
-    /* Nicht über die ganze Breite: Vier schmale Spalten, die sich über einen
-       großen Bildschirm ziehen, sind schwerer zu lesen als eine kurze Zeile. */
+    /* Nicht über die ganze Breite: Schmale Spalten, die sich über einen großen
+       Bildschirm ziehen, sind schwerer zu lesen als eine kurze Zeile. */
     width: auto;
-    min-width: min(100%, 22rem);
+    min-width: min(100%, 28rem);
+  }
+
+  .fassungsliste {
+    margin: 0.2rem 0 0.6rem;
+    padding-left: 1.2rem;
+    line-height: 1.5;
   }
 
   .kennzahlen th,
@@ -732,6 +885,44 @@
 
   .kennzahlen .wenig {
     color: var(--gedaempft);
+  }
+
+  /* Die Fassungen eines Modells stehen eingerückt unter seinem Namen - sie
+     gehören dazu und sind nicht selbst Modelle. */
+  .kennzahlen .fassung {
+    font-weight: 400;
+    color: var(--gedaempft);
+    padding-right: 1.2rem;
+  }
+
+  /* Die Zeile zur Kurve, hervorgehoben wie die Reihe im Bild. */
+  .kennzahlen .beste .fassung,
+  .kennzahlen .beste td {
+    font-weight: 600;
+    color: inherit;
+  }
+
+  /* Nur zwischen den Modellen eine Linie, nicht zwischen ihren Fassungen:
+     Sonst zerfiele die Gruppe in fünf gleich schwere Zeilen. */
+  .kennzahlen tbody th,
+  .kennzahlen tbody td {
+    border-bottom: none;
+  }
+
+  .kennzahlen tbody {
+    border-bottom: 1px solid var(--rand);
+  }
+
+  .fassungen {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.8rem 0 0.4rem;
+  }
+
+  .fassungen .schmal {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.9rem;
   }
 
   .marker {
