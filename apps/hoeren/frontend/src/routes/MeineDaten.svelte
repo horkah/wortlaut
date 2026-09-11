@@ -10,6 +10,7 @@
    */
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Pager from '$ui/Pager.svelte';
+  import { merkePin, schloss, vergissPin } from '$ui/pin.svelte';
   import { tag, tagUndZeit } from '$ui/zeit';
   import {
     aufnahmeVerwerfen,
@@ -35,6 +36,11 @@
   // nie in `localStorage` - dort steht schon der Zugang, und ein zweites
   // dauerhaft gemerktes Geheimnis nähme der PIN genau den Sinn, den sie haben
   // soll (siehe `services/pin.py`).
+  //
+  // Geteilt wird die eingegebene PIN trotzdem, und zwar mit „Darstellung" und
+  // „Zugangsdaten" (`$ui/pin.svelte`): Es ist dieselbe PIN, derselbe Mensch
+  // und dieselbe Sitzung - zweimal tippen wäre keine zweite Sicherheit,
+  // sondern nur eine zweite Gelegenheit, sie zu vergessen.
   let stand = $state<'unbekannt' | 'noetig' | 'offen'>('unbekannt');
   let meinePin = $state<string | undefined>(undefined);
   let pinEingabe = $state('');
@@ -88,7 +94,15 @@
   async function starte() {
     fehler = '';
     try {
-      stand = (await pinStand()).gesetzt ? 'noetig' : 'offen';
+      if (!(await pinStand()).gesetzt) {
+        stand = 'offen';
+      } else if (schloss.pin) {
+        // Anderswo in dieser Sitzung schon eingegeben und geprüft.
+        meinePin = schloss.pin;
+        stand = 'offen';
+      } else {
+        stand = 'noetig';
+      }
       if (stand === 'offen') await lade();
     } catch (ursache) {
       fehler = ursache instanceof Error ? ursache.message : String(ursache);
@@ -110,6 +124,7 @@
       // beides in einem - ob sie stimmt und, wenn ja, gleich die Daten.
       daten = await meinKonto(pinEingabe);
       meinePin = pinEingabe;
+      merkePin(pinEingabe);
       pinEingabe = '';
       stand = 'offen';
       await Promise.all([ladeSitzungen(), ladeAufnahmen()]);
@@ -140,12 +155,16 @@
       async () => {
         await pinSetzen(neue);
         neuePin = '';
+        // Die gemerkte PIN stimmt jetzt nicht mehr; die anderen Ansichten
+        // fragen von Neuem nach (`$ui/pin.svelte`).
+        vergissPin();
         if (ersteinrichtung) {
           meinePin = undefined;
           daten = null;
           stand = 'noetig';
         } else {
           meinePin = neue;
+          merkePin(neue);
         }
       },
       ersteinrichtung
@@ -160,6 +179,7 @@
       async () => {
         await pinSetzen(null);
         meinePin = undefined;
+        vergissPin();
       },
       'PIN entfernt.',
     );

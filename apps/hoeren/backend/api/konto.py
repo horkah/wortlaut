@@ -81,6 +81,22 @@ def pin_stand(db: Datenbank, sprecher: SprecherId) -> PinAntwort:
     return PinAntwort(gesetzt=_hole(db, sprecher).pin_hash is not None)
 
 
+@router.get("/pin/pruefung", status_code=204, dependencies=[Depends(_pruefe_pin)])
+def pin_pruefung() -> None:
+    """Stimmt die vorgelegte PIN? Nur das, ohne Daten dazu.
+
+    Nötig geworden, als die PIN nicht mehr allein vor „Meine Daten" stand,
+    sondern auch vor „Darstellung" und „Zugangsdaten" (`packages/ui/pin.svelte.ts`).
+    Die beiden haben nichts abzurufen, was die Antwort mitliefern könnte -
+    „Meine Daten" prüft die PIN bis heute mit einem Testabruf des Kontos, hier
+    gäbe es kein Konto zu holen.
+
+    Die Arbeit tut `_pruefe_pin`: Sie wirft bei falscher oder fehlender PIN,
+    und wo keine gesetzt ist, geht sie durch. Dieser Rumpf bleibt deshalb
+    leer - 204 heißt „ja".
+    """
+
+
 @router.patch("/pin", response_model=PinAntwort)
 def pin_setzen(aenderung: PinAenderung, db: Datenbank, sprecher: SprecherId) -> PinAntwort:
     """Die eigene PIN setzen, ändern oder (mit `pin: null`) wieder entfernen."""

@@ -31,6 +31,14 @@ export default defineConfig({
     // Der Pfad bleibt dabei unverändert - das Backend hängt sie selbst unter
     // `/schreiben` (siehe `BASIS` dort). Port 8001, damit beide Backends
     // gleichzeitig laufen können (Makefile).
-    proxy: { '/schreiben/api': 'http://localhost:8001' },
+    proxy: {
+      '/schreiben/api': 'http://localhost:8001',
+      // Die PIN steht im Korpus, und den führt allein „hören" - auch die
+      // Ansichten dieser App fragen deshalb dessen Konto-API
+      // (`$ui/pin.svelte`). Im Betrieb verteilt das der Reverse Proxy, hier
+      // diese Zeile. Läuft „hören" nicht, scheitert die Anfrage - und das
+      // Schloss bleibt offen, statt diese App zuzusperren.
+      '/api': 'http://localhost:8000',
+    },
   },
 });

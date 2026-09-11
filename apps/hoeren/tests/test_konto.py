@@ -153,6 +153,24 @@ class TestPin:
         assert klient.get("/api/konto", headers={"X-Pin": "0000"}).status_code == 401
         assert klient.get("/api/konto", headers={"X-Pin": "1234"}).status_code == 200
 
+    def test_pruefung_sagt_nur_ja_oder_nein(self, klient: TestClient) -> None:
+        # Der Weg, den „Darstellung" und „Zugangsdaten" gehen: Sie haben nichts
+        # abzurufen, an dem sich die PIN nebenbei prüfen ließe
+        # (`packages/ui/pin.svelte.ts`).
+        klient.patch("/api/konto/pin", json={"pin": "1234"})
+
+        assert klient.get("/api/konto/pin/pruefung").status_code == 401
+        assert klient.get("/api/konto/pin/pruefung", headers={"X-Pin": "0000"}).status_code == 401
+
+        richtig = klient.get("/api/konto/pin/pruefung", headers={"X-Pin": "1234"})
+        assert richtig.status_code == 204
+        assert not richtig.content
+
+    def test_pruefung_geht_ohne_gesetzte_pin_durch(self, klient: TestClient) -> None:
+        # Wo nichts gesperrt ist, ist nichts zu entsperren - dieselbe Antwort
+        # wie auf jeden anderen Weg dieser Datei.
+        assert klient.get("/api/konto/pin/pruefung").status_code == 204
+
     def test_pin_wieder_entfernen(self, klient: TestClient) -> None:
         klient.patch("/api/konto/pin", json={"pin": "1234"})
         assert klient.patch("/api/konto/pin", json={"pin": None}).json() == {"gesetzt": False}

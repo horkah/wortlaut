@@ -15,7 +15,11 @@
    *
    * Der Menüpunkt dazu steht immer im Menü, gerade auch ohne gültigen Zugang:
    * Dann ist er der einzige Weg herein, und ein Menü, das ihn erst nach der
-   * Anmeldung zeigte, hätte die Tür hinter das Schloss gelegt.
+   * Anmeldung zeigte, hätte die Tür hinter das Schloss gelegt. Aus demselben
+   * Grund lässt die PIN vor dieser Ansicht (`PinSchloss`) jeden durch, dessen
+   * Zugang der Server nicht kennt: Ohne Sprecher gibt es keine PIN, nach der
+   * zu fragen wäre, und das Feld hier wäre sonst hinter sich selbst
+   * verschlossen (siehe `pin.svelte.ts`).
    *
    * Wer mit dem Zugang eines Sprechers hier ist, sieht zuerst nur, wessen
    * Zugang in diesem Browser liegt - kein Feld, in das er nichts einzutragen
@@ -27,6 +31,7 @@
    * Der persönliche Zugang kommt danach mit einem Klick auf den Link zurück.
    */
   import type { Snippet } from 'svelte';
+  import PinSchloss from './PinSchloss.svelte';
   import { setzeZugang, zugang as gespeichert } from './zugang';
 
   let {
@@ -114,56 +119,58 @@
   {/if}
 {/snippet}
 
-{#if art === 'sprecher'}
-  <p>
-    Dieser Browser hat den persönlichen Zugang von <strong>{name}</strong>. Er kam über den Link,
-    der einmal geöffnet wurde, und gilt weiter - hier ist nichts einzutragen.
-  </p>
-  <p class="gedaempft">
-    Derselbe Zugang gilt in beiden Apps: einmal geöffnet, überall angemeldet. Geht er verloren,
-    gibt die Verwaltung einen neuen Link aus; der alte gilt dann nicht mehr.
-  </p>
+<PinSchloss>
+  {#if art === 'sprecher'}
+    <p>
+      Dieser Browser hat den persönlichen Zugang von <strong>{name}</strong>. Er kam über den Link,
+      der einmal geöffnet wurde, und gilt weiter - hier ist nichts einzutragen.
+    </p>
+    <p class="gedaempft">
+      Derselbe Zugang gilt in beiden Apps: einmal geöffnet, überall angemeldet. Geht er verloren,
+      gibt die Verwaltung einen neuen Link aus; der alte gilt dann nicht mehr.
+    </p>
 
-  {#if verwaltet}
-    <!-- Der Weg in die Verwaltung und in die Aufsicht führt über dasselbe
-         Feld, und ohne ihn käme man von einem Sprechergerät nie dorthin. Er
-         steht trotzdem hinter einem Klick: Wer hier aufnimmt, soll nicht als
-         Erstes ein Token-Feld sehen. -->
-    <h2>Diesen Browser übergeben</h2>
-    {#if wechseln}
-      <p class="gedaempft">
-        Ein Browser trägt genau einen Zugang. Wird hier der
-        <code>WORTLAUT_AUTH_TOKEN</code> (Verwaltung) oder der
-        <code>WORTLAUT_ADMIN_TOKEN</code> (Aufsicht) eingetragen, gilt der persönliche Zugang von
-        <strong>{name}</strong> in diesem Browser nicht mehr - er kommt mit einem Klick auf den
-        persönlichen Link zurück. Der Server sieht am Vorgelegten, welches von beidem es ist.
-      </p>
-      {@render formular()}
-    {:else}
-      <p class="gedaempft">
-        Zum Sichern, Umbenennen oder Löschen braucht es den Verwalter- oder den Aufsichtstoken.
-        Dieser Browser gehört danach der Verwaltung bzw. der Aufsicht.
-      </p>
-      <button class="knopf" onclick={() => (wechseln = true)}>Zugang wechseln</button>
+    {#if verwaltet}
+      <!-- Der Weg in die Verwaltung und in die Aufsicht führt über dasselbe
+           Feld, und ohne ihn käme man von einem Sprechergerät nie dorthin. Er
+           steht trotzdem hinter einem Klick: Wer hier aufnimmt, soll nicht als
+           Erstes ein Token-Feld sehen. -->
+      <h2>Diesen Browser übergeben</h2>
+      {#if wechseln}
+        <p class="gedaempft">
+          Ein Browser trägt genau einen Zugang. Wird hier der
+          <code>WORTLAUT_AUTH_TOKEN</code> (Verwaltung) oder der
+          <code>WORTLAUT_ADMIN_TOKEN</code> (Aufsicht) eingetragen, gilt der persönliche Zugang von
+          <strong>{name}</strong> in diesem Browser nicht mehr - er kommt mit einem Klick auf den
+          persönlichen Link zurück. Der Server sieht am Vorgelegten, welches von beidem es ist.
+        </p>
+        {@render formular()}
+      {:else}
+        <p class="gedaempft">
+          Zum Sichern, Umbenennen oder Löschen braucht es den Verwalter- oder den Aufsichtstoken.
+          Dieser Browser gehört danach der Verwaltung bzw. der Aufsicht.
+        </p>
+        <button class="knopf" onclick={() => (wechseln = true)}>Zugang wechseln</button>
+      {/if}
     {/if}
-  {/if}
-{:else}
-  <p class="gedaempft">
-    Wer aufnehmen oder diktieren will, braucht hier nichts einzutragen - dafür gibt es den
-    persönlichen Link. Er wird einmal geöffnet und gilt danach in beiden Apps.
-  </p>
-  {#if verwaltet}
+  {:else}
     <p class="gedaempft">
-      Für die Verwaltung: der <code>WORTLAUT_AUTH_TOKEN</code> des Servers. Er legt Profile an und
-      gibt die persönlichen Links aus. Der Wert bleibt in diesem Browser und wird beim
-      Zurücksetzen unter „Einstellungen" nicht angetastet.
+      Wer aufnehmen oder diktieren will, braucht hier nichts einzutragen - dafür gibt es den
+      persönlichen Link. Er wird einmal geöffnet und gilt danach in beiden Apps.
     </p>
-    <p class="gedaempft">
-      Für die <strong>Aufsicht</strong>: der <code>WORTLAUT_ADMIN_TOKEN</code>, in dasselbe Feld.
-      Sie sieht in jeden Korpus, benennt um, sichert und löscht. Dieser Browser gehört danach der
-      Aufsicht - ein Sprecher, der ihn vorher benutzt hat, öffnet einmal wieder seinen
-      persönlichen Link.
-    </p>
+    {#if verwaltet}
+      <p class="gedaempft">
+        Für die Verwaltung: der <code>WORTLAUT_AUTH_TOKEN</code> des Servers. Er legt Profile an und
+        gibt die persönlichen Links aus. Der Wert bleibt in diesem Browser und wird beim
+        Zurücksetzen unter „Einstellungen" nicht angetastet.
+      </p>
+      <p class="gedaempft">
+        Für die <strong>Aufsicht</strong>: der <code>WORTLAUT_ADMIN_TOKEN</code>, in dasselbe Feld.
+        Sie sieht in jeden Korpus, benennt um, sichert und löscht. Dieser Browser gehört danach der
+        Aufsicht - ein Sprecher, der ihn vorher benutzt hat, öffnet einmal wieder seinen
+        persönlichen Link.
+      </p>
+    {/if}
+    {@render formular()}
   {/if}
-  {@render formular()}
-{/if}
+</PinSchloss>

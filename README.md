@@ -173,10 +173,12 @@ wortlaut/
 │       ├── Kopfleiste.svelte      # Marke, App-Reiter, Sprecher, Menüknopf
 │       ├── Fusszeile.svelte       # eine Zeile: welcher Stand hier läuft
 │       ├── Einstellungen.svelte   # Mikrofon, Stimme, Tempo - für alle Apps
-│       ├── Darstellung.svelte     # Farben, Schriftart, Schriftgrößen
+│       ├── Darstellung.svelte     # Farben, Schrift, was in der Leiste steht
 │       ├── Zugangsdaten.svelte    # der Zugang dieses Browsers, in jeder App
+│       ├── PinSchloss.svelte      # die PIN vor Darstellung und Zugangsdaten
+│       ├── pin.svelte.ts          # eine PIN, eine Sitzung, alle Apps
 │       ├── zugang.ts              # wo der Zugang liegt; ein Eintrag für alle
-│       ├── apps.ts                # die drei Apps und die Punkte im Menü
+│       ├── apps.ts                # die drei Apps, die Punkte im Menü, was abschaltbar ist
 │       ├── app.css                # das gemeinsame Aussehen aller Apps
 │       ├── Recorder.svelte
 │       ├── AudioPlayer.svelte
@@ -273,7 +275,9 @@ Daten** als Verweis auf dieselbe Seite bei `hören` und die Zugangsdaten. Was
 im Menü steht, ist damit eine Liste (`GERAETE_PUNKTE`
 in `apps.ts` und der Durchreichung der App) und keine Folge fester Zeilen mit
 Schaltern davor; ein neuer gerätebezogener Punkt ist ein Eintrag und eine
-Zeile im Rahmen, statt einer Änderung in jeder App.
+Zeile im Rahmen, statt einer Änderung in jeder App. Weil es eine Liste ist,
+lässt sie sich auch kürzen: Welche Apps und welche Menüpunkte tatsächlich
+dastehen, schaltet **Darstellung** ein und aus (siehe dort).
 
 Der Punkt **Zugangsdaten** steht in **beiden** Apps immer im Menü, auch und
 gerade ohne gültigen Zugang: Dann ist er der einzige Weg herein, und ein Menü,
@@ -360,6 +364,39 @@ hier verstärkt wird, ist später verstärkt. Das ist gewollt: eine Aufnahme kna
 dem Rauschen nützt dem Training nicht. Was aber *nicht* passiert, ist eine
 nachträgliche Normalisierung auf dem Server. Wie laut jemand spricht, gehört zu den
 Daten, für die dieses Projekt existiert.
+
+#### Darstellung - und was in der Leiste überhaupt dasteht
+
+Unter `#/darstellung` liegen Farben, Schriftart und die beiden Schriftgrößen,
+je mit Probe - ein eigener Menüpunkt neben den Einstellungen, weil es ein
+anderes Publikum ist: Mikrofon und Stimme misst man einmal ein, an Kontrast
+und Schriftgröße darf jeder, der zu wenig sieht, sofort drehen.
+
+Darunter steht, was von der Oberfläche überhaupt sichtbar ist: zwei Listen mit
+je einem Schalter rechts, oben die drei Apps der Kopfleiste, darunter die
+Punkte im Menüknopf. Der Anlass ist Grundentscheidung 7 - jeder Reiter, den
+dieser Mensch nie braucht, ist eine Gelegenheit, sich zu verlaufen. Wer nur
+diktiert, blendet `hören` und die Verwaltungspunkte aus; wer nur aufnimmt,
+räumt `schreiben` und das noch leere `lernen` weg.
+
+Zwei Punkte bleiben und haben einen festen, nicht bedienbaren Schalter, damit
+niemand sich selbst aussperrt: **Darstellung**, weil dort diese Schalter
+liegen, und **Meine Daten**, weil dort die PIN vergeben wird, die inzwischen
+vor Darstellung und Zugangsdaten steht. Alles andere ist abschaltbar, die
+Zugangsdaten eingeschlossen.
+
+Ausgeblendet heißt dabei **unsichtbar, nicht abgeschaltet**: Die Route bleibt,
+was sie war, ein Lesezeichen führt weiterhin hin, und der Server prüft
+unverändert Zugang und PIN. Die Schalter räumen die Leiste auf, sie sind kein
+Rechtemodell - das sind der Zugang (`packages/ui/zugang.ts`) und die PIN. Der
+Rückweg ist doppelt gesichert: **Auf Vorgaben zurücksetzen** holt neben Farbe
+und Schrift auch jeden ausgeblendeten Punkt zurück.
+
+Gespeichert wird wie Farbe und Schrift im `localStorage` dieses Browsers
+(`wortlaut.sichtbar.app.<app>`, `wortlaut.sichtbar.menue.<pfad>`) und gilt
+damit in allen Apps darin. Fehlt ein Eintrag, ist der Punkt sichtbar: Nur ein
+ausdrückliches `false` blendet aus, sonst stünde nach dem ersten Start eine
+leere Leiste da.
 
 ### Der Zugang ist die Kennung
 
@@ -584,11 +621,27 @@ Spalte `pin_hash`, Migration `004_pin.sql`). Vier Ziffern und keine
 Anmeldung mit Text: dieselbe Grundentscheidung 7, die auch `schreiben` einen
 Text- statt Passwortfeld erspart.
 
+Dieselbe PIN steht inzwischen auch vor **Darstellung** und **Zugangsdaten**
+(`packages/ui/PinSchloss.svelte`) - dieselbe, keine zweite: Es ist derselbe
+Mensch, derselbe Browser und dasselbe Bedrohungsmodell, und wer sich eine PIN
+je Seite merken müsste, merkte sich am Ende keine. Einmal eingegeben, gilt sie
+für die ganze Sitzung und über beide Apps hinweg (`packages/ui/pin.svelte.ts`);
+ein Neuladen sperrt wieder zu, denn die PIN liegt allein im Speicher der Seite
+und nie im `localStorage`. Beide Ansichten fragen dazu die Konto-API von
+`hören`, auch aus `schreiben` heraus: Die PIN gehört zum Sprecher und steht in
+seinem Korpus, und den schreibt allein `hören` (Grundentscheidung 6).
+
+Wessen Zugang der Server **nicht** kennt, kommt ohne PIN durch. Das ist kein
+Loch, sondern die Bedingung dafür, dass es überhaupt geht: Ohne Sprecher gibt
+es keine PIN, nach der zu fragen wäre, und **Zugangsdaten** ist dann der
+einzige Weg herein. Ein Schloss, dessen Schlüssel hinter ihm selbst läge, wäre
+kein Schutz, sondern ein zugemauerter Eingang.
+
 Es ist ausdrücklich kein zweites Schloss, sondern eine zusätzliche Hürde
 gegen den Klick aus Versehen - die eigentliche Kennung bleibt der Zugang.
 Eine PIN ist deshalb bewusst leichtgewichtig geprüft (zeitkonstanter
 Vergleich, kein Sperren nach Fehlversuchen; siehe `services/pin.py`) und
-schützt nur die drei lesenden Wege unter `/api/konto/…`, nicht das Anhören
+schützt nur die lesenden Wege unter `/api/konto/…`, nicht das Anhören
 oder Verwerfen einer Aufnahme selbst - wer erst einmal drin ist, braucht sie
 nicht ein zweites Mal.
 
@@ -629,11 +682,16 @@ GET    /api/konto                           Profil, Kennzahlen, Textquellen - di
 GET    /api/konto/sessions?ab=&anzahl=      seitenweise, zu zehnt
 GET    /api/konto/recordings?ab=&anzahl=    seitenweise, mit Text
 GET    /api/konto/pin                       { gesetzt }  - ungeschützt
+GET    /api/konto/pin/pruefung              204, wenn die vorgelegte PIN stimmt
 PATCH  /api/konto/pin                       { pin }  - vier Ziffern oder null
 ```
 
 Die drei ersten `/api/konto/…`-Wege verlangen zusätzlich die Kopfzeile
-`X-Pin: …`, sobald eine PIN gesetzt ist.
+`X-Pin: …`, sobald eine PIN gesetzt ist - und `…/pin/pruefung` tut nichts
+anderes als das: Es prüft genau diese Kopfzeile und antwortet mit 204 oder
+401. Gedacht für **Darstellung** und **Zugangsdaten**, die im Gegensatz zu
+**Meine Daten** nichts abzurufen haben, woran sich die PIN nebenbei prüfen
+ließe.
 
 Aufsicht - hinter `WORTLAUT_ADMIN_TOKEN`. Als einzige Wege dieser App nennen
 sie ihren Sprecher in der Adresse; die Aufsicht hat keinen eigenen:
@@ -1089,9 +1147,9 @@ DSGVO. Das hat Folgen für den Aufbau, nicht nur für einen Hinweistext:
   vollständig. Das Recht auf Löschung muss ausführbar sein, nicht dokumentiert.
 - **Meine Daten** zeigt einer Person nur ihre eigenen Aufnahmen, nie fremde -
   aus demselben Grund wie oben, nicht durch eine zweite Prüfung. Eine
-  optionale PIN sichert die Ansicht zusätzlich gegen den Klick aus Versehen;
-  sie ist kein Ersatz für den Zugang, nur eine Hürde davor (siehe
-  „Eine PIN davor" oben).
+  optionale PIN sichert die Ansicht - und ebenso **Darstellung** und
+  **Zugangsdaten** - zusätzlich gegen den Klick aus Versehen; sie ist kein
+  Ersatz für den Zugang, nur eine Hürde davor (siehe „Eine PIN davor" oben).
 
 Einzelheiten in [`docs/datenschutz.md`](docs/datenschutz.md).
 
