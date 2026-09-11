@@ -24,8 +24,8 @@ durch `medium`. Sie wäre auch sparsamer: je Modell einmal laden. Nur zeigt die
 Kurve dann lange Zeit eine einzige Reihe, und verglichen werden soll gerade.
 Also andersherum: Aufnahme für Aufnahme durch alle Modelle, damit die ersten
 Punkte sofort vollständig sind. Bezahlt wird das damit, dass alle Erkenner
-gleichzeitig im Speicher liegen (`_transkriptoren`) - bei base, small und
-medium in `int8` gut ein Gigabyte.
+gleichzeitig im Speicher liegen (`_transkriptoren`) - bei base, small, medium
+und large-v3 in `int8` gut zweieinhalb Gigabyte.
 
 **Was wiederholbar ist.** Fertig ist, was in `erkennungen` steht (siehe
 `005_auswertung.sql`). Ein zweiter Lauf rechnet deshalb nur, was fehlt: nach

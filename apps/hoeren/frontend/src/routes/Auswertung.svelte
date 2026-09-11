@@ -90,10 +90,10 @@
   const modelle = $derived(daten?.modelle ?? []);
 
   /**
-   * Welches Modell den Balken bekommt. Die Vorgabe ist `small` - das mittlere
-   * der drei, der Alltagsfall, gegen den die beiden anderen zu vergleichen
-   * sind. Ist es nicht konfiguriert, nimmt die Mitte der Liste seinen Platz
-   * ein; bei nur einem Modell ist es dieses.
+   * Welches Modell den Balken bekommt. Die Vorgabe ist `small` - der
+   * Alltagsfall, gegen den die übrigen zu vergleichen sind. Ist es nicht
+   * konfiguriert, nimmt die Mitte der Liste seinen Platz ein; bei nur einem
+   * Modell ist es dieses.
    */
   const balkenmodell = $derived(
     gewaehlterBalken && modelle.includes(gewaehlterBalken)

@@ -684,6 +684,25 @@ Zahl, die für keinen von ihnen gilt. Verworfene Aufnahmen zählen nicht mit -
 was der Sprecher selbst weggeworfen hat, ist kein Prüfstück, sondern ein
 Fehlversuch, und ginge sonst als schlechte Note eines Modells durch.
 
+Gegeneinander antreten die Modelle aus `WORTLAUT_AUSWERTUNG_MODELLE`. Die
+Vorgabe ist eine Leiter mit vier Sprossen:
+
+| Modell | wofür es in der Leiter steht |
+| --- | --- |
+| `base` | die Untergrenze - wo das Verstehen abzubrechen beginnt |
+| `small` | der Alltagsfall, gegen den die anderen zu lesen sind |
+| `medium` | was mit mehr Rechenzeit noch zu holen wäre |
+| `large-v3` | wo das Verfahren endet - das größte fertige Modell |
+
+Die oberste Sprosse ist die teuerste: gut anderthalb Gigabyte zusätzlich im
+Speicher und je Aufnahme ein Vielfaches der Rechenzeit von `medium`. Sie
+gehört trotzdem dazu, denn die Frage dieser Ansicht ist nicht „welches der
+kleinen Modelle?", sondern „reicht ein fertiges Modell für diese Stimme
+überhaupt?" - und die beantwortet nur das größte. Bleibt auch `large-v3`
+deutlich hinter der Vorlage, ist genau das das Argument für ein eigenes
+Feintuning; trifft es, war der Weg nicht nötig. Wer wenig Maschine hat, kürzt
+die Liste - gerechnet wird nur, was darin steht.
+
 #### Vier Maße und eine Zahl
 
 Die Fehlerraten stehen in `wortlaut/metriken.py`, weil sie reine Textmathematik
@@ -733,7 +752,7 @@ eines nach dem anderen. Vier Eigenschaften sind Absicht:
   durch `small`, dann durch `medium` wäre sparsamer - je Modell einmal laden. Nur zeigte die Kurve
   dann lange eine einzige Reihe, und verglichen werden soll gerade. Bezahlt
   wird das damit, dass alle Erkenner gleichzeitig im Speicher liegen; bei
-  `base,small,medium` in `int8` gut ein Gigabyte.
+  `base,small,medium,large-v3` in `int8` gut zweieinhalb Gigabyte.
 * **Wiederaufnehmbar.** Fertig ist, was in `erkennungen` steht
   (`005_auswertung.sql`). Ein zweiter Lauf rechnet nur, was fehlt - nach einem
   Neustart, nach neuen Aufnahmen oder nach einem hinzugefügten Modell. Nichts
@@ -753,7 +772,7 @@ Eine Kurve über die Aufnahmen, von 1 an lückenlos durchgezählt. Die Nummer
 steht in keiner Tabelle: Sie ergibt sich aus dem, was gerade gilt, damit eine
 verworfene Aufnahme keine Lücke in der Achse hinterlässt.
 
-Je Aufnahme drei Werte - das mittlere Modell als Balken, die beiden anderen als
+Je Aufnahme ein Wert je Modell - eines davon als Balken, die übrigen als
 Punkte darüber. Eine Auswahlliste unter dem Bild wechselt das Maß, eine zweite
 das Modell, das den Balken bekommt. Was noch nicht gerechnet ist, bleibt leer
 statt auf null zu fallen: Eine Null wäre ein Modell, das nichts verstanden hat.

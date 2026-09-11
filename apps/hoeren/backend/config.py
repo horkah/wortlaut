@@ -47,10 +47,11 @@ class Einstellungen(BaseSettings):
     # Komma getrennt - später darf hier auch der Pfad eines eigenen Standes
     # aus „lernen" stehen. Die Reihenfolge ist zugleich die der Anzeige.
     #
-    # Die Vorgabe ist eine Leiter mit drei Sprossen: `base` ist die
+    # Die Vorgabe ist eine Leiter mit vier Sprossen: `base` ist die
     # Untergrenze, `small` der Alltagsfall, `medium` zeigt, was mit mehr
-    # Rechenzeit noch zu holen wäre. Wer wenig Maschine hat, kürzt die Liste -
-    # gerechnet wird nur, was darin steht.
+    # Rechenzeit noch zu holen wäre, und `large-v3` sagt, wo das Verfahren
+    # selbst endet. Wer wenig Maschine hat, kürzt die Liste - gerechnet wird
+    # nur, was darin steht.
     #
     # Unten steht `base` und nicht mehr `tiny`. Eine Untergrenze soll zeigen,
     # wo das Verstehen abzubrechen beginnt, und dafür muss sie selbst noch
@@ -58,7 +59,16 @@ class Einstellungen(BaseSettings):
     # seine Zeile nur noch aussagte, dass ein zu kleines Modell zu klein ist.
     # `base` kostet kaum mehr Rechenzeit und liefert eine Reihe, gegen die
     # sich `small` lesen lässt.
-    auswertung_modelle: str = "base,small,medium"
+    #
+    # Oben steht `large-v3`, und das ist die teuerste Zeile der Liste: gut
+    # anderthalb Gigabyte zusätzlich im Speicher und je Aufnahme ein
+    # Vielfaches der Rechenzeit von `medium`. Sie gehört trotzdem dazu, weil
+    # die Frage dieser Ansicht nicht „welches der kleinen Modelle?" ist,
+    # sondern „reicht ein fertiges Modell für diese Stimme überhaupt?" - und
+    # die beantwortet nur das größte. Bleibt auch `large-v3` deutlich hinter
+    # der Vorlage, ist das das Argument für ein eigenes Feintuning; trifft es,
+    # war der Weg nicht nötig.
+    auswertung_modelle: str = "base,small,medium,large-v3"
     # Wie `schreiben` seine Erkennung fährt: `auto` nimmt die GPU, wenn eine
     # da ist. `int8` ist die sparsame Quantisierung - alle konfigurierten
     # Modelle liegen gleichzeitig im Speicher (siehe `services/auswertung.py`).

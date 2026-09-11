@@ -5,9 +5,9 @@ werden:
 
 * `GET /api/auswertung` liefert die Kurve - je Aufnahme eine Nummer und je
   Modell die Maße dazu. **Ohne Texte.** Diese Auskunft wird abgefragt, solange
-  die Seite offen ist; die erkannten Texte dreimal je Aufnahme mitzuschicken
-  hieße, bei jeder Abfrage ein Vielfaches der Zahlen über die Leitung zu
-  schicken, die sie eigentlich meint.
+  die Seite offen ist; die erkannten Texte je Modell und Aufnahme
+  mitzuschicken hieße, bei jeder Abfrage ein Vielfaches der Zahlen über die
+  Leitung zu schicken, die sie eigentlich meint.
 * `GET /api/auswertung/{aufnahme}` liefert genau diese Texte, für eine
   einzelne Aufnahme - der Klick auf einen Balken.
 * `POST /api/auswertung/start` stößt den Lauf an, `…/stopp` bricht ihn ab.
@@ -287,8 +287,8 @@ def vergleich(aufnahme_id: str, db: Datenbank, sprecher: SprecherId) -> Vergleic
             referenz=vorlage.text,
             dauer_s=aufnahme.dauer_s,
             # In der Reihenfolge der Konfiguration, nicht in der der Datenbank:
-            # Die Ansicht legt die drei Fassungen untereinander, und sie sollen
-            # bei jeder Aufnahme in derselben Reihenfolge stehen.
+            # Die Ansicht legt die Fassungen untereinander, und sie sollen bei
+            # jeder Aufnahme in derselben Reihenfolge stehen.
             erkennungen=[
                 ErkennungAntwort(
                     modell=name,
