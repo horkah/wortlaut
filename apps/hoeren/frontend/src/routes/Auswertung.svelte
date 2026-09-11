@@ -14,6 +14,12 @@
    * anderes Modell als eines, das gleichmäßig etwas schlechter liegt. Der
    * Mittelwert zeigt beide gleich; die Kurve zeigt den Unterschied sofort.
    *
+   * **Warum trotzdem Zahlen darunter.** Weil die Kurve die andere Hälfte
+   * offen lässt: Sie zeigt, *dass* eine Reihe tiefer liegt, aber nicht, um wie
+   * viel. Deshalb steht unter dem Bild je Modell Median und Mittel (siehe
+   * `kennzahlen`) - und gerade das Auseinanderfallen der beiden ist dieselbe
+   * Auskunft wie der Einbruch in der Kurve, nur als Zahl.
+   *
    * **Warum ECharts.** Diese eine Kurve käme mit weniger aus. Kommen sollen
    * aber mehrere, die sich gegenseitig folgen - und dafür ist die Wahl schon
    * jetzt zu treffen, weil ein Wechsel später jede Ansicht anfasst. ECharts
@@ -62,6 +68,17 @@
   let gewaehlt = $state<Vergleich | null>(null);
   let gewaehlteNummer = $state(0);
   let vergleichLaeuft = $state(false);
+
+  // Ob die Fassungen ihre Abweichungen von der Vorlage ausgezeichnet tragen.
+  // An als Vorgabe - das ist die Frage, mit der man herkommt. Aus, sobald es
+  // um den Wortlaut selbst geht: Bei einem Modell, das viel danebenliegt,
+  // zerfällt der Satz in Schnipsel aus Gestrichenem und Fettem, und
+  // ausgerechnet die interessanteste Fassung liest sich am schlechtesten.
+  //
+  // Hier und nicht unter „Darstellung": Das ist keine Vorliebe, die für jede
+  // Ansicht gilt, sondern ein Griff zwischen zwei Blicken auf dieselbe
+  // Aufnahme - man schaltet hin und her, nicht einmal um.
+  let hervorheben = $state(true);
 
   let huelle = $state<HTMLDivElement | null>(null);
   // Das Diagramm selbst, ohne `$state`: ECharts führt seinen eigenen Zustand,
@@ -112,6 +129,83 @@
     return gemessen === undefined ? null : gemessen;
   }
 
+  /**
+   * Ein Wert im gewählten Maß, so geschrieben, wie er gelesen werden soll.
+   * Prozente auf eine Stelle - mehr behauptete eine Genauigkeit, die die
+   * Messung nicht hat -, die Raten auf drei, weil sie klein sind und der
+   * Unterschied zwischen zwei Modellen in der dritten Stelle stehen kann.
+   */
+  function zeige(wert: number): string {
+    const einheit = aktuelleMetrik?.einheit ?? '';
+    return `${wert.toFixed(einheit === '%' ? 1 : 3)}${einheit}`;
+  }
+
+  /**
+   * Die Farbe einer Reihe. Eine Stelle für beides - Diagramm und Tabelle -,
+   * damit die Zeile unter dem Bild dieselbe Farbe trägt wie die Punkte darin.
+   * Der Akzent kommt als Argument, weil ECharts eine fertige Farbe braucht
+   * und die Tabelle mit `var(--akzent)` auskommt.
+   */
+  function reihenfarbe(modell: string, nummer: number, akzent: string): string {
+    return modell === balkenmodell ? akzent : PUNKTFARBEN[nummer % PUNKTFARBEN.length];
+  }
+
+  /** Was in der Zeile unter dem Bild steht: eine Reihe, zu einer Zahl gerafft. */
+  type Kennzahl = {
+    modell: string;
+    nummer: number;
+    /** Wie viele Aufnahmen dahinterstehen - ohne die sind die Zahlen nicht zu lesen. */
+    anzahl: number;
+    median: number;
+    mittel: number;
+  };
+
+  function median(werte: number[]): number {
+    const sortiert = [...werte].sort((eins, zwei) => eins - zwei);
+    const mitte = Math.floor(sortiert.length / 2);
+    return sortiert.length % 2
+      ? sortiert[mitte]
+      : (sortiert[mitte - 1] + sortiert[mitte]) / 2;
+  }
+
+  /**
+   * Median und Mittel je Modell, im gerade gewählten Maß.
+   *
+   * **Warum beide.** Das Mittel nimmt jeden Ausreißer mit: Eine Aufnahme, bei
+   * der Whisper in eine Wiederholungsschleife gerät, zieht es über den ganzen
+   * Korpus hinweg. Der Median sagt dagegen den Normalfall - die Aufnahme in
+   * der Mitte. Stehen die beiden weit auseinander, liegt genau darin die
+   * Auskunft: Das Modell ist nicht gleichmäßig schlechter, es verreißt
+   * einzelne Aufnahmen. Deshalb beide nebeneinander und keine der beiden
+   * allein.
+   *
+   * **Warum im Browser gerechnet.** Die Zahlen stehen schon da - die Kurve
+   * bringt sie ohnehin mit. Sie beim Wechsel des Maßes erneut beim Server zu
+   * holen hieße, auf eine Antwort zu warten, für die kein Byte fehlt.
+   *
+   * Gezählt wird nur, was gerechnet ist. Während ein Lauf läuft, stehen hier
+   * also die Modelle unterschiedlich weit - `anzahl` sagt es dazu, damit
+   * niemand eine halbe Reihe gegen eine ganze liest.
+   */
+  const kennzahlen = $derived<Kennzahl[]>(
+    modelle
+      .map((modell, nummer) => {
+        const werte = (daten?.punkte ?? [])
+          .map((punkt) => wertVon(punkt, modell))
+          .filter((wert): wert is number => wert !== null);
+        return {
+          modell,
+          nummer,
+          anzahl: werte.length,
+          median: werte.length ? median(werte) : 0,
+          mittel: werte.length ? werte.reduce((summe, wert) => summe + wert, 0) / werte.length : 0,
+        };
+      })
+      // Ein Modell ohne eine einzige Erkennung bekommt keine Zeile: Zwei
+      // Nullen wären eine Behauptung über ein Modell, das nichts gerechnet hat.
+      .filter((zeile) => zeile.anzahl > 0),
+  );
+
   function option() {
     const punkte = daten?.punkte ?? [];
     const schrift = farbe('--text', '#1c1b19');
@@ -128,7 +222,10 @@
           name: modell,
           type: 'bar' as const,
           data: werte,
-          itemStyle: { color: akzent, borderRadius: [2, 2, 0, 0] },
+          itemStyle: {
+            color: reihenfarbe(modell, nummer, akzent),
+            borderRadius: [2, 2, 0, 0],
+          },
           barMaxWidth: 26,
           z: 2,
           // Die Markierung sitzt auf dem Balken und nicht in einer eigenen
@@ -152,7 +249,7 @@
         symbol: PUNKTFORMEN[nummer % PUNKTFORMEN.length],
         symbolSize: 9,
         itemStyle: {
-          color: PUNKTFARBEN[nummer % PUNKTFARBEN.length],
+          color: reihenfarbe(modell, nummer, akzent),
           borderColor: '#fff',
           borderWidth: 1,
         },
@@ -172,9 +269,7 @@
         axisPointer: { type: 'shadow' },
         confine: true,
         valueFormatter: (wert: number | null) =>
-          wert === null || wert === undefined
-            ? 'noch nicht gerechnet'
-            : `${wert.toFixed(einheit === '%' ? 1 : 3)}${einheit}`,
+          wert === null || wert === undefined ? 'noch nicht gerechnet' : zeige(wert),
       },
       legend: { bottom: 34, itemGap: 18, textStyle: { color: leise } },
       dataZoom: [
@@ -432,6 +527,51 @@
       {aktuelleMetrik.hoch_ist_gut ? 'Höher ist besser.' : 'Niedriger ist besser.'}
     </p>
   {/if}
+
+  {#if kennzahlen.length}
+    <!-- Die Kurve zeigt den Verlauf, diese Zeile die Bilanz. Beides steht
+         nebeneinander und nicht das eine statt des anderen: Eine Zahl je
+         Modell wäre zu wenig, eine Kurve ohne Zahl ließe „um wie viel?"
+         offen. -->
+    <table class="kennzahlen">
+      <thead>
+        <tr>
+          <th scope="col">Modell</th>
+          <th scope="col">Median</th>
+          <th scope="col">Mittel</th>
+          <th scope="col">Aufnahmen</th>
+        </tr>
+      </thead>
+      <tbody>
+        {#each kennzahlen as zeile (zeile.modell)}
+          <tr>
+            <th scope="row">
+              <!-- Dieselbe Farbe wie im Bild, und für den Balken ein Rechteck
+                   statt eines Punktes: So findet man die Zeile zur Reihe auch
+                   dann, wenn man Farben nicht unterscheiden kann. -->
+              <span
+                class="marker"
+                class:balken={zeile.modell === balkenmodell}
+                style="background: {reihenfarbe(zeile.modell, zeile.nummer, 'var(--akzent)')}"
+                aria-hidden="true"
+              ></span>
+              {zeile.modell}
+            </th>
+            <td>{zeige(zeile.median)}</td>
+            <td>{zeige(zeile.mittel)}</td>
+            <td class="wenig">{zeile.anzahl}</td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+    <p class="gedaempft">
+      Über alle gerechneten Aufnahmen. Der Median ist der Normalfall - die
+      Aufnahme in der Mitte; das Mittel nimmt jeden Ausreißer mit. Stehen die
+      beiden weit auseinander, ist das Modell nicht gleichmäßig schlechter,
+      sondern verreißt einzelne Aufnahmen. Welche, zeigt die Kurve darüber.
+    </p>
+  {/if}
+
   <p class="gedaempft">
     Auf eine Spalte tippen zeigt die Vorlage und jede erkannte Fassung darunter.
   </p>
@@ -440,7 +580,16 @@
 {#if vergleichLaeuft}
   <p class="gedaempft">Wird geladen …</p>
 {:else if gewaehlt}
-  <h2>Aufnahme {gewaehlt.nummer}</h2>
+  <div class="kopfzeile">
+    <h2>Aufnahme {gewaehlt.nummer}</h2>
+    <!-- Der Schalter steht bei den Texten und nicht oben bei den
+         Auswahllisten: Er ändert nichts an der Messung, nur daran, wie die
+         Fassungen darunter zu lesen sind. -->
+    <label class="umschalter">
+      <span>Unterschiede hervorheben</span>
+      <input type="checkbox" role="switch" bind:checked={hervorheben} />
+    </label>
+  </div>
   <div class="karte">
     <p class="marke">Vorlage</p>
     <p class="vorlage">{gewaehlt.referenz}</p>
@@ -455,15 +604,22 @@
           {erkennung.rechenzeit_s.toFixed(1)} s
         </span>
       </p>
-      <Textvergleich vorlage={gewaehlt.referenz} erkannt={erkennung.text} />
+      <Textvergleich vorlage={gewaehlt.referenz} erkannt={erkennung.text} {hervorheben} />
     </div>
   {/each}
 
-  <p class="gedaempft">
-    <del>Durchgestrichen</del> fehlt in der Erkennung, <ins>hervorgehoben</ins> kam hinzu.
-    Verglichen wird auf Zeichen; gemessen wird dagegen ohne Satzzeichen und Großschreibung, damit
-    ein fehlender Punkt nicht als Hörfehler zählt.
-  </p>
+  {#if hervorheben}
+    <p class="gedaempft">
+      <del>Durchgestrichen</del> fehlt in der Erkennung, <ins>hervorgehoben</ins> kam hinzu.
+      Verglichen wird auf Zeichen; gemessen wird dagegen ohne Satzzeichen und Großschreibung, damit
+      ein fehlender Punkt nicht als Hörfehler zählt.
+    </p>
+  {:else}
+    <p class="gedaempft">
+      Jede Fassung so, wie das Modell sie geschrieben hat. Die Zahlen daneben stehen unverändert -
+      gemessen wird immer gegen die Vorlage, ob die Abweichungen nun ausgezeichnet sind oder nicht.
+    </p>
+  {/if}
 {/if}
 
 <style>
@@ -514,6 +670,83 @@
 
   .waehler select {
     max-width: 16rem;
+  }
+
+  /* Überschrift links, Schalter rechts - und auf einem schmalen Telefon
+     untereinander, damit die Beschriftung nicht umbricht. */
+  .kopfzeile {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+  }
+
+  .umschalter {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0;
+    cursor: pointer;
+  }
+
+  /* Das Stylesheet macht `label > span` klein, grau und zu einer eigenen
+     Zeile darüber - hier steht die Beschriftung neben dem Schalter. */
+  .umschalter span {
+    display: inline;
+    margin: 0;
+  }
+
+  .kennzahlen {
+    border-collapse: collapse;
+    margin: 0.9rem 0 0.6rem;
+    /* Nicht über die ganze Breite: Vier schmale Spalten, die sich über einen
+       großen Bildschirm ziehen, sind schwerer zu lesen als eine kurze Zeile. */
+    width: auto;
+    min-width: min(100%, 22rem);
+  }
+
+  .kennzahlen th,
+  .kennzahlen td {
+    padding: 0.35rem 0.9rem 0.35rem 0;
+    text-align: right;
+    border-bottom: 1px solid var(--rand);
+    /* Ziffern gleicher Breite: Sonst stehen die Kommastellen zweier Zeilen
+       nicht untereinander, und genau die vergleicht man hier. */
+    font-variant-numeric: tabular-nums;
+  }
+
+  .kennzahlen thead th {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--gedaempft);
+  }
+
+  /* Die Namensspalte bleibt eine Tabellenzelle - ein `display: flex` darauf
+     nähme sie der Tabellenrechnung, und die Spalten stünden nicht mehr
+     untereinander. Der Punkt davor ist deshalb `inline-block`. */
+  .kennzahlen tbody th {
+    text-align: left;
+    font-weight: 600;
+  }
+
+  .kennzahlen .wenig {
+    color: var(--gedaempft);
+  }
+
+  .marker {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 0.5rem;
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+  }
+
+  .marker.balken {
+    border-radius: 0.1rem;
+    width: 0.6rem;
+    height: 0.9rem;
   }
 
   .marke {

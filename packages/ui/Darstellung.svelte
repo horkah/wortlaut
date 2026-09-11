@@ -253,61 +253,9 @@
     color: var(--gedaempft);
   }
 
-  /* Der Schalter selbst: ein Kästchen ohne Kästchen. `appearance: none` nimmt
-     ihm das Aussehen des Systems, der Rest zeichnet Bahn und Knauf. Es bleibt
-     eine echte Ankreuzfläche - Tastatur, Vorlesestimme und `role="switch"`
-     tun damit weiterhin das Richtige. */
-  .schalter input[type='checkbox'] {
-    appearance: none;
-    position: relative;
-    flex: none;
-    width: 2.7rem;
-    height: 1.5rem;
-    min-width: 0;
-    margin: 0;
-    padding: 0;
-    border: 1px solid var(--rand);
-    border-radius: 999px;
-    background: var(--hintergrund);
-    cursor: inherit;
-    transition:
-      background 0.15s,
-      border-color 0.15s;
-  }
-
-  .schalter input[type='checkbox']::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 0.15rem;
-    width: 1.1rem;
-    height: 1.1rem;
-    border-radius: 50%;
-    background: var(--gedaempft);
-    transform: translateY(-50%);
-    transition:
-      transform 0.15s,
-      background 0.15s;
-  }
-
-  .schalter input[type='checkbox']:checked {
-    background: var(--akzent);
-    border-color: var(--akzent);
-  }
-
-  .schalter input[type='checkbox']:checked::after {
-    background: #fff;
-    transform: translate(1.15rem, -50%);
-  }
-
-  .schalter input[type='checkbox']:disabled {
-    opacity: 0.5;
-  }
-
-  .schalter input[type='checkbox']:focus-visible {
-    outline: 2px solid var(--akzent);
-    outline-offset: 2px;
-  }
+  /* Wie der Schalter aussieht, steht im gemeinsamen Stylesheet an
+     `[role='switch']` - er steht inzwischen auch in der Auswertung. Hier
+     bleibt nur, wie die Zeile ihn aufstellt. */
 
   h3 {
     font-size: 1rem;
