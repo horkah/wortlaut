@@ -71,11 +71,19 @@ function zahl(schluessel: string, vorgabe: number, spanne: { min: number; max: n
   return Math.min(spanne.max, Math.max(spanne.min, gelesen));
 }
 
+/**
+ * Gelesen wird durch dieselbe Angleichung, durch die auch geschrieben wird
+ * (`normalisiereFarbe`). Was dort nicht durchkommt, fällt auf die Vorgabe
+ * zurück: Im Speicher kann noch stehen, was das frühere, ungeprüfte Textfeld
+ * dort abgelegt hat, und ein `#FFF` oder ein Tippfehler machte das Farbfeld
+ * sonst schwarz - `input[type=color]` kennt nur `#rrggbb` und nimmt bei allem
+ * anderen stillschweigend Schwarz an.
+ */
 function farbwerte(): Record<string, string> {
   const werte: Record<string, string> = {};
   for (const farbe of FARBEN) {
-    werte[farbe.schluessel] =
-      localStorage.getItem(FARBE_SCHLUESSEL_VORSILBE + farbe.schluessel) ?? farbe.vorgabe;
+    const gelesen = localStorage.getItem(FARBE_SCHLUESSEL_VORSILBE + farbe.schluessel);
+    werte[farbe.schluessel] = (gelesen && normalisiereFarbe(gelesen)) || farbe.vorgabe;
   }
   return werte;
 }
@@ -161,10 +169,37 @@ export function setzeSchrift(wert: number): void {
   localStorage.setItem(SCHRIFT_SCHLUESSEL, String(wert));
 }
 
-export function setzeFarbe(schluessel: string, wert: string): void {
-  einstellungen.farben[schluessel] = wert;
-  localStorage.setItem(FARBE_SCHLUESSEL_VORSILBE + schluessel, wert);
+/**
+ * Einen eingetippten Farbwert auf die kanonische Form bringen, oder `null`,
+ * wenn es keiner ist.
+ *
+ * Erlaubt ist, was ein Mensch schreibt, der eine Farbe im Kopf hat: `#1B4D3E`,
+ * `1b4d3e`, `#abc`. Zurück kommt immer `#aabbcc` in Kleinschreibung - dieselbe
+ * Form, die `input[type=color]` liefert. Ohne diese Angleichung stünde
+ * derselbe Ton je nach Eingabeweg unterschiedlich im Speicher, und der
+ * Vergleich mit der Vorgabe („ist das noch die Werkseinstellung?") ginge
+ * daneben.
+ *
+ * Zurückgewiesen wird alles andere. Vorher landete auch Unsinn im
+ * `localStorage`: Der Browser übergeht eine ungültige CSS-Variable
+ * stillschweigend, die Farbe blieb also scheinbar stehen - und beim nächsten
+ * Laden war sie plötzlich weg, ohne dass irgendwo gestanden hätte, warum.
+ */
+export function normalisiereFarbe(wert: string): string | null {
+  const roh = wert.trim().replace(/^#/, '').toLowerCase();
+  if (!/^(?:[0-9a-f]{3}|[0-9a-f]{6})$/.test(roh)) return null;
+  // `#abc` ist die Kurzschrift für `#aabbcc`.
+  return `#${roh.length === 3 ? roh.replace(/./g, (ziffer) => ziffer + ziffer) : roh}`;
+}
+
+/** Sagt, ob der Wert taugte - die Ansicht stellt sonst das Feld zurück. */
+export function setzeFarbe(schluessel: string, wert: string): boolean {
+  const farbe = normalisiereFarbe(wert);
+  if (farbe === null) return false;
+  einstellungen.farben[schluessel] = farbe;
+  localStorage.setItem(FARBE_SCHLUESSEL_VORSILBE + schluessel, farbe);
   wendeDarstellungAn();
+  return true;
 }
 
 export function setzeSchriftart(wert: string): void {

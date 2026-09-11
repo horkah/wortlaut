@@ -372,6 +372,18 @@ je mit Probe - ein eigener Menüpunkt neben den Einstellungen, weil es ein
 anderes Publikum ist: Mikrofon und Stimme misst man einmal ein, an Kontrast
 und Schriftgröße darf jeder, der zu wenig sieht, sofort drehen.
 
+Die acht Farben stehen als Raster, eine Farbe je Zeile: Farbfeld, Name,
+darunter der Hex-Wert. Das Farbfeld ist der Hauptweg - ein Tippen, dann wählt
+das Gerät. Der Hex-Wert daneben sieht aus wie Text und ist doch ein Feld; wer
+einen Ton genau treffen muss, überschreibt ihn (`#1b4d3e`, `1b4d3e` und `#abc`
+gelten gleichermaßen), alle anderen lesen ihn nur. Was keine Farbe ist, wird
+abgewiesen und das Feld springt zurück - vorher landete auch Unsinn im
+`localStorage`, und der Browser übergeht eine ungültige CSS-Variable
+stillschweigend: Die Farbe blieb scheinbar stehen und war beim nächsten Laden
+weg. Weicht eine Farbe von der Vorgabe ab, erscheint am Zeilenende ein
+Rückwärtspfeil, der genau diese eine zurückholt; **Auf Vorgaben zurücksetzen**
+weiter unten holt alles auf einmal.
+
 Darunter steht, was von der Oberfläche überhaupt sichtbar ist: zwei Listen mit
 je einem Schalter rechts, oben die drei Apps der Kopfleiste, darunter die
 Punkte im Menüknopf. Der Anlass ist Grundentscheidung 7 - jeder Reiter, den
