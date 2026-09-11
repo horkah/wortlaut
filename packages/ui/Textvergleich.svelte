@@ -12,20 +12,37 @@
    * Vorlesestimme. Wer Farben nicht unterscheiden kann - oder sie unter
    * „Darstellung" gerade auf etwas Eigenes gestellt hat -, sieht den
    * Unterschied trotzdem.
+   *
+   * **`hervorheben={false}`** zeigt stattdessen den erkannten Text, wie er
+   * dasteht. Die Auszeichnung beantwortet „wo weicht es ab?"; sie beantwortet
+   * nicht „was hat das Modell eigentlich geschrieben?". Sobald viel abweicht,
+   * zerfällt der Satz in Schnipsel aus Gestrichenem und Fettem, und gerade
+   * das schlechteste Modell - das interessanteste - wird am schlechtesten
+   * lesbar. Dann hilft nur der glatte Text. Umgeschaltet wird nicht hier,
+   * sondern von der Ansicht, die alle Fassungen nebeneinander zeigt.
    */
   import { vergleiche } from './diff';
 
-  let { vorlage, erkannt }: { vorlage: string; erkannt: string } = $props();
+  let {
+    vorlage,
+    erkannt,
+    hervorheben = true,
+  }: { vorlage: string; erkannt: string; hervorheben?: boolean } = $props();
 
-  const stuecke = $derived(vergleiche(vorlage, erkannt));
+  // Nur gerechnet, wenn es auch gezeigt wird: Abgeschaltet steht der Text
+  // schon da, und ein Diff über drei Fassungen je Aufnahme wäre Arbeit für
+  // nichts.
+  const stuecke = $derived(hervorheben ? vergleiche(vorlage, erkannt) : []);
 </script>
 
 <p class="vergleich">
-  {#each stuecke as stueck, nummer (nummer)}
-    {#if stueck.art === 'gleich'}<span>{stueck.text}</span>
-    {:else if stueck.art === 'weg'}<del title="fehlt in der Erkennung">{stueck.text}</del>
-    {:else}<ins title="zusätzlich erkannt">{stueck.text}</ins>{/if}
-  {/each}
+  {#if hervorheben}
+    {#each stuecke as stueck, nummer (nummer)}
+      {#if stueck.art === 'gleich'}<span>{stueck.text}</span>
+      {:else if stueck.art === 'weg'}<del title="fehlt in der Erkennung">{stueck.text}</del>
+      {:else}<ins title="zusätzlich erkannt">{stueck.text}</ins>{/if}
+    {/each}
+  {:else}{erkannt}{/if}
 </p>
 
 <style>

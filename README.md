@@ -37,8 +37,9 @@ Basis ist `openai/whisper-large-v3`, Laufzeit faster-whisper (CTranslate2), Trai
 2026 nicht mehr - sondern weil es das einzige ist, bei dem Trainingsrezept,
 Laufzeit-Ökosystem und dokumentierte Ergebnisse für genau diesen Fall vollständig
 vorliegen. MIT-Lizenz, keine Attributionspflicht. Für die Entwicklung ohne GPU
-genügt `whisper-small`; kleiner wird nicht gemessen - `whisper-tiny` versteht
-bei abweichender Aussprache zu wenig, um einen Vergleich zu tragen.
+genügt `whisper-small`; unterhalb von `whisper-base` wird nicht gemessen -
+`whisper-tiny` versteht bei abweichender Aussprache zu wenig, um einen
+Vergleich zu tragen.
 
 **2. Aufnahme erfolgt äußerungsweise, nicht am Stück.**
 `hören` zeigt immer genau eine kurze Einheit und nimmt genau dazu auf. Jedes
@@ -728,11 +729,11 @@ eines nach dem anderen. Vier Eigenschaften sind Absicht:
   Whisper rechnet, und zwar auf derselben Maschine, auf der jemand gerade
   aufnimmt; ein Neustart des Containers würde sonst jedes Mal ungefragt Stunden
   Rechenzeit binden.
-* **Aufnahmeweise, nicht modellweise.** Erst alle Aufnahmen durch `small`, dann
-  durch `medium` wäre sparsamer - je Modell einmal laden. Nur zeigte die Kurve
+* **Aufnahmeweise, nicht modellweise.** Erst alle Aufnahmen durch `base`, dann
+  durch `small`, dann durch `medium` wäre sparsamer - je Modell einmal laden. Nur zeigte die Kurve
   dann lange eine einzige Reihe, und verglichen werden soll gerade. Bezahlt
   wird das damit, dass alle Erkenner gleichzeitig im Speicher liegen; bei
-  `small,medium` in `int8` gut ein Gigabyte.
+  `base,small,medium` in `int8` gut ein Gigabyte.
 * **Wiederaufnehmbar.** Fertig ist, was in `erkennungen` steht
   (`005_auswertung.sql`). Ein zweiter Lauf rechnet nur, was fehlt - nach einem
   Neustart, nach neuen Aufnahmen oder nach einem hinzugefügten Modell. Nichts
@@ -759,6 +760,17 @@ statt auf null zu fallen: Eine Null wäre ein Modell, das nichts verstanden hat.
 Der Fortschritt steht darüber, und die Seite fragt im Takt nach, solange
 gerechnet wird.
 
+Unter dem Bild steht die Bilanz: je Modell **Median und Mittel** im gewählten
+Maß, dazu, über wie viele Aufnahmen sie gehen. Beide, und nicht eines von
+beiden - das Mittel nimmt jeden Ausreißer mit, etwa die eine Aufnahme, bei der
+Whisper in eine Wiederholungsschleife gerät, während der Median den Normalfall
+nennt. Stehen sie weit auseinander, ist das die Auskunft: Das Modell ist nicht
+gleichmäßig schlechter, es verreißt einzelne Aufnahmen - welche, steht in der
+Kurve darüber. Gerechnet wird das im Browser aus den Zahlen, die die Kurve
+ohnehin mitbringt; ein Maßwechsel wartet so auf keine Antwort. Ein Modell, für
+das noch nichts gerechnet ist, bekommt keine Zeile: Zwei Nullen wären eine
+Behauptung.
+
 Ein Tipp auf eine Spalte - irgendwo in die Spalte, nicht auf den Balken; auf
 einem Telefon ist ein 20 Pixel breiter Balken kein Ziel - zeigt darunter die
 Vorlage und jede erkannte Fassung, Unterschiede zeichenweise ausgezeichnet:
@@ -769,6 +781,13 @@ Wortvergleich „Heuser" als ganz falsch markierte, obwohl ein Buchstabe
 danebenliegt. Die Auszeichnung trägt nie allein die Farbe - durchgestrichen und
 fett sagen dasselbe noch einmal, und `<del>`/`<ins>` sagen es auch einer
 Vorlesestimme.
+
+Ein Schalter daneben nimmt die Auszeichnung wieder weg. Sie beantwortet „wo
+weicht es ab?", nicht „was hat das Modell eigentlich geschrieben?" - und sobald
+viel abweicht, zerfällt der Satz in Schnipsel aus Gestrichenem und Fettem, so
+dass ausgerechnet die interessanteste Fassung, die des schlechtesten Modells,
+am schlechtesten zu lesen ist. Dann steht der glatte Text da. Am Gemessenen
+ändert der Schalter nichts: Verglichen wird immer gegen die Vorlage.
 
 Gezeichnet wird mit **ECharts**, und die Wahl ist für mehr als diese eine Kurve
 getroffen: Zeigen, Ziehen und Zwei-Finger-Zoom auf dem Telefon wie mit der

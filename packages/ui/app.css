@@ -104,6 +104,70 @@ textarea {
   box-sizing: border-box;
 }
 
+/* Der Schalter: ein Kästchen ohne Kästchen. `appearance: none` nimmt ihm das
+   Aussehen des Systems, der Rest zeichnet Bahn und Knauf. Es bleibt eine echte
+   Ankreuzfläche - Tastatur, Vorlesestimme und `role="switch"` tun damit
+   weiterhin das Richtige.
+
+   Am `role` festgemacht und nicht an einer Klasse: Ein Kästchen, das kein
+   Häkchen setzt, sondern etwas an- und ausschaltet, trägt dieses Attribut
+   ohnehin. So bekommt jeder Schalter dieselbe Gestalt, ohne dass die Ansicht,
+   die ihn aufstellt, eine Klasse kennen muss - „Darstellung" hat ihn zuerst
+   gebraucht, die Auswertung als Zweite. */
+input[type='checkbox'][role='switch'] {
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 2.7rem;
+  height: 1.5rem;
+  /* Gegen die Breitenregel oben: Eingabefelder gehen über die Zeile, ein
+     Schalter ist so breit wie er ist. */
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--rand);
+  border-radius: 999px;
+  background: var(--hintergrund);
+  cursor: inherit;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+input[type='checkbox'][role='switch']::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0.15rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: var(--gedaempft);
+  transform: translateY(-50%);
+  transition:
+    transform 0.15s,
+    background 0.15s;
+}
+
+input[type='checkbox'][role='switch']:checked {
+  background: var(--akzent);
+  border-color: var(--akzent);
+}
+
+input[type='checkbox'][role='switch']:checked::after {
+  background: #fff;
+  transform: translate(1.15rem, -50%);
+}
+
+input[type='checkbox'][role='switch']:disabled {
+  opacity: 0.5;
+}
+
+input[type='checkbox'][role='switch']:focus-visible {
+  outline: 2px solid var(--akzent);
+  outline-offset: 2px;
+}
+
 .karte {
   border: 1px solid var(--rand);
   border-radius: 0.5rem;
