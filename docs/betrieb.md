@@ -41,8 +41,8 @@ wie im Betrieb der Reverse Proxy. Läuft „schreiben" nicht, steht dort ein
 Verbindungsfehler - dann fehlt `make dev APP=schreiben`.
 
 Beim ersten Diktat lädt faster-whisper sein Modell aus dem Netz; das dauert
-einmalig und landet im Cache von huggingface. `WORTLAUT_ASR_MODELL=tiny` ist
-die Vorgabe und läuft auch auf schwacher Hardware.
+einmalig und landet im Cache von huggingface. `WORTLAUT_ASR_MODELL=small` ist
+die Vorgabe: die kleinste Stufe, die ohne GPU noch ganze Sätze trifft.
 
 Damit die Korrekturen ankommen, muss in der `.env` `WORTLAUT_INTAKE_URL` auf
 die laufende „hören"-Instanz zeigen (in der Entwicklung
@@ -152,7 +152,7 @@ den Container neu starten:
 curl -X POST https://wortlaut.example.org/api/speakers \
   -H "Authorization: Bearer $WORTLAUT_AUTH_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"name":"Vorname","sprache":"de","basismodell":"tiny"}'
+  -d '{"name":"Vorname","sprache":"de","basismodell":"openai/whisper-small"}'
 # → {"id":"spr_…"}
 
 curl -X POST https://wortlaut.example.org/api/speakers/spr_…/zugang \
@@ -594,7 +594,7 @@ uv run python scripts/purge_speaker.py spr_7f2a --ja-wirklich
 | Vorgelesene Stimme klingt blechern | Siehe „Bessere Vorlesestimme unter Linux" unten. Die Web Speech API nutzt die Stimmen des Betriebssystems; unter Linux ist das per Vorgabe espeak-ng. |
 | „schreiben": erstes Diktat hängt lange | faster-whisper lädt beim ersten Aufruf sein Modell herunter. Danach kommt es aus dem Cache. Ohne Netz schlägt es fehl - dann `WORTLAUT_ASR_MODELL` auf ein bereits geladenes Modell setzen. |
 | „schreiben": `ModuleNotFoundError: faster_whisper` | `uv sync --extra asr` vergessen (oder `WORTLAUT_ASR=remote` setzen) |
-| „schreiben": „Aus der Aufnahme wurde kein Wort verstanden" | Whisper hat nichts erkannt. Mit `tiny` ist das bei leiser Aufnahme oder starker Sprechstörung der Normalfall - erst Mikrofon einmessen (Menüknopf oben rechts → Einstellungen; die Werte gelten für beide Apps), dann ein größeres Modell versuchen. |
+| „schreiben": „Aus der Aufnahme wurde kein Wort verstanden" | Whisper hat nichts erkannt. Bei leiser Aufnahme oder starker Sprechstörung ist das auch mit `small` der Normalfall - erst Mikrofon einmessen (Menüknopf oben rechts → Einstellungen; die Werte gelten für beide Apps), dann ein größeres Modell versuchen. |
 | „schreiben": Postausgang bleibt offen | `WORTLAUT_INTAKE_URL` fehlt oder zeigt ins Leere; oder der Zugang des Sprechers gilt bei „hören" nicht mehr (401), weil dort inzwischen ein neuer ausgegeben wurde. Nichts geht verloren: „Noch einmal senden" nach dem Richten genügt - nötigenfalls nach dem Öffnen des neuen Links. |
 | `localhost:5174` zeigt eine leere Seite | Der Pfad fehlt: `http://localhost:5174/schreiben/` aufrufen. |
 | Der Reiter „schreiben" landet wieder in „hören" | Im Betrieb: Der Proxy schneidet `/schreiben/` ab oder zeigt auf den falschen Port. Probe: `curl -I https://<domain>/schreiben/`. In der Entwicklung: „schreiben" läuft nicht mit - `make dev APP=schreiben`. |

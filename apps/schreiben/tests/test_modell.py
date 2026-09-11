@@ -33,8 +33,8 @@ class TestModellauskunft:
         antwort = klient.get("/schreiben/api/model").json()
 
         assert antwort["ref"] == ""
-        assert antwort["basismodell"] == "tiny"
-        assert antwort["beschriftung"] == "whisper-tiny · unverändert"
+        assert antwort["basismodell"] == "small"
+        assert antwort["beschriftung"] == "whisper-small · unverändert"
 
     def test_meldet_den_stand_aus_der_registry(
         self,
@@ -87,7 +87,7 @@ class TestEigenesModell:
         antwort = klient.get("/schreiben/api/model").json()
 
         assert antwort["ref"] == ""
-        assert antwort["beschriftung"] == "whisper-tiny · unverändert"
+        assert antwort["beschriftung"] == "whisper-small · unverändert"
 
     def test_ein_nicht_freigegebener_stand_zaehlt_nicht(
         self, klient: TestClient, datenverzeichnis: Path
@@ -100,7 +100,7 @@ class TestEigenesModell:
 class TestModellpfad:
     def test_ohne_stand_ist_es_der_blosse_name(self, _umgebung: None, sprecher: str) -> None:
         # faster-whisper lädt dann das unveränderte Whisper-Modell selbst.
-        assert modellpfad(einstellungen(), sprecher) == "tiny"
+        assert modellpfad(einstellungen(), sprecher) == "small"
 
     def test_mit_stand_ist_es_das_ct2_verzeichnis(
         self, _umgebung: None, datenverzeichnis: Path, sprecher: str

@@ -20,7 +20,7 @@ from wortlaut.whisper import Transkript
 
 from apps.hoeren.backend.services import auswertung
 
-MODELLE = "tiny,small"
+MODELLE = "small,medium"
 
 
 class PlatzhalterErkenner:
@@ -110,7 +110,7 @@ class TestOhneAufnahmen:
         antwort = klient.get("/api/auswertung").json()
         assert antwort["punkte"] == []
         assert antwort["stand"]["gesamt"] == 0
-        assert antwort["modelle"] == ["tiny", "small"]
+        assert antwort["modelle"] == ["small", "medium"]
 
     def test_die_masse_kommen_vom_server(self, klient: TestClient) -> None:
         schluessel = [m["schluessel"] for m in klient.get("/api/auswertung").json()["metriken"]]
@@ -124,7 +124,7 @@ class TestLauf:
     ) -> None:
         vorlage = sprich()
         sprich()
-        antworten.update({"tiny": "völlig daneben", "small": vorlage})
+        antworten.update({"small": "völlig daneben", "medium": vorlage})
 
         stand = _laufe_bis_fertig(klient)
 
@@ -137,7 +137,7 @@ class TestLauf:
     ) -> None:
         for _ in range(3):
             sprich()
-        antworten.update({"tiny": "etwas", "small": "etwas"})
+        antworten.update({"small": "etwas", "medium": "etwas"})
         _laufe_bis_fertig(klient)
 
         punkte = klient.get("/api/auswertung").json()["punkte"]
@@ -147,19 +147,19 @@ class TestLauf:
         self, klient: TestClient, quelle: str, sprich, antworten: dict
     ) -> None:
         vorlage = sprich()
-        antworten.update({"tiny": "ein ganz anderer satz", "small": vorlage})
+        antworten.update({"small": "ein ganz anderer satz", "medium": vorlage})
         _laufe_bis_fertig(klient)
 
         werte = klient.get("/api/auswertung").json()["punkte"][0]["werte"]
-        assert werte["small"]["genauigkeit"] == pytest.approx(100.0)
-        assert werte["small"]["wer"] == 0
-        assert werte["tiny"]["genauigkeit"] < werte["small"]["genauigkeit"]
+        assert werte["medium"]["genauigkeit"] == pytest.approx(100.0)
+        assert werte["medium"]["wer"] == 0
+        assert werte["small"]["genauigkeit"] < werte["medium"]["genauigkeit"]
 
     def test_zweiter_lauf_rechnet_nichts_doppelt(
         self, klient: TestClient, quelle: str, sprich, antworten: dict
     ) -> None:
         sprich()
-        antworten.update({"tiny": "etwas", "small": "etwas"})
+        antworten.update({"small": "etwas", "medium": "etwas"})
         _laufe_bis_fertig(klient)
 
         # Ein zweiter Lauf über denselben Stand: Es gibt nichts mehr zu tun,
@@ -172,7 +172,7 @@ class TestLauf:
         self, klient: TestClient, quelle: str, sprich, antworten: dict
     ) -> None:
         sprich()
-        antworten.update({"tiny": "etwas", "small": "etwas"})
+        antworten.update({"small": "etwas", "medium": "etwas"})
         _laufe_bis_fertig(klient)
 
         sprich()
@@ -189,7 +189,7 @@ class TestLauf:
         verworfen = _erste(klient)
         assert klient.delete(f"/api/recordings/{verworfen}").status_code == 204
 
-        antworten.update({"tiny": "etwas", "small": "etwas"})
+        antworten.update({"small": "etwas", "medium": "etwas"})
         stand = _laufe_bis_fertig(klient)
         assert stand["gesamt"] == 0
         assert klient.get("/api/auswertung").json()["punkte"] == []
@@ -198,7 +198,7 @@ class TestLauf:
         self, klient: TestClient, quelle: str, sprich, antworten: dict
     ) -> None:
         vorlage = sprich()
-        antworten.update({"tiny": RuntimeError("Modell nicht ladbar"), "small": vorlage})
+        antworten.update({"small": RuntimeError("Modell nicht ladbar"), "medium": vorlage})
 
         stand = _laufe_bis_fertig(klient)
 
@@ -206,8 +206,8 @@ class TestLauf:
         assert "Modell nicht ladbar" in (stand["fehler"] or "")
         # Das andere Modell ist trotzdem durchgelaufen.
         werte = klient.get("/api/auswertung").json()["punkte"][0]["werte"]
-        assert "small" in werte
-        assert "tiny" not in werte
+        assert "medium" in werte
+        assert "small" not in werte
 
 
 class TestVergleich:
@@ -215,14 +215,14 @@ class TestVergleich:
         self, klient: TestClient, quelle: str, sprich, antworten: dict
     ) -> None:
         vorlage = sprich()
-        antworten.update({"tiny": "so ungefähr", "small": vorlage})
+        antworten.update({"small": "so ungefähr", "medium": vorlage})
         _laufe_bis_fertig(klient)
 
         vergleich = klient.get(f"/api/auswertung/{_erste(klient)}").json()
         assert vergleich["nummer"] == 1
         assert vergleich["referenz"] == vorlage
         # In der Reihenfolge der Konfiguration, nicht in der der Datenbank.
-        assert [e["modell"] for e in vergleich["erkennungen"]] == ["tiny", "small"]
+        assert [e["modell"] for e in vergleich["erkennungen"]] == ["small", "medium"]
         assert vergleich["erkennungen"][1]["text"] == vorlage
 
     def test_unbekannte_aufnahme_ist_vierhundertvier(self, klient: TestClient) -> None:

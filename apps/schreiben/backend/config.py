@@ -61,7 +61,11 @@ class Einstellungen(BaseSettings):
     # jeden, der hier ruft - gedacht zum Erproben eines Standes, nicht für den
     # Betrieb.
     modell_ref: str = ""
-    asr_modell: str = "tiny"
+    # Das unveränderte Grundmodell, wenn kein Stand da ist. `small` ist die
+    # kleinste Stufe, die noch ganze Sätze trifft; kleiner zu werden spart
+    # Rechenzeit, liefert aber Text, an dem niemand ablesen kann, ob das
+    # Diktat angekommen ist.
+    asr_modell: str = "small"
 
     # local = faster-whisper im eigenen Prozess, remote = fremder Endpunkt.
     # Vorsicht: remote schickt Stimmdaten an Dritte (docs/datenschutz.md).

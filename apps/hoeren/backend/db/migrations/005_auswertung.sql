@@ -19,9 +19,9 @@
 CREATE TABLE erkennungen (
     id            TEXT PRIMARY KEY,
     recording_id  TEXT NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
-    -- Der Name des Erkenners, wie ihn faster-whisper versteht: 'tiny',
-    -- 'small', 'medium' - oder später der Verweis auf einen eigenen Stand aus
-    -- „lernen". Darum Text und keine feste Auswahl.
+    -- Der Name des Erkenners, wie ihn faster-whisper versteht: 'small',
+    -- 'medium', 'large-v3' - oder später der Verweis auf einen eigenen Stand
+    -- aus „lernen". Darum Text und keine feste Auswahl.
     modell        TEXT NOT NULL,
     -- Der erkannte Text, roh und unbearbeitet. Gemessen wird auf einer
     -- angeglichenen Fassung (Kleinschreibung, ohne Satzzeichen), angezeigt

@@ -4,7 +4,7 @@ Zwei Arten von Modellangaben, beide von faster-whisper selbst unterschieden:
 
 * ein Verzeichnis - der `ct2/`-Ordner eines Modellstands aus der Registry,
   also das feingetunte Modell aus „lernen";
-* ein Name wie `tiny` oder `small` - das unveränderte Whisper-Modell, das
+* ein Name wie `small` oder `medium` - das unveränderte Whisper-Modell, das
   faster-whisper beim ersten Aufruf herunterlädt. Damit ist „schreiben"
   benutzbar, bevor es „lernen" gibt.
 """

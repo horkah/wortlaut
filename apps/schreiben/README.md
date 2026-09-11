@@ -83,15 +83,15 @@ denselben Eintrag im `localStorage`, der persönliche Link ist also einmal zu
 | Variable | Bedeutung |
 |---|---|
 | `WORTLAUT_MODELL_REF` | fester Stand für alle, `<sprecher_id>/<version>`; leer = je Sprecher sein freigegebener |
-| `WORTLAUT_ASR_MODELL` | Whisper-Modell, solange kein Stand da ist (`tiny`) |
+| `WORTLAUT_ASR_MODELL` | Whisper-Modell, solange kein Stand da ist (`small`) |
 | `WORTLAUT_ASR` | `local` (faster-whisper) oder `remote` |
 | `WORTLAUT_INTAKE_URL` | wohin die Korrekturen gehen; gesendet wird mit dem Zugang des Bestätigenden |
 
-**Ohne `lernen` fängt man mit `tiny` an.** Ist `WORTLAUT_MODELL_REF` leer, lädt
-faster-whisper das unveränderte `whisper-tiny` - schnell, anspruchslos und für
-die Zielgruppe absichtlich noch nicht gut. Genau daran wird später sichtbar,
-was das eigene Modell bringt. Die Kopfzeile schreibt deshalb dauerhaft hin,
-welcher Stand gerade arbeitet.
+**Ohne `lernen` fängt man mit `small` an.** Ist `WORTLAUT_MODELL_REF` leer, lädt
+faster-whisper das unveränderte `whisper-small` - genügsam genug für eine
+Maschine ohne GPU und für die Zielgruppe absichtlich noch nicht gut. Genau
+daran wird später sichtbar, was das eigene Modell bringt. Die Kopfzeile
+schreibt deshalb dauerhaft hin, welcher Stand gerade arbeitet.
 
 ## Ablage
 
