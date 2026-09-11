@@ -47,14 +47,16 @@ class Einstellungen(BaseSettings):
     # Komma getrennt - später darf hier auch der Pfad eines eigenen Standes
     # aus „lernen" stehen. Die Reihenfolge ist zugleich die der Anzeige.
     #
-    # Die Vorgabe ist eine Leiter: `tiny` ist in Sekunden durch und taugt als
-    # Untergrenze, `small` ist der Alltagsfall, `medium` zeigt, was mit mehr
-    # Rechenzeit noch zu holen wäre. Wer wenig Maschine hat, kürzt die Liste -
-    # gerechnet wird nur, was darin steht.
-    auswertung_modelle: str = "tiny,small,medium"
+    # Die Vorgabe ist eine Leiter: `small` ist der Alltagsfall und die
+    # Untergrenze, `medium` zeigt, was mit mehr Rechenzeit noch zu holen wäre.
+    # Wer wenig Maschine hat, kürzt die Liste - gerechnet wird nur, was darin
+    # steht. `tiny` steht bewusst nicht mehr zur Wahl: Es versteht auch bei
+    # deutlicher Aussprache zu wenig, um einen Vergleich zu tragen, und eine
+    # Messreihe, deren unterste Stufe nur Unsinn liefert, misst nichts.
+    auswertung_modelle: str = "small,medium"
     # Wie `schreiben` seine Erkennung fährt: `auto` nimmt die GPU, wenn eine
-    # da ist. `int8` ist die sparsame Quantisierung - drei Modelle liegen
-    # gleichzeitig im Speicher (siehe `services/auswertung.py`).
+    # da ist. `int8` ist die sparsame Quantisierung - alle konfigurierten
+    # Modelle liegen gleichzeitig im Speicher (siehe `services/auswertung.py`).
     auswertung_geraet: str = "auto"
     auswertung_rechenart: str = "int8"
 

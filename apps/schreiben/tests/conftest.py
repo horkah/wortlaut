@@ -150,7 +150,7 @@ def _umgebung(
 ) -> Iterator[None]:
     monkeypatch.setenv("WORTLAUT_DATA_DIR", str(datenverzeichnis))
     monkeypatch.setenv("WORTLAUT_MODELL_REF", "")
-    monkeypatch.setenv("WORTLAUT_ASR_MODELL", "tiny")
+    monkeypatch.setenv("WORTLAUT_ASR_MODELL", "small")
     monkeypatch.setenv("WORTLAUT_INTAKE_URL", INTAKE_URL)
     einstellungen.cache_clear()
     deps.zwischenspeicher_leeren()

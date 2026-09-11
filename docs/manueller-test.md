@@ -38,8 +38,7 @@ gemacht, und was dabei herauskommt, ist ein Link.
    Punkt steht auch im Menü (☰) rechts oben, und zwar immer - auch ohne
    gültigen Zugang, denn genau dann braucht man ihn.
 2. Unter „Neues Profil“: Namen eintragen, Basismodell auf
-   `whisper-small (Entwicklung ohne GPU)` oder, für noch weniger Rechenlast,
-   `whisper-tiny (noch weniger Rechenlast)` stellen, **Anlegen und Zugang
+   `whisper-small (Entwicklung ohne GPU)` stellen, **Anlegen und Zugang
    ausgeben**. Für den Testablauf hier ohne Belang: `hören` selbst ruft
    Whisper nirgends auf - das Feld ist reine Metadaten für das spätere
    Training in `lernen`.
@@ -307,7 +306,7 @@ bleibt die Seite leer, das ist kein Fehler.
 3. Erwartet: dieselbe Kopfzeile, jetzt mit „schreiben“ hinterlegt, keine
    zweite Reihe. Darunter mittig „Sprechen Sie einfach los.“, ein großer Knopf
    und darunter blass der Modellstand - solange „lernen“ für diesen Sprecher
-   nichts freigegeben hat, steht dort „whisper-tiny · unverändert“.
+   nichts freigegeben hat, steht dort „whisper-small · unverändert“.
 4. **● Aufnehmen**, zwei bis drei kurze Sätze sprechen, **■ Fertig**.
    Erwartet: „Wird verstanden …“. Beim allerersten Mal dauert das länger, weil
    faster-whisper sein Modell herunterlädt (Fortschritt in der
@@ -315,8 +314,8 @@ bleibt die Seite leer, das ist kein Fehler.
 5. Erwartet: die Sätze stehen als einzeln umrandete Abschnitte untereinander,
    und die App liest von selbst vor; der gerade gesprochene Abschnitt ist
    blass hinterlegt. **■ Anhalten** stoppt sofort, **▶ Vorlesen** beginnt von
-   vorn. Dass `tiny` dabei Unsinn versteht, ist erwartet und der Grund für
-   die App „lernen“.
+   vorn. Dass ein unverändertes Whisper bei abweichender Aussprache daneben
+   greift, ist erwartet und der Grund für die App „lernen“.
 6. Einen falschen Abschnitt **anklicken**. Erwartet: er bekommt einen
    kräftigen Rahmen, darunter erscheint eine Karte mit dem Text groß, einem
    Abspieler „So klang es“ und einem Aufnahmeknopf. Diesen Satz noch einmal
@@ -358,7 +357,7 @@ Weg über das Löschskript - es räumt beide zugleich weg.
 |---|---|
 | `GET / → 404` und `GET /favicon.ico → 404` in der Backend-Konsole | normal in der Entwicklung - das Backend liefert `/` nur aus, wenn unter `frontend/dist` ein gebautes Frontend liegt; in der Entwicklung läuft die Oberfläche über Vite auf `:5173` |
 | Startseite zeigt nur „Sprecher“ und ein leeres Formular | Leerzustand vor dem ersten Profil, keine kaputte Seite |
-| „schreiben“ versteht mit `tiny` erkennbar Falsches | erwartet - genau dafür gibt es die App „lernen“ |
+| „schreiben“ versteht mit dem unveränderten Modell erkennbar Falsches | erwartet - genau dafür gibt es die App „lernen“ |
 | `http://localhost:5174` ohne `/schreiben/` bleibt leer | die App liegt unter einem Pfad (`base` in ihrer `vite.config.ts`, `BASIS` in ihrer `main.py`) |
 | Der Reiter „schreiben" bleibt in „hören" stehen | „schreiben" läuft nicht (`make dev APP=schreiben`); im Betrieb: der Proxy verteilt `/schreiben/` nicht |
 

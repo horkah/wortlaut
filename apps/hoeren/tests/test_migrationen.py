@@ -14,6 +14,9 @@ blieb grün, weil sie den Fall nicht kannte.
 Deshalb steht hier ein Korpus im ältesten Zustand, den es gibt: nur
 `001_init.sql`. Der Test bleibt damit auch für die nächste Spalte gültig, ohne
 dass jemand ihn anfassen muss - er nennt keine einzelne Migration beim Namen.
+
+Eine Ausnahme steht unten: `006_ohne_tiny.sql` schreibt kein Schema fort,
+sondern räumt Daten weg. Was löscht, wird namentlich geprüft.
 """
 
 from __future__ import annotations
@@ -30,6 +33,9 @@ from apps.hoeren.backend.config import einstellungen
 from apps.hoeren.backend.db.models import jetzt
 
 ALTBESTAND = "spr_altbestand"
+MIT_TINY = "spr_mit_tiny"
+# Die Migration, die `tiny` ausräumt - siehe `TestTinyWirdAusgeraeumt`.
+OHNE_TINY = "006_ohne_tiny"
 
 
 @pytest.fixture
@@ -130,3 +136,91 @@ class TestKeinKorpusAusVersehen:
         pfad = corpus.datenbank_pfad(einstellungen().data_dir, "spr_gibtesnicht")
         assert not pfad.exists()
         assert not pfad.parent.exists()
+
+
+class TestTinyWirdAusgeraeumt:
+    """`006_ohne_tiny.sql`: das kleinste Modell verschwindet samt Ergebnissen.
+
+    Die einzige Migration, die diese Sammlung beim Namen nennt - weil sie als
+    einzige nicht Schema fortschreibt, sondern Daten wegnimmt. Was etwas
+    löscht, soll auch geprüft werden: dass es das Richtige trifft und, ebenso
+    wichtig, nur das.
+    """
+
+    @pytest.fixture
+    def korpus_mit_tiny(self, _umgebung: None, tmp_path: Path) -> Path:
+        """Ein Korpus auf dem Stand davor, mit einer Erkennung je Modell."""
+        konfiguration = einstellungen()
+
+        davor = tmp_path / "migrationen_vor_006"
+        davor.mkdir()
+        for datei in sorted(konfiguration.migrationsverzeichnis.glob("*.sql")):
+            if datei.stem >= OHNE_TINY:
+                break
+            (davor / datei.name).write_text(datei.read_text(encoding="utf-8"), encoding="utf-8")
+
+        pfad = corpus.datenbank_pfad(konfiguration.data_dir, MIT_TINY)
+        db.wende_migrationen_an(pfad, davor)
+
+        with sqlite3.connect(pfad) as verbindung:
+            verbindung.execute(
+                "INSERT INTO speakers (id, name, sprache, basismodell, erstellt)"
+                " VALUES (?, ?, 'de', 'openai/whisper-tiny', ?)",
+                (MIT_TINY, "Mit tiny", jetzt()),
+            )
+            verbindung.execute(
+                "INSERT INTO text_sources (id, speaker_id, art, titel, erstellt)"
+                " VALUES ('src_1', ?, 'upload', 'Vorlage', ?)",
+                (MIT_TINY, jetzt()),
+            )
+            verbindung.execute(
+                "INSERT INTO prompts"
+                " (id, source_id, speaker_id, position, text, dauer_geschaetzt_s, erstellt)"
+                " VALUES ('prm_1', 'src_1', ?, 1, 'Ein Satz.', 1.5, ?)",
+                (MIT_TINY, jetzt()),
+            )
+            verbindung.execute(
+                "INSERT INTO recordings"
+                " (id, prompt_id, speaker_id, blob, dauer_s, pegel_dbfs, spitze_dbfs,"
+                "  clipping_anteil, stille_vorn_s, stille_hinten_s, modus, status, erstellt)"
+                " VALUES ('rec_1', 'prm_1', ?, 'a.wav', 1.5, -20, -3, 0, 0, 0,"
+                "  'gelesen', 'ok', ?)",
+                (MIT_TINY, jetzt()),
+            )
+            for kennung, modell in (("erk_1", "tiny"), ("erk_2", "small")):
+                verbindung.execute(
+                    "INSERT INTO erkennungen"
+                    " (id, recording_id, modell, text, wer, cer, mer, wil, genauigkeit,"
+                    "  rechenzeit_s, erstellt)"
+                    " VALUES (?, 'rec_1', ?, 'ein satz', 0.1, 0.1, 0.1, 0.1, 90, 1.0, ?)",
+                    (kennung, modell, jetzt()),
+                )
+        return pfad
+
+    def _modelle(self, pfad: Path) -> list[str]:
+        with sqlite3.connect(pfad) as verbindung:
+            return [
+                zeile[0]
+                for zeile in verbindung.execute("SELECT modell FROM erkennungen ORDER BY modell")
+            ]
+
+    def test_die_gerechneten_zeilen_fallen_weg(self, korpus_mit_tiny: Path) -> None:
+        assert self._modelle(korpus_mit_tiny) == ["small", "tiny"]
+
+        db.wende_migrationen_an(korpus_mit_tiny, einstellungen().migrationsverzeichnis)
+
+        assert self._modelle(korpus_mit_tiny) == ["small"]
+
+    def test_das_profil_rueckt_auf_small(self, korpus_mit_tiny: Path) -> None:
+        db.wende_migrationen_an(korpus_mit_tiny, einstellungen().migrationsverzeichnis)
+
+        with sqlite3.connect(korpus_mit_tiny) as verbindung:
+            basismodell = verbindung.execute("SELECT basismodell FROM speakers").fetchone()[0]
+        assert basismodell == "openai/whisper-small"
+
+    def test_die_aufnahme_selbst_bleibt(self, korpus_mit_tiny: Path) -> None:
+        """Gelöscht wird Abgeleitetes, nie das, was ein Mensch gesprochen hat."""
+        db.wende_migrationen_an(korpus_mit_tiny, einstellungen().migrationsverzeichnis)
+
+        with sqlite3.connect(korpus_mit_tiny) as verbindung:
+            assert verbindung.execute("SELECT count(*) FROM recordings").fetchone()[0] == 1

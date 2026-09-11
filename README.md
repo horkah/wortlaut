@@ -22,9 +22,10 @@ Drei Apps, die nacheinander greifen:
 `lernen` liest die Dateien von `hören`. `schreiben` liest das Modell von `lernen` und
 gibt Korrekturen an `hören` zurück. Sonst berühren sie sich nicht.
 
-Solange `lernen` fehlt, läuft `schreiben` mit dem unveränderten `whisper-tiny`.
-Das ist kein Behelf, sondern der Anfang der Messlatte: Was dieses Modell mit
-einer abweichenden Aussprache anstellt, ist der Grund für das ganze Projekt.
+Solange `lernen` fehlt, läuft `schreiben` mit dem unveränderten `whisper-small`.
+Das ist kein Behelf, sondern der Anfang der Messlatte: Was ein Modell von der
+Stange mit einer abweichenden Aussprache anstellt, ist der Grund für das ganze
+Projekt.
 
 ---
 
@@ -36,7 +37,8 @@ Basis ist `openai/whisper-large-v3`, Laufzeit faster-whisper (CTranslate2), Trai
 2026 nicht mehr - sondern weil es das einzige ist, bei dem Trainingsrezept,
 Laufzeit-Ökosystem und dokumentierte Ergebnisse für genau diesen Fall vollständig
 vorliegen. MIT-Lizenz, keine Attributionspflicht. Für die Entwicklung ohne GPU
-genügt `whisper-small`, für noch weniger Rechenlast `whisper-tiny`.
+genügt `whisper-small`; kleiner wird nicht gemessen - `whisper-tiny` versteht
+bei abweichender Aussprache zu wenig, um einen Vergleich zu tragen.
 
 **2. Aufnahme erfolgt äußerungsweise, nicht am Stück.**
 `hören` zeigt immer genau eine kurze Einheit und nimmt genau dazu auf. Jedes
@@ -726,11 +728,11 @@ eines nach dem anderen. Vier Eigenschaften sind Absicht:
   Whisper rechnet, und zwar auf derselben Maschine, auf der jemand gerade
   aufnimmt; ein Neustart des Containers würde sonst jedes Mal ungefragt Stunden
   Rechenzeit binden.
-* **Aufnahmeweise, nicht modellweise.** Erst alle Aufnahmen durch `tiny`, dann
-  durch `small` wäre sparsamer - je Modell einmal laden. Nur zeigte die Kurve
+* **Aufnahmeweise, nicht modellweise.** Erst alle Aufnahmen durch `small`, dann
+  durch `medium` wäre sparsamer - je Modell einmal laden. Nur zeigte die Kurve
   dann lange eine einzige Reihe, und verglichen werden soll gerade. Bezahlt
   wird das damit, dass alle Erkenner gleichzeitig im Speicher liegen; bei
-  `tiny,small,medium` in `int8` gut ein Gigabyte.
+  `small,medium` in `int8` gut ein Gigabyte.
 * **Wiederaufnehmbar.** Fertig ist, was in `erkennungen` steht
   (`005_auswertung.sql`). Ein zweiter Lauf rechnet nur, was fehlt - nach einem
   Neustart, nach neuen Aufnahmen oder nach einem hinzugefügten Modell. Nichts
@@ -987,11 +989,11 @@ und liegt danach im Browser, hier wie in `hören`.
 - **Bearbeitet wird durch Sprechen.** Der fertige Text ist zum Kopieren da,
   nicht zum Tippen.
 
-### Ohne „lernen" fängt es mit `tiny` an
+### Ohne „lernen" fängt es mit `small` an
 
 Ist `WORTLAUT_MODELL_REF` leer, lädt faster-whisper das unveränderte
-`whisper-tiny`. Die Kopfzeile schreibt dauerhaft hin, was gerade arbeitet
-(`whisper-tiny · unverändert`, später `whisper-large-v3 · Stand 2026-08-15 ·
+`whisper-small`. Die Kopfzeile schreibt dauerhaft hin, was gerade arbeitet
+(`whisper-small · unverändert`, später `whisper-large-v3 · Stand 2026-08-15 ·
 WER 14,6 %`) - wer eine Ausgabe beurteilt, beurteilt immer ein bestimmtes
 Modell.
 
@@ -1159,7 +1161,7 @@ WORTLAUT_TRAINING_BACKEND=local     # local | remote. Das Basismodell steht
 # schreiben - wessen Stimme steht hier nicht: Der Sprecher kommt aus dem
 # Zugang, den der Browser vorlegt (derselbe wie bei „hören").
 WORTLAUT_MODELL_REF=                # leer = je Sprecher sein eigener Stand
-WORTLAUT_ASR_MODELL=tiny            # gilt, solange kein Stand freigegeben ist
+WORTLAUT_ASR_MODELL=small           # gilt, solange kein Stand freigegeben ist
 WORTLAUT_SPRACHE=de                 # Sprache der Diktate, an Whisper gereicht
 WORTLAUT_ASR=local                  # local | remote
 WORTLAUT_ASR_ENDPOINT=
