@@ -114,6 +114,20 @@ export const ZUGANGSDATEN_PFAD = '/zugangsdaten';
 export const MEINE_DATEN_PFAD = '/meine-daten';
 
 /**
+ * Wo die Modelle gegeneinander antreten - Auswertung der eigenen Aufnahmen.
+ *
+ * Nur „hören" führt den Punkt: Dort liegt der Korpus, und gemessen wird an
+ * ihm. Jede Aufnahme ist eine fertige Prüfaufgabe - die Vorlage steht daneben,
+ * also lässt sich vergleichen, was ein Erkenner daraus macht. Der Punkt steht
+ * im Menü und nicht in der Reiterreihe, weil er nicht zum Weg durch die Arbeit
+ * gehört: Aufnehmen ist eine Tätigkeit, Auswerten ein Nachsehen.
+ *
+ * Im Menü steht er direkt hinter „Meine Daten": Beide zeigen dieselben
+ * Aufnahmen, die eine als Bestand, die andere als Messung.
+ */
+export const AUSWERTUNG_PFAD = '/auswertung';
+
+/**
  * Die Menüpunkte, die zum Gerät gehören - in jeder App dieselben.
  *
  * Sie stehen hier als Daten und nicht als feste Zeilen in der Kopfleiste,
@@ -228,6 +242,7 @@ export const SCHALTBARE_MENUEPUNKTE: Schaltbar[] = [
     fest: true,
     grund: 'Hier wird die PIN vergeben, die vor dieser Seite steht.',
   },
+  { schluessel: menueSchluessel(AUSWERTUNG_PFAD), text: 'Auswertung' },
   { schluessel: menueSchluessel(ZUGANGSDATEN_PFAD), text: 'Zugangsdaten' },
   { schluessel: menueSchluessel(EINSTELLUNGEN_PFAD), text: 'Einstellungen' },
   {

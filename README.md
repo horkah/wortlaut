@@ -158,6 +158,7 @@ wortlaut/
 │   │   │   ├── sicherung.py       # Sicherungsarchiv schreiben und einspielen
 │   │   │   ├── db.py              # SQLite-Verbindung, Migrationen, Sicherungskopie
 │   │   │   ├── ids.py             # zeitlich sortierbare Kennungen
+│   │   │   ├── metriken.py        # WER, CER, MER, WIL und die Zahl darüber
 │   │   │   ├── zugang.py          # Sprecherzugang: Form, Prüfwert, Prüfung
 │   │   │   ├── text/
 │   │   │   │   ├── llm.py         # Thema + Altersspanne → Text
@@ -177,6 +178,8 @@ wortlaut/
 │       ├── Zugangsdaten.svelte    # der Zugang dieses Browsers, in jeder App
 │       ├── PinSchloss.svelte      # die PIN vor Darstellung und Zugangsdaten
 │       ├── pin.svelte.ts          # eine PIN, eine Sitzung, alle Apps
+│       ├── Textvergleich.svelte   # Vorlage gegen Erkennung, Zeichen für Zeichen
+│       ├── diff.ts                # längste gemeinsame Teilfolge, zeichenweise
 │       ├── zugang.ts              # wo der Zugang liegt; ein Eintrag für alle
 │       ├── apps.ts                # die drei Apps, die Punkte im Menü, was abschaltbar ist
 │       ├── app.css                # das gemeinsame Aussehen aller Apps
@@ -270,8 +273,9 @@ App baut sie sich selbst zusammen: `packages/ui/Rahmen.svelte` klammert
 Kopfzeile, Inhalt und Fußzeile und beantwortet die gerätebezogenen Menüpunkte
 gleich mit. Eine App liefert nur ihre eigenen Ansichten und, was sie darüber
 hinaus ins Menü stellt - `hören` den Sprecher (oder, sobald einer spricht,
-**Meine Daten** statt seiner) und die Zugangsdaten, `schreiben` **Meine
-Daten** als Verweis auf dieselbe Seite bei `hören` und die Zugangsdaten. Was
+**Meine Daten** und gleich dahinter die **Auswertung**) und die Zugangsdaten,
+`schreiben` **Meine Daten** als Verweis auf dieselbe Seite bei `hören` und die
+Zugangsdaten. Was
 im Menü steht, ist damit eine Liste (`GERAETE_PUNKTE`
 in `apps.ts` und der Durchreichung der App) und keine Folge fester Zeilen mit
 Schaltern davor; ein neuer gerätebezogener Punkt ist ein Eintrag und eine
@@ -662,6 +666,117 @@ von der Person selbst oder über `/api/admin/speakers/{id}/pin` von der
 Aufsicht - der Rückweg, wenn eine PIN vergessen wurde oder aus Versehen
 gesetzt ist.
 
+### Auswertung - wie gut hört welches Modell?
+
+Der Korpus weiß, was gesprochen wurde, und er weiß, was gesprochen werden
+*sollte*: Die Vorlage steht daneben. Damit ist jede Aufnahme eine fertige
+Prüfaufgabe - man schickt sie durch einen Erkenner und vergleicht, was
+herauskommt, mit dem, was dastand. Genau das tut der Menüpunkt **Auswertung**
+(`services/auswertung.py`, `api/auswertung.py`).
+
+Gemessen wird immer **ein** Korpus, der des vorgelegten Zugangs. Eine
+Auswertung über alle Sprecher hinweg gibt es bewusst nicht: Wie gut ein Modell
+hört, hängt an der Stimme, und der Mittelwert über mehrere Menschen wäre eine
+Zahl, die für keinen von ihnen gilt. Verworfene Aufnahmen zählen nicht mit -
+was der Sprecher selbst weggeworfen hat, ist kein Prüfstück, sondern ein
+Fehlversuch, und ginge sonst als schlechte Note eines Modells durch.
+
+#### Vier Maße und eine Zahl
+
+Die Fehlerraten stehen in `wortlaut/metriken.py`, weil sie reine Textmathematik
+sind und „lernen" sie später ebenso braucht:
+
+| Maß | was es zählt | Grenzen |
+| --- | --- | --- |
+| **WER** | falsche, fehlende und zusätzliche **Wörter** | 0 bis offen |
+| **CER** | dasselbe auf **Zeichen** - feiner, aber blind für den Sinn | 0 bis offen |
+| **MER** | Fehler im Verhältnis zu allem Gesagten | 0 bis 1 |
+| **WIL** | wie viel Wortinformation verloren ging | 0 bis 1 |
+
+Darüber steht die **Genauigkeit**, 0 bis 100, als geometrisches Mittel der vier
+umgedrehten Raten. Drei Entscheidungen stecken darin, und alle drei haben einen
+Grund:
+
+* **Die unbeschränkten Raten werden gebogen, nicht gekappt** (`1/(1+x)`). WER
+  und CER können über 1 steigen, wenn ein Modell mehr ausgibt, als gesprochen
+  wurde - Whisper wiederholt bei Stille gern denselben Satz. Ein Deckel bei 1
+  machte „jedes Wort daneben" und „den Satz dreimal geliefert"
+  ununterscheidbar, obwohl im zweiten Fall jedes Wort richtig erkannt wurde.
+* **Null bleibt der Boden, den MER und WIL setzen.** Die beiden erreichen ihre
+  1 genau dann, wenn kein einziges Wort getroffen wurde. Eine Genauigkeit von 0
+  heißt damit „nichts davon war richtig" und nicht „irgendeine Rate ist über
+  den Deckel gerutscht".
+* **Geometrisch, nicht arithmetisch.** Das arithmetische Mittel ließe sich mit
+  zwei guten Werten gegen einen katastrophalen aufrechnen; ein Modell, das die
+  Zeichen ungefähr trifft und kein einziges Wort, bekäme eine mittlere Note.
+  Beim geometrischen Mittel zieht ein durchgefallenes Maß alles mit.
+
+Verglichen wird auf angeglichenem Text - Kleinschreibung, ohne Satzzeichen,
+einfache Leerzeichen. Ob ein Modell einen Punkt setzt, hängt an seiner
+Nachbearbeitung und nicht daran, ob es den Sprecher verstanden hat. Der Rohtext
+bleibt daneben stehen: Er wird gespeichert und angezeigt, damit der Mensch den
+echten Unterschied sieht.
+
+#### Der Lauf
+
+Ein Hintergrundlauf arbeitet die offenen Paare aus Aufnahme und Modell ab,
+eines nach dem anderen. Vier Eigenschaften sind Absicht:
+
+* **Von Hand angestoßen.** Der Lauf startet nicht beim Hochfahren des Servers.
+  Whisper rechnet, und zwar auf derselben Maschine, auf der jemand gerade
+  aufnimmt; ein Neustart des Containers würde sonst jedes Mal ungefragt Stunden
+  Rechenzeit binden.
+* **Aufnahmeweise, nicht modellweise.** Erst alle Aufnahmen durch `tiny`, dann
+  durch `small` wäre sparsamer - je Modell einmal laden. Nur zeigte die Kurve
+  dann lange eine einzige Reihe, und verglichen werden soll gerade. Bezahlt
+  wird das damit, dass alle Erkenner gleichzeitig im Speicher liegen; bei
+  `tiny,small,medium` in `int8` gut ein Gigabyte.
+* **Wiederaufnehmbar.** Fertig ist, was in `erkennungen` steht
+  (`005_auswertung.sql`). Ein zweiter Lauf rechnet nur, was fehlt - nach einem
+  Neustart, nach neuen Aufnahmen oder nach einem hinzugefügten Modell. Nichts
+  wird doppelt gerechnet, nichts geht verloren, wenn der Lauf mitten darin
+  abbricht.
+* **Ein Lauf zur Zeit, über alle Sprecher.** Nicht aus Bequemlichkeit: Zwei
+  Läufe teilten sich eine CPU und dieselben Modelle im Speicher und wären
+  zusammen langsamer als nacheinander.
+
+Was die Modelle sagen, steht mit im Korpus und nicht daneben - es hängt an
+genau dieser Aufnahme dieses Sprechers, und wer den Sprecher löscht, löscht es
+mit (Grundentscheidung 6).
+
+#### Die Ansicht
+
+Eine Kurve über die Aufnahmen, von 1 an lückenlos durchgezählt. Die Nummer
+steht in keiner Tabelle: Sie ergibt sich aus dem, was gerade gilt, damit eine
+verworfene Aufnahme keine Lücke in der Achse hinterlässt.
+
+Je Aufnahme drei Werte - das mittlere Modell als Balken, die beiden anderen als
+Punkte darüber. Eine Auswahlliste unter dem Bild wechselt das Maß, eine zweite
+das Modell, das den Balken bekommt. Was noch nicht gerechnet ist, bleibt leer
+statt auf null zu fallen: Eine Null wäre ein Modell, das nichts verstanden hat.
+Der Fortschritt steht darüber, und die Seite fragt im Takt nach, solange
+gerechnet wird.
+
+Ein Tipp auf eine Spalte - irgendwo in die Spalte, nicht auf den Balken; auf
+einem Telefon ist ein 20 Pixel breiter Balken kein Ziel - zeigt darunter die
+Vorlage und jede erkannte Fassung, Unterschiede zeichenweise ausgezeichnet:
+fehlend grau durchgestrichen, hinzugekommen farbig und fett, wie eine
+Textverarbeitung Änderungen nachverfolgt (`packages/ui/diff.ts`,
+`Textvergleich.svelte`). Auf Zeichen und nicht auf Wörtern, weil ein
+Wortvergleich „Heuser" als ganz falsch markierte, obwohl ein Buchstabe
+danebenliegt. Die Auszeichnung trägt nie allein die Farbe - durchgestrichen und
+fett sagen dasselbe noch einmal, und `<del>`/`<ins>` sagen es auch einer
+Vorlesestimme.
+
+Gezeichnet wird mit **ECharts**, und die Wahl ist für mehr als diese eine Kurve
+getroffen: Zeigen, Ziehen und Zwei-Finger-Zoom auf dem Telefon wie mit der
+Maus, gemischte Reihen in einem Bild, und `echarts.connect`, das mehrere
+Diagramme aneinanderkoppelt - genau der Punkt, an dem die schlankeren
+Bibliotheken aufhören und an dem man sie ersetzen müsste. Geladen wird sie erst
+beim Öffnen der Ansicht und nur mit den Teilen, die eingetragen sind
+(`apps/hoeren/frontend/src/lib/diagramm.ts`); das ist der Unterschied zwischen
+190 und 370 Kilobyte.
+
 ### Endpunkte
 
 Verwaltung - hinter `WORTLAUT_AUTH_TOKEN`; ohne ihn zu:
@@ -693,6 +808,10 @@ POST   /api/korpus/intake                   ← von „schreiben"
 GET    /api/konto                           Profil, Kennzahlen, Textquellen - die eigenen
 GET    /api/konto/sessions?ab=&anzahl=      seitenweise, zu zehnt
 GET    /api/konto/recordings?ab=&anzahl=    seitenweise, mit Text
+GET    /api/auswertung                      Kurve und Stand des Laufs - ohne Texte
+GET    /api/auswertung/{aufnahme}           Vorlage und jede erkannte Fassung
+POST   /api/auswertung/start                Hintergrundlauf anstoßen
+POST   /api/auswertung/stopp                abbrechen; Gerechnetes bleibt
 GET    /api/konto/pin                       { gesetzt }  - ungeschützt
 GET    /api/konto/pin/pruefung              204, wenn die vorgelegte PIN stimmt
 PATCH  /api/konto/pin                       { pin }  - vier Ziffern oder null
@@ -992,6 +1111,7 @@ Zwei Spalten tragen mehr Bedeutung, als ihr Name verrät:
 | ASR | faster-whisper (CTranslate2) | schnellste brauchbare Whisper-Laufzeit auf CPU und kleiner GPU |
 | ASR entfernt | OpenAI-kompatibler Endpunkt | ein Adapter deckt mehrere Anbieter ab |
 | Training | HF Transformers, Datasets, Accelerate | Standardrezept für Whisper, breit dokumentiert |
+| Diagramme | Apache ECharts, nachgeladen und nur mit den eingetragenen Teilen | Finger und Maus gleichermaßen, gemischte Reihen in einem Bild, und `connect` koppelt mehrere Diagramme aneinander - der Punkt, an dem die schlankeren Bibliotheken aufhören |
 | Textquelle | LLM über einen Adapter, OpenAI-kompatibel oder Anthropic | Thema und Altersspanne als Prompt-Parameter; derselbe Adapter bedient ein lokales Ollama und die bezahlten Anbieter - für ein paar Vorlesesätze genügt ein kleines Modell auf der eigenen GPU |
 | Jobs | `jobs`-Tabelle plus Poll-Worker | keine Broker-Abhängigkeit für eine Warteschlange mit selten mehr als einem Eintrag |
 | Proxy | der vorhandene Reverse Proxy des Wirts | TLS und Pfadverteilung gehören zur Maschine, nicht in dieses Projekt |
@@ -1112,8 +1232,9 @@ Läuft in gut einer Sekunde: ohne GPU, ohne Netz, ohne Mikrofon.
 
 | Ort | Prüft |
 |---|---|
-| `packages/wortlaut/tests/` | Chunker, Textformate, Audiomessung und -schnitt, Ablage, Migrationen, Registry |
+| `packages/wortlaut/tests/` | Chunker, Textformate, Audiomessung und -schnitt, Ablage, Migrationen, Registry, Fehlerraten |
 | `apps/hoeren/tests/` | Endpunkte gegen eine echte SQLite-Datei im Temporärverzeichnis; dazu die Trennung: Der Zugang des einen öffnet den Korpus des anderen nicht, und eine fremde Kennung im Parameter endet mit 403 statt mit einem Schreibvorgang. Für die Aufsicht: dass sie ohne Token zu ist, dass ihre Sicherung sich wirklich zurückspielen lässt, und dass es keinen Weg gibt, der mehr als einen Sprecher löscht. Und, seit `004_pin.sql` es versäumte: dass ein Korpus im ältesten Schemastand beim ersten Zugriff eingeholt wird, statt die Ansicht stillzulegen |
+| `apps/hoeren/tests/test_auswertung.py` | Der Auswertungslauf ohne Whisper: was offen ist, was ein Fehlschlag anrichtet, dass ein zweiter Lauf nichts doppelt tut |
 | `apps/schreiben/tests/` | Diktat und Abschnittsersatz, Postausgang, Modellauskunft |
 
 Zwei Regeln halten den Aufwand klein und die Aussagekraft hoch:

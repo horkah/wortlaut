@@ -21,7 +21,12 @@ WORKDIR /srv/wortlaut
 COPY pyproject.toml README.md LICENSE ./
 COPY packages ./packages
 COPY apps/hoeren ./apps/hoeren
-RUN pip install --no-cache-dir .
+# `.[asr]` ist das Projekt samt faster-whisper (siehe pyproject.toml). Nötig
+# seit der Auswertung: Sie schickt die eigenen Aufnahmen durch mehrere Erkenner
+# und misst, was herauskommt (`services/auswertung.py`). Ohne den Zusatz
+# scheiterte jeder Lauf beim Laden des ersten Modells - und zwar erst dann, auf
+# Knopfdruck, statt beim Bauen des Abbilds.
+RUN pip install --no-cache-dir ".[asr]"
 
 COPY --from=frontend /bau/apps/hoeren/frontend/dist ./apps/hoeren/frontend/dist
 

@@ -93,3 +93,27 @@ class Aufnahme(Basis):
     hinweise: Mapped[str]  # JSON-Liste
     externe_id: Mapped[str | None]
     erstellt: Mapped[str]
+
+
+class Erkennung(Basis):
+    """Was ein Modell aus einer Aufnahme gemacht hat, samt Maßen dagegen.
+
+    Je Aufnahme und Modell eine Zeile (siehe `005_auswertung.sql`). Die
+    Fehlerraten sind Maße gegen die Vorlage, `genauigkeit` fasst sie zu einer
+    Zahl zusammen - beides gerechnet in `wortlaut/metriken.py`, hier nur
+    aufbewahrt.
+    """
+
+    __tablename__ = "erkennungen"
+
+    id: Mapped[str] = mapped_column(primary_key=True)
+    recording_id: Mapped[str] = mapped_column(ForeignKey("recordings.id"))
+    modell: Mapped[str]
+    text: Mapped[str]
+    wer: Mapped[float]
+    cer: Mapped[float]
+    mer: Mapped[float]
+    wil: Mapped[float]
+    genauigkeit: Mapped[float]
+    rechenzeit_s: Mapped[float]
+    erstellt: Mapped[str]

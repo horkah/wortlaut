@@ -5,6 +5,7 @@
    */
   import Rahmen from '$ui/Rahmen.svelte';
   import {
+    AUSWERTUNG_PFAD,
     GERAETE_PUNKTE,
     MEINE_DATEN_PFAD,
     SPRECHER_PFAD,
@@ -15,6 +16,7 @@
   import Verwaltung from './routes/Verwaltung.svelte';
   import Einsicht from './routes/Einsicht.svelte';
   import MeineDaten from './routes/MeineDaten.svelte';
+  import Auswertung from './routes/Auswertung.svelte';
   import Quelle from './routes/Quelle.svelte';
   import Aufnahme from './routes/Aufnahme.svelte';
   import Fortschritt from './routes/Fortschritt.svelte';
@@ -55,7 +57,12 @@
           // `MeineDaten.svelte`).
           zustand.route === MEINE_DATEN_PFAD
           ? MeineDaten
-          : !spricht
+          : // Die Auswertung misst den eigenen Korpus und braucht darum
+            // ebenfalls einen Sprecher - sie steht hier neben „Meine Daten",
+            // aus demselben Grund und mit derselben Bedingung.
+            zustand.route === AUSWERTUNG_PFAD && spricht
+            ? Auswertung
+            : !spricht
             ? Verwaltung
             : ({
                 '/quelle': Quelle,
@@ -78,9 +85,17 @@
   // keinen gültigen Zugang hat: Genau dann ist der Punkt der einzige Weg
   // hinein, und ein Menü, das ihn erst nach erfolgreicher Anmeldung zeigt,
   // hätte die Tür hinter dem Schloss.
+  //
+  // Die Auswertung steht direkt hinter „Meine Daten": Beide zeigen dieselben
+  // Aufnahmen, die eine als Bestand, die andere als Messung. Sie erscheint nur
+  // für einen Sprecher - gemessen wird ein Korpus, und den bringt der Zugang
+  // mit; Verwaltung und Aufsicht haben keinen eigenen.
   const uebergreifend = $derived([
     ...(spricht
-      ? [{ pfad: MEINE_DATEN_PFAD, text: 'Meine Daten' }]
+      ? [
+          { pfad: MEINE_DATEN_PFAD, text: 'Meine Daten' },
+          { pfad: AUSWERTUNG_PFAD, text: 'Auswertung' },
+        ]
       : [{ pfad: SPRECHER_PFAD, text: 'Sprecher' }]),
     { pfad: ZUGANGSDATEN_PFAD, text: 'Zugangsdaten' },
   ]);

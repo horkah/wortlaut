@@ -11,6 +11,7 @@ __all__ = [
     "corpus",
     "db",
     "ids",
+    "metriken",
     "registry",
     "sicherung",
     "storage",

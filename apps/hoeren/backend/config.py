@@ -42,6 +42,22 @@ class Einstellungen(BaseSettings):
     # versehentlich offenstehen.
     admin_token: str = ""
 
+    # Die Auswertung: welche Erkenner gegeneinander antreten (siehe
+    # `services/auswertung.py`). Namen, die faster-whisper versteht, durch
+    # Komma getrennt - später darf hier auch der Pfad eines eigenen Standes
+    # aus „lernen" stehen. Die Reihenfolge ist zugleich die der Anzeige.
+    #
+    # Die Vorgabe ist eine Leiter: `tiny` ist in Sekunden durch und taugt als
+    # Untergrenze, `small` ist der Alltagsfall, `medium` zeigt, was mit mehr
+    # Rechenzeit noch zu holen wäre. Wer wenig Maschine hat, kürzt die Liste -
+    # gerechnet wird nur, was darin steht.
+    auswertung_modelle: str = "tiny,small,medium"
+    # Wie `schreiben` seine Erkennung fährt: `auto` nimmt die GPU, wenn eine
+    # da ist. `int8` ist die sparsame Quantisierung - drei Modelle liegen
+    # gleichzeitig im Speicher (siehe `services/auswertung.py`).
+    auswertung_geraet: str = "auto"
+    auswertung_rechenart: str = "int8"
+
     @model_validator(mode="after")
     def _tokens_muessen_sich_unterscheiden(self) -> Einstellungen:
         """Ein Token, zwei Rollen wäre eine stille Rechteausweitung.
