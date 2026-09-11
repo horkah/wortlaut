@@ -155,3 +155,86 @@ export const SPRECHER_PFAD = '/sprecher';
  * trotzdem, und die README steht darauf.
  */
 export const PROJEKT_URL = 'https://github.com/horkah/wortlaut#readme-ov-file';
+
+/**
+ * Was sich unter „Darstellung" ein- und ausblenden lässt.
+ *
+ * Der Anlass ist derselbe wie bei Farbe und Schriftgröße: Diese Oberfläche
+ * steht vor einem Menschen, der schlecht liest (Grundentscheidung 7), und
+ * jeder Reiter, den er nie braucht, ist eine Gelegenheit, sich zu verlaufen.
+ * Wer nur diktiert, soll die Verwaltung nicht sehen müssen; wer nur aufnimmt,
+ * braucht „schreiben" nicht in der Leiste.
+ *
+ * Ausgeblendet heißt **unsichtbar, nicht abgeschaltet**: Die Route bleibt, was
+ * sie war, und ein Lesezeichen führt weiterhin hin. Das ist Absicht - die
+ * Schalter sind eine Aufräumhilfe für die Leiste, kein Rechtemodell. Wer
+ * Rechte will, hat sie längst: den Zugang (`zugang.ts`) und die PIN
+ * (`pin.svelte.ts`).
+ *
+ * Gespeichert wird im Browser wie Farbe und Schrift (`einstellungen.svelte.ts`),
+ * und damit ebenfalls über alle drei Apps hinweg geteilt.
+ */
+export interface Schaltbar {
+  /** Zugleich der Name hinter der Vorsilbe im `localStorage`. */
+  schluessel: string;
+  text: string;
+  /**
+   * Nicht abschaltbar. Zwei Punkte müssen stehen bleiben, sonst sperrt man
+   * sich selbst aus: „Darstellung", weil dort diese Schalter liegen, und
+   * „Meine Daten", weil dort die PIN vergeben wird, die inzwischen vor
+   * „Darstellung" und „Zugangsdaten" steht.
+   */
+  fest?: boolean;
+  /** Warum dieser Punkt fest ist - die Ansicht schreibt es dazu. */
+  grund?: string;
+}
+
+export function appSchluessel(schluessel: AppSchluessel): string {
+  return `app.${schluessel}`;
+}
+
+export function menueSchluessel(pfad: string): string {
+  return `menue.${pfad}`;
+}
+
+/**
+ * „Über wortlaut" hat keine Route, sondern führt aus der App heraus
+ * (`PROJEKT_URL`) - einen Pfad als Schlüssel gibt es dafür nicht.
+ */
+export const PROJEKT_SCHLUESSEL = 'menue.projekt';
+
+/** Die drei Apps in der Kopfleiste, in ihrer Reihenfolge dort. */
+export const SCHALTBARE_APPS: Schaltbar[] = APPS.map((eintrag) => ({
+  schluessel: appSchluessel(eintrag.schluessel),
+  text: eintrag.name,
+}));
+
+/**
+ * Die Punkte im Menüknopf, in ihrer Reihenfolge dort: erst die der App
+ * (`uebergreifend`), dann die gerätebezogenen, zuletzt der Weg nach draußen.
+ *
+ * Die Liste steht vollständig hier und nicht je App: „Darstellung" ist in
+ * jeder App dieselbe Ansicht und soll überall dieselben Schalter zeigen -
+ * sonst hinge es davon ab, wo man sie gerade geöffnet hat, ob ein Punkt
+ * wiederzufinden ist. Was eine App gar nicht führt (`SPRECHER_PFAD` in
+ * „schreiben"), steht dort ohnehin nicht im Menü; der Schalter dazu ist dann
+ * eine Einstellung ohne Wirkung, aber keine falsche.
+ */
+export const SCHALTBARE_MENUEPUNKTE: Schaltbar[] = [
+  { schluessel: menueSchluessel(SPRECHER_PFAD), text: 'Sprecher' },
+  {
+    schluessel: menueSchluessel(MEINE_DATEN_PFAD),
+    text: 'Meine Daten',
+    fest: true,
+    grund: 'Hier wird die PIN vergeben, die vor dieser Seite steht.',
+  },
+  { schluessel: menueSchluessel(ZUGANGSDATEN_PFAD), text: 'Zugangsdaten' },
+  { schluessel: menueSchluessel(EINSTELLUNGEN_PFAD), text: 'Einstellungen' },
+  {
+    schluessel: menueSchluessel(DARSTELLUNG_PFAD),
+    text: 'Darstellung',
+    fest: true,
+    grund: 'Diese Seite selbst - ohne sie käme kein Schalter zurück.',
+  },
+  { schluessel: PROJEKT_SCHLUESSEL, text: 'Über wortlaut' },
+];

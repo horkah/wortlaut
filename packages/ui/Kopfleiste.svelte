@@ -8,7 +8,17 @@
    * Ansicht darunter blasser - sonst streiten die beiden Reihen um die
    * Aufmerksamkeit.
    */
-  import { APPS, GERAETE_PUNKTE, PROJEKT_URL, type AppSchluessel, type Menuepunkt } from './apps';
+  import {
+    APPS,
+    GERAETE_PUNKTE,
+    PROJEKT_SCHLUESSEL,
+    PROJEKT_URL,
+    appSchluessel,
+    menueSchluessel,
+    type AppSchluessel,
+    type Menuepunkt,
+  } from './apps';
+  import { istSichtbar } from './einstellungen.svelte';
   // Als Quelltext eingebunden und nicht als <img>, damit das Zeichen die
   // Schriftfarbe des Schriftzugs annimmt (die Datei zeichnet currentColor).
   import zeichen from '../../assets/wortlaut-logo.svg?raw';
@@ -57,9 +67,17 @@
 
   // Erst wer, dann womit: die Punkte dieser App über den gerätebezogenen.
   const eintraege = $derived([...uebergreifend, ...GERAETE_PUNKTE]);
+  // Was davon wirklich dasteht: „Darstellung" lässt einzelne Punkte
+  // ausblenden (siehe `Schaltbar` in `apps.ts`). Ausgeblendet heißt nur
+  // unsichtbar - die Route bleibt, und die beiden Punkte, über die man
+  // zurückfindet, sind gar nicht erst abschaltbar.
+  const gezeigt = $derived(eintraege.filter((punkt) => istSichtbar(menueSchluessel(punkt.pfad))));
+  const gezeigteApps = $derived(APPS.filter((eintrag) => istSichtbar(appSchluessel(eintrag.schluessel))));
   // Auf einer Menüansicht führt die Reiterreihe nicht zurück: „schreiben" hat
   // keine, „hören" blendet sie ohne Sprecherzugang aus. Ohne diesen Eintrag
-  // käme man nur über den Zurück-Knopf des Browsers heraus.
+  // käme man nur über den Zurück-Knopf des Browsers heraus. Gefragt ist die
+  // ungefilterte Liste: Wer über ein Lesezeichen auf einem ausgeblendeten
+  // Punkt steht, braucht den Ausgang erst recht.
   const aussenstehend = $derived(eintraege.some((punkt) => punkt.pfad === route));
   const appName = $derived(APPS.find((eintrag) => eintrag.schluessel === app)?.name ?? '');
 
@@ -91,7 +109,7 @@
         <span class="zeichen">{@html zeichen}</span>wortlaut
       </h1>
       <nav aria-label="Apps">
-        {#each APPS as eintrag (eintrag.schluessel)}
+        {#each gezeigteApps as eintrag (eintrag.schluessel)}
           {#if eintrag.schluessel === app}
             <span class="reiter aktiv" aria-current="page">{eintrag.name}</span>
           {:else if eintrag.verfuegbar}
@@ -148,7 +166,7 @@
           <nav class="klappe" aria-label="Menü">
             <!-- Eine Schleife über eine Liste: was im Menü steht, entscheiden
                  `uebergreifend` und `GERAETE_PUNKTE`, nicht diese Zeilen. -->
-            {#each eintraege as punkt (punkt.pfad)}
+            {#each gezeigt as punkt (punkt.pfad)}
               <a
                 class="eintrag"
                 class:aktiv={punkt.pfad === route}
@@ -159,16 +177,18 @@
             <!-- Führt aus der App heraus: eigener Reiter, und das Pfeilzeichen
                  sagt es vorher. `noopener` verwehrt der geöffneten Seite den
                  Zugriff auf dieses Fenster. -->
-            <a
-              class="eintrag auswaerts"
-              href={PROJEKT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Quelltext und Beschreibung auf GitHub - öffnet einen neuen Reiter"
-              onclick={() => (offen = false)}
-            >
-              Über wortlaut<span class="pfeil" aria-hidden="true">↗</span>
-            </a>
+            {#if istSichtbar(PROJEKT_SCHLUESSEL)}
+              <a
+                class="eintrag auswaerts"
+                href={PROJEKT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Quelltext und Beschreibung auf GitHub - öffnet einen neuen Reiter"
+                onclick={() => (offen = false)}
+              >
+                Über wortlaut<span class="pfeil" aria-hidden="true">↗</span>
+              </a>
+            {/if}
             {#if aussenstehend}
               <a class="eintrag zurueck" href="#/" onclick={() => (offen = false)}>
                 Zurück zu „{appName}“

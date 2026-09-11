@@ -14,6 +14,7 @@
  * in `Einstellungen.svelte` (Mikrofon, Vorlesen) und einmal in
  * `Darstellung.svelte` (Farben, Schrift).
  */
+import { SCHALTBARE_APPS, SCHALTBARE_MENUEPUNKTE, type Schaltbar } from './apps';
 import { VERSTAERKUNG_SPANNE, VERSTAERKUNG_VORGABE } from './mikrofon';
 import { TEMPO_VORGABE } from './speak';
 
@@ -26,6 +27,7 @@ const SCHRIFT_SCHLUESSEL = 'wortlaut.schrift';
 const SCHRIFTART_SCHLUESSEL = 'wortlaut.schriftart';
 const GRUNDSCHRIFT_SCHLUESSEL = 'wortlaut.grundschrift';
 const FARBE_SCHLUESSEL_VORSILBE = 'wortlaut.farbe.';
+const SICHTBAR_SCHLUESSEL_VORSILBE = 'wortlaut.sichtbar.';
 
 /** Grenzen, damit ein verdorbener Eintrag die Ansicht nicht unbrauchbar macht. */
 export const TEMPO_SPANNE = { min: 0.5, max: 1.5, schritt: 0.1 };
@@ -78,6 +80,27 @@ function farbwerte(): Record<string, string> {
   return werte;
 }
 
+/** Alles, was sich ein- und ausblenden lässt - Apps wie Menüpunkte. */
+export const SCHALTBAR: Schaltbar[] = [...SCHALTBARE_APPS, ...SCHALTBARE_MENUEPUNKTE];
+
+/**
+ * Sichtbar ist die Vorgabe: Ein leerer `localStorage` zeigt alles, und nur ein
+ * ausdrückliches `false` blendet aus. Andersherum stünde nach dem ersten Start
+ * eine leere Leiste da, und zwar so lange, bis jemand ahnt, woran es liegt.
+ *
+ * Feste Punkte lesen ihren Eintrag gar nicht erst: Was nicht abschaltbar ist,
+ * soll sich auch von Hand im Speicher nicht abschalten lassen (siehe
+ * `Schaltbar.fest` in `apps.ts`).
+ */
+function sichtbarkeiten(): Record<string, boolean> {
+  const werte: Record<string, boolean> = {};
+  for (const eintrag of SCHALTBAR) {
+    werte[eintrag.schluessel] =
+      eintrag.fest || localStorage.getItem(SICHTBAR_SCHLUESSEL_VORSILBE + eintrag.schluessel) !== 'false';
+  }
+  return werte;
+}
+
 export const einstellungen = $state({
   mikrofonId: localStorage.getItem(MIKROFON_SCHLUESSEL),
   verstaerkung: zahl(VERSTAERKUNG_SCHLUESSEL, VERSTAERKUNG_VORGABE, VERSTAERKUNG_SPANNE),
@@ -88,6 +111,7 @@ export const einstellungen = $state({
   schriftart: localStorage.getItem(SCHRIFTART_SCHLUESSEL) ?? SCHRIFTART_VORGABE,
   grundschriftPx: zahl(GRUNDSCHRIFT_SCHLUESSEL, GRUNDSCHRIFT_VORGABE, GRUNDSCHRIFT_SPANNE),
   farben: farbwerte(),
+  sichtbar: sichtbarkeiten(),
 });
 
 /**
@@ -155,6 +179,22 @@ export function setzeGrundschrift(px: number): void {
   wendeDarstellungAn();
 }
 
+/**
+ * Einen Punkt der Leiste ein- oder ausblenden. Feste Punkte bleiben, was sie
+ * sind - die Ansicht zeigt ihren Schalter erst gar nicht bedienbar, und diese
+ * Zeile hält daran fest, falls doch jemand von anderswoher ruft.
+ */
+export function setzeSichtbar(schluessel: string, an: boolean): void {
+  if (SCHALTBAR.find((eintrag) => eintrag.schluessel === schluessel)?.fest) return;
+  einstellungen.sichtbar[schluessel] = an;
+  localStorage.setItem(SICHTBAR_SCHLUESSEL_VORSILBE + schluessel, String(an));
+}
+
+/** Ob ein Punkt sichtbar ist; Unbekanntes ist sichtbar, nicht verschwunden. */
+export function istSichtbar(schluessel: string): boolean {
+  return einstellungen.sichtbar[schluessel] ?? true;
+}
+
 export function setzeZurueck(): void {
   setzeMikrofon(null);
   setzeVerstaerkung(VERSTAERKUNG_VORGABE);
@@ -169,4 +209,8 @@ export function setzeDarstellungZurueck(): void {
   setzeSchriftart(SCHRIFTART_VORGABE);
   setzeGrundschrift(GRUNDSCHRIFT_VORGABE);
   setzeSchrift(SCHRIFT_VORGABE);
+  // Die Sichtbarkeit gehört dazu, und zwar als Rückweg: Wer sich die Leiste
+  // leer geräumt hat, holt hier alles auf einmal zurück, statt Schalter für
+  // Schalter zu raten, welcher gefehlt hat.
+  for (const eintrag of SCHALTBAR) setzeSichtbar(eintrag.schluessel, true);
 }
