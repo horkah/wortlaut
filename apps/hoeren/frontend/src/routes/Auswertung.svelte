@@ -87,6 +87,12 @@
   );
 
   const stand = $derived(daten?.stand ?? null);
+  // Die gewählten Farben als **ein** Wert. `einstellungen.farben` selbst zu
+  // lesen genügt nicht: Das meldet nur an, dass es das Feld gibt, nicht seinen
+  // Inhalt - eine geänderte Akzentfarbe käme im Diagramm erst an, wenn man die
+  // Seite verlässt und zurückkommt. Hier wird jeder Wert angefasst und damit
+  // jeder einzelne beobachtet.
+  const farbstand = $derived(Object.values(einstellungen.farben).join('|'));
   const anteil = $derived(stand && stand.gesamt ? stand.erledigt / stand.gesamt : 0);
   // Ob überhaupt schon etwas zu sehen ist. Ein leeres Diagramm mit Achsen wäre
   // eine Behauptung; solange nichts gerechnet ist, sagt die Seite das lieber.
@@ -314,7 +320,7 @@
     void metrik;
     void balkenmodell;
     void gewaehlteNummer;
-    void einstellungen.farben;
+    void farbstand;
     void einstellungen.schriftart;
     if (diagramm) zeichne();
   });
