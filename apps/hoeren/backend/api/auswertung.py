@@ -4,7 +4,7 @@ Vier Wege, und sie teilen sich die Arbeit nach dem, wie oft sie gebraucht
 werden:
 
 * `GET /api/auswertung` liefert die Kurve - je Aufnahme eine Nummer und je
-  Modell die Maße dazu. **Ohne Texte.** Diese Auskunft wird abgefragt, solange
+  Modell und Fassung die Maße dazu. **Ohne Texte.** Diese Auskunft wird abgefragt, solange
   die Seite offen ist; die erkannten Texte je Modell und Aufnahme
   mitzuschicken hieße, bei jeder Abfrage ein Vielfaches der Zahlen über die
   Leitung zu schicken, die sie eigentlich meint.
@@ -27,7 +27,7 @@ from sqlalchemy import select
 from ..config import einstellungen
 from ..db.models import Aufnahme, Erkennung, Sprecher, Vorlage
 from ..deps import Ablage, Datenbank, SprecherId, engine_fuer
-from ..services import auswertung
+from ..services import augmentierung, auswertung
 
 router = APIRouter(prefix="/api/auswertung", tags=["Auswertung"])
 
@@ -105,6 +105,36 @@ METRIKEN = [
 ]
 
 
+class VarianteAntwort(BaseModel):
+    """Eine Fassung der Aufnahme - die Oberfläche beschriftet damit ihre Zeilen.
+
+    Wie bei den Maßen kommt die Liste vom Server: Was es an Fassungen gibt,
+    entscheidet `wortlaut/augmentierung.py`, und eine zweite Liste im Browser
+    wäre eine, die jemand nachzupflegen vergisst.
+    """
+
+    schluessel: str
+    name: str
+    erklaerung: str
+
+
+VARIANTEN = [
+    VarianteAntwort(
+        schluessel=augmentierung.ORIGINAL,
+        name="Original",
+        erklaerung="Die Aufnahme, wie sie gesprochen wurde.",
+    ),
+    *(
+        VarianteAntwort(
+            schluessel=abwandlung.name,
+            name=abwandlung.titel,
+            erklaerung=abwandlung.erklaerung,
+        )
+        for abwandlung in augmentierung.ABWANDLUNGEN
+    ),
+]
+
+
 class StandAntwort(BaseModel):
     laeuft: bool
     erledigt: int
@@ -119,19 +149,28 @@ class StandAntwort(BaseModel):
 
 
 class PunktAntwort(BaseModel):
-    """Eine Aufnahme in der Kurve: ihre Nummer und die Maße je Modell."""
+    """Eine Aufnahme in der Kurve: ihre Nummer und die Maße je Modell und Fassung.
+
+    Ausgerechnet wird hier nichts. Die Kurve zeigt je Modell nur eine der vier
+    Zahlen, aber welche, hängt am gewählten Maß - und die Tabelle darunter
+    zeigt ohnehin alle vier. Der Server schickt deshalb, was gemessen wurde,
+    und die Ansicht sucht sich heraus, was sie gerade braucht; sonst wäre bei
+    jedem Wechsel des Maßes eine neue Anfrage fällig, für die kein Byte fehlt.
+    """
 
     nummer: int
     aufnahme_id: str
     dauer_s: float
     erstellt: str
-    # modell -> maß -> Wert. Fehlt ein Modell, ist es noch nicht gerechnet -
-    # die Kurve lässt die Stelle dann frei, statt eine Null zu behaupten.
-    werte: dict[str, dict[str, float]]
+    # modell -> fassung -> maß -> Wert. Fehlt ein Eintrag, ist er noch nicht
+    # gerechnet - die Kurve lässt die Stelle dann frei, statt eine Null zu
+    # behaupten.
+    werte: dict[str, dict[str, dict[str, float]]]
 
 
 class AuswertungAntwort(BaseModel):
     modelle: list[str]
+    varianten: list[VarianteAntwort]
     metriken: list[MetrikAntwort]
     stand: StandAntwort
     punkte: list[PunktAntwort]
@@ -139,6 +178,7 @@ class AuswertungAntwort(BaseModel):
 
 class ErkennungAntwort(BaseModel):
     modell: str
+    variante: str
     text: str
     wer: float
     cer: float
@@ -195,9 +235,15 @@ def _nummeriert(db: Datenbank) -> list[tuple[int, Aufnahme, Vorlage]]:
 def uebersicht(db: Datenbank, sprecher: SprecherId) -> AuswertungAntwort:
     """Die Kurve und der Stand des Laufs - die Auskunft, die die Seite abfragt."""
     namen = _namen()
-    nach_aufnahme: dict[str, dict[str, dict[str, float]]] = {}
-    for erkennung in db.scalars(select(Erkennung).where(Erkennung.modell.in_(namen))):
-        nach_aufnahme.setdefault(erkennung.recording_id, {})[erkennung.modell] = {
+    nach_aufnahme: dict[str, dict[str, dict[str, dict[str, float]]]] = {}
+    for erkennung in db.scalars(
+        select(Erkennung).where(
+            Erkennung.modell.in_(namen),
+            Erkennung.variante.in_(augmentierung.VARIANTEN),
+        )
+    ):
+        je_modell = nach_aufnahme.setdefault(erkennung.recording_id, {})
+        je_modell.setdefault(erkennung.modell, {})[erkennung.variante] = {
             "wer": erkennung.wer,
             "cer": erkennung.cer,
             "mer": erkennung.mer,
@@ -208,6 +254,7 @@ def uebersicht(db: Datenbank, sprecher: SprecherId) -> AuswertungAntwort:
 
     return AuswertungAntwort(
         modelle=namen,
+        varianten=VARIANTEN,
         metriken=METRIKEN,
         stand=_stand(db, sprecher),
         punkte=[
@@ -276,7 +323,7 @@ def vergleich(aufnahme_id: str, db: Datenbank, sprecher: SprecherId) -> Vergleic
             continue
 
         gerechnet = {
-            erkennung.modell: erkennung
+            (erkennung.modell, erkennung.variante): erkennung
             for erkennung in db.scalars(
                 select(Erkennung).where(Erkennung.recording_id == aufnahme_id)
             )
@@ -288,20 +335,24 @@ def vergleich(aufnahme_id: str, db: Datenbank, sprecher: SprecherId) -> Vergleic
             dauer_s=aufnahme.dauer_s,
             # In der Reihenfolge der Konfiguration, nicht in der der Datenbank:
             # Die Ansicht legt die Fassungen untereinander, und sie sollen bei
-            # jeder Aufnahme in derselben Reihenfolge stehen.
+            # jeder Aufnahme in derselben Reihenfolge stehen. Fassung innen,
+            # Modell außen - wer eine Fassung liest, vergleicht die Modelle
+            # darin, und nicht dasselbe Modell mit sich selbst.
             erkennungen=[
                 ErkennungAntwort(
                     modell=name,
-                    text=gerechnet[name].text,
-                    wer=gerechnet[name].wer,
-                    cer=gerechnet[name].cer,
-                    mer=gerechnet[name].mer,
-                    wil=gerechnet[name].wil,
-                    genauigkeit=gerechnet[name].genauigkeit,
-                    rechenzeit_s=gerechnet[name].rechenzeit_s,
+                    variante=variante,
+                    text=zeile.text,
+                    wer=zeile.wer,
+                    cer=zeile.cer,
+                    mer=zeile.mer,
+                    wil=zeile.wil,
+                    genauigkeit=zeile.genauigkeit,
+                    rechenzeit_s=zeile.rechenzeit_s,
                 )
                 for name in namen
-                if name in gerechnet
+                for variante in augmentierung.VARIANTEN
+                if (zeile := gerechnet.get((name, variante))) is not None
             ],
         )
 

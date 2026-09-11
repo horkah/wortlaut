@@ -20,7 +20,7 @@ from wortlaut import corpus, ids
 
 from ..db.models import Aufnahme, Vorlage, jetzt
 from ..deps import Ablage, Datenbank, SprecherId
-from ..services import quality
+from ..services import augmentierung, quality
 
 router = APIRouter(prefix="/api/recordings", tags=["Aufnahmen"])
 
@@ -99,6 +99,16 @@ async def nimm_auf(
     db.add(aufnahme)
     db.commit()
 
+    # Die abgewandelten Fassungen gleich mit (`services/augmentierung.py`).
+    # Nach dem Commit und nicht davor: Sie sind abgeleitet und jederzeit neu zu
+    # rechnen, die Aufnahme ist es nicht - scheitert das Rechnen, soll trotzdem
+    # im Korpus stehen, was der Mensch gesprochen hat. Der Lauf der Auswertung
+    # holt eine fehlende Fassung später ohnehin nach.
+    try:
+        augmentierung.stelle_alle_her(ablage, aufnahme)
+    except klang.AudioFehler:
+        pass
+
     return AufnahmeAntwort(
         id=aufnahme.id,
         prompt_id=prompt_id,
@@ -136,5 +146,9 @@ def verwirf(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablag
 
     if aufnahme.status == "ok":
         ablage.loesche(aufnahme.blob)
+        # Eine abgewandelte Fassung ist dieselbe Stimme, nur lauter oder
+        # verrauscht - und damit derselbe Gesundheitsdatensatz. Wer eine
+        # Aufnahme wegwirft, hat nicht drei Kopien davon gemeint.
+        augmentierung.loesche(ablage, aufnahme)
         aufnahme.status = "verworfen"
         db.commit()

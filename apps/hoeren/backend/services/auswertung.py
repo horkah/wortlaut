@@ -27,11 +27,25 @@ Punkte sofort vollständig sind. Bezahlt wird das damit, dass alle Erkenner
 gleichzeitig im Speicher liegen (`_transkriptoren`) - bei base, small, medium
 und large-v3 in `int8` gut zweieinhalb Gigabyte.
 
+**Warum viermal je Aufnahme und Modell.** Eine Aufnahme ist ein einzelner
+Fall: dieser Pegel, dieses Mikrofon, dieser Raum. Ein Modell, das damit
+zurechtkommt, muss den Sprecher noch nicht verstanden haben. Gemessen wird
+deshalb nicht die Aufnahme, sondern die Aufnahme und ihre drei Abwandlungen
+(`wortlaut/augmentierung.py`): ausgesteuert, pauschal lauter, mit
+Grundrauschen. Vier Zahlen je Modell und Aufnahme, und erst ihr Zusammenhang
+sagt, ob ein Ergebnis hielt oder an der Aufnahmesituation hing.
+
+Die fehlenden Fassungen entstehen dabei von selbst, kurz bevor sie gebraucht
+werden - so kommt auch jede Aufnahme, die vor dieser Änderung im Korpus lag,
+zu ihren Dateien, ohne dass jemand ein Skript anstoßen muss
+(`services/augmentierung.py`).
+
 **Was wiederholbar ist.** Fertig ist, was in `erkennungen` steht (siehe
-`005_auswertung.sql`). Ein zweiter Lauf rechnet deshalb nur, was fehlt: nach
-einem Neustart, nach neuen Aufnahmen oder nach einem hinzugefügten Modell.
-Nichts wird doppelt gerechnet, und nichts geht verloren, wenn der Lauf mitten
-darin abbricht.
+`005_auswertung.sql`, `007_varianten.sql`). Ein zweiter Lauf rechnet deshalb
+nur, was fehlt: nach einem Neustart, nach neuen Aufnahmen, nach einem
+hinzugefügten Modell - und nach einer hinzugefügten Fassung. Nichts wird
+doppelt gerechnet, und nichts geht verloren, wenn der Lauf mitten darin
+abbricht.
 """
 
 from __future__ import annotations
@@ -47,6 +61,7 @@ from wortlaut import ids, metriken, storage
 from wortlaut.whisper import Transkriptor
 
 from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
+from . import augmentierung
 
 # Nur brauchbare Aufnahmen: Was verworfen wurde, ist kein Prüfstück, sondern
 # ein Fehlversuch - und ginge als schlechte Note eines Modells durch, obwohl
@@ -63,8 +78,8 @@ class Stand:
     erledigt: int = 0
     gesamt: int = 0
     uebersprungen: int = 0
-    # Woran gerade gerechnet wird - Modellname, damit sichtbar ist, dass es
-    # vorangeht, auch wenn eine Aufnahme lange braucht.
+    # Woran gerade gerechnet wird - Modell und Fassung, damit sichtbar ist,
+    # dass es vorangeht, auch wenn eine Aufnahme lange braucht.
     aktuell: str = ""
     fehler: str | None = None
 
@@ -78,7 +93,7 @@ class _Lauf:
     # Bewusst nur im Speicher: Ein fehlendes Audio kann beim nächsten Anlauf
     # wieder da sein, und ein Fehlschlag ist kein Ergebnis, das in den Korpus
     # gehört.
-    uebersprungen: set[tuple[str, str]] = field(default_factory=set)
+    uebersprungen: set[tuple[str, str, str]] = field(default_factory=set)
 
 
 # Ein Lauf zur Zeit, über alle Sprecher. Nicht aus Bequemlichkeit: Zwei Läufe
@@ -108,12 +123,24 @@ def transkriptor_fuer(modell: str, geraet: str, rechenart: str) -> Transkriptor:
 
 @dataclass(frozen=True)
 class Posten:
-    """Eine offene Rechenaufgabe: diese Aufnahme durch dieses Modell."""
+    """Eine offene Rechenaufgabe: diese Fassung dieser Aufnahme durch dieses Modell."""
 
     aufnahme_id: str
+    # Das Original, so wie es in der Zeile steht.
     blob: str
+    # Die Datei, die dieses Mal durch das Modell geht - beim Original dieselbe,
+    # sonst die abgewandelte Fassung daneben. Hier ausgerechnet und nicht im
+    # Lauf: Dafür braucht es die Aufnahme mit ihrem Sprecher, und die steht nur
+    # hier, solange die Sitzung offen ist.
+    variante_blob: str
     referenz: str
     modell: str
+    variante: str
+
+    @property
+    def marke(self) -> tuple[str, str, str]:
+        """Was diesen Posten eindeutig macht - der Schlüssel für „schon gerechnet"."""
+        return (self.aufnahme_id, self.modell, self.variante)
 
 
 def gueltige_aufnahmen(db: Session) -> list[tuple[Aufnahme, Vorlage]]:
@@ -133,23 +160,40 @@ def gueltige_aufnahmen(db: Session) -> list[tuple[Aufnahme, Vorlage]]:
     )
 
 
-def _fertig(db: Session) -> set[tuple[str, str]]:
+def _fertig(db: Session) -> set[tuple[str, str, str]]:
     return {
-        (zeile.recording_id, zeile.modell)
-        for zeile in db.execute(select(Erkennung.recording_id, Erkennung.modell)).all()
+        (zeile.recording_id, zeile.modell, zeile.variante)
+        for zeile in db.execute(
+            select(Erkennung.recording_id, Erkennung.modell, Erkennung.variante)
+        ).all()
     }
 
 
 def offene_posten(db: Session, namen: list[str]) -> list[Posten]:
-    """Was noch zu rechnen ist, in der Reihenfolge, in der gerechnet wird."""
+    """Was noch zu rechnen ist, in der Reihenfolge, in der gerechnet wird.
+
+    Die Schachtelung ist die Reihenfolge des Laufs: Aufnahme, dann Modell,
+    dann Fassung. Die vier Fassungen eines Modells liegen damit nebeneinander,
+    und genau nebeneinander werden sie später gelesen - eine halb gerechnete
+    Aufnahme zeigt lieber ein vollständiges Modell als vier angefangene.
+    """
     erledigt = _fertig(db)
     return [
-        Posten(
-            aufnahme_id=aufnahme.id, blob=aufnahme.blob, referenz=vorlage.text, modell=modell
-        )
+        posten
         for aufnahme, vorlage in gueltige_aufnahmen(db)
         for modell in namen
-        if (aufnahme.id, modell) not in erledigt
+        for variante in augmentierung.VARIANTEN
+        if (
+            posten := Posten(
+                aufnahme_id=aufnahme.id,
+                blob=aufnahme.blob,
+                variante_blob=augmentierung.relpfad(aufnahme, variante),
+                referenz=vorlage.text,
+                modell=modell,
+                variante=variante,
+            )
+        ).marke
+        not in erledigt
     ]
 
 
@@ -166,16 +210,22 @@ def zaehle(db: Session, namen: list[str]) -> tuple[int, int]:
         )
         or 0
     )
-    # Gezählt wird nur, was zu den derzeit konfigurierten Modellen gehört:
-    # Wer ein Modell aus der Liste nimmt, soll nicht plötzlich über 100 %
-    # stehen.
+    # Gezählt wird nur, was zu den derzeit konfigurierten Modellen und
+    # Fassungen gehört: Wer ein Modell aus der Liste nimmt, soll nicht
+    # plötzlich über 100 % stehen - und die Zeilen einer abgeschafften Fassung
+    # sollen den Balken nicht vollmachen, ohne dass es etwas zu sehen gäbe.
     erledigt = (
         db.scalar(
-            select(func.count()).select_from(Erkennung).where(Erkennung.modell.in_(namen))
+            select(func.count())
+            .select_from(Erkennung)
+            .where(
+                Erkennung.modell.in_(namen),
+                Erkennung.variante.in_(augmentierung.VARIANTEN),
+            )
         )
         or 0
     )
-    return erledigt, aufnahmen * len(namen)
+    return erledigt, aufnahmen * len(namen) * len(augmentierung.VARIANTEN)
 
 
 def _rechne(posten: Posten, wav: Path, sprache: str, transkriptor: Transkriptor) -> Erkennung:
@@ -189,6 +239,7 @@ def _rechne(posten: Posten, wav: Path, sprache: str, transkriptor: Transkriptor)
         id=ids.neue_id("erk"),
         recording_id=posten.aufnahme_id,
         modell=posten.modell,
+        variante=posten.variante,
         text=transkript.text,
         wer=guete.wer,
         cer=guete.cer,
@@ -208,7 +259,7 @@ async def _arbeite(
     geraet: str,
     rechenart: str,
     zustand: Stand,
-    uebersprungen: set[tuple[str, str]],
+    uebersprungen: set[tuple[str, str, str]],
 ) -> None:
     """Der Lauf selbst: einen Posten nach dem anderen, bis nichts mehr offen ist.
 
@@ -226,7 +277,7 @@ async def _arbeite(
             offen = [
                 posten
                 for posten in offene_posten(db, namen)
-                if (posten.aufnahme_id, posten.modell) not in uebersprungen
+                if posten.marke not in uebersprungen
             ]
             zustand.erledigt, zustand.gesamt = zaehle(db, namen)
             zustand.uebersprungen = len(uebersprungen)
@@ -235,17 +286,31 @@ async def _arbeite(
             return
 
         posten = offen[0]
-        zustand.aktuell = posten.modell
-        wav = ablage.pfad(posten.blob)
+        zustand.aktuell = f"{posten.modell} · {posten.variante}"
 
-        if not wav.is_file():
+        if not ablage.pfad(posten.blob).is_file():
             # Kein Grund, den ganzen Lauf hinzuwerfen: Die übrigen Aufnahmen
             # sind davon unberührt.
-            uebersprungen.add((posten.aufnahme_id, posten.modell))
+            uebersprungen.add(posten.marke)
             zustand.fehler = f"Audio fehlt: {posten.blob}"
             continue
 
         try:
+            # Die abgewandelte Fassung entsteht hier, kurz bevor sie gebraucht
+            # wird - und nur, wenn sie fehlt. Damit kommt auch jede Aufnahme,
+            # die vor der Einführung der Fassungen im Korpus lag, zu ihren
+            # Dateien, ohne dass jemand ein Skript anstoßen muss. Im
+            # Arbeitsfaden wie das Erkennen selbst: Es liest und schreibt eine
+            # Datei und rechnet über jeden Abtastwert.
+            await asyncio.to_thread(
+                augmentierung.stelle_her,
+                ablage,
+                quelle_blob=posten.blob,
+                ziel_blob=posten.variante_blob,
+                variante=posten.variante,
+                keim=posten.aufnahme_id,
+            )
+
             # In einem Arbeitsfaden: Whisper rechnet sekunden- bis minutenlang
             # und blockierte sonst die Ereignisschleife - der Server nähme in
             # dieser Zeit keine einzige Anfrage mehr an, auch nicht die nach
@@ -253,15 +318,15 @@ async def _arbeite(
             erkennung = await asyncio.to_thread(
                 _rechne,
                 posten,
-                wav,
+                ablage.pfad(posten.variante_blob),
                 sprache,
                 transkriptor_fuer(posten.modell, geraet, rechenart),
             )
         except asyncio.CancelledError:
             raise
         except Exception as ursache:  # noqa: BLE001 - was immer das Modell wirft
-            uebersprungen.add((posten.aufnahme_id, posten.modell))
-            zustand.fehler = f"{posten.modell}: {ursache}"
+            uebersprungen.add(posten.marke)
+            zustand.fehler = f"{posten.modell} · {posten.variante}: {ursache}"
             continue
 
         with Session(engine) as db:
@@ -303,7 +368,7 @@ def starte(
         return _lauf.stand
 
     stand_neu = Stand(laeuft=True, sprecher_id=sprecher_id)
-    uebersprungen: set[tuple[str, str]] = set()
+    uebersprungen: set[tuple[str, str, str]] = set()
     aufgabe = asyncio.create_task(
         _arbeite(
             engine, ablage, namen, sprache, geraet, rechenart, stand_neu, uebersprungen

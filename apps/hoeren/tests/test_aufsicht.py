@@ -200,7 +200,12 @@ class TestSicherung:
 
         namen = _namen(antwort.content)
         assert f"daten/korpus/{bespielt}/{corpus.DATENBANKNAME}" in namen
-        assert sum(1 for name in namen if name.endswith(".wav")) == 2
+        # Acht Dateien für zwei Aufnahmen: Zu jeder gehören die drei
+        # abgewandelten Fassungen (`wortlaut/augmentierung.py`). Sie gehören in
+        # die Sicherung, weil sie Teil des Datensatzes sind - eine Sicherung,
+        # nach deren Einspielen die halbe Auswertung neu zu rechnen wäre, ist
+        # eine halbe Sicherung.
+        assert sum(1 for name in namen if name.endswith(".wav")) == 8
         # Die Begleitdateien des WAL-Modus gehören nicht hinein: Ihr Inhalt
         # steckt schon in der gesicherten Datenbank.
         assert not [name for name in namen if name.endswith(("-wal", "-shm"))]
@@ -327,8 +332,11 @@ class TestLoeschen:
         assert antwort.json() == {"geloescht": 2}
 
         # Das Profil und die Warteschlange stehen noch - das ist „neu
-        # anfangen", nicht „Person löschen".
-        assert not list((tmp_path / "data" / corpus.sprecher_relpfad(bespielt) / "audio").iterdir())
+        # anfangen", nicht „Person löschen". Kein Ton bleibt übrig, auch keine
+        # abgewandelte Fassung: Gesucht wird deshalb rekursiv. Die leeren
+        # Verzeichnisse dürfen stehen bleiben - sie tragen nichts.
+        audio = tmp_path / "data" / corpus.sprecher_relpfad(bespielt) / "audio"
+        assert not list(audio.rglob("*.wav"))
         assert klient.get("/api/progress").json()["aufnahmen"] == 0
         assert klient.get("/api/prompts/next").json()["gesamt"] > 0
 

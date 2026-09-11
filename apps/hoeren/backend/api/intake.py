@@ -26,6 +26,7 @@ from wortlaut.text import chunker
 
 from ..db.models import Aufnahme, Textquelle, Vorlage, jetzt
 from ..deps import Ablage, Datenbank, SprecherId
+from ..services import augmentierung
 from ..services.prompt_queue import naechste_position
 
 router = APIRouter(prefix="/api/korpus", tags=["Korpus"])
@@ -81,28 +82,34 @@ async def nimm_korrektur_an(
     # Erst die Vorlage schreiben: die Aufnahme verweist per Fremdschlüssel auf sie.
     db.add(vorlage)
     db.flush()
-    db.add(
-        Aufnahme(
-            id=aufnahme_id,
-            prompt_id=vorlage.id,
-            speaker_id=sprecher,
-            session_id=None,
-            blob=relpfad,
-            dauer_s=befund.dauer_s,
-            pegel_dbfs=befund.pegel_dbfs,
-            spitze_dbfs=befund.spitze_dbfs,
-            clipping_anteil=befund.clipping_anteil,
-            stille_vorn_s=befund.stille_vorn_s,
-            stille_hinten_s=befund.stille_hinten_s,
-            # Frei gesprochen: weder abgelesen noch nachgesprochen.
-            modus="frei",
-            status="ok",
-            hinweise=json.dumps([], ensure_ascii=False),
-            externe_id=externe_id,
-            erstellt=jetzt(),
-        )
+    aufnahme = Aufnahme(
+        id=aufnahme_id,
+        prompt_id=vorlage.id,
+        speaker_id=sprecher,
+        session_id=None,
+        blob=relpfad,
+        dauer_s=befund.dauer_s,
+        pegel_dbfs=befund.pegel_dbfs,
+        spitze_dbfs=befund.spitze_dbfs,
+        clipping_anteil=befund.clipping_anteil,
+        stille_vorn_s=befund.stille_vorn_s,
+        stille_hinten_s=befund.stille_hinten_s,
+        # Frei gesprochen: weder abgelesen noch nachgesprochen.
+        modus="frei",
+        status="ok",
+        hinweise=json.dumps([], ensure_ascii=False),
+        externe_id=externe_id,
+        erstellt=jetzt(),
     )
+    db.add(aufnahme)
     db.commit()
+
+    # Wie beim Aufnehmen über „hören": die Fassungen gleich mit, und ein
+    # Fehlschlag dabei kostet nicht die Aufnahme (siehe `api/recordings.py`).
+    try:
+        augmentierung.stelle_alle_her(ablage, aufnahme)
+    except klang.AudioFehler:
+        pass
 
     return IntakeAntwort(aufnahme_id=aufnahme_id, prompt_id=vorlage.id, neu=True)
 

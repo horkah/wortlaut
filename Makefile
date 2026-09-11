@@ -4,6 +4,8 @@
 #   make migrate                 Datenbanken anlegen bzw. fortschreiben
 #                                (im Container: python scripts/migrate.py -
 #                                 dort gibt es weder make noch uv)
+#   make augmentieren            abgewandelte Fassungen aller Aufnahmen rechnen
+#                                (entstehen sonst von selbst, nur später)
 #   make dev APP=hoeren          Backend und Vite parallel starten
 #   make dev APP=schreiben       dasselbe für „schreiben" (Backend :8001, Vite :5174)
 #   make backend APP=hoeren      nur das Backend
@@ -19,7 +21,7 @@ PORT ?= $(if $(filter schreiben,$(APP)),8001,8000)
 FRONTEND     = apps/$(APP)/frontend
 NODE_MODULES = $(FRONTEND)/node_modules
 
-.PHONY: test dev backend frontend install migrate train release
+.PHONY: test dev backend frontend install migrate augmentieren train release
 
 test:
 	uv run pytest
@@ -45,6 +47,9 @@ $(NODE_MODULES): $(FRONTEND)/package-lock.json
 
 migrate:
 	uv run python scripts/migrate.py
+
+augmentieren:
+	uv run python scripts/augmentieren.py
 
 train:
 	@echo "App „lernen\" ist noch nicht implementiert (siehe README)." && exit 1
