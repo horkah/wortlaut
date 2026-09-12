@@ -47,13 +47,20 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /srv/wortlaut
+
+# Erst das, was die Installation braucht, dann die Installation, dann der Rest.
+# Die Reihenfolge ist der Unterschied zwischen zwanzig Sekunden und vier
+# Minuten: `pip install` holt gut zwei Gigabyte CUDA-Räder, und jede Zeile
+# davor, die sich ändert, lässt ihn von vorn beginnen. Solange die Apps
+# über dem Befehl standen, tat das auch eine einzige geänderte Zeile im
+# Frontend - also so gut wie jede Änderung an diesem Projekt.
+#
+# Das Wheel enthält allein `packages/wortlaut/src/wortlaut` (siehe
+# pyproject.toml); `apps/` und `scripts/` gehören nicht dazu und dürfen
+# deshalb dahinter. Was `packages/` anfasst, löst weiterhin eine volle
+# Installation aus - zu Recht, denn dann ändert sich die Bibliothek selbst.
 COPY pyproject.toml README.md LICENSE ./
 COPY packages ./packages
-COPY apps/gesamt.py ./apps/gesamt.py
-COPY apps/hoeren ./apps/hoeren
-COPY apps/lernen ./apps/lernen
-COPY apps/schreiben ./apps/schreiben
-COPY scripts ./scripts
 # `.[asr,gpu]` ist das Projekt samt faster-whisper und den CUDA-Bibliotheken
 # (siehe pyproject.toml). Beides ist in diesem Abbild Pflicht: „schreiben"
 # läuft hier mit, und die Auswertung von „hören" ebenso.
@@ -64,6 +71,12 @@ RUN pip install --no-cache-dir ".[asr,gpu]"
 # diese Zeile meldet die Karte sich als nicht vorhanden, und alles rechnet
 # stillschweigend auf dem Prozessor weiter.
 ENV LD_LIBRARY_PATH=/usr/local/lib/python3.12/site-packages/nvidia/cublas/lib:/usr/local/lib/python3.12/site-packages/nvidia/cudnn/lib
+
+COPY apps/gesamt.py ./apps/gesamt.py
+COPY apps/hoeren ./apps/hoeren
+COPY apps/lernen ./apps/lernen
+COPY apps/schreiben ./apps/schreiben
+COPY scripts ./scripts
 
 COPY --from=frontend /bau/apps/hoeren/frontend/dist ./apps/hoeren/frontend/dist
 COPY --from=frontend /bau/apps/lernen/frontend/dist ./apps/lernen/frontend/dist
