@@ -715,6 +715,20 @@ Die letzte ist die Zeile zur Kurve; ohne sie stünde im Bild eine Reihe, zu der
 unten keine Zahl gehört, und man suchte sie in den vieren darunter, wo sie nicht
 steht: Der Median der besten Werte ist nicht der beste der vier Mediane.
 
+**Die Aufnahme läuft mit.** Unter der Vorlage steht ein Abspieler, und zwar
+ohne Knopf davor: Wer hierher gekommen ist, hat schon zweimal geklickt - einmal
+auf die Spalte, einmal auf die Fassung -, und ein dritter Klick, um zu hören,
+worüber er gerade liest, wäre einer zu viel. In „Meine Daten" steht dort ein
+„▶ Hören", und das ist richtig so: Dort liegt eine lange Liste untereinander,
+und der Browser zöge sonst Dutzende Aufnahmen in den Speicher.
+
+Abgespielt wird **die gewählte Fassung** und nicht immer das Original
+(`GET /api/recordings/{id}/audio?fassung=…`). Gerade beim Rauschen ist das die
+eigentliche Frage: Versteht man selbst noch, was das Modell nicht mehr
+verstanden hat? Eine Zahl beantwortet das nicht. Gerechnet wird für den
+Abspieler nichts - fehlt eine Fassung noch, steht dort kein Abspieler, und die
+Texte darunter fehlen ohnehin auch.
+
 Ein Tipp auf eine Spalte zeigt darunter die Texte, und zwar **eine Fassung zur
 Zeit** - vier Schalter wechseln zwischen ihnen, das Original zuerst. Sechzehn
 Texte untereinander wären keine Ansicht mehr, sondern eine Liste; gefragt ist
@@ -773,7 +787,7 @@ DELETE /api/sources/{id}                    409, wenn Aufnahmen daran hängen
 POST   /api/sessions
 GET    /api/prompts/next?session=…
 POST   /api/recordings                      multipart: audio + prompt_id + modus
-GET    /api/recordings/{id}/audio
+GET    /api/recordings/{id}/audio?fassung=  Original oder eine Abwandlung
 DELETE /api/recordings/{id}
 GET    /api/progress
 POST   /api/korpus/intake                   ← von „schreiben"

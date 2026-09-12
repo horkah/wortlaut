@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from wortlaut import audio, corpus
+from wortlaut import audio, augmentierung, corpus
 
 # Beim Einlesen dieser Datei gemerkt, also bevor conftest.py die Umwandlung für
 # die übrigen Tests durch eine Kopie ersetzt.
@@ -329,3 +329,55 @@ class TestFortschritt:
         marken = klient.get(f"/api/progress?sprecher={sprecher}").json()
         assert marken["marke_brauchbar_s"] == 1.5 * 3600
         assert marken["marke_gut_s"] == 20 * 3600
+
+
+class TestFassungenAnhoeren:
+    """Nicht nur das Original - auch die abgewandelten Fassungen sind hörbar.
+
+    Die Auswertung stellt neben jede Fassung, was die Modelle aus ihr gemacht
+    haben. Die interessanteste Frage dabei ist, ob man selbst noch versteht,
+    was ein Modell nicht mehr verstand - und die beantwortet keine Zahl,
+    sondern nur das Rauschen selbst.
+    """
+
+    def test_das_original_ist_die_vorgabe(
+        self, klient: TestClient, sprecher: str, quelle: str, audio_datei: dict
+    ) -> None:
+        einheit = klient.get(f"/api/prompts/next?sprecher={sprecher}").json()["aktuell"]
+        aufnahme = nimm_auf(klient, sprecher, einheit["id"], audio_datei)
+
+        ohne = klient.get(f"/api/recordings/{aufnahme['id']}/audio")
+        mit = klient.get(f"/api/recordings/{aufnahme['id']}/audio?fassung=original")
+
+        assert ohne.status_code == 200
+        assert mit.status_code == 200
+        assert ohne.content == mit.content
+
+    def test_jede_abwandlung_laesst_sich_hoeren(
+        self, klient: TestClient, sprecher: str, quelle: str, audio_datei: dict
+    ) -> None:
+        # Die Fassungen entstehen beim Hochladen (`services/augmentierung.py`).
+        einheit = klient.get(f"/api/prompts/next?sprecher={sprecher}").json()["aktuell"]
+        aufnahme = nimm_auf(klient, sprecher, einheit["id"], audio_datei)
+        original = klient.get(f"/api/recordings/{aufnahme['id']}/audio").content
+
+        for abwandlung in augmentierung.ABWANDLUNGEN:
+            antwort = klient.get(
+                f"/api/recordings/{aufnahme['id']}/audio?fassung={abwandlung.name}"
+            )
+            assert antwort.status_code == 200, abwandlung.name
+            # Abgewandelt heißt abgewandelt: Käme hier dasselbe zurück, wäre
+            # der Abspieler eine Behauptung.
+            assert antwort.content != original, abwandlung.name
+
+    def test_eine_unbekannte_fassung_ist_vierhundertvier(
+        self, klient: TestClient, sprecher: str, quelle: str, audio_datei: dict
+    ) -> None:
+        # Der Name landet im Dateipfad - was hier nicht geprüft würde, wäre ein
+        # Weg, fremde Dateien auszuliefern.
+        einheit = klient.get(f"/api/prompts/next?sprecher={sprecher}").json()["aktuell"]
+        aufnahme = nimm_auf(klient, sprecher, einheit["id"], audio_datei)
+
+        for unfug in ("gibtsnicht", "../../etc/passwd"):
+            antwort = klient.get(f"/api/recordings/{aufnahme['id']}/audio?fassung={unfug}")
+            assert antwort.status_code == 404, unfug

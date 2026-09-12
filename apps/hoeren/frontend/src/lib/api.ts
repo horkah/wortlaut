@@ -197,8 +197,18 @@ export function aufnahmeSenden(eingabe: {
 export const aufnahmeVerwerfen = (aufnahme: string) =>
   anfrage<void>(`/recordings/${aufnahme}`, { method: 'DELETE' });
 
-/** Eine eigene Aufnahme anhören - für „Meine Daten" (siehe unten). */
-export const meineAufnahmeAudio = (aufnahme: string) => blob(`/recordings/${aufnahme}/audio`);
+/**
+ * Eine eigene Aufnahme anhören - für „Meine Daten" und die Auswertung.
+ *
+ * `fassung` wählt zwischen dem Original und den drei Abwandlungen (siehe
+ * `varianten` in der Auswertung). Ausgelassen heißt Original; das ist der Fall
+ * in „Meine Daten", wo es nur die gesprochene Aufnahme gibt.
+ *
+ * Als Blob und nicht als Adresse im `src`: Die Datei hängt am Zugang, und ein
+ * `<audio src>` schickt keine Kopfzeilen mit.
+ */
+export const meineAufnahmeAudio = (aufnahme: string, fassung?: string) =>
+  blob(`/recordings/${aufnahme}/audio${fassung ? `?fassung=${encodeURIComponent(fassung)}` : ''}`);
 
 // ── Fortschritt ─────────────────────────────────────────────────────────────
 
