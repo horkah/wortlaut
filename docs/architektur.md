@@ -225,6 +225,8 @@ wortlaut/
 │       ├── diff.ts                # längste gemeinsame Teilfolge, zeichenweise
 │       ├── zugang.ts              # wo der Zugang liegt; ein Eintrag für alle
 │       ├── api.ts                 # wie eine Anfrage hinausgeht - für alle drei
+│       ├── route.ts               # die Route im Hash; derselbe Router überall
+│       ├── wer.ts                 # wer ruft: die Antwort des Servers, ausgewertet
 │       ├── apps.ts                # die drei Apps, ihre Ansichten, das Menü,
 │       │                          # und was davon sich ausblenden lässt
 │       ├── reiter.ts              # wo man zuletzt war, je App

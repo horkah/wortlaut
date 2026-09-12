@@ -2,8 +2,13 @@
  * Was alle Ansichten teilen: die Route, die laufende Diktiersitzung und der
  * Modellstand.
  *
- * Die Route steht im Hash (`#/text`). Das genügt für zwei Ansichten und spart
- * ein Routing-Paket samt Server-Konfiguration.
+ * Route und Zugang sind in jeder App dieselbe Sache und stehen deshalb nicht
+ * mehr hier: Der Hash-Router liegt in `$ui/route`, die Auskunft über den
+ * Zugang in `$ui/wer`. Gefragt wird mit demselben Zugang wie in „hören": ein
+ * persönlicher Link, einmal geöffnet - gleich in welcher der Apps -, meldet in
+ * allen an (siehe `$ui/zugang`). Ohne gültigen Zugang gibt es nichts zu
+ * diktieren, und die Oberfläche sagt das, statt an einer Wand aus 401ern zu
+ * scheitern.
  *
  * Die Sitzung liegt zusätzlich im `sessionStorage`: Ein versehentliches
  * Neuladen soll den gesprochenen Text nicht verlieren, ein neuer Tab dagegen
@@ -13,62 +18,29 @@
  * zwei Stellen brauchen: die Kopfzeile die Beschriftung, die Aufnahmeansicht
  * dieselbe neben dem Aufnahmeknopf. Wessen Stand es ist, entscheidet der
  * Zugang: Jeder Sprecher läuft auf seinem eigenen Modell.
- *
- * Wer hier ruft, steht ebenfalls hier - abgeleitet vom Server aus dem
- * vorgelegten Zugang, nicht gemerkt. Ohne gültigen Zugang gibt es nichts zu
- * diktieren, und die Oberfläche sagt das, statt an einer Wand aus 401ern zu
- * scheitern.
  */
-import { ApiFehler } from '$ui/api';
+import { folgeHash, routeAusHash } from '$ui/route';
+import { OFFEN, ermittleZugang } from '$ui/wer';
 import { nimmZugangAusLink } from '$ui/zugang';
 import { modell, sitzungHolen, werRuft, type Modell, type Sitzung } from './api';
 
-const SITZUNG_SCHLUESSEL = 'wortlaut.diktat';
+export { gehZu } from '$ui/route';
 
-function routeAusHash(): string {
-  return window.location.hash.replace(/^#/, '') || '/';
-}
+const SITZUNG_SCHLUESSEL = 'wortlaut.diktat';
 
 export const zustand = $state({
   route: routeAusHash(),
   sitzung: null as Sitzung | null,
   modellstand: null as Modell | null,
-  // `unbekannt`, bis der Server geantwortet hat; `keiner`, wenn er den Zugang
-  // abweist. Beides ist kein Fehler, sondern ein Zustand der Oberfläche.
-  art: 'unbekannt' as 'unbekannt' | 'sprecher' | 'keiner',
-  sprecher: null as string | null,
-  name: null as string | null,
+  ...OFFEN,
 });
 
-window.addEventListener('hashchange', () => {
-  zustand.route = routeAusHash();
-});
+folgeHash((route) => (zustand.route = route));
 
-export function gehZu(route: string): void {
-  window.location.hash = route;
-}
-
-/**
- * Beim Server nachfragen, für wen dieser Browser eingestellt ist.
- *
- * Derselbe Weg wie in „hören", und mit demselben Zugang: Ein persönlicher
- * Link, einmal geöffnet - gleich in welcher der beiden Apps -, meldet in
- * beiden an (siehe `$ui/zugang`).
- */
+/** Beim Server nachfragen, für wen dieser Browser eingestellt ist. */
 export async function ladeZugang(): Promise<void> {
   if (nimmZugangAusLink(routeAusHash())) zustand.route = '/';
-  try {
-    const wer = await werRuft();
-    zustand.art = 'sprecher';
-    zustand.sprecher = wer.sprecher_id;
-    zustand.name = wer.name;
-  } catch (ursache) {
-    // Ein abgewiesener Zugang ist kein Fehler, sondern ein fehlender Schritt;
-    // alles andere (Server weg) sieht die Ansicht ohnehin an ihren Anfragen.
-    zustand.art = ursache instanceof ApiFehler && ursache.status === 401 ? 'keiner' : 'unbekannt';
-    zustand.sprecher = null;
-    zustand.name = null;
-  }
+  Object.assign(zustand, await ermittleZugang(werRuft));
 }
 
 /** Ohne Auskunft bleibt der Modellstand leer - dann zeigen Kopfzeile und

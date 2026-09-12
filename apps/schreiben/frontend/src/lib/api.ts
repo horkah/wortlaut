@@ -10,10 +10,11 @@
  */
 
 import { alsJson, api } from '$ui/api';
+// Wer der Server in diesem Browser sieht - die Form steht in `$ui/wer`, weil
+// alle drei Apps dieselbe Antwort lesen. Hier ist es immer ein Sprecher:
+// Verwalter- und Aufsichtstoken weist dieser Server ab (`backend/deps.py`).
+import type { Wer } from '$ui/wer';
 export { setzeZugang, zugang } from '$ui/zugang';
-
-/** Wer der Server in diesem Browser sieht. */
-export type Wer = { art: string; sprecher_id: string; name: string };
 
 export type Abschnitt = {
   id: string;

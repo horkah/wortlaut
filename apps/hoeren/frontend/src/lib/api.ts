@@ -12,6 +12,9 @@
  */
 
 import { alsJson, api } from '$ui/api';
+// Wer der Server in diesem Browser sieht - die Form steht in `$ui/wer`, weil
+// alle drei Apps dieselbe Antwort lesen.
+import type { Wer } from '$ui/wer';
 
 // Die Wege dieser App liegen auf der Wurzel - sie ist der Einstieg (siehe
 // `APPS` in `$ui/apps`). Wie eine Anfrage hinausgeht und wie ein Fehlschlag
@@ -26,13 +29,6 @@ export type Sprecher = {
   erstellt: string;
   /** Wann der geltende Zugang ausgegeben wurde; null heißt: noch keiner da. */
   zugang_erneuert: string | null;
-};
-
-/** Wer der Server in diesem Browser sieht. */
-export type Wer = {
-  art: 'sprecher' | 'verwaltung' | 'aufsicht';
-  sprecher_id: string | null;
-  name: string | null;
 };
 
 /** Ein frisch ausgegebener Zugang - im Klartext nur genau hier. */
