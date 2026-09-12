@@ -9,7 +9,13 @@
    */
   import PinSchloss from './PinSchloss.svelte';
   import PromptView from './PromptView.svelte';
-  import { SCHALTBARE_APPS, SCHALTBARE_MENUEPUNKTE, type Schaltbar } from './apps';
+  import {
+    APPS,
+    SCHALTBARE_APPS,
+    SCHALTBARE_MENUEPUNKTE,
+    SCHALTBARE_REITER,
+    type Schaltbar,
+  } from './apps';
   import {
     einstellungen,
     setzeDarstellungZurueck,
@@ -26,8 +32,12 @@
 
   const PROBE = 'Am Montag gehe ich zum Markt und kaufe frisches Brot.';
 
-  // Zwei Abschnitte, weil es zwei Ebenen sind - dieselben zwei, die die
-  // Kopfleiste zeigt: oben die App, dahinter im Menüknopf ihre Punkte.
+  // Die Abschnitte folgen dem Aufbau der Kopfleiste: oben die Apps, darunter
+  // je App ihre Ansichten, zuletzt die Punkte hinter dem Menüknopf.
+  function appName(schluessel: string): string {
+    return APPS.find((eintrag) => eintrag.schluessel === schluessel)?.name ?? schluessel;
+  }
+
   const ABSCHNITTE: { titel: string; hinweis: string; eintraege: Schaltbar[] }[] = [
     {
       titel: 'Apps in der Kopfleiste',
@@ -35,6 +45,12 @@
         'Die Reiter ganz oben. Ausgeblendet ist eine App nur aus der Leiste verschwunden, nicht abgeschaltet - ihre Adresse gilt weiter.',
       eintraege: SCHALTBARE_APPS,
     },
+    ...SCHALTBARE_REITER.map((abschnitt) => ({
+      titel: `Ansichten in „${appName(abschnitt.app)}“`,
+      hinweis:
+        'Die zweite Reihe der Kopfleiste. Auch hier gilt: ausgeblendet heißt unsichtbar, nicht abgeschaltet - wer einen Reiter wieder braucht, holt ihn hier zurück.',
+      eintraege: abschnitt.eintraege,
+    })),
     {
       titel: 'Punkte im Menü',
       hinweis:

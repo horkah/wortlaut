@@ -221,12 +221,18 @@ def loesche(datenverzeichnis: Path, sprecher_id: str, job_id: str) -> Geloescht:
     stand = registry.stand_zu_lauf(datenverzeichnis, sprecher_id, job_id)
     ergebnis = Geloescht(job_id=job_id)
     if stand is not None:
-        version = str(stand.get("id", "/")).split("/", 1)[-1]
+        kennung = str(stand.get("id", "/"))
+        version = kennung.split("/", 1)[-1]
+        war_freigegeben = registry.freigegeben(datenverzeichnis, sprecher_id) == kennung
         ergebnis = Geloescht(
-            job_id=job_id,
-            version=version,
-            war_freigegeben=stand.get("status") == "active",
+            job_id=job_id, version=version, war_freigegeben=war_freigegeben
         )
+        # War dieses Modell freigegeben, geht die Freigabe mit: Eine, die auf
+        # ein gelöschtes Verzeichnis zeigt, wäre in „schreiben" eine Zeile
+        # „Modellstand nicht gefunden" statt einer Antwort - und niemand käme
+        # auf den Gedanken, dass sie hier entstand.
+        if war_freigegeben:
+            registry.gib_frei(datenverzeichnis, sprecher_id, "")
         registry.loesche_stand(datenverzeichnis, sprecher_id, version)
 
     # Zuletzt das Laufverzeichnis, und in dieser Reihenfolge: Bräche das

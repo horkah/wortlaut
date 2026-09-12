@@ -14,7 +14,12 @@
  * in `Einstellungen.svelte` (Mikrofon, Vorlesen) und einmal in
  * `Darstellung.svelte` (Farben, Schrift).
  */
-import { SCHALTBARE_APPS, SCHALTBARE_MENUEPUNKTE, type Schaltbar } from './apps';
+import {
+  SCHALTBARE_APPS,
+  SCHALTBARE_MENUEPUNKTE,
+  SCHALTBARE_REITER,
+  type Schaltbar,
+} from './apps';
 import { VERSTAERKUNG_SPANNE, VERSTAERKUNG_VORGABE } from './mikrofon';
 import { TEMPO_VORGABE } from './speak';
 
@@ -88,8 +93,12 @@ function farbwerte(): Record<string, string> {
   return werte;
 }
 
-/** Alles, was sich ein- und ausblenden lässt - Apps wie Menüpunkte. */
-export const SCHALTBAR: Schaltbar[] = [...SCHALTBARE_APPS, ...SCHALTBARE_MENUEPUNKTE];
+/** Alles, was sich ein- und ausblenden lässt - Apps, ihre Ansichten, Menüpunkte. */
+export const SCHALTBAR: Schaltbar[] = [
+  ...SCHALTBARE_APPS,
+  ...SCHALTBARE_REITER.flatMap((abschnitt) => abschnitt.eintraege),
+  ...SCHALTBARE_MENUEPUNKTE,
+];
 
 /**
  * Sichtbar ist die Vorgabe: Ein leerer `localStorage` zeigt alles, und nur ein

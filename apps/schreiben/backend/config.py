@@ -56,8 +56,8 @@ class Einstellungen(BaseSettings):
 
     # Ein fest vorgegebener Modellstand, Form `<sprecher_id>/<version>`. Leer
     # ist der Normalfall: Dann bekommt jeder Sprecher den Stand, den „lernen"
-    # für ihn freigegeben hat (`registry.aktiver_stand`), und solange es keinen
-    # gibt, das unveränderte `asr_modell`. Gesetzt gilt der eine Stand für
+    # für ihn freigegeben hat (`registry.freigegeben`), und solange es keine
+    # Freigabe gibt, das unveränderte `asr_modell`. Gesetzt gilt der eine Stand für
     # jeden, der hier ruft - gedacht zum Erproben eines Standes, nicht für den
     # Betrieb.
     modell_ref: str = ""
@@ -66,13 +66,6 @@ class Einstellungen(BaseSettings):
     # Rechenzeit, liefert aber Text, an dem niemand ablesen kann, ob das
     # Diktat angekommen ist.
     asr_modell: str = "small"
-    # Welche unveränderten Modelle hier zur Wahl stehen. Dieselbe Liste wie in
-    # der Auswertung von „hören" (`WORTLAUT_AUSWERTUNG_MODELLE`), und das ist
-    # kein Zufall: Wer hier eines auswählt, bekommt genau den Erkenner, dessen
-    # Zahlen er dort gesehen hat. Zwei getrennte Listen wären zwei
-    # Gelegenheiten, sie auseinanderlaufen zu lassen.
-    auswertung_modelle: str = "base,small,medium,large-v3"
-
     # local = faster-whisper im eigenen Prozess, remote = fremder Endpunkt.
     # Vorsicht: remote schickt Stimmdaten an Dritte (docs/datenschutz.md).
     asr: str = "local"

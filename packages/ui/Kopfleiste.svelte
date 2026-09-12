@@ -15,6 +15,7 @@
     PROJEKT_URL,
     appSchluessel,
     menueSchluessel,
+    reiterSchluessel,
     type AppSchluessel,
     type Menuepunkt,
   } from './apps';
@@ -73,12 +74,22 @@
   // zurückfindet, sind gar nicht erst abschaltbar.
   const gezeigt = $derived(eintraege.filter((punkt) => istSichtbar(menueSchluessel(punkt.pfad))));
   const gezeigteApps = $derived(APPS.filter((eintrag) => istSichtbar(appSchluessel(eintrag.schluessel))));
-  // Auf einer Menüansicht führt die Reiterreihe nicht zurück: „schreiben" hat
-  // keine, „hören" blendet sie ohne Sprecherzugang aus. Ohne diesen Eintrag
-  // käme man nur über den Zurück-Knopf des Browsers heraus. Gefragt ist die
-  // ungefilterte Liste: Wer über ein Lesezeichen auf einem ausgeblendeten
-  // Punkt steht, braucht den Ausgang erst recht.
-  const aussenstehend = $derived(eintraege.some((punkt) => punkt.pfad === route));
+  // Dasselbe für die zweite Reihe: Auch einzelne Ansichten einer App lassen
+  // sich unter „Darstellung" ausblenden (siehe `SCHALTBARE_REITER`). Bleibt
+  // nichts übrig, entfällt die Reihe - die App zeigt trotzdem eine Ansicht,
+  // denn jede fällt auf ihren ersten Reiter zurück.
+  const gezeigteReiter = $derived(
+    punkte.filter((punkt) => istSichtbar(reiterSchluessel(app, punkt.pfad))),
+  );
+  // Der Rückweg ins Menü. Er steht da, sobald die offene Ansicht nicht in der
+  // sichtbaren Reiterreihe auftaucht - also auf einer Menüansicht ebenso wie
+  // auf einem Reiter, den jemand ausgeblendet hat und über ein Lesezeichen
+  // wieder betritt. Ohne ihn käme man dort nur mit dem Zurück-Knopf des
+  // Browsers heraus.
+  const aussenstehend = $derived(
+    eintraege.some((punkt) => punkt.pfad === route) ||
+      (punkte.length > 0 && !gezeigteReiter.some((punkt) => punkt.pfad === route)),
+  );
   const appName = $derived(APPS.find((eintrag) => eintrag.schluessel === app)?.name ?? '');
 
   function schliesseWennDraussen(ereignis: MouseEvent) {
@@ -200,9 +211,9 @@
     </div>
   </div>
 
-  {#if punkte.length}
+  {#if gezeigteReiter.length}
     <nav class="ebene ansichten" aria-label="Ansichten">
-      {#each punkte as punkt (punkt.pfad)}
+      {#each gezeigteReiter as punkt (punkt.pfad)}
         <a
           class="reiter"
           class:aktiv={punkt.pfad === route}

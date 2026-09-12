@@ -9,14 +9,15 @@
    */
   import Recorder from '$ui/Recorder.svelte';
   import { einstellungen } from '$ui/einstellungen.svelte';
-  import { MODELL_PFAD } from '$ui/apps';
+  import { MODELLE_URL } from '$ui/apps';
   import { diktieren, sitzungBeginnen } from '../lib/api';
   import { gehZu, setzeSitzung, zustand } from '../lib/zustand.svelte';
 
   // Der Modellstand steht hier, nicht in der Kopfzeile: Wer eine Ausgabe
   // beurteilt, muss sehen, welcher Stand sie erzeugt hat - direkt bei der
-  // Aufnahme, die ihn erzeugt. Seit sich das Modell wechseln lässt, ist die
-  // Zeile zugleich der Weg dorthin: Wer sie liest, denkt gerade darüber nach.
+  // Aufnahme, die ihn erzeugt. Die Zeile ist zugleich der Weg zur
+  // Modellübersicht in „lernen": Wer sie liest, denkt gerade darüber nach,
+  // ob ein anderes Modell besser zuhören würde.
   const beschriftung = $derived(zustand.modellstand?.beschriftung ?? '');
 
   let stand = $state<'bereit' | 'verstehe'>('bereit');
@@ -66,7 +67,7 @@
 
   {#if beschriftung}
     <p class="modellstand gedaempft">
-      <a href="#{MODELL_PFAD}">{beschriftung}</a>
+      <a href={MODELLE_URL}>{beschriftung}</a>
     </p>
   {/if}
 </div>

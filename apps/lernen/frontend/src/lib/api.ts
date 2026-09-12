@@ -113,18 +113,72 @@ export type Laufeinzeln = {
   protokoll: string;
 };
 
-export type Modellstand = {
-  id: string;
-  version: string;
+/** Ein Maß in der Modelltabelle, beschriftet vom Server. */
+export type Mass = {
+  schluessel: string;
+  name: string;
+  kurz: string;
+  erklaerung: string;
+  /** Ob ein hoher Wert der bessere ist - die Fehlerraten sind andersherum. */
+  hoch_ist_gut: boolean;
+  einheit: string;
+  stellen: number;
+};
+
+/** Eine Fassung der Aufnahme: Original oder eine der drei Abwandlungen. */
+export type Fassung = {
+  schluessel: string;
+  name: string;
+  erklaerung: string;
+};
+
+/** Eine Zeile der Modelltabelle: ein Grundmodell oder ein trainierter Stand. */
+export type Modell = {
+  ref: string;
+  /** grundmodell | trainiert */
+  art: string;
+  name: string;
+  herkunft: string;
   basismodell: string;
-  methode: string;
-  daten: string;
-  erstellt: string;
-  status: string;
-  wer: number | null;
-  genauigkeit: number | null;
-  test_einheiten: number | null;
+  methode: string | null;
+  daten: string | null;
+  erstellt: string | null;
+  version: string | null;
   job_id: string | null;
+  freigegeben: boolean;
+  /** Fassung → Maß → Wert. Leer heißt: auf den gemeinsamen Testaufnahmen nichts. */
+  werte: Record<string, Record<string, number>>;
+  /** Fassung → wie viele Messeinheiten in diesem Mittel stecken. */
+  einheiten: Record<string, number>;
+};
+
+export type Modelluebersicht = {
+  modelle: Modell[];
+  masse: Mass[];
+  fassungen: Fassung[];
+  freigegeben: string;
+  testaufnahmen: number;
+  gemeinsame_einheiten: number;
+  /** `false` heißt: Die Zahlen stehen nicht auf demselben Boden. */
+  vergleichbar: boolean;
+  hinweis: string;
+};
+
+/**
+ * Was „schreiben" gerade lädt - und ob es vorher aussteuert.
+ *
+ * Die Auskunft kommt aus der API von „schreiben" und nicht aus dieser App: Dort
+ * wird diktiert, dort liegt der Schalter, und eine zweite Wahrheit darüber wäre
+ * eine zu viel. Dass die Modellübersicht sie trotzdem zeigt, hat denselben
+ * Grund wie alles andere auf dieser Seite - hier steht die eine Antwort auf
+ * „womit spreche ich?".
+ */
+export type Diktatmodell = {
+  sprecher_id: string;
+  ref: string;
+  basismodell: string;
+  trainiert: boolean;
+  aussteuern: boolean;
   beschriftung: string;
 };
 
@@ -183,10 +237,11 @@ export const loescheLauf = (jobId: string) =>
     { method: 'DELETE' },
   );
 
-export const modelle = () => anfrage<{ staende: Modellstand[] }>('/modelle');
+export const modelle = () => anfrage<Modelluebersicht>('/modelle');
 
-export const gibFrei = (version: string) =>
-  anfrage<{ staende: Modellstand[] }>(`/modelle/${version}/freigabe`, { method: 'POST' });
+/** Dieses Modell freigeben - leere Kennung nimmt die Freigabe zurück. */
+export const gibFrei = (ref: string) =>
+  anfrage<Modelluebersicht>('/modelle/freigabe', alsJson({ ref }));
 
 /**
  * Wer der Server in diesem Browser sieht - die Auskunft von „hören".
@@ -209,3 +264,33 @@ export async function werRuft(): Promise<Wer> {
   if (!antwort.ok) throw new ApiFehler(antwort.status, `Fehler ${antwort.status}`);
   return (await antwort.json()) as Wer;
 }
+
+/** Der Pfad, unter dem „schreiben" unter der gemeinsamen Domain liegt. */
+const SCHREIBEN = '/schreiben/api/model';
+
+/**
+ * Wie in `werRuft` ausdrücklich die API einer anderen App - hier die von
+ * „schreiben". Sie liegt unter derselben Domain, und der Zugang ist derselbe.
+ *
+ * Scheitert der Aufruf, gibt es `null` statt eines Fehlers: Diese App steht
+ * auch ohne „schreiben" (wer nur trainiert und misst, braucht es nicht), und
+ * eine Fehlermeldung für eine Karte, die dann schlicht entfällt, wäre eine
+ * Warnung vor nichts.
+ */
+async function beiSchreiben<T>(optionen: RequestInit = {}): Promise<T | null> {
+  try {
+    const antwort = await fetch(SCHREIBEN, { ...optionen, headers: mitZugang(optionen.headers) });
+    return antwort.ok ? ((await antwort.json()) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+export const diktatmodell = () => beiSchreiben<Diktatmodell>();
+
+export const aussteuernSetzen = (aussteuern: boolean) =>
+  beiSchreiben<Diktatmodell>({
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ aussteuern }),
+  });

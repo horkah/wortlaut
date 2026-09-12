@@ -70,4 +70,4 @@ train:
 	uv run python -m apps.lernen.training.finetune data/snapshots/$(JOB)
 
 release:
-	@echo "Freigegeben wird in der Oberfläche von „lernen\" (Menüpunkt Modelle)." && exit 1
+	@echo "Freigegeben wird in der Oberfläche von „lernen\" (Reiter Modelle)." && exit 1

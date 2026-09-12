@@ -43,7 +43,7 @@ from .config import Einstellungen, einstellungen
 # würde jede Antwort um Sekunden verzögern.
 #
 # Der Schlüssel der Transkriptoren ist das **Modell** und nicht der Sprecher:
-# Seit sich ein Modell zur Laufzeit wählen lässt (`services/erkennung.py`),
+# Seit sich das Modell zur Laufzeit freigeben lässt (`services/erkennung.py`),
 # gäbe ein Zwischenspeicher je Sprecher nach einem Wechsel weiter das alte
 # Modell heraus - ein Fehler, den niemand als Fehler erkennte, weil einfach
 # der gewohnte Text herauskäme.
@@ -67,16 +67,15 @@ def engine_fuer(sprecher_id: str) -> Engine:
     return _engines[sprecher_id]
 
 
-def transkriptor_fuer(sprecher_id: str, wahl: str = "") -> Transkriptor:
-    """Die Whisper-Umsetzung für dieses Modell.
+def transkriptor_fuer(sprecher_id: str) -> Transkriptor:
+    """Die Whisper-Umsetzung für das Modell, das dieser Mensch benutzt.
 
-    `wahl` ist, was der Sprecher ausgewählt hat (leer: die Vorgabe, siehe
-    `modellstand`). Zwischengespeichert wird nach dem, was tatsächlich geladen
-    wird - zwei Sprecher auf demselben Grundmodell teilen es sich, und ein
-    Wechsel lädt wirklich ein anderes.
+    Zwischengespeichert wird nach dem, was tatsächlich geladen wird - zwei
+    Sprecher auf demselben Grundmodell teilen es sich, und eine neue Freigabe
+    lädt wirklich ein anderes.
     """
     konfiguration = einstellungen()
-    schluessel = str(modellpfad(konfiguration, sprecher_id, wahl))
+    schluessel = str(modellpfad(konfiguration, sprecher_id))
 
     if schluessel not in _transkriptoren:
         if konfiguration.asr == "remote":
@@ -94,31 +93,29 @@ def transkriptor_fuer(sprecher_id: str, wahl: str = "") -> Transkriptor:
     return _transkriptoren[schluessel]
 
 
-def modellstand(
-    konfiguration: Einstellungen, sprecher_id: str, wahl: str = ""
-) -> tuple[str, dict] | None:
-    """Der Stand, der gerade gilt: `(ref, manifest)` - oder None für ein Grundmodell.
+def aktive_ref(konfiguration: Einstellungen, sprecher_id: str) -> str:
+    """Was für diesen Menschen gilt - eine Standkennung oder ein Grundmodellname.
 
     Die Rangfolge steht in `services/erkennung.py`; hier wird sie ausgeführt:
 
-    1. `wahl` - was der Sprecher ausdrücklich ausgewählt hat. Ein Grundmodell
-       (kein Schrägstrich darin) ist ebenfalls eine Wahl und ergibt `None`:
-       „kein Stand", also das unveränderte Modell.
-    2. `WORTLAUT_MODELL_REF` - der eine Stand für alle, zum Erproben.
-    3. Der freigegebene Stand *dieses* Sprechers. Ein Modell gehört zu genau
-       einem Menschen (Grundentscheidung 3).
+    1. `WORTLAUT_MODELL_REF` - der eine Stand für alle, zum Erproben.
+    2. Die Freigabe *dieses* Sprechers (`wortlaut/registry.py`). Sie entsteht
+       in der Modellübersicht von „lernen" und kann seit deren Zusammenlegung
+       auch ein unverändertes Grundmodell benennen.
+
+    Leer heißt: nichts freigegeben - dann gilt `WORTLAUT_ASR_MODELL`.
     """
-    from .services.erkennung import ist_stand
+    if konfiguration.modell_ref:
+        return konfiguration.modell_ref
+    return registry.freigegeben(konfiguration.data_dir, sprecher_id)
 
-    if wahl:
-        ref = wahl
-    elif konfiguration.modell_ref:
-        ref = konfiguration.modell_ref
-    else:
-        stand = registry.aktiver_stand(konfiguration.data_dir, sprecher_id)
-        return (str(stand["id"]), stand) if stand else None
 
-    if not ist_stand(ref):
+def modellstand(
+    konfiguration: Einstellungen, sprecher_id: str
+) -> tuple[str, dict] | None:
+    """Der Stand, der gerade gilt: `(ref, manifest)` - oder None für ein Grundmodell."""
+    ref = aktive_ref(konfiguration, sprecher_id)
+    if not ref or not registry.ist_stand(ref):
         return None
 
     ref_sprecher, version = ref.split("/", 1)
@@ -126,23 +123,21 @@ def modellstand(
         return ref, registry.lies_stand(konfiguration.data_dir, ref_sprecher, version)
     except (OSError, ValueError):
         # Ein Stand, den es nicht gibt - falsch gesetzte Umgebung oder ein
-        # gelöschter Stand, der noch gewählt ist. Sehen soll man das, nicht
+        # gelöschter Stand, der noch freigegeben ist. Sehen soll man das, nicht
         # raten müssen: Die Auskunft in `api/model.py` sagt es ausdrücklich.
         return ref, {}
 
 
-def modellpfad(
-    konfiguration: Einstellungen, sprecher_id: str, wahl: str = ""
-) -> Path | str:
+def modellpfad(konfiguration: Einstellungen, sprecher_id: str) -> Path | str:
     """Was faster-whisper geladen bekommt: Registry-Verzeichnis oder Modellname.
 
     Mit einem Stand ist es dessen `ct2/`-Ordner. Ohne ihn ist es ein bloßer
-    Name - das gewählte Grundmodell oder `WORTLAUT_ASR_MODELL`, mit dem eine
-    Installation anfängt, solange „lernen" nichts freigegeben hat.
+    Name - das freigegebene Grundmodell oder `WORTLAUT_ASR_MODELL`, mit dem
+    eine Installation anfängt, solange „lernen" nichts freigegeben hat.
     """
-    stand = modellstand(konfiguration, sprecher_id, wahl)
+    stand = modellstand(konfiguration, sprecher_id)
     if stand is None:
-        return wahl or konfiguration.asr_modell
+        return aktive_ref(konfiguration, sprecher_id) or konfiguration.asr_modell
     # Auch dann das Verzeichnis, wenn das Manifest nicht zu lesen war: Was
     # verlangt wurde, soll versucht werden. Still auf das Grundmodell
     # auszuweichen hieße, einen Fehlgriff in der Konfiguration als gutes
@@ -198,19 +193,14 @@ def _ablage() -> storage.Ablage:
     return storage.oeffne_ablage(einstellungen().storage, einstellungen().data_dir)
 
 
-def _transkriptor(
-    sprecher_id: Annotated[str, Depends(_sprecher_id)],
-    db: Annotated[Session, Depends(_sitzung)],
-) -> Transkriptor:
-    """Der Erkenner mit dem gewählten Modell.
+def _transkriptor(sprecher_id: Annotated[str, Depends(_sprecher_id)]) -> Transkriptor:
+    """Der Erkenner mit dem Modell, das für diesen Menschen freigegeben ist.
 
-    Die Datenbank hängt mit drin, seit die Wahl dort steht
-    (`003_erkennung.sql`). Das ist der Preis dafür, dass sich ein Modell zur
-    Laufzeit wechseln lässt, ohne einen Container neu zu starten.
+    Gelesen wird die Freigabe bei jeder Anfrage und nicht beim Start: Das ist
+    der Preis dafür, dass eine neue Freigabe in „lernen" sofort gilt, ohne
+    einen Container neu zu starten.
     """
-    from .services.erkennung import gewaehlt
-
-    return transkriptor_fuer(sprecher_id, gewaehlt(db, einstellungen(), sprecher_id))
+    return transkriptor_fuer(sprecher_id)
 
 
 # Kurzschreibweisen für die Signaturen der Endpunkte.

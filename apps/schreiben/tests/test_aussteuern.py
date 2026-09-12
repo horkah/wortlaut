@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from fastapi.testclient import TestClient
-from wortlaut import audio, augmentierung
+from wortlaut import audio, augmentierung, registry
 
 if TYPE_CHECKING:  # nur für die Typen - zur Laufzeit kommt der Ersatz als Fixture
     from apps.schreiben.tests.conftest import Testtranskriptor
@@ -124,32 +124,31 @@ class TestAbgeschaltet:
 
 
 class TestZweiStellschrauben:
-    """Modell und Aufbereitung stehen nebeneinander und fassen sich nicht an."""
+    """Modell und Aufbereitung stehen nebeneinander und fassen sich nicht an.
 
-    def test_der_schalter_setzt_die_modellwahl_nicht_zurueck(
-        self, klient: TestClient
+    Freigegeben wird in „lernen" (`wortlaut/registry.py`), ausgesteuert hier -
+    zwei Orte, zwei Ablagen. Dass eine neue Freigabe den Schalter nicht
+    umlegt, ist deshalb keine Selbstverständlichkeit, sondern das, was hier
+    geprüft wird.
+    """
+
+    def test_eine_freigabe_setzt_den_schalter_nicht_zurueck(
+        self, klient: TestClient, datenverzeichnis: Path, sprecher: str
     ) -> None:
-        klient.put("/schreiben/api/model", json={"ref": "medium"})
+        klient.put("/schreiben/api/model", json={"aussteuern": False})
+        registry.gib_frei(datenverzeichnis, sprecher, "medium")
+
+        antwort = klient.get("/schreiben/api/model").json()
+
+        assert antwort["basismodell"] == "medium"
+        assert antwort["aussteuern"] is False
+
+    def test_der_schalter_aendert_das_modell_nicht(
+        self, klient: TestClient, datenverzeichnis: Path, sprecher: str
+    ) -> None:
+        registry.gib_frei(datenverzeichnis, sprecher, "medium")
+
         antwort = klient.put("/schreiben/api/model", json={"aussteuern": False}).json()
 
         assert antwort["ref"] == "medium"
-        assert antwort["aussteuern"] is False
-
-    def test_die_modellwahl_setzt_den_schalter_nicht_zurueck(
-        self, klient: TestClient
-    ) -> None:
-        klient.put("/schreiben/api/model", json={"aussteuern": False})
-        antwort = klient.put("/schreiben/api/model", json={"ref": "medium"}).json()
-
-        assert antwort["aussteuern"] is False
-        assert antwort["basismodell"] == "medium"
-
-    def test_zurueck_zur_vorgabe_laesst_den_schalter_stehen(
-        self, klient: TestClient
-    ) -> None:
-        # Ein leeres `ref` heißt „zurück zur Vorgabe" und nicht „alles zurück".
-        klient.put("/schreiben/api/model", json={"aussteuern": False, "ref": "medium"})
-        antwort = klient.put("/schreiben/api/model", json={"ref": ""}).json()
-
-        assert antwort["gewaehlt"] is False
         assert antwort["aussteuern"] is False

@@ -33,24 +33,9 @@ export type Sitzung = {
   abschnitte: Abschnitt[];
 };
 
-/** Ein wählbares Modell: ein unverändertes Grundmodell oder ein Stand aus „lernen". */
-export type Modellwahl = {
-  ref: string;
-  name: string;
-  /** grundmodell | trainiert */
-  art: string;
-  beschriftung: string;
-  methode: string | null;
-  daten: string | null;
-  erstellt: string | null;
-  wer: number | null;
-  /** Der Stand, den „lernen" freigegeben hat - die Vorgabe ohne eigene Wahl. */
-  freigegeben: boolean;
-};
-
 export type Modell = {
   sprecher_id: string;
-  /** Was gerade geladen ist - immer gefüllt, immer einer der `ref` aus `auswahl`. */
+  /** Was gerade geladen ist: eine Standkennung oder ein Grundmodellname. */
   ref: string;
   basismodell: string;
   methode: string | null;
@@ -58,12 +43,11 @@ export type Modell = {
   erstellt: string | null;
   wer: number | null;
   laufzeit: string;
-  /** Ob ausdrücklich gewählt wurde; sonst gilt die Vorgabe. */
-  gewaehlt: boolean;
+  /** Ob ein trainierter Stand läuft oder ein unverändertes Grundmodell. */
+  trainiert: boolean;
   /** Ob das Diktat vor dem Erkennen ausgesteuert wird. */
   aussteuern: boolean;
   beschriftung: string;
-  auswahl: Modellwahl[];
 };
 
 export type Versand = { eingestellt: number; gesendet: number; offen: number; fehler: string | null };
@@ -135,23 +119,16 @@ export const postausgangSenden = () =>
 /** Für wen dieser Browser eingestellt ist - die Antwort kommt vom Server. */
 export const werRuft = () => anfrage<Wer>('/zugang');
 
-/** Der Modellstand **dieses** Sprechers; „lernen" gibt ihn je Person frei. */
+/**
+ * Welches Modell hier arbeitet - freigegeben wird es in der Modellübersicht
+ * von „lernen" (siehe `MODELLE_URL` in `$ui/apps`). Diese App liest nur.
+ */
 export const modell = () => anfrage<Modell>('/model');
 
-/**
- * Modell oder Aufbereitung ändern. Was nicht mitgeschickt wird, bleibt stehen.
- *
- * Deshalb wird ausdrücklich nur gesetzt, was gemeint ist: Ein leeres `ref`
- * heißt „zurück zur Vorgabe", und das ist etwas anderes als „das Modell nicht
- * anfassen". Ohne die Unterscheidung setzte ein Umlegen des Schalters nebenbei
- * die Modellwahl zurück.
- */
-export const erkennungSetzen = (aenderung: { ref?: string; aussteuern?: boolean }) =>
+/** Die Aufbereitung ändern - bisher genau eine: das Aussteuern. */
+export const erkennungSetzen = (aenderung: { aussteuern?: boolean }) =>
   anfrage<Modell>('/model', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(aenderung),
   });
-
-/** Ein anderes Modell benutzen. Leere Kennung heißt: zurück zur Vorgabe. */
-export const modellWaehlen = (ref: string) => erkennungSetzen({ ref });

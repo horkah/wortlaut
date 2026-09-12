@@ -180,14 +180,17 @@ def _anteil(lauf: lauf_layout.Lauf) -> float | None:
 
 
 def _stand_zu(lauf: lauf_layout.Lauf) -> StandHinweis | None:
-    stand = registry.stand_zu_lauf(
-        einstellungen().data_dir, lauf.sprecher_id, lauf.job_id
-    )
+    datenverzeichnis = einstellungen().data_dir
+    stand = registry.stand_zu_lauf(datenverzeichnis, lauf.sprecher_id, lauf.job_id)
     if stand is None:
         return None
     return StandHinweis(
         version=str(stand.get("id", "/")).split("/", 1)[-1],
-        freigegeben=stand.get("status") == "active",
+        # Aus der Freigabe und nicht aus dem `status` des Manifests: Seit auch
+        # ein Grundmodell freigegeben sein kann, ist die Freigabedatei die
+        # Auskunft darüber, was gilt (siehe `wortlaut/registry.py`).
+        freigegeben=registry.freigegeben(datenverzeichnis, lauf.sprecher_id)
+        == str(stand.get("id", "")),
     )
 
 

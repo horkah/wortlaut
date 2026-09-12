@@ -108,3 +108,55 @@ class TestRegistry:
 
     def test_ohne_modelle_kein_aktiver_stand(self, tmp_path: Path) -> None:
         assert registry.aktiver_stand(tmp_path, "spr_unbekannt") is None
+        assert registry.freigegeben(tmp_path, "spr_unbekannt") == ""
+
+
+class TestFreigabe:
+    """Höchstens ein Modell je Mensch - und es darf ein Grundmodell sein.
+
+    Die Freigabe ist die eine Entscheidung, die „lernen" trifft und „schreiben"
+    liest. Seit die Modellübersicht beide Sorten in einer Tabelle zeigt, kann
+    sie auch auf ein unverändertes Whisper-Modell fallen - für das gibt es hier
+    kein Verzeichnis, also steht sie in einer eigenen Datei daneben.
+    """
+
+    def test_gibt_einen_stand_frei_und_zieht_die_anderen_zurueck(self, tmp_path: Path) -> None:
+        registry.schreibe_stand(tmp_path, {"id": "spr_1/erster", "status": "active"})
+        registry.schreibe_stand(tmp_path, {"id": "spr_1/zweiter", "status": "fertig"})
+
+        registry.gib_frei(tmp_path, "spr_1", "spr_1/zweiter")
+
+        assert registry.freigegeben(tmp_path, "spr_1") == "spr_1/zweiter"
+        # Das Manifest führt den Zustand mit: Wer ein Verzeichnis wegkopiert,
+        # soll ihm ansehen, was es einmal war.
+        assert registry.lies_stand(tmp_path, "spr_1", "erster")["status"] == "zurueckgezogen"
+        assert registry.lies_stand(tmp_path, "spr_1", "zweiter")["status"] == "active"
+
+    def test_gibt_auch_ein_grundmodell_frei(self, tmp_path: Path) -> None:
+        registry.schreibe_stand(tmp_path, {"id": "spr_1/erster", "status": "active"})
+
+        registry.gib_frei(tmp_path, "spr_1", "medium")
+
+        assert registry.freigegeben(tmp_path, "spr_1") == "medium"
+        # Kein Stand ist mehr freigegeben - `aktiver_stand` sagt das auch.
+        assert registry.aktiver_stand(tmp_path, "spr_1") is None
+        assert registry.lies_stand(tmp_path, "spr_1", "erster")["status"] == "zurueckgezogen"
+
+    def test_leere_kennung_nimmt_die_freigabe_zurueck(self, tmp_path: Path) -> None:
+        registry.schreibe_stand(tmp_path, {"id": "spr_1/erster", "status": "active"})
+        registry.gib_frei(tmp_path, "spr_1", "")
+
+        assert registry.freigegeben(tmp_path, "spr_1") == ""
+        assert registry.aktiver_stand(tmp_path, "spr_1") is None
+
+    def test_ohne_freigabedatei_zaehlen_die_manifeste(self, tmp_path: Path) -> None:
+        # Eine Installation, die vor der Freigabedatei schon einen Stand
+        # freigegeben hatte, soll nach dem Aufspielen nicht stumm auf das
+        # Grundmodell zurückfallen.
+        registry.schreibe_stand(tmp_path, {"id": "spr_1/erster", "status": "active"})
+
+        assert registry.freigegeben(tmp_path, "spr_1") == "spr_1/erster"
+
+    def test_die_freigabe_eines_anderen_gilt_hier_nicht(self, tmp_path: Path) -> None:
+        registry.gib_frei(tmp_path, "spr_1", "medium")
+        assert registry.freigegeben(tmp_path, "spr_2") == ""

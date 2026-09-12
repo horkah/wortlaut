@@ -8,6 +8,8 @@
     AUSWERTUNG_PFAD,
     GERAETE_PUNKTE,
     MEINE_DATEN_PFAD,
+    MODELLE_PFAD,
+    MODELLE_URL,
     SPRECHER_PFAD,
     ZUGANGSDATEN_PFAD,
     type Menuepunkt,
@@ -23,13 +25,19 @@
   import Zugangsdaten from './routes/Zugangsdaten.svelte';
 
   // Die Reihenfolge ist der Weg durch die Arbeit an einem Sprecher: Text
-  // holen, aufnehmen, nachsehen, was zusammengekommen ist. Die Einstellungen
-  // stehen bewusst nicht darin, sondern im Menü der Kopfleiste (warum:
-  // `apps.ts`).
+  // holen, aufnehmen, nachsehen, was zusammengekommen ist - und am Ende
+  // messen, was die Modelle daraus machen. Die Einstellungen stehen bewusst
+  // nicht darin, sondern im Menü der Kopfleiste (warum: `apps.ts`).
+  //
+  // Die Auswertung stand lange im Menü, als „Nachsehen" und nicht als
+  // Tätigkeit. Sie ist beides nicht: Sie ist der Schritt, der aus dem Korpus
+  // Zahlen macht, und ohne sie bleibt die Modellübersicht in „lernen" leer.
+  // Hierher gehört sie, ans Ende der Reihe.
   const MENUE: Menuepunkt[] = [
     { pfad: '/quelle', text: 'Textquelle' },
     { pfad: '/aufnahme', text: 'Aufnehmen' },
     { pfad: '/fortschritt', text: 'Fortschritt' },
+    { pfad: AUSWERTUNG_PFAD, text: 'Auswertung' },
   ];
 
   // Wer der Server in diesem Browser sieht, entscheidet, was es zu sehen gibt:
@@ -57,17 +65,16 @@
           // `MeineDaten.svelte`).
           zustand.route === MEINE_DATEN_PFAD
           ? MeineDaten
-          : // Die Auswertung misst den eigenen Korpus und braucht darum
-            // ebenfalls einen Sprecher - sie steht hier neben „Meine Daten",
-            // aus demselben Grund und mit derselben Bedingung.
-            zustand.route === AUSWERTUNG_PFAD && spricht
-            ? Auswertung
-            : !spricht
+          : !spricht
             ? Verwaltung
-            : ({
+            : // Die Reiter dieser App. Die Auswertung steht mit darin: Sie
+              // misst den eigenen Korpus und braucht darum einen Sprecher,
+              // genau wie das Aufnehmen selbst.
+              ({
                 '/quelle': Quelle,
                 '/aufnahme': Aufnahme,
                 '/fortschritt': Fortschritt,
+                [AUSWERTUNG_PFAD]: Auswertung,
               }[zustand.route] ?? Quelle),
   );
 
@@ -86,15 +93,16 @@
   // hinein, und ein Menü, das ihn erst nach erfolgreicher Anmeldung zeigt,
   // hätte die Tür hinter dem Schloss.
   //
-  // Die Auswertung steht direkt hinter „Meine Daten": Beide zeigen dieselben
-  // Aufnahmen, die eine als Bestand, die andere als Messung. Sie erscheint nur
-  // für einen Sprecher - gemessen wird ein Korpus, und den bringt der Zugang
-  // mit; Verwaltung und Aufsicht haben keinen eigenen.
+  // Die Modellübersicht liegt in „lernen" - dort entstehen die Stände, und
+  // dort wird eines der Modelle freigegeben. Sie steht trotzdem hier im Menü,
+  // mit voller Adresse statt Hash-Route (siehe `Menuepunkt` in `apps.ts`): Wer
+  // gerade die Auswertung gelesen hat, will von dort aus entscheiden, womit
+  // gesprochen wird, und nicht erst die App suchen.
   const uebergreifend = $derived([
     ...(spricht
       ? [
           { pfad: MEINE_DATEN_PFAD, text: 'Meine Daten' },
-          { pfad: AUSWERTUNG_PFAD, text: 'Auswertung' },
+          { pfad: MODELLE_PFAD, text: 'Modelle', href: MODELLE_URL },
         ]
       : [{ pfad: SPRECHER_PFAD, text: 'Sprecher' }]),
     { pfad: ZUGANGSDATEN_PFAD, text: 'Zugangsdaten' },
