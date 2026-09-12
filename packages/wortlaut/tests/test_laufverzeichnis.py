@@ -1,0 +1,143 @@
+"""Das Laufverzeichnis - die Nahtstelle zwischen „lernen" und der Karte.
+
+Zwei Prozesse in zwei Containern lesen und schreiben hier dieselben Dateien.
+Was dabei schiefgehen kann, geht leise schief: eine halb geschriebene Datei,
+eine Zeile, die noch keine ganze ist, ein Auftrag, den niemand mehr als offen
+erkennt. Genau das steht hier geprüft.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+from wortlaut import laeufe
+
+
+def _auftrag(datenverzeichnis: Path, job_id: str, sprecher: str = "spr_a") -> Path:
+    verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, job_id)
+    laeufe.schreibe_json(
+        verzeichnis / laeufe.AUFTRAG,
+        {"job_id": job_id, "sprecher_id": sprecher, "methode": "lora", "daten": "original"},
+    )
+    return verzeichnis
+
+
+class TestMuster:
+    def test_zwei_drittel_lernen_ein_drittel_prueft(self) -> None:
+        teile = [laeufe.teil_fuer(nummer) for nummer in range(len(laeufe.MUSTER))]
+        lernend = sum(1 for teil in teile if teil != laeufe.TEST)
+        pruefend = sum(1 for teil in teile if teil == laeufe.TEST)
+        assert lernend == 2 * pruefend
+
+    def test_wiederholt_sich_ohne_ende(self) -> None:
+        laenge = len(laeufe.MUSTER)
+        assert laeufe.teil_fuer(0) == laeufe.teil_fuer(laenge) == laeufe.teil_fuer(2 * laenge)
+
+    def test_die_validierung_ist_keine_testaufnahme(self) -> None:
+        # Sie steuert das Lernen und gehört deshalb dazu - aber sie ist nicht
+        # das, woran gemessen wird.
+        assert laeufe.VALIDIERUNG in laeufe.MUSTER
+        assert laeufe.VALIDIERUNG != laeufe.TEST
+
+
+class TestWarteschlange:
+    def test_ohne_zustand_ist_ein_auftrag_offen(self, tmp_path: Path) -> None:
+        _auftrag(tmp_path, "job_1")
+        offen = laeufe.naechster_offener(tmp_path)
+        assert offen is not None and offen.job_id == "job_1"
+
+    def test_mit_zustand_ist_er_es_nicht_mehr(self, tmp_path: Path) -> None:
+        verzeichnis = _auftrag(tmp_path, "job_1")
+        laeufe.schreibe_json(verzeichnis / laeufe.ZUSTAND, {"status": laeufe.LAEUFT})
+        assert laeufe.naechster_offener(tmp_path) is None
+
+    def test_der_aelteste_kommt_zuerst(self, tmp_path: Path) -> None:
+        # Die Kennungen sind zeitlich sortierbar (siehe `ids.py`), also ist die
+        # Reihenfolge im Verzeichnis die der Aufträge.
+        for job_id in ("job_01B", "job_01A", "job_01C"):
+            _auftrag(tmp_path, job_id)
+        offen = laeufe.naechster_offener(tmp_path)
+        assert offen is not None and offen.job_id == "job_01A"
+
+    def test_ein_verzeichnis_ohne_auftrag_wird_uebergangen(self, tmp_path: Path) -> None:
+        # Etwa ein halb angelegter Lauf: Der Auftrag wird zuletzt geschrieben,
+        # genau damit dieser Fall kein offener Lauf ist.
+        (laeufe.wurzel(tmp_path) / "job_halb").mkdir(parents=True)
+        assert laeufe.naechster_offener(tmp_path) is None
+
+    def test_ohne_wurzel_ist_die_liste_leer(self, tmp_path: Path) -> None:
+        assert laeufe.alle_laeufe(tmp_path) == []
+        assert laeufe.naechster_offener(tmp_path) is None
+
+    def test_nach_sprecher_gefiltert(self, tmp_path: Path) -> None:
+        _auftrag(tmp_path, "job_1", "spr_a")
+        _auftrag(tmp_path, "job_2", "spr_b")
+        assert [lauf.job_id for lauf in laeufe.alle_laeufe(tmp_path, "spr_b")] == ["job_2"]
+
+
+class TestGeteilteDateien:
+    def test_json_wird_nie_halb_gesehen(self, tmp_path: Path) -> None:
+        # Geschrieben wird daneben und dann umbenannt: Ein Leser sieht entweder
+        # den alten Stand oder den neuen, nie die Hälfte.
+        ziel = tmp_path / "zustand.json"
+        laeufe.schreibe_json(ziel, {"status": "alt"})
+        laeufe.schreibe_json(ziel, {"status": "neu"})
+        assert laeufe.lies_json(ziel) == {"status": "neu"}
+        assert not list(tmp_path.glob("*.neu"))
+
+    def test_eine_fehlende_datei_ist_kein_fehler(self, tmp_path: Path) -> None:
+        assert laeufe.lies_json(tmp_path / "gibtsnicht.json") is None
+
+    def test_eine_halbe_datei_ist_auch_keiner(self, tmp_path: Path) -> None:
+        # Kommt vor, wenn jemand von Hand hineingreift. Ein 500er in der
+        # Oberfläche wäre die schlechtere Antwort als „noch nichts da".
+        (tmp_path / "halb.json").write_text('{"status": "lae', encoding="utf-8")
+        assert laeufe.lies_json(tmp_path / "halb.json") is None
+
+    def test_eine_angefangene_zeile_wird_uebergangen(self, tmp_path: Path) -> None:
+        # Der Trainer schreibt, während die Oberfläche liest. Die letzte Zeile
+        # kann halb sein; sie kommt beim nächsten Takt vollständig.
+        pfad = tmp_path / "fortschritt.jsonl"
+        laeufe.haenge_an(pfad, {"art": "schritt", "schritt": 1})
+        laeufe.haenge_an(pfad, {"art": "schritt", "schritt": 2})
+        with pfad.open("a", encoding="utf-8") as datei:
+            datei.write('{"art": "schr')
+
+        gelesen = laeufe.lies_zeilen(pfad)
+        assert [zeile["schritt"] for zeile in gelesen] == [1, 2]
+
+    def test_fehlende_jsonl_ist_leer(self, tmp_path: Path) -> None:
+        assert laeufe.lies_zeilen(tmp_path / "gibtsnicht.jsonl") == []
+
+
+class TestManifest:
+    def test_kommt_zeilenweise(self, tmp_path: Path) -> None:
+        verzeichnis = _auftrag(tmp_path, "job_1")
+        with (verzeichnis / laeufe.MANIFEST).open("w", encoding="utf-8") as datei:
+            for nummer in range(3):
+                datei.write(json.dumps({"audio": f"a{nummer}.wav"}) + "\n")
+
+        assert [zeile["audio"] for zeile in laeufe.manifestzeilen(verzeichnis)] == [
+            "a0.wav",
+            "a1.wav",
+            "a2.wav",
+        ]
+
+    def test_ohne_manifest_kommt_nichts(self, tmp_path: Path) -> None:
+        verzeichnis = _auftrag(tmp_path, "job_1")
+        assert list(laeufe.manifestzeilen(verzeichnis)) == []
+
+
+class TestVokabular:
+    @pytest.mark.parametrize("name", laeufe.METHODEN)
+    def test_jede_methode_hat_ein_rezept(self, name: str) -> None:
+        # Ein Auftrag mit einer Methode ohne Rezept scheiterte erst im Trainer,
+        # Minuten nach dem Knopfdruck.
+        rezept = (
+            Path(__file__).resolve().parents[3]
+            / "apps/lernen/training/rezepte"
+            / f"whisper_{name}.yaml"
+        )
+        assert rezept.is_file(), rezept

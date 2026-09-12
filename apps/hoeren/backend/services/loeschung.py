@@ -9,10 +9,11 @@ niemandem auf - bis er auffällt.
 Beide benutzen deshalb dieses Modul.
 
 Warum hier der Blick über die App-Grenze geht: Die Diktate von „schreiben"
-sind Stimmaufnahmen derselben Person. Eine Löschung, die an der Grenze der App
-haltmacht, wäre unvollständig, und Unvollständigkeit ist bei Gesundheitsdaten
-kein Schönheitsfehler. Herübergeholt wird ausdrücklich nur die Layout-Funktion
-- ein reiner Pfadbau, der keine Umgebung liest und keinen Dienst startet.
+sind Stimmaufnahmen derselben Person, und was „lernen" führt, hängt an
+denselben Aufnahmen. Eine Löschung, die an der Grenze der App haltmacht, wäre
+unvollständig, und Unvollständigkeit ist bei Gesundheitsdaten kein
+Schönheitsfehler. Herübergeholt wird ausdrücklich nur die Layout-Funktion - ein
+reiner Pfadbau, der keine Umgebung liest und keinen Dienst startet.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from pathlib import Path
 
 from wortlaut import corpus, registry
 
+from apps.lernen.backend.config import sprecher_relpfad as lernen_relpfad
 from apps.schreiben.backend.config import sprecher_relpfad as diktate_relpfad
 
 # Schnappschüsse legt „lernen" an. Damit sie löschbar bleiben, ohne ihr
@@ -38,7 +40,15 @@ def datenverzeichnisse(sprecher_id: str) -> list[str]:
     Sicherung sind sie ohnehin nicht gemeint - ein Schnappschuss ist eine
     Kopie, und eine Kopie sichert man nicht mit.
     """
-    return [corpus.sprecher_relpfad(sprecher_id), diktate_relpfad(sprecher_id)]
+    return [
+        corpus.sprecher_relpfad(sprecher_id),
+        diktate_relpfad(sprecher_id),
+        # Was „lernen" über diesen Menschen führt: die Aufteilung seiner
+        # Aufnahmen in Lernen und Prüfen. Keine Stimmdaten, aber eine Liste
+        # von Aufnahmen, die es nicht mehr geben soll - und ein Verzeichnis,
+        # das sonst als einziges stehen bliebe.
+        lernen_relpfad(sprecher_id),
+    ]
 
 
 def ziele(datenverzeichnis: Path, sprecher_id: str) -> list[Path]:

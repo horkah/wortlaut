@@ -1,0 +1,35 @@
+# Volles Training: alle Gewichte von whisper-small werden angepasst.
+#
+# Die Zahlen hier sind auf den Fall dieses Projekts eingestellt und nicht auf
+# einen Datensatz: ein einzelner Mensch, wenige hundert kurze Sätze, eine
+# einzelne Karte mit 11 GB. Wer mehr hat, darf sie ändern - sie stehen in
+# dieser Datei und nicht im Quelltext, damit genau das ohne Neubau geht.
+name: Volles Training
+
+# Klein, und das ist der Kern dieses Rezepts. Bei einem vollen Training zieht
+# eine zu hohe Lernrate dem Modell in wenigen hundert Schritten alles aus, was
+# es vorher konnte ("katastrophales Vergessen") - es versteht dann diesen einen
+# Sprecher und sonst niemanden mehr, und bei fünfzig Aufnahmen nicht einmal ihn.
+lernrate: 1.0e-5
+warmlauf_schritte: 50
+
+# Acht Durchgänge über wenige hundert kurze Sätze. Mehr hilft selten: Die
+# Validierungskurve dreht bei so wenig Sprache meist im Bereich vier bis acht,
+# und danach lernt das Modell die Trainingssätze auswendig. Sichtbar ist das
+# in der Ansicht - die zweite Kurve steigt, während die erste fällt.
+epochen: 8
+
+# Zwei mal vier statt acht auf einmal: whisper-small mit Adam braucht im vollen
+# Training gut 8 GB, und die Aktivierungen kommen obendrauf. Die
+# Gradientenakkumulation hält die wirksame Stapelgröße bei acht, ohne den
+# Speicher zu sprengen.
+stapel: 4
+akkumulation: 2
+
+gewichtsverfall: 0.01
+# Halbe Genauigkeit. Auf Turing (RTX 2080 Ti) gibt es kein bfloat16, also
+# float16 - mit Verlustskalierung, die der Trainer selbst mitbringt.
+fp16: true
+# Gegen Ausreißer in einzelnen Stapeln, die bei kleinen Datensätzen häufiger
+# vorkommen als bei großen.
+gradientenbegrenzung: 1.0
