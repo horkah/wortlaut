@@ -8,7 +8,7 @@
  * hier eines trainiert, trainiert sein eigenes.
  */
 
-import { mitZugang } from '$ui/zugang';
+import { alsJson, api } from '$ui/api';
 export { setzeZugang, zugang } from '$ui/zugang';
 
 /** Ein Teil der Aufteilung, beschriftet vom Server. */
@@ -191,38 +191,10 @@ export type Diktatmodell = {
 /**
  * Alle Wege dieser App liegen unter ihrem Pfad, die API eingeschlossen.
  * `BASE_URL` ist das `base` aus der Vite-Konfiguration (`/lernen/`) - so steht
- * der Ort an einer Stelle und nicht zweimal.
+ * der Ort an einer Stelle und nicht zweimal. Wie eine Anfrage hinausgeht und
+ * wie ein Fehlschlag aussieht, steht in `$ui/api` - einmal für alle drei Apps.
  */
-const API = `${import.meta.env.BASE_URL}api`;
-
-export class ApiFehler extends Error {
-  constructor(
-    readonly status: number,
-    nachricht: string,
-  ) {
-    super(nachricht);
-  }
-}
-
-async function anfrage<T>(pfad: string, optionen: RequestInit = {}): Promise<T> {
-  const antwort = await fetch(`${API}${pfad}`, {
-    ...optionen,
-    headers: mitZugang(optionen.headers),
-  });
-  if (!antwort.ok) {
-    const rumpf = await antwort.json().catch(() => null);
-    throw new ApiFehler(antwort.status, rumpf?.detail ?? `Fehler ${antwort.status}`);
-  }
-  return antwort.status === 204 ? (undefined as T) : ((await antwort.json()) as T);
-}
-
-function alsJson(inhalt: unknown): RequestInit {
-  return {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(inhalt),
-  };
-}
+const { anfrage } = api(`${import.meta.env.BASE_URL}api`);
 
 export const aufteilung = () => anfrage<Aufteilung>('/aufteilung');
 
@@ -274,22 +246,23 @@ export type Wer = {
   name: string;
 };
 
-export async function werRuft(): Promise<Wer> {
-  // Ausdrücklich die API von „hören": Dort liegt der Korpus, dort wird der
-  // Zugang geprüft, und dort steht der Name. Eine eigene Auskunft hier wäre
-  // eine zweite Wahrheit über denselben Menschen.
-  const antwort = await fetch('/api/zugang', { headers: mitZugang() });
-  if (!antwort.ok) throw new ApiFehler(antwort.status, `Fehler ${antwort.status}`);
-  return (await antwort.json()) as Wer;
-}
+// Ausdrücklich die API von „hören": Dort liegt der Korpus, dort wird der
+// Zugang geprüft, und dort steht der Name. Eine eigene Auskunft hätte eine
+// zweite Wahrheit über denselben Menschen ergeben. Ein zweiter Ort ist seit
+// `$ui/api` eine zweite Zeile und kein zweiter Anlauf - und nebenbei kommt der
+// Satz, mit dem der Server einen Zugang abweist, jetzt auch hier an statt
+// eines bloßen „Fehler 401".
+const hoeren = api('/api');
 
-/** Der Pfad, unter dem „schreiben" unter der gemeinsamen Domain liegt. */
-const SCHREIBEN = '/schreiben/api/model';
+export const werRuft = () => hoeren.anfrage<Wer>('/zugang');
 
 /**
- * Wie in `werRuft` ausdrücklich die API einer anderen App - hier die von
- * „schreiben". Sie liegt unter derselben Domain, und der Zugang ist derselbe.
- *
+ * Wie bei `werRuft` die API einer anderen App - hier die von „schreiben". Sie
+ * liegt unter derselben Domain, und der Zugang ist derselbe.
+ */
+const schreiben = api('/schreiben/api');
+
+/**
  * Scheitert der Aufruf, gibt es `null` statt eines Fehlers: Diese App steht
  * auch ohne „schreiben" (wer nur trainiert und misst, braucht es nicht), und
  * eine Fehlermeldung für eine Karte, die dann schlicht entfällt, wäre eine
@@ -297,8 +270,7 @@ const SCHREIBEN = '/schreiben/api/model';
  */
 async function beiSchreiben<T>(optionen: RequestInit = {}): Promise<T | null> {
   try {
-    const antwort = await fetch(SCHREIBEN, { ...optionen, headers: mitZugang(optionen.headers) });
-    return antwort.ok ? ((await antwort.json()) as T) : null;
+    return await schreiben.anfrage<T>('/model', optionen);
   } catch {
     return null;
   }
@@ -307,8 +279,4 @@ async function beiSchreiben<T>(optionen: RequestInit = {}): Promise<T | null> {
 export const diktatmodell = () => beiSchreiben<Diktatmodell>();
 
 export const aussteuernSetzen = (aussteuern: boolean) =>
-  beiSchreiben<Diktatmodell>({
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ aussteuern }),
-  });
+  beiSchreiben<Diktatmodell>(alsJson({ aussteuern }, 'PUT'));

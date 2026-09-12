@@ -224,6 +224,7 @@ wortlaut/
 │       ├── Textvergleich.svelte   # Vorlage gegen Erkennung, Zeichen für Zeichen
 │       ├── diff.ts                # längste gemeinsame Teilfolge, zeichenweise
 │       ├── zugang.ts              # wo der Zugang liegt; ein Eintrag für alle
+│       ├── api.ts                 # wie eine Anfrage hinausgeht - für alle drei
 │       ├── apps.ts                # die drei Apps, ihre Ansichten, das Menü,
 │       │                          # und was davon sich ausblenden lässt
 │       ├── reiter.ts              # wo man zuletzt war, je App

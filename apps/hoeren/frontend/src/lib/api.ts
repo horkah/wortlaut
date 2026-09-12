@@ -11,7 +11,12 @@
  * eigenen - sie sieht über alle hinweg (siehe backend/api/admin.py).
  */
 
-import { mitZugang } from '$ui/zugang';
+import { alsJson, api } from '$ui/api';
+
+// Die Wege dieser App liegen auf der Wurzel - sie ist der Einstieg (siehe
+// `APPS` in `$ui/apps`). Wie eine Anfrage hinausgeht und wie ein Fehlschlag
+// aussieht, steht in `$ui/api` und damit einmal für alle drei Apps.
+const { hole, anfrage } = api('/api');
 
 export type Sprecher = {
   id: string;
@@ -72,46 +77,9 @@ export type Fortschritt = {
   marke_gut_s: number;
 };
 
-export class ApiFehler extends Error {
-  constructor(
-    readonly status: number,
-    nachricht: string,
-  ) {
-    super(nachricht);
-  }
-}
-
 // Wo der Zugang liegt und wie er an eine Anfrage kommt, steht in `$ui/zugang`:
-// Beide Apps lesen denselben Eintrag desselben Browsers (siehe dort).
+// Alle drei Apps lesen denselben Eintrag desselben Browsers (siehe dort).
 export { setzeZugang, zugang } from '$ui/zugang';
-
-/**
- * Eine Anfrage mit Zugang - die einzige Stelle, die ihn anhängt und einen
- * Fehlschlag auswertet. Zurück kommt die rohe Antwort, denn nicht alles hier
- * ist JSON: Texte und Archive gehen denselben Weg.
- */
-async function hole(pfad: string, optionen: RequestInit = {}): Promise<Response> {
-  const antwort = await fetch(`/api${pfad}`, { ...optionen, headers: mitZugang(optionen.headers) });
-  if (!antwort.ok) {
-    // FastAPI antwortet mit {"detail": …}; bei Netzfehlern bleibt der Status.
-    const rumpf = await antwort.json().catch(() => null);
-    throw new ApiFehler(antwort.status, rumpf?.detail ?? `Fehler ${antwort.status}`);
-  }
-  return antwort;
-}
-
-async function anfrage<T>(pfad: string, optionen: RequestInit = {}): Promise<T> {
-  const antwort = await hole(pfad, optionen);
-  return antwort.status === 204 ? (undefined as T) : ((await antwort.json()) as T);
-}
-
-function alsJson(rumpf: unknown): RequestInit {
-  return {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(rumpf),
-  };
-}
 
 // ── Wer ruft ────────────────────────────────────────────────────────────────
 
@@ -150,11 +118,7 @@ export const quelleLoeschen = (quelle: string) =>
 
 /** Stilllegen oder wieder aufnehmen; gibt die Quelle im neuen Zustand zurück. */
 export const quelleUmstellen = (quelle: string, aktiv: boolean) =>
-  anfrage<Quelle>(`/sources/${quelle}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ aktiv }),
-  });
+  anfrage<Quelle>(`/sources/${quelle}`, alsJson({ aktiv }, 'PATCH'));
 
 /**
  * Der geschnittene Text einer Quelle als Klartext.
@@ -282,11 +246,7 @@ export const aufsichtAufnahmen = (sprecher: string, ab = 0, anzahl = 10) =>
   anfrage<Aufnahmenseite>(`/admin/speakers/${sprecher}/recordings?ab=${ab}&anzahl=${anzahl}`);
 
 export const sprecherUmbenennen = (sprecher: string, name: string) =>
-  anfrage<Uebersicht>(`/admin/speakers/${sprecher}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
-  });
+  anfrage<Uebersicht>(`/admin/speakers/${sprecher}`, alsJson({ name }, 'PATCH'));
 
 /** Ob eine PIN gesetzt ist - nie die PIN selbst; siehe `Uebersicht.pin_gesetzt`. */
 export type PinStand = { gesetzt: boolean };
@@ -297,11 +257,7 @@ export type PinStand = { gesetzt: boolean };
  * vergessen hat.
  */
 export const pinSetzenAdmin = (sprecher: string, pin: string | null) =>
-  anfrage<PinStand>(`/admin/speakers/${sprecher}/pin`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pin }),
-  });
+  anfrage<PinStand>(`/admin/speakers/${sprecher}/pin`, alsJson({ pin }, 'PATCH'));
 
 /**
  * Löschen verlangt die Kennung ein zweites Mal - einmal als Ziel, einmal als
@@ -397,11 +353,7 @@ function mitPin(pin?: string): RequestInit {
 export const pinStand = () => anfrage<PinStand>('/konto/pin');
 
 export const pinSetzen = (pin: string | null) =>
-  anfrage<PinStand>('/konto/pin', {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pin }),
-  });
+  anfrage<PinStand>('/konto/pin', alsJson({ pin }, 'PATCH'));
 
 export const meinKonto = (pin?: string) => anfrage<Konto>('/konto', mitPin(pin));
 
@@ -414,9 +366,10 @@ export const meineAufnahmen = (ab = 0, anzahl = 10, pin?: string) =>
 /** Sich selbst umbenennen - dieselbe Beschriftung, die die Aufsicht ändert. */
 export const michUmbenennen = (name: string, pin?: string) =>
   anfrage<Uebersicht>('/konto', {
-    method: 'PATCH',
+    ...alsJson({ name }, 'PATCH'),
+    // Die PIN kommt zu den Kopfzeilen von `alsJson` hinzu, nicht an ihre
+    // Stelle: Ohne `Content-Type` läse FastAPI den Rumpf nicht als JSON.
     headers: { 'Content-Type': 'application/json', ...(pin ? { 'X-Pin': pin } : {}) },
-    body: JSON.stringify({ name }),
   });
 
 /**

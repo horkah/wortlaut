@@ -10,8 +10,9 @@
  * Umbau ausschließt. Was der Browser aufbewahrt, ist allein der Zugang.
  */
 
+import { ApiFehler } from '$ui/api';
 import { nimmZugangAusLink } from '$ui/zugang';
-import { ApiFehler, werRuft } from './api';
+import { werRuft } from './api';
 
 const ZUFALL_SCHLUESSEL = 'wortlaut.zufall';
 
