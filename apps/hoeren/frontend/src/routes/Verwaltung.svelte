@@ -17,8 +17,8 @@
    */
   import { dauer } from '$ui/zeit';
   import KeinZugang from '$ui/KeinZugang.svelte';
+  import { ApiFehler } from '$ui/api';
   import {
-    ApiFehler,
     alleSprecher,
     sicherungGesamt,
     sprecherAnlegen,

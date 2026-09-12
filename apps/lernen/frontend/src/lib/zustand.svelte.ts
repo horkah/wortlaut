@@ -11,8 +11,9 @@
  * Link, drei Apps.
  */
 
+import { ApiFehler } from '$ui/api';
 import { nimmZugangAusLink } from '$ui/zugang';
-import { ApiFehler, werRuft } from './api';
+import { werRuft } from './api';
 
 function routeAusHash(): string {
   return window.location.hash.replace(/^#/, '') || '/';

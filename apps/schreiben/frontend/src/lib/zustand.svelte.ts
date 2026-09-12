@@ -19,8 +19,9 @@
  * diktieren, und die Oberfläche sagt das, statt an einer Wand aus 401ern zu
  * scheitern.
  */
+import { ApiFehler } from '$ui/api';
 import { nimmZugangAusLink } from '$ui/zugang';
-import { ApiFehler, modell, sitzungHolen, werRuft, type Modell, type Sitzung } from './api';
+import { modell, sitzungHolen, werRuft, type Modell, type Sitzung } from './api';
 
 const SITZUNG_SCHLUESSEL = 'wortlaut.diktat';
 
