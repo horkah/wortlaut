@@ -439,3 +439,47 @@ class TestRechenwerk:
         nachher = _laufe_bis_fertig(klient)
         assert nachher["erledigt"] == nachher["gesamt"]
         assert not [z for z in self._zeilen(sprecher) if z.rechenwerk == "cuda/float16"]
+
+
+class TestNichtsZuTun:
+    """Ein Knopf, der nichts tut, muss sagen, dass er nichts zu tun hatte.
+
+    Der Lauf ist wiederaufnehmbar: Er rechnet, was fehlt. Steht schon alles, ist
+    er fertig, bevor er anfängt - und für den Menschen davor sah das aus wie ein
+    Knopf, der kaputt ist: Der Fortschritt blieb, wo er war, und sonst geschah
+    nichts.
+    """
+
+    def test_ein_zweiter_start_meldet_dass_nichts_offen_war(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict
+    ) -> None:
+        antworten.update({"small": "irgendetwas", "medium": "irgendetwas"})
+        sprich()
+        fertig = _laufe_bis_fertig(klient)
+        assert fertig["erledigt"] == fertig["gesamt"] > 0
+
+        nochmal = klient.post("/api/auswertung/start").json()
+
+        # `laeuft` ist die Auskunft, an der die Ansicht das erkennt. Früher
+        # stand hier `True`, obwohl die Aufgabe nichts vorfand und sofort
+        # zurückkam - eine Angabe, auf die sich niemand verlassen konnte.
+        assert nochmal["laeuft"] is False
+        assert nochmal["erledigt"] == nochmal["gesamt"] == fertig["gesamt"]
+
+    def test_mit_einer_neuen_aufnahme_laeuft_er_wieder(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict
+    ) -> None:
+        antworten.update({"small": "irgendetwas", "medium": "irgendetwas"})
+        sprich()
+        _laufe_bis_fertig(klient)
+
+        sprich()
+        angestossen = klient.post("/api/auswertung/start").json()
+
+        assert angestossen["laeuft"] is True
+        assert _laufe_bis_fertig(klient)["erledigt"] == JE_AUFNAHME * 2
+
+    def test_ohne_aufnahmen_laeuft_ebenfalls_nichts(self, klient: TestClient) -> None:
+        angestossen = klient.post("/api/auswertung/start").json()
+        assert angestossen["laeuft"] is False
+        assert angestossen["gesamt"] == 0
