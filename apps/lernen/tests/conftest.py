@@ -31,6 +31,10 @@ from apps.lernen.backend.config import einstellungen as lernen_einstellungen
 from apps.lernen.backend.main import app as lernen_app
 
 TOKEN = "test-geheim"
+# Der Trainerschlüssel. Er steht hier und nicht in den einzelnen Tests, weil
+# ihn jeder Auftrag braucht - geprüft wird er dort, wo es um ihn geht
+# (`test_trainerschluessel.py`).
+TRAINERSCHLUESSEL = "test-trainer"
 
 
 @pytest.fixture
@@ -38,6 +42,7 @@ def _umgebung(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, wav_schreiben) ->
     monkeypatch.setenv("WORTLAUT_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("WORTLAUT_AUTH_TOKEN", TOKEN)
     monkeypatch.setenv("WORTLAUT_ADMIN_TOKEN", "test-aufsicht")
+    monkeypatch.setenv("WORTLAUT_TRAINER_KEY", TRAINERSCHLUESSEL)
     monkeypatch.setenv("WORTLAUT_LLM_PROVIDER", "")
     for leeren in (hoeren_einstellungen, lernen_einstellungen):
         leeren.cache_clear()
@@ -91,8 +96,17 @@ def hoeren(zugang: str) -> Iterator[TestClient]:
 
 @pytest.fixture
 def klient(zugang: str) -> Iterator[TestClient]:
-    """Der Klient von „lernen", mit demselben Zugang."""
-    with TestClient(lernen_app, headers={"Authorization": f"Bearer {zugang}"}) as klient:
+    """Der Klient von „lernen", mit demselben Zugang - und mit dem Trainerschlüssel.
+
+    Der Schlüssel hängt an jeder Anfrage, obwohl ihn nur eine braucht. Das ist
+    der bequeme Weg und der richtige: Er ist die Erlaubnis eines Menschen, nicht
+    das Merkmal eines Aufrufs, und ein Server, der ihn dort liest, wo er nichts
+    zu suchen hat, fiele in `test_trainerschluessel.py` auf.
+    """
+    with TestClient(
+        lernen_app,
+        headers={"Authorization": f"Bearer {zugang}", "X-Trainer-Key": TRAINERSCHLUESSEL},
+    ) as klient:
         yield klient
 
 

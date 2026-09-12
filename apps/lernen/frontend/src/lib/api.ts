@@ -96,6 +96,8 @@ export type Laufliste = {
   basismodell: string;
   bereit: boolean;
   hinweis: string;
+  /** Ob der Server vor einem Auftrag den Trainerschlüssel sehen will. */
+  schluessel_noetig: boolean;
   /** Wie viele brauchbare Aufnahmen es inzwischen gibt. */
   aufnahmen_jetzt: number;
   /** Wie viele davon der jüngste fertige Lauf noch nicht kannte. */
@@ -228,8 +230,20 @@ export const laeufe = () => anfrage<Laufliste>('/laeufe');
 
 export const lauf = (jobId: string) => anfrage<Laufeinzeln>(`/laeufe/${jobId}`);
 
-export const beauftrage = (methode: string, daten: string) =>
-  anfrage<Lauf>('/laeufe', alsJson({ methode, daten }));
+/**
+ * Einen Lauf beauftragen - die einzige Anfrage dieser App, die ein zweites
+ * Geheimnis trägt.
+ *
+ * Der Schlüssel steht in einem eigenen Kopf und nicht in `Authorization`:
+ * Dort liegt der Zugang des Sprechers, aus dem der Server ableitet, wessen
+ * Modell entsteht. Das eine gegen das andere zu tauschen hieße, entweder für
+ * niemanden zu trainieren oder ohne Erlaubnis.
+ */
+export const beauftrage = (methode: string, daten: string, schluessel: string) =>
+  anfrage<Lauf>('/laeufe', {
+    ...alsJson({ methode, daten }),
+    headers: { 'Content-Type': 'application/json', 'X-Trainer-Key': schluessel },
+  });
 
 export const brichAb = (jobId: string) =>
   anfrage<Lauf>(`/laeufe/${jobId}/abbruch`, { method: 'POST' });

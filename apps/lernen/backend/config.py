@@ -46,6 +46,29 @@ class Einstellungen(BaseSettings):
     # gemeinsam
     data_dir: Path = Path("./data")
 
+    # Wer ein Training anstoßen darf. Vorgelegt als `X-Trainer-Key`, geprüft
+    # allein vor `POST /lernen/api/laeufe` (siehe `api/laeufe.py`).
+    #
+    # Warum überhaupt ein zweites Geheimnis, wo doch schon ein Zugang vorliegt:
+    # Der Sprecherzugang sagt, **wessen** Modell entsteht - und das soll er
+    # weiter allein sagen (Grundentscheidung 3). Er sagt nichts darüber, ob
+    # dieser Mensch die Karte für Stunden belegen darf. Das sind zwei Fragen,
+    # und ein Zugang, der beide beantwortet, beantwortet die zweite immer mit
+    # ja: Jeder ausgegebene Link wäre ein Knopf, der Rechenzeit kostet, und
+    # zwar so oft, wie jemand darauf drückt.
+    #
+    # Leer heißt **abgeschaltet**, nicht offen - dieselbe Regel wie bei
+    # Verwaltung und Aufsicht in „hören" und aus demselben Grund: Keine
+    # Installation weiß, ob sie eine Entwicklungsinstallation ist, und ein
+    # vergessener Schlüssel darf nicht die großzügigste Einstellung sein. Die
+    # Oberfläche sagt dann, dass nicht trainiert werden kann, statt einen Knopf
+    # zu zeigen, der 401 antwortet.
+    #
+    # Was er **nicht** ist: eine Rolle. Er beschränkt genau einen Weg, den
+    # teuren. Zusehen, abbrechen, löschen und freigeben bleiben beim Sprecher -
+    # das kostet nichts und gehört dem, dessen Stimme darin steckt.
+    trainer_key: str = ""
+
     # Worauf trainiert wird. Fest auf `small` und nicht wählbar: Es ist die
     # kleinste Stufe, die ganze Sätze trifft, sie passt in den Speicher einer
     # einzelnen Karte, und sie ist zugleich die Reihe, gegen die in „hören"
