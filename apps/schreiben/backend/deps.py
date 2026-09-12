@@ -210,7 +210,7 @@ def _transkriptor(
     """
     from .services.modellwahl import gewaehlt
 
-    return transkriptor_fuer(sprecher_id, gewaehlt(db))
+    return transkriptor_fuer(sprecher_id, gewaehlt(db, einstellungen(), sprecher_id))
 
 
 # Kurzschreibweisen für die Signaturen der Endpunkte.

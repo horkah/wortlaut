@@ -20,6 +20,7 @@
     beauftrage as beauftrageLauf,
     brichAb,
     laeufe as ladeLaeufe,
+    loescheLauf,
     type Lauf,
     type Laufliste,
   } from '../lib/api';
@@ -33,6 +34,8 @@
   let daten = $state<Laufliste | null>(null);
   let fehler = $state('');
   let bestellt = $state('');
+  // Welcher Lauf gerade gelöscht wird - der Knopf sperrt sich so lange selbst.
+  let loescht = $state('');
 
   let methode = $state('lora');
   let datensatz = $state('original');
@@ -113,6 +116,47 @@
       await hole();
     } catch (ursache) {
       fehler = ursache instanceof Error ? ursache.message : String(ursache);
+    }
+  }
+
+  /**
+   * Einen Lauf löschen - ersatzlos, und das steht vorher in der Abfrage.
+   *
+   * Die Abfrage nennt, was verschwindet, und nicht nur „wirklich?". Ein
+   * fertiger Lauf hat ein Modell hervorgebracht, und das geht mit: Bliebe es
+   * stehen, zeigte es auf ein Verzeichnis, das es nicht mehr gibt, und die
+   * Frage, worauf es trainiert wurde, wäre nicht mehr zu beantworten. Wer das
+   * nicht weiß, bevor er bestätigt, erfährt es hinterher.
+   *
+   * Ein freigegebener Stand bekommt einen eigenen Satz dazu: Mit ihm ändert
+   * sich, womit in „schreiben" diktiert wird.
+   */
+  async function loesche(lauf: Lauf) {
+    const zeilen = [`${bezeichnung(lauf)} vom ${zeit(lauf.erstellt)} löschen?`, ''];
+    if (lauf.stand) {
+      zeilen.push(`Das Modell „${lauf.stand.version}" wird mitgelöscht.`);
+      if (lauf.stand.freigegeben) {
+        zeilen.push(
+          'Es ist gerade freigegeben - „schreiben" fällt danach auf das Grundmodell zurück, ' +
+            'bis ein anderer Stand freigegeben wird.',
+        );
+      }
+      zeilen.push('');
+    }
+    zeilen.push('Auftrag, Schnappschuss, Kurven und Protokoll verschwinden mit.');
+    zeilen.push('Das lässt sich nicht rückgängig machen.');
+
+    if (!confirm(zeilen.join('\n'))) return;
+
+    loescht = lauf.job_id;
+    try {
+      await loescheLauf(lauf.job_id);
+      await hole();
+      fehler = '';
+    } catch (ursache) {
+      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+    } finally {
+      loescht = '';
     }
   }
 
@@ -217,7 +261,40 @@
       <div class="karte lauf" class:offen={lauf.status === 'laeuft'}>
         <div class="kopfzeile">
           <p class="marke">{bezeichnung(lauf)}</p>
-          <span class="zustand {lauf.status}">{STATUS[lauf.status] ?? lauf.status}</span>
+          <span class="rechts">
+            <span class="zustand {lauf.status}">{STATUS[lauf.status] ?? lauf.status}</span>
+            <!-- Der Papierkorb sitzt in der Kopfzeile der Karte und nicht bei
+                 den Knöpfen darunter: Dort stehen die Wege weiter, hier der
+                 eine Weg hinaus. Beschriftet für Vorlesestimmen, denn ein
+                 Sinnbild allein sagt nichts. -->
+            <button
+              class="papierkorb"
+              title={lauf.loeschbar
+                ? 'Diesen Lauf löschen'
+                : 'Ein rechnender Lauf lässt sich nicht löschen'}
+              aria-label="Lauf {bezeichnung(lauf)} löschen"
+              disabled={!lauf.loeschbar || loescht === lauf.job_id}
+              onclick={() => loesche(lauf)}
+            >
+              <!-- Strich und Maß stehen als Attribute, nicht nur im
+                   Stylesheet: Die Linien haben keine Fläche, ein reiner `fill`
+                   zeichnet also nichts. Bliebe das CSS einmal aus, wäre der
+                   Knopf unsichtbar statt unschön. -->
+              <svg
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
+              </svg>
+            </button>
+          </span>
         </div>
 
         <p class="gedaempft klein">
@@ -357,9 +434,43 @@
     color: var(--akzent);
   }
 
+  .rechts {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
   .zustand {
     font-size: 0.85rem;
     color: var(--gedaempft);
+  }
+
+  /* Leise, bis man darauf zeigt: Der Weg hinaus soll zu finden, aber nicht das
+     Auffälligste an einer Karte sein. Die Fläche ist trotzdem groß genug für
+     einen Daumen. */
+  .papierkorb {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 0.35rem;
+    background: none;
+    color: var(--gedaempft);
+    cursor: pointer;
+  }
+
+  .papierkorb:hover:not(:disabled),
+  .papierkorb:focus-visible {
+    color: var(--fehler);
+    border-color: var(--rand);
+  }
+
+  .papierkorb:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
   }
 
   .zustand.gescheitert {

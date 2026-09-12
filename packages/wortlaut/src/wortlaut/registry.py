@@ -6,15 +6,16 @@
     └── checkpoint/                 Rohgewichte, optional
 
 Ein Modellstand ist damit ein Verzeichnis, das man kopieren, sichern und per
-`scp` verschieben kann. Geschrieben wird die Registry von „lernen" - die App
-gibt es noch nicht -, gelesen von „schreiben", das ohne einen Stand mit dem
-unveränderten Whisper-Modell arbeitet. Das Format ist die Nahtstelle zwischen
-beiden und gehört deshalb an genau eine Stelle.
+`scp` verschieben kann. Geschrieben wird die Registry von „lernen", gelesen von
+„schreiben", das ohne einen Stand mit dem unveränderten Whisper-Modell
+arbeitet. Das Format ist die Nahtstelle zwischen beiden und gehört deshalb an
+genau eine Stelle.
 """
 
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +52,36 @@ def alle_staende(datenverzeichnis: Path, sprecher_id: str) -> list[dict[str, Any
         for eintrag in sorted(wurzel.iterdir())
         if (eintrag / MANIFEST).is_file()
     ]
+
+
+def loesche_stand(datenverzeichnis: Path, sprecher_id: str, version: str) -> bool:
+    """Einen Modellstand vollständig entfernen; `False`, wenn es ihn nicht gab.
+
+    Das ganze Verzeichnis, nicht nur sein Manifest: Ein Stand ohne Manifest
+    wäre ein Gigabyte Gewichte, das niemand mehr zuordnen kann - und für jede
+    Abfrage hier unsichtbar, weil sie über das Manifest geht.
+    """
+    verzeichnis = stand_verzeichnis(datenverzeichnis, sprecher_id, version)
+    if not verzeichnis.is_dir():
+        return False
+    shutil.rmtree(verzeichnis)
+    return True
+
+
+def stand_zu_lauf(
+    datenverzeichnis: Path, sprecher_id: str, job_id: str
+) -> dict[str, Any] | None:
+    """Der Stand, den dieser Lauf hervorgebracht hat - falls er es tat.
+
+    Die Verbindung steht im Manifest (`job_id`) und nicht im Namen des
+    Verzeichnisses: Der Name nennt Zeit, Methode und Datensatz, weil man ihn
+    lesen können soll. Eine Kennung darin wäre für Menschen nutzlos und für
+    diese Abfrage nicht sicherer.
+    """
+    for stand in alle_staende(datenverzeichnis, sprecher_id):
+        if stand.get("job_id") == job_id:
+            return stand
+    return None
 
 
 def aktiver_stand(datenverzeichnis: Path, sprecher_id: str) -> dict[str, Any] | None:

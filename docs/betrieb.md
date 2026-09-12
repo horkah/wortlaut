@@ -363,6 +363,7 @@ GET    /lernen/api/laeufe                         die Liste, ohne Kurven
 POST   /lernen/api/laeufe                         { methode, daten }
 GET    /lernen/api/laeufe/{id}                    Kurven, Vergleich, Protokoll
 POST   /lernen/api/laeufe/{id}/abbruch            einen wartenden zurücknehmen
+DELETE /lernen/api/laeufe/{id}                    ersatzlos löschen, samt Modell
 GET    /lernen/api/modelle                        die fertigen Stände
 POST   /lernen/api/modelle/{version}/freigabe     freigeben, andere zurückziehen
 ```

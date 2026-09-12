@@ -136,3 +136,19 @@ class TestLoeschung:
         sprich(6)
         klient.post("/lernen/api/laeufe", json={"methode": "full", "daten": "original"})
         assert not loeschung.ohne_marke(datenverzeichnis)
+
+
+class TestLoeschenBleibtBeimEigenen:
+    def test_ein_fremder_lauf_laesst_sich_nicht_loeschen(
+        self, klient: TestClient, fremder: TestClient, quelle: str, sprich
+    ) -> None:
+        # Unbekannt und nicht „verboten": Wer nach einem fremden Verzeichnis
+        # fragt, bekommt nicht einmal die Auskunft, dass es existiert - und
+        # erst recht keine Gelegenheit, es wegzuräumen.
+        sprich(6)
+        meiner = klient.post(
+            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original"}
+        ).json()["job_id"]
+
+        assert fremder.delete(f"/lernen/api/laeufe/{meiner}").status_code == 404
+        assert klient.get(f"/lernen/api/laeufe/{meiner}").status_code == 200

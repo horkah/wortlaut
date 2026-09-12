@@ -57,10 +57,37 @@ def ist_stand(ref: str) -> bool:
     return TRENNER in ref
 
 
-def gewaehlt(db: Session) -> str:
-    """Was der Sprecher gewählt hat; leer heißt: nichts, es gilt die Vorgabe."""
+def gewaehlt(db: Session, konfiguration: Einstellungen, sprecher_id: str) -> str:
+    """Was der Sprecher gewählt hat; leer heißt: nichts, es gilt die Vorgabe.
+
+    Zeigt die Wahl auf einen Stand, den es nicht mehr gibt, gilt sie als nicht
+    getroffen - und die Zeile verschwindet. Das ist kein Verschweigen eines
+    Fehlers, sondern die Auflösung eines: „lernen" kann einen Lauf samt seinem
+    Modell löschen, und der Mensch, der das tut, ist derselbe, der hier
+    diktiert. Ihn danach vor einer App zu lassen, die an einem verschwundenen
+    Verzeichnis scheitert, wäre die schlechtere Antwort als „es gilt wieder
+    die Vorgabe".
+
+    Anders bei `WORTLAUT_MODELL_REF`: Was dort steht, hat niemand hier
+    gewählt, und ein Tippfehler in der Umgebung soll sichtbar bleiben (siehe
+    `deps.modellstand`).
+    """
     zeile = db.get(Modellwahl, 1)
-    return zeile.ref if zeile is not None else ""
+    if zeile is None:
+        return ""
+    if ist_stand(zeile.ref) and not _stand_vorhanden(konfiguration, zeile.ref):
+        db.delete(zeile)
+        db.commit()
+        return ""
+    return zeile.ref
+
+
+def _stand_vorhanden(konfiguration: Einstellungen, ref: str) -> bool:
+    sprecher_id, version = ref.split(TRENNER, 1)
+    return (
+        registry.stand_verzeichnis(konfiguration.data_dir, sprecher_id, version)
+        / registry.MANIFEST
+    ).is_file()
 
 
 def waehle(db: Session, ref: str) -> None:

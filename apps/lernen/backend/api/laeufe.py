@@ -11,6 +11,8 @@ werden - dieselbe Aufteilung wie in der Auswertung von „hören":
   Vergleich mit der Grundlinie.
 * `POST /lernen/api/laeufe`          einen Lauf beauftragen.
 * `POST /lernen/api/laeufe/{id}/abbruch`  einen wartenden zurücknehmen.
+* `DELETE /lernen/api/laeufe/{id}`   einen Lauf ersatzlos entfernen, samt dem
+  Modell, das aus ihm entstand.
 
 Gerechnet wird in keinem davon. Der Trainer ist ein anderer Container mit einer
 Karte darin; hier entsteht nur das Verzeichnis, an dem er ihn erkennt (siehe
@@ -22,6 +24,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from wortlaut import laeufe as lauf_layout
+
+from wortlaut import registry
 
 from ..config import einstellungen
 from ..deps import Datenbank, Korpus, SprecherId
@@ -79,6 +83,18 @@ class Bestellung(BaseModel):
     daten: str
 
 
+class StandHinweis(BaseModel):
+    """Was an einem Lauf hängt, bevor ihn jemand löscht.
+
+    Die Oberfläche fragt damit nicht noch einmal beim Server nach, was
+    verschwinden würde - sie hat es schon, als sie die Liste holte, und kann
+    es in die Sicherheitsabfrage schreiben.
+    """
+
+    version: str
+    freigegeben: bool
+
+
 class LaufAntwort(BaseModel):
     job_id: str
     sprecher_id: str
@@ -96,6 +112,12 @@ class LaufAntwort(BaseModel):
     zeilen: dict[str, int]
     version: str | None
     fehler: str | None
+    # Der Modellstand, der aus diesem Lauf hervorging - `null`, solange keiner
+    # entstanden ist. Er ginge beim Löschen mit.
+    stand: StandHinweis | None
+    # Ob sich dieser Lauf löschen lässt. Ein rechnender nicht: In sein
+    # Verzeichnis schreibt gerade ein anderer Container.
+    loeschbar: bool
 
 
 class PunktAntwort(BaseModel):
@@ -143,6 +165,18 @@ def _anteil(lauf: lauf_layout.Lauf) -> float | None:
     return min(1.0, float(schritt) / float(gesamt))
 
 
+def _stand_zu(lauf: lauf_layout.Lauf) -> StandHinweis | None:
+    stand = registry.stand_zu_lauf(
+        einstellungen().data_dir, lauf.sprecher_id, lauf.job_id
+    )
+    if stand is None:
+        return None
+    return StandHinweis(
+        version=str(stand.get("id", "/")).split("/", 1)[-1],
+        freigegeben=stand.get("status") == "active",
+    )
+
+
 def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
     return LaufAntwort(
         job_id=lauf.job_id,
@@ -158,6 +192,8 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         zeilen=dict(lauf.auftrag.get("zeilen", {})),
         version=lauf.zustand.get("version"),
         fehler=lauf.zustand.get("fehler"),
+        stand=_stand_zu(lauf),
+        loeschbar=lauf.status != lauf_layout.LAEUFT,
     )
 
 
@@ -265,6 +301,40 @@ def _punkt(zeile: dict) -> dict:
         "lernrate": zeile.get("lernrate"),
         "wer": zeile.get("wer"),
     }
+
+
+class GeloeschtAntwort(BaseModel):
+    job_id: str
+    # Die Version des mitgelöschten Modellstands; leer, wenn es keinen gab.
+    version: str
+    war_freigegeben: bool
+
+
+@router.delete("/{job_id}", response_model=GeloeschtAntwort)
+def loeschen(job_id: str, sprecher: SprecherId) -> GeloeschtAntwort:
+    """Einen Lauf ersatzlos entfernen - samt dem Modell, das aus ihm entstand.
+
+    Ersatzlos heißt ersatzlos: Es gibt keinen Papierkorb und keinen Weg
+    zurück. Die Sicherheitsabfrage steht in der Oberfläche und nennt vorher,
+    was verschwindet (`frontend/src/routes/Training.svelte`); hier wird nur
+    noch getan, was bestätigt wurde.
+
+    Warum das Modell mitgeht und die Aufteilung nicht, steht in
+    `services/auftraege.py`.
+    """
+    _hole(sprecher, job_id)  # 404, wenn er einem anderen gehört
+    try:
+        geloescht = auftraege.loesche(einstellungen().data_dir, sprecher, job_id)
+    except LookupError as ursache:
+        raise HTTPException(status_code=404, detail="Unbekannter Lauf.") from ursache
+    except RuntimeError as ursache:
+        raise HTTPException(status_code=409, detail=str(ursache)) from ursache
+
+    return GeloeschtAntwort(
+        job_id=geloescht.job_id,
+        version=geloescht.version,
+        war_freigegeben=geloescht.war_freigegeben,
+    )
 
 
 @router.post("/{job_id}/abbruch", response_model=LaufAntwort)

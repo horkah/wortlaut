@@ -166,7 +166,7 @@ def _antwort(sprecher: str, wahl: str) -> ModellAntwort:
 
 @router.get("", response_model=ModellAntwort)
 def modell(sprecher: SprecherId, db: Datenbank) -> ModellAntwort:
-    return _antwort(sprecher, modellwahl.gewaehlt(db))
+    return _antwort(sprecher, modellwahl.gewaehlt(db, einstellungen(), sprecher))
 
 
 @router.put("", response_model=ModellAntwort)

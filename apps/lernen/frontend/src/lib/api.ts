@@ -45,6 +45,12 @@ export type Wahl = {
   erklaerung: string;
 };
 
+/** Der Modellstand, der aus einem Lauf hervorging - er ginge beim Löschen mit. */
+export type StandHinweis = {
+  version: string;
+  freigegeben: boolean;
+};
+
 export type Lauf = {
   job_id: string;
   sprecher_id: string;
@@ -61,6 +67,10 @@ export type Lauf = {
   zeilen: Record<string, number>;
   version: string | null;
   fehler: string | null;
+  /** `null`, solange kein Modell aus diesem Lauf entstanden ist. */
+  stand: StandHinweis | null;
+  /** Ein rechnender Lauf lässt sich nicht löschen - ein anderer Container schreibt dort. */
+  loeschbar: boolean;
 };
 
 export type Punkt = {
@@ -161,6 +171,13 @@ export const beauftrage = (methode: string, daten: string) =>
 
 export const brichAb = (jobId: string) =>
   anfrage<Lauf>(`/laeufe/${jobId}/abbruch`, { method: 'POST' });
+
+/** Einen Lauf ersatzlos entfernen - samt dem Modell, das aus ihm entstand. */
+export const loescheLauf = (jobId: string) =>
+  anfrage<{ job_id: string; version: string; war_freigegeben: boolean }>(
+    `/laeufe/${jobId}`,
+    { method: 'DELETE' },
+  );
 
 export const modelle = () => anfrage<{ staende: Modellstand[] }>('/modelle');
 
