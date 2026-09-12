@@ -19,12 +19,29 @@ dependencies = [
     "httpx>=0.27",              # „schreiben": Postausgang und entfernte ASR
 ]
 
-# faster-whisper zieht CTranslate2 und Modelldateien nach und wird allein von
-# „schreiben" im Betrieb mit WORTLAUT_ASR=local gebraucht - für Tests und für
-# „hören" wäre das unnötiger Ballast. Installiert mit:
+# faster-whisper zieht CTranslate2 und Modelldateien nach und wird im Betrieb
+# von „schreiben" (Diktat) und „hören" (Auswertung) gebraucht - für Tests wäre
+# das unnötiger Ballast. Installiert mit:
 #     uv sync --extra asr
+#
+# `gpu` legt die CUDA-Bibliotheken daneben, die CTranslate2 braucht, um eine
+# Karte zu benutzen: cuBLAS und cuDNN, als Räder von PyPI statt als Systempaket.
+# Sie sind ein eigenes Extra und keine feste Abhängigkeit, denn sie wiegen gut
+# zwei Gigabyte, und ein Wirt ohne Karte hat nichts davon - dort fällt die
+# Erkennung ohnehin auf den Prozessor zurück (`wortlaut/rechenwerk.py`).
+#
+# Torch steht hier weiterhin **nicht**: Das braucht nur das Training, und das
+# läuft in einem eigenen Abbild (`apps/lernen/training/Dockerfile`).
+#     uv sync --extra asr --extra gpu
 [project.optional-dependencies]
 asr = ["faster-whisper>=1.1"]
+gpu = [
+    # Die Fassungen sind an CTranslate2 4.5+ gebunden: Es verlangt cuDNN 9 und
+    # CUDA 12. Eine ältere cuDNN lädt, meldet aber beim ersten Erkennen einen
+    # fehlenden Symbolnamen - ein Fehler, der erst zur Laufzeit auftritt.
+    "nvidia-cublas-cu12>=12.3",
+    "nvidia-cudnn-cu12>=9.0,<10",
+]
 
 # Nur für Entwicklung und Tests, nicht im Betrieb.
 [dependency-groups]

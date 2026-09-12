@@ -19,6 +19,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from wortlaut import rechenwerk
 
 # Die eigene Ablage dieser App: die Aufteilung in Lernen und Prüfen, je
 # Sprecher eine Datei.
@@ -57,9 +58,25 @@ class Einstellungen(BaseSettings):
     # stammen ihre Zahlen. Zwei getrennte Listen wären zwei Gelegenheiten,
     # sie auseinanderlaufen zu lassen - und eine Tabellenzeile ohne Messung.
     auswertung_modelle: str = "base,small,medium,large-v3"
-    # `cuda` oder `cpu`. Voreinstellung ist die Karte: Ein Feintuning von
-    # whisper-small auf einer CPU dauert Tage statt Stunden.
+    # Worauf **trainiert** wird - `cuda` oder `cpu`, und die Voreinstellung ist
+    # die Karte: Ein Feintuning von whisper-small auf einem Prozessor dauert
+    # Tage statt Stunden. Das ist etwas anderes als `geraet` unten: Dort geht
+    # es ums Erkennen, hier ums Lernen, und nur das Erkennen darf ausweichen.
     lernen_geraet: str = "cuda"
+
+    # Worauf gerechnet wird - dieselbe Einstellung in allen drei Apps und beim
+    # Trainer, und das ist der ganze Sinn: „schreiben", die Auswertung in
+    # „hören" und die Bewertung eines Laufs schicken dieselben Modelle über
+    # dieselben Aufnahmen, und ihre Rechenzeiten sind nur vergleichbar, wenn
+    # sie auf demselben Rechenwerk entstanden sind. Was `auto` bedeutet und
+    # warum auf der Karte `int8_float16` gilt, steht in
+    # `wortlaut/rechenwerk.py`.
+    geraet: str = rechenwerk.AUTO  # auto | cuda | cpu
+    rechenart: str = rechenwerk.AUTO  # auto | int8 | int8_float16 | float16 | float32
+
+    def rechenwerk(self) -> tuple[str, str]:
+        """`(geraet, rechenart)` - aufgelöst, `auto` beantwortet."""
+        return rechenwerk.waehle(self.geraet, self.rechenart)
     # Wie oft der Trainer nach einem neuen Auftrag sieht. Sekunden. Kurz genug,
     # dass ein Knopfdruck sich wie einer anfühlt; lang genug, dass ein
     # wartender Container nichts tut.

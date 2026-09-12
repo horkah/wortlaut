@@ -34,9 +34,31 @@ Kein Mehrsprecher-Mischtraining. Ein Sprecher, ein Basismodell, eine Versionsket
 Bei stark abweichender Aussprache reicht die Kapazität von LoRA oft nicht, bei
 Dialekt schon. Beides über dieselbe Rezeptdatei, nicht über zwei Codepfade.
 
-**5. GPU-Arbeit läuft nie im Web-Prozess und ist austauschbar.**
-Transkription und Training haben je eine lokale und eine entfernte Implementierung.
-Der Server braucht keine GPU; er kann eine haben.
+**5. Was Stunden dauert, läuft in einem eigenen Container; was Sekunden
+dauert, läuft dort, wo die Anfrage ist - auf der Karte, wenn eine da ist.**
+*(Überarbeitet. Vorher stand hier: „GPU-Arbeit läuft nie im Web-Prozess.")*
+
+Die alte Fassung zog die Grenze am Gerät, und das war die falsche Achse.
+Gemeint war das **Training**: Stunden Rechenzeit, Gigabyte an Abhängigkeiten,
+ein Prozess, der einen Webdienst nicht neu starten lassen darf. Das bleibt, wo
+es war - eigener Container, eigenes Abbild, verbunden über ein Verzeichnis
+(`data/snapshots/`).
+
+Was die Regel mitgenommen hat, ohne es zu meinen, war die **Erkennung**. Die
+dauert Sekunden, hängt an einer laufenden Anfrage und hat im selben Rechner
+eine Karte ungenutzt liegen lassen: vier Sekunden je Diktat statt einer
+Viertelsekunde. Sie läuft deshalb jetzt dort, wo die Anfrage ist, und nimmt die
+Karte, wenn eine da ist.
+
+Worauf gerechnet wird, entscheidet **eine** Stelle
+(`wortlaut/rechenwerk.py`) - für „schreiben", für die Auswertung in „hören" und
+für die Bewertung eines Laufs. Nicht aus Ordnungsliebe: Diese drei messen
+dieselben Modelle, und ihre Rechenzeiten stehen in einer Tabelle nebeneinander.
+Sie sind nur vergleichbar, wenn sie von derselben Maschine kommen.
+
+Austauschbar bleibt beides: Transkription hat eine lokale und eine entfernte
+Umsetzung, und ohne Karte fällt die lokale auf den Prozessor zurück - langsamer
+und unverändert richtig.
 
 **6. Genau ein Schreiber pro Datenbestand.**
 `hören` schreibt den Korpus, `lernen` liest ihn. `lernen` schreibt die
@@ -161,6 +183,7 @@ wortlaut/
 │   │   │   ├── audio.py           # 16 kHz mono, Pegel, Dauer
 │   │   │   ├── corpus.py          # Korpus-Layout lesen und schreiben
 │   │   │   ├── registry.py        # Modellstände lesen und schreiben
+│   │   │   ├── rechenwerk.py      # worauf gerechnet wird - eine Antwort für alle
 │   │   │   ├── storage.py         # Blob-Ablage: lokal (S3 vorbereitet)
 │   │   │   ├── sicherung.py       # Sicherungsarchiv schreiben und einspielen
 │   │   │   ├── db.py              # SQLite-Verbindung, Migrationen, Sicherungskopie
@@ -407,6 +430,7 @@ die Lautstärke jedes Abtastwerts, nicht ihre Zahl.
 | `prompts` | eine Sprecheinheit, Herkunft, fortlaufende Position |
 | `sessions` | Aufnahmesitzung: begonnen, zuletzt aktiv |
 | `recordings` | Blob-Referenz, Messwerte, Modus, Status, Kennung aus „schreiben" |
+| `erkennungen` | je Aufnahme, Modell und Fassung eine Messung - Text, Fehlerraten, Rechenzeit und das Rechenwerk, auf dem sie entstand |
 
 **lernen**
 
@@ -466,7 +490,7 @@ Zwei Spalten tragen mehr Bedeutung, als ihr Name verrät:
 | Frontend | Svelte 5, Vite, TypeScript | kompiliert weg, kein Laufzeit-Framework auf schwachen Geräten |
 | Aufnahme | `MediaRecorder` (Opus), serverseitig ffmpeg → 16 kHz mono WAV | Browser liefern kein WAV, Konvertierung an einer Stelle |
 | Vorlesen | Web Speech API | deutsche Stimmen fast überall vorhanden, keine Infrastruktur, keine Latenz - dafür schwankt die Qualität je nach Betriebssystem stark, Stimme und Tempo sind deshalb einstellbar |
-| ASR | faster-whisper (CTranslate2) | schnellste brauchbare Whisper-Laufzeit auf CPU und kleiner GPU |
+| ASR | faster-whisper (CTranslate2), auf der Karte `int8_float16`, sonst `int8` | schnellste brauchbare Whisper-Laufzeit auf beidem; die halbe Darstellung, weil vier Modelle gleichzeitig im Speicher liegen und sich die Karte mit Training und Sprachmodell teilen |
 | ASR entfernt | OpenAI-kompatibler Endpunkt | ein Adapter deckt mehrere Anbieter ab |
 | Training | HF Transformers, Datasets, Accelerate | Standardrezept für Whisper, breit dokumentiert |
 | Diagramme | Apache ECharts, nachgeladen und nur mit den eingetragenen Teilen | Finger und Maus gleichermaßen, gemischte Reihen in einem Bild, und `connect` koppelt mehrere Diagramme aneinander - der Punkt, an dem die schlankeren Bibliotheken aufhören |

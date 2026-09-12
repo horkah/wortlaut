@@ -80,7 +80,8 @@ nicht geben kann, misst nicht - es wirbt.
 
 **Die Stimme bleibt, wo sie ist.** Aufnahmen einer Person mit Sprechstörung
 sind Gesundheitsdaten nach Art. 9 DSGVO. Deshalb läuft alles auf der eigenen
-Maschine: Erkennung, Training, Textquelle. Die Adapter für fremde Dienste sind
+Maschine - Erkennung, Training und Textquelle, alle drei auf derselben Karte,
+wenn eine da ist. Die Adapter für fremde Dienste sind
 bewusste Schalter mit lokaler Voreinstellung, und der Trainings-Container hängt
 an keinem Netzweg - Stimmdaten können ihn auf keinem Weg verlassen, den jemand
 aus Versehen öffnet.
@@ -112,7 +113,8 @@ steht in [Der Entwurf](docs/architektur.md#bewusst-nicht-enthalten).
 ## Ausprobieren
 
 Gebraucht werden Python 3.12 mit [uv](https://docs.astral.sh/uv/), Node 20 und
-**ffmpeg im Pfad**. Eine Grafikkarte braucht nur das Training.
+**ffmpeg im Pfad**. Ohne Grafikkarte läuft alles, nur langsamer: Erkennen
+dauert dann Sekunden statt Sekundenbruchteile, Trainieren Tage statt Stunden.
 
 ```bash
 cp .env.example .env

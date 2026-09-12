@@ -376,3 +376,66 @@ class TestVergleich:
 def _erste(klient: TestClient) -> str:
     """Die Kennung der ersten (ältesten) brauchbaren Aufnahme."""
     return klient.get("/api/konto/recordings").json()["aufnahmen"][-1]["id"]
+
+
+class TestRechenwerk:
+    """Jede Messung sagt, worauf sie entstand - und was anderswo entstand, gilt nicht.
+
+    Die Rechenzeit hängt an der Maschine und nicht am Modell: Zwischen Karte
+    und Prozessor liegt beim Erkennen das Zehn- bis Zwanzigfache. Eine Spalte,
+    die beides mischt, sagt weniger als keine.
+    """
+
+    def _zeilen(self, sprecher: str):
+        from sqlalchemy import select
+        from sqlalchemy.orm import Session
+
+        from apps.hoeren.backend.db.models import Erkennung
+        from apps.hoeren.backend.deps import engine_fuer
+
+        with Session(engine_fuer(sprecher)) as db:
+            return list(db.scalars(select(Erkennung)))
+
+    def test_jede_zeile_traegt_ihr_rechenwerk(
+        self, klient: TestClient, sprecher: str, quelle: str, sprich, antworten: dict
+    ) -> None:
+        antworten.update({"small": "irgendetwas", "medium": "irgendetwas"})
+        sprich()
+        _laufe_bis_fertig(klient)
+
+        werke = {zeile.rechenwerk for zeile in self._zeilen(sprecher)}
+
+        # Der Ersatz für Whisper meldet kein eigenes Rechenwerk - dann gilt das
+        # des Laufs. Leer wäre der Fehler: Eine solche Zeile gälte bei jedem
+        # weiteren Lauf aufs Neue als offen, und der Lauf käme nie zum Ende.
+        assert werke and "" not in werke
+
+    def test_was_auf_einem_anderen_rechenwerk_entstand_wird_neu_gerechnet(
+        self, klient: TestClient, sprecher: str, quelle: str, sprich, antworten: dict
+    ) -> None:
+        from sqlalchemy import update
+        from sqlalchemy.orm import Session
+
+        from apps.hoeren.backend.db.models import Erkennung
+        from apps.hoeren.backend.deps import engine_fuer
+
+        antworten.update({"small": "irgendetwas", "medium": "irgendetwas"})
+        sprich()
+        vorher = _laufe_bis_fertig(klient)
+        assert vorher["erledigt"] == vorher["gesamt"] > 0
+
+        # So sieht der Bestand aus, nachdem jemand von der Karte auf den
+        # Prozessor gewechselt ist - oder umgekehrt.
+        with Session(engine_fuer(sprecher)) as db:
+            db.execute(update(Erkennung).values(rechenwerk="cuda/float16"))
+            db.commit()
+
+        offen = klient.get("/api/auswertung").json()["stand"]
+        assert offen["erledigt"] == 0
+        assert offen["gesamt"] == vorher["gesamt"]
+
+        # Und der nächste Lauf holt sie wirklich zurück, statt sie liegen zu
+        # lassen: Sonst stünden zwei Maßstäbe in einer Spalte.
+        nachher = _laufe_bis_fertig(klient)
+        assert nachher["erledigt"] == nachher["gesamt"]
+        assert not [z for z in self._zeilen(sprecher) if z.rechenwerk == "cuda/float16"]

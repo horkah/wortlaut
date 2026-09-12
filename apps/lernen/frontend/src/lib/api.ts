@@ -146,6 +146,8 @@ export type Modell = {
   version: string | null;
   job_id: string | null;
   freigegeben: boolean;
+  /** Worauf gemessen wurde: `cuda/int8_float16`, `cpu/int8`, leer = unbekannt oder gemischt. */
+  rechenwerk: string;
   /** Fassung → Maß → Wert. Leer heißt: auf den gemeinsamen Testaufnahmen nichts. */
   werte: Record<string, Record<string, number>>;
   /** Fassung → wie viele Messeinheiten in diesem Mittel stecken. */
@@ -161,6 +163,8 @@ export type Modelluebersicht = {
   gemeinsame_einheiten: number;
   /** `false` heißt: Die Zahlen stehen nicht auf demselben Boden. */
   vergleichbar: boolean;
+  /** `false` heißt: Die Rechenzeiten stammen von verschiedenen Maschinen. */
+  zeit_vergleichbar: boolean;
   hinweis: string;
 };
 

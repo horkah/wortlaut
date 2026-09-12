@@ -23,6 +23,13 @@ liegen längst vor, und beide stammen aus `wortlaut/metriken.py`:
 Ein drittes Mal zu messen wäre eine dritte Gelegenheit, es anders zu machen -
 anderes Gerät, andere Quantisierung, andere Textangleichung.
 
+**Die Rechenzeit ist nur innerhalb desselben Rechenwerks eine Auskunft.** Sie
+hängt an der Maschine, nicht am Modell: Dasselbe whisper-small braucht auf
+einem Prozessor das Zehn- bis Zwanzigfache dessen, was es auf einer Karte
+braucht. Jede Messung trägt deshalb mit, worauf sie entstand
+(`wortlaut/rechenwerk.py`), und die Ansicht vergleicht die Spalte nur, wenn
+alle dasselbe nennen.
+
 **Verglichen wird nur, was alle gemessen haben.** Die Einheit ist nicht die
 Aufnahme, sondern das Paar aus Aufnahme und Fassung. Aus allen Modellen, die
 überhaupt etwas gemessen haben, wird die Schnittmenge dieser Paare gebildet,
@@ -68,6 +75,17 @@ class Messreihe:
     """Was ein Modell auf den Testaufnahmen erreicht hat, Einheit für Einheit."""
 
     werte: dict[Einheit, dict[str, float]] = field(default_factory=dict)
+    # Worauf gemessen wurde - `cuda/int8_float16`, `cpu/int8`, leer für Zeilen
+    # von vor `008_rechenwerk.sql`. Eine Menge und kein einzelner Wert: Ein
+    # Lauf, der auf halber Strecke von der Karte auf den Prozessor ausgewichen
+    # ist, hat zwei, und dann ist seine Rechenzeit kein Mittel, sondern eine
+    # Mischung. Sichtbar zu machen ist das besser, als es zu glätten.
+    werke: set[str] = field(default_factory=set)
+
+    @property
+    def werk(self) -> str:
+        """Das eine Rechenwerk dieser Reihe - leer, wenn es nicht eines ist."""
+        return next(iter(self.werke)) if len(self.werke) == 1 else ''
 
     def mittel(self, einheiten: set[Einheit]) -> dict[str, dict[str, float]]:
         """Die Mittel je Fassung und über alles - über genau diese Einheiten.
@@ -133,6 +151,7 @@ def grundmodelle(korpus: Session, namen: list[str], aufnahmen: set[str]) -> dict
         reihen[zeile.modell].werte[(zeile.recording_id, zeile.variante)] = {
             mass: float(getattr(zeile, mass)) for mass in MASSE
         }
+        reihen[zeile.modell].werke.add(zeile.rechenwerk)
     return reihen
 
 
@@ -152,6 +171,7 @@ def stand(lauf: laeufe.Lauf, aufnahmen: set[str]) -> Messreihe:
         reihe.werte[(kennung, fassung)] = {
             mass: float(zeile[mass]) for mass in MASSE if zeile.get(mass) is not None
         }
+        reihe.werke.add(str(zeile.get("rechenwerk", "")))
     return reihe
 
 

@@ -87,12 +87,25 @@
     }),
   );
 
+  /**
+   * Ob eine Spalte überhaupt verglichen werden darf.
+   *
+   * Alle dürfen es - außer der Rechenzeit, und die nur dann, wenn jede Zeile
+   * dasselbe Rechenwerk nennt. Sie hängt an der Maschine und nicht am Modell:
+   * Dasselbe whisper-small braucht auf einem Prozessor das Zehn- bis
+   * Zwanzigfache dessen, was es auf einer Karte braucht. Eine Bestmarke über
+   * zwei Maschinen hinweg wäre keine Auskunft, sondern eine Falle.
+   */
+  function vergleichbar(mass: Mass): boolean {
+    return mass.schluessel !== 'rechenzeit_s' || (uebersicht?.zeit_vergleichbar ?? false);
+  }
+
   /** Der beste Wert einer Spalte - oder `null`, wenn niemand ihn gemessen hat. */
   function bester(mass: Mass): number | null {
     const werte = (uebersicht?.modelle ?? [])
       .map((modell) => wert(modell, mass.schluessel))
       .filter((eintrag): eintrag is number => eintrag !== null);
-    if (!werte.length) return null;
+    if (!werte.length || !vergleichbar(mass)) return null;
     return mass.hoch_ist_gut ? Math.max(...werte) : Math.min(...werte);
   }
 
@@ -296,9 +309,21 @@
                 {#if roh === null}
                   <span class="gedaempft" title="Auf diesen Aufnahmen nicht gemessen.">–</span>
                 {:else}
-                  <span class:beste={roh === beste} title={roh === beste ? 'Bester Wert dieser Spalte' : undefined}>
+                  <span
+                    class:beste={roh === beste}
+                    title={roh === beste ? 'Bester Wert dieser Spalte' : undefined}
+                  >
                     {zahl(roh, mass)}
                   </span>
+                  <!-- Nur an der Rechenzeit und nur, wenn sie nicht vergleichbar
+                       ist: Dann sagt die Marke, worauf sie entstand, statt die
+                       Zahl kommentarlos neben eine von einer anderen Maschine zu
+                       stellen. -->
+                  {#if mass.schluessel === 'rechenzeit_s' && !vergleichbar(mass)}
+                    <span class="werk" title="Gemessen auf {modell.rechenwerk || 'unbekanntem Rechenwerk'}">
+                      {modell.rechenwerk ? modell.rechenwerk.split('/')[0] : '?'}
+                    </span>
+                  {/if}
                 {/if}
               </td>
             {/each}
@@ -321,6 +346,16 @@
       </tbody>
     </table>
   </div>
+
+  {#if !uebersicht.zeit_vergleichbar && uebersicht.modelle.some((m) => m.werte[fassung])}
+    <p class="warnung">
+      Die Rechenzeiten stammen von verschiedenen Maschinen und sind untereinander
+      keine Auskunft: Dasselbe Modell braucht auf einem Prozessor das Zehn- bis
+      Zwanzigfache dessen, was es auf einer Karte braucht. Die Marke an der Zahl sagt,
+      worauf sie entstand. Ein erneuter Lauf der Auswertung in „hören“ misst alles auf
+      demselben Rechenwerk nach - auf der Karte sind das Minuten.
+    </p>
+  {/if}
 
   <p class="gedaempft klein">
     Freigeben zieht jedes andere Modell zurück - es gilt immer höchstens eines, und es gilt sofort;
@@ -522,6 +557,17 @@
   .beste {
     font-weight: 700;
     color: var(--akzent);
+  }
+
+  /* Die Maschine hinter einer Rechenzeit, wenn sie nicht zu den übrigen passt.
+     Klein und blass: Sie ist ein Vorbehalt zur Zahl, nicht ihr Gegenstand. */
+  .werk {
+    margin-left: 0.35rem;
+    padding: 0.02rem 0.3rem;
+    border: 1px solid var(--rand);
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+    color: var(--gedaempft);
   }
 
   .sortierknopf {

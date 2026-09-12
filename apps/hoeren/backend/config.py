@@ -11,6 +11,7 @@ from pathlib import Path
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from wortlaut import rechenwerk
 
 
 class Einstellungen(BaseSettings):
@@ -69,11 +70,20 @@ class Einstellungen(BaseSettings):
     # der Vorlage, ist das das Argument für ein eigenes Feintuning; trifft es,
     # war der Weg nicht nötig.
     auswertung_modelle: str = "base,small,medium,large-v3"
-    # Wie `schreiben` seine Erkennung fährt: `auto` nimmt die GPU, wenn eine
-    # da ist. `int8` ist die sparsame Quantisierung - alle konfigurierten
-    # Modelle liegen gleichzeitig im Speicher (siehe `services/auswertung.py`).
-    auswertung_geraet: str = "auto"
-    auswertung_rechenart: str = "int8"
+
+    # Worauf gerechnet wird - dieselbe Einstellung in allen drei Apps und beim
+    # Trainer, und das ist der ganze Sinn: „schreiben", die Auswertung in
+    # „hören" und die Bewertung eines Laufs schicken dieselben Modelle über
+    # dieselben Aufnahmen, und ihre Rechenzeiten sind nur vergleichbar, wenn
+    # sie auf demselben Rechenwerk entstanden sind. Was `auto` bedeutet und
+    # warum auf der Karte `int8_float16` gilt, steht in
+    # `wortlaut/rechenwerk.py`.
+    geraet: str = rechenwerk.AUTO  # auto | cuda | cpu
+    rechenart: str = rechenwerk.AUTO  # auto | int8 | int8_float16 | float16 | float32
+
+    def rechenwerk(self) -> tuple[str, str]:
+        """`(geraet, rechenart)` - aufgelöst, `auto` beantwortet."""
+        return rechenwerk.waehle(self.geraet, self.rechenart)
 
     @model_validator(mode="after")
     def _tokens_muessen_sich_unterscheiden(self) -> Einstellungen:

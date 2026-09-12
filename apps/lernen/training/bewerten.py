@@ -30,6 +30,8 @@ from typing import Any
 
 from wortlaut import corpus, laeufe, metriken, registry
 
+from apps.lernen.backend.config import einstellungen
+
 from .daten import zeilen_fuer
 
 
@@ -61,7 +63,16 @@ def bewerte(
     # Der Pfad des umgewandelten Modells statt eines Namens - faster-whisper
     # nimmt beides, und so wird sicher dieser Stand geladen und nicht ein
     # gleichnamiger aus dem Zwischenspeicher.
-    erkenner = LokalerTranskriptor(str(ct2), geraet="auto", rechenart="float16")
+    #
+    # Gerät und Rechenart kommen aus derselben Konfiguration wie in „hören" und
+    # „schreiben" (`wortlaut/rechenwerk.py`) und stehen hier **nicht** fest.
+    # Sie standen einmal fest, auf `float16` und der Karte, und das war der
+    # Fehler: Die Auswertung maß dieselben Modelle auf dem Prozessor, und in
+    # der Modellübersicht standen danach vier Sekunden neben einer
+    # Viertelsekunde. Zwei richtige Zahlen, die nebeneinander etwas Falsches
+    # behaupteten.
+    geraet, rechenart = einstellungen().rechenwerk()
+    erkenner = LokalerTranskriptor(str(ct2), geraet=geraet, rechenart=rechenart)
     sprache = str(auftrag.get("sprache") or "de")
 
     ergebnis = []
@@ -80,6 +91,10 @@ def bewerte(
             "wil": guete.wil,
             "genauigkeit": guete.genauigkeit,
             "rechenzeit_s": dauer,
+            # Worauf gemessen wurde - dieselbe Angabe, die „hören" neben jede
+            # seiner Zeilen schreibt (`008_rechenwerk.sql`). Ohne sie ist die
+            # Rechenzeit daneben keine Auskunft, sondern eine Zahl.
+            "rechenwerk": erkenner.marke,
         }
         laeufe.haenge_an(verzeichnis / laeufe.BEWERTUNG, eintrag)
         ergebnis.append(eintrag)
@@ -110,6 +125,9 @@ def _zusammengefasst(zeilen: list[dict[str, Any]]) -> dict[str, Any]:
         "wil": mittel("wil"),
         "genauigkeit": mittel("genauigkeit"),
         "test_einheiten": len(zeilen),
+        # Alle Zeilen eines Laufs stammen aus demselben Rechenwerk - der
+        # Erkenner wird einmal geladen. Deshalb genügt hier die erste.
+        "rechenwerk": str(zeilen[0].get("rechenwerk", "")),
     }
 
 

@@ -537,6 +537,9 @@ Zahl, die für keinen von ihnen gilt. Verworfene Aufnahmen zählen nicht mit -
 was der Sprecher selbst weggeworfen hat, ist kein Prüfstück, sondern ein
 Fehlversuch, und ginge sonst als schlechte Note eines Modells durch.
 
+Gerechnet wird auf der Karte, wenn eine da ist - dieselbe Einstellung wie beim
+Diktieren (siehe [Konfiguration](konfiguration.md#rechenwerk---worauf-erkannt-wird)).
+
 Gegeneinander antreten die Modelle aus `WORTLAUT_AUSWERTUNG_MODELLE`. Die
 Vorgabe ist eine Leiter mit vier Sprossen:
 
@@ -662,13 +665,30 @@ sechzehn Messungen je Aufnahme. Vier Eigenschaften sind Absicht:
   durch `small`, dann durch `medium` wäre sparsamer - je Modell einmal laden. Nur zeigte die Kurve
   dann lange eine einzige Reihe, und verglichen werden soll gerade. Bezahlt
   wird das damit, dass alle Erkenner gleichzeitig im Speicher liegen; bei
-  `base,small,medium,large-v3` in `int8` gut zweieinhalb Gigabyte.
+  `base,small,medium,large-v3` gut zweieinhalb Gigabyte in `int8` auf dem
+  Prozessor, knapp drei in `int8_float16` auf der Karte. Das ist der Grund für
+  die halbe Darstellung: In `float16` wären es gut sechs, und die Karte teilt
+  sich die Auswertung mit dem Training und dem Sprachmodell.
 * **Wiederaufnehmbar.** Fertig ist, was in `erkennungen` steht
   (`005_auswertung.sql`, `007_varianten.sql`). Ein zweiter Lauf rechnet nur,
   was fehlt - nach einem Neustart, nach neuen Aufnahmen, nach einem
   hinzugefügten Modell und nach einer hinzugefügten Fassung. Nichts wird
   doppelt gerechnet, nichts geht verloren, wenn der Lauf mitten darin
   abbricht.
+* **Auf der Karte, wenn eine da ist.** Dieselbe Einstellung wie beim
+  Diktieren und beim Trainer (`WORTLAUT_GERAET`, siehe
+  [Konfiguration](konfiguration.md#rechenwerk---worauf-erkannt-wird)). Das ist
+  der Unterschied zwischen vier Sekunden und einer Viertelsekunde je Aufnahme -
+  ein voller Lauf über einen Korpus von 350 Messungen je Modell dauert damit
+  Minuten statt Stunden. Ist die Karte voll, weicht der Lauf auf den Prozessor
+  aus, statt zu scheitern.
+* **Fertig heißt: auf diesem Rechenwerk fertig.** Jede Zeile trägt mit, worauf
+  sie gemessen wurde (`erkennungen.rechenwerk`, `008_rechenwerk.sql`). Eine
+  Zeile aus einem anderen Rechenwerk gilt als offen und wird neu gerechnet -
+  ihre Rechenzeit passt nicht neben die übrigen, und zwar um eine
+  Größenordnung. Das kostet nach einem Wechsel einmal einen vollen Lauf; auf
+  der Karte sind das Minuten. Die Alternative wäre eine Spalte mit zwei
+  Maßstäben darin, und die sagt weniger als keine.
 * **Ein Lauf zur Zeit, über alle Sprecher.** Nicht aus Bequemlichkeit: Zwei
   Läufe teilten sich eine CPU und dieselben Modelle im Speicher und wären
   zusammen langsamer als nacheinander.
