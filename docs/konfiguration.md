@@ -19,9 +19,19 @@ cp .env.example .env
 |---|---|---|
 | `WORTLAUT_DATA_DIR` | `./data` | wo alles liegt: Korpora, Diktate, Schnappschüsse, Modelle |
 | `WORTLAUT_STORAGE` | `local` | Blob-Ablage; `s3` ist vorbereitet, aber nicht in Betrieb |
+| `WORTLAUT_MODELLCACHE` | `./data/modellcache` | wohin die Grundmodelle von Hugging Face geladen werden (Whisper in allen Größen) |
+| `WORTLAUT_OLLAMACACHE` | `./data/ollama` | wohin Ollama seine Sprachmodelle legt |
 
 Im Container ist `WORTLAUT_DATA_DIR` immer `/srv/wortlaut/data`; wo das auf dem
 Wirt liegt, entscheidet das Volume in der `compose.yaml`.
+
+Die beiden letzten Zeilen sind die Ausnahme dieser Seite: Sie liest **Compose**
+und nicht die `config.py` einer App. In keiner Einstellungsklasse kommen sie
+vor - im Container heißen diese Pfade immer `/srv/wortlaut/modellcache` und
+`/root/.ollama`, und die Variablen sagen nur, wo das auf dem Wirt liegt. Sie
+stehen trotzdem hier, weil sie in derselben `.env` stehen. Was darunter liegt,
+ist jederzeit neu zu laden und gehört deshalb nicht ins Volume der Daten
+(siehe [Betrieb](betrieb.md#betrieb-mit-compose)).
 
 ---
 
