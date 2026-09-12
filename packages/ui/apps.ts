@@ -142,9 +142,14 @@ export const AUSWERTUNG_PFAD = '/auswertung';
  * das Training gelohnt hat. Wer das wissen will, braucht beide Sorten in einer
  * Tabelle, auf denselben Zahlen.
  *
- * Deshalb steht hier auch eine **Adresse**: „schreiben" führt den Punkt
- * weiterhin im Menü, verweist damit aber hinüber (siehe `Menuepunkt`) -
- * genauso wie die Modellzeile unter dem Aufnahmeknopf.
+ * Deshalb steht hier auch eine **Adresse**: Aus „schreiben" führt die
+ * Modellzeile unter dem Aufnahmeknopf hinüber, und zwar als voller Weg und
+ * nicht als Hash-Route dieser App.
+ *
+ * Im Menü steht der Punkt dagegen nirgends, obwohl das eine Zeitlang so war:
+ * Was eine Reiterreihe trägt, steht dort und nicht noch einmal hinter dem
+ * Menüknopf. Ein zweiter Weg zu derselben Seite ist keine Bequemlichkeit,
+ * sondern eine Stelle, an der jemand zweimal suchen muss.
  */
 export const MODELLE_PFAD = '/modelle';
 export const MODELLE_URL = `/lernen/#${MODELLE_PFAD}`;
@@ -276,7 +281,6 @@ export const SCHALTBARE_MENUEPUNKTE: Schaltbar[] = [
     fest: true,
     grund: 'Hier wird die PIN vergeben, die vor dieser Seite steht.',
   },
-  { schluessel: menueSchluessel(MODELLE_PFAD), text: 'Modelle' },
   { schluessel: menueSchluessel(ZUGANGSDATEN_PFAD), text: 'Zugangsdaten' },
   { schluessel: menueSchluessel(EINSTELLUNGEN_PFAD), text: 'Einstellungen' },
   {

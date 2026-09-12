@@ -14,7 +14,6 @@
    */
   import Rahmen from '$ui/Rahmen.svelte';
   import {
-    AUSWERTUNG_PFAD,
     GERAETE_PUNKTE,
     MEINE_DATEN_PFAD,
     MODELLE_PFAD,
@@ -40,19 +39,17 @@
   const jobId = $derived(laufAusRoute(zustand.route));
 
   // Was diese App über die gerätebezogenen Punkte hinaus ins Menü stellt.
-  // „Meine Daten" und „Auswertung" liegen in „hören" - dort ist der Korpus,
-  // und dort wird gemessen. Sie stehen trotzdem hier, mit voller Adresse statt
-  // Hash-Route: Wer beim Trainieren wissen will, worauf trainiert wird, soll
-  // nicht erst die App wechseln müssen, um den Weg dorthin zu finden - und wer
-  // in der Modellübersicht eine leere Tabelle sieht, findet hier den Knopf,
-  // der sie füllt.
+  // „Meine Daten" liegt in „hören" - dort ist der Korpus -, steht aber hier,
+  // mit voller Adresse statt Hash-Route: Wer beim Trainieren wissen will,
+  // worauf trainiert wird, soll nicht erst die App wechseln müssen, um den Weg
+  // dorthin zu finden.
+  //
+  // „Auswertung" steht hier ausdrücklich **nicht** mehr: Sie ist ein Reiter in
+  // „hören", und ein Menüpunkt daneben wäre ein zweiter Weg zu derselben
+  // Seite. Das Menü führt, was keine Reiterreihe trägt; alles, was eine hat,
+  // steht dort und nirgends sonst.
   const uebergreifend = $derived([
-    ...(spricht
-      ? [
-          { pfad: MEINE_DATEN_PFAD, text: 'Meine Daten', href: MEINE_DATEN_PFAD },
-          { pfad: AUSWERTUNG_PFAD, text: 'Auswertung', href: `/#${AUSWERTUNG_PFAD}` },
-        ]
-      : []),
+    ...(spricht ? [{ pfad: MEINE_DATEN_PFAD, text: 'Meine Daten', href: MEINE_DATEN_PFAD }] : []),
     { pfad: ZUGANGSDATEN_PFAD, text: 'Zugangsdaten' },
   ]);
 
