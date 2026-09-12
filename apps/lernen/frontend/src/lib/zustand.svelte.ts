@@ -1,40 +1,26 @@
 /**
  * Was alle Ansichten teilen: die Route und wer hier gerade angemeldet ist.
  *
- * Die Route steht im Hash (`#/training`). Das genügt für drei Ansichten und
- * spart ein Routing-Paket samt Server-Konfiguration - dieselbe Wahl wie in den
- * beiden anderen Apps.
- *
- * Der Sprecher kommt vom Server, der ihn aus dem vorgelegten Zugang ableitet.
- * Was der Browser aufbewahrt, ist allein der Zugang - und zwar derselbe
- * Eintrag wie für „hören" und „schreiben" (`$ui/zugang`): Ein Mensch, ein
- * Link, drei Apps.
+ * Beides ist in jeder App dieselbe Sache und steht deshalb nicht mehr hier:
+ * Der Hash-Router liegt in `$ui/route`, die Auskunft über den Zugang in
+ * `$ui/wer` - und der Zugang selbst ist derselbe Eintrag desselben Browsers
+ * wie für „hören" und „schreiben" (`$ui/zugang`): Ein Mensch, ein Link, drei
+ * Apps. Was bleibt, ist der Weg zu einem einzelnen Lauf.
  */
 
-import { ApiFehler } from '$ui/api';
+import { folgeHash, routeAusHash } from '$ui/route';
+import { OFFEN, ermittleZugang } from '$ui/wer';
 import { nimmZugangAusLink } from '$ui/zugang';
 import { werRuft } from './api';
 
-function routeAusHash(): string {
-  return window.location.hash.replace(/^#/, '') || '/';
-}
+export { gehZu } from '$ui/route';
 
 export const zustand = $state({
   route: routeAusHash(),
-  // `unbekannt`, bis der Server geantwortet hat; `keiner`, wenn er den Zugang
-  // abweist. Beides ist kein Fehler, sondern ein Zustand der Oberfläche.
-  art: 'unbekannt' as 'unbekannt' | 'sprecher' | 'verwaltung' | 'aufsicht' | 'keiner',
-  sprecher: null as string | null,
-  name: null as string | null,
+  ...OFFEN,
 });
 
-window.addEventListener('hashchange', () => {
-  zustand.route = routeAusHash();
-});
-
-export function gehZu(route: string): void {
-  window.location.hash = route;
-}
+folgeHash((route) => (zustand.route = route));
 
 /**
  * Ein einzelner Lauf: `#/lauf/<job_id>`.
@@ -52,14 +38,5 @@ export function laufAusRoute(route: string): string {
 /** Beim Server nachfragen, für wen dieser Browser eingestellt ist. */
 export async function ladeZugang(): Promise<void> {
   if (nimmZugangAusLink(routeAusHash())) zustand.route = '/';
-  try {
-    const wer = await werRuft();
-    zustand.art = wer.art;
-    zustand.sprecher = wer.sprecher_id;
-    zustand.name = wer.name;
-  } catch (ursache) {
-    zustand.art = ursache instanceof ApiFehler && ursache.status === 401 ? 'keiner' : 'unbekannt';
-    zustand.sprecher = null;
-    zustand.name = null;
-  }
+  Object.assign(zustand, await ermittleZugang(werRuft));
 }

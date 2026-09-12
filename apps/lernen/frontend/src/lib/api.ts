@@ -9,6 +9,9 @@
  */
 
 import { alsJson, api } from '$ui/api';
+// Wer der Server in diesem Browser sieht - die Form steht in `$ui/wer`, weil
+// alle drei Apps dieselbe Antwort lesen. Diese hier bekommt sie von „hören".
+import type { Wer } from '$ui/wer';
 export { setzeZugang, zugang } from '$ui/zugang';
 
 /** Ein Teil der Aufteilung, beschriftet vom Server. */
@@ -232,19 +235,6 @@ export const modelle = () => anfrage<Modelluebersicht>('/modelle');
 /** Dieses Modell freigeben - leere Kennung nimmt die Freigabe zurück. */
 export const gibFrei = (ref: string) =>
   anfrage<Modelluebersicht>('/modelle/freigabe', alsJson({ ref }));
-
-/**
- * Wer der Server in diesem Browser sieht - die Auskunft von „hören".
- *
- * `art` ist eng getippt und nicht `string`: Der Zustand der Oberfläche hängt
- * daran (siehe `zustand.svelte.ts`), und ein Tippfehler in einem Vergleich
- * soll auffallen, bevor die Seite leer bleibt.
- */
-export type Wer = {
-  art: 'sprecher' | 'verwaltung' | 'aufsicht';
-  sprecher_id: string;
-  name: string;
-};
 
 // Ausdrücklich die API von „hören": Dort liegt der Korpus, dort wird der
 // Zugang geprüft, und dort steht der Name. Eine eigene Auskunft hätte eine
