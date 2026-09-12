@@ -119,7 +119,8 @@ kann das nicht: Der Postausgang sendet in einem Arbeitsfaden, während die
 Ereignisschleife die eingehende Lieferung annimmt.
 
 Die Daten liegen im Volume `wortlaut-data` - `korpus/` gehört „hören",
-`diktate/` gehört „schreiben". Gesichert wird nicht durch Kopieren dieses
+`diktate/` gehört „schreiben". Zwei Verzeichnisse darin liegen auf dem Wirt
+woanders, siehe unten: `modelle/` und `snapshots/`. Gesichert wird nicht durch Kopieren dieses
 Volumes, sondern über die Aufsicht: Sie zieht ein Archiv, das den laufenden
 Dienst nicht anhält und trotzdem einen in sich stimmigen Stand enthält (siehe
 [Sichern und Wiederherstellen](#sichern-und-wiederherstellen)). Wer das Volume
@@ -144,10 +145,31 @@ Für Ollama gilt dasselbe und aus demselben Grund: Sein Verzeichnis
 nicht mehr in einem Volume, sondern unter `WORTLAUT_OLLAMACACHE`, hier
 `/backup/wortlaut/ollama`. Was dort fehlt, holt ein `ollama pull` zurück.
 
-Damit bleibt genau ein Volume übrig, und das ist die Absicht: In
-`wortlaut-data` liegt nur noch, was sich nicht wiederbeschaffen lässt. Was
-gesichert werden muss, ist damit keine Frage der Auswahl mehr, sondern eine
-des Ortes.
+Dasselbe gilt zuletzt für das, was ein Training hervorbringt - und hier ist
+die Begründung eine andere, weil diese Dateien niemand nachlädt: Ein
+Modellstand unter `modelle/<sprecher>/<version>/` wiegt knapp ein Gigabyte, ein
+Laufverzeichnis unter `snapshots/<job_id>/` trägt Auftrag, Manifest, Protokoll
+und Bewertung. Beides ist **aus dem Korpus** neu zu rechnen. Das kostet eine
+Stunde auf der Karte und keine einzige Aufnahme, und es ist keine neue
+Entscheidung: Die Sicherung lässt beides seit jeher draußen
+(`wortlaut/sicherung.py`, und `loeschung.datenverzeichnisse` sagt es in einem
+Satz - „ein Schnappschuss ist eine Kopie, und eine Kopie sichert man nicht
+mit").
+
+Im Container bleiben sie deshalb genau dort, wo der Quelltext sie sucht -
+`data/modelle/` und `data/snapshots/` unter `WORTLAUT_DATA_DIR`; keine Zeile
+Python weiß von dieser Änderung. Auf dem Wirt kommen sie aus
+`WORTLAUT_TRAININGSABLAGE`, hier `/backup/wortlaut/training`, und werden als
+zwei Unterverzeichnisse in das Datenverzeichnis hineingehängt.
+
+Damit bleibt im Volume nur noch, was sich nicht wiederbeschaffen lässt: die
+Aufnahmen, die Datenbanken, der Arbeitsstand von „schreiben". Was gesichert
+werden muss, ist keine Frage der Auswahl mehr, sondern eine des Ortes.
+
+Ein Vorbehalt gehört dazu. `/backup` ist eine zweite Platte in derselben
+Maschine, keine zweite Maschine - für die Modellstände ist das eine Frage der
+Rechenzeit und nicht der Daten, für den Korpus wäre es zu wenig. Der bleibt
+deshalb auf der SSD und wird über die Aufsicht gesichert.
 
 Vite läuft nicht mit - es ist reines Entwicklungswerkzeug. Beide Frontends
 werden beim `docker build` einmal gebaut und vom Prozess mit ausgeliefert.
