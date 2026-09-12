@@ -1,14 +1,25 @@
 <script lang="ts">
   /**
-   * Gesammelte Minuten gegen zwei Marken: ab etwa 1,5 Stunden wird ein Modell
-   * brauchbar, ab etwa 20 Stunden gut. Danach flacht der Gewinn ab.
+   * Gesammelte Sprechzeit gegen zwei Marken: ab etwa 1,5 Stunden wird ein
+   * Modell brauchbar, ab etwa 20 Stunden gut. Danach flacht der Gewinn ab.
+   *
+   * Die Zeit steht als Stunden, Minuten und Sekunden und nicht als
+   * Dezimalstunden. Hier stand einmal „0,43 Stunden" - richtig gerechnet und
+   * für die Zielperson keine Auskunft: Niemand weiß aus dem Stand, wie viele
+   * Minuten das sind, und niemand sollte es ausrechnen müssen, um zu sehen,
+   * wie weit er heute gekommen ist (Grundentscheidung 7). Gerechnet wird das
+   * in `$ui/zeit`, damit dieselbe Zahl in „Meine Daten" und in der
+   * Sprecherliste genauso dasteht.
    */
+  import { dauer } from '$ui/zeit';
   import { fortschritt, type Fortschritt } from '../lib/api';
 
   let daten = $state<Fortschritt | null>(null);
 
-  const stunden = (sekunden: number) => (sekunden / 3600).toFixed(2);
   const anteil = (sekunden: number, marke: number) => Math.min(100, (sekunden / marke) * 100);
+
+  /** Wie viel noch fehlt - die Zahl, nach der hier eigentlich gefragt wird. */
+  const fehlt = (sekunden: number, marke: number) => Math.max(0, marke - sekunden);
 
   fortschritt().then((antwort) => (daten = antwort));
 </script>
@@ -16,15 +27,34 @@
 <h2>Fortschritt</h2>
 
 {#if daten}
-  <p style="font-size:2rem;margin:0">{stunden(daten.sekunden)} Stunden</p>
-  <p class="gedaempft">{daten.aufnahmen} Aufnahmen · {daten.offene_einheiten} Einheiten offen</p>
+  <p class="gesamt">{dauer(daten.sekunden)}</p>
+  <p class="gedaempft">
+    gesprochen · {daten.aufnahmen} Aufnahmen · {daten.offene_einheiten} Einheiten offen
+  </p>
 
   <h2>Marken</h2>
-  <p>Brauchbar ab {stunden(daten.marke_brauchbar_s)} h</p>
+  <!-- Neben der Marke steht, was noch fehlt. Der Balken zeigt, wo man steht;
+       die Frage dahinter ist aber „wie lange muss ich noch", und die
+       beantwortet keine Länge, sondern eine Zahl. -->
+  <p>
+    Brauchbar ab {dauer(daten.marke_brauchbar_s)}
+    {#if fehlt(daten.sekunden, daten.marke_brauchbar_s)}
+      <span class="gedaempft">- noch {dauer(fehlt(daten.sekunden, daten.marke_brauchbar_s))}</span>
+    {:else}
+      <span class="gedaempft">- erreicht</span>
+    {/if}
+  </p>
   <div class="balken">
     <div style="width:{anteil(daten.sekunden, daten.marke_brauchbar_s)}%"></div>
   </div>
-  <p style="margin-top:1rem">Gut ab {stunden(daten.marke_gut_s)} h</p>
+  <p style="margin-top:1rem">
+    Gut ab {dauer(daten.marke_gut_s)}
+    {#if fehlt(daten.sekunden, daten.marke_gut_s)}
+      <span class="gedaempft">- noch {dauer(fehlt(daten.sekunden, daten.marke_gut_s))}</span>
+    {:else}
+      <span class="gedaempft">- erreicht</span>
+    {/if}
+  </p>
   <div class="balken"><div style="width:{anteil(daten.sekunden, daten.marke_gut_s)}%"></div></div>
 
   <h2>Zusammensetzung</h2>
@@ -48,6 +78,15 @@
 
 
 <style>
+  /* Die eine Zahl, für die diese Seite da ist - groß genug, um sie im
+     Vorbeigehen zu lesen. */
+  .gesamt {
+    font-size: 2rem;
+    font-weight: 600;
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
   table {
     border-collapse: collapse;
   }
