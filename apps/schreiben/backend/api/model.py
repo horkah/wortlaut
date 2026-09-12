@@ -45,6 +45,11 @@ class ModellAntwort(BaseModel):
     methode: str | None  # full | lora, aus dem Manifest
     daten: str | None  # original | augmentiert, aus dem Manifest
     erstellt: str | None
+    # Was der Lauf dieses Standes selbst gemessen hat - über seine eigenen
+    # Testeinheiten. Nicht dasselbe wie die Zahl in der Modellübersicht von
+    # „lernen": Die rechnet über die Einheiten, die alle Modelle gemeinsam
+    # haben. Deshalb steht dieser Wert in keiner Beschriftung; er ist die
+    # Auskunft des Manifests und nicht der Vergleich.
     wer: float | None
     laufzeit: str  # local | remote
     # Ob ein trainierter Stand läuft oder ein unverändertes Grundmodell.
@@ -120,6 +125,14 @@ def _antwort(sprecher: str, ausgesteuert: bool) -> ModellAntwort:
         laufzeit=konfiguration.asr,
         trainiert=True,
         aussteuern=ausgesteuert,
+        # **Keine Kennzahl in dieser Zeile.** Hier stand einmal die Wortfehlerrate
+        # aus dem Manifest, und sie war eine Falle: Das ist das Mittel über die
+        # Testeinheiten *dieses* Laufs, während die Modellübersicht in „lernen"
+        # über die Einheiten mittelt, die **alle** Modelle gemessen haben. Zwei
+        # Zahlen zum selben Modell, beide richtig, und wer sie nebeneinander
+        # sah, musste an einen Fehler glauben. Die Zahlen stehen jetzt an genau
+        # einer Stelle - in der Tabelle, auf gemeinsamem Boden. Diese Zeile
+        # sagt, **welches** Modell arbeitet, und nicht, wie gut.
         beschriftung=" · ".join(
             teil
             for teil in (
@@ -127,8 +140,6 @@ def _antwort(sprecher: str, ausgesteuert: bool) -> ModellAntwort:
                 methode,
                 daten,
                 f"Stand {str(erstellt)[:10]}" if erstellt else "",
-                # Dezimalkomma: die Zeile steht in einer deutschen Oberfläche.
-                f"WER {wer * 100:.1f} %".replace(".", ",") if isinstance(wer, int | float) else "",
             )
             if teil
         ),

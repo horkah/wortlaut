@@ -287,9 +287,19 @@ andere. Wie das abgelegt wird, steht in
 ### Und was gerade arbeitet
 
 Über der Tabelle steht eine Karte: das Modell, das `schreiben` in diesem
-Augenblick geladen hat, mit vollem Namen. Daneben der Schalter für das
-**Aussteuern** vor dem Erkennen - die zweite Stellschraube, die nicht ändert,
-*wer* zuhört, sondern was er zu hören bekommt.
+Augenblick geladen hat, mit vollem Namen - und mit **denselben Zahlen wie seine
+Zeile in der Tabelle**, aus derselben Rechnung und über dieselben
+Messeinheiten; sie folgen deshalb auch der Fassungswahl.
+
+Das war einmal anders und war eine Falle: Die Karte nannte die Wortfehlerrate
+aus dem Manifest des Standes, also das Mittel über die Testeinheiten *seines*
+Laufs, die Tabelle darunter das Mittel über die Einheiten, die alle Modelle
+gemeinsam haben. Zwei Zahlen zum selben Modell, beide richtig - und wer sie
+untereinander sah, musste an einen Fehler glauben. Wie gut ein Modell ist,
+steht jetzt an genau einer Stelle.
+
+Daneben der Schalter für das **Aussteuern** vor dem Erkennen - die zweite
+Stellschraube, die nicht ändert, *wer* zuhört, sondern was er zu hören bekommt.
 
 Beides kommt aus der API von `schreiben` und nicht aus dieser App: Dort wird
 diktiert, dort liegt der Schalter, und eine zweite Wahrheit darüber wäre eine
