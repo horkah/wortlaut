@@ -52,17 +52,23 @@
   });
 
   // Was diese App über die gerätebezogenen Punkte hinaus ins Menü stellt.
-  // „Meine Daten" liegt in „hören" - dort ist der Korpus -, steht aber hier,
-  // mit voller Adresse statt Hash-Route: Wer beim Trainieren wissen will,
-  // worauf trainiert wird, soll nicht erst die App wechseln müssen, um den Weg
-  // dorthin zu finden.
+  // „Meine Daten" liegt in „hören" - dort ist der Korpus -, steht aber hier:
+  // Wer beim Trainieren wissen will, worauf trainiert wird, soll nicht erst
+  // die App wechseln müssen, um den Weg dorthin zu finden.
+  //
+  // Die Adresse führt aus dieser App heraus und muss deshalb vollständig sein -
+  // Wurzel **und** Hash, genau wie in „schreiben". Ohne das `/#` bliebe
+  // `/meine-daten` ein Pfad, den niemand ausliefert: Das Frontend kennt nur
+  // Hash-Routen, und das Backend antwortet auf unbekannte Pfade mit 404
+  // (`StaticFiles` liefert dafür keine `index.html`). Es stand hier eine Weile
+  // ohne, und der Menüpunkt führte auf eine leere Seite mit „Not Found".
   //
   // „Auswertung" steht hier ausdrücklich **nicht** mehr: Sie ist ein Reiter in
   // „hören", und ein Menüpunkt daneben wäre ein zweiter Weg zu derselben
   // Seite. Das Menü führt, was keine Reiterreihe trägt; alles, was eine hat,
   // steht dort und nirgends sonst.
   const uebergreifend = $derived([
-    ...(spricht ? [{ pfad: MEINE_DATEN_PFAD, text: 'Meine Daten', href: MEINE_DATEN_PFAD }] : []),
+    ...(spricht ? [{ pfad: MEINE_DATEN_PFAD, text: 'Meine Daten', href: `/#${MEINE_DATEN_PFAD}` }] : []),
     { pfad: ZUGANGSDATEN_PFAD, text: 'Zugangsdaten' },
   ]);
 
