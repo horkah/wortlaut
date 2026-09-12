@@ -126,10 +126,16 @@ und ein Schlüssel hinterlegt ist):
 ## 4. Fortschritt
 
 1. **Fortschritt** in der Kopfzeile.
-2. Erwartet: Stundenzahl, Anzahl Aufnahmen, offene Einheiten; zwei Balken
-   gegen die Marken „Brauchbar“ und „Gut“; Tabelle „Zusammensetzung“ mit den
-   gerade aufgenommenen Modi (`gelesen` und ggf. `nachgesprochen`) und der
-   Quelle (`vorlage`).
+2. Erwartet: die gesammelte Sprechzeit groß als Stunden, Minuten und Sekunden
+   (nach ein paar Aufnahmen etwa „38 s“ oder „2 min 14 s“, **nicht**
+   „0,01 Stunden“), darunter Anzahl Aufnahmen und offene Einheiten; zwei
+   Balken gegen die Marken „Brauchbar ab 1 h 30 min“ und „Gut ab 20 h“, jeweils
+   mit dem, was noch fehlt; Tabelle „Zusammensetzung“ mit den gerade
+   aufgenommenen Modi (`gelesen` und ggf. `nachgesprochen`) und der Quelle
+   (`vorlage`).
+   Dieselbe Sprechzeit steht in derselben Schreibweise unter „Meine Daten“ und
+   in der Sprecherliste der Verwaltung - wer zwischen den Seiten wechselt, soll
+   nicht zwei Zahlen für dasselbe sehen.
 3. Einen Abmeldeknopf gibt es hier bewusst nicht: Wer aufnimmt, hat nichts
    abzumelden, und der Knopf wäre für die Zielgruppe nur ein Weg, den eigenen
    Zugang loszuwerden. Soll das Gerät die Person wechseln, wird einfach der

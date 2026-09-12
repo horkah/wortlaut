@@ -15,6 +15,7 @@
    * (`Einsicht.svelte`). Zwei getrennte Seiten wären zwei Listen derselben
    * Sprecher - eine davon immer die falsche.
    */
+  import { dauer } from '$ui/zeit';
   import { ZUGANGSDATEN_PFAD } from '$ui/apps';
   import {
     ApiFehler,
@@ -120,7 +121,6 @@
     }
   }
 
-  const minuten = (sekunden: number) => `${Math.round(sekunden / 60)} min`;
 
   $effect(() => {
     if (zustand.art === 'verwaltung' || zustand.art === 'aufsicht') lade();
@@ -188,7 +188,7 @@
                hier, weil sie die Frage beantworten, die man vor jedem Griff in
                einen Korpus hat: Wie viel steht darin? -->
           <div class="gedaempft">
-            {person.kennzahlen.aufnahmen} Aufnahmen · {minuten(person.kennzahlen.sekunden)} ·
+            {person.kennzahlen.aufnahmen} Aufnahmen · {dauer(person.kennzahlen.sekunden)} ·
             {person.kennzahlen.quellen} Textquellen
           </div>
         {/if}

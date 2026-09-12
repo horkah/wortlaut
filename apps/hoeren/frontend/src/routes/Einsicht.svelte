@@ -10,7 +10,7 @@
    */
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Pager from '$ui/Pager.svelte';
-  import { tag, tagUndZeit } from '$ui/zeit';
+  import { dauer, tag, tagUndZeit } from '$ui/zeit';
   import {
     alleAufnahmenLoeschen,
     aufnahmeAudio,
@@ -227,7 +227,6 @@
     return true;
   }
 
-  const minuten = (sekunden: number) => `${Math.round(sekunden / 60)} min`;
   const megabyte = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
   $effect(() => {
@@ -265,7 +264,7 @@
 
   <div class="karte zahlen">
     <div><strong>{zahlen.aufnahmen}</strong><span>Aufnahmen</span></div>
-    <div><strong>{minuten(zahlen.sekunden)}</strong><span>gesprochen</span></div>
+    <div><strong>{dauer(zahlen.sekunden)}</strong><span>gesprochen</span></div>
     <div><strong>{megabyte(zahlen.bytes_audio)}</strong><span>Audio</span></div>
     <div><strong>{zahlen.einheiten}</strong><span>Einheiten</span></div>
     <div><strong>{zahlen.quellen}</strong><span>Textquellen</span></div>

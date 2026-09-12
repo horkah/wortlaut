@@ -33,8 +33,17 @@ Die **Grundentscheidungen**, auf die hier verwiesen wird, stehen
    gegen die geschätzte Sprechdauer. Auffälligkeiten werden angezeigt, nicht
    erzwungen - bei Sprechstörungen sind Ausreißer normal und dürfen nicht
    wegautomatisiert werden.
-6. **Fortschritt.** Gesammelte Minuten gegen zwei Marken: ab etwa 1,5 Stunden wird
-   ein Modell brauchbar, ab etwa 20 Stunden gut. Danach flacht der Gewinn ab.
+6. **Fortschritt.** Gesammelte Sprechzeit gegen zwei Marken: ab etwa 1,5 Stunden
+   wird ein Modell brauchbar, ab etwa 20 Stunden gut. Danach flacht der Gewinn
+   ab. Neben jeder Marke steht, was noch fehlt - das ist die Frage, mit der
+   jemand auf diese Seite kommt.
+
+   Angezeigt wird das als Stunden, Minuten und Sekunden („25 min 48 s") und
+   nicht als Dezimalstunden. Hier stand einmal „0,43 Stunden": richtig
+   gerechnet und für die Zielperson keine Auskunft - niemand weiß aus dem
+   Stand, wie viele Minuten das sind. Gerechnet wird es in `packages/ui/zeit.ts`,
+   damit dieselbe Sprechzeit in „Meine Daten" und in der Sprecherliste der
+   Verwaltung genauso dasteht.
 
 ---
 
