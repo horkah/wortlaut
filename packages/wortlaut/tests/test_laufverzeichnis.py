@@ -141,3 +141,59 @@ class TestVokabular:
             / f"whisper_{name}.yaml"
         )
         assert rezept.is_file(), rezept
+
+
+class TestZwischenstaende:
+    """Was nach einem Lauf weggeräumt wird - und was dabei stehen bleibt.
+
+    Ein abgebrochener Lauf hatte seinen `arbeitsstand` liegen gelassen: knapp
+    drei Gigabyte je Fehllauf, die irgendwann die Platte des Wirts füllten und
+    den nächsten Lauf aus demselben Grund umbrachten. Weggeräumt wird deshalb
+    auf beiden Wegen und von zwei Seiten, und beides steht hier geprüft.
+    """
+
+    def _zwischenstaende(self, verzeichnis: Path) -> None:
+        arbeit = verzeichnis / laeufe.ARBEITSSTAND / "checkpoint-63"
+        arbeit.mkdir(parents=True)
+        (arbeit / "optimizer.pt").write_bytes(b"0" * 16)
+        gewichte = verzeichnis / laeufe.GEWICHTE
+        gewichte.mkdir(parents=True)
+        (gewichte / "model.safetensors").write_bytes(b"0" * 16)
+
+    def test_beide_verzeichnisse_gehen_weg(self, tmp_path: Path) -> None:
+        verzeichnis = _auftrag(tmp_path, "job_1")
+        self._zwischenstaende(verzeichnis)
+
+        entfernt = laeufe.raeume_zwischenstaende_auf(verzeichnis)
+
+        assert set(entfernt) == {laeufe.ARBEITSSTAND, laeufe.GEWICHTE}
+        assert not (verzeichnis / laeufe.ARBEITSSTAND).exists()
+        assert not (verzeichnis / laeufe.GEWICHTE).exists()
+
+    def test_der_auftrag_und_sein_protokoll_bleiben(self, tmp_path: Path) -> None:
+        # Der Grund, warum hier nicht das ganze Laufverzeichnis gelöscht wird:
+        # Woran ein Lauf gescheitert ist, steht danach noch da.
+        verzeichnis = _auftrag(tmp_path, "job_1")
+        self._zwischenstaende(verzeichnis)
+        (verzeichnis / laeufe.PROTOKOLL).write_text("es krachte\n", encoding="utf-8")
+        laeufe.schreibe_json(verzeichnis / laeufe.ZUSTAND, {"status": laeufe.GESCHEITERT})
+
+        laeufe.raeume_zwischenstaende_auf(verzeichnis)
+
+        assert (verzeichnis / laeufe.AUFTRAG).is_file()
+        assert (verzeichnis / laeufe.PROTOKOLL).read_text(encoding="utf-8") == "es krachte\n"
+        lauf = laeufe.lies_lauf(tmp_path, "job_1")
+        assert lauf is not None and lauf.status == laeufe.GESCHEITERT
+
+    def test_zweimal_zu_raeumen_ist_kein_fehler(self, tmp_path: Path) -> None:
+        # Genau das ist der Normalfall: Der rechnende Prozess räumt selbst auf,
+        # der Läufer sieht danach noch einmal nach.
+        verzeichnis = _auftrag(tmp_path, "job_1")
+        self._zwischenstaende(verzeichnis)
+
+        assert laeufe.raeume_zwischenstaende_auf(verzeichnis)
+        assert laeufe.raeume_zwischenstaende_auf(verzeichnis) == []
+
+    def test_ein_lauf_ohne_zwischenstaende_meldet_nichts(self, tmp_path: Path) -> None:
+        verzeichnis = _auftrag(tmp_path, "job_1")
+        assert laeufe.raeume_zwischenstaende_auf(verzeichnis) == []
