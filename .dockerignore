@@ -1,25 +1,33 @@
 # Was nicht in den Bau-Kontext gehört. Ohne diese Datei schickt `docker build`
 # das ganze Verzeichnis an den Daemon - samt Aufnahmen und virtueller
 # Umgebung, beides groß und beides falsch am Platz.
+#
+# `**/` vor allem, was mehrfach vorkommt: Ein Muster ohne Schrägstrich gilt
+# nur an der Wurzel des Kontexts. `node_modules/` traf deshalb lange nur ein
+# Verzeichnis, das es hier gar nicht gibt - die drei echten unter
+# apps/*/frontend/ gingen mit in den Kontext und landeten über
+# `COPY apps/… ./apps/…` sogar im Abbild (313 MB). Dasselbe bei `dist/`:
+# Der gebaute Stand vom Wirt kam mit und blieb neben dem frisch gebauten
+# liegen, weil `COPY` nur überschreibt, was gleich heißt.
 
 # Stimmaufnahmen sind Gesundheitsdaten (Art. 9 DSGVO) und haben in einem
 # Abbild nichts verloren.
 data/
-*.sqlite
-*.sqlite-wal
-*.sqlite-shm
+**/*.sqlite
+**/*.sqlite-wal
+**/*.sqlite-shm
 
 # Geheimnisse: die Werte kommen zur Laufzeit über env_file, nicht im Abbild.
-.env
+**/.env
 
 # Wird im Abbild selbst gebaut bzw. installiert.
-node_modules/
-dist/
-.venv/
+**/node_modules/
+**/dist/
+**/.venv/
 
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.ruff_cache/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.ruff_cache/
 .git/
 .claude/
