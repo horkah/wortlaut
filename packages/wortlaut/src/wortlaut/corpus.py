@@ -43,6 +43,16 @@ def audio_relpfad(sprecher_id: str, aufnahme_id: str) -> str:
     return f"{KORPUS}/{sprecher_id}/audio/{aufnahme_id}.wav"
 
 
+def varianten_relpfad(sprecher_id: str) -> str:
+    """Wo alle abgewandelten Fassungen eines Sprechers liegen.
+
+    Ein eigener Name für das Verzeichnis, weil es als Ganzes angesprochen wird:
+    Es ist das Abgeleitete am Korpus, und eine Sicherung lässt es draußen
+    (`wortlaut/sicherung.py`).
+    """
+    return f"{KORPUS}/{sprecher_id}/{VARIANTENORDNER}"
+
+
 def variante_relpfad(sprecher_id: str, aufnahme_id: str, variante: str) -> str:
     """Wo die abgewandelte Fassung einer Aufnahme liegt.
 

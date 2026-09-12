@@ -9,23 +9,30 @@ Zwei Dinge stehen hier im Mittelpunkt, und beide sind Grenzen:
 
 Der Rest prüft, dass die ausgeleiteten Archive das enthalten, was daraufsteht:
 Eine Sicherung, die sich nicht zurückspielen lässt, merkt man sonst erst, wenn
-der Server weg ist.
+der Server weg ist - und eine, die das Gerechnete mitschleppt, merkt man am
+Platz.
 """
 
 from __future__ import annotations
 
 import io
 import json
+import sqlite3
 import tarfile
 import zipfile
+from contextlib import closing
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
-from wortlaut import corpus, sicherung
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+from wortlaut import augmentierung, corpus, sicherung
 
 from apps.hoeren.backend.config import einstellungen
+from apps.hoeren.backend.db.models import Aufnahme, Erkennung
+from apps.hoeren.backend.deps import engine_fuer
 from apps.hoeren.backend.main import app
 from apps.hoeren.tests.conftest import TOKEN
 
@@ -200,21 +207,71 @@ class TestSicherung:
 
         namen = _namen(antwort.content)
         assert f"daten/korpus/{bespielt}/{corpus.DATENBANKNAME}" in namen
-        # Acht Dateien für zwei Aufnahmen: Zu jeder gehören die drei
-        # abgewandelten Fassungen (`wortlaut/augmentierung.py`). Sie gehören in
-        # die Sicherung, weil sie Teil des Datensatzes sind - eine Sicherung,
-        # nach deren Einspielen die halbe Auswertung neu zu rechnen wäre, ist
-        # eine halbe Sicherung.
-        assert sum(1 for name in namen if name.endswith(".wav")) == 8
+        # Zwei Dateien für zwei Aufnahmen - gesprochen wurde zweimal.
+        assert sum(1 for name in namen if name.endswith(".wav")) == 2
         # Die Begleitdateien des WAL-Modus gehören nicht hinein: Ihr Inhalt
         # steckt schon in der gesicherten Datenbank.
         assert not [name for name in namen if name.endswith(("-wal", "-shm"))]
+
+    def test_abgewandelte_fassungen_bleiben_draussen(
+        self, aufsicht: TestClient, bespielt: str, tmp_path: Path
+    ) -> None:
+        # Auf der Platte liegen sie - drei je Aufnahme, gerechnet beim
+        # Hochladen (`services/augmentierung.py`).
+        varianten = tmp_path / "data" / corpus.varianten_relpfad(bespielt)
+        assert len(list(varianten.glob("*.wav"))) == 2 * len(augmentierung.ABWANDLUNGEN)
+
+        # In der Sicherung nicht: Sie sind gerechnet und nicht gesprochen, und
+        # sie wären drei Viertel des Archivs.
+        namen = _namen(aufsicht.get(f"/api/admin/speakers/{bespielt}/sicherung").content)
+        assert not [name for name in namen if corpus.VARIANTENORDNER in name]
+
+    def test_messwerte_der_auswertung_bleiben_draussen(
+        self, aufsicht: TestClient, bespielt: str, tmp_path: Path
+    ) -> None:
+        # Was ein Lauf jederzeit neu rechnet, muss keine Sicherung wegtragen.
+        # Der Rest der Datenbank aber schon - sie kommt vollständig mit, nur
+        # ohne diese Zeilen.
+        _miss(bespielt)
+        archiv = tmp_path / "sicherung.tgz"
+        archiv.write_bytes(aufsicht.get(f"/api/admin/speakers/{bespielt}/sicherung").content)
+
+        neu = tmp_path / "wiederhergestellt"
+        sicherung.stelle_wieder_her(archiv, neu)
+        with closing(sqlite3.connect(corpus.datenbank_pfad(neu, bespielt))) as verbindung:
+            gezaehlt = dict(
+                verbindung.execute(
+                    "SELECT 'erkennungen', count(*) FROM erkennungen "
+                    "UNION ALL SELECT 'recordings', count(*) FROM recordings "
+                    "UNION ALL SELECT 'prompts', count(*) FROM prompts"
+                )
+            )
+        assert gezaehlt["erkennungen"] == 0
+        assert gezaehlt["recordings"] == 2
+        assert gezaehlt["prompts"] > 0
+
+    def test_der_bestand_selbst_bleibt_unberuehrt(
+        self, aufsicht: TestClient, bespielt: str, tmp_path: Path
+    ) -> None:
+        # Geleert wird die Sicherungskopie, nie die laufende Datenbank. Ein
+        # Sichern, das nebenbei Messwerte wegwirft, wäre ein Datenverlust mit
+        # Ansage.
+        _miss(bespielt)
+        assert aufsicht.get(f"/api/admin/speakers/{bespielt}/sicherung").status_code == 200
+
+        with closing(sqlite3.connect(corpus.datenbank_pfad(tmp_path / "data", bespielt))) as db:
+            assert db.execute("SELECT count(*) FROM erkennungen").fetchone()[0] == 2
+        assert list((tmp_path / "data" / corpus.varianten_relpfad(bespielt)).glob("*.wav"))
 
     def test_manifest_nennt_den_sprecher(self, aufsicht: TestClient, bespielt: str) -> None:
         manifest = _manifest(aufsicht.get(f"/api/admin/speakers/{bespielt}/sicherung").content)
         assert manifest["umfang"] == "sprecher"
         assert [person["id"] for person in manifest["sprecher"]] == [bespielt]
         assert manifest["dateien"]  # mit Größe und Prüfsumme je Datei
+        # Und es schreibt hin, was fehlt - wer in einem Jahr auspackt, soll das
+        # nicht für einen Schaden halten.
+        assert manifest["ausgelassen"]["verzeichnisse"] == [corpus.varianten_relpfad(bespielt)]
+        assert manifest["ausgelassen"]["tabellen"] == {corpus.DATENBANKNAME: ["erkennungen"]}
 
     def test_gesamtsicherung_enthaelt_alle_sprecher(
         self, aufsicht: TestClient, bespielt: str, verwalter: TestClient
@@ -396,6 +453,30 @@ class TestNiemalsAlle:
         aufsicht.delete(f"/api/admin/speakers/{bespielt}?bestaetigung={bespielt}")
         assert (tmp_path / "data" / corpus.sprecher_relpfad(zweiter)).exists()
         assert [person["id"] for person in aufsicht.get("/api/admin/speakers").json()] == [zweiter]
+
+
+def _miss(sprecher_id: str) -> None:
+    """Zwei Messwerte in den Korpus legen - ohne Whisper, es geht um die Zeilen."""
+    with Session(engine_fuer(sprecher_id)) as sitzung:
+        for nummer, aufnahme in enumerate(sitzung.scalars(select(Aufnahme)).all()):
+            sitzung.add(
+                Erkennung(
+                    id=f"erk_{nummer}",
+                    recording_id=aufnahme.id,
+                    modell="small",
+                    variante=augmentierung.ORIGINAL,
+                    text="was das Modell gehört hat",
+                    wer=0.1,
+                    cer=0.1,
+                    mer=0.1,
+                    wil=0.1,
+                    genauigkeit=90.0,
+                    rechenzeit_s=1.0,
+                    rechenwerk="cpu/int8",
+                    erstellt="2026-01-01T00:00:00+00:00",
+                )
+            )
+        sitzung.commit()
 
 
 def _namen(archiv: bytes) -> list[str]:

@@ -18,8 +18,14 @@ Blick ins Dateisystem, und eine vorhandene Datei wird nie neu gerechnet.
 Arbeitsspeicher herstellen, messen und wieder vergessen. Dann wäre die
 Auswertung aber das einzige, was je etwas davon hat. So steht ein viermal so
 großer Datensatz auf der Platte, den ein späteres Feintuning ohne weiteres
-Zutun mitnehmen kann - und der in jeder Sicherung liegt, weil diese das
-Datenverzeichnis eins zu eins abbildet (`wortlaut/sicherung.py`).
+Zutun mitnehmen kann.
+
+**Warum sie trotzdem nicht mitgesichert werden.** Liegenbleiben ist billig,
+Wegtragen nicht: Diese Dateien sind drei Viertel des Audios im
+Datenverzeichnis, und keine einzige davon ist gesprochen worden. Eine
+Sicherung lässt sie deshalb draußen und rechnet sie nach dem Zurückspielen neu
+- in Millisekunden je Datei, und ohnehin erst, wenn jemand misst (siehe
+`services/ausleitung.py`).
 
 **Warum sie beim Löschen mitgehen.** Eine abgewandelte Fassung ist dieselbe
 Stimme, nur lauter oder verrauscht. Sie ist damit derselbe Gesundheitsdatensatz

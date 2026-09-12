@@ -10,11 +10,23 @@ Eine Sicherung ist ein `.tar.gz`, das den Datenbestand so enthält, wie er unter
         ├── korpus/spr_…/audio/rec_….wav
         └── diktate/spr_…/…          Arbeitsstand von „schreiben"
 
-`daten/` bildet das Datenverzeichnis eins zu eins ab. Das ist der ganze Trick
-der Wiederherstellung: Sie ist ein Auspacken an die richtige Stelle, kein
+`daten/` bildet das Datenverzeichnis ab. Das ist der ganze Trick der
+Wiederherstellung: Sie ist ein Auspacken an die richtige Stelle, kein
 Einspielen. Wer keinen Server mehr hat, auf dem diese Anwendung läuft, kommt
 mit `tar xzf` genauso weit wie mit `scripts/restore.py` - eine Sicherung, die
 ein laufendes Programm zum Lesen braucht, ist im Ernstfall keine.
+
+**Abbilden heißt nicht alles mitnehmen.** Gesichert wird, was ein Mensch
+gesprochen, hochgeladen und eingerichtet hat; was eine Maschine daraus
+gerechnet hat, bleibt draußen - die abgewandelten Fassungen der Aufnahmen und
+die Messwerte der Auswertung (`Abgeleitetes`). Beides kostet ein Vielfaches
+des Bestands an Platz und ist nach dem Zurückspielen von selbst wieder da:
+die Fassungen, sobald jemand misst, die Messwerte mit dem nächsten Lauf.
+Unwiederbringlich ist nur die Stimme.
+
+Das Weglassen ist damit kein Loch, sondern die Grenze der Sicherung, und
+`sicherung.json` schreibt sie hin: Was ausgelassen wurde, steht unter
+`ausgelassen` im Manifest und nicht bloß in dieser Erklärung.
 
 Die Datenbanken werden dabei nicht kopiert, sondern über `db.sichere_kopie()`
 gezogen: Im WAL-Modus steht ein Teil der Daten neben der `.sqlite`-Datei, und
@@ -29,10 +41,14 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import re
 import shutil
+import sqlite3
 import tarfile
 import tempfile
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from contextlib import closing
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -52,6 +68,48 @@ DATENBANK_ENDUNG = ".sqlite"
 BEGLEITER = ("-wal", "-shm")
 
 
+# Tabellennamen wandern in eine `DELETE FROM`-Anweisung, und die verträgt
+# keinen Platzhalter. Sie kommen zwar aus dem eigenen Quelltext und nie von
+# außen - aber eine Regel, die das festhält, kostet eine Zeile und macht die
+# Stelle für jeden Leser harmlos.
+_BEZEICHNER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+@dataclass(frozen=True)
+class Abgeleitetes:
+    """Was aus dem Bestand neu zu rechnen ist - und deshalb nicht mitgesichert wird.
+
+    Was abgeleitet ist, weiß nicht diese Datei, sondern wer das Layout kennt
+    (`wortlaut/corpus.py`) und wer die Tabellen kennt (die jeweilige App). Hier
+    steht nur, wie es wegbleibt: ein Verzeichnis wird übersprungen, eine
+    Tabelle in der Sicherungskopie geleert. Die Datenbank bleibt dabei
+    vollständig - Schema, Migrationsstand und jede andere Zeile stehen weiter
+    darin, es fehlen nur Zeilen, die ein Lauf von selbst wieder anlegt.
+
+    `verzeichnisse` sind vollständige Pfade relativ zum Datenverzeichnis,
+    `tabellen` bildet den Dateinamen einer Datenbank auf ihre abgeleiteten
+    Tabellen ab - `{"hoeren.sqlite": ("erkennungen",)}`.
+    """
+
+    verzeichnisse: tuple[str, ...] = ()
+    tabellen: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+
+    def uebergeht(self, relativ: Path) -> bool:
+        """Liegt diese Datei in einem der ausgelassenen Verzeichnisse?"""
+        pfad = relativ.as_posix()
+        return any(pfad.startswith(f"{ordner}/") for ordner in self.verzeichnisse)
+
+    def tabellen_von(self, datenbank: Path) -> tuple[str, ...]:
+        """Die abgeleiteten Tabellen dieser Datenbank - am Dateinamen erkannt."""
+        return tuple(self.tabellen.get(datenbank.name, ()))
+
+    def als_manifest(self) -> dict[str, Any]:
+        return {
+            "verzeichnisse": list(self.verzeichnisse),
+            "tabellen": {name: list(tabellen) for name, tabellen in self.tabellen.items()},
+        }
+
+
 def zeitmarke() -> str:
     """Für Dateinamen: `20260822-174500`. Sortierbar, ohne Sonderzeichen."""
     return datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
@@ -63,6 +121,7 @@ def schreibe_archiv(
     ziel: Path,
     *,
     beschreibung: dict[str, Any] | None = None,
+    ohne: Abgeleitetes | None = None,
 ) -> Path:
     """Sichert die genannten Unterverzeichnisse des Datenverzeichnisses nach `ziel`.
 
@@ -70,9 +129,14 @@ def schreibe_archiv(
     Was es nicht gibt, wird übergangen - ein Sprecher ohne Diktate ist kein
     Fehlerfall, sondern der Normalfall.
 
+    `ohne` nennt das Abgeleitete, das draußen bleibt (siehe `Abgeleitetes`).
+    Ohne Angabe wandert alles mit - diese Datei entscheidet nicht, was gerechnet
+    und was gesprochen ist.
+
     `beschreibung` wandert unverändert ins Manifest; dort steht, wofür diese
     Sicherung gezogen wurde - ein Sprecher oder der ganze Bestand.
     """
+    ausgelassen = ohne or Abgeleitetes()
     ziel.parent.mkdir(parents=True, exist_ok=True)
     dateien: dict[str, dict[str, Any]] = {}
 
@@ -86,7 +150,11 @@ def schreibe_archiv(
             for datei in sorted(pfad for pfad in quelle.rglob("*") if pfad.is_file()):
                 if datei.name.endswith(BEGLEITER):
                     continue
-                name, angaben = _lege_bei(archiv, Path(arbeit), datenverzeichnis, datei)
+                if ausgelassen.uebergeht(datei.relative_to(datenverzeichnis)):
+                    continue
+                name, angaben = _lege_bei(
+                    archiv, Path(arbeit), datenverzeichnis, datei, ausgelassen
+                )
                 dateien[name] = angaben
 
         manifest = {
@@ -94,6 +162,7 @@ def schreibe_archiv(
             "version": VERSION,
             "erstellt": datetime.now(UTC).isoformat(timespec="seconds"),
             **(beschreibung or {}),
+            "ausgelassen": ausgelassen.als_manifest(),
             "dateien": dateien,
         }
         _lege_text_bei(archiv, MANIFEST, json.dumps(manifest, ensure_ascii=False, indent=2))
@@ -168,7 +237,11 @@ def stelle_wieder_her(
 
 
 def _lege_bei(
-    archiv: tarfile.TarFile, arbeit: Path, datenverzeichnis: Path, datei: Path
+    archiv: tarfile.TarFile,
+    arbeit: Path,
+    datenverzeichnis: Path,
+    datei: Path,
+    ausgelassen: Abgeleitetes,
 ) -> tuple[str, dict[str, Any]]:
     """Eine Datei ins Archiv legen; Datenbanken über die Sicherungskopie."""
     relativ = datei.relative_to(datenverzeichnis)
@@ -177,9 +250,44 @@ def _lege_bei(
     quelle = datei
     if datei.suffix == DATENBANK_ENDUNG:
         quelle = db.sichere_kopie(datei, arbeit / relativ)
+        _leere(quelle, ausgelassen.tabellen_von(datei))
 
     archiv.add(quelle, arcname=name)
     return name, {"bytes": quelle.stat().st_size, "sha256": _pruefsumme(quelle)}
+
+
+def _leere(datenbank: Path, tabellen: Iterable[str]) -> None:
+    """Abgeleitete Zeilen aus der Sicherungskopie werfen - nie aus dem Bestand.
+
+    Gearbeitet wird ausschließlich auf der Kopie, die `sichere_kopie()` gerade
+    gezogen hat; der laufende Bestand wird dabei nicht angefasst.
+
+    Eine Tabelle, die es nicht gibt, ist kein Fehler: Eine Datenbank, die noch
+    vor der betreffenden Migration steht, hat schlicht nichts wegzulassen.
+
+    `VACUUM` am Ende ist der eigentliche Zweck der Übung - ohne ihn bliebe die
+    Datei so groß wie vorher, nur mit freien Seiten darin, und gespart wäre
+    nichts.
+    """
+    namen = list(tabellen)
+    ungueltig = [name for name in namen if not _BEZEICHNER.match(name)]
+    if ungueltig:
+        # Laut statt still: Ein Name, der hier nicht durchkommt, hieße sonst,
+        # dass Abgeleitetes unbemerkt doch im Archiv landet.
+        raise ValueError(f"Kein Tabellenname: {ungueltig[0]!r}")
+    if not namen:
+        return
+    with closing(sqlite3.connect(datenbank)) as verbindung:
+        vorhanden = {
+            zeile[0]
+            for zeile in verbindung.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+        geleert = [name for name in namen if name in vorhanden]
+        for name in geleert:
+            verbindung.execute(f"DELETE FROM {name}")  # `_BEZEICHNER` hat ihn geprüft
+        verbindung.commit()
+        if geleert:
+            verbindung.execute("VACUUM")
 
 
 def _lege_text_bei(archiv: tarfile.TarFile, name: str, inhalt: str) -> None:

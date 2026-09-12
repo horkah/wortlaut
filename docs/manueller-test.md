@@ -238,8 +238,11 @@ abgeschaltet, und das ist Absicht. Nach dem Setzen das Backend neu starten.
    ```
 
    Erwartet: `sicherung.json`, `daten/korpus/spr_…/hoeren.sqlite` und je
-   Aufnahme eine `.wav`. **Keine** `-wal`- oder `-shm`-Datei - ihr Inhalt
-   steckt schon in der gesicherten Datenbank.
+   Aufnahme **genau eine** `.wav`. **Keine** `-wal`- oder `-shm`-Datei - ihr
+   Inhalt steckt schon in der gesicherten Datenbank. Und **kein**
+   `audio/varianten/`: Die abgewandelten Fassungen sind gerechnet, nicht
+   gesprochen, und werden nicht mitgesichert. Was ausgelassen wurde, steht in
+   der `sicherung.json` unter `ausgelassen`.
 6. **Datensatz (.zip)**. Erwartet: darin `metadaten.csv`, `metadaten.jsonl`,
    `LIESMICH.txt` und ein `audio/`-Verzeichnis, in dem neben jeder `.wav` eine
    gleichnamige `.txt` mit dem gesprochenen Satz liegt. Eine `.sqlite` ist

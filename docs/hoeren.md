@@ -384,23 +384,50 @@ Ausgeleitet wird in zwei Formaten, weil zwei verschiedene Fragen dahinterstehen.
 
 Die **Sicherung** (`.tgz`) beantwortet „Der Server ist weg, ich will den Stand
 zurück." Sie enthält die Dateien, wie sie unter `WORTLAUT_DATA_DIR` liegen -
-Datenbanken und Aufnahmen -, und ihr Inneres bildet das Datenverzeichnis eins
-zu eins ab:
+Datenbanken und Aufnahmen -, und ihr Inneres bildet das Datenverzeichnis ab:
 
 ```
 wortlaut-gesamt-20260822-174500.tgz
-├── sicherung.json               Zeitpunkt, Sprecher, je Datei Größe und SHA-256
+├── sicherung.json               Zeitpunkt, Sprecher, Ausgelassenes, je Datei Größe und SHA-256
 └── daten/
     ├── korpus/spr_…/hoeren.sqlite
     ├── korpus/spr_…/audio/rec_….wav
-    ├── korpus/spr_…/audio/varianten/rec_….<fassung>.wav
-    └── diktate/spr_…/…          Arbeitsstand von „schreiben"
+    ├── lernen/spr_…/lernen.sqlite    die Aufteilung in Lernen und Prüfen
+    └── diktate/spr_…/…               Arbeitsstand von „schreiben"
 ```
 
 Das ist der ganze Trick der Wiederherstellung: Sie ist ein Auspacken an die
 richtige Stelle, kein Einspielen. `scripts/restore.py` nimmt einem die
 Prüfungen ab, aber `tar xzf` käme genauso weit - eine Sicherung, die ein
 laufendes Programm zum Lesen braucht, ist im Ernstfall keine.
+
+**Was nicht darin liegt, und warum nicht.** Gesichert wird, was ein Mensch
+hervorgebracht hat: die Aufnahmen, die Vorlagen, die Textquellen, die Diktate,
+das Profil, die Zugänge. Was eine Maschine daraus gerechnet hat, bleibt
+draußen - es ist aus eben diesen Daten wiederherstellbar, und zwar ohne dass
+jemand etwas dafür tun müsste:
+
+| | Größe | Kommt zurück durch |
+|---|---|---|
+| Modellstände `modelle/` | ~1 GB je Stand | einen Trainingslauf |
+| Schnappschüsse `snapshots/` | je Lauf ein Verzeichnis | einen Trainingslauf |
+| abgewandelte Fassungen `audio/varianten/` | drei Viertel des Audios | den nächsten Auswertungslauf, dateiweise in Millisekunden |
+| Messwerte, Tabelle `erkennungen` | wächst mit jedem Modell | denselben Lauf; er rechnet ohnehin nur, was fehlt |
+
+Die ersten beiden waren nie darin. Die anderen beiden sind es seit Kurzem
+nicht mehr: Ein Archiv, das dreimal so viel gerechnetes Audio trägt wie
+gesprochenes, trägt man seltener weg - und eine Sicherung, die man seltener
+zieht, ist die eigentliche Gefahr. Die Datenbank kommt dabei **vollständig**
+mit; geleert wird in der Sicherungskopie nur diese eine Tabelle, und auch das
+schreibt `sicherung.json` unter `ausgelassen` hin, damit niemand das Fehlende
+für einen Schaden hält.
+
+Eine Ausnahme bleibt drin, obwohl auch sie eine Maschine angelegt hat: die
+Aufteilung in Lernen und Prüfen (`lernen/spr_…/lernen.sqlite`). Sie wiegt
+Kilobyte, und neu gewürfelt wäre sie eine *andere* Aufteilung - der Vergleich
+mit jedem früheren Lauf wäre dahin, und geprüft würde teils auf Aufnahmen, auf
+denen schon trainiert wurde. Neu zu rechnen ist sie nicht, nur neu zu
+erfinden.
 
 Es gibt sie je Sprecher und über alle auf einmal, letztere als **eine** Datei.
 Der Dienst darf dabei laufen: Die Datenbanken werden nicht kopiert, sondern
@@ -613,11 +640,14 @@ Drei Entscheidungen stecken darin:
 Die Fassungen werden **aufbewahrt**, nicht im Speicher hergestellt und wieder
 vergessen. Damit hat nicht nur die Auswertung etwas davon: Auf der Platte steht
 ein viermal so großer Datensatz, den ein späteres Feintuning ohne weiteres
-Zutun mitnehmen kann, und der in jeder Sicherung liegt. Sie entstehen beim
-Hochladen einer Aufnahme und, falls eine fehlt, spätestens kurz bevor der Lauf
-sie braucht - so kommt auch jeder Korpus, der vor dieser Änderung angelegt
-wurde, ohne Zutun zu seinen Dateien. `make augmentieren` (im Container
-`python scripts/augmentieren.py`) zieht das für alle Korpora auf einmal vor.
+Zutun mitnehmen kann. Sie entstehen beim Hochladen einer Aufnahme und, falls
+eine fehlt, spätestens kurz bevor der Lauf sie braucht - so kommt auch jeder
+Korpus, der vor dieser Änderung angelegt wurde, ohne Zutun zu seinen Dateien.
+`make augmentieren` (im Container `python scripts/augmentieren.py`) zieht das
+für alle Korpora auf einmal vor.
+
+In der Sicherung liegen sie dagegen **nicht**: Liegenbleiben ist billig,
+Wegtragen nicht (siehe [Zwei Formate, zwei Fragen](#zwei-formate-zwei-fragen)).
 
 Beim Löschen gehen sie mit: Eine abgewandelte Fassung ist dieselbe Stimme, nur
 lauter oder verrauscht, und damit derselbe Gesundheitsdatensatz
