@@ -44,6 +44,39 @@ x-logs: &logs
     max-size: "10m"
     max-file: "3"
 
+# ── Warum die Pfade des Wirts nicht von selbst entstehen dürfen ─────────────
+#
+# Drei der vier Ablagen liegen nicht im Volume, sondern in einem Pfad des
+# Wirts: die Grundmodelle, Ollamas Modelle und alles, was ein Training
+# hervorbringt. Sie liegen dort, weil sie groß sind und die Platte sonst
+# vollläuft (siehe die Kommentare an den Mounts selbst).
+#
+# Docker legt eine fehlende Bind-Quelle stillschweigend an. Das ist genau dann
+# fatal, wenn der Pfad auf einer eigenen Platte liegt, die beim Start des
+# Containers noch nicht eingehängt ist: Dann entsteht das Verzeichnis
+# *unterhalb* des Einhängepunktes auf der Systemplatte, wird vom späteren
+# Einhängen verdeckt - und der Container hält es trotzdem weiter fest, denn
+# ein Bind-Mount hängt am Inode und nicht am Pfad. Zwei Container, die
+# denselben Pfad in ihrer compose.yaml stehen haben, sehen dann verschiedene
+# Verzeichnisse.
+#
+# Genau das ist passiert: Der Trainer wurde erzeugt, bevor /backup eingehängt
+# war, und wartete danach eine Dreiviertelstunde auf einen Auftrag, den die
+# App zwei Zentimeter daneben auf die richtige Platte geschrieben hatte. Beide
+# zeigten auf `…/snapshots`, aber auf zwei verschiedene Geräte. Hätte er dort
+# wirklich gerechnet, wären Modellstände und Laufverzeichnisse auf der
+# Systemplatte gelandet - dort, wo sie seit fünf Commits ausdrücklich nicht
+# mehr hingehören.
+#
+# `create_host_path: false` macht daraus einen lauten Fehlschlag: Fehlt der
+# Pfad, startet der Container nicht. Der Preis ist eine Zeile mehr beim ersten
+# Aufsetzen - die Verzeichnisse müssen einmal von Hand angelegt werden (siehe
+# docs/betrieb.md).
+x-wirtspfad: &wirtspfad
+  type: bind
+  bind:
+    create_host_path: false
+
 services:
   wortlaut:
     build:
@@ -86,7 +119,9 @@ services:
       # langsame Platte, während Aufnahmen und Datenbanken auf der SSD
       # bleiben. Das Laden beim ersten Start dauert dadurch etwas länger;
       # gerechnet wird danach ohnehin auf der Karte.
-      - ${WORTLAUT_MODELLCACHE:-./data/modellcache}:/srv/wortlaut/modellcache
+      - <<: *wirtspfad
+        source: ${WORTLAUT_MODELLCACHE:-./data/modellcache}
+        target: /srv/wortlaut/modellcache
       # Was ein Training hervorbringt, liegt ebenfalls nicht im Volume der
       # Daten: die Modellstände (`modelle/`, hier knapp ein Gigabyte je Stand)
       # und die Laufverzeichnisse (`snapshots/`) mit Auftrag, Manifest,
@@ -96,8 +131,12 @@ services:
       # mit (`wortlaut/sicherung.py`). Im Container bleiben die Pfade, wo der
       # Quelltext sie erwartet: unter WORTLAUT_DATA_DIR. Auf dem Wirt zeigt
       # WORTLAUT_TRAININGSABLAGE dorthin, wo Platz ist.
-      - ${WORTLAUT_TRAININGSABLAGE:-./data/training}/modelle:/srv/wortlaut/data/modelle
-      - ${WORTLAUT_TRAININGSABLAGE:-./data/training}/snapshots:/srv/wortlaut/data/snapshots
+      - <<: *wirtspfad
+        source: ${WORTLAUT_TRAININGSABLAGE:-./data/training}/modelle
+        target: /srv/wortlaut/data/modelle
+      - <<: *wirtspfad
+        source: ${WORTLAUT_TRAININGSABLAGE:-./data/training}/snapshots
+        target: /srv/wortlaut/data/snapshots
     # Die Karte, wenn eine da ist. Diktieren und die Auswertung nehmen sie
     # (`wortlaut/rechenwerk.py`) - das ist der Unterschied zwischen vier
     # Sekunden und einer Viertelsekunde je Aufnahme.
@@ -162,7 +201,9 @@ services:
       - wortlaut-data:/srv/wortlaut/data
       # Dieselben Grundmodelle wie „hören" - ein Feintuning setzt auf einem
       # von ihnen auf, und zweimal sechs Gigabyte wären zweimal zu viel.
-      - ${WORTLAUT_MODELLCACHE:-./data/modellcache}:/srv/wortlaut/modellcache
+      - <<: *wirtspfad
+        source: ${WORTLAUT_MODELLCACHE:-./data/modellcache}
+        target: /srv/wortlaut/modellcache
       # Was ein Training hervorbringt, liegt ebenfalls nicht im Volume der
       # Daten: die Modellstände (`modelle/`, hier knapp ein Gigabyte je Stand)
       # und die Laufverzeichnisse (`snapshots/`) mit Auftrag, Manifest,
@@ -172,8 +213,12 @@ services:
       # mit (`wortlaut/sicherung.py`). Im Container bleiben die Pfade, wo der
       # Quelltext sie erwartet: unter WORTLAUT_DATA_DIR. Auf dem Wirt zeigt
       # WORTLAUT_TRAININGSABLAGE dorthin, wo Platz ist.
-      - ${WORTLAUT_TRAININGSABLAGE:-./data/training}/modelle:/srv/wortlaut/data/modelle
-      - ${WORTLAUT_TRAININGSABLAGE:-./data/training}/snapshots:/srv/wortlaut/data/snapshots
+      - <<: *wirtspfad
+        source: ${WORTLAUT_TRAININGSABLAGE:-./data/training}/modelle
+        target: /srv/wortlaut/data/modelle
+      - <<: *wirtspfad
+        source: ${WORTLAUT_TRAININGSABLAGE:-./data/training}/snapshots
+        target: /srv/wortlaut/data/snapshots
     deploy:
       resources:
         reservations:
@@ -217,7 +262,9 @@ services:
       # sonst noch hier ablegt, ist sein Schlüsselpaar; auch das ist neu zu
       # erzeugen und keine Sicherung wert. Wohin auf dem Wirt, sagt
       # WORTLAUT_OLLAMACACHE in der .env.
-      - ${WORTLAUT_OLLAMACACHE:-./data/ollama}:/root/.ollama
+      - <<: *wirtspfad
+        source: ${WORTLAUT_OLLAMACACHE:-./data/ollama}
+        target: /root/.ollama
     healthcheck:
       # Ohne curl im Abbild: `ollama list` spricht dieselbe Schnittstelle an,
       # die auch „hören" benutzt, und antwortet erst, wenn der Dienst steht.
