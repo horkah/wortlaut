@@ -441,7 +441,7 @@ POST   /schreiben/api/sessions/{id}/bestaetigen   → Postausgang, sofort senden
 POST   /schreiben/api/segments/{id}/neu           multipart: audio
 GET    /schreiben/api/segments/{id}/audio
 GET    /schreiben/api/model                       Modellstand samt Auswahl
-PUT    /schreiben/api/model                       { ref } - anderes Modell laden
+PUT    /schreiben/api/model                       { ref?, aussteuern? } - was fehlt, bleibt
 GET    /schreiben/api/outbox
 POST   /schreiben/api/outbox/senden               noch einmal versuchen
 GET    /gesundheit                                auf der Wurzel, für die Überwachung

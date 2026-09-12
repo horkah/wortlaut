@@ -64,12 +64,28 @@ class Testtranskriptor:
 
     abschnitte: list[Abschnitt] = field(default_factory=lambda: list(VORGABE))
     aufrufe: int = 0
+    # Die Spitze der Datei, die zuletzt zu hören war - daran lässt sich
+    # ablesen, ob vor dem Erkennen ausgesteuert wurde (siehe
+    # `test_aussteuern.py`). Das echte Modell sieht dieselbe Datei.
+    gehoerte_spitze: int = 0
 
     def transkribiere(self, wav: Path, sprache: str = "de") -> Transkript:
         self.aufrufe += 1
+        self.gehoerte_spitze = _spitze(wav)
         return Transkript(
             text=" ".join(a.text for a in self.abschnitte).strip(), abschnitte=self.abschnitte
         )
+
+
+def _spitze(wav: Path) -> int:
+    """Der lauteste Abtastwert einer WAV-Datei, als Betrag."""
+    import array
+    import wave
+
+    with wave.open(str(wav), "rb") as datei:
+        werte = array.array("h")
+        werte.frombytes(datei.readframes(datei.getnframes()))
+    return max(max(werte), -min(werte)) if werte else 0
 
 
 @dataclass

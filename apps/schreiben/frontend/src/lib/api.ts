@@ -60,6 +60,8 @@ export type Modell = {
   laufzeit: string;
   /** Ob ausdrücklich gewählt wurde; sonst gilt die Vorgabe. */
   gewaehlt: boolean;
+  /** Ob das Diktat vor dem Erkennen ausgesteuert wird. */
+  aussteuern: boolean;
   beschriftung: string;
   auswahl: Modellwahl[];
 };
@@ -136,10 +138,20 @@ export const werRuft = () => anfrage<Wer>('/zugang');
 /** Der Modellstand **dieses** Sprechers; „lernen" gibt ihn je Person frei. */
 export const modell = () => anfrage<Modell>('/model');
 
-/** Ein anderes Modell benutzen. Leere Kennung heißt: zurück zur Vorgabe. */
-export const modellWaehlen = (ref: string) =>
+/**
+ * Modell oder Aufbereitung ändern. Was nicht mitgeschickt wird, bleibt stehen.
+ *
+ * Deshalb wird ausdrücklich nur gesetzt, was gemeint ist: Ein leeres `ref`
+ * heißt „zurück zur Vorgabe", und das ist etwas anderes als „das Modell nicht
+ * anfassen". Ohne die Unterscheidung setzte ein Umlegen des Schalters nebenbei
+ * die Modellwahl zurück.
+ */
+export const erkennungSetzen = (aenderung: { ref?: string; aussteuern?: boolean }) =>
   anfrage<Modell>('/model', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ref }),
+    body: JSON.stringify(aenderung),
   });
+
+/** Ein anderes Modell benutzen. Leere Kennung heißt: zurück zur Vorgabe. */
+export const modellWaehlen = (ref: string) => erkennungSetzen({ ref });

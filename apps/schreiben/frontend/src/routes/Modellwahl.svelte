@@ -20,7 +20,7 @@
    * bleiben. Ein Modell zu wechseln ist ein Nachjustieren, keine Tätigkeit -
    * es gehört dorthin, wo auch Mikrofon und Stimme stehen.
    */
-  import { modellWaehlen, type Modellwahl } from '../lib/api';
+  import { erkennungSetzen, modellWaehlen, type Modellwahl } from '../lib/api';
   import { gehZu, ladeModellstand, zustand } from '../lib/zustand.svelte';
 
   let fehler = $state('');
@@ -49,6 +49,19 @@
       teile.push(`WER ${wahl.wer.toFixed(3)} auf den Testaufnahmen`);
     }
     return teile.join(' · ');
+  }
+
+  async function schalteAussteuern(an: boolean) {
+    arbeitet = 'aussteuern';
+    fehler = '';
+    try {
+      await erkennungSetzen({ aussteuern: an });
+      await ladeModellstand();
+    } catch (ursache) {
+      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+    } finally {
+      arbeitet = '';
+    }
   }
 
   async function waehle(ref: string) {
@@ -102,6 +115,28 @@
         </button>
       </div>
     {/if}
+  </div>
+
+  <div class="karte">
+    <label class="umschalter">
+      <span>Vor dem Erkennen aussteuern</span>
+      <input
+        type="checkbox"
+        role="switch"
+        checked={modell.aussteuern}
+        disabled={arbeitet === 'aussteuern'}
+        onchange={(ereignis) => schalteAussteuern(ereignis.currentTarget.checked)}
+      />
+    </label>
+    <p class="gedaempft klein">
+      Das Diktat wird lauter gerechnet, bis seine lauteste Stelle knapp unter dem Anschlag steht -
+      ein einziger Faktor über die ganze Aufnahme. Wie gesprochen wurde, ändert das nicht, nur wie
+      weit der Regler aufgedreht war. Vor allem die kleineren Modelle hören damit besser.
+    </p>
+    <p class="gedaempft klein">
+      Gespeichert wird die Aufnahme trotzdem so, wie sie gesprochen wurde: Was später als Korrektur
+      nach „hören" geht, soll dort ein echtes Original sein.
+    </p>
   </div>
 
   {#if trainiert.length}
@@ -168,6 +203,28 @@
 <style>
   .zurueck {
     margin: 0 0 0.8rem;
+  }
+
+  /* Beschriftung links, Schalter rechts - und auf einem schmalen Telefon
+     untereinander, damit nichts umbricht. Das Stylesheet macht `label > span`
+     sonst klein, grau und zu einer eigenen Zeile darüber; hier steht die
+     Beschriftung neben dem Schalter und trägt das Gewicht. */
+  .umschalter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    margin: 0;
+    cursor: pointer;
+  }
+
+  .umschalter span {
+    display: inline;
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: inherit;
   }
 
   .jetzt {
