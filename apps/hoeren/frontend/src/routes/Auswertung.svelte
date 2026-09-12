@@ -41,6 +41,7 @@
    * erst hier (`await import`), damit die Aufnahmeseite es nicht mitschleppt.
    */
   import { onMount } from 'svelte';
+  import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Textvergleich from '$ui/Textvergleich.svelte';
   import type { Diagramm } from '../lib/diagramm';
   import { einstellungen } from '$ui/einstellungen.svelte';
@@ -48,6 +49,7 @@
     auswertung as ladeAuswertung,
     auswertungStarten,
     auswertungStoppen,
+    meineAufnahmeAudio,
     vergleich as ladeVergleich,
     type Auswertung,
     type Vergleich,
@@ -85,6 +87,63 @@
   let gewaehlt = $state<Vergleich | null>(null);
   let gewaehlteNummer = $state(0);
   let vergleichLaeuft = $state(false);
+
+  /**
+   * Die Aufnahme zum Mithören - genau die Fassung, deren Texte darunter stehen.
+   *
+   * **Warum ohne Knopf davor.** In „Meine Daten" steht ein „▶ Hören", weil dort
+   * eine lange Liste von Aufnahmen untereinander liegt und der Browser sonst
+   * Dutzende davon in den Speicher zöge. Hier ist es eine einzige, und man ist
+   * schon zweimal hingekommen: einmal auf die Spalte getippt, einmal die
+   * Fassung gewählt. Ein dritter Klick, um zu hören, worüber man gerade liest,
+   * wäre einer zu viel.
+   *
+   * **Warum als Blob und nicht als Adresse.** Die Datei hängt am Zugang des
+   * Sprechers, und ein `<audio src>` schickt keine Kopfzeilen mit.
+   *
+   * Die Kennung steht mit dabei, damit ein spätes Laden nicht eine Aufnahme
+   * übertönt, zu der inzwischen weitergeklickt wurde.
+   */
+  let hoerprobe = $state<{ schluessel: string; adresse: string } | null>(null);
+
+  function vergissHoerprobe() {
+    if (hoerprobe) URL.revokeObjectURL(hoerprobe.adresse);
+    hoerprobe = null;
+  }
+
+  async function ladeHoerprobe(aufnahmeId: string, fassung: string) {
+    const schluessel = `${aufnahmeId}.${fassung}`;
+    if (hoerprobe?.schluessel === schluessel) return;
+    vergissHoerprobe();
+    try {
+      const inhalt = await meineAufnahmeAudio(aufnahmeId, fassung);
+      // Noch dieselbe Aufnahme und dieselbe Fassung? Sonst ist das hier die
+      // Antwort auf eine Frage, die niemand mehr stellt.
+      if (gewaehlt?.aufnahme_id === aufnahmeId && gewaehlteFassung === fassung) {
+        hoerprobe = { schluessel, adresse: URL.createObjectURL(inhalt) };
+      }
+    } catch {
+      // Eine Fassung, die noch nicht gerechnet ist, gibt es schlicht nicht -
+      // dann steht kein Abspieler da. Eine Fehlermeldung wäre hier eine
+      // Warnung vor nichts: Die Texte darunter fehlen dann ohnehin auch.
+      vergissHoerprobe();
+    }
+  }
+
+  // Nachladen, sobald sich Aufnahme oder Fassung ändert - und aufräumen, wenn
+  // die Ansicht geht: Ein nicht freigegebenes Objekt-URL hält die ganze
+  // Audiodatei im Speicher.
+  $effect(() => {
+    const aufnahmeId = gewaehlt?.aufnahme_id;
+    const fassung = gewaehlteFassung;
+    if (!aufnahmeId) {
+      vergissHoerprobe();
+      return;
+    }
+    ladeHoerprobe(aufnahmeId, fassung);
+  });
+
+  $effect(() => () => vergissHoerprobe());
 
   // Ob die Fassungen ihre Abweichungen von der Vorlage ausgezeichnet tragen.
   // An als Vorgabe - das ist die Frage, mit der man herkommt. Aus, sobald es
@@ -713,6 +772,18 @@
   <div class="karte">
     <p class="marke">Vorlage</p>
     <p class="vorlage">{gewaehlt.referenz}</p>
+    <!-- Was dastand, und gleich darunter, was daraus wurde: Wer beurteilt, ob
+         ein Modell danebengegriffen hat, hört zuerst selbst hin. Der Abspieler
+         folgt der Fassungswahl darunter - beim Rauschen ist gerade das die
+         Frage, ob man selbst noch versteht, was das Modell nicht verstand. -->
+    {#if hoerprobe}
+      <AudioPlayer
+        quelle={hoerprobe.adresse}
+        beschriftung={varianten.length > 1
+          ? `Gehört: ${varianten.find((v) => v.schluessel === gewaehlteFassung)?.name ?? gewaehlteFassung}`
+          : 'Die Aufnahme'}
+      />
+    {/if}
   </div>
 
   {#if varianten.length > 1}

@@ -122,13 +122,34 @@ async def nimm_auf(
 
 @router.get("/{aufnahme_id}/audio")
 def hoere_ab(
-    sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage
+    sprecher: SprecherId,
+    aufnahme_id: str,
+    db: Datenbank,
+    ablage: Ablage,
+    fassung: str = augmentierung.ORIGINAL,
 ) -> FileResponse:
-    """Die eigene Aufnahme anhören, bevor man sie behält."""
+    """Die eigene Aufnahme anhören - das Original oder eine ihrer Fassungen.
+
+    **Warum auch die Fassungen.** In der Auswertung steht neben jeder Fassung,
+    was die Modelle aus ihr gemacht haben - und die interessanteste Frage dabei
+    ist, ob man selbst noch versteht, was das Modell nicht mehr verstanden hat.
+    Eine Zahl zum Rauschen beantwortet das nicht; das Rauschen selbst schon.
+
+    Gerechnet wird hier nichts: Fehlt die Datei, ist sie noch nicht entstanden
+    (`services/augmentierung.py` legt sie beim Hochladen an, der Auswertungslauf
+    holt sie spätestens nach). Ein Abspieler ist kein Anlass, Rechenzeit zu
+    binden - er bekommt dann eine 404 und bleibt still.
+    """
     aufnahme = db.get(Aufnahme, aufnahme_id)
     if aufnahme is None or aufnahme.speaker_id != sprecher or aufnahme.status != "ok":
         raise HTTPException(status_code=404, detail="Unbekannte Aufnahme")
-    return FileResponse(ablage.pfad(aufnahme.blob), media_type="audio/wav")
+    if fassung not in augmentierung.VARIANTEN:
+        raise HTTPException(status_code=404, detail=f"Unbekannte Fassung: {fassung}")
+
+    pfad = ablage.pfad(augmentierung.relpfad(aufnahme, fassung))
+    if not pfad.is_file():
+        raise HTTPException(status_code=404, detail="Diese Fassung liegt noch nicht vor.")
+    return FileResponse(pfad, media_type="audio/wav")
 
 
 @router.delete("/{aufnahme_id}", status_code=204)
