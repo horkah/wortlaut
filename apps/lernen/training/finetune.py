@@ -278,7 +278,7 @@ def trainiere(verzeichnis: Path, datenverzeichnis: Path, bericht: Bericht) -> Pa
     # Aufnahmen gibt es eine Validierung (siehe `wortlaut/laeufe.py`).
     hat_pruefung = len(pruef) > 0
 
-    ausgabe = verzeichnis / "arbeitsstand"
+    ausgabe = verzeichnis / laeufe.ARBEITSSTAND
     argumente = Seq2SeqTrainingArguments(
         output_dir=str(ausgabe),
         per_device_train_batch_size=int(rezept["stapel"]),
@@ -310,7 +310,8 @@ def trainiere(verzeichnis: Path, datenverzeichnis: Path, bericht: Bericht) -> Pa
         # `save_total_limit=1` hält den Platzbedarf in Grenzen - zusammen mit
         # dem besten liegen höchstens zwei Zwischenstände auf der Platte, beim
         # vollen Training je knapp drei Gigabyte. Sie verschwinden mit dem
-        # `arbeitsstand`, sobald der Lauf durch ist (siehe `bewerten.py`).
+        # `arbeitsstand`, sobald der Lauf endet - durchgelaufen oder
+        # gescheitert (siehe `main`).
         save_strategy="epoch" if hat_pruefung else "no",
         save_total_limit=1,
         load_best_model_at_end=hat_pruefung,
@@ -354,7 +355,7 @@ def trainiere(verzeichnis: Path, datenverzeichnis: Path, bericht: Bericht) -> Pa
         )
 
     bericht.stufe("sichern")
-    gewichte = verzeichnis / "gewichte"
+    gewichte = verzeichnis / laeufe.GEWICHTE
     if methode == laeufe.LORA:
         # Zusammengerechnet und nicht als Zusatz gespeichert: Was danach kommt,
         # ist die Umwandlung nach CTranslate2, und die kennt kein LoRA. Ein
@@ -429,6 +430,20 @@ def main(argumente: list[str]) -> int:
         traceback.print_exc()
         bericht.gescheitert(f"{type(ursache).__name__}: {ursache}")
         return 1
+    finally:
+        # Auf beiden Wegen, und deshalb hier und nicht am Ende des guten. Ein
+        # gescheiterter Lauf ließ bis eben den halben Arbeitsstand samt
+        # Optimierer liegen - beim vollen Training knapp drei Gigabyte, die
+        # niemand mehr liest und die niemand wegräumt, eben weil der Lauf
+        # schiefging. Nach genügend Fehlläufen ist die Platte voll, und dann
+        # scheitert auch der gesunde Lauf.
+        #
+        # Was ein `finally` nicht kann, ist der erschlagene Prozess: kein
+        # Python läuft mehr, das hier ankäme. Diesen Fall nimmt der Läufer
+        # (`laeufer.einmal`), der den Unterprozess überlebt.
+        entfernt = laeufe.raeume_zwischenstaende_auf(verzeichnis)
+        if entfernt:
+            bericht.sage(f"Aufgeräumt: {', '.join(entfernt)}")
 
     bericht.sage(f"Fertig in {(time.monotonic() - begonnen) / 60:.1f} Minuten: {version}")
     return 0

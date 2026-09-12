@@ -101,6 +101,14 @@ def einmal() -> bool:
     )
     rueckgabe = _fuehre_aus(lauf)
     _nacharbeit(lauf, rueckgabe)
+    # Der zweite Griff nach den Zwischenständen. Der rechnende Prozess räumt
+    # selbst auf, auch wenn er scheitert (`finetune.main`); nur wenn ihn der
+    # Kern erschlägt, kommt er nicht mehr dazu - und dann ist eine volle Platte
+    # oft genau der Grund gewesen. Hier läuft noch etwas, also wird hier
+    # nachgesehen. Was schon weg ist, kostet einen Blick ins Verzeichnis.
+    entfernt = laeufe.raeume_zwischenstaende_auf(lauf.verzeichnis)
+    if entfernt:
+        print(f"Zwischenstände weggeräumt: {', '.join(entfernt)}", flush=True)
     print(f"Auftrag {lauf.job_id} beendet ({rueckgabe})", flush=True)
     return True
 

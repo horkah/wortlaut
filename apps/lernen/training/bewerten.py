@@ -172,18 +172,9 @@ def bewerte_und_gib_frei(
         },
     )
 
-    # Die Rohgewichte sind ein Vielfaches des umgewandelten Standes und werden
-    # von nichts in diesem Projekt gelesen. Sie liegen zu lassen hieße, je Lauf
-    # ein Gigabyte aufzuheben, das niemand je öffnet.
-    _raeume_auf(gewichte, verzeichnis / "arbeitsstand")
-
+    # Die Rohgewichte und der Arbeitsstand bleiben hier liegen - weggeräumt
+    # werden sie von `finetune.main`, und zwar auf beiden Wegen. Der Aufruf
+    # stand einmal hier, und das war die halbe Lösung: Ein Lauf, der vorher
+    # scheiterte, kam nie an ihm vorbei und hinterließ knapp drei Gigabyte.
     bericht.fertig(version, gemessen)
     return version
-
-
-def _raeume_auf(*verzeichnisse: Path) -> None:
-    import shutil
-
-    for verzeichnis in verzeichnisse:
-        if verzeichnis.is_dir():
-            shutil.rmtree(verzeichnis, ignore_errors=True)

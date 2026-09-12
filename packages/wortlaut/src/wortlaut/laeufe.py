@@ -15,7 +15,9 @@ Hier ist das ein Verzeichnis je Auftrag:
     ├── zustand.json          was daraus geworden ist - vom Trainer geschrieben
     ├── fortschritt.jsonl     je Zeile ein Ereignis: Schritt, Verlust, Stufe
     ├── bewertung.jsonl       je Zeile eine Testaufnahme, vom fertigen Modell
-    └── protokoll.txt         die rohe Ausgabe, für den Fall, dass etwas fehlt
+    ├── protokoll.txt         die rohe Ausgabe, für den Fall, dass etwas fehlt
+    ├── arbeitsstand/         Zwischenstände des Trainers - nur während des Laufs
+    └── gewichte/             die Rohgewichte - nur bis zur Umwandlung
 
 **Warum das Verzeichnis und nicht eine Tabelle der Auftrag ist.** Der Trainer
 läuft in einem anderen Container. Er kann eine SQLite-Datei über das geteilte
@@ -42,6 +44,7 @@ mehr stimmt.
 from __future__ import annotations
 
 import json
+import shutil
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -58,6 +61,16 @@ ZUSTAND = "zustand.json"
 FORTSCHRITT = "fortschritt.jsonl"
 BEWERTUNG = "bewertung.jsonl"
 PROTOKOLL = "protokoll.txt"
+
+# Die beiden Verzeichnisse, die nur während eines Laufs etwas zu sagen haben:
+# der Arbeitsstand des Trainers (Zwischenstände samt Optimierer) und die
+# Rohgewichte, aus denen der CTranslate2-Stand gerechnet wird. Beide wiegen
+# Gigabyte, beide liest danach nichts mehr in diesem Projekt - und sie stehen
+# hier und nicht im Trainer, weil zwei Seiten sie wegräumen müssen (siehe
+# `raeume_zwischenstaende_auf`).
+ARBEITSSTAND = "arbeitsstand"
+GEWICHTE = "gewichte"
+ZWISCHENSTAENDE = (ARBEITSSTAND, GEWICHTE)
 
 # ── Die Aufteilung ──────────────────────────────────────────────────────────
 #
@@ -117,6 +130,33 @@ def wurzel(datenverzeichnis: Path) -> Path:
 
 def lauf_verzeichnis(datenverzeichnis: Path, job_id: str) -> Path:
     return wurzel(datenverzeichnis) / job_id
+
+
+def raeume_zwischenstaende_auf(verzeichnis: Path) -> list[str]:
+    """Arbeitsstand und Rohgewichte eines Laufs löschen; gibt zurück, was wegging.
+
+    Gerufen von zwei Seiten, und das ist Absicht. Der rechnende Prozess tut es
+    selbst, sobald er fertig oder gescheitert ist (`finetune.main`) - das ist
+    der gewöhnliche Weg, und er sagt es auch ins Protokoll. Der Läufer tut es
+    danach noch einmal (`laeufer.einmal`), und der deckt den Fall, den der
+    erste nicht decken kann: einen Prozess, den der Kern erschlagen hat, weil
+    der Speicher der Karte oder die Platte nicht mehr reichte. Dann läuft kein
+    `finally` mehr.
+
+    Genau so ist dieses Projekt einmal auf eine volle Platte gelaufen: ein
+    abgebrochener Lauf, dessen `arbeitsstand/checkpoint-63` mit 1,8 GB
+    Optimierer liegen blieb. Ein Rest dieser Größe je Abbruch füllt die Platte,
+    und die volle Platte bringt den nächsten Lauf aus demselben Grund um.
+
+    Zweimal zu löschen ist kein Fehler: Was schon weg ist, wird übergangen.
+    """
+    entfernt: list[str] = []
+    for name in ZWISCHENSTAENDE:
+        pfad = verzeichnis / name
+        if pfad.is_dir():
+            shutil.rmtree(pfad, ignore_errors=True)
+            entfernt.append(name)
+    return entfernt
 
 
 def lies_json(pfad: Path) -> dict[str, Any] | None:

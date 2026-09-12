@@ -15,12 +15,42 @@
 #
 # Wer die Apps getrennt betreiben will, nimmt statt dessen die beiden
 # Dockerfiles unter apps/ als je einen Dienst (docs/betrieb.md).
+
+# ── Was in die Container-Logs darf ──────────────────────────────────────────
+#
+# Ohne diese vier Zeilen schreibt Docker `json-file` ohne Obergrenze, und das
+# ist keine graue Theorie: Der Läufer schreibt jede Zeile eines Trainings
+# zweimal - einmal in `protokoll.txt` im Datenverzeichnis, wo die Oberfläche
+# sie zeigt, und einmal auf die eigene Ausgabe, wo Docker sie einsammelt
+# (`apps/lernen/training/laeufer.py`). Dazu die Fortschrittsbalken von
+# transformers, die über stderr mitkommen. So ist ein Log auf 6,2 GB gewachsen
+# und hat die Platte des Wirts gefüllt - was mitten in einem Training den
+# Prozess erschlug und dessen Arbeitsstand liegen ließ. Beide Hälften dieses
+# Schadens sind mit diesem Stand behoben; die andere in `wortlaut/laeufe.py`.
+#
+# Dreimal zehn Megabyte je Dienst genügen, weil das Log hier nirgends die
+# einzige Quelle ist: Wer einen Trainingsfehler sucht, findet ihn im Protokoll
+# des Laufs, das vollständig im Volume liegt und von dieser Grenze nichts weiß.
+# Übrig bleibt, was der Läufer selbst sagt - ein paar Zeilen je Auftrag.
+#
+# Wirksam wird die Grenze erst mit einem **neu erstellten** Container
+# (`docker compose up -d`); ein Neustart allein genügt nicht, und eine schon
+# gewachsene Datei räumt sie nicht weg. Die schneidet einmalig
+# `truncate -s 0` auf dem Wirt ab - nicht `rm`, denn den offenen Dateizeiger
+# behält Docker, und der Platz käme nicht zurück.
+x-logs: &logs
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   wortlaut:
     build:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    logging: *logs
     env_file: .env
     depends_on:
       - ollama
@@ -98,6 +128,7 @@ services:
       dockerfile: apps/lernen/training/Dockerfile
     profiles: [training]
     restart: unless-stopped
+    logging: *logs
     env_file: .env
     # Kein `networks`: Dieser Dienst ruft nichts und wird von nichts gerufen.
     # Er lädt einmal das Grundmodell von Hugging Face - das geht über das
@@ -131,6 +162,7 @@ services:
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
+    logging: *logs
     networks:
       - intern
     environment:
