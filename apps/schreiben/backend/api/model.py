@@ -1,62 +1,45 @@
-"""Wie die Erkennung für **diesen** Sprecher läuft - Modell und Aufbereitung.
+"""Wer hier zuhört - und ob das Diktat vorher ausgesteuert wird.
 
 Ein Modell gehört zu genau einem Menschen (Grundentscheidung 3), und wer hier
 diktiert, diktiert auf seinem eigenen. Diese Auskunft hängt deshalb am Zugang
 und nicht an der Konfiguration.
 
-**Warum hier inzwischen gewählt werden darf.** Früher stand das Modell in der
-Umgebung und ein Wechsel war ein Neustart - richtig, solange es je Sprecher
-höchstens einen trainierten Stand gab. „lernen" liefert vier (zwei Methoden mal
-zwei Datensätze), und daneben stehen die unveränderten Grundmodelle, gegen die
-in „hören" schon gemessen wurde. Welcher davon dieser Person am besten zuhört,
-beantwortet keine Kennzahl allein; das beantwortet sich beim Diktieren, und
-dafür muss man wechseln können.
+**Gewählt wird hier nichts.** Welches Modell gilt, entscheidet die
+Modellübersicht in „lernen" - der eine Ort, an dem die eigenen Stände und die
+unveränderten Grundmodelle nebeneinander stehen, an denselben Testaufnahmen
+gemessen (`apps/lernen/backend/api/modelle.py`). Dieser Weg liest die Freigabe
+und sagt, was daraus geladen wurde; wer sie ändern will, klickt in dieser App
+auf die Modellzeile und landet dort.
 
-Aufgegeben wird dabei nichts: Die Kopfzeile nennt weiterhin dauerhaft, was
-gerade arbeitet - jetzt samt Methode und Datensatz, denn vier Stände vom selben
-Tag wären sonst nicht auseinanderzuhalten. Wer eine Ausgabe beurteilt,
-beurteilt immer ein bestimmtes Modell.
+Aufgegeben wird dabei nichts: Die Zeile unter dem Aufnahmeknopf nennt
+weiterhin dauerhaft, was gerade arbeitet - samt Methode und Datensatz, denn
+vier Stände vom selben Tag wären sonst nicht auseinanderzuhalten. Wer eine
+Ausgabe beurteilt, beurteilt immer ein bestimmtes Modell.
 
-Die zweite Stellschraube daneben ist das **Aussteuern** vor dem Erkennen
-(Vorgabe: an). Warum es hilft und warum nur die gehörte Fassung davon
-betroffen ist, steht in `services/erkennung.py`.
+Was bleibt, ist die zweite Stellschraube: das **Aussteuern** vor dem Erkennen
+(Vorgabe: an). Sie gehört hierher und nicht in die Übersicht - sie ändert
+nicht, wer zuhört, sondern was er zu hören bekommt, und sie wirkt nur auf
+Diktate. Warum sie hilft und warum nur die gehörte Fassung davon betroffen
+ist, steht in `services/erkennung.py`.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 from ..config import einstellungen
-from ..deps import Datenbank, SprecherId, modellstand
+from ..deps import Datenbank, SprecherId, aktive_ref, modellstand
 from ..services import erkennung
 
 router = APIRouter(prefix="/api/model", tags=["Modell"])
 
 
-class WahlAntwort(BaseModel):
-    """Ein wählbares Modell - Grundmodell oder trainierter Stand."""
-
-    ref: str
-    name: str
-    art: str  # grundmodell | trainiert
-    beschriftung: str
-    methode: str | None
-    daten: str | None
-    erstellt: str | None
-    wer: float | None
-    # Der Stand, den „lernen" freigegeben hat - die Vorgabe, wenn nichts
-    # gewählt ist.
-    freigegeben: bool
-
-
 class ModellAntwort(BaseModel):
     sprecher_id: str
-    # Was gerade geladen ist - immer gefüllt, und immer einer der `ref`-Werte
-    # aus `auswahl`. Früher war das Feld leer, sobald kein Stand aus „lernen"
-    # lief; seit sich das Modell auswählen lässt, muss die Oberfläche den
-    # aktiven Eintrag in ihrer Liste wiederfinden können, und ein Feld, das
-    # dafür manchmal leer ist, wäre ein Sonderfall in jeder Ansicht.
+    # Was geladen ist: eine Standkennung `<sprecher_id>/<version>` oder ein
+    # Grundmodellname. Immer gefüllt - die Oberfläche soll nie raten müssen,
+    # ob „leer" ein Grundmodell oder eine fehlende Auskunft bedeutet.
     ref: str
     basismodell: str
     methode: str | None  # full | lora, aus dem Manifest
@@ -64,55 +47,29 @@ class ModellAntwort(BaseModel):
     erstellt: str | None
     wer: float | None
     laufzeit: str  # local | remote
-    # Ob der Sprecher ausdrücklich gewählt hat - sonst gilt die Vorgabe.
-    gewaehlt: bool
+    # Ob ein trainierter Stand läuft oder ein unverändertes Grundmodell.
+    trainiert: bool
     # Ob das Diktat vor dem Erkennen ausgesteuert wird.
     aussteuern: bool
     # Eine Zeile für die Kopfzeile - hier gebaut, damit alle Ansichten
     # dieselbe Auskunft geben.
     beschriftung: str
-    auswahl: list[WahlAntwort]
 
 
-class Auswahl(BaseModel):
-    """Was geändert werden soll. Was fehlt, bleibt, wie es war.
+class Aufbereitung(BaseModel):
+    """Was geändert werden soll. Was fehlt, bleibt, wie es war."""
 
-    Beide Felder sind eigens `None`-fähig und nicht bloß vorbelegt: Ein leeres
-    `ref` heißt „zurück zur Vorgabe", und das ist etwas anderes als „das Modell
-    nicht anfassen". Ohne die Unterscheidung setzte ein Umlegen des Schalters
-    nebenbei die Modellwahl zurück.
-    """
-
-    ref: str | None = None
     aussteuern: bool | None = None
 
 
-def _auswahl(sprecher: str) -> list[WahlAntwort]:
-    return [
-        WahlAntwort(
-            ref=wahl.ref,
-            name=wahl.name,
-            art=wahl.art,
-            beschriftung=wahl.beschriftung,
-            methode=wahl.methode,
-            daten=wahl.daten,
-            erstellt=wahl.erstellt,
-            wer=wahl.wer,
-            freigegeben=wahl.freigegeben,
-        )
-        for wahl in erkennung.auswahl(einstellungen(), sprecher)
-    ]
-
-
-def _antwort(sprecher: str, wahl: str, ausgesteuert: bool) -> ModellAntwort:
+def _antwort(sprecher: str, ausgesteuert: bool) -> ModellAntwort:
     konfiguration = einstellungen()
-    stand = modellstand(konfiguration, sprecher, wahl)
-    auswahl = _auswahl(sprecher)
+    stand = modellstand(konfiguration, sprecher)
 
     if stand is None:
-        # Ein Grundmodell: entweder ausdrücklich gewählt oder die Vorgabe,
-        # solange „lernen" für diesen Sprecher nichts freigegeben hat.
-        name = wahl or konfiguration.asr_modell
+        # Ein Grundmodell: entweder freigegeben oder das, womit eine
+        # Installation anfängt, solange nichts freigegeben ist.
+        name = aktive_ref(konfiguration, sprecher) or konfiguration.asr_modell
         return ModellAntwort(
             sprecher_id=sprecher,
             ref=name,
@@ -122,10 +79,9 @@ def _antwort(sprecher: str, wahl: str, ausgesteuert: bool) -> ModellAntwort:
             erstellt=None,
             wer=None,
             laufzeit=konfiguration.asr,
-            gewaehlt=bool(wahl),
+            trainiert=False,
             aussteuern=ausgesteuert,
             beschriftung=f"whisper-{name} · unverändert",
-            auswahl=auswahl,
         )
 
     ref, manifest = stand
@@ -141,10 +97,9 @@ def _antwort(sprecher: str, wahl: str, ausgesteuert: bool) -> ModellAntwort:
             erstellt=None,
             wer=None,
             laufzeit=konfiguration.asr,
-            gewaehlt=bool(wahl),
+            trainiert=True,
             aussteuern=ausgesteuert,
             beschriftung=f"Modellstand {ref} nicht gefunden",
-            auswahl=auswahl,
         )
 
     metriken = manifest.get("metriken") or {}
@@ -163,7 +118,7 @@ def _antwort(sprecher: str, wahl: str, ausgesteuert: bool) -> ModellAntwort:
         erstellt=erstellt,
         wer=wer,
         laufzeit=konfiguration.asr,
-        gewaehlt=bool(wahl),
+        trainiert=True,
         aussteuern=ausgesteuert,
         beschriftung=" · ".join(
             teil
@@ -177,40 +132,19 @@ def _antwort(sprecher: str, wahl: str, ausgesteuert: bool) -> ModellAntwort:
             )
             if teil
         ),
-        auswahl=auswahl,
     )
 
 
 @router.get("", response_model=ModellAntwort)
 def modell(sprecher: SprecherId, db: Datenbank) -> ModellAntwort:
-    return _antwort(
-        sprecher,
-        erkennung.gewaehlt(db, einstellungen(), sprecher),
-        erkennung.aussteuern(db),
-    )
+    return _antwort(sprecher, erkennung.aussteuern(db))
 
 
 @router.put("", response_model=ModellAntwort)
-def waehle(auswahl: Auswahl, sprecher: SprecherId, db: Datenbank) -> ModellAntwort:
-    """Modell oder Aufbereitung ändern. Was nicht genannt wird, bleibt stehen.
-
-    Beim Modell wird gegen die Liste geprüft und nicht gegen das Dateisystem:
-    Wählbar ist, was diese App anbietet. Ein beliebiger Pfad im Feld wäre sonst
-    ein Weg, fremde Verzeichnisse laden zu lassen - und der Stand eines anderen
-    Sprechers ist fremde Stimme.
-    """
-    if auswahl.ref and auswahl.ref not in {
-        wahl.ref for wahl in erkennung.auswahl(einstellungen(), sprecher)
-    }:
-        raise HTTPException(status_code=404, detail="Dieses Modell steht hier nicht zur Wahl.")
-
-    if auswahl.ref is not None:
-        erkennung.waehle(db, auswahl.ref)
-    if auswahl.aussteuern is not None:
-        erkennung.setze_aussteuern(db, auswahl.aussteuern)
-
-    return _antwort(
-        sprecher,
-        erkennung.gewaehlt(db, einstellungen(), sprecher),
-        erkennung.aussteuern(db),
-    )
+def stelle_ein(
+    aufbereitung: Aufbereitung, sprecher: SprecherId, db: Datenbank
+) -> ModellAntwort:
+    """Die Aufbereitung ändern. Was nicht genannt wird, bleibt stehen."""
+    if aufbereitung.aussteuern is not None:
+        erkennung.setze_aussteuern(db, aufbereitung.aussteuern)
+    return _antwort(sprecher, erkennung.aussteuern(db))

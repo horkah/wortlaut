@@ -238,13 +238,23 @@ class TestLoeschen:
                 "status": "fertig",
             },
         )
-        assert klient.get("/lernen/api/modelle").json()["staende"]
+        eigene = [
+            modell
+            for modell in klient.get("/lernen/api/modelle").json()["modelle"]
+            if modell["art"] == "trainiert"
+        ]
+        assert eigene
 
         antwort = klient.delete(f"/lernen/api/laeufe/{lauf['job_id']}").json()
 
         assert antwort["version"] == version
         assert antwort["war_freigegeben"] is False
-        assert klient.get("/lernen/api/modelle").json()["staende"] == []
+        eigene = [
+            modell
+            for modell in klient.get("/lernen/api/modelle").json()["modelle"]
+            if modell["art"] == "trainiert"
+        ]
+        assert eigene == []
         assert not registry.stand_verzeichnis(datenverzeichnis, sprecher, version).exists()
 
     def test_die_liste_sagt_vorher_was_mitginge(

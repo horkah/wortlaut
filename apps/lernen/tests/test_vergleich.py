@@ -184,23 +184,82 @@ class TestVergleich:
         assert anzahlen and 0 not in anzahlen
 
 
-class TestModellstaende:
-    def test_ein_fertiger_lauf_erscheint_in_der_liste(
+class TestModelluebersicht:
+    """Die eine Ansicht, auf der alles zusammenkommt.
+
+    Grundmodelle und eigene Stände in einer Tabelle, an denselben
+    Testaufnahmen gemessen - und ein Knopf, der eines davon freigibt.
+    """
+
+    def test_ein_fertiger_lauf_steht_neben_den_grundmodellen(
         self, klient: TestClient, fertiger_lauf
     ) -> None:
         _, version = fertiger_lauf
-        staende = klient.get("/lernen/api/modelle").json()["staende"]
-        assert [stand["version"] for stand in staende] == [version]
-        # Die Beschriftung nennt alle vier unterscheidenden Angaben.
-        assert "lora" in staende[0]["beschriftung"].lower()
-        assert "Originale" in staende[0]["beschriftung"]
+        antwort = klient.get("/lernen/api/modelle").json()
+
+        arten = {modell["art"] for modell in antwort["modelle"]}
+        assert arten == {"grundmodell", "trainiert"}
+
+        eigene = [modell for modell in antwort["modelle"] if modell["art"] == "trainiert"]
+        assert [modell["version"] for modell in eigene] == [version]
+        # Die Zeile nennt beide unterscheidenden Angaben - vier Stände vom
+        # selben Tag wären sonst nicht auseinanderzuhalten.
+        assert "LoRA" in eigene[0]["name"]
+        assert "Nur Originale" in eigene[0]["name"]
+
+    def test_gemessen_wird_auf_denselben_aufnahmen(
+        self, klient: TestClient, grundlinie: None, fertiger_lauf
+    ) -> None:
+        antwort = klient.get("/lernen/api/modelle").json()
+
+        assert antwort["vergleichbar"] is True
+        assert antwort["gemeinsame_einheiten"] > 0
+        # Jede Zeile, die überhaupt gemessen hat, rechnet über genau diese
+        # Einheiten - sonst stünde ein Mittel über zwanzig gegen eines über
+        # achtzehn, und der Unterschied läge an der Auswahl statt am Modell.
+        gezaehlt = {
+            modell["einheiten"]["alle"]
+            for modell in antwort["modelle"]
+            if modell["werte"]
+        }
+        assert gezaehlt == {antwort["gemeinsame_einheiten"]}
+
+    def test_der_nachgestellte_stand_schlaegt_den_platzhalter(
+        self, klient: TestClient, grundlinie: None, fertiger_lauf
+    ) -> None:
+        # Der Platzhalter-Erkenner hört Unsinn, der nachgestellte Stand trifft
+        # fast - in der Tabelle muss das zu sehen sein.
+        modelle = klient.get("/lernen/api/modelle").json()["modelle"]
+        eigen = next(modell for modell in modelle if modell["art"] == "trainiert")
+        grund = next(modell for modell in modelle if modell["ref"] == "small")
+
+        assert eigen["werte"]["alle"]["genauigkeit"] == pytest.approx(88.0)
+        assert grund["werte"]["alle"]["genauigkeit"] < eigen["werte"]["alle"]["genauigkeit"]
+
+    def test_ohne_auswertung_steht_es_dort(self, klient: TestClient, fertiger_lauf) -> None:
+        # Die Auswertung in „hören" ist hier nie gelaufen: Dann hat kein
+        # Grundmodell eine Zahl, und die Tabelle behauptet keinen Vergleich.
+        antwort = klient.get("/lernen/api/modelle").json()
+
+        assert antwort["vergleichbar"] is False
+        assert "Auswertung" in antwort["hinweis"]
+        assert not next(
+            modell for modell in antwort["modelle"] if modell["ref"] == "small"
+        )["werte"]
+        # Die eigene Zahl steht trotzdem da - eine leere Tabelle verschwiege,
+        # dass der Lauf gemessen hat.
+        assert next(
+            modell for modell in antwort["modelle"] if modell["art"] == "trainiert"
+        )["werte"]
 
     def test_fertig_heisst_noch_nicht_freigegeben(
         self, klient: TestClient, fertiger_lauf
     ) -> None:
         # Zwischen „hat gerechnet" und „damit diktiere ich" liegt der Blick auf
         # die Zahlen.
-        assert klient.get("/lernen/api/modelle").json()["staende"][0]["status"] == "fertig"
+        antwort = klient.get("/lernen/api/modelle").json()
+        assert antwort["freigegeben"] == ""
+        assert not [modell for modell in antwort["modelle"] if modell["freigegeben"]]
 
     def test_freigeben_zieht_jeden_anderen_zurueck(
         self, klient: TestClient, fertiger_lauf, datenverzeichnis, sprecher: str
@@ -213,15 +272,47 @@ class TestModellstaende:
             datenverzeichnis, zweiter["job_id"], sprecher, genauigkeit=91.0
         )
 
-        assert klient.post(f"/lernen/api/modelle/{erste}/freigabe").status_code == 200
-        antwort = klient.post(f"/lernen/api/modelle/{zweite}/freigabe").json()
+        assert klient.post(
+            "/lernen/api/modelle/freigabe", json={"ref": f"{sprecher}/{erste}"}
+        ).status_code == 200
+        antwort = klient.post(
+            "/lernen/api/modelle/freigabe", json={"ref": f"{sprecher}/{zweite}"}
+        ).json()
 
-        nach_version = {stand["version"]: stand["status"] for stand in antwort["staende"]}
-        assert nach_version[zweite] == "active"
-        assert nach_version[erste] == "zurueckgezogen"
-        # Und die Registry selbst sagt dasselbe - das Manifest ist die Wahrheit.
-        aktiv = registry.aktiver_stand(datenverzeichnis, sprecher)
-        assert aktiv is not None and aktiv["id"].endswith(zweite)
+        frei = [modell["version"] for modell in antwort["modelle"] if modell["freigegeben"]]
+        assert frei == [zweite]
+        # Und die Registry sagt dasselbe - sie ist die Wahrheit, aus der auch
+        # „schreiben" liest.
+        assert registry.freigegeben(datenverzeichnis, sprecher) == f"{sprecher}/{zweite}"
 
-    def test_unbekannter_stand_ist_vierhundertvier(self, klient: TestClient) -> None:
-        assert klient.post("/lernen/api/modelle/gibtesnicht/freigabe").status_code == 404
+    def test_auch_ein_grundmodell_laesst_sich_freigeben(
+        self, klient: TestClient, fertiger_lauf, datenverzeichnis, sprecher: str
+    ) -> None:
+        # „Mein eigenes ist noch nicht besser als das Grundmodell" ist eine
+        # Antwort, und sie soll sich hier geben lassen - früher ging das nur
+        # drüben in „schreiben".
+        antwort = klient.post(
+            "/lernen/api/modelle/freigabe", json={"ref": "small"}
+        ).json()
+
+        assert antwort["freigegeben"] == "small"
+        assert registry.freigegeben(datenverzeichnis, sprecher) == "small"
+
+    def test_leere_kennung_nimmt_die_freigabe_zurueck(
+        self, klient: TestClient, fertiger_lauf, datenverzeichnis, sprecher: str
+    ) -> None:
+        klient.post("/lernen/api/modelle/freigabe", json={"ref": "small"})
+        antwort = klient.post("/lernen/api/modelle/freigabe", json={"ref": ""}).json()
+
+        assert antwort["freigegeben"] == ""
+        assert registry.freigegeben(datenverzeichnis, sprecher) == ""
+
+    def test_unbekanntes_modell_ist_vierhundertvier(self, klient: TestClient) -> None:
+        # Ein beliebiger Pfad im Feld wäre ein Weg, fremde Verzeichnisse laden
+        # zu lassen - und der Stand eines anderen Sprechers ist fremde Stimme.
+        assert klient.post(
+            "/lernen/api/modelle/freigabe", json={"ref": "gibtesnicht"}
+        ).status_code == 404
+        assert klient.post(
+            "/lernen/api/modelle/freigabe", json={"ref": "spr_fremd/egal"}
+        ).status_code == 404

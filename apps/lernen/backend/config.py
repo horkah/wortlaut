@@ -51,6 +51,12 @@ class Einstellungen(BaseSettings):
     # schon gemessen wurde (`auswertung_modelle`). Ohne diesen gemeinsamen
     # Nenner wäre der Vergleich mit der Grundlinie keiner.
     lernen_basismodell: str = "openai/whisper-small"
+    # Welche unveränderten Modelle in der Modellübersicht gegen die eigenen
+    # Stände antreten. Dieselbe Liste wie in der Auswertung von „hören"
+    # (`WORTLAUT_AUSWERTUNG_MODELLE`), und das ist kein Zufall: Von dort
+    # stammen ihre Zahlen. Zwei getrennte Listen wären zwei Gelegenheiten,
+    # sie auseinanderlaufen zu lassen - und eine Tabellenzeile ohne Messung.
+    auswertung_modelle: str = "base,small,medium,large-v3"
     # `cuda` oder `cpu`. Voreinstellung ist die Karte: Ein Feintuning von
     # whisper-small auf einer CPU dauert Tage statt Stunden.
     lernen_geraet: str = "cuda"

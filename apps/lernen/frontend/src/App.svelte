@@ -5,13 +5,19 @@
    *
    * Drei Ansichten, und ihre Reihenfolge ist der Weg durch die Arbeit:
    * nachsehen, wie die Aufnahmen aufgeteilt sind, ein Training beauftragen und
-   * ihm zusehen, und am Ende entscheiden, welcher Stand gelten soll.
+   * ihm zusehen, und am Ende entscheiden, welches Modell gelten soll.
+   *
+   * Die letzte davon - „Modelle" - ist zugleich die Ansicht, auf der auch
+   * „schreiben" und „hören" landen, wenn dort jemand auf das Modell klickt.
+   * Sie liegt hier, weil hier die Stände entstehen; sie zeigt aber alles, was
+   * dieser Mensch laden kann, die unveränderten Grundmodelle eingeschlossen.
    */
   import Rahmen from '$ui/Rahmen.svelte';
   import {
     AUSWERTUNG_PFAD,
     GERAETE_PUNKTE,
     MEINE_DATEN_PFAD,
+    MODELLE_PFAD,
     ZUGANGSDATEN_PFAD,
     type Menuepunkt,
   } from '$ui/apps';
@@ -25,7 +31,7 @@
   const MENUE: Menuepunkt[] = [
     { pfad: '/aufteilung', text: 'Aufteilung' },
     { pfad: '/training', text: 'Training' },
-    { pfad: '/modelle', text: 'Modelle' },
+    { pfad: MODELLE_PFAD, text: 'Modelle' },
   ];
 
   // Nur ein Sprecher hat hier etwas zu sehen: Ein Modell gehört zu genau einem
@@ -34,10 +40,12 @@
   const jobId = $derived(laufAusRoute(zustand.route));
 
   // Was diese App über die gerätebezogenen Punkte hinaus ins Menü stellt.
-  // „Meine Daten" und „Auswertung" liegen in „hören" - dort ist der Korpus.
-  // Sie stehen trotzdem hier, mit voller Adresse statt Hash-Route: Wer beim
-  // Trainieren wissen will, worauf trainiert wird, soll nicht erst die App
-  // wechseln müssen, um den Weg dorthin zu finden.
+  // „Meine Daten" und „Auswertung" liegen in „hören" - dort ist der Korpus,
+  // und dort wird gemessen. Sie stehen trotzdem hier, mit voller Adresse statt
+  // Hash-Route: Wer beim Trainieren wissen will, worauf trainiert wird, soll
+  // nicht erst die App wechseln müssen, um den Weg dorthin zu finden - und wer
+  // in der Modellübersicht eine leere Tabelle sieht, findet hier den Knopf,
+  // der sie füllt.
   const uebergreifend = $derived([
     ...(spricht
       ? [
@@ -61,7 +69,7 @@
       : ({
           '/aufteilung': Aufteilung,
           '/training': Training,
-          '/modelle': Modelle,
+          [MODELLE_PFAD]: Modelle,
         }[zustand.route] ?? Aufteilung),
   );
 

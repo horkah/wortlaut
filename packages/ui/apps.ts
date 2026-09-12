@@ -113,35 +113,41 @@ export const ZUGANGSDATEN_PFAD = '/zugangsdaten';
 export const MEINE_DATEN_PFAD = '/meine-daten';
 
 /**
- * Wo die Modelle gegeneinander antreten - Auswertung der eigenen Aufnahmen.
+ * Wo die Grundmodelle über den eigenen Korpus laufen - die Auswertung.
  *
- * Nur „hören" führt den Punkt: Dort liegt der Korpus, und gemessen wird an
- * ihm. Jede Aufnahme ist eine fertige Prüfaufgabe - die Vorlage steht daneben,
- * also lässt sich vergleichen, was ein Erkenner daraus macht. Der Punkt steht
- * im Menü und nicht in der Reiterreihe, weil er nicht zum Weg durch die Arbeit
- * gehört: Aufnehmen ist eine Tätigkeit, Auswerten ein Nachsehen.
+ * Nur „hören" führt sie, und zwar als **Reiter**: Dort liegt der Korpus, dort
+ * wird gemessen, und jede Aufnahme ist eine fertige Prüfaufgabe - die Vorlage
+ * steht daneben, also lässt sich vergleichen, was ein Erkenner daraus macht.
  *
- * Im Menü steht er direkt hinter „Meine Daten": Beide zeigen dieselben
- * Aufnahmen, die eine als Bestand, die andere als Messung.
+ * Sie stand lange im Menü, mit der Begründung, Auswerten sei ein Nachsehen und
+ * keine Tätigkeit. Das stimmt nicht mehr: Die Auswertung ist der Schritt, der
+ * aus einem Korpus Zahlen macht, und ohne sie bleibt die Modellübersicht in
+ * „lernen" leer. Sie gehört damit in dieselbe Reihe wie Textquelle, Aufnehmen
+ * und Fortschritt - ans Ende, weil sie der letzte Schritt darin ist.
  */
 export const AUSWERTUNG_PFAD = '/auswertung';
 
 /**
- * Wo in „schreiben" das Modell gewählt wird.
+ * Wo alle Modelle eines Menschen zusammen stehen - die eine Übersicht.
  *
- * Nur „schreiben" führt den Punkt: Dort wird diktiert, und nur dort macht es
- * einen Unterschied, welches Modell zuhört. Er steht im Menü und nicht in
- * einer Reiterreihe, und zwar aus demselben Grund wie „Auswertung" in
- * „hören" - er gehört nicht zum Weg durch die Arbeit. Diktieren ist eine
- * Tätigkeit, das Modell zu wechseln ein Nachjustieren.
+ * Sie liegt in „lernen" und ist dort ein Reiter. Die selbst trainierten Stände
+ * und die unveränderten Grundmodelle stehen dort in einer Tabelle, an
+ * denselben Testaufnahmen gemessen, und eines davon wird freigegeben - das,
+ * mit dem „schreiben" danach diktiert.
  *
- * Dass es den Punkt überhaupt gibt, ist neu: Früher stand das Modell in der
- * Umgebung und ein Wechsel war ein Neustart. Seit „lernen" je Sprecher vier
- * Stände liefert und daneben die unveränderten Grundmodelle stehen, ist die
- * Frage „welches hört mir am besten zu?" eine, die sich beim Diktieren
- * beantwortet und nicht an einer Kennzahl.
+ * Es gab das einmal zweimal: eine Liste der eigenen Stände mit einem
+ * Freigabeknopf in „lernen" und daneben in „schreiben" eine zweite Liste, in
+ * der sich zusätzlich ein Grundmodell auswählen ließ. Zwei Ansichten, zwei
+ * Begriffe, dieselbe Entscheidung - und in keiner von beiden stand, ob sich
+ * das Training gelohnt hat. Wer das wissen will, braucht beide Sorten in einer
+ * Tabelle, auf denselben Zahlen.
+ *
+ * Deshalb steht hier auch eine **Adresse**: „schreiben" führt den Punkt
+ * weiterhin im Menü, verweist damit aber hinüber (siehe `Menuepunkt`) -
+ * genauso wie die Modellzeile unter dem Aufnahmeknopf.
  */
-export const MODELL_PFAD = '/modell';
+export const MODELLE_PFAD = '/modelle';
+export const MODELLE_URL = `/lernen/#${MODELLE_PFAD}`;
 
 /**
  * Die Menüpunkte, die zum Gerät gehören - in jeder App dieselben.
@@ -228,6 +234,18 @@ export function menueSchluessel(pfad: string): string {
 }
 
 /**
+ * Der Schlüssel eines Reiters - der App-Name steckt mit drin.
+ *
+ * Anders als bei den Menüpunkten, denn die Reiterrouten gehören je einer App
+ * und dürfen sich zwischen zweien wiederholen: `/aufnahme` gibt es in „hören",
+ * und nichts hindert „schreiben" daran, es später ebenso zu nennen. Ohne den
+ * App-Namen im Schlüssel schaltete ein Haken dann zwei Reiter in zwei Apps.
+ */
+export function reiterSchluessel(app: AppSchluessel, pfad: string): string {
+  return `reiter.${app}.${pfad}`;
+}
+
+/**
  * „Über wortlaut" hat keine Route, sondern führt aus der App heraus
  * (`PROJEKT_URL`) - einen Pfad als Schlüssel gibt es dafür nicht.
  */
@@ -258,8 +276,7 @@ export const SCHALTBARE_MENUEPUNKTE: Schaltbar[] = [
     fest: true,
     grund: 'Hier wird die PIN vergeben, die vor dieser Seite steht.',
   },
-  { schluessel: menueSchluessel(AUSWERTUNG_PFAD), text: 'Auswertung' },
-  { schluessel: menueSchluessel(MODELL_PFAD), text: 'Modell' },
+  { schluessel: menueSchluessel(MODELLE_PFAD), text: 'Modelle' },
   { schluessel: menueSchluessel(ZUGANGSDATEN_PFAD), text: 'Zugangsdaten' },
   { schluessel: menueSchluessel(EINSTELLUNGEN_PFAD), text: 'Einstellungen' },
   {
@@ -269,4 +286,45 @@ export const SCHALTBARE_MENUEPUNKTE: Schaltbar[] = [
     grund: 'Diese Seite selbst - ohne sie käme kein Schalter zurück.',
   },
   { schluessel: PROJEKT_SCHLUESSEL, text: 'Über wortlaut' },
+];
+
+/**
+ * Die Ansichten innerhalb der Apps - die zweite Reihe der Kopfleiste.
+ *
+ * Sie sind aus demselben Grund abschaltbar wie die Apps selbst: Wer nur
+ * aufnimmt, braucht die Auswertung nicht in der Leiste; wer nur trainiert,
+ * kommt ohne die Aufteilung aus. Und es sind genau diese Reiter, die eine
+ * Ansicht tragen, die man selten braucht und die viel Platz einnimmt - die
+ * Auswertung in „hören" und die Modellübersicht in „lernen".
+ *
+ * Auch hier gilt: Ausgeblendet heißt unsichtbar, nicht abgeschaltet. Die
+ * Route bleibt, was sie war, und ein Lesezeichen darauf führt weiterhin hin -
+ * die Kopfleiste stellt dann sogar den Rückweg ins Menü (`Kopfleiste.svelte`).
+ *
+ * Keiner davon ist fest: Selbst wenn jemand alle abschaltet, bleibt die erste
+ * Ansicht der App stehen (jede App fällt auf ihren ersten Reiter zurück), und
+ * „Darstellung" steht weiterhin im Menü.
+ *
+ * „schreiben" fehlt hier, und das ist kein Versehen: Die App hat keine
+ * Reiterreihe. Ihr Weg ist eine Folge - sprechen, hören, bessern, bestätigen -
+ * und keine Auswahl (Grundentscheidung 7).
+ */
+export const SCHALTBARE_REITER: { app: AppSchluessel; eintraege: Schaltbar[] }[] = [
+  {
+    app: 'hoeren',
+    eintraege: [
+      { schluessel: reiterSchluessel('hoeren', '/quelle'), text: 'Textquelle' },
+      { schluessel: reiterSchluessel('hoeren', '/aufnahme'), text: 'Aufnehmen' },
+      { schluessel: reiterSchluessel('hoeren', '/fortschritt'), text: 'Fortschritt' },
+      { schluessel: reiterSchluessel('hoeren', AUSWERTUNG_PFAD), text: 'Auswertung' },
+    ],
+  },
+  {
+    app: 'lernen',
+    eintraege: [
+      { schluessel: reiterSchluessel('lernen', '/aufteilung'), text: 'Aufteilung' },
+      { schluessel: reiterSchluessel('lernen', '/training'), text: 'Training' },
+      { schluessel: reiterSchluessel('lernen', MODELLE_PFAD), text: 'Modelle' },
+    ],
+  },
 ];
