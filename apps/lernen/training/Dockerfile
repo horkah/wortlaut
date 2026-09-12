@@ -66,9 +66,10 @@ COPY apps/lernen ./apps/lernen
 # herein (fastapi, uvicorn, anthropic), die hier nichts zu suchen haben.
 ENV PYTHONPATH=/srv/wortlaut:/srv/wortlaut/packages/wortlaut/src
 
-# Die Modelldateien landen im Volume und nicht im Abbild; ohne diesen Pfad lädt
-# sie jeder Neustart des Containers erneut herunter - bei whisper-small knapp
-# ein Gigabyte.
-ENV HF_HOME=/srv/wortlaut/data/.cache/huggingface
+# Die Modelldateien landen in einem eigenen Ablagepfad und nicht im Abbild;
+# ohne diesen Pfad lädt sie jeder Neustart des Containers erneut herunter -
+# bei whisper-small knapp ein Gigabyte. Derselbe Pfad wie bei „hören", damit
+# beide dieselbe Kopie benutzen und nicht jeder seine eigene lädt.
+ENV HF_HOME=/srv/wortlaut/modellcache
 
 CMD ["python", "-u", "-m", "apps.lernen.training.laeufer"]
