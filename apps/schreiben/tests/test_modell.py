@@ -56,9 +56,25 @@ class TestModellauskunft:
         assert antwort["methode"] == "full"
         # Die Methode steht mit in der Zeile: Seit „lernen" je Sprecher vier
         # Stände liefert, wären zwei vom selben Tag sonst nicht zu unterscheiden.
-        assert antwort["beschriftung"] == (
-            "whisper-large-v3 · voll · Stand 2026-08-15 · WER 14,6 %"
-        )
+        assert antwort["beschriftung"] == "whisper-large-v3 · voll · Stand 2026-08-15"
+
+    def test_die_beschriftung_traegt_keine_kennzahl(
+        self, klient: TestClient, datenverzeichnis: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Sie sagt, **welches** Modell arbeitet, und nicht, wie gut. Die
+        # Wortfehlerrate aus dem Manifest stand hier einmal und widersprach der
+        # Zahl in der Modellübersicht von „lernen" - beide richtig, über
+        # verschiedene Einheiten gemittelt, und nebeneinander ein Rätsel.
+        registry.schreibe_stand(datenverzeichnis, MANIFEST)
+        monkeypatch.setenv("WORTLAUT_MODELL_REF", MANIFEST["id"])
+        einstellungen.cache_clear()
+
+        antwort = klient.get("/schreiben/api/model").json()
+
+        assert "WER" not in antwort["beschriftung"]
+        # Die Auskunft des Manifests bleibt trotzdem abrufbar - nur eben als
+        # Feld und nicht als Satz.
+        assert antwort["wer"] == pytest.approx(0.146)
 
     def test_sagt_es_wenn_der_stand_fehlt(
         self, klient: TestClient, monkeypatch: pytest.MonkeyPatch

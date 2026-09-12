@@ -94,8 +94,15 @@ Solange in `lernen` nichts freigegeben ist, lädt faster-whisper das
 unveränderte `whisper-small` aus `WORTLAUT_ASR_MODELL`. Die Zeile unter dem
 Aufnahmeknopf schreibt dauerhaft hin, was gerade arbeitet (`whisper-small ·
 unverändert`, später `whisper-small · LoRA · mit Abwandlungen · Stand
-2026-09-12 · WER 14,6 %`) - wer eine Ausgabe beurteilt, beurteilt immer ein
-bestimmtes Modell.
+2026-09-12`) - wer eine Ausgabe beurteilt, beurteilt immer ein bestimmtes
+Modell.
+
+**Eine Kennzahl steht dort bewusst nicht.** Sie stand einmal: die
+Wortfehlerrate aus dem Manifest des Standes. Die ist das Mittel über die
+Testeinheiten *seines* Laufs, während die Modellübersicht in `lernen` über die
+Einheiten mittelt, die alle Modelle gemeinsam haben - zwei Zahlen zum selben
+Modell, beide richtig, und nebeneinander ein Rätsel. Wie gut ein Modell ist,
+steht an genau einer Stelle; diese Zeile sagt, **welches** es ist.
 
 Dieselbe Zeile ist der Weg zur Entscheidung: Ein Klick darauf führt in die
 **Modellübersicht** von [lernen](lernen.md), wo die eigenen Stände und die

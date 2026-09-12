@@ -100,6 +100,25 @@
     Math.max(0, ...(uebersicht?.modelle ?? []).map((modell) => modell.einheiten[fassung] ?? 0)),
   );
 
+  /**
+   * Die Tabellenzeile zu dem Modell, das „schreiben" gerade geladen hat.
+   *
+   * Damit stehen in der Karte oben und in der Zeile unten dieselben Zahlen aus
+   * derselben Rechnung. Vorher nannte die Karte die Wortfehlerrate aus dem
+   * Manifest des Standes - das Mittel über die Testeinheiten *seines* Laufs -,
+   * die Tabelle dagegen das Mittel über die Einheiten, die **alle** Modelle
+   * gemessen haben. Beide Zahlen waren richtig, nebeneinander waren sie ein
+   * Rätsel.
+   *
+   * `undefined` ist möglich und kein Fehler: `WORTLAUT_MODELL_REF` kann auf
+   * einen Stand zeigen, der hier nicht zur Wahl steht, und ein gelöschter
+   * steht ebenfalls nicht mehr in der Liste. Dann bleibt die Beschriftung von
+   * „schreiben" stehen, und Zahlen gibt es eben keine.
+   */
+  const laufend = $derived(
+    diktat ? (uebersicht?.modelle ?? []).find((modell) => modell.ref === diktat!.ref) : undefined,
+  );
+
   async function hole() {
     try {
       uebersicht = await ladeModelle();
@@ -161,7 +180,29 @@
           <span class="abzeichen leise">Grundmodell</span>
         {/if}
       </div>
-      <p class="beschriftung">{diktat.beschriftung}</p>
+      <p class="beschriftung">{laufend?.name ?? diktat.beschriftung}</p>
+      <p class="gedaempft klein">{laufend?.herkunft ?? ''}</p>
+
+      {#if laufend}
+        <!-- Dieselben Zahlen wie in der Zeile unten, aus derselben Rechnung
+             und über dieselben Messeinheiten - sie folgen deshalb auch der
+             Fassungswahl. Zwei Quellen für dieselbe Auskunft wären zwei
+             Gelegenheiten, verschiedene zu geben. -->
+        <p class="kennzahlen">
+          {#each masse as mass (mass.schluessel)}
+            {@const roh = wert(laufend, mass.schluessel)}
+            <span class="kennzahl">
+              <span class="gedaempft">{mass.kurz}</span>
+              <strong>{roh === null ? '–' : zahl(roh, mass)}</strong>
+            </span>
+          {/each}
+        </p>
+        <p class="gedaempft klein">
+          Gemessen wie in der Tabelle unten - {gewaehlteFassung?.name ?? 'alle Fassungen'},
+          {laufend.einheiten[fassung] ?? 0}
+          {(laufend.einheiten[fassung] ?? 0) === 1 ? 'Messung' : 'Messungen'}.
+        </p>
+      {/if}
 
       <label class="umschalter">
         <span>Vor dem Erkennen aussteuern</span>
@@ -317,9 +358,30 @@
   }
 
   .beschriftung {
-    margin: 0 0 0.8rem;
+    margin: 0;
     font-size: 1.05rem;
     font-weight: 600;
+  }
+
+  /* Die Zahlen der laufenden Zeile, als Reihe kleiner Paare: Maß darüber,
+     Wert darunter. Auf einem schmalen Gerät bricht die Reihe um, statt die
+     Karte breiter zu machen. */
+  .kennzahlen {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.6rem;
+    margin: 0.7rem 0 0.2rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .kennzahl {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+  }
+
+  .kennzahl .gedaempft {
+    font-size: 0.78rem;
   }
 
   /* Beschriftung links, Schalter rechts - und auf einem schmalen Telefon
@@ -331,7 +393,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem 1rem;
-    margin: 0;
+    margin: 0.9rem 0 0;
     padding-top: 0.7rem;
     border-top: 1px solid var(--rand);
     cursor: pointer;
