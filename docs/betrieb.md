@@ -331,7 +331,50 @@ Wer eine App verschiebt, ändert drei Stellen zusammen: `BASIS` im Backend, das
    Sicherungen und Löschungen. Bleibt er leer, ist die Aufsicht abgeschaltet;
    Sichern geht dann nur noch über das Dateisystem des Wirts.
 
-3. **Den Reverse Proxy** auf `127.0.0.1:8000` zeigen lassen - eine Regel für
+3. **Die Ablagen des Wirts anlegen**, bevor zum ersten Mal gestartet wird:
+
+   ```bash
+   mkdir -p /pfad/zur/grossen/platte/wortlaut/{huggingface,ollama,training/{modelle,snapshots}}
+   ```
+
+   Und die drei Pfade in die `.env`:
+
+   ```
+   WORTLAUT_MODELLCACHE=/pfad/zur/grossen/platte/wortlaut/huggingface
+   WORTLAUT_OLLAMACACHE=/pfad/zur/grossen/platte/wortlaut/ollama
+   WORTLAUT_TRAININGSABLAGE=/pfad/zur/grossen/platte/wortlaut/training
+   ```
+
+   Diese drei liegen mit Absicht nicht im Volume: Grundmodelle, Ollamas
+   Modelle und alles, was ein Training hervorbringt, sind zusammen gut zwanzig
+   Gigabyte und jederzeit neu zu holen oder neu zu rechnen. Das Unersetzliche -
+   Aufnahmen, Datenbanken, der Arbeitsstand von „schreiben" - bleibt im
+   Volume.
+
+   **Von Hand, und nicht von Docker.** Die `compose.yaml` trägt an diesen
+   Mounts `create_host_path: false`. Ohne das legt Docker eine fehlende
+   Bind-Quelle stillschweigend an - und wenn der Pfad auf einer eigenen Platte
+   liegt, die gerade noch nicht eingehängt ist, entsteht das Verzeichnis
+   *unterhalb* des Einhängepunktes auf der Systemplatte. Das spätere Einhängen
+   verdeckt es, aber der laufende Container hält es weiter fest, denn ein
+   Bind-Mount hängt am Inode und nicht am Pfad. Zwei Container mit demselben
+   Pfad in derselben Datei sehen dann verschiedene Verzeichnisse; der Trainer
+   wartet auf Aufträge, die die App zwei Zentimeter daneben ablegt. Mit
+   `create_host_path: false` startet der Container statt dessen gar nicht und
+   sagt, welcher Pfad fehlt.
+
+   **Liegt die Platte nicht im Systemstart**, gehört sie dort hinein, sonst
+   wiederholt sich das bei jedem Neustart. In der `/etc/fstab` genügt dafür
+
+   ```
+   /dev/sdX1  /backup  ext4  defaults,x-systemd.before=docker.service  0  2
+   ```
+
+   Der Zusatz sagt systemd, dass der Mount vor dem Docker-Dienst fertig sein
+   muss. `create_host_path: false` ist die zweite Hälfte davon: Es fängt den
+   Fall ab, in dem es trotzdem einmal nicht stimmt.
+
+4. **Den Reverse Proxy** auf `127.0.0.1:8000` zeigen lassen - eine Regel für
    die ganze Domain, die Verteilung macht die App selbst. Mit Caddy:
 
    ```caddyfile
@@ -374,7 +417,7 @@ Wer eine App verschiebt, ändert drei Stellen zusammen: `BASIS` im Backend, das
 
    Der Name `proxy` ist der des vorhandenen Netzes (`docker network ls`).
 
-4. **Starten und nachsehen:**
+5. **Starten und nachsehen:**
 
    ```bash
    docker compose up -d --build
@@ -737,6 +780,7 @@ uv run python scripts/purge_speaker.py spr_7f2a --ja-wirklich
 | Aufsicht: jeder Weg unter `/api/admin/…` antwortet 401 | `WORTLAUT_ADMIN_TOKEN` ist nicht gesetzt - dann ist die Aufsicht abgeschaltet, absichtlich auch in der Entwicklung. Nach dem Setzen den Dienst neu starten. |
 | Aufsicht: Token eingetragen, aber die Oberfläche zeigt weiter die Verwaltung | Der Token stimmt nicht mit dem des Servers überein; der Server fällt dann auf die Verwaltung zurück. Unter „Menü → Zugangsdaten" prüft „Speichern und prüfen", was der Server tatsächlich sieht. |
 | „schreiben": ein zweiter Mensch am selben Gerät sieht fremde Diktate | Kann nicht sein - die Diktate hängen am Zugang, und ein Browser trägt genau einen. Wer das Gerät teilt, gibt den Zugang mit; dann öffnet die andere Person einmal ihren eigenen Link. |
+| „lernen" zeigt endlos „wartet auf den Trainer", der Trainer meldet nur „Läufer bereit" | Die beiden sehen verschiedene Verzeichnisse. Wurde einer der Container erzeugt, während die Platte mit `WORTLAUT_TRAININGSABLAGE` noch nicht eingehängt war, hängt sein Bind-Mount an einem Verzeichnis, das unter dem Einhängepunkt auf der Systemplatte liegt und inzwischen verdeckt ist - der Pfad in der `compose.yaml` ist derselbe, der Inode nicht. Nachweisen mit `docker exec wortlaut-training-1 stat -c '%d:%i' /srv/wortlaut/data/snapshots` gegen `stat -c '%d:%i' $WORTLAUT_TRAININGSABLAGE/snapshots` auf dem Wirt: Stimmen die Gerätenummern nicht überein, ist es das. Abhilfe: einhängen und `docker compose --profile training up -d --force-recreate training`. Der wartende Auftrag geht nicht verloren, er wird beim nächsten Takt geholt. Dass es nicht wieder vorkommt, besorgen `create_host_path: false` und der fstab-Eintrag aus „Aufsetzen", Schritt 3. |
 | Der Download einer großen Sicherung bricht ab | Der Browser hält die Datei im Speicher. Über `curl -OJ` mit dem Aufsichtstoken holen (siehe „Sichern und Wiederherstellen"). |
 | Nach dem Zurückspielen fehlen Daten oder die Datenbank ist kaputt | Der Dienst lief dabei. Anhalten, noch einmal einspielen, starten - SQLite hält die alte Datei sonst offen. |
 | `make frontend` startet ohne Fehlermeldung, aber `localhost:5173` bleibt unerreichbar | `node_modules` fehlt (`npm install` in `apps/hoeren/frontend` vergessen). `npm run dev` sucht `vite` dann über `$PATH` - auf manchen Systemen (z. B. Ubuntu/Debian) existiert dort ein gleichnamiges, aber völlig anderes Paket namens `vite` (ViTE, ein Trace-Viewer), das kommentarlos ein leeres GUI-Fenster statt des Dev-Servers öffnet. Prüfen mit `command -v vite` - zeigt der Pfad nicht auf `apps/hoeren/frontend/node_modules/.bin/vite`, fehlt die Installation. Abhilfe: `npm install` nachholen. |
