@@ -89,6 +89,20 @@ eine Liste ist, lässt sie sich auch kürzen: Welche Apps, welche Ansichten und
 welche Menüpunkte tatsächlich dastehen, schaltet **Darstellung** ein und aus
 (siehe dort).
 
+**Die App öffnet dort, wo zuletzt gearbeitet wurde.** Steht in der Adresse
+keine Route - die App vom Startbildschirm des Telefons geöffnet, aus einem
+alten Lesezeichen, nach einem Neustart des Browsers -, gilt der Reiter, auf dem
+dieser Browser zuletzt war (`packages/ui/reiter.ts`, `wortlaut.reiter.<app>`).
+Wer eine Woche lang aufnimmt, sieht „Aufnehmen" und nicht jeden Tag wieder
+„Textquelle"; wer ein Training beaufsichtigt, sieht „Training" und nicht die
+Aufteilung.
+
+Gemerkt, nicht angesprungen: Die Adresse bleibt leer und der Reiter ist nur die
+Vorgabe dafür. Ein Sprung schriebe den Hash in den Verlauf, und der
+Zurück-Knopf führte dann auf eine Seite, die niemand angesteuert hat. Ein
+ausgeblendeter Reiter zählt dabei nicht - sonst sähe es aus, als hätte der
+Schalter unter **Darstellung** nichts getan.
+
 **Was eine Reiterreihe trägt, steht nicht zusätzlich im Menü.** „Auswertung"
 und „Modelle" standen eine Zeitlang beides - hier als Reiter, drüben als
 Menüpunkt mit voller Adresse. Bequem war das nicht, sondern eine Stelle, an der
