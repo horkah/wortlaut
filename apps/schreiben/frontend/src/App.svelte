@@ -11,6 +11,10 @@
    * Person, und ihr gesprochenes Wort soll später nach „hören" und „lernen"
    * zurückfließen.
    *
+   * Gewechselt wird das Modell im Menü (`Modellwahl`) und nicht in der
+   * Reiterreihe: Seit „lernen" je Sprecher vier Stände liefert, ist die Wahl
+   * eine echte - aber ein Nachjustieren und keine Tätigkeit.
+   *
    * Einstellungen und Darstellung stehen im Menü, ohne dass diese Datei sie
    * kennt: Sie gehören zum Gerät und damit in den gemeinsamen Rahmen
    * (`$ui/Rahmen.svelte`). Diese App liest Mikrofon, Stimme und Schriftgröße
@@ -26,7 +30,7 @@
    * Browser (siehe `$ui/zugang`).
    */
   import Rahmen from '$ui/Rahmen.svelte';
-  import { MEINE_DATEN_PFAD, ZUGANGSDATEN_PFAD } from '$ui/apps';
+  import { MEINE_DATEN_PFAD, MODELL_PFAD, ZUGANGSDATEN_PFAD } from '$ui/apps';
   import {
     ladeModellstand,
     ladeZugang,
@@ -36,6 +40,7 @@
   import Aufnahme from './routes/Aufnahme.svelte';
   import Ergebnis from './routes/Ergebnis.svelte';
   import KeinZugang from './routes/KeinZugang.svelte';
+  import Modellwahl from './routes/Modellwahl.svelte';
   import Zugangsdaten from './routes/Zugangsdaten.svelte';
 
   // Großgeschriebene Variablen sind in Svelte 5 als Komponente verwendbar.
@@ -48,9 +53,11 @@
       ? Zugangsdaten
       : zustand.art === 'keiner'
         ? KeinZugang
-        : zustand.route === '/ergebnis' && zustand.sitzung
-          ? Ergebnis
-          : Aufnahme,
+        : zustand.route === MODELL_PFAD
+          ? Modellwahl
+          : zustand.route === '/ergebnis' && zustand.sitzung
+            ? Ergebnis
+            : Aufnahme,
   );
 
   // Die Zugangsdaten stehen immer da - auch und gerade ohne gültigen Zugang:
@@ -60,7 +67,13 @@
   // eine eigene Route hier (siehe `Menuepunkt` in `apps.ts`).
   const uebergreifend = $derived([
     ...(zustand.art === 'sprecher'
-      ? [{ pfad: MEINE_DATEN_PFAD, text: 'Meine Daten', href: `/#${MEINE_DATEN_PFAD}` }]
+      ? [
+          { pfad: MEINE_DATEN_PFAD, text: 'Meine Daten', href: `/#${MEINE_DATEN_PFAD}` },
+          // Das Modell steht direkt darunter: Beide Punkte gehören zu dieser
+          // Person - das eine, was sie gesprochen hat, das andere, wer ihr
+          // dabei zuhört.
+          { pfad: MODELL_PFAD, text: 'Modell' },
+        ]
       : []),
     { pfad: ZUGANGSDATEN_PFAD, text: 'Zugangsdaten' },
   ]);

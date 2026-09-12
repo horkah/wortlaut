@@ -9,12 +9,14 @@
    */
   import Recorder from '$ui/Recorder.svelte';
   import { einstellungen } from '$ui/einstellungen.svelte';
+  import { MODELL_PFAD } from '$ui/apps';
   import { diktieren, sitzungBeginnen } from '../lib/api';
   import { gehZu, setzeSitzung, zustand } from '../lib/zustand.svelte';
 
-  // Der Modellstand steht hier, nicht in der Kopfzeile: Ein Modellwechsel ist
-  // eine Konfigurationsänderung, und wer eine Ausgabe beurteilt, muss sehen,
-  // welcher Stand sie erzeugt hat - direkt bei der Aufnahme, die ihn erzeugt.
+  // Der Modellstand steht hier, nicht in der Kopfzeile: Wer eine Ausgabe
+  // beurteilt, muss sehen, welcher Stand sie erzeugt hat - direkt bei der
+  // Aufnahme, die ihn erzeugt. Seit sich das Modell wechseln lässt, ist die
+  // Zeile zugleich der Weg dorthin: Wer sie liest, denkt gerade darüber nach.
   const beschriftung = $derived(zustand.modellstand?.beschriftung ?? '');
 
   let stand = $state<'bereit' | 'verstehe'>('bereit');
@@ -63,7 +65,9 @@
   {/if}
 
   {#if beschriftung}
-    <p class="modellstand gedaempft">{beschriftung}</p>
+    <p class="modellstand gedaempft">
+      <a href="#{MODELL_PFAD}">{beschriftung}</a>
+    </p>
   {/if}
 </div>
 
@@ -79,9 +83,16 @@
     font-size: 1.4rem;
     margin: 0;
   }
-  /* Randnotiz unter dem Aufnahmeknopf, kein Bedienelement - bleibt leise. */
+  /* Randnotiz unter dem Aufnahmeknopf - bleibt leise, auch als Verweis: Sie
+     soll den Knopf darüber nicht um Aufmerksamkeit bringen. */
   .modellstand {
     font-size: 0.8rem;
     margin: 0;
+    text-align: center;
+  }
+
+  .modellstand a {
+    color: inherit;
+    text-decoration-color: var(--rand);
   }
 </style>

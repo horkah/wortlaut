@@ -38,9 +38,15 @@ from wortlaut.whisper import Transkriptor
 
 from .config import Einstellungen, einstellungen
 
-# Engines und Transkriptoren sind teuer im Aufbau und je Sprecher
-# wiederverwendbar. Ein Modell bleibt nach dem ersten Diktat im Speicher; ein
-# Neuladen je Anfrage würde jede Antwort um Sekunden verzögern.
+# Engines und Transkriptoren sind teuer im Aufbau und wiederverwendbar. Ein
+# Modell bleibt nach dem ersten Diktat im Speicher; ein Neuladen je Anfrage
+# würde jede Antwort um Sekunden verzögern.
+#
+# Der Schlüssel der Transkriptoren ist das **Modell** und nicht der Sprecher:
+# Seit sich ein Modell zur Laufzeit wählen lässt (`services/modellwahl.py`),
+# gäbe ein Zwischenspeicher je Sprecher nach einem Wechsel weiter das alte
+# Modell heraus - ein Fehler, den niemand als Fehler erkennte, weil einfach
+# der gewohnte Text herauskäme.
 _engines: dict[str, Engine] = {}
 _transkriptoren: dict[str, Transkriptor] = {}
 
@@ -61,15 +67,22 @@ def engine_fuer(sprecher_id: str) -> Engine:
     return _engines[sprecher_id]
 
 
-def transkriptor_fuer(sprecher_id: str) -> Transkriptor:
-    """Die konfigurierte Whisper-Umsetzung - je Sprecher, denn je Sprecher ein Modell."""
-    if sprecher_id not in _transkriptoren:
-        konfiguration = einstellungen()
+def transkriptor_fuer(sprecher_id: str, wahl: str = "") -> Transkriptor:
+    """Die Whisper-Umsetzung für dieses Modell.
 
+    `wahl` ist, was der Sprecher ausgewählt hat (leer: die Vorgabe, siehe
+    `modellstand`). Zwischengespeichert wird nach dem, was tatsächlich geladen
+    wird - zwei Sprecher auf demselben Grundmodell teilen es sich, und ein
+    Wechsel lädt wirklich ein anderes.
+    """
+    konfiguration = einstellungen()
+    schluessel = str(modellpfad(konfiguration, sprecher_id, wahl))
+
+    if schluessel not in _transkriptoren:
         if konfiguration.asr == "remote":
             from wortlaut.whisper.remote import EntfernterTranskriptor
 
-            _transkriptoren[sprecher_id] = EntfernterTranskriptor(
+            _transkriptoren[schluessel] = EntfernterTranskriptor(
                 konfiguration.asr_endpoint,
                 konfiguration.asr_api_key,
                 modell=konfiguration.asr_modell,
@@ -77,47 +90,64 @@ def transkriptor_fuer(sprecher_id: str) -> Transkriptor:
         else:
             from wortlaut.whisper.local import LokalerTranskriptor
 
-            _transkriptoren[sprecher_id] = LokalerTranskriptor(
-                modellpfad(konfiguration, sprecher_id)
-            )
-    return _transkriptoren[sprecher_id]
+            _transkriptoren[schluessel] = LokalerTranskriptor(schluessel)
+    return _transkriptoren[schluessel]
 
 
-def modellstand(konfiguration: Einstellungen, sprecher_id: str) -> tuple[str, dict] | None:
-    """Der Stand, der für diesen Sprecher gilt: `(ref, manifest)` - oder None.
+def modellstand(
+    konfiguration: Einstellungen, sprecher_id: str, wahl: str = ""
+) -> tuple[str, dict] | None:
+    """Der Stand, der gerade gilt: `(ref, manifest)` - oder None für ein Grundmodell.
 
-    Der Normalfall ist der freigegebene Stand *dieses* Sprechers: Ein Modell
-    gehört zu genau einem Menschen (Grundentscheidung 3), und wer hier
-    diktiert, soll auf seiner eigenen Stimme laufen. `WORTLAUT_MODELL_REF`
-    überschreibt das für alle - zum Erproben eines Standes, nicht für den
-    Betrieb.
+    Die Rangfolge steht in `services/modellwahl.py`; hier wird sie ausgeführt:
+
+    1. `wahl` - was der Sprecher ausdrücklich ausgewählt hat. Ein Grundmodell
+       (kein Schrägstrich darin) ist ebenfalls eine Wahl und ergibt `None`:
+       „kein Stand", also das unveränderte Modell.
+    2. `WORTLAUT_MODELL_REF` - der eine Stand für alle, zum Erproben.
+    3. Der freigegebene Stand *dieses* Sprechers. Ein Modell gehört zu genau
+       einem Menschen (Grundentscheidung 3).
     """
-    if konfiguration.modell_ref:
-        ref_sprecher, version = konfiguration.modell_ref.split("/", 1)
-        try:
-            return konfiguration.modell_ref, registry.lies_stand(
-                konfiguration.data_dir, ref_sprecher, version
-            )
-        except (OSError, ValueError):
-            # Falsch gesetzte Umgebung soll man sehen, nicht raten müssen -
-            # die Auskunft in `api/model.py` sagt es dann ausdrücklich.
-            return konfiguration.modell_ref, {}
+    from .services.modellwahl import ist_stand
 
-    stand = registry.aktiver_stand(konfiguration.data_dir, sprecher_id)
-    return (str(stand["id"]), stand) if stand else None
+    if wahl:
+        ref = wahl
+    elif konfiguration.modell_ref:
+        ref = konfiguration.modell_ref
+    else:
+        stand = registry.aktiver_stand(konfiguration.data_dir, sprecher_id)
+        return (str(stand["id"]), stand) if stand else None
+
+    if not ist_stand(ref):
+        return None
+
+    ref_sprecher, version = ref.split("/", 1)
+    try:
+        return ref, registry.lies_stand(konfiguration.data_dir, ref_sprecher, version)
+    except (OSError, ValueError):
+        # Ein Stand, den es nicht gibt - falsch gesetzte Umgebung oder ein
+        # gelöschter Stand, der noch gewählt ist. Sehen soll man das, nicht
+        # raten müssen: Die Auskunft in `api/model.py` sagt es ausdrücklich.
+        return ref, {}
 
 
-def modellpfad(konfiguration: Einstellungen, sprecher_id: str) -> Path | str:
+def modellpfad(
+    konfiguration: Einstellungen, sprecher_id: str, wahl: str = ""
+) -> Path | str:
     """Was faster-whisper geladen bekommt: Registry-Verzeichnis oder Modellname.
 
-    Mit einem Stand ist es dessen `ct2/`-Ordner. Ohne ihn ist es der bloße Name
-    aus `WORTLAUT_ASR_MODELL` - das unveränderte Whisper-Modell, mit dem eine
-    Installation anfängt, solange „lernen" für diesen Sprecher nichts
-    freigegeben hat.
+    Mit einem Stand ist es dessen `ct2/`-Ordner. Ohne ihn ist es ein bloßer
+    Name - das gewählte Grundmodell oder `WORTLAUT_ASR_MODELL`, mit dem eine
+    Installation anfängt, solange „lernen" nichts freigegeben hat.
     """
-    stand = modellstand(konfiguration, sprecher_id)
+    stand = modellstand(konfiguration, sprecher_id, wahl)
     if stand is None:
-        return konfiguration.asr_modell
+        return wahl or konfiguration.asr_modell
+    # Auch dann das Verzeichnis, wenn das Manifest nicht zu lesen war: Was
+    # verlangt wurde, soll versucht werden. Still auf das Grundmodell
+    # auszuweichen hieße, einen Fehlgriff in der Konfiguration als gutes
+    # Ergebnis auszugeben - die Kopfzeile sagt stattdessen, dass der Stand
+    # fehlt (siehe `api/model.py`).
     ref_sprecher, version = stand[0].split("/", 1)
     return registry.stand_verzeichnis(konfiguration.data_dir, ref_sprecher, version) / "ct2"
 
@@ -168,8 +198,19 @@ def _ablage() -> storage.Ablage:
     return storage.oeffne_ablage(einstellungen().storage, einstellungen().data_dir)
 
 
-def _transkriptor(sprecher_id: Annotated[str, Depends(_sprecher_id)]) -> Transkriptor:
-    return transkriptor_fuer(sprecher_id)
+def _transkriptor(
+    sprecher_id: Annotated[str, Depends(_sprecher_id)],
+    db: Annotated[Session, Depends(_sitzung)],
+) -> Transkriptor:
+    """Der Erkenner mit dem gewählten Modell.
+
+    Die Datenbank hängt mit drin, seit die Wahl dort steht
+    (`002_modellwahl.sql`). Das ist der Preis dafür, dass sich ein Modell zur
+    Laufzeit wechseln lässt, ohne einen Container neu zu starten.
+    """
+    from .services.modellwahl import gewaehlt
+
+    return transkriptor_fuer(sprecher_id, gewaehlt(db))
 
 
 # Kurzschreibweisen für die Signaturen der Endpunkte.
