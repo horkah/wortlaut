@@ -188,8 +188,13 @@ services:
       # nächsten Training wieder frei zu sein. Über die .env zu ändern.
       OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-15m}
     volumes:
-      # Die geladenen Modelle überleben hier einen Neustart.
-      - ollama-models:/root/.ollama
+      # Die geladenen Modelle überleben hier einen Neustart - und sie liegen
+      # aus demselben Grund neben den Whisper-Modellen und nicht im Volume:
+      # fünf Gigabyte, die ein `ollama pull` jederzeit wiederholt. Was Ollama
+      # sonst noch hier ablegt, ist sein Schlüsselpaar; auch das ist neu zu
+      # erzeugen und keine Sicherung wert. Wohin auf dem Wirt, sagt
+      # WORTLAUT_OLLAMACACHE in der .env.
+      - ${WORTLAUT_OLLAMACACHE:-./data/ollama}:/root/.ollama
     healthcheck:
       # Ohne curl im Abbild: `ollama list` spricht dieselbe Schnittstelle an,
       # die auch „hören" benutzt, und antwortet erst, wenn der Dienst steht.
@@ -212,5 +217,8 @@ networks:
   intern: {}
 
 volumes:
+  # Nur noch eines, und das ist die Absicht: Was hier steht, ist das
+  # Unersetzliche - Aufnahmen, Datenbanken, Modellstände. Alles, was sich
+  # nachladen lässt, liegt in einem Pfad des Wirts (WORTLAUT_MODELLCACHE,
+  # WORTLAUT_OLLAMACACHE) und nicht hier.
   wortlaut-data:
-  ollama-models:

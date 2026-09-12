@@ -139,6 +139,16 @@ erste Start dauert deshalb einige Minuten, worauf die `start_period` der
 Healthcheck-Prüfung Rücksicht nimmt. Liegt er auf einer langsamen Platte,
 dauert das Laden etwas länger; gerechnet wird danach ohnehin auf der Karte.
 
+Für Ollama gilt dasselbe und aus demselben Grund: Sein Verzeichnis
+`/root/.ollama` - fünf Gigabyte Sprachmodell, dazu sein Schlüsselpaar - liegt
+nicht mehr in einem Volume, sondern unter `WORTLAUT_OLLAMACACHE`, hier
+`/backup/wortlaut/ollama`. Was dort fehlt, holt ein `ollama pull` zurück.
+
+Damit bleibt genau ein Volume übrig, und das ist die Absicht: In
+`wortlaut-data` liegt nur noch, was sich nicht wiederbeschaffen lässt. Was
+gesichert werden muss, ist damit keine Frage der Auswahl mehr, sondern eine
+des Ortes.
+
 Vite läuft nicht mit - es ist reines Entwicklungswerkzeug. Beide Frontends
 werden beim `docker build` einmal gebaut und vom Prozess mit ausgeliefert.
 
@@ -206,7 +216,8 @@ Oberfläche von „lernen" trotzdem - Aufträge sammeln sich in
 Trainer läuft.
 
 Der erste Lauf lädt `whisper-small` von Hugging Face herunter (knapp ein
-Gigabyte) und legt es im Volume ab (`HF_HOME`); danach startet er ohne Netz.
+Gigabyte) und legt es im Modellcache ab (`HF_HOME`, siehe
+[Betrieb mit Compose](#betrieb-mit-compose)); danach startet er ohne Netz.
 
 **Woran ein Lauf hängt, steht in seinem Verzeichnis.** `zustand.json` sagt, was
 er gerade tut, `protokoll.txt` sagt, warum er es nicht mehr tut:
