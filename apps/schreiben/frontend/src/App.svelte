@@ -34,7 +34,7 @@
    * Browser (siehe `$ui/zugang`).
    */
   import Rahmen from '$ui/Rahmen.svelte';
-  import { MEINE_DATEN_PFAD, MODELLE_PFAD, MODELLE_URL, ZUGANGSDATEN_PFAD } from '$ui/apps';
+  import { MEINE_DATEN_PFAD, ZUGANGSDATEN_PFAD } from '$ui/apps';
   import {
     ladeModellstand,
     ladeZugang,
@@ -66,17 +66,15 @@
   // sobald ein Sprecher feststeht: Dieselbe Ansicht wie bei „hören" (dort
   // liegt der Korpus), darum ein `href` auf die laufende „hören"-Seite statt
   // eine eigene Route hier (siehe `Menuepunkt` in `apps.ts`).
+  // „Modelle" steht hier ausdrücklich **nicht**: Die Ansicht ist ein Reiter in
+  // „lernen", und ein Menüpunkt daneben wäre ein zweiter Weg dorthin. Diese App
+  // hat schon einen, und zwar den besseren - die Modellzeile unter dem
+  // Aufnahmeknopf (siehe `Aufnahme`). Wer sie liest, denkt gerade darüber nach,
+  // ob ein anderes Modell besser zuhören würde; ein Menüpunkt erreichte
+  // dagegen niemanden, der nicht ohnehin schon sucht.
   const uebergreifend = $derived([
     ...(zustand.art === 'sprecher'
-      ? [
-          { pfad: MEINE_DATEN_PFAD, text: 'Meine Daten', href: `/#${MEINE_DATEN_PFAD}` },
-          // Die Modelle stehen direkt darunter: Beide Punkte gehören zu dieser
-          // Person - das eine, was sie gesprochen hat, das andere, wer ihr
-          // dabei zuhört. Auch dieser führt hinaus, nach „lernen": Dort stehen
-          // die eigenen Stände und die Grundmodelle in einer Tabelle, und dort
-          // wird eines davon freigegeben.
-          { pfad: MODELLE_PFAD, text: 'Modelle', href: MODELLE_URL },
-        ]
+      ? [{ pfad: MEINE_DATEN_PFAD, text: 'Meine Daten', href: `/#${MEINE_DATEN_PFAD}` }]
       : []),
     { pfad: ZUGANGSDATEN_PFAD, text: 'Zugangsdaten' },
   ]);

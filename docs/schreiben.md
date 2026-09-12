@@ -81,9 +81,10 @@ und liegt danach im Browser, hier wie in `hören`.
   liest, denn beide Apps liegen unter derselben Adresse.
 - **Einstellungen nur im Menü.** Mikrofon, Stimme, Tempo und Schriftgröße
   gelten für alle drei Apps und stehen eingeklappt hinter dem Menüknopf, damit
-  die Oberfläche ein großer Knopf bleibt. Dort liegen auch die beiden Verweise,
-  die aus dieser App herausführen: **Meine Daten** nach `hören`, **Modelle**
-  nach `lernen`.
+  die Oberfläche ein großer Knopf bleibt. Dort liegt auch der eine Verweis,
+  der aus dieser App herausführt: **Meine Daten** nach `hören`. Zu den Modellen
+  geht es nicht über das Menü, sondern über die Modellzeile unter dem
+  Aufnahmeknopf - wer sie liest, denkt gerade darüber nach.
 - **Bearbeitet wird durch Sprechen.** Der fertige Text ist zum Kopieren da,
   nicht zum Tippen.
 

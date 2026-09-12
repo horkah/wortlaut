@@ -80,20 +80,21 @@ App baut sie sich selbst zusammen: `packages/ui/Rahmen.svelte` klammert
 Kopfzeile, Inhalt und Fußzeile und beantwortet die gerätebezogenen Menüpunkte
 gleich mit. Eine App liefert nur ihre eigenen Ansichten und, was sie darüber
 hinaus ins Menü stellt - `hören` den Sprecher (oder, sobald einer spricht,
-**Meine Daten** und gleich dahinter **Modelle**) und die Zugangsdaten,
-`schreiben` dieselben zwei als Verweise und ebenfalls die Zugangsdaten. Was im
-Menü steht, ist damit eine Liste (`GERAETE_PUNKTE` in `apps.ts` und der
-Durchreichung der App) und keine Folge fester Zeilen mit Schaltern davor; ein
-neuer gerätebezogener Punkt ist ein Eintrag und eine Zeile im Rahmen, statt
-einer Änderung in jeder App. Weil es eine Liste ist, lässt sie sich auch
-kürzen: Welche Apps, welche Ansichten und welche Menüpunkte tatsächlich
-dastehen, schaltet **Darstellung** ein und aus (siehe dort).
+**Meine Daten**) und die Zugangsdaten, `schreiben` dasselbe als Verweis und
+ebenfalls die Zugangsdaten. Was im Menü steht, ist damit eine Liste
+(`GERAETE_PUNKTE` in `apps.ts` und der Durchreichung der App) und keine Folge
+fester Zeilen mit Schaltern davor; ein neuer gerätebezogener Punkt ist ein
+Eintrag und eine Zeile im Rahmen, statt einer Änderung in jeder App. Weil es
+eine Liste ist, lässt sie sich auch kürzen: Welche Apps, welche Ansichten und
+welche Menüpunkte tatsächlich dastehen, schaltet **Darstellung** ein und aus
+(siehe dort).
 
-**Modelle** ist dabei ein Verweis nach `lernen`: Dort stehen die eigenen
-Stände und die unveränderten Grundmodelle in einer Tabelle, an denselben
-Testaufnahmen gemessen, und dort wird eines davon freigegeben. Wer gerade die
-Auswertung gelesen hat, will von dort aus entscheiden, womit gesprochen wird,
-und nicht erst die App suchen.
+**Was eine Reiterreihe trägt, steht nicht zusätzlich im Menü.** „Auswertung"
+und „Modelle" standen eine Zeitlang beides - hier als Reiter, drüben als
+Menüpunkt mit voller Adresse. Bequem war das nicht, sondern eine Stelle, an der
+jemand zweimal sucht. Der Weg zwischen den Apps ist der App-Reiter in der
+oberen Reihe; wer aus `schreiben` zu den Modellen will, klickt die Modellzeile
+unter dem Aufnahmeknopf an.
 
 Der Punkt **Zugangsdaten** steht in **beiden** Apps immer im Menü, auch und
 gerade ohne gültigen Zugang: Dann ist er der einzige Weg herein, und ein Menü,

@@ -8,8 +8,6 @@
     AUSWERTUNG_PFAD,
     GERAETE_PUNKTE,
     MEINE_DATEN_PFAD,
-    MODELLE_PFAD,
-    MODELLE_URL,
     SPRECHER_PFAD,
     ZUGANGSDATEN_PFAD,
     type Menuepunkt,
@@ -93,17 +91,14 @@
   // hinein, und ein Menü, das ihn erst nach erfolgreicher Anmeldung zeigt,
   // hätte die Tür hinter dem Schloss.
   //
-  // Die Modellübersicht liegt in „lernen" - dort entstehen die Stände, und
-  // dort wird eines der Modelle freigegeben. Sie steht trotzdem hier im Menü,
-  // mit voller Adresse statt Hash-Route (siehe `Menuepunkt` in `apps.ts`): Wer
-  // gerade die Auswertung gelesen hat, will von dort aus entscheiden, womit
-  // gesprochen wird, und nicht erst die App suchen.
+  // „Modelle" steht hier ausdrücklich **nicht**: Die Ansicht ist ein Reiter in
+  // „lernen", und ein Menüpunkt daneben wäre ein zweiter Weg zu derselben
+  // Seite. Das Menü führt, was keine Reiterreihe trägt; alles, was eine hat,
+  // steht dort und nirgends sonst. Wer von hier aus hinüber will, klickt den
+  // App-Reiter „lernen" in der oberen Reihe.
   const uebergreifend = $derived([
     ...(spricht
-      ? [
-          { pfad: MEINE_DATEN_PFAD, text: 'Meine Daten' },
-          { pfad: MODELLE_PFAD, text: 'Modelle', href: MODELLE_URL },
-        ]
+      ? [{ pfad: MEINE_DATEN_PFAD, text: 'Meine Daten' }]
       : [{ pfad: SPRECHER_PFAD, text: 'Sprecher' }]),
     { pfad: ZUGANGSDATEN_PFAD, text: 'Zugangsdaten' },
   ]);
