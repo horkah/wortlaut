@@ -87,6 +87,17 @@ services:
       # bleiben. Das Laden beim ersten Start dauert dadurch etwas länger;
       # gerechnet wird danach ohnehin auf der Karte.
       - ${WORTLAUT_MODELLCACHE:-./data/modellcache}:/srv/wortlaut/modellcache
+      # Was ein Training hervorbringt, liegt ebenfalls nicht im Volume der
+      # Daten: die Modellstände (`modelle/`, hier knapp ein Gigabyte je Stand)
+      # und die Laufverzeichnisse (`snapshots/`) mit Auftrag, Manifest,
+      # Protokoll und Bewertung. Beides ist aus dem Korpus jederzeit neu zu
+      # rechnen - es kostet eine Stunde auf der Karte, aber keine Aufnahme -,
+      # und die Sicherung nimmt es aus genau diesem Grund schon heute nicht
+      # mit (`wortlaut/sicherung.py`). Im Container bleiben die Pfade, wo der
+      # Quelltext sie erwartet: unter WORTLAUT_DATA_DIR. Auf dem Wirt zeigt
+      # WORTLAUT_TRAININGSABLAGE dorthin, wo Platz ist.
+      - ${WORTLAUT_TRAININGSABLAGE:-./data/training}/modelle:/srv/wortlaut/data/modelle
+      - ${WORTLAUT_TRAININGSABLAGE:-./data/training}/snapshots:/srv/wortlaut/data/snapshots
     # Die Karte, wenn eine da ist. Diktieren und die Auswertung nehmen sie
     # (`wortlaut/rechenwerk.py`) - das ist der Unterschied zwischen vier
     # Sekunden und einer Viertelsekunde je Aufnahme.
@@ -120,9 +131,10 @@ services:
 
   # Der Trainer. Er beantwortet keine Anfrage und hängt an keinem Netz: Alles,
   # was er braucht, steht im Datenverzeichnis, und alles, was er hervorbringt,
-  # legt er dort wieder ab (`data/snapshots/` und `data/modelle/`). Deshalb
-  # teilt er sich mit `wortlaut` nur das Volume - und deshalb kann jeder von
-  # beiden neu starten, ohne den anderen mitzunehmen.
+  # legt er dort wieder ab (`data/snapshots/` und `data/modelle/` - zwei Pfade,
+  # die auf dem Wirt nicht im Volume liegen, siehe unten). Deshalb teilt er
+  # sich mit `wortlaut` nur die Ablage - und deshalb kann jeder von beiden neu
+  # starten, ohne den anderen mitzunehmen.
   #
   # `profiles` hält ihn aus dem gewöhnlichen `docker compose up` heraus: Das
   # Abbild wiegt einige Gigabyte und verlangt eine Karte. Wer beides hat,
@@ -151,6 +163,17 @@ services:
       # Dieselben Grundmodelle wie „hören" - ein Feintuning setzt auf einem
       # von ihnen auf, und zweimal sechs Gigabyte wären zweimal zu viel.
       - ${WORTLAUT_MODELLCACHE:-./data/modellcache}:/srv/wortlaut/modellcache
+      # Was ein Training hervorbringt, liegt ebenfalls nicht im Volume der
+      # Daten: die Modellstände (`modelle/`, hier knapp ein Gigabyte je Stand)
+      # und die Laufverzeichnisse (`snapshots/`) mit Auftrag, Manifest,
+      # Protokoll und Bewertung. Beides ist aus dem Korpus jederzeit neu zu
+      # rechnen - es kostet eine Stunde auf der Karte, aber keine Aufnahme -,
+      # und die Sicherung nimmt es aus genau diesem Grund schon heute nicht
+      # mit (`wortlaut/sicherung.py`). Im Container bleiben die Pfade, wo der
+      # Quelltext sie erwartet: unter WORTLAUT_DATA_DIR. Auf dem Wirt zeigt
+      # WORTLAUT_TRAININGSABLAGE dorthin, wo Platz ist.
+      - ${WORTLAUT_TRAININGSABLAGE:-./data/training}/modelle:/srv/wortlaut/data/modelle
+      - ${WORTLAUT_TRAININGSABLAGE:-./data/training}/snapshots:/srv/wortlaut/data/snapshots
     deploy:
       resources:
         reservations:
@@ -218,7 +241,8 @@ networks:
 
 volumes:
   # Nur noch eines, und das ist die Absicht: Was hier steht, ist das
-  # Unersetzliche - Aufnahmen, Datenbanken, Modellstände. Alles, was sich
-  # nachladen lässt, liegt in einem Pfad des Wirts (WORTLAUT_MODELLCACHE,
-  # WORTLAUT_OLLAMACACHE) und nicht hier.
+  # Unersetzliche - die Aufnahmen, die Datenbanken, der Arbeitsstand von
+  # „schreiben". Alles, was sich daraus oder aus dem Netz wiederherstellen
+  # lässt, liegt in einem Pfad des Wirts (WORTLAUT_MODELLCACHE,
+  # WORTLAUT_OLLAMACACHE, WORTLAUT_TRAININGSABLAGE) und nicht hier.
   wortlaut-data:
