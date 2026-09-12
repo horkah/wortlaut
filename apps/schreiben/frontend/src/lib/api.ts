@@ -33,15 +33,35 @@ export type Sitzung = {
   abschnitte: Abschnitt[];
 };
 
+/** Ein wählbares Modell: ein unverändertes Grundmodell oder ein Stand aus „lernen". */
+export type Modellwahl = {
+  ref: string;
+  name: string;
+  /** grundmodell | trainiert */
+  art: string;
+  beschriftung: string;
+  methode: string | null;
+  daten: string | null;
+  erstellt: string | null;
+  wer: number | null;
+  /** Der Stand, den „lernen" freigegeben hat - die Vorgabe ohne eigene Wahl. */
+  freigegeben: boolean;
+};
+
 export type Modell = {
   sprecher_id: string;
+  /** Was gerade geladen ist - immer gefüllt, immer einer der `ref` aus `auswahl`. */
   ref: string;
   basismodell: string;
   methode: string | null;
+  daten: string | null;
   erstellt: string | null;
   wer: number | null;
   laufzeit: string;
+  /** Ob ausdrücklich gewählt wurde; sonst gilt die Vorgabe. */
+  gewaehlt: boolean;
   beschriftung: string;
+  auswahl: Modellwahl[];
 };
 
 export type Versand = { eingestellt: number; gesendet: number; offen: number; fehler: string | null };
@@ -115,3 +135,11 @@ export const werRuft = () => anfrage<Wer>('/zugang');
 
 /** Der Modellstand **dieses** Sprechers; „lernen" gibt ihn je Person frei. */
 export const modell = () => anfrage<Modell>('/model');
+
+/** Ein anderes Modell benutzen. Leere Kennung heißt: zurück zur Vorgabe. */
+export const modellWaehlen = (ref: string) =>
+  anfrage<Modell>('/model', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ref }),
+  });

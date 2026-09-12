@@ -54,6 +54,26 @@ Diktieren kann in „schreiben", wer seinen persönlichen Link einmal geöffnet
 hat - denselben wie in „hören". Ohne ihn zeigt die App „Kein Zugang" statt
 eines Aufnahmeknopfes, der ins Leere liefe.
 
+Für „lernen" ebenso, mit den nächsten freien Ports:
+
+```bash
+cd apps/lernen/frontend && npm install && cd -
+make dev APP=lernen          # Backend auf :8002, Vite auf :5175
+```
+
+Aufgerufen wird `http://localhost:5175/lernen/` - **mit Pfad**, aus demselben
+Grund wie bei „schreiben".
+
+Diese App rechnet nicht. Sie teilt die Aufnahmen in Lernen und Prüfen, legt
+Aufträge an und zeigt, was daraus wird; das Training selbst läuft im Container
+`training` (siehe unten) oder, auf einer Maschine mit Karte, über
+`make trainer`. Letzteres setzt `torch`, `transformers`, `peft` und
+`accelerate` voraus - sie stehen absichtlich nicht in `uv sync`, denn drei
+Gigabyte CUDA für eine Oberfläche wären der falsche Handel.
+
+Ohne Karte lässt sich alles außer dem Rechnen ansehen: Die Aufteilung steht,
+Aufträge sammeln sich und gehen nicht verloren.
+
 `make migrate` schreibt alle Korpora auf einmal fort. Nötig ist es dafür
 nicht: Neue Sprecher bekommen ihre Datenbank beim Anlegen, bestehende werden
 beim ersten Zugriff fortgeschrieben - ein Update braucht deshalb keinen
@@ -157,6 +177,43 @@ docker compose exec wortlaut python scripts/augmentieren.py
 
 Auf dem Wirt heißt dasselbe `make augmentieren`. Ein zweiter Lauf rechnet
 nichts neu, und er kostet Platz: Der Korpus wird dadurch etwa viermal so groß.
+
+### Der Trainer
+
+„lernen" liefert seine Oberfläche im selben Prozess aus wie die anderen Apps.
+Gerechnet wird in einem eigenen Container, denn torch mit CUDA wiegt gut drei
+Gigabyte und verlangt eine Karte. Er startet nicht von selbst:
+
+```bash
+docker compose --profile training up -d training
+docker compose logs -f training
+```
+
+Das Profil ist Absicht: Wer keine Karte hat, soll `docker compose up` nicht an
+einem Dienst scheitern sehen, den er nie benutzt. Ohne ihn steht die
+Oberfläche von „lernen" trotzdem - Aufträge sammeln sich in
+`data/snapshots/` und gehen nicht verloren; sie werden gerechnet, sobald der
+Trainer läuft.
+
+Der erste Lauf lädt `whisper-small` von Hugging Face herunter (knapp ein
+Gigabyte) und legt es im Volume ab (`HF_HOME`); danach startet er ohne Netz.
+
+**Woran ein Lauf hängt, steht in seinem Verzeichnis.** `zustand.json` sagt, was
+er gerade tut, `protokoll.txt` sagt, warum er es nicht mehr tut:
+
+```bash
+docker compose exec wortlaut sh -c 'cat data/snapshots/job_*/zustand.json'
+docker compose exec wortlaut tail -40 data/snapshots/job_01J8…/protokoll.txt
+```
+
+Ein Lauf, der mit „CUDA out of memory" endet, ist kein Fehler im Aufbau,
+sondern eine zu große Stapelgröße für diese Karte: `stapel` in
+`apps/lernen/training/rezepte/whisper_full.yaml` herunter, `akkumulation`
+hinauf - die wirksame Stapelgröße bleibt dann dieselbe.
+
+Der Trainer beantwortet keine Anfrage und hängt an keinem Netz. Ihn neu zu
+starten kostet nur den laufenden Lauf; die Warteschlange bleibt, und ein
+abgebrochener Lauf lässt sich neu beauftragen.
 
 ### Bevor die Korrekturen ankommen: der Sprecher
 
@@ -296,6 +353,20 @@ IP-Adresse oder blankes HTTP bleibt die App unbenutzbar.
 
 ## Endpunkte
 
+App „lernen" - alles unter `/lernen`, jeder Weg außer `/gesundheit` verlangt
+`Authorization: Bearer <sprecher_id>.<geheimnis>`. Verwaltung und Aufsicht
+kommen hier nicht durch: Ein Modell gehört einem Menschen.
+
+```
+GET    /lernen/api/aufteilung                     wer lernt, steuert, prüft
+GET    /lernen/api/laeufe                         die Liste, ohne Kurven
+POST   /lernen/api/laeufe                         { methode, daten }
+GET    /lernen/api/laeufe/{id}                    Kurven, Vergleich, Protokoll
+POST   /lernen/api/laeufe/{id}/abbruch            einen wartenden zurücknehmen
+GET    /lernen/api/modelle                        die fertigen Stände
+POST   /lernen/api/modelle/{version}/freigabe     freigeben, andere zurückziehen
+```
+
 App „hören":
 
 ```
@@ -368,7 +439,8 @@ POST   /schreiben/api/sessions/{id}/segments      multipart: audio → Abschnitt
 POST   /schreiben/api/sessions/{id}/bestaetigen   → Postausgang, sofort senden
 POST   /schreiben/api/segments/{id}/neu           multipart: audio
 GET    /schreiben/api/segments/{id}/audio
-GET    /schreiben/api/model                       Modellstand für die Kopfzeile
+GET    /schreiben/api/model                       Modellstand samt Auswahl
+PUT    /schreiben/api/model                       { ref } - anderes Modell laden
 GET    /schreiben/api/outbox
 POST   /schreiben/api/outbox/senden               noch einmal versuchen
 GET    /gesundheit                                auf der Wurzel, für die Überwachung

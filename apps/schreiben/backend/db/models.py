@@ -22,6 +22,21 @@ class Basis(DeclarativeBase):
     pass
 
 
+class Modellwahl(Basis):
+    """Womit dieser Sprecher gerade diktiert - genau eine Zeile (`002_modellwahl.sql`).
+
+    Fehlt sie, gilt der freigegebene Stand aus „lernen" und, solange es keinen
+    gibt, das unveränderte Grundmodell. Eine leere Tabelle ist also keine
+    fehlende Einstellung, sondern die Vorgabe.
+    """
+
+    __tablename__ = "modellwahl"
+
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    ref: Mapped[str]
+    gewaehlt: Mapped[str]
+
+
 class Sitzung(Basis):
     __tablename__ = "sessions"
 

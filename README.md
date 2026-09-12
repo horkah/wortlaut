@@ -16,16 +16,17 @@ Drei Apps, die nacheinander greifen:
 | App | Aufgabe | Status |
 |---|---|---|
 | **hören** | Sprachproben sammeln - zu LLM-erzeugten oder hochgeladenen Texten | läuft, mit Tests |
-| **lernen** | aus den Proben ein sprecherspezifisches Whisper-Modell feintunen | entworfen |
+| **lernen** | aus den Proben ein sprecherspezifisches Whisper-Modell feintunen | läuft, mit Tests |
 | **schreiben** | mit diesem Modell diktieren, vorlesen lassen, Fehler neu einsprechen | läuft, mit Tests |
 
 `lernen` liest die Dateien von `hören`. `schreiben` liest das Modell von `lernen` und
 gibt Korrekturen an `hören` zurück. Sonst berühren sie sich nicht.
 
-Solange `lernen` fehlt, läuft `schreiben` mit dem unveränderten `whisper-small`.
-Das ist kein Behelf, sondern der Anfang der Messlatte: Was ein Modell von der
-Stange mit einer abweichenden Aussprache anstellt, ist der Grund für das ganze
-Projekt.
+Ohne einen trainierten Stand läuft `schreiben` mit dem unveränderten
+`whisper-small`. Das ist kein Behelf, sondern der Anfang der Messlatte: Was ein
+Modell von der Stange mit einer abweichenden Aussprache anstellt, ist der Grund
+für das ganze Projekt - und die Zahl, gegen die jeder trainierte Stand
+antreten muss.
 
 ---
 
@@ -127,7 +128,26 @@ wortlaut/
 │   │   │                          # Fortschritt, Einsicht, Einstellungen
 │   │   └── tests/                 # Endpunkte, Warteschlange, Intake, Aufsicht
 │   │
-│   ├── lernen/                    # App „lernen" - entworfen, siehe README dort
+│   ├── lernen/                    # App „lernen" - siehe README dort
+│   │   ├── backend/
+│   │   │   ├── main.py            # FastAPI unter /lernen, hinter dem Zugang
+│   │   │   ├── config.py          # Grundmodell, Gerät, Takt des Läufers
+│   │   │   ├── deps.py            # Zugang, eigene Datenbank, Korpus (lesend!)
+│   │   │   ├── api/               # aufteilung.py, laeufe.py, modelle.py
+│   │   │   ├── services/
+│   │   │   │   ├── aufteilung.py  # 2:1, einmal vergeben und nie umsortiert
+│   │   │   │   ├── auftraege.py   # Schnappschuss und Auftrag schreiben
+│   │   │   │   └── vergleich.py   # trainierter Stand gegen die Grundlinie
+│   │   │   └── db/                # genau eine Tabelle: die Aufteilung
+│   │   ├── frontend/              # Aufteilung, Training (Kurven), Modelle
+│   │   ├── training/              # das, was auf der GPU läuft - eigenes Abbild
+│   │   │   ├── Dockerfile         # pytorch/cuda, ~4 GB, eigener Compose-Dienst
+│   │   │   ├── laeufer.py         # wartet auf Aufträge, einer nach dem anderen
+│   │   │   ├── finetune.py        # das Training selbst, schreibt die Kurven
+│   │   │   ├── bewerten.py        # Testaufnahmen messen, Stand eintragen
+│   │   │   ├── daten.py           # Manifest → Merkmale und Marken
+│   │   │   └── rezepte/           # whisper_full.yaml, whisper_lora.yaml
+│   │   └── tests/                 # Aufteilung, Aufträge, Vergleich, Grenzen
 │   │
 │   └── schreiben/                 # App „schreiben"
 │       ├── Dockerfile
@@ -1043,6 +1063,200 @@ statt an Vermutungen ausrichten kann.
 
 ---
 
+## App „lernen"
+
+Aus den Aufnahmen ein Modell für genau diese Stimme. Die App zerfällt in zwei
+Teile, und dazwischen liegt ein Verzeichnis statt eines Aufrufs.
+
+### Zwei Teile, ein Verzeichnis dazwischen
+
+| Teil | Wo | Was er tut |
+|---|---|---|
+| Oberfläche | `backend/`, `frontend/` | zuteilen, beauftragen, zusehen, freigeben |
+| Trainer | `training/` | Aufträge von der Warteschlange nehmen und rechnen |
+
+Der Trainer ist ein eigener Container mit torch und CUDA - gut vier Gigabyte
+Abbild und eine Karte. Der Webdienst braucht davon nichts und soll in Sekunden
+neu starten. Verbunden sind beide über `data/snapshots/<job_id>/`
+(`wortlaut/laeufe.py`), und das ist dasselbe Muster wie zwischen `schreiben`
+und `hören`: etwas Liegendes statt einer Aufrufkette. Drei Folgen, und alle
+drei sind der Grund dafür:
+
+* Der Webdienst kann neu starten, während ein Training läuft.
+* Der Trainer kann neu starten, ohne dass ein Auftrag verlorengeht.
+* Es gibt keinen Weg, auf dem der eine den anderen zum Absturz bringt.
+
+Ein Auftragsverzeichnis trägt alles, was zu diesem Lauf gehört: die Marke für
+die Löschung, den Auftrag, das Manifest (den Schnappschuss), den Zustand, den
+Fortschritt, die Bewertung und das Protokoll. Offen ist ein Auftrag, zu dem es
+noch keinen `zustand.json` gibt - das ist die ganze Warteschlange. Eine
+zusätzliche Warteschlangendatei wäre ein zweiter Ort, an dem dasselbe steht,
+und der erste, der bei einem Abbruch nicht mehr stimmt.
+
+Gerechnet wird einer nach dem anderen, über alle Sprecher hinweg: Es gibt eine
+Karte, und zwei Läufe darauf wären zusammen langsamer als nacheinander -
+dieselbe Überlegung wie beim Lauf der Auswertung in `hören`.
+
+### Die Aufteilung: 2:1, und sie hält
+
+Zwei Drittel der Aufnahmen trainieren, ein Drittel prüft. Die Zahl ist der
+leichte Teil; der schwierige ist, dass die Zuteilung **hält**.
+
+Die naheliegende Lösung wäre, beim Trainieren durchzuzählen: Aufnahme 1 und 2
+lernen, Aufnahme 3 prüft. Das ist bis zur ersten gelöschten Aufnahme richtig.
+Danach rückt alles dahinter um einen Platz vor - und Aufnahmen, die bisher
+geprüft haben, landen im Training eines Modells, das anschließend an ihnen
+gemessen wird. Die Zahl, die dabei herauskommt, sieht gut aus und bedeutet
+nichts.
+
+Die Zuteilung steht deshalb in einer Tabelle, einmal je Aufnahme, und wird nie
+wieder angefasst (`data/lernen/<sprecher_id>/lernen.sqlite` - die einzige
+eigene Tabelle dieser App). Verschwindet eine Aufnahme, verschwindet ihre Zeile
+mit; die übrigen behalten ihren Platz, und die nächste neue erbt ihn nicht. Das
+Verhältnis weicht dadurch leicht von 2:1 ab. Das ist der richtige Preis: Ein
+sauberes Verhältnis wäre hier nur zu haben, indem man die Trennung zwischen
+Lernen und Prüfen aufweicht, und dann misst niemand mehr etwas.
+
+Zugeteilt wird nach einem festen Muster über sechs Plätze:
+
+| Platz | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| Teil | Training | Training | **Test** | Training | Validierung | **Test** |
+
+Vier zum Lernen, zwei zum Prüfen - genau 2:1. Einer der vier ist die
+Validierung; sie gehört zum Lernen, weil sie es steuert, ist aber keine
+Trainingsprobe: Sonst sagte die Lernkurve nur, wie gut das Modell auswendig
+gelernt hat. Ein festes Muster und kein Zufall, weil eine zufällige Auswahl
+einen gespeicherten Keim bräuchte, um nachvollziehbar zu sein - also ebenfalls
+eine gespeicherte Zuteilung, nur schwerer zu lesen.
+
+Zugeteilt wird beim Hinsehen: Jede Abfrage der Ansicht und jeder Auftrag holt
+nach, was noch keine Zeile hat. Ein eigener Knopf dafür wäre einer, den jemand
+vergisst - und ein Modell, das ohne die neuen Aufnahmen trainiert, sagt nicht,
+dass sie fehlten.
+
+### Vier Läufe, und warum nicht mehr
+
+Zwei Fragen, die sich nicht vermischen lassen, also zwei Achsen:
+
+| | Nur Originale | Mit Abwandlungen |
+|---|---|---|
+| **Volles Training** | alle Gewichte, eine Probe je Aufnahme | alle Gewichte, vier Proben je Aufnahme |
+| **Feintuning (LoRA)** | kleiner Zusatz, eine Probe je Aufnahme | kleiner Zusatz, vier Proben je Aufnahme |
+
+Erst der Vergleich der vier sagt, ob das Mehr an Daten oder das Mehr an
+Freiheit geholfen hat. Trainiert wird immer auf `whisper-small`, fest und in
+der Oberfläche nicht wählbar: Es ist die kleinste Stufe, die ganze Sätze
+trifft, es passt in den Speicher einer einzelnen Karte, und es ist dieselbe
+Reihe, gegen die `hören` schon misst. Ohne diesen gemeinsamen Nenner wäre der
+Vergleich mit der Grundlinie keiner.
+
+Alles Übrige - Lernrate, Durchgänge, Stapelgröße, LoRA-Rang - steht in
+`training/rezepte/*.yaml` und nicht in der Oberfläche. Jede Einstellmöglichkeit
+dort wäre eine, deren Wirkung später niemand mehr zuzuordnen weiß.
+
+Zwei Entscheidungen in den Rezepten sind keine Geschmacksfrage:
+
+* **Volles Training läuft mit 1e-5, LoRA mit 1e-3.** Das ist kein Tippfehler.
+  Beim vollen Training zieht eine zu hohe Lernrate dem Modell in wenigen
+  hundert Schritten alles aus, was es vorher konnte; die LoRA-Matrizen dagegen
+  starten bei null und müssen erst etwas werden.
+* **Korrekturen wiegen 0,5.** Sie stammen aus `schreiben`: Ihr Text ist keine
+  Vorgabe, sondern eine vom Menschen abgenickte Maschinenausgabe. Wer sie
+  gleichrangig einspeist, trainiert dem Modell seine eigenen Fehler an. Das
+  Gewicht steht je Zeile im Manifest und wirkt im Verlust je Probe
+  (`training/finetune.py`).
+
+### Die Ansicht
+
+**Aufteilung** zeigt, wer lernt, steuert und prüft - als Streifen, als Tabelle
+und als Liste mit dem Platz im Muster daneben. Es gibt hier keinen Knopf, der
+etwas verschiebt: Er wäre der Weg, auf dem eine Testaufnahme ins Training
+rutscht. Die Liste steht trotzdem da, weil die Zusage sonst eine Behauptung
+wäre - wer wissen will, ob seine Prüfaufnahmen ungesehen sind, muss sie sehen
+können.
+
+**Training** beauftragt und zeigt den Stand. Je Lauf ein Balken und die Stufe
+daneben (laden, training, umwandeln, bewerten). Der Balken bleibt leer, solange
+der Trainer die Schrittzahl nicht genannt hat: Ein Balken bei null, der nicht
+weiß wovon, ist eine Behauptung. Vier Felder darunter zeigen, welche der vier
+Kombinationen schon gerechnet sind - gesperrt wird keine, ein zweiter Lauf nach
+fünfzig neuen Aufnahmen ist ein gutes Recht.
+
+Ein Klick führt in den **einzelnen Lauf**: zwei Kurven über den Schritten. Die
+durchgezogene ist der Trainingsverlust, die gestrichelte die Validierung. Zwei
+und nicht eine, denn der Trainingsverlust fällt auch dann weiter, wenn das
+Modell nur noch auswendig lernt; erst die zweite Reihe zeigt, wann das anfängt -
+sie ist die, die wieder steigt, während die andere sinkt.
+
+Darunter, sobald der Lauf durch ist, der **Vergleich mit der Grundlinie**.
+
+### Gegen die Grundlinie, nicht ins Blaue
+
+Die Frage dieser App ist nicht, wie gut ein Modell ist, sondern ob das Training
+es besser gemacht hat. Dafür braucht es zwei Zahlen zu denselben Aufnahmen, und
+die zweite liegt schon da: `hören` hat in seiner Auswertung jede Aufnahme durch
+`base`, `small`, `medium` und `large-v3` geschickt und je Fassung gemessen. Die
+Zeilen zu `small` auf den **Testaufnahmen** sind die Grundlinie - dasselbe
+Grundmodell, dieselben Aufnahmen, dasselbe Maß, dieselbe Rechnung.
+
+Drei Entscheidungen stecken darin:
+
+* **Nicht neu gemessen.** Eine zweite Messung derselben Sache wäre eine zweite
+  Gelegenheit, sie anders zu machen - ein anderes Gerät, eine andere
+  Quantisierung, eine andere Textangleichung.
+* **Nur die Testaufnahmen.** Auf allem anderen hat das Modell gelernt; eine
+  Verbesserung dort ist keine Auskunft, sondern eine Selbstverständlichkeit.
+* **Je Fassung.** Geprüft wird immer auf allen vier Fassungen (Original,
+  ausgesteuert, lauter, mit Rauschen), auch beim Lauf „nur Originale": Die zu
+  vergleichenden Modelle sollen sich in ihren Trainingsdaten unterscheiden und
+  in nichts sonst - schon gar nicht in dem, woran sie gemessen werden. Ein
+  Stand, der auf dem Original gewinnt und beim Rauschen verliert, hat etwas
+  anderes gelernt als einer, der überall gleichmäßig zulegt.
+
+Verglichen wird nur, was beide Seiten gemessen haben. Steht in `hören` für eine
+Aufnahme noch keine Zeile, fällt sie aus beiden Mittelwerten - sonst stünde ein
+Mittel über zwanzig gegen eines über achtzehn, und der Unterschied läge an der
+Auswahl statt am Modell.
+
+### Endpunkte
+
+```
+GET    /lernen/api/aufteilung               wer lernt, steuert, prüft - teilt dabei zu
+GET    /lernen/api/laeufe                   die Liste, ohne Kurven
+POST   /lernen/api/laeufe                   einen Lauf beauftragen
+GET    /lernen/api/laeufe/{id}              Kurven, Bewertung, Vergleich, Protokoll
+POST   /lernen/api/laeufe/{id}/abbruch      einen wartenden zurücknehmen
+GET    /lernen/api/modelle                  die fertigen Stände
+POST   /lernen/api/modelle/{version}/freigabe   diesen freigeben, alle anderen zurückziehen
+GET    /gesundheit                          ohne Zugang, auf der Wurzel
+```
+
+Alles unter `/lernen` - dem Ort dieser App unter der gemeinsamen Domain. Jeder
+Weg außer `/gesundheit` verlangt den Sprecherzugang aus `hören` und leitet die
+Kennung daraus ab. Verwaltung und Aufsicht kommen hier **nicht** durch, und das
+ist kein Versehen: Ein Modell gehört einem Menschen, und wer keines hat, hat
+hier nichts zu sehen.
+
+Die Liste trägt bewusst keine Kurven: Sie wird abgefragt, solange die Seite
+offen ist, und bei zwölf Läufen mit je tausend Schritten wäre das bei jedem
+Takt ein Vielfaches dessen, was gemeint ist.
+
+### Freigeben ist ein eigener Schritt
+
+Ein durchgelaufenes Training ist noch kein Modell, das jemand benutzen soll.
+Zwischen „hat gerechnet" und „damit diktiere ich" liegt der Blick auf die
+Zahlen, und den nimmt einem nichts ab. Ein fertiger Lauf trägt deshalb
+`status: fertig`; **Freigeben** ist ein Knopf unter **Modelle** und keine Folge
+des Fertigwerdens.
+
+Freigegeben ist höchstens einer je Sprecher - der, den `schreiben` von sich aus
+nimmt. Die übrigen bleiben stehen: Vier Stände nebeneinander, und welcher der
+beste ist, beantwortet man nicht, indem man drei wegwirft. Sie lassen sich in
+`schreiben` ausdrücklich auswählen.
+
+---
+
 ## Die Modell-Registry - die Nahtstelle zu „schreiben"
 
 Ebenfalls Dateien statt Tabelle. Ein Modellstand ist ein Verzeichnis, das man
@@ -1057,24 +1271,54 @@ data/modelle/<sprecher_id>/<version>/
 
 ```json
 {
-  "id": "spr_7f2a/2026-08-15T1420",
+  "id": "spr_7f2a/20260912T1420-lora-augmentiert",
   "sprecher_id": "spr_7f2a",
-  "basismodell": "openai/whisper-large-v3",
-  "methode": "full",
-  "erstellt": "2026-08-15T14:20:03Z",
-  "daten": { "stunden": 4.7, "einheiten": 1832,
-             "quellen": { "vorlage": 1640, "korrektur": 192 } },
-  "metriken": { "wer": 0.146, "cer": 0.061, "test_einheiten": 120 },
+  "basismodell": "openai/whisper-small",
+  "methode": "lora",
+  "daten": "augmentiert",
+  "job_id": "job_01J8…",
+  "erstellt": "2026-09-12T14:20:03Z",
+  "daten_umfang": { "train": 1832, "validierung": 118, "test": 480 },
+  "metriken": { "wer": 0.146, "cer": 0.061, "genauigkeit": 81.4,
+                "test_einheiten": 480 },
   "laufzeit": "faster-whisper>=1.1",
-  "sha256": "…",
-  "status": "active"
+  "status": "fertig"
 }
 ```
 
-`schreiben` wird über `WORTLAUT_MODELL_REF` auf genau eine `id` festgenagelt und
-zeigt Basismodell und Datum dauerhaft in der Kopfzeile. Ein Modellwechsel ist eine
-Konfigurationsänderung mit Neustart, kein Laufzeitereignis - sonst weiß hinterher
-niemand, welcher Stand welche Ausgabe erzeugt hat.
+Die Version nennt Zeit, Methode und Datensatz, und das ist kein Schmuck: Es
+liegen vier Stände nebeneinander, die sich in genau diesen Punkten
+unterscheiden (zwei Methoden mal zwei Datensätze). Eine Zeitmarke allein ließe
+offen, welcher von den vieren gemeint ist.
+
+`status` ist `fertig`, bis jemand den Stand in `lernen` **freigibt** - dann
+wird er `active` und jeder andere `zurueckgezogen`. Freigegeben ist höchstens
+einer je Sprecher: Er ist der, den `schreiben` von sich aus nimmt.
+
+### Welches Modell `schreiben` lädt
+
+Drei Herkünfte, und die Reihenfolge ist die Rangfolge:
+
+1. **Was der Sprecher in `schreiben` ausgewählt hat** (Menüpunkt **Modell**).
+2. **`WORTLAUT_MODELL_REF`**, falls gesetzt - der eine Stand für alle, zum
+   Erproben. Er sticht die Wahl nicht, sondern steht nur an ihrer Stelle.
+3. **Der freigegebene Stand** dieses Sprechers.
+
+Darunter liegt das unveränderte Grundmodell aus `WORTLAUT_ASR_MODELL`.
+
+Dass hier überhaupt gewählt werden darf, ist eine Abkehr von der ursprünglichen
+Festlegung („Modellwechsel ist eine Konfigurationsänderung mit Neustart"). Sie
+war richtig, solange es je Sprecher höchstens einen trainierten Stand gab -
+dann ist die Wahl keine. Bei vier Ständen plus vier Grundmodellen beantwortet
+die Frage „welches hört mir am besten zu?" keine Kennzahl allein; sie
+beantwortet sich beim Diktieren, und dafür muss man wechseln können, ohne einen
+Container neu zu starten.
+
+Der Grund hinter der alten Festlegung bleibt trotzdem gewahrt: Zu jeder Ausgabe
+muss feststehen, welches Modell sie erzeugt hat. Die Zeile unter dem
+Aufnahmeknopf nennt es dauerhaft - jetzt samt Methode und Datensatz, denn vier
+Stände vom selben Tag wären sonst nicht auseinanderzuhalten - und sie ist
+zugleich der Weg zur Auswahl: Wer sie liest, denkt gerade darüber nach.
 
 ---
 
@@ -1152,7 +1396,8 @@ POST   /schreiben/api/sessions/{id}/segments        multipart: audio → Abschni
 POST   /schreiben/api/sessions/{id}/bestaetigen     → Postausgang, sofort senden
 POST   /schreiben/api/segments/{id}/neu     multipart: audio, ersetzt einen
 GET    /schreiben/api/segments/{id}/audio
-GET    /schreiben/api/model                 Modellstand dieses Sprechers
+GET    /schreiben/api/model                 Modellstand dieses Sprechers, samt Auswahl
+PUT    /schreiben/api/model                 ein anderes Modell benutzen
 GET    /schreiben/api/outbox
 POST   /schreiben/api/outbox/senden         noch einmal versuchen
 GET    /schreiben/api/zugang                wer ruft - für die Kopfzeile
@@ -1201,7 +1446,16 @@ Neben und nicht im Korpus: `hören` ist dessen einziger Schreiber
 
 | Tabelle | Zweck |
 |---|---|
-| `jobs` | Auftrag, Schnappschuss, Rezept, Status, Log-Referenz |
+| `aufteilung` | je Aufnahme: Training, Validierung oder Test - einmal vergeben, nie geändert |
+
+Es ist genau eine Tabelle, und das ist Absicht. Eine Jobtabelle daneben hätte
+nahegelegen und wäre eine zweite Wahrheit über denselben Lauf gewesen: Der
+Trainer läuft in einem anderen Container und schreibt in Dateien, die Zeile
+hier wüsste nichts davon - und irgendwann stünde darin „läuft", während längst
+nichts mehr läuft. Ein Lauf ist deshalb ein Verzeichnis
+(`data/snapshots/<job_id>/`), ein Modellstand auch (`data/modelle/…`), und der
+Korpus gehört ohnehin `hören`. Übrig bleibt die eine Sache, die nirgends sonst
+stehen kann.
 
 **schreiben**
 
@@ -1210,6 +1464,7 @@ Neben und nicht im Korpus: `hören` ist dessen einziger Schreiber
 | `sessions` | eine Diktiersitzung |
 | `segments` | Text, Reihenfolge, Audio, Herkunft (initial/neu) |
 | `outbox` | offene Korrekturen mit Wiederholungszähler |
+| `modellwahl` | welches Modell dieser Sprecher gewählt hat - genau eine Zeile |
 
 Zugriff über SQLAlchemy 2.0 mit typisierten Modellen. Schemaänderungen als
 nummerierte `.sql`-Dateien. Kein Alembic - bei diesem Schemaumfang ist die
@@ -1343,16 +1598,30 @@ dort liegt, in der Entwicklung wie im Betrieb. Laufen beide Apps, führt auch
 der Reiter auf `http://localhost:5173` hinüber. Beim ersten Diktat lädt faster-whisper sein Modell herunter;
 das dauert einmalig und braucht Netz.
 
-Noch nicht nutzbar, weil `lernen` fehlt:
+### „lernen" dazu
 
 ```bash
-make train SPEAKER=spr_7f2a RECIPE=whisper_full
-make release JOB=42
+cd apps/lernen/frontend && npm install && cd -
+make dev APP=lernen          # Backend auf :8002, Vite auf :5175
 ```
 
-Ohne GPU: `WORTLAUT_TRAINING_BACKEND=remote` und im Sprecherprofil
-`openai/whisper-small` als Basismodell. Die Apps laufen lokal, das Training auf
-gemieteter Hardware.
+Aufgerufen wird `http://localhost:5175/lernen/`. Die Oberfläche teilt zu,
+beauftragt und zeigt - gerechnet wird dort nicht. Dafür braucht es den
+Trainer, und der braucht eine Karte:
+
+```bash
+docker compose --profile training up -d training   # im Betrieb
+make trainer                                       # auf dieser Maschine
+```
+
+`make trainer` setzt voraus, dass `torch`, `transformers`, `peft` und
+`accelerate` installiert sind. Sie stehen absichtlich **nicht** in den
+Abhängigkeiten dieses Projekts: Drei Gigabyte CUDA in jedem `uv sync`, damit
+eine App eine Oberfläche ausliefern kann, wäre der falsche Handel. Sie stehen
+im Abbild unter `apps/lernen/training/Dockerfile`.
+
+Ohne Karte lässt sich alles außer dem Rechnen benutzen: Die Aufteilung steht,
+Aufträge sammeln sich in der Warteschlange und gehen nicht verloren.
 
 Betrieb, Endpunktliste und Fehlersuche stehen in [`docs/betrieb.md`](docs/betrieb.md).
 
@@ -1412,8 +1681,15 @@ DSGVO. Das hat Folgen für den Aufbau, nicht nur für einen Hinweistext:
   bleibt der Datensatz als Spur, die Audiodatei ist weg.
 - `schreiben` behält kein Audio, das es losgeworden ist: Sobald ein Abschnitt
   im Korpus angekommen ist, wird seine Datei dort gelöscht.
-- `scripts/purge_speaker.py` entfernt Profil, Aufnahmen, Schnappschüsse und Modelle
-  vollständig. Das Recht auf Löschung muss ausführbar sein, nicht dokumentiert.
+- `scripts/purge_speaker.py` entfernt Profil, Aufnahmen, Schnappschüsse,
+  Modelle und die Aufteilung aus `lernen` vollständig. Das Recht auf Löschung
+  muss ausführbar sein, nicht dokumentiert.
+- `lernen` liest den Korpus und schreibt ihn nie. Das ist keine Zusage auf
+  Papier: Es gibt in dieser App keinen Weg, der in ihn schreibt, und ein Test
+  hält das fest (`apps/lernen/tests/test_trennung.py`).
+- Der Trainings-Container hängt an keinem Netzweg. Er spricht mit nichts außer
+  dem Datenverzeichnis - Stimmdaten können ihn auf keinem Weg verlassen, den
+  jemand aus Versehen öffnet.
 - **Meine Daten** zeigt einer Person nur ihre eigenen Aufnahmen, nie fremde -
   aus demselben Grund wie oben, nicht durch eine zweite Prüfung. Eine
   optionale PIN sichert die Ansicht - und ebenso **Darstellung** und
