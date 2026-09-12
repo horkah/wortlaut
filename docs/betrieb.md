@@ -156,6 +156,13 @@ Entscheidung: Die Sicherung lässt beides seit jeher draußen
 Satz - „ein Schnappschuss ist eine Kopie, und eine Kopie sichert man nicht
 mit").
 
+Nach derselben Regel bleiben zwei weitere Dinge draußen, die im Volume sehr
+wohl liegen: die abgewandelten Fassungen unter `korpus/…/audio/varianten/` und
+die Messwerte der Auswertung in der Tabelle `erkennungen`. Sie sind im Betrieb
+nützlich und in einer Sicherung nur schwer - drei Viertel des Audios im Archiv
+wären dann nie gesprochen worden. Was das für den Wiederanlauf heißt, steht
+unter [Sichern und Wiederherstellen](#sichern-und-wiederherstellen).
+
 Im Container bleiben sie deshalb genau dort, wo der Quelltext sie sucht -
 `data/modelle/` und `data/snapshots/` unter `WORTLAUT_DATA_DIR`; keine Zeile
 Python weiß von dieser Änderung. Auf dem Wirt kommen sie aus
@@ -622,7 +629,7 @@ Es gibt zwei Formate, und sie beantworten zwei verschiedene Fragen.
 | | Sicherung `.tgz` | Datensatz `.zip` |
 |---|---|---|
 | Frage | „Der Server ist weg, ich will den Stand zurück." | „Ich will die Paare aus Text und Audio ansehen oder trainieren." |
-| Inhalt | Datenbank und Aufnahmen, wie sie auf der Platte liegen | WAV-Dateien, je Aufnahme ihr Text, `metadaten.csv`/`.jsonl` |
+| Inhalt | Datenbank und Aufnahmen, wie sie auf der Platte liegen - ohne das Gerechnete | WAV-Dateien, je Aufnahme ihr Text, `metadaten.csv`/`.jsonl` |
 | Umfang | ein Sprecher oder alle | immer genau ein Sprecher |
 | Zurückspielbar | ja | **nein** |
 
@@ -651,24 +658,51 @@ in sich stimmiger Stand, auch wenn gerade jemand aufnimmt. Ein schlichtes `cp`
 der `.sqlite`-Datei wäre das nicht: Im WAL-Modus steht ein Teil der Daten
 daneben in `…-wal`.
 
-Nicht in der Sicherung: die Modellstände unter `data/modelle/`. Sie sind groß
-und lassen sich aus dem Korpus neu rechnen - die Aufnahmen nicht. Wer sie
-trotzdem will, kopiert das Verzeichnis dazu.
-
 ### Was drin ist
 
 ```
 wortlaut-gesamt-20260822-174500.tgz
-├── sicherung.json               Zeitpunkt, Sprecher, je Datei Größe und SHA-256
+├── sicherung.json               Zeitpunkt, Sprecher, Ausgelassenes, je Datei Größe und SHA-256
 └── daten/
     ├── korpus/spr_…/hoeren.sqlite
     ├── korpus/spr_…/audio/rec_….wav
-    └── diktate/spr_…/…          Arbeitsstand von „schreiben"
+    ├── lernen/spr_…/lernen.sqlite    die Aufteilung in Lernen und Prüfen
+    └── diktate/spr_…/…               Arbeitsstand von „schreiben"
 ```
 
-`daten/` bildet `WORTLAUT_DATA_DIR` eins zu eins ab. Das ist Absicht: Eine
-Sicherung, die ein laufendes Programm zum Lesen braucht, ist im Ernstfall
-keine.
+`daten/` bildet `WORTLAUT_DATA_DIR` ab. Das ist Absicht: Eine Sicherung, die
+ein laufendes Programm zum Lesen braucht, ist im Ernstfall keine.
+
+### Was bewusst nicht drin ist
+
+Die Sicherung trägt weg, was ein Mensch hervorgebracht hat, und lässt liegen,
+was eine Maschine daraus gerechnet hat:
+
+| | Größe | Kommt zurück durch |
+|---|---|---|
+| `data/modelle/` | ~1 GB je Stand | einen Trainingslauf |
+| `data/snapshots/` | je Lauf ein Verzeichnis | einen Trainingslauf |
+| `korpus/…/audio/varianten/` | drei Viertel des Audios | den nächsten Auswertungslauf; entsteht auch beim nächsten Hochladen von selbst |
+| Tabelle `erkennungen` | wächst mit jedem Modell | denselben Lauf - er rechnet ohnehin nur, was fehlt |
+
+Wer die Modellstände trotzdem will, kopiert das Verzeichnis dazu. Für die
+anderen drei lohnt das nicht: Sie sind billiger neu gerechnet als übertragen.
+
+Die Datenbanken kommen dabei **vollständig** mit - Schema, Migrationsstand und
+jede andere Zeile. Geleert wird in der Sicherungskopie nur `erkennungen`, nie
+im laufenden Bestand. Was ausgelassen wurde, steht als eigener Abschnitt
+`ausgelassen` im Manifest:
+
+```json
+"ausgelassen": {
+  "verzeichnisse": ["korpus/spr_…/audio/varianten"],
+  "tabellen": { "hoeren.sqlite": ["erkennungen"] }
+}
+```
+
+Nach dem Zurückspielen sind die Kurven der Auswertung also zunächst leer. Ein
+Lauf über „Auswertung" füllt sie wieder; die Fassungen dafür entstehen dabei
+von selbst, `make augmentieren` zieht es vor.
 
 ### Zurückspielen
 

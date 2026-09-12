@@ -178,14 +178,16 @@ def sicherung_aller() -> FileResponse:
     """Der ganze Bestand als **eine** `.tgz` - alle Korpora, alle Diktate.
 
     Das ist die Sicherung, die man wegträgt: Ein Server weniger, und dieses
-    eine Archiv stellt alles wieder her. Modellstände sind nicht darin - sie
-    sind groß und lassen sich aus dem Korpus neu rechnen; die Aufnahmen sind
-    das, was unwiederbringlich ist.
+    eine Archiv stellt alles wieder her. Nicht darin ist, was sich neu rechnen
+    lässt - Modellstände, abgewandelte Fassungen, Messwerte der Auswertung
+    (`services/ausleitung.py`). Was unwiederbringlich ist, sind die Aufnahmen,
+    und die sind vollzählig drin.
     """
     konfiguration = einstellungen()
+    kennungen = corpus.sprecher_ids(konfiguration.data_dir)
     sprecher_liste = []
     verzeichnisse: list[str] = []
-    for sprecher_id in corpus.sprecher_ids(konfiguration.data_dir):
+    for sprecher_id in kennungen:
         verzeichnisse.extend(loeschung.datenverzeichnisse(sprecher_id))
         with Session(engine_fuer(sprecher_id)) as sitzung:
             sprecher = sitzung.get(Sprecher, sprecher_id)
@@ -196,7 +198,11 @@ def sicherung_aller() -> FileResponse:
     return ausleitung.archiv(
         f"wortlaut-gesamt-{sicherung.zeitmarke()}.tgz",
         lambda ziel: sicherung.schreibe_archiv(
-            konfiguration.data_dir, verzeichnisse, ziel, beschreibung=beschreibung
+            konfiguration.data_dir,
+            verzeichnisse,
+            ziel,
+            beschreibung=beschreibung,
+            ohne=ausleitung.abgeleitet(kennungen),
         ),
         "application/gzip",
     )

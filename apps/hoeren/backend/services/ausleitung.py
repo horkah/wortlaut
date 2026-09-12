@@ -8,22 +8,26 @@ Zeit auseinander.
 
 Was in den beiden Formaten steckt und warum es zwei sind, steht in
 `services/export.py`.
+
+Und was in **keinem** von beiden steckt, steht in `abgeleitet()`: Ausgeleitet
+wird, was dieser Mensch gesprochen und eingerichtet hat, nicht das, was eine
+Maschine daraus gerechnet hat.
 """
 
 from __future__ import annotations
 
 import shutil
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
-from wortlaut import sicherung, storage
+from wortlaut import corpus, sicherung, storage
 
 from ..config import einstellungen
-from ..db.models import Sprecher
+from ..db.models import Erkennung, Sprecher
 from . import export, loeschung
 
 
@@ -32,13 +36,49 @@ def kurz(sprecher: Sprecher) -> dict[str, str]:
     return {"id": sprecher.id, "name": sprecher.name}
 
 
+def abgeleitet(sprecher_ids: Iterable[str]) -> sicherung.Abgeleitetes:
+    """Was eine Sicherung auslässt, weil es sich jederzeit neu rechnen lässt.
+
+    Eine Sicherung soll enthalten, was Stunden gekostet hat und nirgends sonst
+    existiert: die Aufnahmen, die Vorlagen, die Textquellen, die Diktate, das
+    Profil. Zwei Dinge im Datenverzeichnis sind davon nichts, sondern
+    Rechenergebnisse:
+
+    * **Die abgewandelten Fassungen** (`korpus/…/audio/varianten/`) - dieselbe
+      Aufnahme ausgesteuert, lauter, verrauscht. Drei Dateien je Aufnahme,
+      also drei Viertel des Audios im Archiv, und jede entsteht von selbst
+      wieder, sobald jemand misst (`services/augmentierung.py`).
+    * **Die Messwerte der Auswertung** (Tabelle `erkennungen`) - was welches
+      Modell aus welcher Fassung gemacht hat. Daraus entstehen die Kurven; ein
+      zweiter Lauf rechnet ohnehin nur, was fehlt (`services/auswertung.py`).
+
+    Die Modellstände und die Schnappschüsse sind ohnehin draußen: Sie stehen
+    gar nicht erst in `loeschung.datenverzeichnisse()`.
+
+    Das kostet im Ernstfall Rechenzeit und keine einzige Aufnahme - und es ist
+    der Unterschied zwischen einer Sicherung, die man wöchentlich wegträgt,
+    und einer, die man ihrer Größe wegen lieber sein lässt.
+
+    Die Aufteilung in Lernen und Prüfen (`lernen/…/lernen.sqlite`) bleibt
+    dagegen drin, obwohl auch sie eine Maschine angelegt hat. Sie wiegt
+    Kilobyte, und neu gewürfelt wäre sie eine **andere** Aufteilung: Der
+    Vergleich mit jedem früheren Lauf wäre dahin, und geprüft würde teils auf
+    Aufnahmen, auf denen schon trainiert wurde. Neu zu rechnen ist sie also
+    nicht - nur neu zu erfinden.
+    """
+    return sicherung.Abgeleitetes(
+        verzeichnisse=tuple(corpus.varianten_relpfad(kennung) for kennung in sprecher_ids),
+        tabellen={corpus.DATENBANKNAME: (Erkennung.__tablename__,)},
+    )
+
+
 def sicherung_eines(sprecher: Sprecher) -> FileResponse:
     """Der vollständige Stand eines Sprechers als `.tgz` - zum Zurückspielen.
 
     Enthält Korpus und Diktate, wie sie im Datenverzeichnis liegen, mit einer
-    in sich stimmigen Kopie der Datenbank. Zurück kommt der Stand mit
-    `scripts/restore.py` oder schlicht mit `tar xzf` (siehe
-    `wortlaut/sicherung.py`).
+    in sich stimmigen Kopie der Datenbank - ohne das Abgeleitete, siehe
+    `abgeleitet()`. Zurück kommt der Stand mit `scripts/restore.py` oder
+    schlicht mit `tar xzf` (siehe `wortlaut/sicherung.py`).
     """
     beschreibung = {"umfang": "sprecher", "sprecher": [kurz(sprecher)]}
     return archiv(
@@ -48,6 +88,7 @@ def sicherung_eines(sprecher: Sprecher) -> FileResponse:
             loeschung.datenverzeichnisse(sprecher.id),
             ziel,
             beschreibung=beschreibung,
+            ohne=abgeleitet([sprecher.id]),
         ),
         "application/gzip",
     )

@@ -69,6 +69,7 @@ def main() -> int:
     for person in manifest.get("sprecher", []):
         print(f"  {person.get('id')}  {person.get('name')}")
     print(f"  {len(dateien)} Datei(en), {_lesbar(sum(a['bytes'] for a in dateien.values()))}")
+    _nenne_ausgelassenes(manifest)
 
     ziel = einstellungen().data_dir
     if argumente.nur_ansehen:
@@ -92,6 +93,26 @@ def main() -> int:
     print("  uv run python scripts/migrate.py                        # auf dem Wirt")
     print("  docker compose exec wortlaut python scripts/migrate.py  # im Container")
     return 0
+
+
+def _nenne_ausgelassenes(manifest: dict) -> None:
+    """Was diese Sicherung bewusst nicht enthält - bevor es jemand vermisst.
+
+    Ohne diese Zeilen sähe ein zurückgespielter Bestand nach einem Schaden aus:
+    keine abgewandelten Fassungen, leere Kurven in der Auswertung. Beides ist
+    gewollt und kommt mit dem nächsten Lauf zurück (`services/ausleitung.py`).
+    """
+    ausgelassen = manifest.get("ausgelassen") or {}
+    verzeichnisse = ausgelassen.get("verzeichnisse") or []
+    tabellen = ausgelassen.get("tabellen") or {}
+    if not verzeichnisse and not tabellen:
+        return
+
+    print("\n  Nicht enthalten, weil neu zu rechnen:")
+    if verzeichnisse:
+        print(f"    {len(verzeichnisse)} Verzeichnis(se), z. B. {verzeichnisse[0]}")
+    for name, leer in sorted(tabellen.items()):
+        print(f"    {name}: Tabelle(n) {', '.join(leer)} ohne Zeilen")
 
 
 def _lesbar(bytes_: int) -> str:

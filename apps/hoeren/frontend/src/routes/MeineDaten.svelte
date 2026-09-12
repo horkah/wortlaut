@@ -353,7 +353,10 @@
     </div>
     <p class="gedaempft">
       Die <strong>Sicherung</strong> enthält Datenbank und Aufnahmen, wie sie auf dem Server
-      liegen; sie lässt sich mit <code>scripts/restore.py</code> vollständig zurückspielen. Der
+      liegen; sie lässt sich mit <code>scripts/restore.py</code> vollständig zurückspielen. Nicht
+      darin ist, was sich neu rechnen lässt - die abgewandelten Fassungen der Aufnahmen und die
+      Messwerte der Auswertung. Das spart drei Viertel der Größe und kostet nach dem
+      Zurückspielen einen Auswertungslauf. Der
       <strong>Datensatz</strong> enthält zu jeder Aufnahme die WAV-Datei und ihren Text - für
       Training und für Werkzeuge, die von wortlaut nichts wissen. Zum Sichern taugt er nicht.
     </p>
