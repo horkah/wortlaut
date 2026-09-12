@@ -13,6 +13,7 @@
    * dieser Mensch laden kann, die unveränderten Grundmodelle eingeschlossen.
    */
   import Rahmen from '$ui/Rahmen.svelte';
+  import KeinZugang from '$ui/KeinZugang.svelte';
   import {
     GERAETE_PUNKTE,
     MEINE_DATEN_PFAD,
@@ -21,7 +22,7 @@
     type Menuepunkt,
   } from '$ui/apps';
   import { merkeReiter, vorgabeReiter } from '$ui/reiter';
-  import { LAUF_ROUTE, laufAusRoute, ladeZugang, zustand } from './lib/zustand.svelte';
+  import { LAUF_ROUTE, gehZu, laufAusRoute, ladeZugang, zustand } from './lib/zustand.svelte';
   import Aufteilung from './routes/Aufteilung.svelte';
   import Training from './routes/Training.svelte';
   import Lauf from './routes/Lauf.svelte';
@@ -37,6 +38,12 @@
   // Nur ein Sprecher hat hier etwas zu sehen: Ein Modell gehört zu genau einem
   // Menschen, und der Korpus, auf dem es lernt, hängt am Zugang.
   const spricht = $derived(zustand.art === 'sprecher');
+
+  // Wer gar keinen Zugang vorweist, sieht nicht das Formular, sondern denselben
+  // einen Schritt wie in „hören" und „schreiben" (`$ui/KeinZugang.svelte`).
+  // Ausgenommen bleibt die Ansicht der Zugangsdaten selbst: Dorthin führt der
+  // Schritt, sie darf nicht hinter ihm liegen.
+  const ohneZugang = $derived(zustand.art === 'keiner' && zustand.route !== ZUGANGSDATEN_PFAD);
   const jobId = $derived(laufAusRoute(zustand.route));
 
   // Welcher Reiter gilt, solange in der Adresse nichts steht: der, auf dem
@@ -121,7 +128,9 @@
   sprecher={name}
   route={offen}
 >
-  {#if jobId && spricht && zustand.route !== ZUGANGSDATEN_PFAD}
+  {#if ohneZugang}
+    <KeinZugang {gehZu} />
+  {:else if jobId && spricht && zustand.route !== ZUGANGSDATEN_PFAD}
     <Lauf {jobId} />
   {:else}
     <Ansicht />
