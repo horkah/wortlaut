@@ -20,8 +20,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from wortlaut import rechenwerk
+from wortlaut.einstellungen import Grundeinstellungen
 
 # Ablage dieser App - bewusst neben und nicht im Korpus: „hören" ist dessen
 # einziger Schreiber (Grundentscheidung 6). Was hier liegt, ist Arbeitsstand;
@@ -48,11 +47,7 @@ def audio_relpfad(sprecher_id: str, abschnitt_id: str) -> str:
     return f"{sprecher_relpfad(sprecher_id)}/audio/{abschnitt_id}.wav"
 
 
-class Einstellungen(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="WORTLAUT_", env_file=".env", extra="ignore")
-
-    # gemeinsam
-    data_dir: Path = Path("./data")
+class Einstellungen(Grundeinstellungen):
     storage: str = "local"
 
     # Ein fest vorgegebener Modellstand, Form `<sprecher_id>/<version>`. Leer
@@ -67,19 +62,6 @@ class Einstellungen(BaseSettings):
     # Rechenzeit, liefert aber Text, an dem niemand ablesen kann, ob das
     # Diktat angekommen ist.
     asr_modell: str = "small"
-    # Worauf gerechnet wird - dieselbe Einstellung in allen drei Apps und beim
-    # Trainer, und das ist der ganze Sinn: „schreiben", die Auswertung in
-    # „hören" und die Bewertung eines Laufs schicken dieselben Modelle über
-    # dieselben Aufnahmen, und ihre Rechenzeiten sind nur vergleichbar, wenn
-    # sie auf demselben Rechenwerk entstanden sind. Was `auto` bedeutet und
-    # warum auf der Karte `int8_float16` gilt, steht in
-    # `wortlaut/rechenwerk.py`.
-    geraet: str = rechenwerk.AUTO  # auto | cuda | cpu
-    rechenart: str = rechenwerk.AUTO  # auto | int8 | int8_float16 | float16 | float32
-
-    def rechenwerk(self) -> tuple[str, str]:
-        """`(geraet, rechenart)` - aufgelöst, `auto` beantwortet."""
-        return rechenwerk.waehle(self.geraet, self.rechenart)
 
     # local = faster-whisper im eigenen Prozess, remote = fremder Endpunkt.
     # Vorsicht: remote schickt Stimmdaten an Dritte (docs/datenschutz.md).

@@ -1,8 +1,11 @@
 # Konfiguration
 
 Alles über Umgebungsvariablen, eingelesen in der `config.py` der jeweiligen App,
-nirgends `os.environ` im Fachcode. Die Bibliothek `wortlaut` liest gar keine
-Umgebung: Pfade und Schlüssel werden ihr übergeben.
+nirgends `os.environ` im Fachcode. Was alle drei gleich lesen - wo die Daten
+liegen, worauf gerechnet wird -, steht als gemeinsame Grundlage in
+`wortlaut/einstellungen.py`; gelesen wird die Umgebung trotzdem erst dort, wo
+eine App ihre eigene Klasse davon ableitet und anlegt. Der Fachcode der
+Bibliothek liest gar keine Umgebung: Pfade und Schlüssel werden ihm übergeben.
 
 Vollständig kommentiert steht alles in [`.env.example`](../.env.example) - das
 ist die Vorlage, die kopiert wird. Diese Seite ist die Übersicht dazu.

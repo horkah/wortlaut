@@ -1,0 +1,60 @@
+"""Was in der Konfiguration jeder App gleich lautet.
+
+Jede der drei Apps liest ihre Einstellungen aus derselben Umgebung, mit
+demselben Präfix und aus derselben `.env`. Was sie darin suchen, ist zum
+größten Teil verschieden - eine Intake-Adresse gibt es nur in „schreiben", der
+Trainerschlüssel nur in „lernen". Vier Angaben sind es aber nicht:
+
+* **wo die Daten liegen** (`WORTLAUT_DATA_DIR`). Alle drei greifen in dasselbe
+  Verzeichnis; zwei verschiedene Vorgaben dafür wären zwei Bestände.
+* **worauf gerechnet wird** (`WORTLAUT_GERAET`, `WORTLAUT_RECHENART`). Das ist
+  nicht nur Ordnung, sondern der ganze Sinn der Sache: „schreiben", die
+  Auswertung in „hören" und die Bewertung eines Laufs schicken dieselben
+  Modelle über dieselben Aufnahmen, und ihre Rechenzeiten sind nur
+  vergleichbar, wenn sie auf demselben Rechenwerk entstanden sind. Was `auto`
+  bedeutet und warum auf der Karte `int8_float16` gilt, steht in
+  `rechenwerk.py`.
+
+Die Begründung dazu stand wörtlich dreimal da, über drei Feldpaaren, die
+dreimal dasselbe hießen. Jetzt steht sie einmal hier, und eine App, die eine
+fünfte gemeinsame Angabe braucht, bekommt sie an derselben Stelle.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from . import rechenwerk
+
+# Welche unveränderten Modelle gegeneinander antreten - die Vorgabe für
+# `WORTLAUT_AUSWERTUNG_MODELLE`.
+#
+# Sie steht hier, weil zwei Apps sie lesen: „hören" misst damit (Reiter
+# „Auswertung"), „lernen" stellt in der Modellübersicht die eigenen Stände
+# daneben. Von dort stammen deren Zahlen - zwei getrennte Vorgaben wären eine
+# Gelegenheit, sie auseinanderlaufen zu lassen, und das Ergebnis wäre eine
+# Tabellenzeile ohne Messung. Dieselbe Variable gesetzt, gilt sie ohnehin für
+# beide; auseinanderlaufen konnten nur die Vorgaben.
+#
+# Es ist eine Leiter mit vier Sprossen: `base` ist die Untergrenze, `small` der
+# Alltagsfall, `medium` zeigt, was mit mehr Rechenzeit noch zu holen wäre, und
+# `large-v3` sagt, wo das Verfahren selbst endet. Wer wenig Maschine hat, kürzt
+# die Liste - gerechnet wird nur, was darin steht.
+AUSWERTUNG_MODELLE = "base,small,medium,large-v3"
+
+
+class Grundeinstellungen(BaseSettings):
+    """Die Felder, die jede App führt. Jede erbt und legt ihre eigenen dazu."""
+
+    model_config = SettingsConfigDict(env_prefix="WORTLAUT_", env_file=".env", extra="ignore")
+
+    data_dir: Path = Path("./data")
+
+    geraet: str = rechenwerk.AUTO  # auto | cuda | cpu
+    rechenart: str = rechenwerk.AUTO  # auto | int8 | int8_float16 | float16 | float32
+
+    def rechenwerk(self) -> tuple[str, str]:
+        """`(geraet, rechenart)` - aufgelöst, `auto` beantwortet."""
+        return rechenwerk.waehle(self.geraet, self.rechenart)
