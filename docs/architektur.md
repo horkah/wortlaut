@@ -86,6 +86,18 @@ diese Freigabe und zeigt sie an. Zwei Ansichten für dieselbe Frage sind keine
 doppelte Bequemlichkeit, sondern zwei Gelegenheiten, verschiedene Antworten zu
 geben.
 
+**9. Ein Zugang sagt, wem etwas gehört - nicht, was es kosten darf.**
+Der Sprecherzugang beantwortet eine Frage: wessen Korpus, wessen Modell, wessen
+Diktat. Er beantwortet nicht die zweite, die es nur an einer Stelle gibt - ob
+jemand die Karte für Stunden belegen darf. Ein Training kostet Rechenzeit,
+Strom und die Wartezeit aller anderen, und der Zugang ist an jeden ausgegeben,
+der aufnimmt; wäre er auch die Erlaubnis, wäre jeder Aufnahmelink ein Knopf,
+der Geld kostet, so oft wie jemand darauf drückt. Deshalb steht vor
+`POST /lernen/api/laeufe` ein zweites Geheimnis (`WORTLAUT_TRAINER_KEY`,
+Kopfzeile `X-Trainer-Key`) - und **nur** dort. Zusehen, zurücknehmen, löschen
+und freigeben kosten nichts und bleiben beim Sprecher. Leer heißt abgeschaltet,
+nicht offen, wie bei Verwaltung und Aufsicht.
+
 ---
 
 ## Projektstruktur

@@ -117,10 +117,18 @@ Viertelstunde ist der Ausgleich.
 
 | Variable | Vorgabe | Was sie tut |
 |---|---|---|
+| `WORTLAUT_TRAINER_KEY` | leer | **Training anstoßen**: als Kopfzeile `X-Trainer-Key` vor `POST /lernen/api/laeufe`. Leer heißt abgeschaltet, nicht offen - dann kann hier niemand trainieren |
 | `WORTLAUT_LERNEN_BASISMODELL` | `openai/whisper-small` | worauf trainiert wird - fest und in der Oberfläche nicht wählbar |
 | `WORTLAUT_AUSWERTUNG_MODELLE` | `base,small,medium,large-v3` | welche Grundmodelle in der Modelltabelle gegen die eigenen Stände antreten; dieselbe Variable wie oben, und das ist Absicht |
 | `WORTLAUT_LERNEN_GERAET` | `cuda` | worauf **trainiert** wird; auf einem Prozessor dauert ein Feintuning Tage statt Stunden. Etwas anderes als `WORTLAUT_GERAET` oben: Dort geht es ums Erkennen, hier ums Lernen, und nur das Erkennen darf ausweichen |
 | `WORTLAUT_LERNEN_TAKT_S` | `5` | wie oft der Läufer nach neuen Aufträgen sieht |
+
+Der Trainerschlüssel ist das einzige Geheimnis dieser App, und er ist keine
+Rolle: Er steht vor genau einem Weg, dem teuren. Ein Lauf belegt die Karte für
+Minuten bis Stunden - der Sprecherzugang beantwortet aber die Frage „wessen
+Modell?" und nicht „wer darf rechnen lassen?". Ohne die Trennung wäre jeder
+ausgegebene Aufnahmelink zugleich ein Knopf, der Rechenzeit kostet. Zusehen,
+zurücknehmen, löschen und freigeben bleiben beim Sprecher.
 
 `WORTLAUT_AUSWERTUNG_MODELLE` steht bewusst nur einmal in der `.env`: Von der
 Auswertung in `hören` stammen die Zahlen, die in `lernen` in der Tabelle

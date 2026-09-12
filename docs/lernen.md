@@ -153,6 +153,25 @@ welche Aufnahmen in welchem Modell stecken - und genau das zu wissen ist der
 Zweck des Schnappschusses. Sichtbar zu machen, wann es sich lohnt, ist die
 halbe Automatik und die richtige Hälfte.
 
+**Beauftragen verlangt den Trainerschlüssel.** Über den Wahlmöglichkeiten
+steht ein Feld, und ohne Eintrag bleibt der Knopf stumpf; gesendet wird der
+Schlüssel als Kopfzeile `X-Trainer-Key` und nur mit dieser einen Anfrage. Der
+Grund ist derselbe, aus dem es keine Automatik gibt, nur strenger: Ein Lauf
+belegt die Karte für Minuten bis Stunden. Der Sprecherzugang sagt, wessen
+Modell entsteht - er sagt nicht, dass dieser Mensch die Maschine dafür
+beschäftigen darf, und er ist an jeden ausgegeben, der aufnimmt. Wäre er auch
+die Erlaubnis, wäre jeder Aufnahmelink ein Knopf, der Rechenzeit kostet, so
+oft wie jemand darauf drückt.
+
+Der Schlüssel steht in `WORTLAUT_TRAINER_KEY`, und **leer heißt abgeschaltet**
+- wie bei Verwaltung und Aufsicht in `hören` und aus demselben Grund: Keine
+Installation weiß, ob sie eine Entwicklungsinstallation ist. Dann sagt die
+Ansicht es und zeigt die Wahl gar nicht erst; die Läufe von früher bleiben
+sichtbar. Zusehen, zurücknehmen, löschen und freigeben verlangen ihn nie - das
+kostet nichts und gehört dem, dessen Stimme im Modell steckt. Der Browser merkt
+sich einen Schlüssel, der funktioniert hat; ein falscher wird nicht gemerkt,
+sonst verdächtigte man ihn beim nächsten Mal nicht mehr.
+
 Ein Papierkorb in der Kopfzeile jeder Karte räumt einen Lauf weg. Die
 Sicherheitsabfrage nennt vorher, was verschwindet - und das ist mehr als der
 Lauf: Ein fertiger hat ein Modell hervorgebracht, und das geht mit. Bliebe es
@@ -327,6 +346,8 @@ gerade steht -, entfällt die Karte; die Tabelle darunter steht weiterhin.
 GET    /lernen/api/aufteilung               wer lernt, steuert, prüft - teilt dabei zu
 GET    /lernen/api/laeufe                   die Liste, ohne Kurven
 POST   /lernen/api/laeufe                   einen Lauf beauftragen
+                                            + X-Trainer-Key - der einzige Weg,
+                                            der ein zweites Geheimnis verlangt
 GET    /lernen/api/laeufe/{id}              Kurven, Bewertung, Vergleich, Protokoll
 POST   /lernen/api/laeufe/{id}/abbruch      einen wartenden zurücknehmen
 DELETE /lernen/api/laeufe/{id}              ersatzlos löschen, samt seinem Modell
@@ -338,7 +359,8 @@ GET    /gesundheit                          ohne Zugang, auf der Wurzel
 
 Alles unter `/lernen` - dem Ort dieser App unter der gemeinsamen Domain. Jeder
 Weg außer `/gesundheit` verlangt den Sprecherzugang aus `hören` und leitet die
-Kennung daraus ab. Verwaltung und Aufsicht kommen hier **nicht** durch, und das
+Kennung daraus ab; `POST /lernen/api/laeufe` verlangt zusätzlich den
+Trainerschlüssel (siehe oben). Verwaltung und Aufsicht kommen hier **nicht** durch, und das
 ist kein Versehen: Ein Modell gehört einem Menschen, und wer keines hat, hat
 hier nichts zu sehen.
 

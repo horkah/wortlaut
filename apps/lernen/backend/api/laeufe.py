@@ -9,7 +9,9 @@ werden - dieselbe Aufteilung wie in der Auswertung von „hören":
   Vielfaches dessen, was gemeint ist.
 * `GET  /lernen/api/laeufe/{id}`     ein Lauf im Einzelnen: Kurven, Bewertung,
   Vergleich mit der Grundlinie.
-* `POST /lernen/api/laeufe`          einen Lauf beauftragen.
+* `POST /lernen/api/laeufe`          einen Lauf beauftragen. **Der einzige Weg
+  hier, der ein zweites Geheimnis verlangt** - den Trainerschlüssel, siehe
+  `_pruefe_trainerschluessel`.
 * `POST /lernen/api/laeufe/{id}/abbruch`  einen wartenden zurücknehmen.
 * `DELETE /lernen/api/laeufe/{id}`   einen Lauf ersatzlos entfernen, samt dem
   Modell, das aus ihm entstand.
@@ -21,7 +23,10 @@ Karte darin; hier entsteht nur das Verzeichnis, an dem er ihn erkennt (siehe
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+import secrets
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from wortlaut import laeufe as lauf_layout
 
@@ -32,6 +37,53 @@ from ..deps import Datenbank, Korpus, SprecherId
 from ..services import aufteilung, auftraege, vergleich
 
 router = APIRouter(prefix="/lernen/api/laeufe", tags=["Läufe"])
+
+# Der Kopf, in dem der Trainerschlüssel steht. Nicht `Authorization`: Dort
+# liegt schon der Sprecherzugang, und aus ihm leitet der Server ab, wessen
+# Modell entsteht (`deps.py`). Zwei Geheimnisse in einem Kopf hießen, das eine
+# gegen das andere zu tauschen - und dann trainierte der Schlüssel für
+# niemanden oder der Zugang ohne Erlaubnis.
+SCHLUESSEL_KOPF = "X-Trainer-Key"
+
+
+def _pruefe_trainerschluessel(
+    x_trainer_key: Annotated[str | None, Header()] = None,
+) -> None:
+    """Wächter des einen teuren Weges: einen Lauf beauftragen.
+
+    Ein Lauf belegt die Karte für Minuten bis Stunden, und er kostet Strom,
+    Wärme und die Wartezeit aller anderen. Der Sprecherzugang allein reicht
+    dafür nicht: Er ist an jeden ausgegeben, der aufnimmt, und er ist die
+    Antwort auf „wessen Modell?", nicht auf „wer darf rechnen lassen?".
+
+    Nicht gesetzt heißt abgeschaltet - kein Training für niemanden, auch nicht
+    in der Entwicklung (die Begründung steht bei `trainer_key` in der
+    `config.py`). Die Oberfläche fragt das vorher ab und zeigt den Knopf dann
+    gar nicht erst (`bereit` und `hinweis` in der Liste).
+
+    Zeitkonstant verglichen und über die UTF-8-Bytes, wie in „hören": Sonst
+    verriete die Antwortzeit den Anfang des Schlüssels, und ein Umlaut darin
+    ergäbe einen 500er statt eines sauberen 401.
+    """
+    erwartet = einstellungen().trainer_key
+    if not erwartet:
+        # 401 und nicht 403, weil „hören" es bei Verwaltung und Aufsicht
+        # genauso hält: Eine abgeschaltete Tür ist eine, an der niemand
+        # angemeldet ist. Zwei Fassungen derselben Absage wären zwei Wege
+        # durch die Oberfläche.
+        raise HTTPException(
+            status_code=401,
+            detail=(
+                "Training ist abgeschaltet: Auf diesem Server ist kein "
+                "Trainerschlüssel hinterlegt (WORTLAUT_TRAINER_KEY)."
+            ),
+        )
+    vorgelegt = x_trainer_key or ""
+    if not secrets.compare_digest(vorgelegt.encode("utf-8"), erwartet.encode("utf-8")):
+        raise HTTPException(
+            status_code=401,
+            detail="Falscher oder fehlender Trainerschlüssel.",
+        )
 
 
 class WahlAntwort(BaseModel):
@@ -152,9 +204,15 @@ class ListeAntwort(BaseModel):
     methoden: list[WahlAntwort]
     datensaetze: list[WahlAntwort]
     basismodell: str
-    # Ob überhaupt beauftragt werden kann, und wenn nicht, warum.
+    # Ob überhaupt beauftragt werden kann, und wenn nicht, warum. Es sind zwei
+    # Gründe, aus denen nicht: zu wenige Aufnahmen - oder kein hinterlegter
+    # Trainerschlüssel, dann kann es auf diesem Server niemand.
     bereit: bool
     hinweis: str
+    # Ob die Oberfläche nach dem Trainerschlüssel fragen muss. Der Server sagt
+    # es, statt dass die Seite es errät: Sonst stünde die Regel zweimal da, und
+    # die Kopie in der Oberfläche wäre die, die niemand prüft.
+    schluessel_noetig: bool
     # Wie viele brauchbare Aufnahmen es inzwischen gibt, und wie viele davon
     # der jüngste durchgelaufene Lauf noch nicht kannte.
     #
@@ -230,6 +288,9 @@ def liste(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
     proben = aufteilung.proben(db, korpus)
     anzahl = aufteilung.zaehle(proben)
     genug = anzahl[lauf_layout.TRAIN] > 0 and anzahl[lauf_layout.TEST] > 0
+    # Ohne hinterlegten Schlüssel ist diese Seite eine Leseseite: Die Läufe von
+    # früher bleiben sichtbar, beauftragen kann hier niemand mehr.
+    erlaubt = bool(konfiguration.trainer_key)
     alle = lauf_layout.alle_laeufe(konfiguration.data_dir, sprecher)
 
     # Der jüngste Lauf, der wirklich durchgelaufen ist. Ein abgebrochener oder
@@ -245,20 +306,37 @@ def liste(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         methoden=METHODEN,
         datensaetze=DATENSAETZE,
         basismodell=konfiguration.lernen_basismodell,
-        bereit=genug,
+        bereit=genug and erlaubt,
+        schluessel_noetig=erlaubt,
+        # Der Schlüssel zuerst: Wer ohnehin nicht trainieren darf, soll nicht
+        # erst Aufnahmen sammeln, um dann vor derselben Wand zu stehen.
         hinweis=(
             ""
-            if genug
+            if genug and erlaubt
+            else "Auf diesem Server ist kein Trainerschlüssel hinterlegt - "
+            "hier lässt sich kein Training anstoßen."
+            if not erlaubt
             else "Es braucht Aufnahmen zum Lernen und welche zum Prüfen - "
             "beides kommt aus \u201ehören\u201c."
         ),
     )
 
 
-@router.post("", response_model=LaufAntwort, status_code=201)
+@router.post(
+    "",
+    response_model=LaufAntwort,
+    status_code=201,
+    dependencies=[Depends(_pruefe_trainerschluessel)],
+)
 def beauftrage(
     bestellung: Bestellung, db: Datenbank, korpus: Korpus, sprecher: SprecherId
 ) -> LaufAntwort:
+    """Einen Lauf beauftragen - der einzige Weg, der den Trainerschlüssel verlangt.
+
+    Er steht vor allen anderen Prüfungen, und zwar mit Absicht: Wer nicht
+    trainieren darf, soll nicht erfahren, wie viele Aufnahmen im Korpus eines
+    Sprechers liegen oder ob eine Methode diesen Server kennt.
+    """
     if bestellung.methode not in lauf_layout.METHODEN:
         raise HTTPException(status_code=400, detail=f"Unbekannte Methode: {bestellung.methode}")
     if bestellung.daten not in lauf_layout.DATENSAETZE:

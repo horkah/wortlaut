@@ -24,6 +24,7 @@
     type Lauf,
     type Laufliste,
   } from '../lib/api';
+  import { setzeTrainerschluessel, trainerschluessel } from '../lib/trainerschluessel';
   import { LAUF_ROUTE, gehZu } from '../lib/zustand.svelte';
 
   // Während gerechnet wird, soll der Balken mitwachsen - aber ein Takt von
@@ -39,6 +40,10 @@
 
   let methode = $state('lora');
   let datensatz = $state('original');
+  // Der Trainerschlüssel. Er steht hier neben Methode und Datensatz, weil er
+  // an derselben Stelle gebraucht wird - aber er gehört nicht zur Bestellung,
+  // sondern zur Erlaubnis, sie aufzugeben (siehe `lib/trainerschluessel.ts`).
+  let schluessel = $state(trainerschluessel());
 
   const laeufe = $derived(daten?.laeufe ?? []);
   const arbeitet = $derived(laeufe.some((lauf) => lauf.status === 'laeuft'));
@@ -100,7 +105,11 @@
   async function bestelle() {
     bestellt = 'laeuft';
     try {
-      await beauftrageLauf(methode, datensatz);
+      await beauftrageLauf(methode, datensatz, schluessel);
+      // Erst merken, wenn er gestimmt hat: Ein falsch getippter Schlüssel, der
+      // den Neustart überlebt, ist einer, den man beim nächsten Mal nicht mehr
+      // verdächtigt.
+      setzeTrainerschluessel(schluessel);
       await hole();
       fehler = '';
     } catch (ursache) {
@@ -224,8 +233,28 @@
       </fieldset>
     </div>
 
+    {#if daten.schluessel_noetig}
+      <!-- Ein Lauf belegt die Karte für Stunden, und das soll nicht jeder
+           anstoßen können, der einen Aufnahmelink hat. Der Schlüssel steht
+           beim Knopf und nicht auf einer Anmeldeseite: Er erlaubt keine
+           Ansicht, sondern genau diese eine Handlung. -->
+      <label class="schluessel">
+        <span class="gedaempft">Trainerschlüssel</span>
+        <input
+          type="password"
+          bind:value={schluessel}
+          autocomplete="off"
+          placeholder="nötig, um einen Lauf anzustoßen"
+        />
+      </label>
+    {/if}
+
     <div class="reihe">
-      <button class="knopf haupt" onclick={bestelle} disabled={bestellt === 'laeuft'}>
+      <button
+        class="knopf haupt"
+        onclick={bestelle}
+        disabled={bestellt === 'laeuft' || (daten.schluessel_noetig && !schluessel.trim())}
+      >
         Training beauftragen
       </button>
       <span class="gedaempft">
@@ -357,6 +386,15 @@
 <style>
   .bestellung {
     margin-bottom: 1.4rem;
+  }
+
+  .schluessel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    max-width: 22rem;
+    margin-bottom: 0.8rem;
+    font-size: 0.85rem;
   }
 
   .wahlen {
