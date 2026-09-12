@@ -178,3 +178,149 @@ class TestListeUndAbbruch:
         _beauftrage(klient, "full")
         offen = laeufe.naechster_offener(datenverzeichnis)
         assert offen is not None and offen.job_id == erster["job_id"]
+
+
+class TestLoeschen:
+    """Ersatzlos - und ohne etwas Zeigendes zurückzulassen.
+
+    Ein Lauf hängt an drei Dingen: seinem Verzeichnis, dem Modell, das aus ihm
+    entstand, und der Aufteilung, aus der er seine Proben zog. Die ersten
+    beiden gehören ihm und gehen mit. Die dritte gehört den Aufnahmen und
+    bleibt - sie mit zu löschen hieße, sie beim nächsten Lauf neu zu würfeln
+    und damit Testaufnahmen ins Training zu lassen, die vorher geprüft haben.
+    """
+
+    def test_ein_wartender_verschwindet_ganz(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        sprich(6)
+        lauf = _beauftrage(klient)
+        verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"])
+        assert verzeichnis.is_dir()
+
+        antwort = klient.delete(f"/lernen/api/laeufe/{lauf['job_id']}")
+        assert antwort.status_code == 200, antwort.text
+        assert antwort.json()["version"] == ""
+
+        assert not verzeichnis.exists()
+        assert klient.get("/lernen/api/laeufe").json()["laeufe"] == []
+        assert klient.get(f"/lernen/api/laeufe/{lauf['job_id']}").status_code == 404
+
+    def test_er_steht_danach_nicht_mehr_in_der_warteschlange(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        # Genau das liest der Läufer im Trainings-Container ab.
+        sprich(6)
+        lauf = _beauftrage(klient)
+        klient.delete(f"/lernen/api/laeufe/{lauf['job_id']}")
+        assert laeufe.naechster_offener(datenverzeichnis) is None
+
+    def test_das_modell_geht_mit(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis, sprecher: str
+    ) -> None:
+        # Bliebe es stehen, zeigte es auf ein Verzeichnis, das es nicht mehr
+        # gibt - und worauf es trainiert wurde, wäre nicht mehr zu beantworten.
+        from wortlaut import registry
+
+        sprich(6)
+        lauf = _beauftrage(klient)
+        version = "20260912T1200-lora-original"
+        registry.schreibe_stand(
+            datenverzeichnis,
+            {
+                "id": f"{sprecher}/{version}",
+                "sprecher_id": sprecher,
+                "job_id": lauf["job_id"],
+                "methode": "lora",
+                "daten": "original",
+                "basismodell": "openai/whisper-small",
+                "erstellt": "2026-09-12T12:00:00+00:00",
+                "status": "fertig",
+            },
+        )
+        assert klient.get("/lernen/api/modelle").json()["staende"]
+
+        antwort = klient.delete(f"/lernen/api/laeufe/{lauf['job_id']}").json()
+
+        assert antwort["version"] == version
+        assert antwort["war_freigegeben"] is False
+        assert klient.get("/lernen/api/modelle").json()["staende"] == []
+        assert not registry.stand_verzeichnis(datenverzeichnis, sprecher, version).exists()
+
+    def test_die_liste_sagt_vorher_was_mitginge(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis, sprecher: str
+    ) -> None:
+        # Die Oberfläche schreibt das in die Sicherheitsabfrage; sie soll dafür
+        # nicht noch einmal nachfragen müssen.
+        from wortlaut import registry
+
+        sprich(6)
+        lauf = _beauftrage(klient)
+        registry.schreibe_stand(
+            datenverzeichnis,
+            {
+                "id": f"{sprecher}/20260912T1200-lora-original",
+                "job_id": lauf["job_id"],
+                "status": "active",
+            },
+        )
+        zeile = klient.get("/lernen/api/laeufe").json()["laeufe"][0]
+        assert zeile["stand"] == {
+            "version": "20260912T1200-lora-original",
+            "freigegeben": True,
+        }
+        assert zeile["loeschbar"] is True
+
+    def test_ohne_modell_steht_dort_nichts(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        sprich(6)
+        _beauftrage(klient)
+        assert klient.get("/lernen/api/laeufe").json()["laeufe"][0]["stand"] is None
+
+    def test_ein_rechnender_laesst_sich_nicht_loeschen(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        # In sein Verzeichnis schreibt gerade ein anderer Container.
+        sprich(6)
+        lauf = _beauftrage(klient)
+        laeufe.schreibe_json(
+            laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]) / laeufe.ZUSTAND,
+            {"status": laeufe.LAEUFT, "stufe": "training"},
+        )
+
+        assert klient.get("/lernen/api/laeufe").json()["laeufe"][0]["loeschbar"] is False
+        antwort = klient.delete(f"/lernen/api/laeufe/{lauf['job_id']}")
+        assert antwort.status_code == 409
+        assert laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]).is_dir()
+
+    def test_die_aufteilung_bleibt_unberuehrt(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        # Die Zusage, an der alles hängt: Eine Aufnahme, die geprüft hat,
+        # trainiert nie - auch nicht, nachdem jemand Läufe aufgeräumt hat.
+        sprich(9)
+        vorher = {
+            probe["aufnahme_id"]: probe["teil"]
+            for probe in klient.get("/lernen/api/aufteilung").json()["proben"]
+        }
+        for methode in ("lora", "full"):
+            lauf = _beauftrage(klient, methode)
+            assert klient.delete(f"/lernen/api/laeufe/{lauf['job_id']}").status_code == 200
+
+        nachher = {
+            probe["aufnahme_id"]: probe["teil"]
+            for probe in klient.get("/lernen/api/aufteilung").json()["proben"]
+        }
+        assert nachher == vorher
+
+    def test_unbekannter_lauf_ist_vierhundertvier(self, klient: TestClient) -> None:
+        assert klient.delete("/lernen/api/laeufe/job_gibtesnicht").status_code == 404
+
+    def test_zweimal_loeschen_geht_nicht(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        sprich(6)
+        lauf = _beauftrage(klient)
+        assert klient.delete(f"/lernen/api/laeufe/{lauf['job_id']}").status_code == 200
+        assert klient.delete(f"/lernen/api/laeufe/{lauf['job_id']}").status_code == 404

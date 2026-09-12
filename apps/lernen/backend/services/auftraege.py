@@ -29,12 +29,13 @@ Grundlinie und kein anderer Versuch.
 from __future__ import annotations
 
 import json
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from sqlalchemy.orm import Session
-from wortlaut import augmentierung, corpus, ids, laeufe
+from wortlaut import augmentierung, corpus, ids, laeufe, registry
 
 from apps.hoeren.backend.db.models import Textquelle
 from apps.lernen.backend.services.aufteilung import Probe
@@ -174,6 +175,66 @@ def brich_ab(datenverzeichnis: Path, job_id: str) -> bool:
         {"status": laeufe.ABGEBROCHEN, "beendet": laeufe.jetzt()},
     )
     return True
+
+
+@dataclass(frozen=True)
+class Geloescht:
+    """Was beim Löschen eines Laufs verschwunden ist - für die Rückmeldung."""
+
+    job_id: str
+    # Die Version des Modellstands, der mit ihm ging; leer, wenn keiner da war.
+    version: str = ""
+    war_freigegeben: bool = False
+
+
+def loesche(datenverzeichnis: Path, sprecher_id: str, job_id: str) -> Geloescht:
+    """Einen Lauf ersatzlos entfernen - samt dem Modell, das aus ihm entstand.
+
+    **Warum das Modell mitgeht.** Ein Modellstand trägt die Kennung des Laufs,
+    aus dem er stammt (`job_id` im Manifest). Bliebe er stehen, zeigte er auf
+    ein Verzeichnis, das es nicht mehr gibt: Die Ansicht böte einen Weg „Zum
+    Lauf" ins Leere, und die Frage, worauf dieses Modell eigentlich trainiert
+    wurde, wäre nicht mehr zu beantworten - das Manifest, das es sagt, liegt
+    im gelöschten Lauf. Ein Modell, dessen Herkunft niemand mehr nachsehen
+    kann, ist genau das, wogegen diese App gebaut ist.
+
+    Deshalb ist das Löschen eines Laufs das Löschen von allem, was aus ihm
+    hervorging. Die Oberfläche sagt das vorher, ausdrücklich und samt der
+    Angabe, ob der Stand gerade freigegeben ist (siehe `api/laeufe.py`).
+
+    **Was nicht mitgeht: die Aufteilung.** Sie hängt an den Aufnahmen und nicht
+    an einem Lauf. Sie mit zu löschen hieße, sie beim nächsten Lauf neu zu
+    würfeln - und damit Testaufnahmen ins Training zu lassen, die vorher
+    geprüft haben.
+    """
+    lauf = laeufe.lies_lauf(datenverzeichnis, job_id)
+    if lauf is None or lauf.sprecher_id != sprecher_id:
+        raise LookupError(job_id)
+    if lauf.status == laeufe.LAEUFT:
+        # In das Verzeichnis schreibt gerade ein anderer Container. Es unter
+        # ihm wegzuziehen hieße, einen laufenden Prozess ins Leere greifen zu
+        # lassen - und das Ergebnis wäre ein halb geschriebener Modellstand.
+        raise RuntimeError(
+            "Dieser Lauf rechnet gerade. Erst wenn er durch ist, lässt er sich löschen."
+        )
+
+    stand = registry.stand_zu_lauf(datenverzeichnis, sprecher_id, job_id)
+    ergebnis = Geloescht(job_id=job_id)
+    if stand is not None:
+        version = str(stand.get("id", "/")).split("/", 1)[-1]
+        ergebnis = Geloescht(
+            job_id=job_id,
+            version=version,
+            war_freigegeben=stand.get("status") == "active",
+        )
+        registry.loesche_stand(datenverzeichnis, sprecher_id, version)
+
+    # Zuletzt das Laufverzeichnis, und in dieser Reihenfolge: Bräche das
+    # Löschen dazwischen ab, bliebe ein Lauf ohne Modell stehen - lästig, aber
+    # widerspruchsfrei. Andersherum bliebe ein Modell ohne Lauf, und genau das
+    # soll es nicht geben.
+    shutil.rmtree(lauf.verzeichnis, ignore_errors=True)
+    return ergebnis
 
 
 def lernkurve(lauf: laeufe.Lauf) -> dict[str, list[dict[str, float]]]:

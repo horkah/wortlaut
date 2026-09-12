@@ -33,6 +33,12 @@ data/snapshots/<job_id>/
 Offen ist ein Auftrag, zu dem es noch keinen `zustand.json` gibt - das ist die
 ganze Warteschlange.
 
+Gelöscht wird das Verzeichnis als Ganzes, und mit ihm der Modellstand, der aus
+dem Lauf hervorging (`services/auftraege.py`). Ein Stand ohne seinen Lauf wäre
+ein Modell, dessen Herkunft niemand mehr nachsehen kann - genau das, wogegen
+diese App gebaut ist. Die Aufteilung bleibt: Sie gehört den Aufnahmen, nicht
+den Läufen.
+
 ## Was feststeht und warum
 
 * **Das Grundmodell ist `whisper-small`.** Nicht wählbar: Es ist die kleinste

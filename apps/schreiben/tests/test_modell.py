@@ -225,3 +225,36 @@ class TestModellwahl:
         # Ohne das bekäme ein Wechsel weiter das alte Modell - ein Fehler, den
         # niemand als Fehler erkennte, weil einfach der gewohnte Text herauskäme.
         assert modellpfad(einstellungen(), sprecher, "medium") == "medium"
+
+
+class TestVerschwundenerStand:
+    """Was „lernen" löscht, darf hier nicht als Sackgasse zurückbleiben."""
+
+    def test_ein_geloeschtes_modell_faellt_auf_die_vorgabe_zurueck(
+        self, klient: TestClient, datenverzeichnis: Path, sprecher: str
+    ) -> None:
+        # Der Mensch, der in „lernen" einen Lauf samt Modell löscht, ist
+        # derselbe, der hier diktiert. Ihn danach vor einer App zu lassen, die
+        # an einem verschwundenen Verzeichnis scheitert, wäre die schlechtere
+        # Antwort als „es gilt wieder die Vorgabe".
+        import shutil
+
+        kennung = f"{sprecher}/2026-09-12T1200"
+        registry.schreibe_stand(datenverzeichnis, {**MANIFEST, "id": kennung, "status": "fertig"})
+        assert klient.put("/schreiben/api/model", json={"ref": kennung}).json()["ref"] == kennung
+
+        shutil.rmtree(registry.stand_verzeichnis(datenverzeichnis, sprecher, "2026-09-12T1200"))
+
+        antwort = klient.get("/schreiben/api/model").json()
+        assert antwort["ref"] == "small"
+        assert antwort["gewaehlt"] is False
+        assert antwort["beschriftung"] == "whisper-small · unverändert"
+
+    def test_eine_falsch_gesetzte_umgebung_bleibt_sichtbar(
+        self, klient: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Anders als eine eigene Wahl: Was in der Umgebung steht, hat niemand
+        # hier ausgewählt, und ein Tippfehler darin soll auffallen.
+        monkeypatch.setenv("WORTLAUT_MODELL_REF", "spr_test/gibtsnicht")
+        einstellungen.cache_clear()
+        assert "nicht gefunden" in klient.get("/schreiben/api/model").json()["beschriftung"]

@@ -32,6 +32,11 @@
   // Ohne `$state`: ECharts führt seinen eigenen Zustand, und ein Proxy darum
   // herum brächte nur Ärger.
   let diagramm: Diagramm | null = null;
+  // Ob der Aufbau schon läuft. Er ist asynchron (die Bibliothek wird erst
+  // dann geladen), also genügt `diagramm === null` als Wächter nicht: Zwei
+  // Durchläufe des Effekts kämen beide daran vorbei und bauten zwei Diagramme
+  // in dasselbe Element.
+  let baut = false;
 
   const lauf = $derived(daten?.lauf ?? null);
   const laeuft = $derived(lauf?.status === 'laeuft');
@@ -161,12 +166,22 @@
     diagramm.setOption(option(), { replaceMerge: ['series'] });
   }
 
-  async function baueDiagramm() {
-    if (!huelle || diagramm) return;
-    const { init } = await import('../lib/diagramm');
-    diagramm = init(huelle, undefined, { renderer: 'canvas' });
-    new ResizeObserver(() => diagramm?.resize()).observe(huelle);
-    zeichne();
+  async function baueDiagramm(ziel: HTMLDivElement) {
+    baut = true;
+    try {
+      const { init } = await import('../lib/diagramm');
+      diagramm = init(ziel, undefined, { renderer: 'canvas' });
+      new ResizeObserver(() => diagramm?.resize()).observe(ziel);
+      zeichne();
+    } catch (ursache) {
+      // Ein Nachladen, das scheitert, hinterließe sonst ein weißes Rechteck
+      // ohne jede Auskunft - genau das Bild, das auch ein Fehler im Aufbau
+      // erzeugt. Lieber sagen, was los ist.
+      baut = false;
+      fehler =
+        'Das Diagramm konnte nicht geladen werden: ' +
+        (ursache instanceof Error ? ursache.message : String(ursache));
+    }
   }
 
   async function hole() {
@@ -189,14 +204,27 @@
     }
 
     takt();
-    baueDiagramm();
 
     return () => {
       beendet = true;
       clearTimeout(uhr);
       diagramm?.dispose();
       diagramm = null;
+      baut = false;
     };
+  });
+
+  /**
+   * Das Diagramm aufbauen, sobald seine Leinwand im Baum steht.
+   *
+   * Und ausdrücklich nicht in `onMount`: Die Leinwand steht erst da, wenn der
+   * Lauf geladen ist - vorher zeigt die Seite „Wird geladen …". `onMount`
+   * läuft aber, bevor die erste Antwort da ist; `huelle` wäre dann `null`, der
+   * Aufbau bräche ab, und niemand riefe ihn ein zweites Mal. Übrig bliebe das
+   * leere weiße Feld, in dem das Diagramm stehen sollte.
+   */
+  $effect(() => {
+    if (huelle && !diagramm && !baut) baueDiagramm(huelle);
   });
 
   $effect(() => {

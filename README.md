@@ -1183,6 +1183,20 @@ weiß wovon, ist eine Behauptung. Vier Felder darunter zeigen, welche der vier
 Kombinationen schon gerechnet sind - gesperrt wird keine, ein zweiter Lauf nach
 fünfzig neuen Aufnahmen ist ein gutes Recht.
 
+Ein Papierkorb in der Kopfzeile jeder Karte räumt einen Lauf weg. Die
+Sicherheitsabfrage nennt vorher, was verschwindet - und das ist mehr als der
+Lauf: Ein fertiger hat ein Modell hervorgebracht, und das geht mit. Bliebe es
+stehen, zeigte es auf ein Verzeichnis, das es nicht mehr gibt, und die Frage,
+worauf es trainiert wurde, wäre nicht mehr zu beantworten; das Manifest, das es
+sagt, liegt im gelöschten Lauf. Ist der Stand gerade freigegeben, steht auch
+das in der Abfrage: In `schreiben` ändert sich dann, womit diktiert wird.
+
+Was **nicht** mitgeht, ist die Aufteilung. Sie hängt an den Aufnahmen und nicht
+an einem Lauf; sie mitzulöschen hieße, sie beim nächsten Mal neu zu würfeln -
+und damit Testaufnahmen ins Training zu lassen, die vorher geprüft haben. Ein
+rechnender Lauf lässt sich nicht löschen: In sein Verzeichnis schreibt gerade
+ein anderer Container.
+
 Ein Klick führt in den **einzelnen Lauf**: zwei Kurven über den Schritten. Die
 durchgezogene ist der Trainingsverlust, die gestrichelte die Validierung. Zwei
 und nicht eine, denn der Trainingsverlust fällt auch dann weiter, wenn das
@@ -1227,6 +1241,7 @@ GET    /lernen/api/laeufe                   die Liste, ohne Kurven
 POST   /lernen/api/laeufe                   einen Lauf beauftragen
 GET    /lernen/api/laeufe/{id}              Kurven, Bewertung, Vergleich, Protokoll
 POST   /lernen/api/laeufe/{id}/abbruch      einen wartenden zurücknehmen
+DELETE /lernen/api/laeufe/{id}              ersatzlos löschen, samt seinem Modell
 GET    /lernen/api/modelle                  die fertigen Stände
 POST   /lernen/api/modelle/{version}/freigabe   diesen freigeben, alle anderen zurückziehen
 GET    /gesundheit                          ohne Zugang, auf der Wurzel
