@@ -1,10 +1,9 @@
 /**
  * Die drei Apps unter einer Domain, plus die Menüpunkte innerhalb einer App.
  *
- * `lernen` steht hier schon, bevor es die App gibt: die Leiste soll von
- * Anfang an zeigen, dass wortlaut aus drei Teilen besteht und welcher davon
- * gerade offen ist. Solange `verfuegbar: false` ist, ist der Reiter sichtbar,
- * aber nicht anklickbar.
+ * Alle drei sind gebaut. `verfuegbar: false` bleibt als Möglichkeit stehen:
+ * Ein Reiter, der sichtbar, aber nicht anklickbar ist, zeigt, dass wortlaut
+ * aus drei Teilen besteht, auch wenn einer davon noch fehlt.
  *
  * `pfad` ist der Ort unter der gemeinsamen Domain. `hören` ist der Einstieg
  * und liegt auf der Wurzel, jede weitere App bekommt einen Pfad; der Reverse
@@ -36,7 +35,7 @@ export const APPS: AppEintrag[] = [
     name: 'lernen',
     aufgabe: 'ein eigenes Modell feintunen',
     pfad: '/lernen/',
-    verfuegbar: false,
+    verfuegbar: true,
   },
   {
     schluessel: 'schreiben',
@@ -126,6 +125,23 @@ export const MEINE_DATEN_PFAD = '/meine-daten';
  * Aufnahmen, die eine als Bestand, die andere als Messung.
  */
 export const AUSWERTUNG_PFAD = '/auswertung';
+
+/**
+ * Wo in „schreiben" das Modell gewählt wird.
+ *
+ * Nur „schreiben" führt den Punkt: Dort wird diktiert, und nur dort macht es
+ * einen Unterschied, welches Modell zuhört. Er steht im Menü und nicht in
+ * einer Reiterreihe, und zwar aus demselben Grund wie „Auswertung" in
+ * „hören" - er gehört nicht zum Weg durch die Arbeit. Diktieren ist eine
+ * Tätigkeit, das Modell zu wechseln ein Nachjustieren.
+ *
+ * Dass es den Punkt überhaupt gibt, ist neu: Früher stand das Modell in der
+ * Umgebung und ein Wechsel war ein Neustart. Seit „lernen" je Sprecher vier
+ * Stände liefert und daneben die unveränderten Grundmodelle stehen, ist die
+ * Frage „welches hört mir am besten zu?" eine, die sich beim Diktieren
+ * beantwortet und nicht an einer Kennzahl.
+ */
+export const MODELL_PFAD = '/modell';
 
 /**
  * Die Menüpunkte, die zum Gerät gehören - in jeder App dieselben.
@@ -243,6 +259,7 @@ export const SCHALTBARE_MENUEPUNKTE: Schaltbar[] = [
     grund: 'Hier wird die PIN vergeben, die vor dieser Seite steht.',
   },
   { schluessel: menueSchluessel(AUSWERTUNG_PFAD), text: 'Auswertung' },
+  { schluessel: menueSchluessel(MODELL_PFAD), text: 'Modell' },
   { schluessel: menueSchluessel(ZUGANGSDATEN_PFAD), text: 'Zugangsdaten' },
   { schluessel: menueSchluessel(EINSTELLUNGEN_PFAD), text: 'Einstellungen' },
   {

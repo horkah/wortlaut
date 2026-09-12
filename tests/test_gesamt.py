@@ -1,12 +1,12 @@
-"""Beide Apps in einem Prozess (`apps/gesamt.py`).
+"""Alle drei Apps in einem Prozess (`apps/gesamt.py`).
 
 Geprüft wird das, was der Verteiler versprechen muss: Jede Anfrage landet bei
 der richtigen App, und die Zugangsregeln bleiben dabei die der jeweiligen App.
 Ginge das beim Zusammenlegen verloren, stünde der Korpus offen im Netz.
 
-Beide Apps hängen inzwischen hinter dem Zugang eines Sprechers, und es ist
-derselbe: Ein Mensch, ein Link, beide Apps. Genau das steht hier geprüft - der
-Zugang, den „hören" ausgibt, öffnet ohne weiteres Zutun auch „schreiben".
+Alle drei hängen hinter dem Zugang eines Sprechers, und es ist derselbe: Ein
+Mensch, ein Link, drei Apps. Genau das steht hier geprüft - der Zugang, den
+„hören" ausgibt, öffnet ohne weiteres Zutun auch „lernen" und „schreiben".
 """
 
 from __future__ import annotations
@@ -17,9 +17,11 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from apps.gesamt import _gehoert_zu_schreiben, app
+from apps.gesamt import _zustaendig, app
 from apps.hoeren.backend import deps as hoeren_deps
 from apps.hoeren.backend.config import einstellungen as hoeren_einstellungen
+from apps.lernen.backend import deps as lernen_deps
+from apps.lernen.backend.config import einstellungen as lernen_einstellungen
 from apps.schreiben.backend import deps as schreiben_deps
 from apps.schreiben.backend.config import einstellungen as schreiben_einstellungen
 
@@ -33,17 +35,23 @@ def klient(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
     monkeypatch.setenv("WORTLAUT_LLM_PROVIDER", "")
     monkeypatch.setenv("WORTLAUT_MODELL_REF", "")
     monkeypatch.setenv("WORTLAUT_INTAKE_URL", "")
-    for leeren in (hoeren_einstellungen.cache_clear, schreiben_einstellungen.cache_clear):
-        leeren()
-    hoeren_deps._engines.clear()
-    schreiben_deps.zwischenspeicher_leeren()
+    _leeren()
 
     with TestClient(app) as klient:
         yield klient
 
-    for leeren in (hoeren_einstellungen.cache_clear, schreiben_einstellungen.cache_clear):
+    _leeren()
+
+
+def _leeren() -> None:
+    for leeren in (
+        hoeren_einstellungen.cache_clear,
+        lernen_einstellungen.cache_clear,
+        schreiben_einstellungen.cache_clear,
+    ):
         leeren()
     hoeren_deps._engines.clear()
+    lernen_deps.vergiss_engines()
     schreiben_deps.zwischenspeicher_leeren()
 
 
@@ -85,6 +93,26 @@ class TestVerteilung:
         assert hier["sprecher_id"] == drueben["sprecher_id"]
         assert hier["name"] == drueben["name"] == "Testperson"
 
+    def test_unter_dem_pfad_antwortet_lernen(self, klient: TestClient, zugang: str) -> None:
+        # Derselbe Zugang, dritte App. Die Aufteilung ist leer - es wurde noch
+        # nichts aufgenommen -, aber sie antwortet, und das ist der Punkt.
+        antwort = klient.get(
+            "/lernen/api/aufteilung", headers={"Authorization": f"Bearer {zugang}"}
+        )
+        assert antwort.status_code == 200, antwort.text
+        assert antwort.json()["proben"] == []
+
+    def test_lernen_bleibt_hinter_dem_zugang(self, klient: TestClient) -> None:
+        # Ein Modell gehört einem Menschen - ohne dessen Zugang gibt es hier
+        # nichts zu sehen, auch nicht mit dem Verwaltertoken.
+        assert klient.get("/lernen/api/aufteilung").status_code == 401
+        assert (
+            klient.get(
+                "/lernen/api/aufteilung", headers={"Authorization": f"Bearer {TOKEN}"}
+            ).status_code
+            == 401
+        )
+
     def test_auf_der_wurzel_antwortet_hoeren(self, klient: TestClient) -> None:
         assert klient.get("/api/speakers", headers={"Authorization": f"Bearer {TOKEN}"}).json() == []
 
@@ -98,10 +126,26 @@ class TestVerteilung:
 
 
 class TestPfadgrenze:
-    @pytest.mark.parametrize("pfad", ["/schreiben", "/schreiben/", "/schreiben/api/model"])
-    def test_gehoert_dazu(self, pfad: str) -> None:
-        assert _gehoert_zu_schreiben(pfad)
+    """Wer bekommt welchen Pfad - die eine Entscheidung des Verteilers."""
 
-    @pytest.mark.parametrize("pfad", ["/", "/api/speakers", "/schreibendes", "/gesundheit"])
-    def test_gehoert_nicht_dazu(self, pfad: str) -> None:
-        assert not _gehoert_zu_schreiben(pfad)
+    @pytest.mark.parametrize(
+        ("pfad", "titel"),
+        [
+            ("/schreiben", "schreiben"),
+            ("/schreiben/", "schreiben"),
+            ("/schreiben/api/model", "schreiben"),
+            ("/lernen", "lernen"),
+            ("/lernen/", "lernen"),
+            ("/lernen/api/laeufe", "lernen"),
+            ("/", "hören"),
+            ("/api/speakers", "hören"),
+            ("/gesundheit", "hören"),
+            # Die Gleichheit steht mit Absicht neben dem Präfix: Ohne sie
+            # landete ein Tippfehler in einer fremden Oberfläche statt in
+            # einem 404.
+            ("/schreibendes", "hören"),
+            ("/lernendes", "hören"),
+        ],
+    )
+    def test_landet_bei_der_richtigen_app(self, pfad: str, titel: str) -> None:
+        assert _zustaendig(pfad).title == f"wortlaut · {titel}"

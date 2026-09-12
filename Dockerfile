@@ -1,25 +1,36 @@
-# Ein Abbild für die ganze App: „hören" auf der Wurzel, „schreiben" unter
-# /schreiben, beide hinter einem uvicorn (siehe apps/gesamt.py).
+# Ein Abbild für die ganze App: „hören" auf der Wurzel, „lernen" unter /lernen,
+# „schreiben" unter /schreiben, alle drei hinter einem uvicorn (siehe
+# apps/gesamt.py).
 #
-# Die beiden Dockerfiles unter apps/ bleiben daneben bestehen - sie sind der
-# Weg, die Apps getrennt zu betreiben. Dieses hier ist der Weg für einen
-# einzelnen Wirt: ein Abbild, ein Port, eine Regel im Reverse Proxy.
+# Die Dockerfiles unter apps/ bleiben daneben bestehen - sie sind der Weg, die
+# Apps getrennt zu betreiben. Dieses hier ist der Weg für einen einzelnen
+# Wirt: ein Abbild, ein Port, eine Regel im Reverse Proxy.
+#
+# Was hier **nicht** drin ist: torch, CUDA und alles, was ein Feintuning
+# braucht. „lernen" liefert hier nur seine Oberfläche aus und legt Aufträge an;
+# gerechnet wird im Abbild unter apps/lernen/training/, das drei Gigabyte
+# schwerer ist und eine Karte verlangt. Deshalb startet dieses hier weiterhin
+# in Sekunden.
 
-# ── Stufe 1: beide Frontends bauen ──────────────────────────────────────────
+# ── Stufe 1: alle drei Frontends bauen ──────────────────────────────────────
 FROM node:22-slim AS frontend
 WORKDIR /bau
 # Erst die Sperrdateien, dann der Rest: So bleibt die Installation im Cache,
 # solange sich an den Abhängigkeiten nichts ändert.
 COPY apps/hoeren/frontend/package*.json ./apps/hoeren/frontend/
+COPY apps/lernen/frontend/package*.json ./apps/lernen/frontend/
 COPY apps/schreiben/frontend/package*.json ./apps/schreiben/frontend/
 # `npm ci` statt `npm install`: baut genau das, was in package-lock.json steht.
 RUN cd apps/hoeren/frontend && npm ci \
+    && cd ../../lernen/frontend && npm ci \
     && cd ../../schreiben/frontend && npm ci
 COPY packages/ui ./packages/ui
 COPY assets ./assets
 COPY apps/hoeren/frontend ./apps/hoeren/frontend
+COPY apps/lernen/frontend ./apps/lernen/frontend
 COPY apps/schreiben/frontend ./apps/schreiben/frontend
 RUN cd apps/hoeren/frontend && npm run build \
+    && cd ../../lernen/frontend && npm run build \
     && cd ../../schreiben/frontend && npm run build
 
 # ── Stufe 2: Python und Auslieferung ────────────────────────────────────────
@@ -34,6 +45,7 @@ COPY pyproject.toml README.md LICENSE ./
 COPY packages ./packages
 COPY apps/gesamt.py ./apps/gesamt.py
 COPY apps/hoeren ./apps/hoeren
+COPY apps/lernen ./apps/lernen
 COPY apps/schreiben ./apps/schreiben
 COPY scripts ./scripts
 # `.[asr]` ist das Projekt samt faster-whisper (siehe pyproject.toml). In
@@ -41,6 +53,7 @@ COPY scripts ./scripts
 RUN pip install --no-cache-dir ".[asr]"
 
 COPY --from=frontend /bau/apps/hoeren/frontend/dist ./apps/hoeren/frontend/dist
+COPY --from=frontend /bau/apps/lernen/frontend/dist ./apps/lernen/frontend/dist
 COPY --from=frontend /bau/apps/schreiben/frontend/dist ./apps/schreiben/frontend/dist
 
 # Das Whisper-Modell landet im Volume und nicht im Abbild; ohne diesen Pfad

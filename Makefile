@@ -8,6 +8,10 @@
 #                                (entstehen sonst von selbst, nur später)
 #   make dev APP=hoeren          Backend und Vite parallel starten
 #   make dev APP=schreiben       dasselbe für „schreiben" (Backend :8001, Vite :5174)
+#   make dev APP=lernen          dasselbe für „lernen" (Backend :8002, Vite :5175)
+#   make trainer                 den Läufer auf dieser Maschine starten
+#                                (im Betrieb ein eigener Container, siehe
+#                                 apps/lernen/training/)
 #   make backend APP=hoeren      nur das Backend
 #   make frontend APP=hoeren     nur Vite
 #   make install APP=hoeren      Frontend-Abhängigkeiten installieren
@@ -16,12 +20,12 @@ APP ?= hoeren
 
 # Je App ein eigener Port, damit beide gleichzeitig laufen können; die
 # Vite-Konfiguration von „schreiben" leitet /api genau dorthin.
-PORT ?= $(if $(filter schreiben,$(APP)),8001,8000)
+PORT ?= $(if $(filter schreiben,$(APP)),8001,$(if $(filter lernen,$(APP)),8002,8000))
 
 FRONTEND     = apps/$(APP)/frontend
 NODE_MODULES = $(FRONTEND)/node_modules
 
-.PHONY: test dev backend frontend install migrate augmentieren train release
+.PHONY: test dev backend frontend install migrate augmentieren trainer train release
 
 test:
 	uv run pytest
@@ -51,8 +55,19 @@ migrate:
 augmentieren:
 	uv run python scripts/augmentieren.py
 
+# Der Läufer ohne Container - für die Entwicklung auf einer Maschine mit
+# Karte. Er braucht torch, transformers und peft; die stecken nicht in den
+# Abhängigkeiten dieses Projekts, sondern im Abbild unter
+# apps/lernen/training/. Wer hier trainieren will, installiert sie einmal von
+# Hand (siehe docs/betrieb.md).
+trainer:
+	uv run python -m apps.lernen.training.laeufer
+
+# Ein einzelner Lauf, ohne auf die Warteschlange zu warten - zum Nachsehen,
+# woran ein gescheiterter Auftrag gescheitert ist.
 train:
-	@echo "App „lernen\" ist noch nicht implementiert (siehe README)." && exit 1
+	@test -n "$(JOB)" || (echo "Aufruf: make train JOB=job_01J8…" && exit 1)
+	uv run python -m apps.lernen.training.finetune data/snapshots/$(JOB)
 
 release:
-	@echo "App „lernen\" ist noch nicht implementiert (siehe README)." && exit 1
+	@echo "Freigegeben wird in der Oberfläche von „lernen\" (Menüpunkt Modelle)." && exit 1

@@ -1,10 +1,17 @@
 # Betrieb: ein Container für die ganze App, davor caddy-docker-proxy des
 # Wirts (Compose-Projekt „caddy", eigenes Docker-Netz „caddy").
 #
-# Darin ein uvicorn für beide Apps - „hören" auf der Wurzel, „schreiben" unter
-# /schreiben (siehe apps/gesamt.py). Der Proxy braucht deshalb nur eine Regel
-# auf diesen einen Port und schneidet nichts ab; die Pfade bringt die App
-# selbst mit.
+# Darin ein uvicorn für alle drei Apps - „hören" auf der Wurzel, „lernen" unter
+# /lernen, „schreiben" unter /schreiben (siehe apps/gesamt.py). Der Proxy
+# braucht deshalb nur eine Regel auf diesen einen Port und schneidet nichts ab;
+# die Pfade bringen die Apps selbst mit.
+#
+# Daneben steht ein zweiter Dienst, der nicht von selbst startet: `training`.
+# Er rechnet die Feintunings auf der Karte und hängt an keinem Netzweg, sondern
+# am geteilten Datenverzeichnis (siehe apps/lernen/training/). Gestartet wird
+# er ausdrücklich:
+#
+#     docker compose --profile training up -d training
 #
 # Wer die Apps getrennt betreiben will, nimmt statt dessen die beiden
 # Dockerfiles unter apps/ als je einen Dienst (docs/betrieb.md).
@@ -52,6 +59,43 @@ services:
       # Grund, den Container umzubringen.
       start_period: 5m
       retries: 3
+
+  # Der Trainer. Er beantwortet keine Anfrage und hängt an keinem Netz: Alles,
+  # was er braucht, steht im Datenverzeichnis, und alles, was er hervorbringt,
+  # legt er dort wieder ab (`data/snapshots/` und `data/modelle/`). Deshalb
+  # teilt er sich mit `wortlaut` nur das Volume - und deshalb kann jeder von
+  # beiden neu starten, ohne den anderen mitzunehmen.
+  #
+  # `profiles` hält ihn aus dem gewöhnlichen `docker compose up` heraus: Das
+  # Abbild wiegt einige Gigabyte und verlangt eine Karte. Wer beides hat,
+  # startet ihn mit `--profile training`; wer nicht, merkt nichts von ihm - die
+  # Oberfläche von „lernen" steht trotzdem, Aufträge sammeln sich in der
+  # Warteschlange, und keiner geht verloren.
+  training:
+    build:
+      context: .
+      dockerfile: apps/lernen/training/Dockerfile
+    profiles: [training]
+    restart: unless-stopped
+    env_file: .env
+    # Kein `networks`: Dieser Dienst ruft nichts und wird von nichts gerufen.
+    # Er lädt einmal das Grundmodell von Hugging Face - das geht über das
+    # Standardnetz von Compose.
+    environment:
+      WORTLAUT_DATA_DIR: /srv/wortlaut/data
+    volumes:
+      # Dasselbe Volume wie `wortlaut`, und zwar beschreibbar: Hier entstehen
+      # die Modellstände. Der Korpus daneben wird nur gelesen - dass „hören"
+      # sein einziger Schreiber ist (Grundentscheidung 6), hält der Quelltext
+      # ein, nicht das Dateisystem.
+      - wortlaut-data:/srv/wortlaut/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   # Lokale Textquelle statt eines bezahlten Anbieters: Ollama auf der GPU des
   # Wirts. Nichts verlässt die Maschine, und es kostet keinen Token. „hören"

@@ -1,0 +1,37 @@
+# Feintuning mit LoRA: das Grundmodell bleibt, gelernt wird ein kleiner Zusatz.
+#
+# Statt aller 244 Millionen Gewichte werden zwei kleine Matrizen je
+# Aufmerksamkeitsschicht trainiert - ein knappes Prozent davon. Das hat drei
+# Folgen, und alle drei sind hier der Grund für die Wahl: Es passt bequem in
+# den Speicher, es geht schneller, und es kann das Grundmodell nicht verderben,
+# weil es es nicht anfasst.
+name: Feintuning (LoRA)
+
+# Hundertmal so groß wie beim vollen Training, und das ist kein Tippfehler: Die
+# Zusatzmatrizen starten bei null und müssen erst etwas werden. Mit 1e-5 bliebe
+# nach acht Durchgängen fast das Grundmodell stehen.
+lernrate: 1.0e-3
+warmlauf_schritte: 50
+
+# Mehr Durchgänge als beim vollen Training: Es wird weniger gelernt, also
+# dauert es länger, bis es gelernt ist - und die Gefahr, dabei etwas kaputt zu
+# machen, ist kleiner.
+epochen: 12
+
+stapel: 8
+akkumulation: 1
+
+gewichtsverfall: 0.0
+fp16: true
+gradientenbegrenzung: 1.0
+
+lora:
+  # Der Rang der Zusatzmatrizen - wie viel Freiheit der Zusatz bekommt. 32 ist
+  # für eine einzelne Stimme reichlich; kleiner lernt zu wenig, größer nähert
+  # sich dem vollen Training samt seinen Nachteilen.
+  rang: 32
+  alpha: 64
+  ausfall: 0.05
+  # Nur die Projektionen der Aufmerksamkeit. Sie entscheiden, worauf das Modell
+  # hört; dort sitzt die Anpassung an eine abweichende Aussprache.
+  ziele: [q_proj, v_proj]
