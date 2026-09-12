@@ -104,6 +104,25 @@ textarea {
   box-sizing: border-box;
 }
 
+/* Ankreuzfelder und Auswahlknöpfe sind keine Eingabefelder. Die Regel darüber
+   gibt jedem `input` die volle Zeilenbreite - richtig für Text, Zahlen und
+   Dateien, falsch für einen Punkt, den man antippt: Ein Auswahlknopf wird
+   dann so breit wie die Karte und schiebt seine eigene Beschriftung rechts
+   hinaus.
+
+   Die Ausnahme steht hier und nicht in der Ansicht, die sie gerade braucht.
+   `Mikrofontest.svelte` hat sie sich schon einmal örtlich zurechtgelegt, und
+   die nächste Ansicht mit einem Ankreuzfeld hätte es wieder getan - dreimal
+   dieselbe Zeile für eine Regel, die überall gilt. Der Schalter weiter unten
+   (`[role='switch']`) setzt sein eigenes Maß und ist von beidem unberührt:
+   Sein Wähler ist der genauere. */
+input[type='radio'],
+input[type='checkbox'] {
+  width: auto;
+  max-width: none;
+  padding: 0;
+}
+
 /* Der Schalter: ein Kästchen ohne Kästchen. `appearance: none` nimmt ihm das
    Aussehen des Systems, der Rest zeichnet Bahn und Knauf. Es bleibt eine echte
    Ankreuzfläche - Tastatur, Vorlesestimme und `role="switch"` tun damit

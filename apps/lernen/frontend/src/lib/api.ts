@@ -96,6 +96,10 @@ export type Laufliste = {
   basismodell: string;
   bereit: boolean;
   hinweis: string;
+  /** Wie viele brauchbare Aufnahmen es inzwischen gibt. */
+  aufnahmen_jetzt: number;
+  /** Wie viele davon der jüngste fertige Lauf noch nicht kannte. */
+  aufnahmen_neu: number;
 };
 
 export type Laufeinzeln = {

@@ -13,10 +13,13 @@ name: Volles Training
 lernrate: 1.0e-5
 warmlauf_schritte: 50
 
-# Acht Durchgänge über wenige hundert kurze Sätze. Mehr hilft selten: Die
-# Validierungskurve dreht bei so wenig Sprache meist im Bereich vier bis acht,
-# und danach lernt das Modell die Trainingssätze auswendig. Sichtbar ist das
-# in der Ansicht - die zweite Kurve steigt, während die erste fällt.
+# Acht Durchgänge - und das ist eine **Obergrenze**, keine Vorgabe. Die
+# Validierungskurve dreht bei so wenig Sprache meist im Bereich vier bis acht;
+# danach lernt das Modell die Trainingssätze auswendig. Ausgeliefert wird
+# deshalb nicht der letzte Durchgang, sondern der mit dem besten
+# Validierungsverlust (`load_best_model_at_end` in `finetune.py`). Zu hoch
+# angesetzt kostet die Zahl hier also Rechenzeit, aber keine Güte - zu niedrig
+# angesetzt kostet sie Güte. Im Zweifel lieber zu hoch.
 epochen: 8
 
 # Zwei mal vier statt acht auf einmal: whisper-small mit Adam braucht im vollen

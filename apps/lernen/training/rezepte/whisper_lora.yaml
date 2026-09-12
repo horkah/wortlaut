@@ -15,7 +15,8 @@ warmlauf_schritte: 50
 
 # Mehr Durchgänge als beim vollen Training: Es wird weniger gelernt, also
 # dauert es länger, bis es gelernt ist - und die Gefahr, dabei etwas kaputt zu
-# machen, ist kleiner.
+# machen, ist kleiner. Auch das ist eine Obergrenze; ausgeliefert wird der
+# beste Durchgang, nicht der letzte (siehe `whisper_full.yaml`).
 epochen: 12
 
 stapel: 8

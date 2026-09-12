@@ -238,6 +238,20 @@
       </span>
     </div>
 
+    {#if daten.aufnahmen_neu > 0 && daten.laeufe.some((lauf) => lauf.status === 'fertig')}
+      <!-- Kein Knopf, der von selbst drückt: Ein Lauf belegt die Karte und
+           friert einen Stand des Korpus ein; von allein angestoßen wüsste
+           hinterher niemand, welche Aufnahmen in welchem Modell stecken.
+           Sichtbar machen, wann es sich lohnt, ist die halbe Automatik - und
+           die richtige Hälfte. -->
+      <p class="neu">
+        <strong>{daten.aufnahmen_neu}</strong>
+        {daten.aufnahmen_neu === 1 ? 'Aufnahme ist' : 'Aufnahmen sind'} dazugekommen, seit
+        zuletzt etwas fertig trainiert wurde ({daten.aufnahmen_jetzt} insgesamt). Ein neuer Lauf
+        nimmt sie mit.
+      </p>
+    {/if}
+
     <!-- Vier Felder, und man sieht auf einen Blick, welche noch fehlen: Die
          Frage dieser App ist der Vergleich der vier. -->
     <div class="matrix" aria-hidden="true">
@@ -352,12 +366,15 @@
     margin-bottom: 0.8rem;
   }
 
+  /* `min-width: 0` auch hier, und zwar gegen eine Eigenheit von `fieldset`:
+     Es bringt eine eigene Mindestbreite mit, die sich an seinem Inhalt
+     bemisst, und ignoriert damit als Flex-Element die Breite der Karte. */
   fieldset {
     border: none;
     padding: 0;
     margin: 0;
-    min-width: min(100%, 18rem);
-    flex: 1;
+    min-width: 0;
+    flex: 1 1 18rem;
   }
 
   legend {
@@ -378,6 +395,20 @@
     cursor: pointer;
   }
 
+  /* Der Knopf behält sein Maß, der Text nimmt den Rest. `min-width: 0` ist
+     dabei die halbe Miete: Ohne das schrumpft ein Flex-Element nicht unter
+     seinen Inhalt, und eine lange Begründung schöbe sich aus der Karte
+     hinaus, statt umzubrechen. */
+  .option input {
+    flex: none;
+    margin-top: 0.2rem;
+  }
+
+  .option > span {
+    flex: 1;
+    min-width: 0;
+  }
+
   .option span {
     display: block;
     margin: 0;
@@ -386,6 +417,17 @@
   .option .gedaempft {
     font-size: 0.85rem;
     line-height: 1.4;
+  }
+
+  /* Ein Hinweis, kein Alarm: Dass Aufnahmen dazugekommen sind, ist der
+     Normalfall und kein Fehler. */
+  .neu {
+    margin: 0.9rem 0 0;
+    padding: 0.5rem 0.7rem;
+    border-left: 3px solid var(--akzent);
+    background: var(--akzent-hell);
+    border-radius: 0 0.3rem 0.3rem 0;
+    font-size: 0.9rem;
   }
 
   .matrix {

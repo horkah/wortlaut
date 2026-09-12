@@ -21,7 +21,7 @@
    * es gehört dorthin, wo auch Mikrofon und Stimme stehen.
    */
   import { modellWaehlen, type Modellwahl } from '../lib/api';
-  import { ladeModellstand, zustand } from '../lib/zustand.svelte';
+  import { gehZu, ladeModellstand, zustand } from '../lib/zustand.svelte';
 
   let fehler = $state('');
   let arbeitet = $state('');
@@ -64,6 +64,15 @@
     }
   }
 </script>
+
+<!-- Der Weg zurück, und zwar als Knopf und nicht als Pfeilchen: Diese App
+     hat keine Reiterreihe (der Weg durch sie ist eine Folge, keine Auswahl),
+     und wer schlecht liest, soll den Rückweg nicht suchen müssen
+     (Grundentscheidung 7). In „hören" und „lernen" trägt ihn die Reiterreihe;
+     hier muss ihn die Ansicht selbst mitbringen. -->
+<p class="zurueck">
+  <button class="knopf" onclick={() => gehZu('/')}>← Zurück zum Diktieren</button>
+</p>
 
 <h2>Modell</h2>
 <p class="gedaempft">
@@ -157,6 +166,10 @@
 {/if}
 
 <style>
+  .zurueck {
+    margin: 0 0 0.8rem;
+  }
+
   .jetzt {
     margin-bottom: 1.2rem;
   }

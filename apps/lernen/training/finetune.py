@@ -272,6 +272,12 @@ def trainiere(verzeichnis: Path, datenverzeichnis: Path, bericht: Bericht) -> Pa
     if not len(lern):
         raise RuntimeError("Das Manifest enthält keine Trainingsprobe.")
 
+    # Ohne Validierungsproben lässt sich nicht sagen, welcher Durchgang der
+    # beste war - dann bleibt nur der letzte, und die Zahl der Durchgänge ist
+    # wieder eine Wette. Das trifft nur sehr kleine Korpora; ab einem Dutzend
+    # Aufnahmen gibt es eine Validierung (siehe `wortlaut/laeufe.py`).
+    hat_pruefung = len(pruef) > 0
+
     ausgabe = verzeichnis / "arbeitsstand"
     argumente = Seq2SeqTrainingArguments(
         output_dir=str(ausgabe),
@@ -288,8 +294,28 @@ def trainiere(verzeichnis: Path, datenverzeichnis: Path, bericht: Bericht) -> Pa
         # Je Durchgang einmal prüfen - das ist der Takt, in dem die zweite
         # Kurve entsteht. Fehlt die Validierung (zu kleiner Korpus), gibt es
         # nichts zu prüfen und der Lauf läuft ohne sie durch.
-        eval_strategy="epoch" if len(pruef) else "no",
-        save_strategy="no",
+        eval_strategy="epoch" if hat_pruefung else "no",
+        # Je Durchgang sichern und am Ende den **besten** nehmen, nicht den
+        # letzten.
+        #
+        # Das ist die wichtigste Zeile dieses Rezepts. Bei wenigen hundert
+        # kurzen Sätzen dreht die Validierungskurve irgendwo in der Mitte und
+        # steigt danach wieder: Das Modell lernt die Trainingssätze auswendig.
+        # Wer den letzten Durchgang nimmt, liefert genau dieses Modell aus -
+        # und die Zahl der Durchgänge im Rezept wird zu einer Wette, die man
+        # je Korpus neu abschließen müsste. So ist sie nur noch eine
+        # Obergrenze: Es wird ausgeliefert, was auf der Validierung am besten
+        # war, und zu lange zu trainieren kostet Rechenzeit statt Güte.
+        #
+        # `save_total_limit=1` hält den Platzbedarf in Grenzen - zusammen mit
+        # dem besten liegen höchstens zwei Zwischenstände auf der Platte, beim
+        # vollen Training je knapp drei Gigabyte. Sie verschwinden mit dem
+        # `arbeitsstand`, sobald der Lauf durch ist (siehe `bewerten.py`).
+        save_strategy="epoch" if hat_pruefung else "no",
+        save_total_limit=1,
+        load_best_model_at_end=hat_pruefung,
+        metric_for_best_model="eval_loss",
+        greater_is_better=False,
         # Der Bericht ist der einzige Draht nach draußen; Tensorboard und
         # dergleichen schrieben ins Leere.
         report_to=[],
@@ -312,6 +338,20 @@ def trainiere(verzeichnis: Path, datenverzeichnis: Path, bericht: Bericht) -> Pa
 
     bericht.stufe("training")
     trainer.train()
+
+    if hat_pruefung and trainer.state.best_model_checkpoint:
+        # Sichtbar machen, welcher Durchgang gewonnen hat: Steht er weit vor
+        # dem letzten, war die Obergrenze zu hoch angesetzt - und das ist eine
+        # Auskunft über das Rezept, nicht über diesen einen Lauf.
+        bericht.sage(
+            f"Bester Durchgang: {Path(trainer.state.best_model_checkpoint).name} "
+            f"· Validierungsverlust {trainer.state.best_metric:.5f}"
+        )
+        bericht.ereignis(
+            art="bester",
+            schritt=int(Path(trainer.state.best_model_checkpoint).name.rsplit("-", 1)[-1]),
+            verlust=round(float(trainer.state.best_metric), 5),
+        )
 
     bericht.stufe("sichern")
     gewichte = verzeichnis / "gewichte"
