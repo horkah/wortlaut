@@ -10,15 +10,10 @@ from functools import lru_cache
 from pathlib import Path
 
 from pydantic import model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from wortlaut import rechenwerk
+from wortlaut.einstellungen import AUSWERTUNG_MODELLE, Grundeinstellungen
 
 
-class Einstellungen(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="WORTLAUT_", env_file=".env", extra="ignore")
-
-    # gemeinsam
-    data_dir: Path = Path("./data")
+class Einstellungen(Grundeinstellungen):
     storage: str = "local"
 
     # Textquelle „LLM". Leer heißt: abgeschaltet, es bleibt der Textupload.
@@ -48,11 +43,9 @@ class Einstellungen(BaseSettings):
     # Komma getrennt - später darf hier auch der Pfad eines eigenen Standes
     # aus „lernen" stehen. Die Reihenfolge ist zugleich die der Anzeige.
     #
-    # Die Vorgabe ist eine Leiter mit vier Sprossen: `base` ist die
-    # Untergrenze, `small` der Alltagsfall, `medium` zeigt, was mit mehr
-    # Rechenzeit noch zu holen wäre, und `large-v3` sagt, wo das Verfahren
-    # selbst endet. Wer wenig Maschine hat, kürzt die Liste - gerechnet wird
-    # nur, was darin steht.
+    # Die Vorgabe steht in der Bibliothek, weil „lernen" dieselbe braucht
+    # (`wortlaut/einstellungen.py`); warum die Leiter so aussieht, wie sie
+    # aussieht, steht dort.
     #
     # Unten steht `base` und nicht mehr `tiny`. Eine Untergrenze soll zeigen,
     # wo das Verstehen abzubrechen beginnt, und dafür muss sie selbst noch
@@ -69,21 +62,7 @@ class Einstellungen(BaseSettings):
     # die beantwortet nur das größte. Bleibt auch `large-v3` deutlich hinter
     # der Vorlage, ist das das Argument für ein eigenes Feintuning; trifft es,
     # war der Weg nicht nötig.
-    auswertung_modelle: str = "base,small,medium,large-v3"
-
-    # Worauf gerechnet wird - dieselbe Einstellung in allen drei Apps und beim
-    # Trainer, und das ist der ganze Sinn: „schreiben", die Auswertung in
-    # „hören" und die Bewertung eines Laufs schicken dieselben Modelle über
-    # dieselben Aufnahmen, und ihre Rechenzeiten sind nur vergleichbar, wenn
-    # sie auf demselben Rechenwerk entstanden sind. Was `auto` bedeutet und
-    # warum auf der Karte `int8_float16` gilt, steht in
-    # `wortlaut/rechenwerk.py`.
-    geraet: str = rechenwerk.AUTO  # auto | cuda | cpu
-    rechenart: str = rechenwerk.AUTO  # auto | int8 | int8_float16 | float16 | float32
-
-    def rechenwerk(self) -> tuple[str, str]:
-        """`(geraet, rechenart)` - aufgelöst, `auto` beantwortet."""
-        return rechenwerk.waehle(self.geraet, self.rechenart)
+    auswertung_modelle: str = AUSWERTUNG_MODELLE
 
     @model_validator(mode="after")
     def _tokens_muessen_sich_unterscheiden(self) -> Einstellungen:

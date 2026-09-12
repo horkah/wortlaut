@@ -196,6 +196,7 @@ wortlaut/
 │   │   │   ├── corpus.py          # Korpus-Layout lesen und schreiben
 │   │   │   ├── registry.py        # Modellstände lesen und schreiben
 │   │   │   ├── rechenwerk.py      # worauf gerechnet wird - eine Antwort für alle
+│   │   │   ├── einstellungen.py   # was jede App gleich aus der Umgebung liest
 │   │   │   ├── storage.py         # Blob-Ablage: lokal (S3 vorbereitet)
 │   │   │   ├── sicherung.py       # Sicherungsarchiv schreiben und einspielen
 │   │   │   ├── db.py              # SQLite-Verbindung, Migrationen, Sicherungskopie
