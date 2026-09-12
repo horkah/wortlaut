@@ -34,8 +34,10 @@
    * Browser (siehe `$ui/zugang`).
    */
   import Rahmen from '$ui/Rahmen.svelte';
+  import KeinZugang from '$ui/KeinZugang.svelte';
   import { MEINE_DATEN_PFAD, ZUGANGSDATEN_PFAD } from '$ui/apps';
   import {
+    gehZu,
     ladeModellstand,
     ladeZugang,
     stelleSitzungWiederHer,
@@ -43,7 +45,6 @@
   } from './lib/zustand.svelte';
   import Aufnahme from './routes/Aufnahme.svelte';
   import Ergebnis from './routes/Ergebnis.svelte';
-  import KeinZugang from './routes/KeinZugang.svelte';
   import Zugangsdaten from './routes/Zugangsdaten.svelte';
 
   // Großgeschriebene Variablen sind in Svelte 5 als Komponente verwendbar.
@@ -54,12 +55,18 @@
   const Ansicht = $derived(
     zustand.route === ZUGANGSDATEN_PFAD
       ? Zugangsdaten
-      : zustand.art === 'keiner'
-        ? KeinZugang
-        : zustand.route === '/ergebnis' && zustand.sitzung
-          ? Ergebnis
-          : Aufnahme,
+      : zustand.route === '/ergebnis' && zustand.sitzung
+        ? Ergebnis
+        : Aufnahme,
   );
+
+  // Ohne Zugang gäbe es hier nur abgewiesene Anfragen: kein Modell, keine
+  // Sitzung, kein Diktat (siehe `backend/deps.py`). Ein Aufnahmeknopf, der
+  // jedes Mal in einen Fehler liefe, wäre die schlechtere Antwort - also steht
+  // dann dieselbe eine Karte da wie in „hören" und „lernen"
+  // (`$ui/KeinZugang.svelte`). Die Zugangsdaten selbst bleiben ausgenommen:
+  // Dorthin führt sie, sie darf nicht hinter ihr liegen.
+  const ohneZugang = $derived(zustand.art === 'keiner' && zustand.route !== ZUGANGSDATEN_PFAD);
 
   // Die Zugangsdaten stehen immer da - auch und gerade ohne gültigen Zugang:
   // Dann ist der Punkt der einzige Weg herein. „Meine Daten" kommt dazu,
@@ -90,5 +97,9 @@
 </script>
 
 <Rahmen app="schreiben" route={zustand.route} {uebergreifend} {sprecher}>
-  <Ansicht />
+  {#if ohneZugang}
+    <KeinZugang {gehZu} />
+  {:else}
+    <Ansicht />
+  {/if}
 </Rahmen>

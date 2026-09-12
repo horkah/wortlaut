@@ -29,9 +29,10 @@ gemacht, und was dabei herauskommt, ist ein Link.
 
 1. Seite öffnen. Erwartet: Kopfzeile mit einer Reihe - „wortlaut“, dahinter
    die drei Apps, „hören“ dunkelgrün hinterlegt, „lernen“ und „schreiben“
-   anklickbar. Die zweite Reihe mit den Ansichten fehlt noch. Darunter Überschrift „Sprecher“ und der Hinweis, dass
-   dieser Browser keinen gültigen Zugang hat, mit dem Knopf **Zu den
-   Zugangsdaten**. Dort den Verwaltertoken eintragen, **Speichern und prüfen**,
+   anklickbar. Die zweite Reihe mit den Ansichten fehlt noch. Darunter
+   „Kein Zugang“ mit dem Knopf **Zu den Zugangsdaten** - dieselbe Karte wie in
+   „lernen“ und „schreiben“, hier um den Satz zu Verwalter- und Aufsichtstoken
+   ergänzt. Dort den Verwaltertoken eintragen, **Speichern und prüfen**,
    dann mit **Weiter zu den Sprechern** zurück. Erwartet jetzt: „Noch kein
    Sprecherprofil vorhanden.“ - der Leerzustand, keine kaputte Seite. Derselbe
    Punkt steht auch im Menü (☰) rechts oben, und zwar immer - auch ohne

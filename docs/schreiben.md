@@ -43,12 +43,13 @@ backend/
 
 frontend/src/
 ├── lib/                    api.ts, zustand.svelte.ts
-└── routes/                 Aufnahme, Ergebnis, Zugangsdaten, KeinZugang
+└── routes/                 Aufnahme, Ergebnis, Zugangsdaten
 ```
 
 Geteilt mit den anderen Apps und über `$ui` eingebunden: `Rahmen`,
-`Kopfleiste`, `Recorder`, `AudioPlayer`, `SegmentList`, `mikrofon.ts`,
-`speak.ts`, `einstellungen.svelte.ts` und `app.css` - alles in `packages/ui/`.
+`Kopfleiste`, `Recorder`, `AudioPlayer`, `SegmentList`, `KeinZugang`,
+`mikrofon.ts`, `speak.ts`, `einstellungen.svelte.ts` und `app.css` - alles in
+`packages/ui/`.
 
 ---
 

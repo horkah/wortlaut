@@ -184,7 +184,7 @@ wortlaut/
 │       │   │   └── outbox.py      # Korrekturen zurück an „hören"
 │       │   └── db/                # models.py, migrations/
 │       ├── frontend/
-│       │   └── src/routes/        # Aufnahme, Ergebnis, Zugangsdaten, KeinZugang
+│       │   └── src/routes/        # Aufnahme, Ergebnis, Zugangsdaten
 │       └── tests/                 # Diktat, Korrekturen, Modell, Zugang
 │
 ├── tests/                         # was keine einzelne App betrifft: gesamt.py
@@ -218,6 +218,7 @@ wortlaut/
 │       ├── Einstellungen.svelte   # Mikrofon, Stimme, Tempo - für alle Apps
 │       ├── Darstellung.svelte     # Farben, Schrift, was in der Leiste steht
 │       ├── Zugangsdaten.svelte    # der Zugang dieses Browsers, in jeder App
+│       ├── KeinZugang.svelte      # was dasteht, wenn keiner da ist - dreimal dasselbe
 │       ├── PinSchloss.svelte      # die PIN vor Darstellung und Zugangsdaten
 │       ├── pin.svelte.ts          # eine PIN, eine Sitzung, alle Apps
 │       ├── Textvergleich.svelte   # Vorlage gegen Erkennung, Zeichen für Zeichen

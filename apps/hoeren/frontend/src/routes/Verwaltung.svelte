@@ -16,7 +16,7 @@
    * Sprecher - eine davon immer die falsche.
    */
   import { dauer } from '$ui/zeit';
-  import { ZUGANGSDATEN_PFAD } from '$ui/apps';
+  import KeinZugang from '$ui/KeinZugang.svelte';
   import {
     ApiFehler,
     alleSprecher,
@@ -127,33 +127,23 @@
   });
 </script>
 
-<h2>Sprecher</h2>
-
-{#if fehler}
-  <p class="fehler">{fehler}</p>
-{/if}
-{#if meldung}
-  <p class="gedaempft">{meldung}</p>
-{/if}
-
 {#if zugangNoetig}
-  <!-- Ohne Zugang wären Liste und Formular zwei Sackgassen: Beide fragen
-       denselben Server, der beide abweist. Also steht hier nur der eine
-       Schritt, der weiterführt. -->
-  <div class="karte">
-    <p>
-      Dieser Browser hat keinen gültigen Zugang. Wer aufnehmen will, öffnet einmal seinen
-      persönlichen Link; wer verwaltet, trägt den Verwaltertoken ein.
-    </p>
-    <button class="knopf haupt" onclick={() => gehZu(ZUGANGSDATEN_PFAD)}>
-      Zu den Zugangsdaten
-    </button>
-    <p class="gedaempft">
-      Dieselbe Seite steht immer im Menü (☰) rechts oben. Der Token bleibt danach in diesem
-      Browser gespeichert.
-    </p>
-  </div>
+  <!-- Ohne Zugang wären Überschrift, Liste und Formular lauter Sackgassen:
+       Alle fragen denselben Server, der sie abweist. Also steht hier nur der
+       eine Schritt, der weiterführt - und zwar derselbe wie in „lernen" und
+       „schreiben" (siehe `$ui/KeinZugang.svelte`). `verwaltet`, weil dasselbe
+       Feld hier auch den Verwalter- und den Aufsichtstoken nimmt. -->
+  <KeinZugang {gehZu} verwaltet />
 {:else}
+  <h2>Sprecher</h2>
+
+  {#if fehler}
+    <p class="fehler">{fehler}</p>
+  {/if}
+  {#if meldung}
+    <p class="gedaempft">{meldung}</p>
+  {/if}
+
   {#if frisch}
     <!-- Nur jetzt zu sehen: Gespeichert ist nur der Prüfwert. Wer den Link
          wegklickt, gibt einen neuen aus - und der alte gilt dann nicht mehr. -->
