@@ -20,6 +20,7 @@
     ZUGANGSDATEN_PFAD,
     type Menuepunkt,
   } from '$ui/apps';
+  import { merkeReiter, vorgabeReiter } from '$ui/reiter';
   import { LAUF_ROUTE, laufAusRoute, ladeZugang, zustand } from './lib/zustand.svelte';
   import Aufteilung from './routes/Aufteilung.svelte';
   import Training from './routes/Training.svelte';
@@ -38,6 +39,18 @@
   const spricht = $derived(zustand.art === 'sprecher');
   const jobId = $derived(laufAusRoute(zustand.route));
 
+  // Welcher Reiter gilt, solange in der Adresse nichts steht: der, auf dem
+  // zuletzt gearbeitet wurde (siehe `$ui/reiter`). Gerade hier zählt das - ein
+  // Training dauert Stunden, und wer zwischendurch nachsieht, will „Training"
+  // sehen und nicht die Aufteilung.
+  const vorgabe = $derived(vorgabeReiter('lernen', MENUE));
+
+  $effect(() => {
+    if (spricht && MENUE.some((punkt) => punkt.pfad === zustand.route)) {
+      merkeReiter('lernen', zustand.route);
+    }
+  });
+
   // Was diese App über die gerätebezogenen Punkte hinaus ins Menü stellt.
   // „Meine Daten" liegt in „hören" - dort ist der Korpus -, steht aber hier,
   // mit voller Adresse statt Hash-Route: Wer beim Trainieren wissen will,
@@ -53,6 +66,15 @@
     { pfad: ZUGANGSDATEN_PFAD, text: 'Zugangsdaten' },
   ]);
 
+  // Die Reiter dieser App und ihre Ansichten. Eine Abbildung und keine Kette
+  // von Vergleichen: Dieselbe Zuordnung beantwortet, was `zustand.route` zeigt
+  // und was die Vorgabe zeigt.
+  const ANSICHTEN: Record<string, typeof Aufteilung> = {
+    '/aufteilung': Aufteilung,
+    '/training': Training,
+    [MODELLE_PFAD]: Modelle,
+  };
+
   // Großgeschriebene Variablen sind in Svelte 5 als Komponente verwendbar.
   //
   // Die Zugangsdaten stehen vor der Zugangsprüfung: Ohne Zugang liefert die
@@ -63,11 +85,7 @@
   const Ansicht = $derived(
     zustand.route === ZUGANGSDATEN_PFAD || !spricht
       ? Zugangsdaten
-      : ({
-          '/aufteilung': Aufteilung,
-          '/training': Training,
-          [MODELLE_PFAD]: Modelle,
-        }[zustand.route] ?? Aufteilung),
+      : (ANSICHTEN[zustand.route] ?? ANSICHTEN[vorgabe] ?? Aufteilung),
   );
 
   // Was die Kopfleiste als offen markiert. Menüansichten markieren sich
@@ -82,7 +100,7 @@
         ? '/training'
         : MENUE.some((punkt) => punkt.pfad === zustand.route)
           ? zustand.route
-          : '/aufteilung',
+          : vorgabe,
   );
 
   const name = $derived(spricht || zustand.art === 'keiner' ? zustand.name : undefined);

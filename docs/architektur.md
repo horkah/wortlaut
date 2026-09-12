@@ -190,6 +190,7 @@ wortlaut/
 │       ├── zugang.ts              # wo der Zugang liegt; ein Eintrag für alle
 │       ├── apps.ts                # die drei Apps, ihre Ansichten, das Menü,
 │       │                          # und was davon sich ausblenden lässt
+│       ├── reiter.ts              # wo man zuletzt war, je App
 │       ├── app.css                # das gemeinsame Aussehen aller Apps
 │       ├── Recorder.svelte
 │       ├── AudioPlayer.svelte

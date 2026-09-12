@@ -12,6 +12,7 @@
     ZUGANGSDATEN_PFAD,
     type Menuepunkt,
   } from '$ui/apps';
+  import { merkeReiter, vorgabeReiter } from '$ui/reiter';
   import { EINSICHT_ROUTE, ladeZugang, zustand } from './lib/zustand.svelte';
   import Verwaltung from './routes/Verwaltung.svelte';
   import Einsicht from './routes/Einsicht.svelte';
@@ -45,6 +46,31 @@
   const spricht = $derived(zustand.art === 'sprecher');
   const beaufsichtigt = $derived(zustand.art === 'aufsicht');
 
+  // Welcher Reiter gilt, solange in der Adresse nichts steht: der, auf dem
+  // zuletzt gearbeitet wurde (siehe `$ui/reiter`). Nicht angesprungen, sondern
+  // als Vorgabe eingesetzt - die Adresse bleibt leer, und der Zurück-Knopf
+  // führt nicht auf eine Seite, die niemand angesteuert hat.
+  const vorgabe = $derived(vorgabeReiter('hoeren', MENUE));
+
+  // Gemerkt wird beim Verlassen wie beim Ankommen: Jede Route, die ein Reiter
+  // dieser App ist, wird festgehalten. Menüansichten nicht - „Darstellung" ist
+  // kein Ort, an dem jemand weiterarbeiten will.
+  $effect(() => {
+    if (spricht && MENUE.some((punkt) => punkt.pfad === zustand.route)) {
+      merkeReiter('hoeren', zustand.route);
+    }
+  });
+
+  // Die Reiter dieser App und ihre Ansichten. Eine Abbildung und keine
+  // Kette von Vergleichen: Dieselbe Zuordnung beantwortet, was `zustand.route`
+  // zeigt und was die Vorgabe zeigt.
+  const ANSICHTEN: Record<string, typeof Quelle> = {
+    '/quelle': Quelle,
+    '/aufnahme': Aufnahme,
+    '/fortschritt': Fortschritt,
+    [AUSWERTUNG_PFAD]: Auswertung,
+  };
+
   // Großgeschriebene Variablen sind in Svelte 5 als Komponente verwendbar.
   //
   // Die Zugangsdaten stehen vor der Zugangsprüfung: Ohne Zugang liefert die
@@ -68,12 +94,7 @@
             : // Die Reiter dieser App. Die Auswertung steht mit darin: Sie
               // misst den eigenen Korpus und braucht darum einen Sprecher,
               // genau wie das Aufnehmen selbst.
-              ({
-                '/quelle': Quelle,
-                '/aufnahme': Aufnahme,
-                '/fortschritt': Fortschritt,
-                [AUSWERTUNG_PFAD]: Auswertung,
-              }[zustand.route] ?? Quelle),
+              (ANSICHTEN[zustand.route] ?? ANSICHTEN[vorgabe] ?? Quelle),
   );
 
   // Nur wer aufnimmt, hat Ansichten zu wechseln; die Verwaltung hat eine
@@ -113,7 +134,7 @@
         ? SPRECHER_PFAD
         : MENUE.some((punkt) => punkt.pfad === zustand.route)
           ? zustand.route
-          : '/quelle',
+          : vorgabe,
   );
 
   // Für die Kopfzeile: der Name, den der Server zum vorgelegten Zugang nennt -
