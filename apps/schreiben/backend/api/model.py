@@ -1,4 +1,4 @@
-"""Welcher Modellstand für **diesen** Sprecher läuft - und welche zur Wahl stehen.
+"""Wie die Erkennung für **diesen** Sprecher läuft - Modell und Aufbereitung.
 
 Ein Modell gehört zu genau einem Menschen (Grundentscheidung 3), und wer hier
 diktiert, diktiert auf seinem eigenen. Diese Auskunft hängt deshalb am Zugang
@@ -16,6 +16,10 @@ Aufgegeben wird dabei nichts: Die Kopfzeile nennt weiterhin dauerhaft, was
 gerade arbeitet - jetzt samt Methode und Datensatz, denn vier Stände vom selben
 Tag wären sonst nicht auseinanderzuhalten. Wer eine Ausgabe beurteilt,
 beurteilt immer ein bestimmtes Modell.
+
+Die zweite Stellschraube daneben ist das **Aussteuern** vor dem Erkennen
+(Vorgabe: an). Warum es hilft und warum nur die gehörte Fassung davon
+betroffen ist, steht in `services/erkennung.py`.
 """
 
 from __future__ import annotations
@@ -25,7 +29,7 @@ from pydantic import BaseModel
 
 from ..config import einstellungen
 from ..deps import Datenbank, SprecherId, modellstand
-from ..services import modellwahl
+from ..services import erkennung
 
 router = APIRouter(prefix="/api/model", tags=["Modell"])
 
@@ -62,6 +66,8 @@ class ModellAntwort(BaseModel):
     laufzeit: str  # local | remote
     # Ob der Sprecher ausdrücklich gewählt hat - sonst gilt die Vorgabe.
     gewaehlt: bool
+    # Ob das Diktat vor dem Erkennen ausgesteuert wird.
+    aussteuern: bool
     # Eine Zeile für die Kopfzeile - hier gebaut, damit alle Ansichten
     # dieselbe Auskunft geben.
     beschriftung: str
@@ -69,8 +75,16 @@ class ModellAntwort(BaseModel):
 
 
 class Auswahl(BaseModel):
-    # Leer setzt zurück auf die Vorgabe: den freigegebenen Stand aus „lernen".
-    ref: str = ""
+    """Was geändert werden soll. Was fehlt, bleibt, wie es war.
+
+    Beide Felder sind eigens `None`-fähig und nicht bloß vorbelegt: Ein leeres
+    `ref` heißt „zurück zur Vorgabe", und das ist etwas anderes als „das Modell
+    nicht anfassen". Ohne die Unterscheidung setzte ein Umlegen des Schalters
+    nebenbei die Modellwahl zurück.
+    """
+
+    ref: str | None = None
+    aussteuern: bool | None = None
 
 
 def _auswahl(sprecher: str) -> list[WahlAntwort]:
@@ -86,11 +100,11 @@ def _auswahl(sprecher: str) -> list[WahlAntwort]:
             wer=wahl.wer,
             freigegeben=wahl.freigegeben,
         )
-        for wahl in modellwahl.auswahl(einstellungen(), sprecher)
+        for wahl in erkennung.auswahl(einstellungen(), sprecher)
     ]
 
 
-def _antwort(sprecher: str, wahl: str) -> ModellAntwort:
+def _antwort(sprecher: str, wahl: str, ausgesteuert: bool) -> ModellAntwort:
     konfiguration = einstellungen()
     stand = modellstand(konfiguration, sprecher, wahl)
     auswahl = _auswahl(sprecher)
@@ -109,6 +123,7 @@ def _antwort(sprecher: str, wahl: str) -> ModellAntwort:
             wer=None,
             laufzeit=konfiguration.asr,
             gewaehlt=bool(wahl),
+            aussteuern=ausgesteuert,
             beschriftung=f"whisper-{name} · unverändert",
             auswahl=auswahl,
         )
@@ -127,6 +142,7 @@ def _antwort(sprecher: str, wahl: str) -> ModellAntwort:
             wer=None,
             laufzeit=konfiguration.asr,
             gewaehlt=bool(wahl),
+            aussteuern=ausgesteuert,
             beschriftung=f"Modellstand {ref} nicht gefunden",
             auswahl=auswahl,
         )
@@ -148,6 +164,7 @@ def _antwort(sprecher: str, wahl: str) -> ModellAntwort:
         wer=wer,
         laufzeit=konfiguration.asr,
         gewaehlt=bool(wahl),
+        aussteuern=ausgesteuert,
         beschriftung=" · ".join(
             teil
             for teil in (
@@ -166,22 +183,34 @@ def _antwort(sprecher: str, wahl: str) -> ModellAntwort:
 
 @router.get("", response_model=ModellAntwort)
 def modell(sprecher: SprecherId, db: Datenbank) -> ModellAntwort:
-    return _antwort(sprecher, modellwahl.gewaehlt(db, einstellungen(), sprecher))
+    return _antwort(
+        sprecher,
+        erkennung.gewaehlt(db, einstellungen(), sprecher),
+        erkennung.aussteuern(db),
+    )
 
 
 @router.put("", response_model=ModellAntwort)
 def waehle(auswahl: Auswahl, sprecher: SprecherId, db: Datenbank) -> ModellAntwort:
-    """Ein anderes Modell benutzen. Leere Wahl heißt: zurück zur Vorgabe.
+    """Modell oder Aufbereitung ändern. Was nicht genannt wird, bleibt stehen.
 
-    Geprüft wird gegen die Liste und nicht gegen das Dateisystem: Wählbar ist,
-    was diese App anbietet. Ein beliebiger Pfad im Feld wäre sonst ein Weg,
-    fremde Verzeichnisse laden zu lassen - und ein Stand eines anderen
+    Beim Modell wird gegen die Liste geprüft und nicht gegen das Dateisystem:
+    Wählbar ist, was diese App anbietet. Ein beliebiger Pfad im Feld wäre sonst
+    ein Weg, fremde Verzeichnisse laden zu lassen - und der Stand eines anderen
     Sprechers ist fremde Stimme.
     """
     if auswahl.ref and auswahl.ref not in {
-        wahl.ref for wahl in modellwahl.auswahl(einstellungen(), sprecher)
+        wahl.ref for wahl in erkennung.auswahl(einstellungen(), sprecher)
     }:
         raise HTTPException(status_code=404, detail="Dieses Modell steht hier nicht zur Wahl.")
 
-    modellwahl.waehle(db, auswahl.ref)
-    return _antwort(sprecher, auswahl.ref)
+    if auswahl.ref is not None:
+        erkennung.waehle(db, auswahl.ref)
+    if auswahl.aussteuern is not None:
+        erkennung.setze_aussteuern(db, auswahl.aussteuern)
+
+    return _antwort(
+        sprecher,
+        erkennung.gewaehlt(db, einstellungen(), sprecher),
+        erkennung.aussteuern(db),
+    )

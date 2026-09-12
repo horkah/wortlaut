@@ -22,19 +22,21 @@ class Basis(DeclarativeBase):
     pass
 
 
-class Modellwahl(Basis):
-    """Womit dieser Sprecher gerade diktiert - genau eine Zeile (`002_modellwahl.sql`).
+class Erkennung(Basis):
+    """Wie die Erkennung dieses Sprechers läuft - genau eine Zeile (`003_erkennung.sql`).
 
-    Fehlt sie, gilt der freigegebene Stand aus „lernen" und, solange es keinen
-    gibt, das unveränderte Grundmodell. Eine leere Tabelle ist also keine
-    fehlende Einstellung, sondern die Vorgabe.
+    Fehlt sie, gilt überall die Vorgabe: beim Modell der freigegebene Stand aus
+    „lernen" und, solange es keinen gibt, das unveränderte Grundmodell; beim
+    Aussteuern „an". Eine leere Tabelle ist also keine fehlende Einstellung,
+    sondern die unangetastete.
     """
 
-    __tablename__ = "modellwahl"
+    __tablename__ = "erkennung"
 
     id: Mapped[int] = mapped_column(primary_key=True, default=1)
-    ref: Mapped[str]
-    gewaehlt: Mapped[str]
+    modell_ref: Mapped[str]
+    aussteuern: Mapped[bool]
+    geaendert: Mapped[str]
 
 
 class Sitzung(Basis):

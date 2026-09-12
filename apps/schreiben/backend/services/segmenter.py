@@ -8,6 +8,18 @@ abgelegt.
 
 Die zusammenhängende Aufnahme wird dabei nicht behalten. Sie wäre eine zweite
 Kopie derselben Stimmdaten, und gebraucht wird sie nach dem Schnitt nicht mehr.
+
+**Ausgesteuert wird nur, was Whisper hört.** Vor dem Erkennen geht eine lauter
+gerechnete Fassung an das Modell (`aussteuern`, Vorgabe an - siehe
+`services/erkennung.py`). Geschnitten und abgelegt wird dagegen aus der
+Aufnahme, wie sie gesprochen wurde. Das ist kein Detail, sondern die Grenze
+zwischen Hörhilfe und Datensatz: Aus einer bestätigten Korrektur wird in
+„hören" eine Aufnahme im Korpus, und dort entsteht aus ihr selbst eine
+ausgesteuerte Fassung. Läge hier schon eine ausgesteuerte als „Original",
+wäre die Abwandlung drüben ein Nichts.
+
+Die Zeitmarken passen dabei weiterhin: Das Aussteuern ändert die Lautstärke
+jedes Abtastwerts, nicht ihre Zahl - beide Fassungen sind gleich lang.
 """
 
 from __future__ import annotations
@@ -17,7 +29,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from wortlaut import audio as klang
-from wortlaut import ids, storage
+from wortlaut import augmentierung, ids, storage
 from wortlaut.whisper import Transkriptor
 
 from ..config import audio_relpfad
@@ -39,6 +51,7 @@ def zerlege(
     ablage: storage.Ablage,
     sprache: str,
     sprecher_id: str,
+    aussteuern: bool = True,
 ) -> list[Rohabschnitt]:
     """Aufnahme des Browsers → Abschnitte mit je eigener WAV-Datei.
 
@@ -48,7 +61,9 @@ def zerlege(
     """
     with tempfile.TemporaryDirectory() as verzeichnis:
         wav = _als_wav(eingang, Path(verzeichnis))
-        transkript = transkriptor.transkribiere(wav, sprache)
+        transkript = transkriptor.transkribiere(
+            _fuer_whisper(wav, Path(verzeichnis), aussteuern), sprache
+        )
 
         abschnitte: list[Rohabschnitt] = []
         for nummer, abschnitt in enumerate(transkript.abschnitte):
@@ -78,6 +93,7 @@ def sprich_neu_ein(
     sprache: str,
     sprecher_id: str,
     kennung: str,
+    aussteuern: bool = True,
 ) -> Rohabschnitt:
     """Eine einzelne, kurze Aufnahme für genau einen Abschnitt.
 
@@ -87,7 +103,9 @@ def sprich_neu_ein(
     """
     with tempfile.TemporaryDirectory() as verzeichnis:
         wav = _als_wav(eingang, Path(verzeichnis))
-        transkript = transkriptor.transkribiere(wav, sprache)
+        transkript = transkriptor.transkribiere(
+            _fuer_whisper(wav, Path(verzeichnis), aussteuern), sprache
+        )
         befund = klang.untersuche(wav)
         relpfad = audio_relpfad(sprecher_id, kennung)
         ablage.lege_ab(relpfad, wav)
@@ -104,3 +122,26 @@ def _als_wav(eingang: bytes, verzeichnis: Path) -> Path:
     wav = verzeichnis / "diktat.wav"
     klang.wandle_in_wav(roh, wav)
     return wav
+
+
+def _fuer_whisper(wav: Path, verzeichnis: Path, aussteuern: bool) -> Path:
+    """Die Fassung, die das Modell zu hören bekommt - ausgesteuert oder nicht.
+
+    Eine zweite Datei daneben und keine Änderung an der ersten: Aus der ersten
+    wird geschnitten und abgelegt (siehe Kopfkommentar). Sie liegt im selben
+    temporären Verzeichnis und verschwindet mit ihm.
+
+    Scheitert das Aussteuern, geht die Aufnahme unverändert an das Modell. Es
+    ist eine Hörhilfe und keine Bedingung; ein Diktat daran scheitern zu
+    lassen, wäre der schlechtere Handel.
+    """
+    if not aussteuern:
+        return wav
+    ziel = verzeichnis / "ausgesteuert.wav"
+    try:
+        # `keim` bleibt leer: Er steuert nur das Rauschen der Abwandlung
+        # `rauschen`; das Aussteuern würfelt nicht.
+        augmentierung.wandle_ab(wav, ziel, "pegel", keim="")
+    except klang.AudioFehler:
+        return wav
+    return ziel

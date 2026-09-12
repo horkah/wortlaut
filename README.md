@@ -1362,6 +1362,31 @@ Aufnahmeknopf nennt es dauerhaft - jetzt samt Methode und Datensatz, denn vier
 Stände vom selben Tag wären sonst nicht auseinanderzuhalten - und sie ist
 zugleich der Weg zur Auswahl: Wer sie liest, denkt gerade darüber nach.
 
+### Aussteuern vor dem Erkennen
+
+Auf derselben Seite steht ein Schalter, und er ist **an**: Vor dem Erkennen
+wird das Diktat lauter gerechnet, bis seine Spitze knapp unter dem Anschlag
+steht - dieselbe Abwandlung, die `hören` als `pegel` neben jede Aufnahme legt.
+Der Aufnahmepegel eines Browsers hängt am Gerät, am Abstand und an der Stimme;
+bei leisen Aufnahmen schöpft Whisper den Wertebereich nicht aus, den seine
+Merkmalsberechnung erwartet, und gerade die kleineren Modelle hören mit
+Aussteuerung merklich besser. Es ist zugleich das schlichteste denkbare
+Verfahren - ein einziger Faktor über die ganze Aufnahme - und ändert nichts
+daran, *wie* gesprochen wurde, nur daran, wie weit der Regler aufgedreht war.
+
+Abschaltbar bleibt es trotzdem: Wer eine gut ausgesteuerte Kette hat, gewinnt
+nichts mehr und soll die Aufbereitung nicht aufgedrängt bekommen.
+
+**Ausgesteuert wird nur, was Whisper hört.** Abgelegt und später als Korrektur
+an `hören` gegeben wird die Aufnahme, wie sie gesprochen wurde. Das ist kein
+Detail, sondern die Grenze zwischen Hörhilfe und Datensatz: Aus einer
+bestätigten Korrektur wird drüben eine Aufnahme im Korpus, und dort entsteht
+aus ihr selbst eine ausgesteuerte Fassung. Läge hier schon eine ausgesteuerte
+als „Original", wäre die Abwandlung drüben ein Nichts - und der Vergleich der
+vier Fassungen für genau diese Aufnahmen stillschweigend entwertet. Die
+Zeitmarken, an denen geschnitten wird, passen weiterhin: Das Aussteuern ändert
+die Lautstärke jedes Abtastwerts, nicht ihre Zahl.
+
 ---
 
 ## App „schreiben"
@@ -1506,7 +1531,7 @@ stehen kann.
 | `sessions` | eine Diktiersitzung |
 | `segments` | Text, Reihenfolge, Audio, Herkunft (initial/neu) |
 | `outbox` | offene Korrekturen mit Wiederholungszähler |
-| `modellwahl` | welches Modell dieser Sprecher gewählt hat - genau eine Zeile |
+| `erkennung` | Modell und Aufbereitung dieses Sprechers - genau eine Zeile |
 
 Zugriff über SQLAlchemy 2.0 mit typisierten Modellen. Schemaänderungen als
 nummerierte `.sql`-Dateien. Kein Alembic - bei diesem Schemaumfang ist die

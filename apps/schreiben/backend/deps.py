@@ -43,7 +43,7 @@ from .config import Einstellungen, einstellungen
 # würde jede Antwort um Sekunden verzögern.
 #
 # Der Schlüssel der Transkriptoren ist das **Modell** und nicht der Sprecher:
-# Seit sich ein Modell zur Laufzeit wählen lässt (`services/modellwahl.py`),
+# Seit sich ein Modell zur Laufzeit wählen lässt (`services/erkennung.py`),
 # gäbe ein Zwischenspeicher je Sprecher nach einem Wechsel weiter das alte
 # Modell heraus - ein Fehler, den niemand als Fehler erkennte, weil einfach
 # der gewohnte Text herauskäme.
@@ -99,7 +99,7 @@ def modellstand(
 ) -> tuple[str, dict] | None:
     """Der Stand, der gerade gilt: `(ref, manifest)` - oder None für ein Grundmodell.
 
-    Die Rangfolge steht in `services/modellwahl.py`; hier wird sie ausgeführt:
+    Die Rangfolge steht in `services/erkennung.py`; hier wird sie ausgeführt:
 
     1. `wahl` - was der Sprecher ausdrücklich ausgewählt hat. Ein Grundmodell
        (kein Schrägstrich darin) ist ebenfalls eine Wahl und ergibt `None`:
@@ -108,7 +108,7 @@ def modellstand(
     3. Der freigegebene Stand *dieses* Sprechers. Ein Modell gehört zu genau
        einem Menschen (Grundentscheidung 3).
     """
-    from .services.modellwahl import ist_stand
+    from .services.erkennung import ist_stand
 
     if wahl:
         ref = wahl
@@ -205,10 +205,10 @@ def _transkriptor(
     """Der Erkenner mit dem gewählten Modell.
 
     Die Datenbank hängt mit drin, seit die Wahl dort steht
-    (`002_modellwahl.sql`). Das ist der Preis dafür, dass sich ein Modell zur
+    (`003_erkennung.sql`). Das ist der Preis dafür, dass sich ein Modell zur
     Laufzeit wechseln lässt, ohne einen Container neu zu starten.
     """
-    from .services.modellwahl import gewaehlt
+    from .services.erkennung import gewaehlt
 
     return transkriptor_fuer(sprecher_id, gewaehlt(db, einstellungen(), sprecher_id))
 
