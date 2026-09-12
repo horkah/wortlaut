@@ -119,4 +119,9 @@ class Erkennung(Basis):
     wil: Mapped[float]
     genauigkeit: Mapped[float]
     rechenzeit_s: Mapped[float]
+    # Worauf diese Zeile gerechnet wurde: `cuda/int8_float16` oder `cpu/int8`
+    # (siehe `008_rechenwerk.sql` und `wortlaut/rechenwerk.py`). Ohne diese
+    # Angabe ist die Rechenzeit daneben keine Auskunft, sondern eine Zahl.
+    # Leer heißt „unbekannt" - gemessen, bevor es die Spalte gab.
+    rechenwerk: Mapped[str]
     erstellt: Mapped[str]

@@ -243,6 +243,19 @@ beide stammen aus derselben Datei (`wortlaut/metriken.py`):
 Ein drittes Mal zu messen wäre eine dritte Gelegenheit, es anders zu machen:
 anderes Gerät, andere Quantisierung, andere Textangleichung.
 
+**Die Rechenzeit ist eine Eigenschaft der Maschine, nicht des Modells.** Sie
+stand hier eine Zeitlang als vergleichbare Zahl und war es nicht: Die
+Grundmodelle wurden auf dem Prozessor gemessen, die eigenen Stände im Trainer
+auf der Karte, und in der Spalte standen vier Sekunden neben einer
+Viertelsekunde für dasselbe whisper-small. Beide Zahlen stimmten.
+
+Seitdem entscheidet **eine** Stelle, worauf erkannt wird
+(`wortlaut/rechenwerk.py`), und jede Messung trägt mit, worauf sie entstand.
+Nennen nicht alle Zeilen dasselbe Rechenwerk - weil ein Lauf auf den Prozessor
+ausweichen musste oder weil noch alte Zeilen dastehen -, vergleicht die Spalte
+nicht: Es gibt keine Bestmarke, jede Zahl trägt ihre Maschine als Marke, und
+über der Tabelle steht, warum.
+
 **Verglichen wird nur, was alle gemessen haben.** Die Einheit ist nicht die
 Aufnahme, sondern das Paar aus Aufnahme und Fassung; aus allen Modellen, die
 überhaupt etwas gemessen haben, wird die Schnittmenge dieser Paare gebildet,

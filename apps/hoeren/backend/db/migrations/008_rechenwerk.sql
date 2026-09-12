@@ -1,0 +1,26 @@
+-- Jede Messung sagt, worauf sie entstanden ist.
+--
+-- Eine Rechenzeit ohne die Maschine daneben ist keine Auskunft. Genau das war
+-- der Fall: Die Auswertung maß auf dem Prozessor, der Trainer maß seinen
+-- fertigen Stand auf der Karte, und in der Modellübersicht von „lernen"
+-- standen vier Sekunden neben einer Viertelsekunde - zwei richtige Zahlen, die
+-- nebeneinander etwas Falsches behaupteten.
+--
+-- Seit die Erkennung überall die Karte nimmt, wenn eine da ist
+-- (`wortlaut/rechenwerk.py`), ist das nicht mehr eingebaut, sondern nur noch
+-- möglich: Die Karte kann belegt sein, und dann weicht ein Lauf auf den
+-- Prozessor aus. Unbemerkt bliebe das nicht folgenlos - die Zeiten dieses
+-- Laufs wären zehnmal so hoch wie die davor und sähen aus wie ein schlechteres
+-- Modell.
+--
+-- Diese Spalte hält fest, was tatsächlich gerechnet hat: `cuda/int8_float16`
+-- oder `cpu/int8`. Eine Zeichenkette und keine zwei Spalten - sie wird nur
+-- verglichen und nie zerlegt.
+--
+-- **Warum leer als Vorgabe und nicht `cpu/int8`.** Was vor dieser Änderung
+-- gemessen wurde, lief zwar auf dem Prozessor, aber das weiß diese Migration
+-- nicht: Die Einstellung war `auto`, und auf einem Wirt mit Karte im
+-- Web-Container wäre es `cuda/float16` gewesen. Leer heißt „unbekannt", und
+-- unbekannt ist die ehrliche Auskunft - die Auswertung rechnet solche Zeilen
+-- neu, sobald sie an ihnen vorbeikommt.
+ALTER TABLE erkennungen ADD COLUMN rechenwerk TEXT NOT NULL DEFAULT '';

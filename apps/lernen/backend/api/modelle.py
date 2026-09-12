@@ -94,8 +94,9 @@ MASSE = [
         kurz="Zeit",
         erklaerung=(
             "Sekunden je Testaufnahme - die andere Hälfte jeder Modellwahl. "
-            "Gemessen dort, wo das Modell lief; zwischen Karte und Prozessor "
-            "liegen Größenordnungen."
+            "Sie hängt an der Maschine und nicht am Modell: Zwischen Karte und "
+            "Prozessor liegt das Zehn- bis Zwanzigfache. Verglichen wird sie "
+            "deshalb nur, wenn alle Zeilen dasselbe Rechenwerk nennen."
         ),
         hoch_ist_gut=False,
         einheit=" s",
@@ -148,6 +149,11 @@ class ModellAntwort(BaseModel):
     version: str | None
     job_id: str | None
     freigegeben: bool
+    # Worauf die Zahlen dieser Zeile gemessen wurden - `cuda/int8_float16`,
+    # `cpu/int8`, leer bei Unbekanntem oder Gemischtem. Nur die **Rechenzeit**
+    # hängt daran; Genauigkeit und Fehlerraten ändern sich mit der Maschine
+    # nicht nennenswert.
+    rechenwerk: str
     # fassung -> maß -> Wert. Leer heißt: für dieses Modell liegt auf den
     # gemeinsamen Testaufnahmen nichts vor.
     werte: dict[str, dict[str, float]]
@@ -169,6 +175,11 @@ class UebersichtAntwort(BaseModel):
     # Einheit, die jedes messende Modell hat - jede Zeile rechnet dann auf dem,
     # was sie hat, und die Ansicht sagt es dazu.
     vergleichbar: bool
+    # Ob die **Rechenzeiten** untereinander etwas aussagen: Sie tun es nur,
+    # wenn alle messenden Modelle dasselbe Rechenwerk nennen. Ein Prozessor
+    # und eine Karte trennen sie um eine Größenordnung, und das sagt nichts
+    # über das Modell.
+    zeit_vergleichbar: bool
     hinweis: str
 
 
@@ -233,6 +244,13 @@ def uebersicht(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> Uebersich
     # steht stattdessen als Hinweis darüber.
     messende = [ref for ref, reihe in reihen.items() if reihe.werte]
     vergleichbar = len(messende) > 1 and bool(gemeinsam)
+    # Die Rechenzeit ist eine Eigenschaft der Maschine, nicht des Modells:
+    # Dasselbe whisper-small braucht auf einem Prozessor das Zehn- bis
+    # Zwanzigfache dessen, was es auf einer Karte braucht. Verglichen werden
+    # darf die Spalte nur, wenn alle dasselbe Rechenwerk nennen - und ein
+    # unbekanntes zählt nicht als dasselbe.
+    werke = {reihen[ref].werk for ref in messende}
+    zeit_vergleichbar = len(werke) == 1 and "" not in werke
     freigegeben = registry.freigegeben(konfiguration.data_dir, sprecher)
 
     def zeile(ref: str, art: str, name: str, herkunft: str, manifest: dict) -> ModellAntwort:
@@ -243,6 +261,7 @@ def uebersicht(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> Uebersich
             art=art,
             name=name,
             herkunft=herkunft,
+            rechenwerk=reihe.werk,
             basismodell=str(manifest.get("basismodell", ref)),
             methode=manifest.get("methode"),
             daten=manifest.get("daten"),
@@ -279,6 +298,7 @@ def uebersicht(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> Uebersich
         testaufnahmen=len(aufnahmen),
         gemeinsame_einheiten=len(gemeinsam),
         vergleichbar=vergleichbar,
+        zeit_vergleichbar=zeit_vergleichbar,
         hinweis=_hinweis(aufnahmen, reihen, namen, staende),
     )
 

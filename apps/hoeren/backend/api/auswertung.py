@@ -23,6 +23,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
+from wortlaut import rechenwerk
 
 from ..config import einstellungen
 from ..db.models import Aufnahme, Erkennung, Sprecher, Vorlage
@@ -202,8 +203,18 @@ def _namen() -> list[str]:
     return auswertung.modelle(einstellungen().auswertung_modelle)
 
 
+def _werk() -> str:
+    """Das Rechenwerk, unter dem hier gemessen wird - `cuda/int8_float16` o. Ä.
+
+    Es entscheidet mit, was als gerechnet gilt: Eine Zeile, die auf einem
+    anderen entstand, trägt eine Rechenzeit, die nicht neben die übrigen passt
+    (siehe `services/auswertung.py`).
+    """
+    return rechenwerk.marke(*einstellungen().rechenwerk())
+
+
 def _stand(db: Datenbank, sprecher: str) -> StandAntwort:
-    roh = auswertung.stand(db, _namen())
+    roh = auswertung.stand(db, _namen(), _werk())
     laeuft_fuer = auswertung.laeuft_fuer()
     return StandAntwort(
         laeuft=roh.laeuft and laeuft_fuer == sprecher,
@@ -296,8 +307,8 @@ async def start(db: Datenbank, sprecher: SprecherId, ablage: Ablage) -> StandAnt
         ablage=ablage,
         namen=_namen(),
         sprache=person.sprache,
-        geraet=konfiguration.auswertung_geraet,
-        rechenart=konfiguration.auswertung_rechenart,
+        geraet=konfiguration.geraet,
+        rechenart=konfiguration.rechenart,
     )
     return _stand(db, sprecher)
 

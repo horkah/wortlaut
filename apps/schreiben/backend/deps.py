@@ -40,7 +40,8 @@ from .config import Einstellungen, einstellungen
 
 # Engines und Transkriptoren sind teuer im Aufbau und wiederverwendbar. Ein
 # Modell bleibt nach dem ersten Diktat im Speicher; ein Neuladen je Anfrage
-# würde jede Antwort um Sekunden verzögern.
+# würde jede Antwort um Sekunden verzögern - auf der Karte kämen dabei noch
+# das Belegen und Freigeben ihres Speichers dazu.
 #
 # Der Schlüssel der Transkriptoren ist das **Modell** und nicht der Sprecher:
 # Seit sich das Modell zur Laufzeit freigeben lässt (`services/erkennung.py`),
@@ -89,7 +90,16 @@ def transkriptor_fuer(sprecher_id: str) -> Transkriptor:
         else:
             from wortlaut.whisper.local import LokalerTranskriptor
 
-            _transkriptoren[schluessel] = LokalerTranskriptor(schluessel)
+            # Gerät und Rechenart kommen aus der Konfiguration und damit aus
+            # derselben Quelle wie bei der Auswertung in „hören" und beim
+            # Trainer (`wortlaut/rechenwerk.py`). Das ist nicht nur Ordnung:
+            # Nur so misst die Modellübersicht Rechenzeiten, die zu dem passen,
+            # was hier tatsächlich geschieht.
+            _transkriptoren[schluessel] = LokalerTranskriptor(
+                schluessel,
+                geraet=konfiguration.geraet,
+                rechenart=konfiguration.rechenart,
+            )
     return _transkriptoren[schluessel]
 
 

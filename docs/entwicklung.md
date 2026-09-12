@@ -39,6 +39,12 @@ uv sync --extra asr          # zusätzlich faster-whisper (nur für WORTLAUT_ASR
 Beim ersten Diktat lädt faster-whisper sein Modell herunter; das dauert einmalig
 und braucht Netz.
 
+Erkannt wird auf der Karte, wenn eine da ist - `uv sync --extra asr --extra gpu`
+legt die CUDA-Bibliotheken dazu, die CTranslate2 dafür braucht. Ohne sie
+(oder ohne Karte) fällt die Erkennung auf den Prozessor zurück, und alles
+funktioniert unverändert, nur langsamer. Welche Einstellung das steuert, steht
+in [Konfiguration](konfiguration.md#rechenwerk---worauf-erkannt-wird).
+
 `make migrate` schreibt alle Korpora auf einmal fort. Es ist kein erster
 Schritt: Neue Sprecher bekommen ihre Datenbank beim Anlegen, bestehende werden
 beim ersten Zugriff fortgeschrieben. Es ist der Weg, das für alle auf einmal und

@@ -55,9 +55,10 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from sqlalchemy import Engine, func, select
+from sqlalchemy import Engine, delete, func, select
 from sqlalchemy.orm import Session
 from wortlaut import ids, metriken, storage
+from wortlaut import rechenwerk
 from wortlaut.whisper import Transkriptor
 
 from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
@@ -160,16 +161,30 @@ def gueltige_aufnahmen(db: Session) -> list[tuple[Aufnahme, Vorlage]]:
     )
 
 
-def _fertig(db: Session) -> set[tuple[str, str, str]]:
+def _fertig(db: Session, werk: str) -> set[tuple[str, str, str]]:
+    """Was schon gemessen ist - **auf dem Rechenwerk, das gerade gilt**.
+
+    Die Einschränkung ist neu und sie ist der Preis der Vergleichbarkeit. Eine
+    Zeile, die auf dem Prozessor entstand, während jetzt die Karte rechnet,
+    trägt eine Rechenzeit, die mit den übrigen nichts zu tun hat - und das
+    zehnfach. Sie stehen zu lassen hieße, in einer Spalte zwei Maßstäbe zu
+    mischen; genau das war der Fehler, gegen den diese Änderung antritt.
+
+    Neu gerechnet wird deshalb, was aus einem anderen Rechenwerk stammt oder
+    aus keinem bekannten (die Zeilen von vor `008_rechenwerk.sql`). Das kostet
+    einmal einen vollen Lauf - auf der Karte sind das Minuten statt Stunden.
+    """
     return {
         (zeile.recording_id, zeile.modell, zeile.variante)
         for zeile in db.execute(
-            select(Erkennung.recording_id, Erkennung.modell, Erkennung.variante)
+            select(Erkennung.recording_id, Erkennung.modell, Erkennung.variante).where(
+                Erkennung.rechenwerk == werk
+            )
         ).all()
     }
 
 
-def offene_posten(db: Session, namen: list[str]) -> list[Posten]:
+def offene_posten(db: Session, namen: list[str], werk: str) -> list[Posten]:
     """Was noch zu rechnen ist, in der Reihenfolge, in der gerechnet wird.
 
     Die Schachtelung ist die Reihenfolge des Laufs: Aufnahme, dann Modell,
@@ -177,7 +192,7 @@ def offene_posten(db: Session, namen: list[str]) -> list[Posten]:
     und genau nebeneinander werden sie später gelesen - eine halb gerechnete
     Aufnahme zeigt lieber ein vollständiges Modell als vier angefangene.
     """
-    erledigt = _fertig(db)
+    erledigt = _fertig(db, werk)
     return [
         posten
         for aufnahme, vorlage in gueltige_aufnahmen(db)
@@ -197,7 +212,7 @@ def offene_posten(db: Session, namen: list[str]) -> list[Posten]:
     ]
 
 
-def zaehle(db: Session, namen: list[str]) -> tuple[int, int]:
+def zaehle(db: Session, namen: list[str], werk: str) -> tuple[int, int]:
     """(erledigt, gesamt) - beides aus der Datenbank, nie aus einem Zähler.
 
     Ein mitlaufender Zähler wäre nach jedem Neustart falsch, und genau ein
@@ -221,6 +236,11 @@ def zaehle(db: Session, namen: list[str]) -> tuple[int, int]:
             .where(
                 Erkennung.modell.in_(namen),
                 Erkennung.variante.in_(augmentierung.VARIANTEN),
+                # Dieselbe Einschränkung wie in `_fertig`: Was auf einem
+                # anderen Rechenwerk entstand, ist offen und nicht erledigt -
+                # sonst stünde der Balken bei 100 %, während der Lauf noch
+                # rechnet.
+                Erkennung.rechenwerk == werk,
             )
         )
         or 0
@@ -228,11 +248,23 @@ def zaehle(db: Session, namen: list[str]) -> tuple[int, int]:
     return erledigt, aufnahmen * len(namen) * len(augmentierung.VARIANTEN)
 
 
-def _rechne(posten: Posten, wav: Path, sprache: str, transkriptor: Transkriptor) -> Erkennung:
+def _rechne(
+    posten: Posten, wav: Path, sprache: str, transkriptor: Transkriptor, werk: str
+) -> Erkennung:
     """Erkennen und messen - der Teil, der rechnet und keine Datenbank anfasst."""
     begonnen = time.monotonic()
     transkript = transkriptor.transkribiere(wav, sprache=sprache)
     dauer = time.monotonic() - begonnen
+    # **Nach** dem Erkennen gefragt und nicht davor: Ob die Karte den Platz
+    # hergab, zeigt sich beim Laden. Wich der Transkriptor auf den Prozessor
+    # aus, steht das hier - und die Zeile daneben ist als das lesbar, was sie
+    # ist, statt wie ein plötzlich langsam gewordenes Modell auszusehen.
+    #
+    # Wer nichts zu melden hat, bekommt das Rechenwerk des Laufs: Ein
+    # entfernter Endpunkt weiß nicht, worauf er rechnet, und ein Ersatz im Test
+    # erst recht nicht. Eine leere Angabe wäre schlimmer als eine
+    # angenommene - sie ließe die Zeile bei jedem Lauf aufs Neue offen gelten.
+    werk = getattr(transkriptor, "marke", "") or werk
 
     guete = metriken.bewerte(posten.referenz, transkript.text)
     return Erkennung(
@@ -247,6 +279,7 @@ def _rechne(posten: Posten, wav: Path, sprache: str, transkriptor: Transkriptor)
         wil=guete.wil,
         genauigkeit=guete.genauigkeit,
         rechenzeit_s=dauer,
+        rechenwerk=werk,
         erstellt=jetzt(),
     )
 
@@ -272,14 +305,20 @@ async def _arbeite(
     Schreibsperre über Stunden - und währenddessen nimmt derselbe Sprecher
     womöglich weiter auf.
     """
+    # Das Rechenwerk, unter dem dieser Lauf misst, und zugleich der Maßstab
+    # dafür, was als erledigt gilt (siehe `_fertig`). Einmal aufgelöst und
+    # danach fest: Ein Lauf, der auf halber Strecke die Maschine wechselte,
+    # hinterließe eine Spalte mit zwei Maßstäben.
+    werk = rechenwerk.marke(*rechenwerk.waehle(geraet, rechenart))
+
     while True:
         with Session(engine) as db:
             offen = [
                 posten
-                for posten in offene_posten(db, namen)
+                for posten in offene_posten(db, namen, werk)
                 if posten.marke not in uebersprungen
             ]
-            zustand.erledigt, zustand.gesamt = zaehle(db, namen)
+            zustand.erledigt, zustand.gesamt = zaehle(db, namen, werk)
             zustand.uebersprungen = len(uebersprungen)
 
         if not offen:
@@ -321,6 +360,7 @@ async def _arbeite(
                 ablage.pfad(posten.variante_blob),
                 sprache,
                 transkriptor_fuer(posten.modell, geraet, rechenart),
+                werk,
             )
         except asyncio.CancelledError:
             raise
@@ -330,13 +370,27 @@ async def _arbeite(
             continue
 
         with Session(engine) as db:
+            # Die alte Zeile weicht, falls es eine gibt. Je Aufnahme, Modell
+            # und Fassung darf genau eine dastehen (`007_varianten.sql`) - und
+            # seit eine Messung aus einem anderen Rechenwerk als offen gilt,
+            # kommt der Lauf an Stellen vorbei, an denen schon etwas steht. Ein
+            # blindes Einfügen scheiterte dort am Index, der Posten landete
+            # unter „übersprungen", und die veraltete Zeile bliebe für immer
+            # stehen: Der Lauf käme nie zum Ende.
+            db.execute(
+                delete(Erkennung).where(
+                    Erkennung.recording_id == posten.aufnahme_id,
+                    Erkennung.modell == posten.modell,
+                    Erkennung.variante == posten.variante,
+                )
+            )
             db.add(erkennung)
             db.commit()
 
 
-def stand(db: Session, namen: list[str]) -> Stand:
+def stand(db: Session, namen: list[str], werk: str) -> Stand:
     """Der Stand für die Oberfläche - auch dann, wenn gerade kein Lauf läuft."""
-    erledigt, gesamt = zaehle(db, namen)
+    erledigt, gesamt = zaehle(db, namen, werk)
     if _lauf is None:
         return Stand(laeuft=False, erledigt=erledigt, gesamt=gesamt)
 
@@ -358,8 +412,8 @@ def starte(
     ablage: storage.Ablage,
     namen: list[str],
     sprache: str,
-    geraet: str = "auto",
-    rechenart: str = "int8",
+    geraet: str = rechenwerk.AUTO,
+    rechenart: str = rechenwerk.AUTO,
 ) -> Stand:
     """Einen Lauf anstoßen. Läuft schon einer, bleibt es bei ihm."""
     global _lauf

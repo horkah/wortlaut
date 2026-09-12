@@ -90,6 +90,13 @@ und liegt danach im Browser, hier wie in `hören`.
 
 ## Ohne Freigabe fängt es mit `small` an
 
+Erkannt wird auf der Karte, wenn eine da ist - dieselbe Einstellung wie in der
+Auswertung von `hören` und beim Trainer (`WORTLAUT_GERAET`, siehe
+[Konfiguration](konfiguration.md#rechenwerk---worauf-erkannt-wird)). Für ein
+Diktat ist das der Unterschied zwischen einer Sekunde Warten und mehreren.
+Ist die Karte voll, weil gerade trainiert wird, weicht die Erkennung auf den
+Prozessor aus: lieber langsam verstanden als gar nicht.
+
 Solange in `lernen` nichts freigegeben ist, lädt faster-whisper das
 unveränderte `whisper-small` aus `WORTLAUT_ASR_MODELL`. Die Zeile unter dem
 Aufnahmeknopf schreibt dauerhaft hin, was gerade arbeitet (`whisper-small ·
