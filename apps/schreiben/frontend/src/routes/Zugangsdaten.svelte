@@ -23,8 +23,24 @@
   }
 </script>
 
+<!-- Derselbe Rückweg wie bei „Modell", aus demselben Grund: Diese App hat
+     keine Reiterreihe, also muss ihn die Ansicht mitbringen. Nur solange ein
+     Zugang gilt - ohne ihn führte er auf einen Aufnahmeknopf, der ins Leere
+     liefe, und die Ansicht hier ist dann der einzige sinnvolle Ort. -->
+{#if zustand.art === 'sprecher'}
+  <p class="zurueck">
+    <button class="knopf" onclick={() => gehZu('/')}>← Zurück zum Diktieren</button>
+  </p>
+{/if}
+
 <Zugangsdaten art={zustand.art} name={zustand.name} {pruefe}>
   {#snippet weiter()}
     <button class="knopf haupt" onclick={() => gehZu('/')}>Weiter zum Diktat</button>
   {/snippet}
 </Zugangsdaten>
+
+<style>
+  .zurueck {
+    margin: 0 0 0.8rem;
+  }
+</style>

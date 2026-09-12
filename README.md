@@ -1155,7 +1155,24 @@ Alles Übrige - Lernrate, Durchgänge, Stapelgröße, LoRA-Rang - steht in
 `training/rezepte/*.yaml` und nicht in der Oberfläche. Jede Einstellmöglichkeit
 dort wäre eine, deren Wirkung später niemand mehr zuzuordnen weiß.
 
-Zwei Entscheidungen in den Rezepten sind keine Geschmacksfrage:
+Ausgeliefert wird **nicht der letzte Durchgang, sondern der beste.** Bei
+wenigen hundert kurzen Sätzen dreht die Validierungskurve irgendwo in der Mitte
+und steigt danach wieder - das Modell lernt die Trainingssätze auswendig. Wer
+den letzten Stand nimmt, liefert genau dieses Modell aus, und die Zahl der
+Durchgänge im Rezept wird zu einer Wette, die man je Korpus neu abschließen
+müsste. So ist sie nur noch eine Obergrenze: Zu hoch angesetzt kostet sie
+Rechenzeit, zu niedrig kostet sie Güte - im Zweifel lieber zu hoch.
+
+Das ist auch die Antwort auf die naheliegende Frage, ob sich aus demselben
+Material mehr herausholen ließe, indem man mit mehreren Lernraten trainiert.
+Bei knapp hundert Trainingsaufnahmen lohnt sich das nicht: Die Gefahr ist nicht,
+zu wenig zu lernen, sondern zu viel, und eine Validierung über zwanzig
+Aufnahmen unterscheidet zwei benachbarte Lernraten nicht verlässlich - was man
+dann misst, ist Rauschen. Der beste Durchgang statt des letzten holt aus
+demselben Material mehr heraus als jede Lernratensuche, und er kostet keinen
+zusätzlichen Lauf. Der Hebel, der wirklich zieht, sind mehr Aufnahmen.
+
+Zwei weitere Entscheidungen in den Rezepten sind keine Geschmacksfrage:
 
 * **Volles Training läuft mit 1e-5, LoRA mit 1e-3.** Das ist kein Tippfehler.
   Beim vollen Training zieht eine zu hohe Lernrate dem Modell in wenigen
@@ -1182,6 +1199,16 @@ der Trainer die Schrittzahl nicht genannt hat: Ein Balken bei null, der nicht
 weiß wovon, ist eine Behauptung. Vier Felder darunter zeigen, welche der vier
 Kombinationen schon gerechnet sind - gesperrt wird keine, ein zweiter Lauf nach
 fünfzig neuen Aufnahmen ist ein gutes Recht.
+
+Kommen neue Aufnahmen dazu, sagt die Ansicht es - als Zahl, nicht als
+Automatik: „23 Aufnahmen sind dazugekommen, seit zuletzt etwas fertig
+trainiert wurde." Einen Lauf von selbst anzustoßen wäre falsch, und zwar aus
+demselben Grund, aus dem auch die Auswertung in `hören` von Hand angestoßen
+wird: Ein Training belegt die Karte für Minuten bis Stunden und friert einen
+Stand des Korpus ein. Liefe es von allein, wüsste hinterher niemand mehr,
+welche Aufnahmen in welchem Modell stecken - und genau das zu wissen ist der
+Zweck des Schnappschusses. Sichtbar zu machen, wann es sich lohnt, ist die
+halbe Automatik und die richtige Hälfte.
 
 Ein Papierkorb in der Kopfzeile jeder Karte räumt einen Lauf weg. Die
 Sicherheitsabfrage nennt vorher, was verschwindet - und das ist mehr als der

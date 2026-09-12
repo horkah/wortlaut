@@ -155,6 +155,20 @@ class ListeAntwort(BaseModel):
     # Ob überhaupt beauftragt werden kann, und wenn nicht, warum.
     bereit: bool
     hinweis: str
+    # Wie viele brauchbare Aufnahmen es inzwischen gibt, und wie viele davon
+    # der jüngste durchgelaufene Lauf noch nicht kannte.
+    #
+    # Es gibt hier ausdrücklich **keine** Automatik, die daraufhin selbst
+    # trainiert: Ein Lauf belegt die Karte für Minuten bis Stunden und
+    # entsteht aus einem Schnappschuss, der festhalten soll, worauf ein Modell
+    # gelernt hat. Von selbst angestoßen wüsste hinterher niemand mehr, welche
+    # Aufnahmen in welchem Stand stecken - und zwei Läufe, die sich eine Karte
+    # teilen, wären zusammen langsamer als nacheinander. Dieselbe Überlegung
+    # wie beim Lauf der Auswertung in „hören": Wer messen will, sagt es.
+    #
+    # Was die Zahl stattdessen tut: Sie macht sichtbar, wann es sich lohnt.
+    aufnahmen_jetzt: int
+    aufnahmen_neu: int
 
 
 def _anteil(lauf: lauf_layout.Lauf) -> float | None:
@@ -213,11 +227,18 @@ def liste(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
     proben = aufteilung.proben(db, korpus)
     anzahl = aufteilung.zaehle(proben)
     genug = anzahl[lauf_layout.TRAIN] > 0 and anzahl[lauf_layout.TEST] > 0
+    alle = lauf_layout.alle_laeufe(konfiguration.data_dir, sprecher)
+
+    # Der jüngste Lauf, der wirklich durchgelaufen ist. Ein abgebrochener oder
+    # gescheiterter sagt nichts darüber, was ein Modell kennt.
+    fertige = [lauf for lauf in alle if lauf.status == lauf_layout.FERTIG]
+    zuletzt = int(fertige[-1].auftrag.get("aufnahmen", 0)) if fertige else 0
+
     return ListeAntwort(
-        laeufe=[
-            _als_antwort(lauf)
-            for lauf in reversed(lauf_layout.alle_laeufe(konfiguration.data_dir, sprecher))
-        ],
+        laeufe=[_als_antwort(lauf) for lauf in reversed(alle)],
+        aufnahmen_jetzt=len(proben),
+        # Nie negativ: Wer Aufnahmen löscht, hat nicht „minus drei neue".
+        aufnahmen_neu=max(0, len(proben) - zuletzt),
         methoden=METHODEN,
         datensaetze=DATENSAETZE,
         basismodell=konfiguration.lernen_basismodell,

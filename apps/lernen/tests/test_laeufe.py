@@ -324,3 +324,63 @@ class TestLoeschen:
         lauf = _beauftrage(klient)
         assert klient.delete(f"/lernen/api/laeufe/{lauf['job_id']}").status_code == 200
         assert klient.delete(f"/lernen/api/laeufe/{lauf['job_id']}").status_code == 404
+
+
+class TestNeueAufnahmen:
+    """Wie viele Aufnahmen ein Modell noch nicht kennt.
+
+    Keine Automatik, sondern eine Zahl: Ein Lauf belegt die Karte und friert
+    einen Stand des Korpus ein. Von selbst angestoßen wüsste hinterher niemand
+    mehr, welche Aufnahmen in welchem Modell stecken.
+    """
+
+    def test_ohne_fertigen_lauf_zaehlt_alles_als_neu(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        sprich(6)
+        antwort = klient.get("/lernen/api/laeufe").json()
+        assert antwort["aufnahmen_jetzt"] == 6
+        assert antwort["aufnahmen_neu"] == 6
+
+    def test_nach_einem_fertigen_lauf_zaehlt_nur_das_danach(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        sprich(6)
+        lauf = _beauftrage(klient)
+        laeufe.schreibe_json(
+            laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]) / laeufe.ZUSTAND,
+            {"status": laeufe.FERTIG, "version": "v1"},
+        )
+        assert klient.get("/lernen/api/laeufe").json()["aufnahmen_neu"] == 0
+
+        sprich(3)
+        antwort = klient.get("/lernen/api/laeufe").json()
+        assert antwort["aufnahmen_jetzt"] == 9
+        assert antwort["aufnahmen_neu"] == 3
+
+    def test_ein_gescheiterter_lauf_zaehlt_nicht_als_stand(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        # Er sagt nichts darüber, was ein Modell kennt - es gibt keines.
+        sprich(6)
+        lauf = _beauftrage(klient)
+        laeufe.schreibe_json(
+            laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]) / laeufe.ZUSTAND,
+            {"status": laeufe.GESCHEITERT, "fehler": "irgendwas"},
+        )
+        assert klient.get("/lernen/api/laeufe").json()["aufnahmen_neu"] == 6
+
+    def test_geloeschte_aufnahmen_ergeben_keine_negative_zahl(
+        self, klient: TestClient, hoeren: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        kennungen = sprich(6)
+        lauf = _beauftrage(klient)
+        laeufe.schreibe_json(
+            laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]) / laeufe.ZUSTAND,
+            {"status": laeufe.FERTIG, "version": "v1"},
+        )
+        assert hoeren.delete(f"/api/recordings/{kennungen[0]}").status_code == 204
+
+        antwort = klient.get("/lernen/api/laeufe").json()
+        assert antwort["aufnahmen_jetzt"] == 5
+        assert antwort["aufnahmen_neu"] == 0

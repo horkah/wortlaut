@@ -304,10 +304,11 @@
     gap: 0.5rem;
     margin-bottom: 0.75rem;
   }
+  /* Breite und Innenabstand regelt inzwischen das Stylesheet für jedes
+     Ankreuzfeld (`app.css`); hier bleibt, was nur dieses eine betrifft. */
   .kasten input {
     width: 1.1rem;
     height: 1.1rem;
-    padding: 0;
     flex: none;
   }
   /* Die globale Regel blendet `label > span` als kleine Überschrift aus; im
