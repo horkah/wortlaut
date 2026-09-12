@@ -415,11 +415,32 @@ def starte(
     geraet: str = rechenwerk.AUTO,
     rechenart: str = rechenwerk.AUTO,
 ) -> Stand:
-    """Einen Lauf anstoßen. Läuft schon einer, bleibt es bei ihm."""
+    """Einen Lauf anstoßen. Läuft schon einer, bleibt es bei ihm.
+
+    **Ist nichts offen, läuft auch nichts.** Der Lauf rechnet, was fehlt, und
+    nichts sonst - steht schon alles, wäre er fertig, bevor er anfängt. Eine
+    Aufgabe dafür anzulegen kostet nichts, hinterließe aber für einen
+    Augenblick einen Zustand, der `laeuft` sagt und nicht läuft. Die Oberfläche
+    fragt genau in diesem Augenblick nach und bekäme eine Auskunft, auf die sie
+    sich nicht verlassen kann: Sie könnte „rechnet gerade" anzeigen und im
+    nächsten Takt wieder „alles gerechnet", ohne dass etwas geschehen wäre.
+
+    Stattdessen kommt der unveränderte Stand zurück, und `laeuft` ist falsch.
+    Daran erkennt die Ansicht, dass es nichts zu tun gab, und sagt es - sonst
+    federt der Knopf zurück und sieht aus, als sei er kaputt.
+    """
     global _lauf
 
     if _lauf is not None and not _lauf.aufgabe.done():
         return _lauf.stand
+
+    werk = rechenwerk.marke(*rechenwerk.waehle(geraet, rechenart))
+    with Session(engine) as db:
+        if not offene_posten(db, namen, werk):
+            erledigt, gesamt = zaehle(db, namen, werk)
+            return Stand(
+                laeuft=False, sprecher_id=sprecher_id, erledigt=erledigt, gesamt=gesamt
+            )
 
     stand_neu = Stand(laeuft=True, sprecher_id=sprecher_id)
     uebersprungen: set[tuple[str, str, str]] = set()

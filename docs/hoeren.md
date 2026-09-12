@@ -666,6 +666,13 @@ Ein Hintergrundlauf arbeitet die offenen Tripel aus Aufnahme, Modell und
 Fassung ab, eines nach dem anderen - bei vier Modellen und vier Fassungen also
 sechzehn Messungen je Aufnahme. Vier Eigenschaften sind Absicht:
 
+* **Ist nichts offen, läuft auch nichts.** Ein zweiter Start, bei dem alles
+  schon gerechnet ist, legt keine Aufgabe an, sondern gibt den unveränderten
+  Stand zurück. Sonst stünde für einen Augenblick „läuft" da, ohne dass etwas
+  liefe - und die Ansicht, die genau dann nachfragt, zeigte etwas an, das im
+  nächsten Takt wieder verschwindet. Am Knopf **Erneut prüfen** steht dann
+  „Nichts Neues zu rechnen"; ein Knopf, der zurückfedert und sonst nichts tut,
+  ist von einem kaputten nicht zu unterscheiden.
 * **Von Hand angestoßen.** Der Lauf startet nicht beim Hochfahren des Servers.
   Whisper rechnet, und zwar auf derselben Maschine, auf der jemand gerade
   aufnimmt; ein Neustart des Containers würde sonst jedes Mal ungefragt Stunden
@@ -714,7 +721,11 @@ verworfene Aufnahme keine Lücke in der Achse hinterlässt.
 
 Je Aufnahme ein Wert je Modell - eines davon als Balken, die übrigen als
 Punkte darüber. Eine Auswahlliste unter dem Bild wechselt das Maß, eine zweite
-das Modell, das den Balken bekommt. Was noch nicht gerechnet ist, bleibt leer
+das Modell, das den Balken bekommt. Die zweite zeigt dabei, was **gilt**, und
+nicht, was gewählt wurde: Solange niemand gewählt hat, steht dort die Vorgabe
+(`small`, sonst die Mitte der Liste). Sie zeigte eine Zeitlang ein leeres Feld,
+weil die leere Wahl auf keine ihrer Optionen passte - während im Bild längst
+ein Modell als Balken stand. Was noch nicht gerechnet ist, bleibt leer
 statt auf null zu fallen: Eine Null wäre ein Modell, das nichts verstanden hat.
 Der Fortschritt steht darüber, und die Seite fragt im Takt nach, solange
 gerechnet wird.

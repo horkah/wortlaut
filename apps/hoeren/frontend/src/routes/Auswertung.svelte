@@ -78,6 +78,9 @@
   let daten = $state<Auswertung | null>(null);
   let fehler = $state('');
   let laeuftGerade = $state('');
+  // Was der letzte Knopfdruck bewirkt hat, wenn er nichts bewirkt hat. Kein
+  // Fehler, sondern eine Quittung - siehe `starte`.
+  let meldung = $state('');
 
   let metrik = $state('genauigkeit');
   // Welches Modell als Balken steht; die übrigen werden Punkte darüber. Steht
@@ -503,16 +506,42 @@
     try {
       daten = await ladeAuswertung();
       fehler = '';
+      // Sobald wieder gerechnet wird, ist die Quittung von vorhin überholt.
+      if (daten.stand.laeuft) meldung = '';
     } catch (ursache) {
       fehler = ursache instanceof Error ? ursache.message : String(ursache);
     }
   }
 
+  /**
+   * Den Lauf anstoßen - und sagen, wenn dabei nichts zu tun war.
+   *
+   * Der Lauf ist wiederaufnehmbar: Er rechnet, was fehlt, und nichts sonst
+   * (siehe `services/auswertung.py`). Steht schon alles, ist er fertig, bevor
+   * er anfängt - der Fortschritt bleibt, wo er war, der Knopf federt zurück,
+   * und für den Menschen davor sieht das aus wie ein Knopf, der kaputt ist.
+   *
+   * Deshalb diese Meldung. Sie ist kein Fehler und steht darum nicht in
+   * `fehler`: Nichts zu rechnen ist die richtige Antwort auf „erneut prüfen",
+   * wenn seit dem letzten Mal nichts dazugekommen ist. Gesagt werden muss sie
+   * trotzdem.
+   */
   async function starte() {
     laeuftGerade = 'start';
+    meldung = '';
     try {
-      await auswertungStarten();
+      // Die Antwort auf das Anstoßen sagt es selbst: `laeuft` ist genau dann
+      // falsch, wenn nichts offen war (siehe `services/auswertung.py`). Sich
+      // stattdessen auf den Stand nach `hole()` zu verlassen wäre ein Rennen -
+      // die Aufgabe im Hintergrund kann dann schon angefangen haben oder
+      // eben nicht.
+      const angestossen = await auswertungStarten();
       await hole();
+      if (!angestossen.laeuft) {
+        meldung = angestossen.gesamt
+          ? `Nichts Neues zu rechnen - alle ${angestossen.gesamt} Messungen stehen schon.`
+          : 'Noch keine Aufnahmen, an denen sich etwas messen ließe.';
+      }
     } catch (ursache) {
       fehler = ursache instanceof Error ? ursache.message : String(ursache);
     } finally {
@@ -625,7 +654,9 @@
         <button class="knopf" onclick={starte} disabled={laeuftGerade === 'start'}>
           Erneut prüfen
         </button>
-        <span class="gedaempft">Alles gerechnet. Neue Aufnahmen werden nachgeholt.</span>
+        <span class="gedaempft">
+          {meldung || 'Alles gerechnet. Neue Aufnahmen werden nachgeholt.'}
+        </span>
       {:else}
         <button class="knopf haupt" onclick={starte} disabled={laeuftGerade === 'start'}>
           Auswertung starten
@@ -663,7 +694,15 @@
     {#if modelle.length > 1}
       <label>
         <span>Als Balken</span>
-        <select bind:value={gewaehlterBalken}>
+        <!-- Gezeigt wird `balkenmodell` und nicht `gewaehlterBalken`: Solange
+             niemand gewählt hat, ist das Zweite leer, und ein leerer Wert
+             passt auf keine der Optionen - der Browser zeigt dann ein leeres
+             Feld, während im Bild längst ein Modell als Balken steht. Was
+             gilt, soll dastehen, auch wenn es die Vorgabe ist. -->
+        <select
+          value={balkenmodell}
+          onchange={(ereignis) => (gewaehlterBalken = ereignis.currentTarget.value)}
+        >
           {#each modelle as modell (modell)}
             <option value={modell}>{modell}</option>
           {/each}
