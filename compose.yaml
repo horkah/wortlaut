@@ -44,34 +44,18 @@ x-logs: &logs
     max-size: "10m"
     max-file: "3"
 
-# ── Warum die Pfade des Wirts nicht von selbst entstehen dürfen ─────────────
+# ── Die Pfade des Wirts entstehen nicht von selbst ──────────────────────────
 #
-# Drei der vier Ablagen liegen nicht im Volume, sondern in einem Pfad des
-# Wirts: die Grundmodelle, Ollamas Modelle und alles, was ein Training
-# hervorbringt. Sie liegen dort, weil sie groß sind und die Platte sonst
-# vollläuft (siehe die Kommentare an den Mounts selbst).
+# Drei Ablagen liegen nicht im Volume, sondern in einem Pfad des Wirts: die
+# Grundmodelle, Ollamas Modelle und alles, was ein Training hervorbringt
+# (warum, steht an den Mounts selbst).
 #
-# Docker legt eine fehlende Bind-Quelle stillschweigend an. Das ist genau dann
-# fatal, wenn der Pfad auf einer eigenen Platte liegt, die beim Start des
-# Containers noch nicht eingehängt ist: Dann entsteht das Verzeichnis
-# *unterhalb* des Einhängepunktes auf der Systemplatte, wird vom späteren
-# Einhängen verdeckt - und der Container hält es trotzdem weiter fest, denn
-# ein Bind-Mount hängt am Inode und nicht am Pfad. Zwei Container, die
-# denselben Pfad in ihrer compose.yaml stehen haben, sehen dann verschiedene
-# Verzeichnisse.
-#
-# Genau das ist passiert: Der Trainer wurde erzeugt, bevor /backup eingehängt
-# war, und wartete danach eine Dreiviertelstunde auf einen Auftrag, den die
-# App zwei Zentimeter daneben auf die richtige Platte geschrieben hatte. Beide
-# zeigten auf `…/snapshots`, aber auf zwei verschiedene Geräte. Hätte er dort
-# wirklich gerechnet, wären Modellstände und Laufverzeichnisse auf der
-# Systemplatte gelandet - dort, wo sie seit fünf Commits ausdrücklich nicht
-# mehr hingehören.
-#
-# `create_host_path: false` macht daraus einen lauten Fehlschlag: Fehlt der
-# Pfad, startet der Container nicht. Der Preis ist eine Zeile mehr beim ersten
-# Aufsetzen - die Verzeichnisse müssen einmal von Hand angelegt werden (siehe
-# docs/betrieb.md).
+# Docker legt eine fehlende Bind-Quelle stillschweigend an. Fehlt der Pfad -
+# etwa weil die Platte nicht eingehängt ist -, entsteht das Verzeichnis
+# anderswo, und zwanzig Gigabyte landen still auf der falschen Platte.
+# `create_host_path: false` macht daraus einen Fehlschlag beim Start: Der
+# Container läuft nicht an und nennt den Pfad, der fehlt. Der Preis ist ein
+# `mkdir -p` beim Aufsetzen, siehe docs/betrieb.md.
 x-wirtspfad: &wirtspfad
   type: bind
   bind:
