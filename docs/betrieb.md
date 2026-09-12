@@ -91,7 +91,7 @@ cd apps/schreiben/frontend && npm run check   # dasselbe für „schreiben"
 Der Testlauf braucht weder Netz noch GPU noch Mikrofon. Ohne ffmpeg im Pfad
 werden drei Tests übersprungen statt zu scheitern - die übrigen laufen
 vollständig durch. Was geprüft wird, steht im
-[README](../README.md#tests).
+[Entwicklung](entwicklung.md#tests).
 
 Den Weg im Browser deckt das nicht ab - dafür gibt es
 [`docs/manueller-test.md`](manueller-test.md), zum Durchklicken nach jeder
@@ -163,7 +163,7 @@ gelaufen ist, steht in `schema_migrations`.
 
 Daneben steht `scripts/augmentieren.py`. Es rechnet die abgewandelten Fassungen
 aller Aufnahmen - ausgesteuert, pauschal lauter, mit Rauschen; jede Aufnahme
-wird damit viermal gemessen (siehe README, „Vier Fassungen je Aufnahme").
+wird damit viermal gemessen (siehe [hören](hoeren.md#vier-fassungen-je-aufnahme)).
 Nötig ist es nicht: Die Fassungen entstehen beim Hochladen einer Aufnahme und
 spätestens dann, wenn die Auswertung sie braucht. Es ist der Weg, das für alle
 Korpora auf einmal und **vor** einem Lauf zu tun - oder vor einer Sicherung,

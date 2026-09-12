@@ -46,6 +46,30 @@ Voreingestellt: nichts. Zwei Schalter können das ändern, beide bewusst:
   noch an einer Stelle.
 - Fehlermeldungen enthalten Pfade, aber keine Transkripte oder Audioinhalte.
 
+## Was der Aufbau selbst zusichert
+
+Vier Zusagen hängen nicht an einer Einstellung, sondern daran, wie das Projekt
+gebaut ist - sie lassen sich nicht versehentlich abschalten:
+
+- **`lernen` liest den Korpus und schreibt ihn nie.** Das ist keine Zusage auf
+  Papier: Es gibt in dieser App keinen Weg, der in ihn schreibt, und ein Test
+  hält das fest (`apps/lernen/tests/test_trennung.py`).
+- **Der Trainings-Container hängt an keinem Netzweg.** Er spricht mit nichts
+  außer dem Datenverzeichnis. Stimmdaten können ihn auf keinem Weg verlassen,
+  den jemand aus Versehen öffnet.
+- **`schreiben` behält kein Audio, das es losgeworden ist.** Sobald ein
+  Abschnitt im Korpus angekommen ist, wird seine Datei dort gelöscht.
+- **Abgewandelte Fassungen gehen überall mit.** Eine ausgesteuerte oder
+  verrauschte Aufnahme ist dieselbe Stimme und damit derselbe
+  Gesundheitsdatensatz. Wer eine Aufnahme verwirft, hat nicht drei Kopien davon
+  gemeint.
+
+Dazu kommt eine Hürde, die ausdrücklich **kein** zweites Schloss ist: Wer mag -
+die Person selbst oder die Aufsicht an ihrer Stelle - legt eine vierstellige
+**PIN** vor die Ansichten „Meine Daten", „Darstellung" und „Zugangsdaten". Sie
+schützt gegen den Klick aus Versehen, nicht gegen einen Angreifer; die
+eigentliche Kennung bleibt der Zugang.
+
 ## Löschung
 
 ```bash

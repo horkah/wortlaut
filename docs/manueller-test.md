@@ -28,9 +28,8 @@ Dieser Schritt ist die Verwaltung, nicht der Alltag: Er wird einmal je Person
 gemacht, und was dabei herauskommt, ist ein Link.
 
 1. Seite öffnen. Erwartet: Kopfzeile mit einer Reihe - „wortlaut“, dahinter
-   die drei Apps, „hören“ dunkelgrün hinterlegt, „schreiben“ anklickbar und
-   „lernen“ blass und tot (die gibt es noch nicht). Die zweite Reihe mit den
-   Ansichten fehlt noch. Darunter Überschrift „Sprecher“ und der Hinweis, dass
+   die drei Apps, „hören“ dunkelgrün hinterlegt, „lernen“ und „schreiben“
+   anklickbar. Die zweite Reihe mit den Ansichten fehlt noch. Darunter Überschrift „Sprecher“ und der Hinweis, dass
    dieser Browser keinen gültigen Zugang hat, mit dem Knopf **Zu den
    Zugangsdaten**. Dort den Verwaltertoken eintragen, **Speichern und prüfen**,
    dann mit **Weiter zu den Sprechern** zurück. Erwartet jetzt: „Noch kein
@@ -50,7 +49,7 @@ gemacht, und was dabei herauskommt, ist ein Link.
 1. Den kopierten Link in die Adresszeile einfügen und öffnen. Erwartet: Die
    Adresse springt sofort zurück auf `.../#/` - das Geheimnis steht nicht mehr
    dort. Die App zeigt die Ansicht „Textquelle“, in der Kopfzeile steht eine
-   zweite Reihe (Textquelle, Aufnehmen, Fortschritt) mit „Textquelle“ hell
+   zweite Reihe (Textquelle, Aufnehmen, Fortschritt, Auswertung) mit „Textquelle“ hell
    hinterlegt, und vor dem Menüknopf steht der eingetragene Name. Weder
    „Sprecher“ noch „Einstellungen“ stehen in der Reiterreihe - die
    Einstellungen hängen hinter dem Menüknopf (☰) rechts oben, einen Punkt
@@ -306,7 +305,9 @@ bleibt die Seite leer, das ist kein Fehler.
 3. Erwartet: dieselbe Kopfzeile, jetzt mit „schreiben“ hinterlegt, keine
    zweite Reihe. Darunter mittig „Sprechen Sie einfach los.“, ein großer Knopf
    und darunter blass der Modellstand - solange „lernen“ für diesen Sprecher
-   nichts freigegeben hat, steht dort „whisper-small · unverändert“.
+   nichts freigegeben hat, steht dort „whisper-small · unverändert“. Die Zeile
+   ist ein Verweis: Ein Klick darauf führt in die Modellübersicht von „lernen“,
+   wo alle Modelle nebeneinander gemessen stehen und eines freigegeben wird.
 4. **● Aufnehmen**, zwei bis drei kurze Sätze sprechen, **■ Fertig**.
    Erwartet: „Wird verstanden …“. Beim allerersten Mal dauert das länger, weil
    faster-whisper sein Modell herunterlädt (Fortschritt in der
