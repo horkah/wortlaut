@@ -69,9 +69,12 @@ COPY --from=frontend /bau/apps/hoeren/frontend/dist ./apps/hoeren/frontend/dist
 COPY --from=frontend /bau/apps/lernen/frontend/dist ./apps/lernen/frontend/dist
 COPY --from=frontend /bau/apps/schreiben/frontend/dist ./apps/schreiben/frontend/dist
 
-# Das Whisper-Modell landet im Volume und nicht im Abbild; ohne diesen Pfad
-# lädt es jeder Neustart des Containers erneut herunter.
-ENV HF_HOME=/srv/wortlaut/data/.cache/huggingface
+# Die Grundmodelle landen in einem eigenen Ablagepfad und nicht im Abbild;
+# ohne diesen Pfad lädt sie jeder Neustart des Containers erneut herunter.
+# Getrennt vom Datenverzeichnis, weil sie das Gegenteil der Daten sind: von
+# Hugging Face jederzeit neu zu holen und mehrere Gigabyte schwer. Wohin auf
+# dem Wirt, entscheidet die compose.yaml.
+ENV HF_HOME=/srv/wortlaut/modellcache
 
 EXPOSE 8000
 CMD ["uvicorn", "apps.gesamt:app", "--host", "0.0.0.0", "--port", "8000"]

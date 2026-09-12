@@ -124,10 +124,20 @@ Volumes, sondern über die Aufsicht: Sie zieht ein Archiv, das den laufenden
 Dienst nicht anhält und trotzdem einen in sich stimmigen Stand enthält (siehe
 [Sichern und Wiederherstellen](#sichern-und-wiederherstellen)). Wer das Volume
 doch von Hand kopiert, hält den Dienst vorher an - SQLite im WAL-Modus mag
-keine Kopie mitten im Schreibvorgang. Das Whisper-Modell liegt darin unter `.cache/huggingface`;
-ohne das lüde jeder Neustart erneut herunter - der erste Start dauert deshalb
-einige Minuten, worauf die `start_period` der Healthcheck-Prüfung Rücksicht
-nimmt.
+keine Kopie mitten im Schreibvorgang.
+
+Die Grundmodelle liegen **nicht** in diesem Volume. Sie kommen von Hugging
+Face, wiegen zusammen mehrere Gigabyte und sind jederzeit neu zu holen - das
+Gegenteil des Korpus, der klein und unersetzlich ist. Deshalb ein eigener
+Pfad: Im Container immer `/srv/wortlaut/modellcache` (`HF_HOME` in den
+Dockerfiles), auf dem Wirt das, was `WORTLAUT_MODELLCACHE` in der `.env`
+sagt - hier `/backup/wortlaut/huggingface`, also die große Platte statt der
+SSD. Ohne den Eintrag landet es in `./data/modellcache` neben den Daten.
+Ein Sicherungsplan braucht diesen Pfad nicht; wer ihn löscht, verliert eine
+Wartezeit und keine Daten. Ohne ihn lüde jeder Neustart erneut herunter - der
+erste Start dauert deshalb einige Minuten, worauf die `start_period` der
+Healthcheck-Prüfung Rücksicht nimmt. Liegt er auf einer langsamen Platte,
+dauert das Laden etwas länger; gerechnet wird danach ohnehin auf der Karte.
 
 Vite läuft nicht mit - es ist reines Entwicklungswerkzeug. Beide Frontends
 werden beim `docker build` einmal gebaut und vom Prozess mit ausgeliefert.

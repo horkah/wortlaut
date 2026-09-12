@@ -28,9 +28,10 @@ RUN pip install --no-cache-dir ".[asr]"
 
 COPY --from=frontend /bau/apps/schreiben/frontend/dist ./apps/schreiben/frontend/dist
 
-# Das Modell landet im Abbild-Cache von huggingface; ohne diesen Pfad lädt es
-# jeder Neustart erneut herunter.
-ENV HF_HOME=/srv/wortlaut/data/.cache/huggingface
+# Das Modell landet in einem eigenen Ablagepfad und nicht im Abbild; ohne
+# diesen Pfad lädt es jeder Neustart erneut herunter. Getrennt vom
+# Datenverzeichnis - es ist nachladbar, die Aufnahmen sind es nicht.
+ENV HF_HOME=/srv/wortlaut/modellcache
 
 EXPOSE 8000
 CMD ["uvicorn", "apps.schreiben.backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
