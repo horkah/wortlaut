@@ -29,8 +29,6 @@ from sqlalchemy.orm import Session
 from wortlaut import corpus, db
 from wortlaut import zugang as zugangsdienst
 
-from apps.hoeren.backend.db.models import Sprecher
-
 from .config import einstellungen
 
 _engines: dict[str, Engine] = {}
@@ -84,22 +82,30 @@ def _sprecher_id(authorization: Annotated[str | None, Header()] = None) -> str:
     durch, und das ist kein Versehen: Ein Modell gehört einem Menschen, und
     wer keines hat, hat hier nichts zu sehen. Wer über alle Korpora schauen
     will, tut das in „hören", wo die Aufsicht zu Hause ist.
+
+    Geprüft wird über `wortlaut.zugang.pruefe` und nicht mehr von Hand. Hier
+    stand einmal derselbe Ablauf noch einmal ausgeschrieben - zerlegen, die
+    Korpusdatei suchen, das Sprechermodell von „hören" über eine eigene Sitzung
+    laden, den Prüfwert vergleichen. Das war die dritte Fassung derselben
+    sicherheitsrelevanten Regel, und sie brachte als einzige einen Import der
+    ORM-Modelle einer fremden App mit. Der Weg der Bibliothek öffnet den Korpus
+    ausdrücklich lesend (`mode=ro`) - er ist damit auch der richtigere: Diese
+    App schreibt nicht in den Korpus (Grundentscheidung 6).
     """
     vorgelegt = (authorization or "").removeprefix("Bearer ")
-    teile = zugangsdienst.zerlege(vorgelegt)
-    if teile is None:
+    # Zwei Lagen, zwei Sätze: Was gar kein Sprecherzugang ist - ein Verwalter-
+    # oder Aufsichtstoken - soll nicht so klingen, als sei der persönliche Link
+    # abgelaufen. Die Form entscheidet das, ohne irgendeine Datenbank zu
+    # befragen.
+    if zugangsdienst.zerlege(vorgelegt) is None:
         raise HTTPException(
             status_code=401, detail="Für diesen Weg braucht es den Zugang eines Sprechers."
         )
 
-    sprecher_id, geheimnis = teile
-    pfad = corpus.datenbank_pfad(einstellungen().data_dir, sprecher_id)
-    if pfad.is_file():
-        with Session(korpus_engine(sprecher_id)) as sitzung:
-            person = sitzung.get(Sprecher, sprecher_id)
-            if person is not None and zugangsdienst.stimmt(geheimnis, person.zugang_hash):
-                return sprecher_id
-    raise HTTPException(status_code=401, detail="Dieser Zugang gilt nicht mehr.")
+    wer = zugangsdienst.pruefe(einstellungen().data_dir, vorgelegt)
+    if wer is None:
+        raise HTTPException(status_code=401, detail="Dieser Zugang gilt nicht mehr.")
+    return wer.sprecher_id
 
 
 def _sitzung(sprecher_id: Annotated[str, Depends(_sprecher_id)]) -> Iterator[Session]:
