@@ -87,6 +87,47 @@ def _nacharbeit(lauf: laeufe.Lauf, rueckgabe: int) -> None:
     )
 
 
+def raeume_verwaiste_auf() -> list[str]:
+    """Beim Start: Läufe, die `laeuft` sagen, obwohl niemand rechnet.
+
+    **Warum der Start der richtige Augenblick ist.** Dieser Läufer rechnet
+    einen Auftrag nach dem anderen, und zwar in einem Unterprozess, den er
+    selbst startet. Wenn er hochfährt, rechnet also nichts - es kann gar
+    nichts rechnen. Jeder Lauf, der in diesem Augenblick `laeuft` sagt, ist
+    von einem Vorgänger übrig, den es nicht mehr gibt.
+
+    Das ist keine Schätzung wie `Lauf.haengt`, sondern eine Feststellung, und
+    deshalb steht sie hier und nicht in der Ansicht.
+
+    **Warum `_nacharbeit` das nicht schon erledigt.** Sie greift, wenn der
+    Unterprozess stirbt und der Läufer es sieht. Erwischt es beide zugleich -
+    der Container wird neu gebaut, die Maschine startet neu, der Kern räumt
+    auf -, sieht niemand mehr etwas. Genau dann bleibt ein Lauf stehen, der
+    `laeuft` behauptet, bis ihn jemand von Hand aus dem Verzeichnis nimmt; und
+    löschen ließ er sich bis September 2026 nicht einmal.
+    """
+    konfiguration = einstellungen()
+    verwaist = []
+    for lauf in laeufe.alle_laeufe(konfiguration.data_dir):
+        if lauf.status != laeufe.LAEUFT:
+            continue
+        laeufe.schreibe_json(
+            lauf.verzeichnis / laeufe.ZUSTAND,
+            {
+                **lauf.zustand,
+                "status": laeufe.GESCHEITERT,
+                "beendet": laeufe.jetzt(),
+                "fehler": (
+                    "Dieser Lauf rechnete noch, als der Trainer neu startete. "
+                    "Was bis dahin gerechnet wurde, steht im Protokoll daneben; "
+                    "fortsetzen lässt er sich nicht."
+                ),
+            },
+        )
+        verwaist.append(lauf.job_id)
+    return verwaist
+
+
 def einmal() -> bool:
     """Den nächsten offenen Auftrag abarbeiten; `False`, wenn keiner da war."""
     konfiguration = einstellungen()
@@ -120,6 +161,8 @@ def main() -> int:
         f"Takt: {konfiguration.lernen_takt_s} s",
         flush=True,
     )
+    for job_id in raeume_verwaiste_auf():
+        print(f"Verwaist aus einem früheren Lauf, als gescheitert vermerkt: {job_id}", flush=True)
     while True:
         try:
             if not einmal():

@@ -136,6 +136,22 @@
     bewerten: 'misst die zurückgehaltene Faltung',
   };
 
+  /**
+   * Wie lange ein Lauf schon stillsteht, für Menschen.
+   *
+   * Grob und mit Absicht: Ob es einundzwanzig oder zweiundzwanzig Minuten
+   * sind, ändert nichts an dem, was jemand jetzt tut. Dass es Minuten und
+   * nicht Sekunden sind, ändert alles.
+   */
+  function stillstand(sekunden: number | null): string {
+    const s = sekunden ?? 0;
+    if (s < 5400) return `${Math.round(s / 60)} Minuten`;
+    const stunden = s / 3600;
+    return stunden < 48
+      ? `${Math.round(stunden)} Stunden`
+      : `${Math.round(stunden / 24)} Tagen`;
+  }
+
   const STATUS: Record<string, string> = {
     wartet: 'wartet auf den Trainer',
     laeuft: 'läuft',
@@ -471,11 +487,21 @@
   <h3>Läufe</h3>
   <div class="laeufe">
     {#each laeufe as lauf (lauf.job_id)}
-      <div class="karte lauf" class:offen={lauf.status === 'laeuft'}>
+      <!-- `offen` hebt die Karte hervor, solange gerechnet wird. Ein hängender
+           Lauf gehört nicht dazu: Er sagt zwar `laeuft`, aber hervorzuheben ist
+           er nicht, weil dort etwas geschieht, sondern weil dort nichts mehr
+           geschieht - und das sagt schon das Wort daneben. -->
+      <div class="karte lauf" class:offen={lauf.status === 'laeuft' && !lauf.haengt}>
         <div class="kopfzeile">
           <p class="marke">{bezeichnung(lauf)}</p>
           <span class="rechts">
-            <span class="zustand {lauf.status}">{STATUS[lauf.status] ?? lauf.status}</span>
+            <!-- Ein hängender Lauf sagt im Zustand `laeuft`. Das hier ist die
+                 einzige Stelle, an der die Ansicht ihm widerspricht - und sie
+                 tut es, weil „läuft" neben einem Balken, der sich seit zwanzig
+                 Minuten nicht bewegt, die Unwahrheit ist. -->
+            <span class="zustand {lauf.haengt ? 'gescheitert' : lauf.status}">
+              {lauf.haengt ? 'hängt' : (STATUS[lauf.status] ?? lauf.status)}
+            </span>
             <!-- Der Papierkorb sitzt in der Kopfzeile der Karte und nicht bei
                  den Knöpfen darunter: Dort stehen die Wege weiter, hier der
                  eine Weg hinaus. Beschriftet für Vorlesestimmen, denn ein
@@ -515,7 +541,17 @@
           {lauf.zeilen.gesamt ?? 0} Proben über {daten?.faltungen ?? 6} Faltungen
         </p>
 
-        {#if lauf.status === 'laeuft'}
+        {#if lauf.haengt}
+          <!-- Kein Balken. Ein Fortschrittsbalken sagt „gleich kommt der
+               nächste Schritt", und genau das stimmt hier nicht. Was
+               stattdessen dasteht, ist die Auskunft, die weiterhilft: wie weit
+               er kam, und seit wann nichts mehr geschah. -->
+          <p class="hinweise">
+            Seit {stillstand(lauf.stillstand_s)} hat dieser Lauf nichts mehr geschrieben.
+            {#if lauf.anteil !== null}Er steht bei {(lauf.anteil * 100).toFixed(0)} %.{/if}
+            Fortsetzen lässt er sich nicht - er lässt sich aber löschen.
+          </p>
+        {:else if lauf.status === 'laeuft'}
           <!-- Der Balken bleibt leer, solange der Trainer die Schrittzahl nicht
                genannt hat: Ein Balken, der bei null steht und nicht weiß, wovon,
                ist eine Behauptung. Die Stufe daneben sagt, dass es vorangeht. -->

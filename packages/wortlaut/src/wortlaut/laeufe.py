@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import time
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -241,6 +242,12 @@ FERTIG = "fertig"
 GESCHEITERT = "gescheitert"
 ABGEBROCHEN = "abgebrochen"
 
+# Ab wann ein Lauf, der `laeuft` sagt, als hängend gilt: eine Viertelstunde
+# ohne ein geschriebenes Byte. Siehe `Lauf.haengt` - die Zahl steht hier, weil
+# sie eine Aussage über dieses Verzeichnis ist und nicht über die Ansicht, die
+# sie zeigt.
+STILLSTAND_S = 15 * 60
+
 
 def jetzt() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
@@ -349,6 +356,61 @@ class Lauf:
     def offen(self) -> bool:
         """Noch zu rechnen - das ist die ganze Warteschlange."""
         return self.status == WARTET
+
+    @property
+    def stillstand_s(self) -> float:
+        """Wie lange dieser Lauf schon nichts mehr geschrieben hat, in Sekunden.
+
+        Der Puls eines Laufs sind seine Dateien. Ein rechnender Trainer
+        schreibt fortwährend: Fortschritt, Protokoll, Zustand. Hört das auf,
+        während der Zustand `laeuft` sagt, dann rechnet entweder nichts mehr,
+        oder es rechnet und kommt nicht voran - von außen ist das dasselbe.
+
+        **Warum über die Dateien und nicht über den Prozess.** Weil er in einem
+        anderen Container steckt. Der Webdienst sieht ihn nicht und soll ihn
+        auch nicht sehen: Zwischen Oberfläche und Karte liegt ein Verzeichnis
+        und kein Netzwerkweg - das ist die Grundentscheidung dieses Teils
+        (`training/laeufer.py`). Was durch dieses Verzeichnis nicht zu
+        erfahren ist, ist hier nicht zu erfahren.
+
+        Für einen Lauf, der nie angefangen hat, zählt der Auftrag: Auch er ist
+        eine Datei, und sein Alter ist dann das richtige Maß.
+        """
+        juengste = 0.0
+        for name in (FORTSCHRITT, PROTOKOLL, ZUSTAND, AUFTRAG):
+            datei = self.verzeichnis / name
+            try:
+                juengste = max(juengste, datei.stat().st_mtime)
+            except OSError:
+                continue
+        if juengste == 0.0:
+            return 0.0
+        return max(0.0, time.time() - juengste)
+
+    @property
+    def haengt(self) -> bool:
+        """Sagt `laeuft`, rührt sich aber nicht mehr.
+
+        Das kommt auf zwei Wegen zustande, und beide enden gleich:
+
+        * Der Prozess ist tot, ohne es sagen zu können - der Trainer-Container
+          wurde neu gestartet, die Maschine ist neu gestartet, der Kern hat
+          ihn erschlagen. `laeufer._nacharbeit` fängt das sonst ab, kommt aber
+          selbst nicht mehr dazu, wenn es ihn mit erwischt hat.
+        * Der Prozess lebt und kommt nicht voran.
+
+        Von außen ist beides dasselbe, und für den Menschen davor auch: Da
+        steht ein Lauf bei 3 % und bewegt sich nicht. Genau das soll dastehen,
+        statt eines Fortschrittsbalkens, der Zuversicht vortäuscht.
+
+        **Warum die Grenze so weit liegt.** Ein Lauf darf still sein. Das
+        Umwandeln nach CTranslate2 schreibt minutenlang nichts, und seit der
+        Trainer auf eine belegte Karte wartet, sind es bis zu neun Minuten am
+        Stück (`training/bewerten.py`). Die Grenze muss darüber liegen, sonst
+        heißt „hängt" irgendwann nur noch „ist gerade beschäftigt" - und eine
+        Warnung, die auch im Normalfall angeht, liest bald niemand mehr.
+        """
+        return self.status == LAEUFT and self.stillstand_s > STILLSTAND_S
 
 
 def lies_lauf(datenverzeichnis: Path, job_id: str) -> Lauf | None:
