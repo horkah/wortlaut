@@ -8,7 +8,7 @@ werden - dieselbe Aufteilung wie in der Auswertung von „hören":
   Kurven: Bei zwölf Läufen mit je tausend Schritten wäre das bei jedem Takt ein
   Vielfaches dessen, was gemeint ist.
 * `GET  /lernen/api/laeufe/{id}`     ein Lauf im Einzelnen: Kurven, Bewertung,
-  Vergleich mit der Grundlinie.
+  Vergleich mit der Baseline.
 * `POST /lernen/api/laeufe`          einen Lauf beauftragen. **Der einzige Weg
   hier, der ein zweites Geheimnis verlangt** - den Trainerschlüssel, siehe
   `_pruefe_trainerschluessel`.
@@ -342,16 +342,16 @@ class PunktAntwort(BaseModel):
 
 class GegenueberAntwort(BaseModel):
     mass: str
-    grundlinie: float | None
+    baseline: float | None
     trainiert: float | None
     besser: bool | None
     anzahl: int
     # Alles Weitere nur, wenn `?intervall=` es angefordert hat. `besser` sagt,
     # wer vorn liegt; `unterschied` sagt, ob das mehr ist als Zufall - Differenz
-    # (trainiert minus Grundlinie) mit Bereich und p-Wert, gepaart auf denselben
+    # (trainiert minus Baseline) mit Bereich und p-Wert, gepaart auf denselben
     # Aufnahmen gerechnet.
     unterschied: dict | None = None
-    bereich_grundlinie: dict | None = None
+    bereich_baseline: dict | None = None
     bereich_trainiert: dict | None = None
 
 
@@ -624,12 +624,12 @@ def einzeln(
             fassung: [
                 GegenueberAntwort(
                     mass=eintrag.mass,
-                    grundlinie=eintrag.grundlinie,
+                    baseline=eintrag.baseline,
                     trainiert=eintrag.trainiert,
                     besser=eintrag.besser,
                     anzahl=eintrag.anzahl,
                     unterschied=eintrag.unterschied,
-                    bereich_grundlinie=eintrag.bereich_grundlinie,
+                    bereich_baseline=eintrag.bereich_baseline,
                     bereich_trainiert=eintrag.bereich_trainiert,
                 )
                 for eintrag in eintraege

@@ -30,7 +30,7 @@
    * „Am besten" heißt dabei je nach Maß größer oder kleiner: Bei den
    * Fehlerraten ist der kleinste Wert der beste, und eine Kurve, die beim
    * Wechsel des Maßes stillschweigend die Bedeutung tauschte, wäre eine Falle.
-   * Die vollständigen vier Zahlen stehen in der Tabelle darunter.
+   * Die Zahlen zu jeder einzelnen Fassung stehen in der Tabelle darunter.
    *
    * **Warum ECharts.** Diese eine Kurve käme mit weniger aus. Kommen sollen
    * aber mehrere, die sich gegenseitig folgen - und dafür ist die Wahl schon
@@ -71,7 +71,8 @@
   const PUNKTFORMEN = ['circle', 'diamond', 'triangle', 'rect', 'pin'];
 
   // Der Schlüssel der Zeile, die nicht zu einer Fassung gehört, sondern zur
-  // Kurve: die beste der vier. Kein Name, den der Server je schickt - deshalb
+  // Kurve: der Bestwert über alle Fassungen. Kein Name, den der Server je
+  // schickt - deshalb
   // ein Zeichen, das in keiner Kennung vorkommt.
   const BESTE = '*';
 
@@ -225,7 +226,7 @@
   }
 
   /**
-   * Der beste der vier Werte eines Modells - die Zahl, die in die Kurve geht.
+   * Der Bestwert eines Modells über alle Fassungen - die Zahl in der Kurve.
    *
    * Welcher der beste ist, sagt das Maß und nicht diese Funktion: Bei der
    * Genauigkeit der größte, bei jeder Fehlerrate und bei der Rechenzeit der
@@ -313,16 +314,15 @@
    * verreißt einzelne Aufnahmen. Deshalb beide nebeneinander und keine der
    * beiden allein.
    *
-   * **Warum je Fassung eine Zeile.** Weil erst der Vergleich der vier die
-   * Frage beantwortet, für die sie gerechnet wurden: Liegt ein Modell nur
-   * deshalb vorn, weil der Ton gut ausgesteuert war? Bricht es bei etwas
-   * Rauschen ein? Vier Zeilen, die dicht beieinanderliegen, sagen „dieses
-   * Modell versteht den Sprecher"; vier, die auseinanderfallen, sagen „es
-   * verträgt diese eine Aufnahmesituation".
+   * **Warum je Fassung eine Zeile.** Weil erst ihr Vergleich die Frage
+   * beantwortet, für die sie gerechnet wurden: Bricht dieses Modell ein,
+   * sobald etwas Rauschen dazukommt? Zeilen, die dicht beieinanderliegen,
+   * sagen „dieses Modell versteht den Sprecher"; Zeilen, die auseinander-
+   * fallen, sagen „es verträgt diese eine Aufnahmesituation".
    *
-   * **Warum die beste obendrüber.** Sie ist die Zeile zur Kurve. Ohne sie
+   * **Warum der Bestwert obendrüber.** Er ist die Zeile zur Kurve. Ohne ihn
    * stünde im Bild eine Reihe, zu der unten keine Zahl gehört - und man
-   * suchte sie in den vieren darunter, wo sie nicht steht: Der Median der
+   * suchte sie in den Zeilen darunter, wo sie nicht steht: Der Median der
    * besten Werte ist nicht der beste der Mediane.
    *
    * **Warum im Browser gerechnet.** Die Zahlen stehen schon da - die Kurve
@@ -341,7 +341,7 @@
           zeilen: [
             gerafft(
               BESTE,
-              'Beste der vier',
+              'Bestwert',
               gefiltert(punkte.map((punkt) => bestesVon(punkt, modell))),
             ),
             ...varianten.map((variante) =>
@@ -784,8 +784,8 @@
       Liegen die Zeilen eines Modells dicht beieinander, versteht es den
       Sprecher. Fallen sie auseinander, verträgt es bloß eine bestimmte
       Aufnahmesituation. Die oberste Zeile je Modell ist die Reihe im Bild - je
-      Aufnahme die beste der vier, und deshalb nicht der beste der vier Mediane
-      darunter.
+      Aufnahme der beste Wert über alle Fassungen, und deshalb nicht der beste
+      der Mediane darunter.
     </p>
   {/if}
 

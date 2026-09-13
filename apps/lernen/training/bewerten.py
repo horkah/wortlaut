@@ -19,7 +19,7 @@ umgewandelt, auf einer Maschine mit Karte. Es dafür in einen anderen Container
 zu laden hieße, mehrere Gigabyte über ein Volume zu schieben, um dasselbe
 Ergebnis langsamer zu bekommen.
 
-**Warum dieselben Maße wie in „hören".** Verglichen wird mit der Grundlinie:
+**Warum dieselben Maße wie in „hören".** Verglichen wird mit der Baseline:
 dem, was das unveränderte Grundmodell in der Auswertung von „hören" auf
 denselben Aufnahmen erreicht hat. Ein anderes Maß, eine andere Angleichung des
 Textes oder eine andere Quantisierung machten aus dem Vergleich zwei getrennte
@@ -283,7 +283,7 @@ def _zusammengefasst(
     Über alle Fassungen zusammen, denn das ist die Zahl, die einen Stand in
     einer Zeile beschreibt. Aufgeschlüsselt liegt sie in `bewertung.jsonl`
     daneben; die Ansicht in „lernen" liest sie von dort und stellt sie der
-    Grundlinie je Fassung gegenüber.
+    Baseline je Fassung gegenüber.
 
     Unter `streuung` steht seit September 2026 zusätzlich, wie weit diese
     Mittel tragen. Zusätzlich heißt zusätzlich: Die Schlüssel darüber sind

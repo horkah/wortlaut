@@ -296,7 +296,7 @@
 <h2>Training</h2>
 <p class="gedaempft">
   Aus den Aufnahmen von „hören" ein Modell für diese eine Stimme. Trainiert wird auf
-  {daten?.basismodell ?? 'whisper-small'} - fest, denn nur so ist das Ergebnis mit der Grundlinie
+  {daten?.basismodell ?? 'whisper-small'} - fest, denn nur so ist das Ergebnis mit der Baseline
   aus der Auswertung vergleichbar.
 </p>
 

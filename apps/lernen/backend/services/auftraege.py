@@ -30,7 +30,7 @@ Aufnahme eine abgewandelte Fassung (`wortlaut/augmentierung.py`). Ob sie
 mittrainiert wird, steht im Auftrag (`daten`) und entscheidet der Trainer beim
 Lesen. Ins Manifest gehören trotzdem alle: **Gemessen** wird immer auf allen
 Fassungen - dieselben, die in der Auswertung von „hören" schon gemessen
-wurden. Nur so ist die Grundlinie eine Grundlinie und kein anderer Versuch.
+wurden. Nur so ist die Baseline eine Baseline und kein anderer Versuch.
 """
 
 from __future__ import annotations

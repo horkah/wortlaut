@@ -228,7 +228,7 @@ def _grundmodellnamen() -> list[str]:
         teil.strip() for teil in konfiguration.auswertung_modelle.split(",") if teil.strip()
     ]
     # Das Grundmodell, auf das trainiert wird, steht immer dabei - sonst fehlte
-    # ausgerechnet die Grundlinie, gegen die jeder Stand antritt.
+    # ausgerechnet die Baseline, gegen die jeder Stand antritt.
     kurz = lauf_layout.kurzname(konfiguration.lernen_basismodell)
     if kurz not in namen:
         namen.append(kurz)
@@ -421,7 +421,7 @@ def uebersicht(
         for name in namen
     ]
     # Jüngster Stand zuerst: Wer hierherkommt, sucht meist den, der gerade
-    # fertig wurde. Die Grundmodelle stehen darüber - sie sind die Grundlinie.
+    # fertig wurde. Die Grundmodelle stehen darüber - sie sind die Baseline.
     modelle += [
         zeile(
             str(manifest.get("id", "")),
@@ -472,7 +472,7 @@ def _hinweis(
         return (
             "Die Grundmodelle haben auf diesen Aufnahmen noch nichts gemessen. "
             "In \u201ehören\u201c unter \u201eAuswertung\u201c laufen sie über den Korpus - "
-            "danach steht hier eine Grundlinie, gegen die sich vergleichen lässt."
+            "danach steht hier eine Baseline, gegen die sich vergleichen lässt."
         )
     if not staende:
         return (

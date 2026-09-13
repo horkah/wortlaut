@@ -152,9 +152,9 @@ class StandAntwort(BaseModel):
 class PunktAntwort(BaseModel):
     """Eine Aufnahme in der Kurve: ihre Nummer und die Maße je Modell und Fassung.
 
-    Ausgerechnet wird hier nichts. Die Kurve zeigt je Modell nur eine der vier
-    Zahlen, aber welche, hängt am gewählten Maß - und die Tabelle darunter
-    zeigt ohnehin alle vier. Der Server schickt deshalb, was gemessen wurde,
+    Ausgerechnet wird hier nichts. Die Kurve zeigt je Modell nur eine Zahl,
+    aber welche, hängt am gewählten Maß - und die Tabelle darunter zeigt
+    ohnehin jede. Der Server schickt deshalb, was gemessen wurde,
     und die Ansicht sucht sich heraus, was sie gerade braucht; sonst wäre bei
     jedem Wechsel des Maßes eine neue Anfrage fällig, für die kein Byte fehlt.
     """

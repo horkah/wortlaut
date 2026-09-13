@@ -101,7 +101,7 @@ Alle drei Apps laufen, mit Tests, unter einer Adresse, in einem Container.
 | | |
 |---|---|
 | **hören** | Textquelle per LLM oder Upload, äußerungsweise aufnehmen, Qualitätsprüfung, Fortschritt, Auswertung gegen drei Grundmodelle, Sicherung, vollständige Löschung |
-| **lernen** | 2:1-Aufteilung mit Bestandsgarantie, vier Trainingsläufe (voll/LoRA × mit/ohne Abwandlungen), Lernkurven, Vergleich gegen die Grundlinie, eine Modelltabelle mit Freigabe |
+| **lernen** | 2:1-Aufteilung mit Bestandsgarantie, vier Trainingsläufe (voll/LoRA × mit/ohne Abwandlungen), Lernkurven, Vergleich gegen die Baseline, eine Modelltabelle mit Freigabe |
 | **schreiben** | diktieren, vorlesen lassen, abschnittsweise neu einsprechen, Korrekturen zurück in den Korpus - gepuffert, wiederholbar, nichts geht verloren |
 
 Was fehlt: eine phonetisch ausgewogene Vorlagenliste, Tests für das Frontend,

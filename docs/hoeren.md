@@ -562,7 +562,7 @@ Prüfaufgabe - man schickt sie durch einen Erkenner und vergleicht, was
 herauskommt, mit dem, was dastand. Genau das tut der Reiter **Auswertung**
 (`services/auswertung.py`, `api/auswertung.py`).
 
-Die Zahlen, die dabei entstehen, bleiben nicht hier: Sie sind die Grundlinie,
+Die Zahlen, die dabei entstehen, bleiben nicht hier: Sie sind die Baseline,
 gegen die in `lernen` jedes selbst trainierte Modell antritt (siehe
 [lernen](lernen.md)). Wer dort eine leere Tabelle sieht, hat diesen Lauf noch
 nicht angestoßen.

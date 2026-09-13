@@ -155,7 +155,7 @@ wortlaut/
 │   │   │   │   ├── aufteilung.py  # sechs Faltungen, der Reihe nach
 │   │   │   │   ├── auftraege.py   # Schnappschuss und Auftrag schreiben
 │   │   │   │   ├── messwerte.py   # alle Modelle auf denselben Testaufnahmen
-│   │   │   │   └── vergleich.py   # trainierter Stand gegen die Grundlinie
+│   │   │   │   └── vergleich.py   # trainierter Stand gegen die Baseline
 │   │   ├── frontend/              # Wie gemessen wird, Training, Modelle
 │   │   ├── training/              # das, was auf der GPU läuft - eigenes Abbild
 │   │   │   ├── Dockerfile         # pytorch/cuda, ~4 GB, eigener Compose-Dienst
