@@ -35,7 +35,15 @@ WORKDIR /srv/wortlaut
 # Brocken, und so wird er beim nächsten Bau nicht noch einmal geladen, nur
 # weil sich eine Zeile Python geändert hat. `cu121` passt zu Turing (RTX 2080
 # Ti, Rechenfähigkeit 7.5) und läuft unter jedem Treiber ab 12.1.
-RUN pip install --no-cache-dir \
+#
+# Der Mount ist der Radspeicher von pip - außerhalb des Abbilds, also ohne
+# Gewicht darin. Er ist die Versicherung gegen den Tag, an dem diese Schicht
+# doch neu gebaut wird: Dann kommen die zweieinhalb Gigabyte von der Platte
+# und nicht aus dem Netz. Genau dafür steht hier kein `--no-cache-dir` mehr;
+# es hat nie ein Byte im Abbild gespart, sondern nur den Weg ins Netz
+# erzwungen.
+RUN --mount=type=cache,target=/root/.cache/pip \
+        pip install \
         --index-url https://download.pytorch.org/whl/cu121 \
         "torch==2.5.1"
 
@@ -46,7 +54,8 @@ RUN pip install --no-cache-dir \
 # `Seq2SeqTrainer.compute_loss` bekommt erst ab 4.46 das Argument
 # `num_items_in_batch`, auf das der gewichtete Verlust in `finetune.py`
 # eingestellt ist.
-RUN pip install --no-cache-dir \
+RUN --mount=type=cache,target=/root/.cache/pip \
+        pip install \
         "transformers>=4.46,<5" \
         "peft>=0.13" \
         "accelerate>=1.0" \
