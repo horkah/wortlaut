@@ -356,6 +356,33 @@ def trainiere(
     modell.generation_config.forced_decoder_ids = None
     modell.config.forced_decoder_ids = None
 
+    # Und noch ein Erbstück in derselben Ecke: Die `config.json` von Whisper
+    # führt Erzeugungsparameter mit, die dort seit Jahren nicht mehr hingehören
+    # - `max_length`, `suppress_tokens`, `begin_suppress_tokens`. Sie stehen
+    # richtig in der `generation_config`, und `save_pretrained` räumt sie beim
+    # Sichern von selbst um. Dabei warnt es, und zwar bei **jedem**
+    # Zwischenstand: Bei sechs Faltungen mit bis zu sechzig Durchgängen ist das
+    # ein Protokoll, in dem die Warnung häufiger steht als die Verlustkurve.
+    #
+    # Schlimmer als laut ist, wie es umräumt: Es setzt den Wert aus der
+    # `config` ungeprüft über den der `generation_config`. Bei `small` sind die
+    # beiden nicht gleich - dort führt die `config` 86 zu unterdrückende Marken
+    # und die `generation_config` 88, und die zwei zusätzlichen sind
+    # `<|translate|>` und `<|transcribe|>`. Der ältere, kürzere Stand gewinnt,
+    # und die umgewandelten Stände dieses Projekts tragen entsprechend 86.
+    #
+    # Ausgewirkt hat sich das nie: faster-whisper stellt die Liste bei jedem
+    # Aufruf aus dem Zerteiler neu zusammen und übergibt sie ausdrücklich
+    # (`get_suppressed_tokens`), womit die Zahl im Stand überschrieben wird -
+    # nachgemessen sind es zur Laufzeit 88, beide Marken dabei. Es bleibt
+    # trotzdem eine Stelle, an der zwei Quellen dasselbe behaupten sollen und
+    # es nicht tun, und die stille Auflösung geht zugunsten der falschen aus.
+    #
+    # Hier fällt die falsche weg, statt sie zu überschreiben: Was in der
+    # `generation_config` steht, ist richtig und bleibt unangetastet.
+    for feld in list(modell.config._get_non_default_generation_parameters()):
+        setattr(modell.config, feld, None)
+
     if methode == laeufe.LORA:
         from peft import LoraConfig, get_peft_model
 
