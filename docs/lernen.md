@@ -4,7 +4,9 @@ Aus den Aufnahmen von [hören](hoeren.md) ein feingetuntes Whisper - und die
 eine Ansicht, auf der entschieden wird, womit [schreiben](schreiben.md)
 arbeitet.
 
-Der Entwurf dahinter steht in [Der Entwurf](architektur.md).
+Der Entwurf dahinter steht in [Der Entwurf](architektur.md), das Verfahren
+selbst - Zielfunktion, Pseudocode, Verbesserungsoptionen - in
+[Das Trainingsverfahren](trainingsverfahren.md).
 
 ---
 
@@ -114,6 +116,13 @@ Aufnahmen unterscheidet zwei benachbarte Lernraten nicht verlässlich - was man
 dann misst, ist Rauschen. Der beste Durchgang statt des letzten holt aus
 demselben Material mehr heraus als jede Lernratensuche, und er kostet keinen
 zusätzlichen Lauf. Der Hebel, der wirklich zieht, sind mehr Aufnahmen.
+
+Welche Hebel es darüber hinaus gibt - Augmentierung im Merkmalsraum, Auswahl
+nach Wortfehlerrate statt Verlust, Gewichtsmittelung, Kontextverstärkung beim
+Dekodieren - und in welcher Reihenfolge sie sich lohnen, steht in
+[Das Trainingsverfahren](trainingsverfahren.md). Dort steht auch, warum der
+erste Schritt kein Trainingsschritt ist, sondern ein Vertrauensbereich auf den
+Zahlen, die diese App heute anzeigt.
 
 Zwei weitere Entscheidungen in den Rezepten sind keine Geschmacksfrage:
 

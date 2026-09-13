@@ -143,6 +143,7 @@ Einzelheiten: [Entwicklung](docs/entwicklung.md) ·
 | [Der Entwurf](docs/architektur.md) | die Grundentscheidungen, der Aufbau, die Nahtstellen, die Technikwahl |
 | [App „hören"](docs/hoeren.md) | Sammeln, Zugänge, Aufsicht, Auswertung |
 | [App „lernen"](docs/lernen.md) | Aufteilung, Training, Modelltabelle, Freigabe |
+| [Das Trainingsverfahren](docs/trainingsverfahren.md) | was gerechnet wird, in Pseudocode - und was sich daran verbessern lässt |
 | [App „schreiben"](docs/schreiben.md) | Diktieren, Abschnitte, Postausgang |
 | [Konfiguration](docs/konfiguration.md) | jede Umgebungsvariable, mit Begründung |
 | [Entwicklung](docs/entwicklung.md) | lokal starten, Trainer, Tests |
