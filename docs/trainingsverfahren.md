@@ -9,8 +9,9 @@ Aufträge, Warteschlange, Modelltabelle, Freigabe. Hier geht es allein um die
 Rechnung.
 
 > **Stand: September 2026.** Die Abschnitte 1 bis 5 beschreiben, was läuft.
-> Ab Abschnitt 6 wird nichts mehr beschrieben, sondern vorgeschlagen - nichts
-> davon ist umgesetzt.
+> Ab Abschnitt 6 wird vorgeschlagen. Umgesetzt ist davon bisher **Stufe 0**
+> (Vorschlag **I**, Vertrauensbereiche) - und zwar als abschaltbare Zugabe:
+> Ohne sie zeigt die App Zahl für Zahl dasselbe wie vorher.
 
 ---
 
@@ -227,10 +228,10 @@ sie aufgreift.
    gemittelt noch wird gegen das Grundmodell interpoliert. Genau diese beiden
    Handgriffe sind in der Literatur die billigste bekannte Absicherung gegen
    katastrophales Vergessen und gegen Überanpassung. → **D**
-5. **Kein Maß für Zufall.** `bewerten.py` liefert Mittelwerte über 60
-   Testaufnahmen mal vier Fassungen. Ob 14,2 % gegen 13,8 % ein Unterschied ist
-   oder Rauschen, sagt keine Zahl im Projekt. Ohne dieses Maß ist jeder weitere
-   Vorschlag unprüfbar. → **I**, und deshalb Stufe 0 des Plans.
+5. ~~**Kein Maß für Zufall.**~~ **Erledigt** (September 2026). `bewerten.py`
+   lieferte Mittelwerte über 60 Testaufnahmen mal vier Fassungen, und ob 14,2 %
+   gegen 13,8 % ein Unterschied war oder Rauschen, sagte keine Zahl im Projekt.
+   Seitdem schon: siehe **I**.
 6. **Das Gewicht 0,5 ist gesetzt, nicht gemessen** - und Korrekturen sind die
    Datenquelle, die im Betrieb als einzige von selbst wächst. → **F**
 7. **Die Dekodierseite ist unberührt.** Kein Sprachmodell, keine
@@ -250,17 +251,17 @@ sie aufgreift.
 Erwarteter Effekt ist eine Einschätzung, kein Messwert; „relativ" heißt
 relativ zur heutigen Wortfehlerrate.
 
-| | Maßnahme | Erwartet | Aufwand | Risiko |
-|---|---|---|---|---|
-| **A** | SpecAugment + Tempo-/Raumvariation statt reiner Amplitude | 5-15 % rel. | mittel | gering |
-| **B** | Auswahl nach WER, häufiger geprüft | 3-8 % rel. | mittel | gering |
-| **C** | k-fache Kreuzvalidierung über Training+Validierung | indirekt | mittel | keins |
-| **D** | Gewichtsmittelung / Interpolation mit dem Grundmodell | 2-6 % rel. | gering | gering |
-| **E** | LoRA-Ziele erweitern, Rang prüfen | 0-5 % rel. | gering | gering |
-| **F** | Korrekturgewicht messen statt setzen; Selbsttraining | 5-20 % rel. | hoch | mittel |
-| **G** | Encoder auf die tatsächliche Länge kürzen | 2-4× Tempo | mittel | mittel |
-| **H** | Kontextverstärkung beim Dekodieren | 3-10 % rel. | gering | gering |
-| **I** | Vertrauensbereiche auf allen Messwerten | 0 % | gering | keins |
+| | Maßnahme | Erwartet | Aufwand | Risiko | |
+|---|---|---|---|---|---|
+| **A** | SpecAugment + Tempo-/Raumvariation statt reiner Amplitude | 5-15 % rel. | mittel | gering | |
+| **B** | Auswahl nach WER, häufiger geprüft | 3-8 % rel. | mittel | gering | |
+| **C** | k-fache Kreuzvalidierung über Training+Validierung | indirekt | mittel | keins | |
+| **D** | Gewichtsmittelung / Interpolation mit dem Grundmodell | 2-6 % rel. | gering | gering | |
+| **E** | LoRA-Ziele erweitern, Rang prüfen | 0-5 % rel. | gering | gering | |
+| **F** | Korrekturgewicht messen statt setzen; Selbsttraining | 5-20 % rel. | hoch | mittel | |
+| **G** | Encoder auf die tatsächliche Länge kürzen | 2-4× Tempo | mittel | mittel | |
+| **H** | Kontextverstärkung beim Dekodieren | 3-10 % rel. | gering | gering | |
+| **I** | Vertrauensbereiche auf allen Messwerten | 0 % | gering | keins | ✅ |
 
 ### A - Augmentierung dorthin, wo sie wirkt
 
@@ -447,38 +448,90 @@ eine Zeile in `LokalerTranskriptor.transkribiere` und sofort messbar. Achtung:
 Ein Startprompt kann Whisper auch zum Halluzinieren verleiten; er gehört
 gemessen wie alles andere, und zwar auf allen vier Fassungen.
 
-### I - Vertrauensbereiche, und zwar zuerst
+### I - Vertrauensbereiche, und zwar zuerst ✅ umgesetzt
 
-**Was.** Zu jeder Zahl in `bewertung.jsonl` und in der Modelltabelle ein
-Bootstrap-Intervall; für den Vergleich zweier Stände ein gepaarter Test auf
-denselben Äußerungen.
-
-**Warum.** 60 Testaufnahmen ergeben ein 95-%-Intervall, das mehrere
+**Warum zuerst.** 60 Testaufnahmen ergeben ein 95-%-Intervall, das mehrere
 Prozentpunkte breit ist. Ein Großteil der Unterschiede, um die es in dieser
 Liste geht, liegt darunter. Ohne Intervall ist jeder Vergleich in der
 Modelltabelle eine Rangfolge von Rauschen - und das Projekt hat sich in seinem
 eigenen Text darauf festgelegt, nichts zu behaupten, was es nicht gemessen hat.
 
-**Fein gemacht.** Der gewöhnliche äußerungsweise Bootstrap ist hier zu
-optimistisch, weil die Äußerungen nicht unabhängig sind: Vier Fassungen
-derselben Aufnahme sind vier Messungen an einem Gegenstand. Zu ziehen ist
-deshalb blockweise - je Aufnahme, mit allen ihren Fassungen, oder je Vorlage.
-Genau dafür ist der blockweise Bootstrap gebaut. Der gepaarte Vergleich ist
-zusätzlich deutlich schärfer als zwei getrennte Intervalle, weil beide Modelle
-dieselben Äußerungen gehört haben.
+**Was jetzt dasteht.** Gerechnet wird in `packages/wortlaut/src/wortlaut/streuung.py`
+- eine eigene Datei neben `metriken.py`, weil es eine andere Art von Rechnung
+ist: `metriken.py` bewertet ein Paar aus Vorlage und erkanntem Text,
+`streuung.py` sagt, wie weit ein Mittelwert über viele solcher Paare trägt. Sie
+kommt mit der Standardbibliothek aus und rechnet nichts neu ein zweites Mal:
+Die Einzelergebnisse liegen je Zeile längst vor.
 
-**Aufwand.** Wenige Dutzend Zeilen in `wortlaut/metriken.py`, ohne neue
-Abhängigkeit, ohne einen einzigen zusätzlichen Rechendurchgang - die
-Einzelergebnisse liegen bereits je Zeile vor.
+| | |
+|---|---|
+| `intervall(bloecke)` | 95-%-Bereich eines Mittelwerts, 2000 Ziehungen |
+| `unterschied(bloecke)` | zwei Reihen gepaart: Differenz, Bereich, p-Wert |
+| `bilde` / `bilde_paare` | Messungen zu Blöcken bündeln |
+| `Verfahren.marke` | `bootstrap/aufnahme/2000/0.95/20260913` - das Verfahren als Zeichenkette |
+
+**Drei Entscheidungen darin.**
+
+* **Blockweise je Aufnahme.** Der gewöhnliche äußerungsweise Bootstrap ist hier
+  zu optimistisch, weil die Äußerungen nicht unabhängig sind: Vier Fassungen
+  derselben Aufnahme sind vier Messungen an einem Gegenstand. Auf den Daten
+  dieses Projekts ist der naive Bereich etwa **halb so breit** wie der richtige
+  - ein Test hält das fest (`packages/wortlaut/tests/test_streuung.py`). Die
+  naive Ziehung bleibt als `einheit` wählbar: Sie ist das, was die meiste
+  Literatur rechnet, und ohne sie wären die Zahlen hier mit keiner
+  Veröffentlichung vergleichbar.
+* **Fester Keim.** Ein Bereich, der bei jedem Aufruf ein wenig anders ausfällt,
+  ist eine schlechte Auskunft. Die Ziehungen hängen allein an der Anzahl der
+  Blöcke; dieselbe Messreihe ergibt auf jeder Maschine denselben Bereich. Dass
+  zwei Modelle mit gleich vielen Blöcken dieselben Ziehungen bekommen, ist
+  dabei kein Mangel, sondern die Voraussetzung für den gepaarten Vergleich.
+* **Jede Zahl trägt ihr Verfahren.** Die `marke` steht neben jedem gespeicherten
+  Bereich. Ein Intervall ohne seine Parameter ist nicht nachvollziehbar: 2,5 bis
+  97,5 % über zweitausend blockweise Ziehungen ist etwas anderes als 5 bis 95 %
+  über zweihundert.
+
+**Wo es sichtbar wird.**
+
+| Ort | Wie |
+|---|---|
+| `bewertung.jsonl` → `metriken.streuung` | von jedem **neuen** Lauf mitgeschrieben, je Maß ein Bereich |
+| `GET /lernen/api/modelle` | `?intervall=aus\|aufnahme\|einheit`, dazu `?vergleich_mit=<ref>` |
+| `GET /lernen/api/laeufe/{id}` | `?intervall=…` legt den gepaarten Abstand neben jedes Gegenüber |
+| Modelltabelle | Auswahl „Sicherheit" und „Gegen"; zweite Zeile unter jeder Zahl |
+| Einzelner Lauf | Auswahl „Sicherheit"; Spalte „Belegt?" mit p-Wert |
+
+**Und was sich dadurch an den alten Zahlen ändert: nichts.** Das ist hier keine
+Bequemlichkeit, sondern Bedingung. Dieser Teil der App ist Forschung: Was die
+Tabelle heute zeigt, wird mit dem verglichen, was sie vor Monaten zeigte. Die
+Vorgabe ist deshalb überall `aus`, und dann kommt Byte für Byte die Antwort von
+vorher; eingeschaltet tritt der Bereich **neben** die Zahl, nie an ihre Stelle.
+Ein Test hält beides fest - dass die Werte gleich bleiben und dass der
+Mittelwert im Bereich derselbe ist wie der in der Tabelle
+(`apps/lernen/tests/test_vergleich.py::TestVertrauensbereiche`).
+
+**Eine Stelle, an der die Ansicht jetzt vorsichtiger ist.** Der beste Wert
+jeder Spalte war immer hervorgehoben. Sind Bereiche eingeschaltet und
+überlappen sich der beste und der zweitbeste, trägt die Spalte jetzt ein `≈`
+mit der Erklärung, dass der Vorsprung nicht belegt ist. Das ist der vorsichtige
+Test - überlappende Bereiche schließen einen echten Unterschied nicht aus -,
+und genau deshalb steht daneben der Hinweis auf den gepaarten Vergleich, der
+schärfer ist.
+
+**Was noch fehlt.** Die Grundlinie aus „hören" trägt ihre Bereiche nicht in der
+Datenbank; sie werden beim Zusammenstellen der Tabelle aus den Einzelzeilen
+gerechnet. Das ist richtig so, solange die Zeilen da sind - fehlen sie einmal,
+steht ein Grundmodell ohne Bereich da, während ein trainierter Stand seinen im
+Manifest mitbringt.
 
 ---
 
 ## 8. Ein Plan in vier Stufen
 
-**Stufe 0 - messen können.** Vorschlag **I**. Nichts darüber ist prüfbar, bevor
-das steht. Ergebnis: Jede Zahl in der Modelltabelle trägt ihr Intervall, und
-der Vergleich zweier Stände nennt einen p-Wert oder eine Intervallbreite statt
-einer Rangfolge.
+**Stufe 0 - messen können. ✅ Erledigt, September 2026.** Vorschlag **I**.
+Nichts darüber ist prüfbar, bevor das steht. Jede Zahl in der Modelltabelle
+kann jetzt ihr Intervall tragen, und der Vergleich zweier Stände nennt einen
+p-Wert statt einer Rangfolge. Was bleibt: die Gewohnheit, beides auch
+anzusehen, bevor ein Rezept geändert wird.
 
 **Stufe 1 - billige Gewinne am fertigen Modell.** Vorschlag **D**, danach
 **H** in seiner kleinen Form (Startprompt). Beide fassen die Trainingsschleife

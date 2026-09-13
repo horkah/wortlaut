@@ -84,12 +84,51 @@ export type Punkt = {
   wer: number | null;
 };
 
+/**
+ * Ein Vertrauensbereich um einen Mittelwert - gerechnet in
+ * `wortlaut/streuung.py`, blockweise über die Aufnahmen.
+ *
+ * `mittel` ist **derselbe** Wert, der auch ohne Bereich in der Tabelle steht.
+ * Der Bereich tritt daneben, nicht an seine Stelle.
+ */
+export type Intervall = {
+  mittel: number;
+  unten: number;
+  oben: number;
+  /** Der Standardfehler des Mittelwerts - die Streuung der Ziehungen. */
+  streuung: number;
+  /** Über wie viele Aufnahmen gezogen wurde und wie viele Messungen darin lagen. */
+  bloecke: number;
+  einheiten: number;
+  /** Womit gerechnet wurde, z. B. `bootstrap/aufnahme/2000/0.95/20260913`. */
+  marke: string;
+};
+
+/** Zwei Modelle auf denselben Aufnahmen, gepaart verglichen. */
+export type Unterschied = {
+  /** Dieses Modell minus das Vergleichsmodell. */
+  differenz: number;
+  unten: number;
+  oben: number;
+  /** Zweiseitiger Bootstrap-p-Wert zur Nullhypothese „kein Unterschied". */
+  p: number;
+  /** Ob der Bereich die Null ausschließt - nur dann ist etwas gezeigt. */
+  belegt: boolean;
+  bloecke: number;
+  einheiten: number;
+  marke: string;
+};
+
 export type Gegenueber = {
   mass: string;
   grundlinie: number | null;
   trainiert: number | null;
   besser: boolean | null;
   anzahl: number;
+  /** Nur bei angefordertem Bereich; sonst `null`. */
+  unterschied: Unterschied | null;
+  bereich_grundlinie: Intervall | null;
+  bereich_trainiert: Intervall | null;
 };
 
 export type Laufliste = {
@@ -116,6 +155,9 @@ export type Laufeinzeln = {
   /** Fassung → die Maße, jeweils vorher und nachher. */
   vergleich: Record<string, Gegenueber[]>;
   protokoll: string;
+  /** Welche Blockart gerechnet wurde: `aus`, `aufnahme` oder `einheit`. */
+  intervall: string;
+  streuung_marke: string;
 };
 
 /** Ein Maß in der Modelltabelle, beschriftet vom Server. */
@@ -157,6 +199,10 @@ export type Modell = {
   werte: Record<string, Record<string, number>>;
   /** Fassung → wie viele Messeinheiten in diesem Mittel stecken. */
   einheiten: Record<string, number>;
+  /** Fassung → Maß → Vertrauensbereich. Leer, solange keiner angefordert wurde. */
+  intervalle: Record<string, Record<string, Intervall>>;
+  /** Fassung → Maß → der gepaarte Abstand zum gewählten Vergleichsmodell. */
+  unterschied: Record<string, Record<string, Unterschied>>;
 };
 
 export type Modelluebersicht = {
@@ -171,6 +217,11 @@ export type Modelluebersicht = {
   /** `false` heißt: Die Rechenzeiten stammen von verschiedenen Maschinen. */
   zeit_vergleichbar: boolean;
   hinweis: string;
+  /** Welche Blockart gerechnet wurde: `aus`, `aufnahme` oder `einheit`. */
+  intervall: string;
+  /** Gegen welches Modell gepaart verglichen wurde; leer heißt: gegen keines. */
+  vergleich_mit: string;
+  streuung_marke: string;
 };
 
 /**
@@ -203,7 +254,14 @@ export const aufteilung = () => anfrage<Aufteilung>('/aufteilung');
 
 export const laeufe = () => anfrage<Laufliste>('/laeufe');
 
-export const lauf = (jobId: string) => anfrage<Laufeinzeln>(`/laeufe/${jobId}`);
+/**
+ * Ein Lauf im Einzelnen. `intervall` schaltet die Vertrauensbereiche dazu:
+ * `aus` (Vorgabe, die Antwort von vorher), `aufnahme` (blockweise gezogen -
+ * die richtige Wahl) oder `einheit` (naiv je Messung, zum Vergleich mit der
+ * Literatur).
+ */
+export const lauf = (jobId: string, intervall = 'aus') =>
+  anfrage<Laufeinzeln>(`/laeufe/${jobId}?intervall=${encodeURIComponent(intervall)}`);
 
 /**
  * Einen Lauf beauftragen - die einzige Anfrage dieser App, die ein zweites
@@ -230,11 +288,27 @@ export const loescheLauf = (jobId: string) =>
     { method: 'DELETE' },
   );
 
-export const modelle = () => anfrage<Modelluebersicht>('/modelle');
+/**
+ * Die Modelltabelle. Ohne Parameter genau die Antwort von vorher - die Zahlen
+ * hängen nicht davon ab, ob man einen Bereich dazubestellt.
+ *
+ * `vergleichMit` nennt ein Modell, gegen das jede andere Zeile gepaart
+ * antritt. Das ist die schärfere Frage als zwei Bereiche nebeneinander: Beide
+ * Modelle haben dieselben Aufnahmen gehört, und der gemeinsame Anteil fällt in
+ * der Differenz heraus.
+ */
+const modellabfrage = (intervall: string, vergleichMit: string) =>
+  `?intervall=${encodeURIComponent(intervall)}&vergleich_mit=${encodeURIComponent(vergleichMit)}`;
+
+export const modelle = (intervall = 'aus', vergleichMit = '') =>
+  anfrage<Modelluebersicht>(`/modelle${modellabfrage(intervall, vergleichMit)}`);
 
 /** Dieses Modell freigeben - leere Kennung nimmt die Freigabe zurück. */
-export const gibFrei = (ref: string) =>
-  anfrage<Modelluebersicht>('/modelle/freigabe', alsJson({ ref }));
+export const gibFrei = (ref: string, intervall = 'aus', vergleichMit = '') =>
+  anfrage<Modelluebersicht>(
+    `/modelle/freigabe${modellabfrage(intervall, vergleichMit)}`,
+    alsJson({ ref }),
+  );
 
 // Ausdrücklich die API von „hören": Dort liegt der Korpus, dort wird der
 // Zugang geprüft, und dort steht der Name. Eine eigene Auskunft hätte eine

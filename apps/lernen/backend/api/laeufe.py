@@ -28,9 +28,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
-from wortlaut import laeufe as lauf_layout
-
-from wortlaut import registry
+from wortlaut import laeufe as lauf_layout, registry, streuung
 
 from ..config import einstellungen
 from ..deps import Datenbank, Korpus, SprecherId
@@ -186,6 +184,13 @@ class GegenueberAntwort(BaseModel):
     trainiert: float | None
     besser: bool | None
     anzahl: int
+    # Alles Weitere nur, wenn `?intervall=` es angefordert hat. `besser` sagt,
+    # wer vorn liegt; `unterschied` sagt, ob das mehr ist als Zufall - Differenz
+    # (trainiert minus Grundlinie) mit Bereich und p-Wert, gepaart auf denselben
+    # Aufnahmen gerechnet.
+    unterschied: dict | None = None
+    bereich_grundlinie: dict | None = None
+    bereich_trainiert: dict | None = None
 
 
 class EinzelAntwort(BaseModel):
@@ -197,6 +202,9 @@ class EinzelAntwort(BaseModel):
     # fassung -> die Maße, jeweils vorher und nachher
     vergleich: dict[str, list[GegenueberAntwort]]
     protokoll: str
+    # Welche Blockart gerechnet wurde: `aus`, `aufnahme` oder `einheit`.
+    intervall: str = streuung.AUS
+    streuung_marke: str = ""
 
 
 class ListeAntwort(BaseModel):
@@ -365,7 +373,21 @@ def beauftrage(
 
 
 @router.get("/{job_id}", response_model=EinzelAntwort)
-def einzeln(job_id: str, korpus: Korpus, sprecher: SprecherId) -> EinzelAntwort:
+def einzeln(
+    job_id: str, korpus: Korpus, sprecher: SprecherId, intervall: str = streuung.AUS
+) -> EinzelAntwort:
+    """Kurven, Bewertung und Vergleich zu einem Lauf.
+
+    `intervall` legt neben jedes Gegenüber den gepaarten Abstand samt Bereich
+    und p-Wert (`wortlaut/streuung.py`). Ohne den Parameter kommt genau die
+    Antwort von vorher: Die Zahlen ändern sich nicht, es kommt nur eine
+    Auskunft darüber dazu, wie weit sie tragen.
+    """
+    if intervall not in streuung.BLOCKARTEN:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unbekannte Blockart. Zur Wahl stehen: {', '.join(streuung.BLOCKARTEN)}.",
+        )
     lauf = _hole(sprecher, job_id)
     kurven = auftraege.lernkurve(lauf)
     protokoll = lauf.verzeichnis / lauf_layout.PROTOKOLL
@@ -383,14 +405,21 @@ def einzeln(job_id: str, korpus: Korpus, sprecher: SprecherId) -> EinzelAntwort:
                     trainiert=eintrag.trainiert,
                     besser=eintrag.besser,
                     anzahl=eintrag.anzahl,
+                    unterschied=eintrag.unterschied,
+                    bereich_grundlinie=eintrag.bereich_grundlinie,
+                    bereich_trainiert=eintrag.bereich_trainiert,
                 )
                 for eintrag in eintraege
             ]
-            for fassung, eintraege in vergleich.je_fassung(lauf, korpus).items()
+            for fassung, eintraege in vergleich.je_fassung(lauf, korpus, intervall).items()
         },
         # Nur das Ende: Wer ein Protokoll liest, sucht den letzten Satz vor dem
         # Abbruch, nicht den ersten des Ladevorgangs.
         protokoll=protokoll.read_text(encoding="utf-8")[-4000:] if protokoll.is_file() else "",
+        intervall=intervall,
+        streuung_marke=(
+            streuung.Verfahren(blockart=intervall).marke if intervall != streuung.AUS else ""
+        ),
     )
 
 

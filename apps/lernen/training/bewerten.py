@@ -28,7 +28,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from wortlaut import corpus, laeufe, metriken, registry
+from wortlaut import corpus, laeufe, metriken, registry, streuung
 
 from apps.lernen.backend.config import einstellungen
 
@@ -104,13 +104,60 @@ def bewerte(
     return _zusammengefasst(ergebnis)
 
 
-def _zusammengefasst(zeilen: list[dict[str, Any]]) -> dict[str, Any]:
+# Die Maße, zu denen ein Vertrauensbereich mitgeschrieben wird. Die Rechenzeit
+# fehlt mit Absicht: Sie ist eine Eigenschaft der Maschine und nicht des
+# Modells, und ein Bereich darum beschriebe die Maschine.
+GEMESSEN = ("wer", "cer", "mer", "wil", "genauigkeit")
+
+
+def _streuung(zeilen: list[dict[str, Any]], blockart: str) -> dict[str, Any]:
+    """Zu jedem Mittel der Bereich, in dem er liegen dürfte - blockweise gezogen.
+
+    **Warum das hier mitgeschrieben wird und nicht erst in der Ansicht.** Weil
+    es der Ort ist, an dem die Einzelmessungen noch vollständig vorliegen, und
+    weil ein Stand seine Streuung dann für immer bei sich trägt - auch wenn
+    seine `bewertung.jsonl` später einmal fehlt. Es kostet einen Wimpernschlag
+    am Ende eines Laufs, der Stunden gerechnet hat.
+
+    **Warum je Aufnahme gezogen wird.** Die vier Fassungen einer Aufnahme sind
+    vier Messungen an einem Gegenstand, nicht vier unabhängige Auskünfte. Wer
+    sie einzeln zieht, bekommt einen Bereich heraus, der etwa halb so breit ist
+    wie der richtige (siehe `wortlaut/streuung.py`).
+
+    **Was sich dadurch an den bisherigen Zahlen ändert: nichts.** Die Mittel
+    daneben sind dieselben wie vorher, Stelle für Stelle. Hier kommt eine
+    Auskunft dazu, es geht keine verloren.
+    """
+    if blockart == streuung.AUS:
+        return {}
+    verfahren = streuung.Verfahren(blockart=blockart)
+    ergebnis: dict[str, Any] = {}
+    for name in GEMESSEN:
+        paare = [
+            (str(zeile.get("recording_id", "")), float(zeile[name]))
+            for zeile in zeilen
+            if zeile.get(name) is not None
+        ]
+        bereich = streuung.intervall(streuung.bilde(paare, blockart), verfahren)
+        if bereich is not None:
+            ergebnis[name] = bereich.als_dict()
+    return ergebnis
+
+
+def _zusammengefasst(
+    zeilen: list[dict[str, Any]], blockart: str = streuung.BLOCK_AUFNAHME
+) -> dict[str, Any]:
     """Die Mittel über alle Testzeilen - die Zahlen, die ins Manifest gehen.
 
     Über alle Fassungen zusammen, denn das ist die Zahl, die einen Stand in
     einer Zeile beschreibt. Aufgeschlüsselt liegt sie in `bewertung.jsonl`
     daneben; die Ansicht in „lernen" liest sie von dort und stellt sie der
     Grundlinie je Fassung gegenüber.
+
+    Unter `streuung` steht seit September 2026 zusätzlich, wie weit diese
+    Mittel tragen. Zusätzlich heißt zusätzlich: Die Schlüssel darüber sind
+    unverändert, und ein Stand von vorher hat den neuen schlicht nicht - die
+    Ansicht kommt mit beidem zurecht.
     """
     if not zeilen:
         return {"test_einheiten": 0}
@@ -128,6 +175,7 @@ def _zusammengefasst(zeilen: list[dict[str, Any]]) -> dict[str, Any]:
         # Alle Zeilen eines Laufs stammen aus demselben Rechenwerk - der
         # Erkenner wird einmal geladen. Deshalb genügt hier die erste.
         "rechenwerk": str(zeilen[0].get("rechenwerk", "")),
+        "streuung": _streuung(zeilen, blockart),
     }
 
 

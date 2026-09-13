@@ -302,6 +302,42 @@ Stand den Sprecher verstanden hat oder bloß seine Aufnahmesituation, schaltet
 auf **Original** oder **Rauschen** um; das ist dieselbe Frage wie beim
 einzelnen Lauf, nur über alle Modelle auf einmal.
 
+### Wie weit die Zahlen tragen
+
+Sechzig Testaufnahmen ergeben ein 95-%-Intervall, das mehrere Prozentpunkte
+breit ist - breiter als die meisten Unterschiede, um die es hier geht. Eine
+Tabelle, die 0,142 neben 0,138 stellt und die kleinere Zahl hervorhebt,
+behauptet dann etwas, das sie nicht gemessen hat.
+
+Über der Tabelle steht deshalb die Auswahl **Sicherheit**. Eingeschaltet
+erscheint unter jeder Zahl der Bereich, in dem sie liegen dürfte - gerechnet
+als Bootstrap über zweitausend Ziehungen (`wortlaut/streuung.py`). Gezogen wird
+dabei je **Aufnahme** und nicht je Messung: Vier Fassungen einer Aufnahme sind
+vier Messungen an einem Gegenstand, und wer sie einzeln zieht, bekommt einen
+etwa halb so breiten Bereich heraus. Die naive Ziehung steht trotzdem zur Wahl,
+weil sie das in der Literatur übliche Verfahren ist.
+
+Die Auswahl **Gegen** nennt ein Modell, gegen das jede andere Zeile gepaart
+antritt: Statt des Bereichs steht dann der Abstand zu ihm, mit p-Wert. Das ist
+die schärfere Frage. Zwei Bereiche nebeneinander überlappen sich auch dann oft,
+wenn der Abstand belastbar ist - beide tragen den gemeinsamen Anteil mit, den
+eine schwer verständliche Aufnahme bei jedem Modell verursacht. In der
+Differenz fällt er heraus.
+
+**Die Vorgabe ist „aus", und das ist Absicht.** Was in dieser Tabelle steht,
+wird mit dem verglichen, was vor Monaten darin stand; eine Ansicht, die ihre
+Zahlen von sich aus anders rechnet, macht das zunichte. Eingeschaltet ändert
+sich deshalb keine Zahl - der Bereich tritt daneben, nicht an ihre Stelle.
+Geändert hat sich genau eine Kleinigkeit: Überlappen sich der beste und der
+zweitbeste Wert einer Spalte, trägt sie ein `≈` mit dem Hinweis, dass der
+Vorsprung nicht belegt ist.
+
+Beim einzelnen Lauf gibt es dieselbe Auswahl; dort kommt eine Spalte **Belegt?**
+neben den Unterschied zur Grundlinie. Ein fertiger Lauf schreibt seine Bereiche
+außerdem gleich mit ins Manifest seines Standes (`metriken.streuung`) - Stände
+von vor September 2026 haben sie nicht, und die Ansicht kommt mit beidem
+zurecht.
+
 Was hier bewusst **nicht** steht: die vollständige Aufschlüsselung je Aufnahme
 mit den erkannten Texten daneben. Die gehört dorthin, wo sie entstanden ist -
 in die Auswertung von `hören` und zum einzelnen Lauf. Hier wird entschieden,
@@ -358,9 +394,12 @@ POST   /lernen/api/laeufe                   einen Lauf beauftragen
                                             + X-Trainer-Key - der einzige Weg,
                                             der ein zweites Geheimnis verlangt
 GET    /lernen/api/laeufe/{id}              Kurven, Bewertung, Vergleich, Protokoll
+                                            ?intervall=aus|aufnahme|einheit
 POST   /lernen/api/laeufe/{id}/abbruch      einen wartenden zurücknehmen
 DELETE /lernen/api/laeufe/{id}              ersatzlos löschen, samt seinem Modell
 GET    /lernen/api/modelle                  alle Modelle mit ihren Zahlen
+                                            ?intervall=aus|aufnahme|einheit
+                                            ?vergleich_mit=<ref> - gepaart gegen dieses
 POST   /lernen/api/modelle/freigabe         { ref } - dieses freigeben, jedes andere
                                             zurückziehen; leer nimmt die Freigabe zurück
 GET    /gesundheit                          ohne Zugang, auf der Wurzel
