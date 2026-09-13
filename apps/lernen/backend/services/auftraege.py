@@ -61,6 +61,9 @@ class Auftrag:
     # Womit die Trainingsproben beim Laden abgewandelt werden. Auch hier mit
     # Vorgabe: `keine` ist das Verfahren von vorher.
     augmentierung: str = laeufe.AUG_KEINE
+    # Wie lange trainiert wird. `fest` ist die Zahl aus dem Rezept und das
+    # Verfahren von vorher.
+    dauer: str = laeufe.DAUER_FEST
 
 
 def _quelle_von(korpus: Session, probe: Probe) -> str:
@@ -157,6 +160,7 @@ def beauftrage(
             "daten": auftrag.daten,
             "abschluss": auftrag.abschluss,
             "augmentierung": auftrag.augmentierung,
+            "dauer": auftrag.dauer,
             "basismodell": auftrag.basismodell,
             "erstellt": laeufe.jetzt(),
             "zeilen": gezaehlt,

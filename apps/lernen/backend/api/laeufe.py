@@ -199,6 +199,27 @@ AUGMENTIERUNGEN = [
 ]
 
 
+DAUERN = [
+    WahlAntwort(
+        schluessel=lauf_layout.DAUER_FEST,
+        name="Feste Zahl Durchgänge",
+        erklaerung=(
+            "So viele Durchgänge, wie im Rezept stehen - das Verfahren, nach dem "
+            "alle bisherigen Stände entstanden sind."
+        ),
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.DAUER_GEDULDIG,
+        name="Bis nichts mehr besser wird",
+        erklaerung=(
+            "Eine weit höhere Obergrenze, und Schluss, sobald die Validierung "
+            "mehrere Durchgänge lang nicht mehr besser wird. Kostet Rechenzeit "
+            "und nie Güte: Ausgeliefert wird ohnehin der beste Durchgang."
+        ),
+    ),
+]
+
+
 class Bestellung(BaseModel):
     methode: str
     daten: str
@@ -207,6 +228,8 @@ class Bestellung(BaseModel):
     abschluss: str = lauf_layout.ABSCHLUSS_BESTER
     # Die vierte Achse, ebenfalls mit Vorgabe.
     augmentierung: str = lauf_layout.AUG_KEINE
+    # Die fünfte Achse, ebenfalls mit Vorgabe.
+    dauer: str = lauf_layout.DAUER_FEST
 
 
 class StandHinweis(BaseModel):
@@ -233,6 +256,8 @@ class LaufAntwort(BaseModel):
     # Womit die Trainingsproben abgewandelt wurden. Ein Lauf von vor dieser
     # Achse heißt hier `keine` - genau das, was damals gerechnet wurde.
     augmentierung: str
+    # Wie lange trainiert wurde. Ein Lauf von vor dieser Achse heißt `fest`.
+    dauer: str
     basismodell: str
     erstellt: str
     status: str
@@ -282,6 +307,7 @@ class EinzelAntwort(BaseModel):
     datensaetze: list[WahlAntwort]
     abschluesse: list[WahlAntwort]
     augmentierungen: list[WahlAntwort]
+    dauern: list[WahlAntwort]
     kurve_training: list[PunktAntwort]
     kurve_validierung: list[PunktAntwort]
     # fassung -> die Maße, jeweils vorher und nachher
@@ -298,6 +324,7 @@ class ListeAntwort(BaseModel):
     datensaetze: list[WahlAntwort]
     abschluesse: list[WahlAntwort]
     augmentierungen: list[WahlAntwort]
+    dauern: list[WahlAntwort]
     basismodell: str
     # Ob überhaupt beauftragt werden kann, und wenn nicht, warum. Es sind zwei
     # Gründe, aus denen nicht: zu wenige Aufnahmen - oder kein hinterlegter
@@ -355,6 +382,7 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         daten=str(lauf.auftrag.get("daten", "")),
         abschluss=str(lauf.auftrag.get("abschluss") or lauf_layout.ABSCHLUSS_BESTER),
         augmentierung=str(lauf.auftrag.get("augmentierung") or lauf_layout.AUG_KEINE),
+        dauer=str(lauf.auftrag.get("dauer") or lauf_layout.DAUER_FEST),
         basismodell=str(lauf.auftrag.get("basismodell", "")),
         erstellt=str(lauf.auftrag.get("erstellt", "")),
         status=lauf.status,
@@ -404,6 +432,7 @@ def liste(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         datensaetze=DATENSAETZE,
         abschluesse=ABSCHLUESSE,
         augmentierungen=AUGMENTIERUNGEN,
+        dauern=DAUERN,
         basismodell=konfiguration.lernen_basismodell,
         bereit=genug and erlaubt,
         schluessel_noetig=erlaubt,
@@ -449,6 +478,8 @@ def beauftrage(
             status_code=400,
             detail=f"Unbekannte Augmentierung: {bestellung.augmentierung}",
         )
+    if bestellung.dauer not in lauf_layout.DAUERN:
+        raise HTTPException(status_code=400, detail=f"Unbekannte Dauer: {bestellung.dauer}")
 
     konfiguration = einstellungen()
     proben = aufteilung.proben(db, korpus)
@@ -468,6 +499,7 @@ def beauftrage(
             daten=bestellung.daten,
             abschluss=bestellung.abschluss,
             augmentierung=bestellung.augmentierung,
+            dauer=bestellung.dauer,
             basismodell=konfiguration.lernen_basismodell,
         ),
     )
@@ -499,6 +531,7 @@ def einzeln(
         datensaetze=DATENSAETZE,
         abschluesse=ABSCHLUESSE,
         augmentierungen=AUGMENTIERUNGEN,
+        dauern=DAUERN,
         kurve_training=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["training"]],
         kurve_validierung=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["validierung"]],
         vergleich={

@@ -53,7 +53,10 @@ def _version(auftrag: dict[str, Any]) -> str:
     if art != laeufe.ABSCHLUSS_BESTER:
         name = f"{name}-{art}"
     abwandlung = str(auftrag.get("augmentierung") or laeufe.AUG_KEINE)
-    return name if abwandlung == laeufe.AUG_KEINE else f"{name}-{abwandlung}"
+    if abwandlung != laeufe.AUG_KEINE:
+        name = f"{name}-{abwandlung}"
+    dauer = str(auftrag.get("dauer") or laeufe.DAUER_FEST)
+    return name if dauer == laeufe.DAUER_FEST else f"{name}-{dauer}"
 
 
 def bewerte(
@@ -228,6 +231,7 @@ def bewerte_und_gib_frei(
             # anderen zu vergleichen.
             "abschluss": str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER),
             "augmentierung": str(auftrag.get("augmentierung") or laeufe.AUG_KEINE),
+            "dauer": str(auftrag.get("dauer") or laeufe.DAUER_FEST),
             "abschluss_bericht": abschluss.als_dict() if abschluss is not None else None,
             "job_id": auftrag.get("job_id"),
             "erstellt": laeufe.jetzt(),

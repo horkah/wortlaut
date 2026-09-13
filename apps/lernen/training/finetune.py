@@ -27,6 +27,7 @@ ohne sie anzufassen.
 from __future__ import annotations
 
 import json
+import math
 import sys
 import time
 from pathlib import Path
@@ -48,6 +49,11 @@ KEIM = 20260912
 # tausend Schritten eine tausendzeilige Datei, die die Oberfläche im Takt
 # einliest; alle zehn genügt für eine Kurve, die man ansieht.
 LOG_ALLE = 10
+
+# Wie viel eines Laufs höchstens Warmlauf sein darf. Der Wert im Rezept steht
+# als Schrittzahl da und passt für einen Korpus mit hunderten Proben; bei einem
+# sehr kleinen wäre der Warmlauf länger als der ganze Lauf (siehe `trainiere`).
+WARMLAUF_ANTEIL = 0.2
 
 
 def _rezeptpfad(methode: str) -> Path:
@@ -245,6 +251,11 @@ def trainiere(
     abwandlung = klangwandel.pruefe(
         str(auftrag.get("augmentierung") or laeufe.AUG_KEINE)
     )
+    dauer = str(auftrag.get("dauer") or laeufe.DAUER_FEST)
+    if dauer not in laeufe.DAUERN:
+        raise RuntimeError(
+            f"Unbekannte Dauer: {dauer}. Zur Wahl stehen: {', '.join(laeufe.DAUERN)}."
+        )
     rezept = yaml.safe_load(_rezeptpfad(methode).read_text(encoding="utf-8"))
 
     bericht.stufe("laden")
@@ -319,6 +330,46 @@ def trainiere(
     # Aufnahmen gibt es eine Validierung (siehe `wortlaut/laeufe.py`).
     hat_pruefung = len(pruef) > 0
 
+    # Wie viele Durchgänge, und wann Schluss ist.
+    #
+    # `geduldig` braucht eine Validierung: Ohne sie gibt es nichts, woran „wird
+    # nicht mehr besser" zu erkennen wäre. Ein zu kleiner Korpus fällt deshalb
+    # auf `fest` zurück und bekommt es gesagt - weiterzulaufen, bis irgendetwas
+    # passiert, wäre kein Verfahren, sondern eine Hoffnung.
+    geduldig = dauer == laeufe.DAUER_GEDULDIG and hat_pruefung
+    if dauer == laeufe.DAUER_GEDULDIG and not hat_pruefung:
+        bericht.sage(
+            "Geduldig nicht möglich: Ohne Validierungsproben gibt es kein "
+            "Kriterium. Es gilt die feste Zahl Durchgänge."
+        )
+    durchgaenge = float(
+        rezept.get("epochen_hoechstens", rezept["epochen"]) if geduldig else rezept["epochen"]
+    )
+
+    # Der Warmlauf, gedeckelt auf einen Anteil des Laufs.
+    #
+    # Er stand bisher als feste Schrittzahl im Rezept, und das ging bei jedem
+    # Korpus gut, der groß genug war. Bei einem sehr kleinen ging es schief:
+    # Neun Aufnahmen ergaben 24 Schritte bei einem Warmlauf von 50 - die
+    # Lernrate erreichte nie mehr als die Hälfte ihres Wertes, der ganze Lauf
+    # war Rampe. Gemessen an Schritt 20: 3,2e-4 statt 1e-3.
+    #
+    # Der Deckel greift nur dort. Ein Lauf über 396 Schritte behält seine 50
+    # (20 % wären 79), er rechnet also Gewicht für Gewicht wie vorher.
+    je_durchgang = max(
+        1, math.ceil(len(lern) / (int(rezept["stapel"]) * int(rezept["akkumulation"])))
+    )
+    gesamtschritte = max(1, int(je_durchgang * durchgaenge))
+    warmlauf = min(
+        int(rezept["warmlauf_schritte"]),
+        max(1, math.ceil(WARMLAUF_ANTEIL * gesamtschritte)),
+    )
+    if warmlauf < int(rezept["warmlauf_schritte"]):
+        bericht.sage(
+            f"Warmlauf gekürzt: {warmlauf} statt {rezept['warmlauf_schritte']} Schritte "
+            f"- der Lauf hat nur {gesamtschritte}."
+        )
+
     ausgabe = verzeichnis / laeufe.ARBEITSSTAND
     argumente = Seq2SeqTrainingArguments(
         output_dir=str(ausgabe),
@@ -326,8 +377,8 @@ def trainiere(
         per_device_eval_batch_size=int(rezept["stapel"]),
         gradient_accumulation_steps=int(rezept["akkumulation"]),
         learning_rate=float(rezept["lernrate"]),
-        warmup_steps=int(rezept["warmlauf_schritte"]),
-        num_train_epochs=float(rezept["epochen"]),
+        warmup_steps=warmlauf,
+        num_train_epochs=durchgaenge,
         weight_decay=float(rezept.get("gewichtsverfall", 0.0)),
         max_grad_norm=float(rezept.get("gradientenbegrenzung", 1.0)),
         fp16=bool(rezept.get("fp16", True)) and torch.cuda.is_available(),
@@ -376,17 +427,46 @@ def trainiere(
         seed=KEIM,
     )
 
+    rueckrufe = [_rueckmeldung(bericht)]
+    if geduldig:
+        from transformers import EarlyStoppingCallback
+
+        geduld = int(rezept.get("geduld", 5))
+        gewinn = float(rezept.get("mindestgewinn", 0.0))
+        rueckrufe.append(
+            EarlyStoppingCallback(
+                early_stopping_patience=geduld, early_stopping_threshold=gewinn
+            )
+        )
+        bericht.sage(
+            f"Geduldig: höchstens {durchgaenge:.0f} Durchgänge, Schluss nach {geduld} "
+            f"Prüfungen ohne Gewinn von mehr als {gewinn}."
+        )
+
     trainer = _trainerklasse()(
         model=modell,
         args=argumente,
         train_dataset=lern,
         eval_dataset=pruef if len(pruef) else None,
         data_collator=Stapler(zerteiler),
-        callbacks=[_rueckmeldung(bericht)],
+        callbacks=rueckrufe,
     )
 
     bericht.stufe("training")
     trainer.train()
+
+    # Ob die Geduld gereicht hat oder die Obergrenze gebunden hat. Das ist die
+    # Auskunft, die dem Lauf von Femke gefehlt hat: Eine Kurve, die am Ende
+    # noch fällt, sieht aus wie eine, die fertig ist.
+    if geduldig:
+        gelaufen = float(trainer.state.epoch or 0.0)
+        if gelaufen >= durchgaenge - 0.5:
+            bericht.sage(
+                f"Achtung: Die Obergrenze von {durchgaenge:.0f} Durchgängen war erreicht, "
+                "die Geduld also nicht aufgebraucht - es wäre womöglich noch besser geworden."
+            )
+        else:
+            bericht.sage(f"Schluss nach {gelaufen:.0f} Durchgängen: Es wurde nicht mehr besser.")
 
     if hat_pruefung and trainer.state.best_model_checkpoint:
         # Sichtbar machen, welcher Durchgang gewonnen hat: Steht er weit vor

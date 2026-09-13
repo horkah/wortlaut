@@ -179,6 +179,26 @@ AUG_VOLL = "voll"
 AUGMENTIERUNGEN = (AUG_KEINE, AUG_MASKEN, AUG_UMGEBUNG, AUG_VOLL)
 
 
+# ── Wie lange trainiert wird ────────────────────────────────────────────────
+#
+# Die fünfte Achse, und sie kommt aus einem Befund: Bei einem sehr kleinen
+# Korpus war die Validierungskurve am letzten Durchgang noch im Fallen. Die
+# Zahl der Durchgänge im Rezept ist als **Obergrenze** gedacht - „zu hoch
+# kostet Rechenzeit, zu niedrig kostet Güte". Zu niedrig war sie hier, und
+# gemerkt hat es niemand, weil ein Lauf, der am Ende noch besser wird, genauso
+# aussieht wie einer, der fertig ist.
+#
+# `fest`       Die Zahl aus dem Rezept, ohne Rücksicht auf die Kurve. Die
+#              Vorgabe und das Verfahren von vorher.
+# `geduldig`   Eine weit höhere Obergrenze, und Schluss ist, wenn die
+#              Validierung mehrere Durchgänge lang nicht mehr besser wird.
+#              Ausgeliefert wird ohnehin der beste Durchgang - die Geduld
+#              kostet also Rechenzeit und niemals Güte.
+DAUER_FEST = "fest"
+DAUER_GEDULDIG = "geduldig"
+DAUERN = (DAUER_FEST, DAUER_GEDULDIG)
+
+
 # Der Zustand eines Laufs, wie ihn `zustand.json` nennt.
 WARTET = "wartet"
 LAEUFT = "laeuft"

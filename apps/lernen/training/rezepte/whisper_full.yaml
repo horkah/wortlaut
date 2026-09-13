@@ -56,6 +56,14 @@ abschluss:
   # was eine Validierung dieser Größe noch trennen könnte.
   alphas: [0.0, 0.1, 0.2, 0.3, 0.5]
 
+# Wie lange trainiert wird, wenn der Auftrag `geduldig` bestellt (sonst gilt
+# `epochen` oben). Niedriger als bei LoRA, und das ist keine Willkür: Ein
+# Durchgang des vollen Trainings kostet ein Vielfaches, und die Gefahr des
+# Auswendiglernens ist hier die größere.
+epochen_hoechstens: 40
+geduld: 4
+mindestgewinn: 0.001
+
 # Die Augmentierung während des Trainings. Welche Stufe gilt, bestellt der
 # Auftrag (`keine`, `masken`, `umgebung`, `voll`); hier stehen ihre Zahlen.
 # Gerechnet wird beim Laden jeder Probe und nichts davon abgelegt - was

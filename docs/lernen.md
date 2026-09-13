@@ -182,6 +182,51 @@ Sie sagt, welcher Durchgang der beste war und welches α gewinnt - eine
 Validierung, die in jedem Durchgang anders klingt, misst den Würfel statt das
 Modell. Das Testdrittel wird ohnehin nie angefasst.
 
+### Die fünfte Achse: wie lange trainiert wird
+
+Die Zahl der Durchgänge im Rezept ist als **Obergrenze** gemeint: „Zu hoch
+angesetzt kostet sie Rechenzeit, zu niedrig kostet sie Güte - im Zweifel lieber
+zu hoch." Im September 2026 hat sich gezeigt, dass sie bei einem sehr kleinen
+Korpus zu niedrig war, und dass man das einem fertigen Lauf nicht ansieht: Eine
+Kurve, die am letzten Durchgang noch fällt, sieht aus wie eine, die fertig ist.
+
+Der Lauf, der es zeigte - neun Aufnahmen, davon fünf zum Lernen:
+
+| Durchgang | 1 | 4 | 8 | 12 (Schluss) |
+|---|---|---|---|---|
+| Validierungsverlust | 10,84 | 9,06 | 6,77 | **5,53** |
+
+Monoton fallend bis zum Schluss, der beste Durchgang war der letzte. Die
+Obergrenze hat gebunden, nicht die Überanpassung.
+
+Deshalb gibt es beim Beauftragen jetzt eine Wahl:
+
+| | Was geschieht |
+|---|---|
+| **Feste Zahl Durchgänge** | so viele, wie im Rezept stehen - die Vorgabe und das Verfahren von vorher |
+| **Bis nichts mehr besser wird** | eine weit höhere Obergrenze (LoRA 60, volles Training 40), und Schluss, sobald die Validierung mehrere Prüfungen lang nicht mehr besser wird |
+
+**Geduld kostet Rechenzeit und nie Güte.** Ausgeliefert wird ohnehin der beste
+Durchgang; ein Lauf, der zu lange läuft, liefert denselben Stand wie einer, der
+rechtzeitig aufhört - nur später. Das ist der Grund, warum die Obergrenze so
+weit oben stehen darf.
+
+**Wann es nicht geht.** Ohne Validierungsproben gibt es kein Kriterium für
+„wird nicht mehr besser". Ein zu kleiner Korpus fällt deshalb auf die feste
+Zahl zurück und bekommt es ins Protokoll geschrieben - weiterzulaufen, bis
+irgendetwas passiert, wäre kein Verfahren, sondern eine Hoffnung.
+
+**Und wenn auch die hohe Grenze bindet**, sagt der Lauf es: Wer die Obergrenze
+erreicht, ohne die Geduld aufzubrauchen, liest im Protokoll, dass es womöglich
+noch besser geworden wäre. Genau diese Auskunft hat gefehlt.
+
+**Der Warmlauf ist mitgewachsen.** Er stand als feste Schrittzahl im Rezept -
+50 Schritte, bis die Lernrate ihren vollen Wert erreicht. Derselbe kleine Lauf
+hatte insgesamt 24 Schritte: Die Lernrate kam nie über die Hälfte, der ganze
+Lauf war Rampe (gemessen bei Schritt 20: 3,2e-4 statt 1e-3). Der Warmlauf ist
+deshalb auf ein Fünftel des Laufs gedeckelt. Für jeden Lauf, der lang genug
+ist, ändert das nichts - bei 264 Proben bleiben es die 50 aus dem Rezept.
+
 Das ist auch die Antwort auf die naheliegende Frage, ob sich aus demselben
 Material mehr herausholen ließe, indem man mit mehreren Lernraten trainiert.
 Bei knapp hundert Trainingsaufnahmen lohnt sich das nicht: Die Gefahr ist nicht,
