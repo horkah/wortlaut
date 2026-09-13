@@ -118,6 +118,28 @@ def bewerte_faltung(
     sprache = str(auftrag.get("sprache") or "de")
 
     ergebnis = []
+    try:
+        ergebnis = _miss(erkenner, zeilen, korpuswurzel, sprache, faltung, verzeichnis, bericht)
+    finally:
+        # Auch wenn das Messen scheitert: Die Karte gehört danach der nächsten
+        # Faltung. Ein Erkenner, der bis zum nächsten Sammellauf liegen bleibt,
+        # ist derselbe Fehler wie der, der diesen Aufruf nötig gemacht hat -
+        # nur in die andere Richtung (siehe `finetune.raeume_karte`).
+        erkenner.entlade()
+    return ergebnis
+
+
+def _miss(
+    erkenner,
+    zeilen: list[dict[str, Any]],
+    korpuswurzel: Path,
+    sprache: str,
+    faltung: int,
+    verzeichnis: Path,
+    bericht,
+) -> list[dict[str, Any]]:
+    """Zeile für Zeile erkennen und bewerten - der Rumpf von `bewerte_faltung`."""
+    ergebnis = []
     for nummer, zeile in enumerate(zeilen, start=1):
         begonnen = time.monotonic()
         transkript = erkenner.transkribiere(korpuswurzel / str(zeile["audio"]), sprache=sprache)

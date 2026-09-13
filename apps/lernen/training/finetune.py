@@ -26,6 +26,7 @@ ohne sie anzufassen.
 
 from __future__ import annotations
 
+import gc
 import json
 import math
 import shutil
@@ -369,6 +370,13 @@ def trainiere(
                 bias="none",
             ),
         )
+        if rezept.get("gradientensparsam", False):
+            # Beim Gradientensparen hängt der Rückwärtsgang an der Eingabe des
+            # ersten Blocks. Bei LoRA ist alles davor eingefroren, sie verlangt
+            # also keinen Gradienten - und ohne diesen Griff bekommt der Zusatz
+            # gar keinen. Das ist der bekannte stille Fehlschlag von LoRA mit
+            # Gradientensparen: Es läuft durch und lernt nichts.
+            modell.enable_input_require_grads()
         trainierbar = sum(p.numel() for p in modell.parameters() if p.requires_grad)
         gesamt = sum(p.numel() for p in modell.parameters())
         bericht.sage(f"LoRA: {trainierbar:,} von {gesamt:,} Gewichten werden gelernt")
@@ -453,11 +461,32 @@ def trainiere(
     # nächste anfängt (beim vollen Training wären sieben Stände sonst sieben
     # Gigabyte).
     ausgabe = verzeichnis / laeufe.ARBEITSSTAND / _name_fuer(faltung)
+    sparsam = bool(rezept.get("gradientensparsam", False))
     argumente = Seq2SeqTrainingArguments(
         output_dir=str(ausgabe),
         per_device_train_batch_size=int(rezept["stapel"]),
         per_device_eval_batch_size=int(rezept["stapel"]),
         gradient_accumulation_steps=int(rezept["akkumulation"]),
+        # Aktivierungen nicht aufheben, sondern beim Rückwärtsgang neu rechnen.
+        #
+        # Rechnerisch ändert das nichts: Es kommen dieselben Gradienten heraus,
+        # nur wird der Vorwärtsgang je Block ein zweites Mal ausgeführt, statt
+        # seine Zwischenergebnisse aufzuheben. Deshalb ist es keine weitere
+        # Achse, sondern eine Frage des Platzes - und steht im Rezept unter
+        # `je_grundmodell`, wo die anderen Platzfragen auch stehen.
+        #
+        # Gemessen an `medium` mit LoRA und Stapel 8: 9,3 GB ohne, 2,3 GB mit.
+        # Und entgegen der Erwartung nicht langsamer, sondern schneller (125 ms
+        # je Probe ohne, 68 ms mit) - bei 9,3 GB auf einer Karte mit 10,75 GB
+        # nutzbarem Speicher stößt der Vorrat von torch dauernd an die Decke
+        # und muss beim Treiber nachfordern, und das kostet mehr als die
+        # zweite Rechnung. Bei `small` bleibt es aus: Dort ist der Platz nicht
+        # knapp, und dann ist die Neuberechnung tatsächlich nur Aufwand.
+        gradient_checkpointing=sparsam,
+        # Ohne `use_reentrant=False` schweigt torch nicht nur, es warnt bei
+        # jedem Schritt - und die ältere Fassung verträgt sich schlecht damit,
+        # dass bei LoRA fast alle Gewichte eingefroren sind.
+        gradient_checkpointing_kwargs={"use_reentrant": False} if sparsam else None,
         learning_rate=float(rezept["lernrate"]),
         warmup_steps=warmlauf,
         num_train_epochs=durchgaenge,
@@ -600,6 +629,14 @@ def trainiere(
         "durchgaenge": _bester_durchgang(trainer, durchgaenge, hat_pruefung),
         "alpha": ergebnis.alpha,
     }
+
+    # Die Karte räumen, bevor jemand anders sie braucht. Ausdrücklich `del`
+    # und nicht bloß das Ende der Funktion: Was hier hängt, ist das Modell samt
+    # Optimiererzustand, und solange der Trainer noch darauf zeigt, gibt auch
+    # `raeume_karte` nichts her (siehe dort).
+    del trainer, modell
+    raeume_karte(bericht)
+
     return gewichte, ergebnis, kennzahlen
 
 
@@ -608,6 +645,49 @@ def trainiere(
 # `tokenizer.json`, greift faster-whisper still auf den von `whisper-tiny`
 # zurück - kein Fehler, keine Warnung, nur schlechterer Text.
 BEIZULEGEN = ["tokenizer.json", "preprocessor_config.json"]
+
+
+def raeume_karte(bericht: Bericht | None = None) -> float:
+    """Den Speicher der Karte wirklich zurückgeben; liefert die Megabyte.
+
+    **Warum das nötig ist, obwohl niemand mehr auf das Modell zeigt.** torch
+    gibt freigewordenen Kartenspeicher nicht an den Treiber zurück, sondern
+    behält ihn in einem eigenen Vorrat - eine sinnvolle Entscheidung, denn der
+    nächste Trainingsschritt will ihn ohnehin gleich wieder. Für torch selbst
+    ist der Speicher damit frei; für jeden anderen ist er belegt.
+
+    Genau das ist im September 2026 passiert. Eine Faltung auf `medium` lief
+    durch, der Stand war gesichert und umgewandelt - und beim Laden des
+    Erkenners stand da `CUDA failed with error out of memory`. Die Karte war
+    nicht voll: Sie war voll aus Sicht von CTranslate2, das seinen Speicher
+    beim Treiber holt und nicht bei torch. Gemessen waren es 1,7 GB allein für
+    die eingefrorenen Gewichte; mit Optimierer, Gradienten und Aktivierungen
+    ist es ein Vielfaches davon.
+
+    Bei `small` ging es gut, und das ist der Grund, warum es so lange
+    unbemerkt blieb: Ein kleinerer Vorrat lässt genug übrig. Die Grenze lag
+    also nicht bei „passt das Modell auf die Karte", sondern bei „passen beide
+    gleichzeitig darauf" - und die zweite Frage stellt sich nie, wenn man sie
+    nicht stellt.
+
+    Kostenlos ist der Aufruf nicht: Der nächste Trainingsschritt muss sich
+    seinen Vorrat neu vom Treiber holen. Deshalb steht er an den zwei Stellen,
+    an denen wirklich gewechselt wird - nach dem Lernen und nach dem Messen -
+    und nicht in der Schleife.
+    """
+    gc.collect()
+    try:
+        import torch
+    except ImportError:  # pragma: no cover - hängt am Abbild
+        return 0.0
+    if not torch.cuda.is_available():
+        return 0.0
+    vorher = torch.cuda.memory_reserved()
+    torch.cuda.empty_cache()
+    frei = (vorher - torch.cuda.memory_reserved()) / 1e6
+    if bericht is not None and frei > 1.0:
+        bericht.sage(f"  Karte freigegeben: {frei:.0f} MB")
+    return frei
 
 
 def wandle_um(gewichte: Path, ziel: Path, bericht: Bericht) -> None:
@@ -677,6 +757,10 @@ def kreuzvalidiere(
         )
         gelernt.append({**kennzahlen, "faltung": faltung, "abschluss": ergebnis.als_dict()})
         # Sofort und nicht am Ende: Die nächste Faltung braucht den Platz.
+        # Das gilt für die Platte und für die Karte gleichermaßen - der
+        # Erkenner ist in `bewerte_faltung` schon freigegeben, hier kommt zurück,
+        # was torch sich beim Messen sonst noch genommen hat.
+        raeume_karte(bericht)
         shutil.rmtree(gewichte.parent, ignore_errors=True)
         shutil.rmtree(verzeichnis / laeufe.ARBEITSSTAND / _name_fuer(faltung), ignore_errors=True)
 

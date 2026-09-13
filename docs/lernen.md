@@ -140,9 +140,23 @@ Feintuning von `medium` sprengt den Speicher einer 11-GB-Karte. Die
 Kombination wird deshalb gar nicht erst angeboten und zusätzlich in der API
 und im Trainer abgewiesen - nach zwei Stunden am Speicher zu scheitern wäre
 die schlechteste aller Auskünfte. Mit LoRA passt es: Das Grundmodell bleibt
-eingefroren, gelernt wird ein kleiner Zusatz. Der Stapel fällt dabei von acht
-auf vier bei doppelter Akkumulation, die wirksame Stapelgröße bleibt also
-gleich (`je_grundmodell` in `training/rezepte/whisper_lora.yaml`).
+eingefroren, gelernt wird ein kleiner Zusatz.
+
+Der Platz reicht trotzdem nur mit einem zweiten Griff, und der erste war der
+falsche. Zunächst fiel der Stapel von acht auf vier bei doppelter Akkumulation
+- dieselbe wirksame Stapelgröße in zwei Portionen. Gemessen blieben damit
+9,3 GB von 10,75 GB nutzbaren belegt. Das Training lief, aber danach will der
+**Erkenner** auf dieselbe Karte, um die Faltung zu messen, und der fand nichts
+mehr vor: Ein Lauf im September 2026 scheiterte mitten in der Auswertung der
+ersten Faltung mit `CUDA failed with error out of memory`.
+
+Seitdem rechnet `medium` seine Aktivierungen beim Rückwärtsgang neu, statt sie
+aufzuheben (`gradientensparsam` in `je_grundmodell`,
+`training/rezepte/whisper_lora.yaml`). Dieselben Gradienten, ein Viertel des
+Platzes: 2,3 GB statt 9,3 GB. Der Stapel darf deshalb wieder auf acht stehen
+wie bei `small` - und es wurde dabei nicht langsamer, sondern schneller
+(68 statt 125 ms je Probe), weil ein Vorrat, der an die Decke stößt, mehr
+kostet als die zweite Rechnung.
 
 Ein Grundmodell muss in `WORTLAUT_AUSWERTUNG_MODELLE` stehen, sonst hat sein
 trainierter Stand keine Grundlinie, gegen die er antreten könnte. `small`,
