@@ -52,3 +52,29 @@ abschluss:
   # Bei LoRA ist das eine Multiplikation am Zusatz und kostet nichts; das
   # Raster darf deshalb feiner sein als beim vollen Training.
   alphas: [0.0, 0.05, 0.1, 0.2, 0.3, 0.5]
+
+# Die Augmentierung während des Trainings. Welche Stufe gilt, bestellt der
+# Auftrag (`keine`, `masken`, `umgebung`, `voll`); hier stehen ihre Zahlen.
+# Gerechnet wird beim Laden jeder Probe und nichts davon abgelegt - was
+# gewürfelt ist, soll in jedem Durchgang ein anderes sein
+# (`training/klangwandel.py`).
+augmentierung:
+  # SpecAugment, die kleine Einstellung aus der Literatur. Bei wenigen hundert
+  # kurzen Sätzen verdeckt die große Einstellung den Satz selbst.
+  zeitmasken: 2
+  zeitmaske_anteil: 0.12
+  frequenzmasken: 2
+  frequenzmaske_baender: 16
+  # Nachhall, wie ihn ein Wohnzimmer und ein gefliester Flur haben. Darüber
+  # klingt es nach Kirche, und dort diktiert niemand.
+  raum_wahrscheinlichkeit: 0.5
+  raum_nachhall_s: [0.05, 0.35]
+  # Von „kaum zu hören" bis „stört deutlich". Die gemessene Fassung `rauschen`
+  # liegt mit ihren festen 20 dB mitten darin - hier ist der Abstand jedes Mal
+  # ein anderer, damit das Modell keinen bestimmten auswendig lernt.
+  rausch_wahrscheinlichkeit: 0.5
+  rausch_abstand_db: [10.0, 35.0]
+  # Nur in der Stufe `voll`. Bei dysarthrischer Sprache ist das Sprechtempo
+  # ein Merkmal des Sprechers - es zu verwürfeln kann helfen oder schaden.
+  tempo_wahrscheinlichkeit: 0.5
+  tempo_faktor: [0.9, 1.1]

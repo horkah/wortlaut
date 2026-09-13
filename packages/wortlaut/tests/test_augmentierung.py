@@ -1,10 +1,14 @@
-"""Die abgewandelten Fassungen einer Aufnahme.
+"""Die abgewandelte Fassung einer Aufnahme.
 
-Geprüft wird, was die drei Abwandlungen zusichern - dass die Aussteuerung den
-Bereich ausschöpft, ohne ihn zu verlassen; dass „lauter" für jede Aufnahme
-derselbe Faktor ist; dass das Rauschen hörbar ist, die Sprache aber vorn
-bleibt - und die eine Eigenschaft, ohne die eine Messung keine Messung wäre:
+Geprüft wird, was die eine verbliebene Abwandlung zusichert - dass das Rauschen
+hörbar ist, die Sprache aber vorn bleibt, und dass es jede Aufnahme gleich hart
+trifft - und die eine Eigenschaft, ohne die eine Messung keine Messung wäre:
 dass dasselbe zweimal dasselbe ergibt.
+
+`pegel` und `lauter` standen hier bis September 2026 und sind verworfen: Eine
+gleichmäßige Verstärkung ist an Whisper nahezu wirkungslos (siehe
+`wortlaut/augmentierung.py`). Was sie geprüft haben, prüft niemand mehr, weil
+es niemand mehr rechnet.
 """
 
 from __future__ import annotations
@@ -25,10 +29,6 @@ def _werte(wav: Path) -> array.array:
     return werte
 
 
-def _spitze(werte: array.array) -> int:
-    return max(max(werte), -min(werte))
-
-
 def _rms(werte: array.array) -> float:
     return math.sqrt(sum(wert * wert for wert in werte) / len(werte))
 
@@ -36,61 +36,6 @@ def _rms(werte: array.array) -> float:
 def _wandle(quelle: Path, ziel: Path, name: str, keim: str = "rec_test") -> array.array:
     augmentierung.wandle_ab(quelle, ziel, name, keim=keim)
     return _werte(ziel)
-
-
-class TestAussteuern:
-    def test_schoepft_den_bereich_aus(self, tmp_path: Path, wav_schreiben) -> None:
-        leise = wav_schreiben(tmp_path / "leise.wav", amplitude=2000)
-        werte = _wandle(leise, tmp_path / "pegel.wav", "pegel")
-
-        erwartet = audio.VOLLAUSSCHLAG * 10 ** (augmentierung.ZIEL_SPITZE_DBFS / 20)
-        assert _spitze(werte) == pytest.approx(erwartet, rel=0.01)
-
-    def test_verlaesst_ihn_nicht(self, tmp_path: Path, wav_schreiben) -> None:
-        # Eine Aufnahme am Anschlag wird dabei leiser. „Optimal ausnutzen"
-        # heißt auch, den Bereich nicht zu verlassen.
-        laut = wav_schreiben(tmp_path / "laut.wav", amplitude=32_700)
-        werte = _wandle(laut, tmp_path / "pegel.wav", "pegel")
-        assert _spitze(werte) < 32_700
-
-    def test_stille_bleibt_stille(self, tmp_path: Path, wav_schreiben) -> None:
-        # Kein lautester Punkt, durch den sich teilen ließe.
-        still = wav_schreiben(tmp_path / "still.wav", amplitude=0)
-        assert set(_wandle(still, tmp_path / "pegel.wav", "pegel")) == {0}
-
-    def test_laesst_das_verhaeltnis_der_stellen_stehen(
-        self, tmp_path: Path, wav_schreiben
-    ) -> None:
-        # Ein Faktor über die ganze Aufnahme, keine Kompression: Laut und leise
-        # stehen hinterher im selben Verhältnis zueinander wie vorher.
-        quelle = wav_schreiben(tmp_path / "a.wav", amplitude=3000)
-        vorher = _werte(quelle)
-        nachher = _wandle(quelle, tmp_path / "pegel.wav", "pegel")
-        faktor = _spitze(nachher) / _spitze(vorher)
-        assert _rms(nachher) == pytest.approx(_rms(vorher) * faktor, rel=0.01)
-
-
-class TestLauter:
-    def test_derselbe_faktor_fuer_jede_aufnahme(self, tmp_path: Path, wav_schreiben) -> None:
-        for amplitude in (1000, 8000):
-            quelle = wav_schreiben(tmp_path / f"{amplitude}.wav", amplitude=amplitude)
-            lauter = _wandle(quelle, tmp_path / f"{amplitude}-lauter.wav", "lauter")
-            assert _rms(lauter) == pytest.approx(
-                _rms(_werte(quelle)) * augmentierung.LAUTER_FAKTOR, rel=0.01
-            )
-
-    def test_wer_schon_am_anschlag_stand_stoesst_daran(
-        self, tmp_path: Path, wav_schreiben
-    ) -> None:
-        # Genau der Fall, den diese Abwandlung herstellen soll - und nicht der
-        # Fall, den `pegel` herstellt.
-        quelle = wav_schreiben(tmp_path / "laut.wav", amplitude=32_000)
-        lauter = _wandle(quelle, tmp_path / "lauter.wav", "lauter")
-        # Hart abgeschnitten, an beiden Enden des Wertebereichs: Ein Überlauf
-        # klänge nicht laut, sondern kaputt.
-        assert max(lauter) == augmentierung.GROESSTER
-        assert min(lauter) == augmentierung.KLEINSTER
-        assert audio.untersuche(tmp_path / "lauter.wav").clipping_anteil > 0
 
 
 class TestRauschen:
@@ -155,4 +100,4 @@ class TestJedeFassung:
     def test_stereo_wird_abgewiesen(self, tmp_path: Path, wav_schreiben) -> None:
         quelle = wav_schreiben(tmp_path / "stereo.wav", kanaele=2)
         with pytest.raises(audio.AudioFehler):
-            augmentierung.wandle_ab(quelle, tmp_path / "b.wav", "pegel", keim="rec_test")
+            augmentierung.wandle_ab(quelle, tmp_path / "b.wav", "rauschen", keim="rec_test")

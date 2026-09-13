@@ -28,21 +28,24 @@ Die Rangfolge ist damit kurz:
 
 Daneben steht die zweite Stellschraube, das **Aussteuern**: Vor dem Erkennen
 wird das Diktat lauter gerechnet, bis seine Spitze knapp unter dem Anschlag
-steht - ein einziger Faktor über die ganze Aufnahme, dieselbe Abwandlung, die
-„hören" als `pegel` neben jede Aufnahme legt (`wortlaut/augmentierung.py`).
-Der Aufnahmepegel eines Browsers hängt am Gerät, am Abstand und an der Stimme;
-bei leisen Aufnahmen schöpft Whisper den Wertebereich nicht aus, den seine
-Merkmalsberechnung erwartet, und gerade die kleineren Modelle hören mit
-Aussteuerung merklich besser. Deshalb ist es die Vorgabe - und deshalb bleibt
-es abschaltbar: Wer eine gut ausgesteuerte Kette hat, gewinnt nichts mehr.
+steht - ein einziger Faktor über die ganze Aufnahme (`wortlaut/audio.py`,
+`steuere_aus`). Der Aufnahmepegel eines Browsers hängt am Gerät, am Abstand und
+an der Stimme; bei sehr leisen Aufnahmen schöpft Whisper den Wertebereich nicht
+aus, den seine Merkmalsberechnung erwartet. Deshalb ist es die Vorgabe - und
+deshalb bleibt es abschaltbar: Wer eine gut ausgesteuerte Kette hat, gewinnt
+nichts mehr.
+
+**Was das nicht ist.** In „hören" stand dieselbe Rechnung bis September 2026
+als Abwandlung `pegel` neben jeder Korpusaufnahme, um Modelle daran zu messen.
+Dort ist sie verworfen: Als **Messgröße** trennte sie nichts, weil Whisper ein
+Log-Mel-Spektrogramm hört und eine gleichmäßige Verstärkung darin kaum mehr als
+einen Summanden verschiebt. Hier bleibt sie als Hörhilfe für den Ausreißer nach
+unten - das ist ein anderer Anspruch als „unterscheidet zwei Modelle".
 
 **Aufbereitet wird nur, was Whisper hört.** Abgelegt und später an „hören"
 gegeben wird die Aufnahme, wie sie gesprochen wurde. Das ist kein Detail: Aus
-einer bestätigten Korrektur wird drüben eine Aufnahme im Korpus, und „hören"
-rechnet aus ihr selbst eine ausgesteuerte Fassung. Läge hier schon eine
-ausgesteuerte als „Original", wäre die Abwandlung dort ein Nichts - und der
-Vergleich der vier Fassungen für genau diese Aufnahmen stillschweigend
-entwertet.
+einer bestätigten Korrektur wird drüben eine Aufnahme im Korpus, und die soll
+dort so liegen, wie sie gesprochen wurde - nicht schon bearbeitet.
 """
 
 from __future__ import annotations

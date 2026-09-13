@@ -141,6 +141,47 @@ Zwischenstände, das gewählte α und der Validierungsverlust davor und danach. 
 Stand, dessen α niemand mehr nachsehen kann, wäre mit keinem anderen zu
 vergleichen - in der Modelltabelle steht es deshalb in der Nebenzeile.
 
+### Die vierte Achse: wie abgewandelt wird
+
+„Womit" oben sagt, **welche abgelegten Fassungen** einer Aufnahme als eigene
+Zeilen ins Manifest kommen. Die vierte Achse sagt etwas anderes: **was mit
+einer Zeile geschieht, wenn sie geladen wird** - zur Laufzeit, gewürfelt, und
+nichts davon liegt hinterher auf der Platte (`training/klangwandel.py`):
+
+| | Was mit einer Probe geschieht | Aufwand je Probe |
+|---|---|---|
+| **Keine** | nichts - die Vorgabe und das Verfahren von vorher | 0 |
+| **Masken** | SpecAugment: Zeit- und Frequenzbalken im Spektrogramm | 0,08 ms |
+| **Masken, Raum und Rauschen** | dazu ein gewürfelter Raum und ein gewürfeltes Grundgeräusch | 0,8 ms |
+| **Dazu Tempo** | zusätzlich schneller und langsamer gesprochen | 4,4 ms |
+
+Zum Vergleich: Der Merkmalsausleser, den jede Probe ohnehin durchläuft, kostet
+9,1 ms. Selbst die breiteste Stufe ist damit umsonst zu haben - vorbereitet
+wird in zwei Ladefäden, während die Karte rechnet.
+
+**Warum nichts davon abgelegt wird.** Nicht aus Platzgründen und nicht aus
+Zeitgründen - beides wäre zu haben. Sondern weil eine Datei je Aufnahme in
+jedem Durchgang *dieselbe* wäre, und gerade das soll sie nicht sein: Die
+Wirkung einer Regularisierung liegt darin, dass das Modell die Aufnahme nie
+zweimal gleich hört. Eine Datei wäre hier nicht die Ersparnis, sondern der
+Verlust.
+
+**Warum die Lautstärke fehlt.** Sie wäre der billigste Griff von allen und ist
+der einzige, von dem wir wissen, dass er nichts bringt - genau deshalb sind in
+„hören" die Fassungen `pegel` und `lauter` verworfen worden. Was bleibt, muss
+das Spektrogramm an jeder Stelle verändern, nicht bloß seine Höhe.
+
+**Warum Tempo eine eigene Stufe hat.** Bei dysarthrischer Sprache ist das
+Sprechtempo kein Zufall, sondern ein Merkmal des Sprechers - womöglich genau
+das, auf das dieses Modell sich einstellen soll. Es zu verwürfeln kann helfen
+oder schaden. Das ist eine Frage und keine Meinung, und „Masken, Raum und
+Rauschen" gegen „Dazu Tempo" ist der Versuch, der sie beantwortet.
+
+**Abgewandelt wird nur, woraus gelernt wird.** Die Validierung bleibt sauber:
+Sie sagt, welcher Durchgang der beste war und welches α gewinnt - eine
+Validierung, die in jedem Durchgang anders klingt, misst den Würfel statt das
+Modell. Das Testdrittel wird ohnehin nie angefasst.
+
 Das ist auch die Antwort auf die naheliegende Frage, ob sich aus demselben
 Material mehr herausholen ließe, indem man mit mehreren Lernraten trainiert.
 Bei knapp hundert Trainingsaufnahmen lohnt sich das nicht: Die Gefahr ist nicht,
@@ -254,8 +295,8 @@ Drei Entscheidungen stecken darin:
   Quantisierung, eine andere Textangleichung.
 * **Nur die Testaufnahmen.** Auf allem anderen hat das Modell gelernt; eine
   Verbesserung dort ist keine Auskunft, sondern eine Selbstverständlichkeit.
-* **Je Fassung.** Geprüft wird immer auf allen vier Fassungen (Original,
-  ausgesteuert, lauter, mit Rauschen), auch beim Lauf „nur Originale": Die zu
+* **Je Fassung.** Geprüft wird immer auf allen Fassungen (Original und mit
+  Rauschen), auch beim Lauf „nur Originale": Die zu
   vergleichenden Modelle sollen sich in ihren Trainingsdaten unterscheiden und
   in nichts sonst - schon gar nicht in dem, woran sie gemessen werden. Ein
   Stand, der auf dem Original gewinnt und beim Rauschen verliert, hat etwas
@@ -298,9 +339,9 @@ und die andere nicht.
 beide stammen aus derselben Datei (`wortlaut/metriken.py`):
 
 * für die Grundmodelle die **Auswertung** aus `hören` - jede Aufnahme durch
-  `base`, `small`, `medium`, `large-v3`, in allen vier Fassungen;
+  `base`, `small`, `medium`, `large-v3`, in allen Fassungen;
 * für jeden eigenen Stand die **Bewertung** seines Laufs - dieselben
-  Testaufnahmen, dieselben vier Fassungen, dieselben Maße.
+  Testaufnahmen, dieselben Fassungen, dieselben Maße.
 
 Ein drittes Mal zu messen wäre eine dritte Gelegenheit, es anders zu machen:
 anderes Gerät, andere Quantisierung, andere Textangleichung.

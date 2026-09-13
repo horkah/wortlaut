@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from wortlaut import audio as klang
-from wortlaut import augmentierung, ids, storage
+from wortlaut import ids, storage
 from wortlaut.whisper import Transkriptor
 
 from ..config import audio_relpfad
@@ -139,9 +139,7 @@ def _fuer_whisper(wav: Path, verzeichnis: Path, aussteuern: bool) -> Path:
         return wav
     ziel = verzeichnis / "ausgesteuert.wav"
     try:
-        # `keim` bleibt leer: Er steuert nur das Rauschen der Abwandlung
-        # `rauschen`; das Aussteuern würfelt nicht.
-        augmentierung.wandle_ab(wav, ziel, "pegel", keim="")
+        klang.steuere_aus(wav, ziel)
     except klang.AudioFehler:
         return wav
     return ziel

@@ -155,6 +155,30 @@ def interpoliert(abschluss: str) -> bool:
     return abschluss in (ABSCHLUSS_INTERPOLIERT, ABSCHLUSS_BEIDES)
 
 
+# ── Die Augmentierung im Training ───────────────────────────────────────────
+#
+# Die vierte Achse: womit die Trainingsproben abgewandelt werden, während
+# gelernt wird. Gerechnet wird das im Trainer und nirgends abgelegt - was
+# gewürfelt ist, ist in jedem Durchgang ein anderes, und eine Datei wäre hier
+# nicht die Ersparnis, sondern der Verlust (`training/klangwandel.py`).
+#
+# Nicht zu verwechseln mit `daten`: Das sagt, **welche abgelegten Fassungen**
+# einer Aufnahme als eigene Zeilen ins Manifest kommen - also womit trainiert
+# wird. Hier steht, **was mit einer Zeile geschieht**, wenn sie geladen wird.
+#
+# `keine`      Die Probe, wie sie im Manifest steht. Die Vorgabe und das
+#              Verfahren von vorher.
+# `masken`     SpecAugment: Zeit- und Frequenzbalken ins Spektrogramm.
+# `umgebung`   Dazu Raum und Rauschen auf der Welle.
+# `voll`       Dazu Tempo - bei dysarthrischer Sprache die einzige der vier,
+#              die auch schaden kann, und deshalb eine eigene Stufe.
+AUG_KEINE = "keine"
+AUG_MASKEN = "masken"
+AUG_UMGEBUNG = "umgebung"
+AUG_VOLL = "voll"
+AUGMENTIERUNGEN = (AUG_KEINE, AUG_MASKEN, AUG_UMGEBUNG, AUG_VOLL)
+
+
 # Der Zustand eines Laufs, wie ihn `zustand.json` nennt.
 WARTET = "wartet"
 LAEUFT = "laeuft"
@@ -323,7 +347,7 @@ def manifestzeilen(verzeichnis: Path) -> Iterator[dict[str, Any]]:
     """Die Proben eines Schnappschusses, Zeile für Zeile.
 
     Als Strom und nicht als Liste: Das Manifest kann bei vielen Aufnahmen und
-    vier Fassungen je Aufnahme lang werden, und der Trainer braucht immer nur
+    mehreren Fassungen je Aufnahme lang werden, und der Trainer braucht immer nur
     die nächste.
     """
     pfad = verzeichnis / MANIFEST

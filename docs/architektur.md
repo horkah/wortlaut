@@ -269,7 +269,7 @@ data/korpus/<sprecher_id>/
 ```
 
 Unter `varianten/` liegen die abgewandelten Fassungen jeder Aufnahme
-(siehe [hören](hoeren.md#vier-fassungen-je-aufnahme)). Sie liegen ein Stockwerk tiefer und
+(siehe [hören](hoeren.md#zwei-fassungen-je-aufnahme)). Sie liegen ein Stockwerk tiefer und
 nicht daneben, und das ist der ganze Schutz gegen Verwechslung: `audio/` ist
 genau das, was in `recordings.blob` steht - was ein Mensch gesprochen hat -,
 `audio/varianten/` ist das Abgeleitete, das sich jederzeit neu rechnen lässt.
@@ -439,14 +439,11 @@ steht in der Modellübersicht von `lernen`, bei dem Modell, auf das er wirkt -
 er ändert nicht, wer zuhört, sondern was dieser zu hören bekommt.
 
 **Ausgesteuert wird nur, was Whisper hört.** Abgelegt und später als Korrektur
-an `hören` gegeben wird die Aufnahme, wie sie gesprochen wurde. Das ist kein
-Detail, sondern die Grenze zwischen Hörhilfe und Datensatz: Aus einer
-bestätigten Korrektur wird drüben eine Aufnahme im Korpus, und dort entsteht
-aus ihr selbst eine ausgesteuerte Fassung. Läge hier schon eine ausgesteuerte
-als „Original", wäre die Abwandlung drüben ein Nichts - und der Vergleich der
-vier Fassungen für genau diese Aufnahmen stillschweigend entwertet. Die
-Zeitmarken, an denen geschnitten wird, passen weiterhin: Das Aussteuern ändert
-die Lautstärke jedes Abtastwerts, nicht ihre Zahl.
+an „hören" gegeben wird die Aufnahme, wie sie gesprochen wurde - sie soll im
+Korpus so liegen, wie sie entstanden ist, und nicht schon bearbeitet. Dieselbe
+Rechnung stand bis September 2026 in „hören" als Abwandlung `pegel` neben jeder
+Aufnahme; als Messgröße ist sie dort verworfen (siehe
+[hören](hoeren.md#zwei-fassungen-je-aufnahme)), als Hörhilfe bleibt sie hier.
 
 ---
 

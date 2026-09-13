@@ -167,7 +167,7 @@ def verwirf(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablag
 
     if aufnahme.status == "ok":
         ablage.loesche(aufnahme.blob)
-        # Eine abgewandelte Fassung ist dieselbe Stimme, nur lauter oder
+        # Eine abgewandelte Fassung ist dieselbe Stimme, nur
         # verrauscht - und damit derselbe Gesundheitsdatensatz. Wer eine
         # Aufnahme wegwirft, hat nicht drei Kopien davon gemeint.
         augmentierung.loesche(ablage, aufnahme)

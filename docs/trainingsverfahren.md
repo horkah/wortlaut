@@ -10,10 +10,14 @@ Rechnung.
 
 > **Stand: September 2026.** Die Abschnitte 1 bis 5 beschreiben, was läuft.
 > Ab Abschnitt 6 wird vorgeschlagen. Umgesetzt sind davon bisher **Stufe 0**
-> (Vorschlag **I**, Vertrauensbereiche) und die erste Hälfte von **Stufe 1**
-> (Vorschlag **D**, Gewichtsmittelung und Interpolation) - beides so, dass es
-> abwählbar bleibt: Wer nichts einschaltet und nichts wählt, bekommt Zahl für
-> Zahl und Gewicht für Gewicht dasselbe wie vorher.
+> (Vorschlag **I**, Vertrauensbereiche), die erste Hälfte von **Stufe 1**
+> (Vorschlag **D**, Gewichtsmittelung und Interpolation) und **A** - alles so,
+> dass es abwählbar bleibt: Wer nichts einschaltet und nichts wählt, bekommt
+> Zahl für Zahl und Gewicht für Gewicht dasselbe wie vorher.
+>
+> Mit **A** ist zugleich der Befund 1 unten eingelöst worden, und zwar in beide
+> Richtungen: Die beiden Amplitudenfassungen `pegel` und `lauter` sind nicht
+> ergänzt, sondern **verworfen** - samt ihren Dateien und Datenbankzeilen.
 
 ---
 
@@ -212,13 +216,14 @@ ist dabei die eigentliche Nachricht: Die Größenordnung dieses Projekts genügt
 Acht Punkte, nach Hebel sortiert, jeweils mit Verweis auf den Vorschlag, der
 sie aufgreift.
 
-1. **Die Augmentierung fasst nur die Amplitude an.** `pegel`, `lauter` und
-   `rauschen` verändern alle drei die Lautstärke, und zwei davon fast nur
-   diese. Der Merkmalsausleser von Whisper rechnet ein Log-Mel-Spektrogramm mit
-   anschließender Normierung - gegenüber einem reinen Verstärkungsfaktor ist er
-   weitgehend unempfindlich. Von vier Fassungen je Aufnahme tragen also
-   wahrscheinlich nicht vier, sondern eher zwei echte Information bei. Der
-   Datensatz ist vervierfacht, die Varianz nicht. → **A**
+1. ~~**Die Augmentierung fasst nur die Amplitude an.**~~ **Erledigt**
+   (September 2026). `pegel`, `lauter` und `rauschen` veränderten alle drei die
+   Lautstärke, und zwei davon fast nur diese; der Merkmalsausleser von Whisper
+   rechnet ein Log-Mel-Spektrogramm mit anschließender Normierung und ist
+   gegenüber einem reinen Verstärkungsfaktor weitgehend unempfindlich. Der
+   Datensatz war vervierfacht, die Varianz nicht. Die beiden reinen
+   Amplitudenfassungen sind deshalb **verworfen**, und an ihre Stelle ist eine
+   gewürfelte Abwandlung zur Laufzeit getreten: siehe **A**.
 2. **Ausgewählt wird nach dem falschen Maß.** `metric_for_best_model` ist
    `eval_loss`, also Markenkreuzentropie unter Teacher Forcing. Entschieden
    wird aber nach WER nach freier Dekodierung. → **B**
@@ -258,7 +263,7 @@ relativ zur heutigen Wortfehlerrate.
 
 | | Maßnahme | Erwartet | Aufwand | Risiko | |
 |---|---|---|---|---|---|
-| **A** | SpecAugment + Tempo-/Raumvariation statt reiner Amplitude | 5-15 % rel. | mittel | gering | |
+| **A** | SpecAugment + Tempo-/Raumvariation statt reiner Amplitude | 5-15 % rel. | mittel | gering | ✅ |
 | **B** | Auswahl nach WER, häufiger geprüft | 3-8 % rel. | mittel | gering | |
 | **C** | k-fache Kreuzvalidierung über Training+Validierung | indirekt | mittel | keins | |
 | **D** | Gewichtsmittelung / Interpolation mit dem Grundmodell | 2-6 % rel. | gering | gering | ✅ |
@@ -268,9 +273,9 @@ relativ zur heutigen Wortfehlerrate.
 | **H** | Kontextverstärkung beim Dekodieren | 3-10 % rel. | gering | gering | |
 | **I** | Vertrauensbereiche auf allen Messwerten | 0 % | gering | keins | ✅ |
 
-### A - Augmentierung dorthin, wo sie wirkt
+### A - Augmentierung dorthin, wo sie wirkt ✅ umgesetzt
 
-**Was.** Die drei Amplitudenfassungen ergänzen (nicht ersetzen) um:
+**Was war geplant.** Die drei Amplitudenfassungen ergänzen (nicht ersetzen) um:
 *SpecAugment* (Zeit- und Frequenzmasken direkt auf dem Log-Mel, zur Laufzeit,
 also ohne eine einzige zusätzliche Datei), *Tempoveränderung* mit den
 klassischen Faktoren 0,9 / 1,0 / 1,1, und *Raum* per Faltung mit
@@ -291,11 +296,58 @@ möglicherweise genau die Unterscheidung, für die es gebaut wurde. Das ist eine
 empirische Frage, und dieses Projekt kann sie beantworten: als fünfte und
 sechste Achse in der bestehenden Vierfelder-Tafel.
 
-**Umsetzung.** Zur Laufzeit in `daten.py:Proben.__getitem__`, nicht als
-weitere Dateien im Korpus - SpecAugment soll je Durchgang anders maskieren,
-sonst ist es keine Regularisierung, sondern ein vierter fester Datensatz. Der
-Keim gehört dabei an `(recording_id, epoche)`, damit ein Lauf wiederholbar
-bleibt. Wichtig: **nur auf `split = train`**, nie auf Validierung oder Test.
+**Was daraus geworden ist.** Ergänzt wurde nicht, sondern ersetzt: `pegel` und
+`lauter` sind weg (Befund 1), und die Abwandlung ist von der Platte in den
+Trainer gewandert. Gerechnet wird in `apps/lernen/training/klangwandel.py`,
+angewandt in `daten.py:Proben.__getitem__` - zur Laufzeit, gewürfelt, und
+nichts davon wird abgelegt.
+
+Die Stufen sind eine **vierte Achse** des Auftrags, neben Methode, Datensatz
+und Abschluss:
+
+| Wahl | Was mit einer Probe geschieht |
+|---|---|
+| `keine` | nichts - die Vorgabe und das Verfahren von vorher |
+| `masken` | SpecAugment: Zeit- und Frequenzbalken im Spektrogramm |
+| `umgebung` | dazu ein gewürfelter Raum und ein gewürfeltes Grundgeräusch |
+| `voll` | dazu Tempo |
+
+**Fünf Entscheidungen darin.**
+
+* **Tempo hat eine eigene Stufe.** Das ist die Vorsicht von oben, in Code
+  gegossen: Sprechtempo ist bei dysarthrischer Sprache Merkmal und nicht
+  Störung. Ob ±10 % helfen oder schaden, ist eine Frage - und `umgebung` gegen
+  `voll` ist genau der Versuch, der sie beantwortet.
+* **Die Lautstärke fehlt mit Absicht.** Sie wäre der billigste Griff und ist
+  der einzige, von dem wir wissen, dass er nichts bringt.
+* **Nur die Lernproben.** Der Wandler hängt allein am Datensatz `train`
+  (`finetune.py`). Die Validierung steuert den Lauf - sie sagt, welcher
+  Durchgang der beste war und welches α gewinnt (**D**); eine Validierung, die
+  in jedem Durchgang anders klingt, misst den Würfel und nicht das Modell. Das
+  Testdrittel wird ohnehin nie angefasst.
+* **Die Masken enden beim letzten gesprochenen Rahmen.** Whisper füllt jede
+  Aufnahme auf 30 Sekunden auf; bei einem Satz von vier Sekunden sind 2600 von
+  3000 Rahmen Stille. Ein Balken an zufälliger Stelle träfe fast immer die
+  Auffüllung - und ein Frequenzbalken über die ganze Zeitachse machte die
+  Auffüllung zur einzigen Stelle mit maskierten Bändern, also zu einem Merkmal,
+  das mit Sprache nichts zu tun hat.
+* **Nichts wird abgelegt, und das ist gemessen.** Eine Datei je Aufnahme wäre
+  in jedem Durchgang dieselbe - gerade das soll sie nicht sein. Die Kosten
+  sprechen ebenfalls nicht dafür (siehe unten).
+
+**Was es kostet.** Gemessen im Trainer-Abbild, je Probe von vier Sekunden,
+gegen die 9,1 ms, die der Merkmalsausleser ohnehin verlangt:
+
+| Stufe | Aufwand | Anteil an der Vorbereitung |
+|---|---|---|
+| `masken` | 0,08 ms | +1 % |
+| `umgebung` | 0,77 ms | +8 % |
+| `voll` | 4,4 ms | +49 % |
+
+Auch die teuerste Stufe ist damit umsonst zu haben: Vorbereitet wird in zwei
+Ladefäden, während die Karte rechnet, und ein Trainingsschritt dauert ein
+Vielfaches davon. Der Raum ist der Brocken darin (4,7 ms) und wäre ohne
+Faltung über die Fourier-Transformation hundertmal so teuer.
 
 ### B - Auswählen nach dem, worauf es ankommt
 
@@ -602,10 +654,16 @@ Lauf je Wahl - gemessen mit den Bereichen aus Stufe 0 und gepaart gegen den
 Stand mit `bester` derselben Methode und desselben Datensatzes. Genau dafür ist
 es eine Achse geworden.
 
-**Stufe 2 - das Trainingsziel richtigstellen.** Vorschlag **B**, dann **A**
-ohne Tempoveränderung (also SpecAugment und Raum), dann **G**, damit **C**
-bezahlbar wird. Erst danach **C**, und mit **C** dann die offenen Zahlenfragen:
-Tempoveränderung ja oder nein, Korrekturgewicht, LoRA-Rang.
+**Stufe 2 - das Trainingsziel richtigstellen.** Vorschlag **B**, dann **G**,
+damit **C** bezahlbar wird. Erst danach **C**, und mit **C** dann die offenen
+Zahlenfragen: Tempoveränderung ja oder nein, Korrekturgewicht, LoRA-Rang.
+
+**A** ist hier herausgefallen, weil es schon steht ✅ - und zwar vollständig,
+samt Tempo. Was bleibt, ist nicht die Umsetzung, sondern die Messung: vier
+Läufe je Methode (`keine`, `masken`, `umgebung`, `voll`), gepaart gegen `keine`
+verglichen und mit den Bereichen aus Stufe 0 gelesen. Die Frage „Tempo ja oder
+nein" beantwortet dabei schon `umgebung` gegen `voll`; **C** würde sie nur
+schärfer stellen.
 
 **Stufe 3 - mehr aus der laufenden Nutzung.** Vorschlag **F** in seinen drei
 Stufen, gestützt auf die Ergebnisse von **C**. Das ist zugleich die Stufe, die

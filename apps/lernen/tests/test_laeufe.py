@@ -89,17 +89,19 @@ class TestManifest:
         gelernt = [z for z in zeilen if z["split"] != laeufe.TEST]
         assert {z["variante"] for z in gelernt} == {augmentierung.ORIGINAL}
 
-    def test_mit_abwandlungen_heisst_viermal_so_viele_proben(
+    def test_mit_abwandlungen_heisst_eine_probe_je_fassung(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis
     ) -> None:
+        # Die Zahl steht in `augmentierung` und nicht hier: Sie war einmal vier
+        # und ist seit September 2026 zwei (`pegel` und `lauter` verworfen).
         sprich(6)
         schlicht = _manifest(datenverzeichnis, _beauftrage(klient, "lora", "original")["job_id"])
         reich = _manifest(datenverzeichnis, _beauftrage(klient, "lora", "augmentiert")["job_id"])
 
         gelernt = lambda zeilen: [z for z in zeilen if z["split"] != laeufe.TEST]  # noqa: E731
-        assert len(gelernt(reich)) == 4 * len(gelernt(schlicht))
+        assert len(gelernt(reich)) == len(augmentierung.VARIANTEN) * len(gelernt(schlicht))
 
-    def test_geprueft_wird_immer_auf_allen_vier_fassungen(
+    def test_geprueft_wird_immer_auf_allen_fassungen(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis
     ) -> None:
         # Auch beim Lauf „nur Originale": Die zu vergleichenden Modelle sollen

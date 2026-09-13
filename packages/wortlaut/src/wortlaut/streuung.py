@@ -19,7 +19,7 @@ vorhandenen Messungen neue Stichproben und liest die Streuung an ihnen ab
 (Bisani/Ney, ICASSP 2004).
 
 **Warum blockweise.** Vier Fassungen derselben Aufnahme (Original,
-ausgesteuert, lauter, mit Rauschen) sind vier Messungen an *einem* Gegenstand.
+wie gesprochen und mit Rauschen) sind mehrere Messungen an *einem* Gegenstand.
 Wer sie einzeln zieht, tut so, als lägen vier unabhängige Auskünfte vor, und
 bekommt ein Intervall heraus, das deutlich zu schmal ist. Gezogen wird deshalb
 je Aufnahme, mit allen ihren Fassungen zusammen - der blockweise Bootstrap
@@ -202,7 +202,7 @@ def zuege(anzahl: int, wie_oft: int = ZIEHUNGEN, keim: int = KEIM) -> tuple[tupl
     """`wie_oft` Ziehungen von `anzahl` Blöcken mit Zurücklegen - immer dieselben.
 
     Gemerkt, weil dieselbe Blockzahl in einer Tabelle dutzendfach vorkommt: Ein
-    Dutzend Modelle mal fünf Fassungen mal vier Maße greifen alle auf dieselben
+    Dutzend Modelle mal die Fassungen mal vier Maße greifen alle auf dieselben
     Ziehungen zu. Sie einmal zu würfeln spart nicht nur Zeit - es ist zugleich
     das, was `unterschied` gepaart macht.
     """

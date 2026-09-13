@@ -13,7 +13,7 @@ from wortlaut import streuung
 
 
 def _messreihe(aufnahmen: int = 40, fassungen: int = 4) -> list[tuple[str, float]]:
-    """Eine Reihe mit dem Zuschnitt dieses Projekts: je Aufnahme vier Fassungen.
+    """Eine Reihe mit dem Zuschnitt dieses Projekts: je Aufnahme mehrere Fassungen.
 
     Die Fassungen einer Aufnahme liegen dicht beieinander - genau das macht sie
     abhängig und ist der Grund für die blockweise Ziehung.
@@ -55,7 +55,7 @@ def test_derselbe_bereich_bei_jedem_aufruf():
 
 
 def test_blockweise_ist_breiter_als_naiv():
-    """Vier Fassungen einer Aufnahme sind vier Messungen an einem Gegenstand.
+    """Die Fassungen einer Aufnahme sind mehrere Messungen an einem Gegenstand.
 
     Wer sie einzeln zieht, bekommt einen zu schmalen Bereich - und damit einen
     Vorsprung, den es nicht gibt. Das ist der ganze Grund für `BLOCK_AUFNAHME`.

@@ -36,9 +36,14 @@ import yaml
 from wortlaut import laeufe
 
 from . import abschluss as abschlussrechnung
+from . import klangwandel
 from .daten import Proben, Stapler, zeilen_fuer
 
 REZEPTE = Path(__file__).parent / "rezepte"
+# Der Keim des Laufs. Er steht hier und nicht nur in den Trainerargumenten,
+# weil ihn seit der Augmentierung zwei Seiten brauchen: der Trainer für seine
+# Startgewichte und der Wandler für seinen Würfel (`klangwandel.py`).
+KEIM = 20260912
 # Wie oft eine Zeile in die Lernkurve geschrieben wird. Jeder Schritt wäre bei
 # tausend Schritten eine tausendzeilige Datei, die die Oberfläche im Takt
 # einliest; alle zehn genügt für eine Kurve, die man ansieht.
@@ -237,6 +242,9 @@ def trainiere(
     art = abschlussrechnung.pruefe(
         str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER)
     )
+    abwandlung = klangwandel.pruefe(
+        str(auftrag.get("augmentierung") or laeufe.AUG_KEINE)
+    )
     rezept = yaml.safe_load(_rezeptpfad(methode).read_text(encoding="utf-8"))
 
     bericht.stufe("laden")
@@ -284,11 +292,24 @@ def trainiere(
         bericht.sage(f"LoRA: {trainierbar:,} von {gesamt:,} Gewichten werden gelernt")
 
     korpuswurzel = datenverzeichnis / corpus.sprecher_relpfad(sprecher_id)
-    lern = Proben(zeilen_fuer(verzeichnis, {laeufe.TRAIN}), korpuswurzel, ausleser, zerteiler)
+    # Der Wandler steht **nur** an den Lernproben. Die Validierung steuert den
+    # Lauf - sie sagt, welcher Durchgang der beste war und welches α gewinnt;
+    # eine Validierung, die in jedem Durchgang anders klingt, misst den Würfel
+    # statt das Modell (siehe `klangwandel.py`).
+    wandler = klangwandel.Wandler(
+        stufe=abwandlung,
+        einstellungen=klangwandel.einstellungen_aus(rezept),
+        keim=KEIM,
+    )
+    lern = Proben(
+        zeilen_fuer(verzeichnis, {laeufe.TRAIN}), korpuswurzel, ausleser, zerteiler, wandler
+    )
     pruef = Proben(
         zeilen_fuer(verzeichnis, {laeufe.VALIDIERUNG}), korpuswurzel, ausleser, zerteiler
     )
     bericht.sage(f"Proben: {len(lern)} zum Lernen, {len(pruef)} zum Steuern")
+    if wandler.taetig:
+        bericht.sage(f"Augmentierung: {abwandlung} (nur auf den Lernproben)")
     if not len(lern):
         raise RuntimeError("Das Manifest enthält keine Trainingsprobe.")
 
@@ -352,7 +373,7 @@ def trainiere(
         dataloader_num_workers=2,
         remove_unused_columns=False,
         label_names=["labels"],
-        seed=20260912,
+        seed=KEIM,
     )
 
     trainer = _trainerklasse()(

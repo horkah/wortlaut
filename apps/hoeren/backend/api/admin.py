@@ -241,7 +241,7 @@ def loesche_aufnahme(sprecher_id: str, aufnahme_id: str, ablage: Ablage) -> None
         _hole(sitzung, sprecher_id)
         aufnahme = _hole_aufnahme(sitzung, aufnahme_id)
         ablage.loesche(aufnahme.blob)
-        # Samt der abgewandelten Fassungen: Dieselbe Stimme, nur lauter oder
+        # Samt der abgewandelten Fassungen: Dieselbe Stimme, nur
         # verrauscht, ist derselbe Gesundheitsdatensatz.
         augmentierung.loesche(ablage, aufnahme)
         sitzung.delete(aufnahme)

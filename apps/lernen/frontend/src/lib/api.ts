@@ -41,7 +41,7 @@ export type Aufteilung = {
   verwaist: number;
 };
 
-/** Eine Wahlmöglichkeit beim Beauftragen: Methode, Datensatz oder Abschluss. */
+/** Eine Wahlmöglichkeit beim Beauftragen - eine der vier Achsen eines Laufs. */
 export type Wahl = {
   schluessel: string;
   name: string;
@@ -61,6 +61,8 @@ export type Lauf = {
   daten: string;
   /** Was am Ende mit den Gewichten geschah: bester | mittel | interpoliert | beides. */
   abschluss: string;
+  /** Womit die Trainingsproben abgewandelt wurden: keine | masken | umgebung | voll. */
+  augmentierung: string;
   basismodell: string;
   erstellt: string;
   /** wartet | laeuft | fertig | gescheitert | abgebrochen */
@@ -138,6 +140,7 @@ export type Laufliste = {
   methoden: Wahl[];
   datensaetze: Wahl[];
   abschluesse: Wahl[];
+  augmentierungen: Wahl[];
   basismodell: string;
   bereit: boolean;
   hinweis: string;
@@ -154,6 +157,7 @@ export type Laufeinzeln = {
   methoden: Wahl[];
   datensaetze: Wahl[];
   abschluesse: Wahl[];
+  augmentierungen: Wahl[];
   kurve_training: Punkt[];
   kurve_validierung: Punkt[];
   /** Fassung → die Maße, jeweils vorher und nachher. */
@@ -280,10 +284,11 @@ export const beauftrage = (
   methode: string,
   daten: string,
   abschluss: string,
+  augmentierung: string,
   schluessel: string,
 ) =>
   anfrage<Lauf>('/laeufe', {
-    ...alsJson({ methode, daten, abschluss }),
+    ...alsJson({ methode, daten, abschluss, augmentierung }),
     headers: { 'Content-Type': 'application/json', 'X-Trainer-Key': schluessel },
   });
 

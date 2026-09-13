@@ -16,13 +16,18 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from wortlaut import augmentierung
 from wortlaut.whisper import Transkript
 
 from apps.hoeren.backend.services import auswertung
 
 MODELLE = "small,medium"
-# Zwei Modelle mal vier Fassungen: So viele Zeilen entstehen je Aufnahme.
-JE_AUFNAHME = 2 * 4
+# Zwei Modelle mal alle Fassungen: So viele Zeilen entstehen je Aufnahme. Die
+# Zahl der Fassungen steht in `augmentierung` und nicht hier - sie hat sich
+# schon einmal geändert (September 2026, `pegel` und `lauter` verworfen), und
+# eine Kopie davon wäre die Stelle, die dann bricht.
+FASSUNGEN = len(augmentierung.VARIANTEN)
+JE_AUFNAHME = 2 * FASSUNGEN
 
 
 class PlatzhalterErkenner:
@@ -130,7 +135,7 @@ class TestLauf:
 
         stand = _laufe_bis_fertig(klient)
 
-        # Zwei Aufnahmen, zwei Modelle, vier Fassungen.
+        # Zwei Aufnahmen, zwei Modelle, alle Fassungen.
         assert stand["gesamt"] == 2 * JE_AUFNAHME
         assert stand["erledigt"] == 2 * JE_AUFNAHME
         assert stand["fehler"] is None
@@ -148,7 +153,7 @@ class TestLauf:
         # Die Fassungen kommen vom Server, samt Namen und Erklärung - die
         # Oberfläche führt keine eigene Liste.
         namen = [eintrag["schluessel"] for eintrag in antwort["varianten"]]
-        assert namen == ["original", "pegel", "lauter", "rauschen"]
+        assert namen == list(augmentierung.VARIANTEN)
         assert set(gemessen["small"]) == set(namen)
 
     def test_die_abgewandelten_fassungen_liegen_geordnet_im_korpus(
@@ -165,11 +170,10 @@ class TestLauf:
 
         korpus = tmp_path / "data" / "korpus"
         varianten = sorted(pfad.name for pfad in korpus.rglob("varianten/*.wav"))
-        assert varianten == [
-            f"{aufnahme}.lauter.wav",
-            f"{aufnahme}.pegel.wav",
-            f"{aufnahme}.rauschen.wav",
-        ]
+        assert varianten == sorted(
+            f"{aufnahme}.{abwandlung.name}.wav"
+            for abwandlung in augmentierung.ABWANDLUNGEN
+        )
         # Das Original bleibt, wo es war: `audio/` ist unverändert das, was in
         # der Datenbank steht.
         assert [pfad.name for pfad in sorted(korpus.rglob("audio/*.wav"))] == [
@@ -179,7 +183,7 @@ class TestLauf:
     def test_verworfene_aufnahme_nimmt_ihre_fassungen_mit(
         self, klient: TestClient, quelle: str, sprich, antworten: dict, tmp_path: Path
     ) -> None:
-        # Eine abgewandelte Fassung ist dieselbe Stimme, nur lauter oder
+        # Eine abgewandelte Fassung ist dieselbe Stimme, nur
         # verrauscht - wer die Aufnahme wegwirft, hat nicht drei Kopien gemeint.
         sprich()
         antworten.update({"small": "etwas", "medium": "etwas"})
@@ -264,13 +268,13 @@ class TestLauf:
 
         stand = _laufe_bis_fertig(klient)
 
-        # Übersprungen wird fassungsweise: Das Modell scheitert an jeder der
-        # vier, und jede wird einzeln vermerkt statt die Aufnahme als Ganzes.
-        assert stand["uebersprungen"] == 4
+        # Übersprungen wird fassungsweise: Das Modell scheitert an jeder
+        # Fassung, und jede wird einzeln vermerkt statt die Aufnahme als Ganzes.
+        assert stand["uebersprungen"] == FASSUNGEN
         assert "Modell nicht ladbar" in (stand["fehler"] or "")
         # Das andere Modell ist trotzdem durchgelaufen, und zwar vollständig.
         werte = klient.get("/api/auswertung").json()["punkte"][0]["werte"]
-        assert len(werte["medium"]) == 4
+        assert len(werte["medium"]) == FASSUNGEN
         assert "small" not in werte
 
 
@@ -293,7 +297,7 @@ class TestNachtraeglich:
         stand = _laufe_bis_fertig(klient)
 
         assert stand["erledigt"] == JE_AUFNAHME
-        assert len(list(korpus.rglob("varianten/*.wav"))) == 3
+        assert len(list(korpus.rglob("varianten/*.wav"))) == len(augmentierung.ABWANDLUNGEN)
 
     def test_das_skript_holt_sie_fuer_alle_korpora_nach(
         self, klient: TestClient, quelle: str, sprich, tmp_path: Path
@@ -340,16 +344,12 @@ class TestVergleich:
         # In der Reihenfolge der Konfiguration, nicht in der der Datenbank -
         # und Fassung innen, Modell außen.
         assert [(e["modell"], e["variante"]) for e in vergleich["erkennungen"]] == [
-            ("small", "original"),
-            ("small", "pegel"),
-            ("small", "lauter"),
-            ("small", "rauschen"),
-            ("medium", "original"),
-            ("medium", "pegel"),
-            ("medium", "lauter"),
-            ("medium", "rauschen"),
+            (modell, fassung)
+            for modell in ("small", "medium")
+            for fassung in augmentierung.VARIANTEN
         ]
-        assert vergleich["erkennungen"][4]["text"] == vorlage
+        # Die erste Zeile des zweiten Modells - das ist die, die trifft.
+        assert vergleich["erkennungen"][FASSUNGEN]["text"] == vorlage
 
     def test_unbekannte_aufnahme_ist_vierhundertvier(self, klient: TestClient) -> None:
         assert klient.get("/api/auswertung/rec_gibtesnicht").status_code == 404

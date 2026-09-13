@@ -27,13 +27,13 @@ Punkte sofort vollständig sind. Bezahlt wird das damit, dass alle Erkenner
 gleichzeitig im Speicher liegen (`_transkriptoren`) - bei base, small, medium
 und large-v3 in `int8` gut zweieinhalb Gigabyte.
 
-**Warum viermal je Aufnahme und Modell.** Eine Aufnahme ist ein einzelner
+**Warum mehrfach je Aufnahme und Modell.** Eine Aufnahme ist ein einzelner
 Fall: dieser Pegel, dieses Mikrofon, dieser Raum. Ein Modell, das damit
 zurechtkommt, muss den Sprecher noch nicht verstanden haben. Gemessen wird
-deshalb nicht die Aufnahme, sondern die Aufnahme und ihre drei Abwandlungen
-(`wortlaut/augmentierung.py`): ausgesteuert, pauschal lauter, mit
-Grundrauschen. Vier Zahlen je Modell und Aufnahme, und erst ihr Zusammenhang
-sagt, ob ein Ergebnis hielt oder an der Aufnahmesituation hing.
+deshalb nicht die Aufnahme allein, sondern die Aufnahme und ihre Abwandlungen
+(`wortlaut/augmentierung.py`) - seit September 2026 ist das eine: Rauschen.
+Zwei Zahlen je Modell und Aufnahme, und erst ihr Zusammenhang sagt, ob ein
+Ergebnis hielt oder an der Aufnahmesituation hing.
 
 Die fehlenden Fassungen entstehen dabei von selbst, kurz bevor sie gebraucht
 werden - so kommt auch jede Aufnahme, die vor dieser Änderung im Korpus lag,

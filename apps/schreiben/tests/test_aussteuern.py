@@ -10,7 +10,7 @@ Die Zusage, die dabei am leichtesten bricht und am spätesten auffiele: **Nur
 die gehörte Fassung ist ausgesteuert.** Was abgelegt und später als Korrektur
 an „hören" gegeben wird, ist die Aufnahme, wie sie gesprochen wurde. Sonst
 wäre das, was drüben als „Original" im Korpus landet, schon bearbeitet - und
-die Abwandlung `pegel`, die „hören" daraus rechnet, ein Nichts.
+die Aufnahme im Korpus schon bearbeitet.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ def _spitze(wav: Path) -> int:
 
 
 # Wohin `pegel` die Spitze legt: knapp unter den Anschlag.
-ZIEL = audio.VOLLAUSSCHLAG * 10 ** (augmentierung.ZIEL_SPITZE_DBFS / 20)
+ZIEL = audio.VOLLAUSSCHLAG * 10 ** (audio.ZIEL_SPITZE_DBFS / 20)
 
 
 @pytest.fixture

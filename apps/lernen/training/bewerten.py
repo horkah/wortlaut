@@ -16,9 +16,9 @@ denselben Aufnahmen erreicht hat. Ein anderes Maß, eine andere Angleichung des
 Textes oder eine andere Quantisierung machten aus dem Vergleich zwei getrennte
 Messungen. Gerechnet wird deshalb mit `wortlaut/metriken.py` - derselben Datei.
 
-**Warum auf allen vier Fassungen.** Weil die interessantere Hälfte der Frage
+**Warum auf allen Fassungen.** Weil die interessantere Hälfte der Frage
 lautet, ob das Modell den Sprecher verstanden hat oder bloß seine
-Aufnahmesituation. Das Manifest trägt die Testaufnahmen deshalb in allen vier
+Aufnahmesituation. Das Manifest trägt die Testaufnahmen deshalb in allen
 Fassungen, unabhängig davon, womit trainiert wurde.
 """
 
@@ -50,7 +50,10 @@ def _version(auftrag: dict[str, Any]) -> str:
     marke = str(auftrag.get("erstellt", laeufe.jetzt()))[:16].replace(":", "").replace("-", "")
     name = f"{marke}-{auftrag.get('methode', '?')}-{auftrag.get('daten', '?')}"
     art = str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER)
-    return name if art == laeufe.ABSCHLUSS_BESTER else f"{name}-{art}"
+    if art != laeufe.ABSCHLUSS_BESTER:
+        name = f"{name}-{art}"
+    abwandlung = str(auftrag.get("augmentierung") or laeufe.AUG_KEINE)
+    return name if abwandlung == laeufe.AUG_KEINE else f"{name}-{abwandlung}"
 
 
 def bewerte(
@@ -125,8 +128,8 @@ def _streuung(zeilen: list[dict[str, Any]], blockart: str) -> dict[str, Any]:
     seine `bewertung.jsonl` später einmal fehlt. Es kostet einen Wimpernschlag
     am Ende eines Laufs, der Stunden gerechnet hat.
 
-    **Warum je Aufnahme gezogen wird.** Die vier Fassungen einer Aufnahme sind
-    vier Messungen an einem Gegenstand, nicht vier unabhängige Auskünfte. Wer
+    **Warum je Aufnahme gezogen wird.** Die Fassungen einer Aufnahme sind
+    mehrere Messungen an einem Gegenstand, nicht unabhängige Auskünfte. Wer
     sie einzeln zieht, bekommt einen Bereich heraus, der etwa halb so breit ist
     wie der richtige (siehe `wortlaut/streuung.py`).
 
@@ -224,6 +227,7 @@ def bewerte_und_gib_frei(
             # Ein Stand, dessen α niemand mehr nachsehen kann, ist mit keinem
             # anderen zu vergleichen.
             "abschluss": str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER),
+            "augmentierung": str(auftrag.get("augmentierung") or laeufe.AUG_KEINE),
             "abschluss_bericht": abschluss.als_dict() if abschluss is not None else None,
             "job_id": auftrag.get("job_id"),
             "erstellt": laeufe.jetzt(),
