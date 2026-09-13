@@ -33,9 +33,11 @@
     gibFrei,
     modelle as ladeModelle,
     type Diktatmodell,
+    type Intervall,
     type Mass,
     type Modell,
     type Modelluebersicht,
+    type Unterschied,
   } from '../lib/api';
 
   let uebersicht = $state<Modelluebersicht | null>(null);
@@ -54,6 +56,27 @@
   // Gelegenheit, versehentlich die schlechtesten nach oben zu holen.
   let sortiertNach = $state('genauigkeit');
 
+  /**
+   * Ob und wie ein Vertrauensbereich neben jede Zahl tritt.
+   *
+   * **Warum das abschaltbar ist und abgeschaltet anfängt.** Diese Tabelle ist
+   * das Laborbuch dieses Projekts: Was hier steht, wird mit dem verglichen, was
+   * vor Monaten hier stand. Eine Ansicht, die ihre Zahlen von sich aus anders
+   * rechnet, macht jeden solchen Vergleich zunichte. Also ändert sie nichts -
+   * `aus` ist die Tabelle von gestern, Zeichen für Zeichen -, und wer die
+   * Streuung sehen will, bestellt sie.
+   *
+   * **Warum zwei Arten zur Wahl stehen.** `aufnahme` zieht blockweise: Die vier
+   * Fassungen einer Aufnahme sind vier Messungen an einem Gegenstand und
+   * gehören zusammen gezogen. Das ist die richtige Wahl. `einheit` zieht naiv
+   * je Messung und ergibt einen etwa halb so breiten Bereich - falsch, aber das
+   * in der Literatur übliche Verfahren, und ohne es wären die Zahlen hier mit
+   * keiner Veröffentlichung vergleichbar.
+   */
+  let sicherheit = $state('aus');
+  /** Gegen welches Modell gepaart verglichen wird; leer heißt: gegen keines. */
+  let gegen = $state('');
+
   const masse = $derived(uebersicht?.masse ?? []);
   const fassungen = $derived(uebersicht?.fassungen ?? []);
   const gewaehlteFassung = $derived(fassungen.find((f) => f.schluessel === fassung));
@@ -61,6 +84,19 @@
   function wert(modell: Modell, mass: string): number | null {
     const werte = modell.werte[fassung];
     return werte && werte[mass] !== undefined ? werte[mass] : null;
+  }
+
+  function bereich(modell: Modell, mass: string): Intervall | null {
+    return modell.intervalle?.[fassung]?.[mass] ?? null;
+  }
+
+  function abstand(modell: Modell, mass: string): Unterschied | null {
+    return modell.unterschied?.[fassung]?.[mass] ?? null;
+  }
+
+  /** `0,003` statt `0.003` - und unterhalb der Auflösung ehrlich als „<".  */
+  function pWert(p: number): string {
+    return p < 0.001 ? '< 0,001' : p.toLocaleString('de-DE', { maximumFractionDigits: 3 });
   }
 
   /** Deutsche Schreibweise, feste Stellenzahl - sonst springen die Spalten. */
@@ -109,6 +145,31 @@
     return mass.hoch_ist_gut ? Math.max(...werte) : Math.min(...werte);
   }
 
+  /**
+   * Ob der Vorsprung des besten Wertes vor dem zweitbesten überhaupt einer ist.
+   *
+   * `null`, solange keine Bereiche angefordert sind - dann bleibt die
+   * Hervorhebung, was sie immer war. Sonst: überlappen die beiden Bereiche,
+   * ist der Vorsprung **nicht** belegt, und die Spalte sagt das.
+   *
+   * Der Test über zwei einzelne Bereiche ist dabei die vorsichtige Variante:
+   * Überlappen sie nicht, ist der Unterschied sicher; überlappen sie, kann er
+   * trotzdem belastbar sein. Die schärfere Auskunft gibt der gepaarte
+   * Vergleich über „Gegen" - deshalb steht er in der Erklärung daneben.
+   */
+  function vorsprungBelegt(mass: Mass): boolean | null {
+    if (sicherheit === 'aus' || !vergleichbar(mass)) return null;
+    const bereiche = (uebersicht?.modelle ?? [])
+      .map((modell) => ({ roh: wert(modell, mass.schluessel), um: bereich(modell, mass.schluessel) }))
+      .filter((eintrag): eintrag is { roh: number; um: Intervall } =>
+        eintrag.roh !== null && eintrag.um !== null,
+      )
+      .sort((a, b) => (mass.hoch_ist_gut ? b.roh - a.roh : a.roh - b.roh));
+    if (bereiche.length < 2) return null;
+    const [erster, zweiter] = bereiche;
+    return !(erster.um.unten <= zweiter.um.oben && zweiter.um.unten <= erster.um.oben);
+  }
+
   const einheiten = $derived(
     Math.max(0, ...(uebersicht?.modelle ?? []).map((modell) => modell.einheiten[fassung] ?? 0)),
   );
@@ -134,7 +195,7 @@
 
   async function hole() {
     try {
-      uebersicht = await ladeModelle();
+      uebersicht = await ladeModelle(sicherheit, gegen);
       fehler = '';
     } catch (ursache) {
       fehler = ursache instanceof Error ? ursache.message : String(ursache);
@@ -147,7 +208,7 @@
   async function freigeben(ref: string) {
     arbeitet = ref;
     try {
-      uebersicht = await gibFrei(ref);
+      uebersicht = await gibFrei(ref, sicherheit, gegen);
       fehler = '';
       // „schreiben" lädt daraufhin ein anderes Modell - die Zeile oben soll
       // das sofort sagen und nicht erst beim nächsten Öffnen.
@@ -253,10 +314,48 @@
         {/each}
       </select>
     </label>
+    <!-- Die beiden neuen Wahlmöglichkeiten. Sie ändern nichts an den Zahlen
+         darüber - sie legen eine zweite Zeile darunter. „Aus" ist die Vorgabe
+         und ergibt die Tabelle, die hier immer stand. -->
+    <label class="fassungswahl">
+      <span>Sicherheit</span>
+      <select bind:value={sicherheit} onchange={hole}>
+        <option value="aus">aus</option>
+        <option value="aufnahme">je Aufnahme</option>
+        <option value="einheit">je Messung</option>
+      </select>
+    </label>
+    {#if sicherheit !== 'aus'}
+      <label class="fassungswahl">
+        <span>Gegen</span>
+        <select bind:value={gegen} onchange={hole}>
+          <option value="">keines</option>
+          {#each uebersicht.modelle as eintrag (eintrag.ref)}
+            <option value={eintrag.ref}>{eintrag.name}</option>
+          {/each}
+        </select>
+      </label>
+    {/if}
   </div>
 
   {#if gewaehlteFassung}
     <p class="gedaempft klein hinweiszeile">{gewaehlteFassung.erklaerung}</p>
+  {/if}
+
+  {#if sicherheit !== 'aus'}
+    <p class="gedaempft klein hinweiszeile">
+      Unter jeder Zahl der Bereich, in dem sie liegen dürfte - 95 % aus 2000 Ziehungen
+      {sicherheit === 'aufnahme'
+        ? ' über die Aufnahmen (jede mit allen ihren Fassungen, weil vier Fassungen einer Aufnahme vier Messungen an einem Gegenstand sind)'
+        : ' über die einzelnen Messungen - das in der Literatur übliche Verfahren, hier aber zu schmal, weil die Fassungen einer Aufnahme nicht unabhängig sind'}.
+      Die Zahlen selbst ändern sich dadurch nicht.
+      {#if uebersicht.vergleich_mit}
+        Statt des Bereichs steht der gepaarte Abstand zu „{uebersicht.modelle.find(
+          (m) => m.ref === uebersicht!.vergleich_mit,
+        )?.name ?? uebersicht.vergleich_mit}" - auf denselben Aufnahmen gerechnet und deshalb
+        schärfer als zwei Bereiche nebeneinander.
+      {/if}
+    </p>
   {/if}
 
   {#if uebersicht.hinweis}
@@ -281,6 +380,16 @@
               >
                 {mass.kurz}
               </button>
+              {#if vorsprungBelegt(mass) === false}
+                <!-- Farbe allein wäre keine Auskunft, also ein Zeichen mit
+                     Erklärung: Der beste Wert dieser Spalte hebt sich nicht
+                     vom zweitbesten ab. -->
+                <span
+                  class="unsicher"
+                  title="Die Bereiche des besten und des zweitbesten Wertes überlappen - der Vorsprung ist nicht belegt. Der gepaarte Vergleich über „Gegen“ kann trotzdem einen zeigen; er ist schärfer."
+                  aria-label="Vorsprung nicht belegt">≈</span
+                >
+              {/if}
             </th>
           {/each}
           <th scope="col" class="wahlspalte"><span class="versteckt">Freigabe</span></th>
@@ -322,6 +431,28 @@
                   {#if mass.schluessel === 'rechenzeit_s' && !vergleichbar(mass)}
                     <span class="werk" title="Gemessen auf {modell.rechenwerk || 'unbekanntem Rechenwerk'}">
                       {modell.rechenwerk ? modell.rechenwerk.split('/')[0] : '?'}
+                    </span>
+                  {/if}
+                  <!-- Die zweite Zeile: entweder der Bereich um diese Zahl oder,
+                       wenn ein Vergleichsmodell gewählt ist, der gepaarte
+                       Abstand zu ihm. Beides zugleich wäre in einer Tabellen-
+                       zelle nicht mehr zu lesen. -->
+                  {@const um = abstand(modell, mass.schluessel)}
+                  {@const drum = bereich(modell, mass.schluessel)}
+                  {#if um}
+                    <span
+                      class="streuung"
+                      class:belegt={um.belegt}
+                      title="Gepaarter Abstand auf denselben {um.einheiten} Messungen aus {um.bloecke} Aufnahmen: {zahl(um.differenz, mass)} (95 %: {zahl(um.unten, mass)} bis {zahl(um.oben, mass)}), p = {pWert(um.p)}. {um.belegt ? 'Der Bereich schließt die Null aus - der Abstand ist belegt.' : 'Der Bereich enthält die Null - der Abstand kann Zufall sein.'} Verfahren: {um.marke}"
+                    >
+                      {um.differenz >= 0 ? '+' : '−'}{zahl(Math.abs(um.differenz), mass)} · p {pWert(um.p)}
+                    </span>
+                  {:else if drum}
+                    <span
+                      class="streuung"
+                      title="95-%-Bereich aus {drum.einheiten} Messungen über {drum.bloecke} Aufnahmen; Standardfehler {drum.streuung}. Verfahren: {drum.marke}"
+                    >
+                      {zahl(drum.unten, mass)} – {zahl(drum.oben, mass)}
                     </span>
                   {/if}
                 {/if}
@@ -568,6 +699,35 @@
     border-radius: 0.25rem;
     font-size: 0.7rem;
     color: var(--gedaempft);
+  }
+
+  /* Die zweite Zeile in einer Zahlenzelle: der Bereich um die Zahl oder der
+     gepaarte Abstand. Eine eigene Zeile und kein Zusatz in derselben - sonst
+     liest sich keine der beiden Zahlen mehr als Zahl. Blass, weil sie die
+     darüber begleitet und nicht ersetzt. */
+  .streuung {
+    display: block;
+    margin-top: 0.1rem;
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--gedaempft);
+    white-space: nowrap;
+  }
+
+  /* Ein Abstand, dessen Bereich die Null ausschließt. Nicht grün oder rot:
+     Belegt heißt nicht gut, sondern nur „nicht bloß Zufall" - ob es ein
+     Gewinn oder ein Verlust ist, steht im Vorzeichen daneben. */
+  .streuung.belegt {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* Die Marke am Spaltenkopf, wenn der beste Wert sich nicht vom zweitbesten
+     abhebt. */
+  .unsicher {
+    margin-left: 0.25rem;
+    color: var(--gedaempft);
+    cursor: help;
   }
 
   .sortierknopf {

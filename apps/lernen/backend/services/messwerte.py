@@ -49,7 +49,7 @@ from dataclasses import dataclass, field
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from wortlaut import augmentierung, laeufe
+from wortlaut import augmentierung, laeufe, streuung
 
 from apps.hoeren.backend.db.models import Erkennung
 
@@ -108,6 +108,89 @@ class Messreihe:
             for fassung, zeilen in nach_fassung.items()
             if zeilen
         }
+
+    def _je_fassung(self, einheiten: set[Einheit]) -> dict[str, list[Einheit]]:
+        """Die gemeinsamen Einheiten nach Fassung, plus die Sammelreihe `alle`."""
+        gemeinsam = sorted(einheiten & set(self.werte))
+        nach_fassung: dict[str, list[Einheit]] = {ALLE: []}
+        for schluessel in gemeinsam:
+            _aufnahme, fassung = schluessel
+            nach_fassung.setdefault(fassung, []).append(schluessel)
+            nach_fassung[ALLE].append(schluessel)
+        return {fassung: liste for fassung, liste in nach_fassung.items() if liste}
+
+    def intervalle(
+        self, einheiten: set[Einheit], blockart: str = streuung.AUS
+    ) -> dict[str, dict[str, dict]]:
+        """Zu jedem Mittel aus `mittel` der Bereich, in dem es liegen dürfte.
+
+        Eine **zusätzliche** Auskunft: Die Zahlen aus `mittel` ändern sich
+        dadurch nicht um eine Stelle - `Intervall.mittel` ist derselbe Wert,
+        aus derselben Rechnung. `AUS` gibt nichts zurück, und das ist die
+        Vorgabe: Wer nichts anfordert, bekommt die Tabelle von gestern.
+
+        Gezogen wird je **Aufnahme** und nicht je Einheit, sobald mehrere
+        Fassungen in der Reihe stehen: Vier Fassungen derselben Aufnahme sind
+        vier Messungen an einem Gegenstand (siehe `wortlaut/streuung.py`).
+        """
+        if blockart == streuung.AUS:
+            return {}
+        verfahren = streuung.Verfahren(blockart=blockart)
+        ergebnis: dict[str, dict[str, dict]] = {}
+        for fassung, schluessel_liste in self._je_fassung(einheiten).items():
+            je_mass: dict[str, dict] = {}
+            for mass in MASSE:
+                paare = [
+                    (aufnahme, self.werte[schluessel][mass])
+                    for schluessel in schluessel_liste
+                    for aufnahme, _fassung in (schluessel,)
+                    if self.werte[schluessel].get(mass) is not None
+                ]
+                bereich = streuung.intervall(streuung.bilde(paare, blockart), verfahren)
+                if bereich is not None:
+                    je_mass[mass] = bereich.als_dict()
+            if je_mass:
+                ergebnis[fassung] = je_mass
+        return ergebnis
+
+    def unterschied_zu(
+        self, andere: Messreihe, einheiten: set[Einheit], blockart: str = streuung.AUS
+    ) -> dict[str, dict[str, dict]]:
+        """Diese Reihe gegen eine andere - gepaart, auf denselben Einheiten.
+
+        Gepaart und nicht als zwei Bereiche nebeneinander: Beide Modelle haben
+        dieselben Aufnahmen gehört, und der gemeinsame Anteil - die eine
+        schwer verständliche Aufnahme, die beide herunterzieht - fällt in der
+        Differenz heraus. Zwei getrennte Bereiche tragen ihn beide mit und
+        überlappen sich deshalb oft, obwohl der Unterschied belastbar ist.
+
+        Die Differenz ist **diese** Reihe minus `andere`. Ob das gut ist, hängt
+        am Maß und steht in `HOCH_IST_GUT`.
+        """
+        if blockart == streuung.AUS:
+            return {}
+        verfahren = streuung.Verfahren(blockart=blockart)
+        # Nur Einheiten, die beide gemessen haben - sonst wäre es kein Paar.
+        gemeinsam = einheiten & set(self.werte) & set(andere.werte)
+        ergebnis: dict[str, dict[str, dict]] = {}
+        for fassung, schluessel_liste in self._je_fassung(gemeinsam).items():
+            je_mass: dict[str, dict] = {}
+            for mass in MASSE:
+                drillinge = [
+                    (aufnahme, self.werte[schluessel][mass], andere.werte[schluessel][mass])
+                    for schluessel in schluessel_liste
+                    for aufnahme, _fassung in (schluessel,)
+                    if self.werte[schluessel].get(mass) is not None
+                    and andere.werte[schluessel].get(mass) is not None
+                ]
+                gemessen = streuung.unterschied(
+                    streuung.bilde_paare(drillinge, blockart), verfahren
+                )
+                if gemessen is not None:
+                    je_mass[mass] = gemessen.als_dict()
+            if je_mass:
+                ergebnis[fassung] = je_mass
+        return ergebnis
 
     def einheiten_je_fassung(self, einheiten: set[Einheit]) -> dict[str, int]:
         gezaehlt: dict[str, int] = {ALLE: 0}

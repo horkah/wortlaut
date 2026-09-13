@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from wortlaut import augmentierung, laeufe as lauf_layout, registry
+from wortlaut import augmentierung, laeufe as lauf_layout, registry, streuung
 
 from ..config import einstellungen
 from ..deps import Datenbank, Korpus, SprecherId
@@ -159,6 +159,13 @@ class ModellAntwort(BaseModel):
     werte: dict[str, dict[str, float]]
     # fassung -> wie viele Einheiten in diesem Mittel stecken.
     einheiten: dict[str, int]
+    # fassung -> maß -> Vertrauensbereich. Leer, solange keiner angefordert
+    # wurde (`?intervall=aus`, die Vorgabe) - die Werte darüber sind dieselben
+    # mit oder ohne.
+    intervalle: dict[str, dict[str, dict]] = {}
+    # fassung -> maß -> der gepaarte Abstand zu dem Modell aus `vergleich_mit`.
+    # Leer, solange keines genannt wurde.
+    unterschied: dict[str, dict[str, dict]] = {}
 
 
 class UebersichtAntwort(BaseModel):
@@ -181,6 +188,13 @@ class UebersichtAntwort(BaseModel):
     # über das Modell.
     zeit_vergleichbar: bool
     hinweis: str
+    # Welche Blockart angefordert wurde: `aus`, `aufnahme` oder `einheit`.
+    intervall: str = streuung.AUS
+    # Gegen welches Modell gepaart verglichen wurde; leer heißt: gegen keines.
+    vergleich_mit: str = ""
+    # Womit gerechnet wurde, in einer Zeichenkette - damit eine Zahl, die
+    # jemand herausschreibt, ihr Verfahren bei sich trägt. Leer bei `aus`.
+    streuung_marke: str = ""
 
 
 class Freigabe(BaseModel):
@@ -215,8 +229,41 @@ def _stand_herkunft(manifest: dict) -> str:
 
 
 @router.get("", response_model=UebersichtAntwort)
-def uebersicht(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> UebersichtAntwort:
-    """Alle Modelle mit ihren Zahlen auf den gemeinsamen Testaufnahmen."""
+def uebersicht(
+    db: Datenbank,
+    korpus: Korpus,
+    sprecher: SprecherId,
+    intervall: str = streuung.AUS,
+    vergleich_mit: str = "",
+) -> UebersichtAntwort:
+    """Alle Modelle mit ihren Zahlen auf den gemeinsamen Testaufnahmen.
+
+    **Was `intervall` tut - und was es ausdrücklich nicht tut.** Es legt neben
+    jede Zahl den Bereich, in dem sie liegen dürfte (`wortlaut/streuung.py`).
+    Die Zahl selbst ändert sich dadurch nicht um eine Stelle; wer den
+    Parameter wegläßt, bekommt Byte für Byte die Antwort von vorher. Das ist
+    hier keine Bequemlichkeit, sondern Bedingung: Diese Tabelle ist der Ort,
+    an dem Modelle verglichen werden, und ein Vergleich taugt nur, solange
+    dieselbe Messung bei jedem Aufruf dieselbe Zahl ergibt.
+
+    `aufnahme` ist die statistisch richtige Wahl, sobald mehrere Fassungen
+    derselben Aufnahme in der Reihe stehen - also immer, wenn die Fassung
+    „alle" gezeigt wird. `einheit` zieht naiv je Messeinheit; der Bereich fällt
+    dann etwa halb so breit aus. Wählbar ist es trotzdem, weil es das in der
+    Literatur übliche Verfahren ist und die Zahlen dieses Projekts sonst mit
+    keiner Veröffentlichung vergleichbar wären.
+
+    **`vergleich_mit`** nennt ein Modell, gegen das jede andere Zeile gepaart
+    antritt: auf denselben Aufnahmen, Differenz mit Bereich und p-Wert. Das ist
+    die schärfere Frage - „ist mein Stand besser als `small`?" - und sie ist
+    mit zwei einzelnen Bereichen nicht zu beantworten, weil diese sich auch
+    dann überlappen, wenn der Abstand belastbar ist.
+    """
+    if intervall not in streuung.BLOCKARTEN:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unbekannte Blockart. Zur Wahl stehen: {', '.join(streuung.BLOCKARTEN)}.",
+        )
     konfiguration = einstellungen()
     aufnahmen = messwerte.testaufnahmen(db, korpus)
     namen = _grundmodellnamen()
@@ -253,6 +300,11 @@ def uebersicht(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> Uebersich
     zeit_vergleichbar = len(werke) == 1 and "" not in werke
     freigegeben = registry.freigegeben(konfiguration.data_dir, sprecher)
 
+    # Gegen wen gepaart verglichen wird. Ein Name, den die Tabelle nicht führt,
+    # wird stillschweigend zu „gegen keinen": Der Vergleich ist eine Zugabe,
+    # und eine Zugabe soll die Auskunft nicht mit einem Fehler ersetzen.
+    gegen = reihen.get(vergleich_mit) if vergleich_mit else None
+
     def zeile(ref: str, art: str, name: str, herkunft: str, manifest: dict) -> ModellAntwort:
         reihe = reihen[ref]
         boden = gemeinsam if vergleichbar else set(reihe.werte)
@@ -271,6 +323,14 @@ def uebersicht(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> Uebersich
             freigegeben=ref == freigegeben,
             werte=reihe.mittel(boden),
             einheiten=reihe.einheiten_je_fassung(boden),
+            intervalle=reihe.intervalle(boden, intervall),
+            # Gegen sich selbst zu vergleichen ergäbe eine Spalte Nullen mit
+            # einem p-Wert von 1 - richtig, aber keine Auskunft.
+            unterschied=(
+                reihe.unterschied_zu(gegen, boden, intervall)
+                if gegen is not None and ref != vergleich_mit
+                else {}
+            ),
         )
 
     modelle = [
@@ -300,6 +360,11 @@ def uebersicht(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> Uebersich
         vergleichbar=vergleichbar,
         zeit_vergleichbar=zeit_vergleichbar,
         hinweis=_hinweis(aufnahmen, reihen, namen, staende),
+        intervall=intervall,
+        vergleich_mit=vergleich_mit if gegen is not None else "",
+        streuung_marke=(
+            streuung.Verfahren(blockart=intervall).marke if intervall != streuung.AUS else ""
+        ),
     )
 
 
@@ -342,7 +407,12 @@ def _hinweis(
 
 @router.post("/freigabe", response_model=UebersichtAntwort)
 def gib_frei(
-    freigabe: Freigabe, db: Datenbank, korpus: Korpus, sprecher: SprecherId
+    freigabe: Freigabe,
+    db: Datenbank,
+    korpus: Korpus,
+    sprecher: SprecherId,
+    intervall: str = streuung.AUS,
+    vergleich_mit: str = "",
 ) -> UebersichtAntwort:
     """Dieses Modell freigeben - und damit jedes andere zurückziehen.
 
@@ -363,4 +433,7 @@ def gib_frei(
         raise HTTPException(status_code=404, detail="Dieses Modell steht hier nicht zur Wahl.")
 
     registry.gib_frei(konfiguration.data_dir, sprecher, freigabe.ref)
-    return uebersicht(db, korpus, sprecher)
+    # Dieselben Parameter zurückgegeben, mit denen die Tabelle gerade angezeigt
+    # wird: Sonst verlöre sie beim Freigeben ihre Bereiche und die Ansicht
+    # müsste ein zweites Mal fragen.
+    return uebersicht(db, korpus, sprecher, intervall, vergleich_mit)

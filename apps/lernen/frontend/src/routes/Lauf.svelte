@@ -46,6 +46,16 @@
   const vergleich = $derived(daten?.vergleich ?? {});
   const fassungen = $derived(Object.keys(vergleich));
 
+  /**
+   * Ob neben dem Unterschied steht, wie sicher er ist.
+   *
+   * Abgeschaltet und abschaltbar aus demselben Grund wie in der Modelltabelle:
+   * Was hier steht, wird mit dem verglichen, was bei früheren Läufen hier
+   * stand. Die Zahlen ändern sich nicht, wenn man es einschaltet - es kommt
+   * eine Spalte dazu.
+   */
+  let sicherheit = $state('aus');
+
   // Die gewählten Farben als **ein** Wert; `einstellungen.farben` selbst zu
   // lesen meldet nur an, dass es das Feld gibt, nicht seinen Inhalt - eine
   // geänderte Akzentfarbe käme im Diagramm sonst erst nach einem Seitenwechsel an.
@@ -74,6 +84,11 @@
   function zeige(mass: string, wert: number | null): string {
     if (wert === null) return '–';
     return mass === 'genauigkeit' ? `${wert.toFixed(1)} %` : wert.toFixed(3);
+  }
+
+  /** `0,003` statt `0.003` - und unterhalb der Auflösung ehrlich als „<". */
+  function pWert(p: number): string {
+    return p < 0.001 ? '< 0,001' : p.toLocaleString('de-DE', { maximumFractionDigits: 3 });
   }
 
   /** Um wie viel besser - in Prozentpunkten bei der Genauigkeit, sonst relativ. */
@@ -186,7 +201,7 @@
 
   async function hole() {
     try {
-      daten = await ladeLauf(jobId);
+      daten = await ladeLauf(jobId, sicherheit);
       fehler = '';
     } catch (ursache) {
       fehler = ursache instanceof Error ? ursache.message : String(ursache);
@@ -292,6 +307,23 @@
       {lauf.basismodell} (gemessen in der Auswertung von „hören") und einmal durch diesen Stand.
     </p>
 
+    <label class="sicherheitswahl">
+      <span class="gedaempft klein">Sicherheit</span>
+      <select bind:value={sicherheit} onchange={hole}>
+        <option value="aus">aus</option>
+        <option value="aufnahme">je Aufnahme</option>
+        <option value="einheit">je Messung</option>
+      </select>
+    </label>
+    {#if sicherheit !== 'aus'}
+      <p class="gedaempft klein">
+        Der Unterschied wird gepaart gerechnet: beide Seiten auf denselben Aufnahmen, 2000
+        Ziehungen, 95 %. Der Pfeil sagt, wer vorn liegt; der Bereich daneben sagt, ob das mehr ist
+        als Zufall. Innerhalb einer Fassung hat jede Aufnahme nur eine Messung - die beiden
+        Blockarten fallen hier deshalb zusammen.
+      </p>
+    {/if}
+
     {#each fassungen as fassung (fassung)}
       <h4>{FASSUNGSNAMEN[fassung] ?? fassung}</h4>
       <table class="vergleich">
@@ -301,6 +333,9 @@
             <th scope="col">Grundlinie</th>
             <th scope="col">Dieser Stand</th>
             <th scope="col">Unterschied</th>
+            {#if sicherheit !== 'aus'}
+              <th scope="col">Belegt?</th>
+            {/if}
           </tr>
         </thead>
         <tbody>
@@ -312,6 +347,29 @@
               <td class:besser={eintrag.besser === true} class:schlechter={eintrag.besser === false}>
                 {unterschied(eintrag.mass, eintrag.grundlinie, eintrag.trainiert)}
               </td>
+              {#if sicherheit !== 'aus'}
+                <td class="klein">
+                  {#if eintrag.unterschied}
+                    <!-- „belegt" heißt nicht „gut": Der Bereich schließt die Null
+                         aus, mehr sagt er nicht. Ob der Abstand ein Gewinn ist,
+                         steht in der Spalte davor. -->
+                    <span
+                      class:stark={eintrag.unterschied.belegt}
+                      title="Differenz {zeige(eintrag.mass, eintrag.unterschied.differenz)}, 95 %: {zeige(
+                        eintrag.mass,
+                        eintrag.unterschied.unten,
+                      )} bis {zeige(eintrag.mass, eintrag.unterschied.oben)} über {eintrag
+                        .unterschied.bloecke} Aufnahmen. Verfahren: {eintrag.unterschied.marke}"
+                    >
+                      {eintrag.unterschied.belegt ? 'ja' : 'nein'} · p {pWert(eintrag.unterschied.p)}
+                    </span>
+                  {:else}
+                    <span class="gedaempft" title="Zu wenige gemeinsame Aufnahmen für eine Aussage."
+                      >–</span
+                    >
+                  {/if}
+                </td>
+              {/if}
             </tr>
           {/each}
         </tbody>
@@ -386,6 +444,13 @@
   h4 {
     margin: 1rem 0 0.2rem;
     font-size: 0.95rem;
+  }
+
+  .sicherheitswahl {
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+    margin: 0.5rem 0;
   }
 
   .vergleich {

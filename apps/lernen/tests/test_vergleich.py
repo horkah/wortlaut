@@ -316,3 +316,75 @@ class TestModelluebersicht:
         assert klient.post(
             "/lernen/api/modelle/freigabe", json={"ref": "spr_fremd/egal"}
         ).status_code == 404
+
+
+class TestVertrauensbereiche:
+    """Die Zugabe muss eine Zugabe bleiben.
+
+    Dieser Teil der App ist Forschung: Was die Tabelle heute zeigt, wird mit
+    dem verglichen, was sie vor Monaten zeigte. Eine Erweiterung, die dabei
+    auch nur eine Stelle verschiebt, macht jeden solchen Vergleich zunichte -
+    und niemand sähe es, denn beide Zahlen wären richtig.
+    """
+
+    def test_ohne_parameter_bleibt_alles_wie_es_war(
+        self, klient: TestClient, grundlinie, fertiger_lauf
+    ) -> None:
+        antwort = klient.get("/lernen/api/modelle").json()
+
+        assert antwort["intervall"] == "aus"
+        assert antwort["streuung_marke"] == ""
+        assert all(not modell["intervalle"] for modell in antwort["modelle"])
+        assert all(not modell["unterschied"] for modell in antwort["modelle"])
+
+    def test_bereiche_aendern_die_zahlen_nicht(
+        self, klient: TestClient, grundlinie, fertiger_lauf
+    ) -> None:
+        ohne = klient.get("/lernen/api/modelle").json()
+        mit = klient.get("/lernen/api/modelle?intervall=aufnahme").json()
+
+        assert [modell["werte"] for modell in mit["modelle"]] == [
+            modell["werte"] for modell in ohne["modelle"]
+        ]
+        # Und der Mittelwert im Bereich ist derselbe wie der in der Tabelle.
+        for modell in mit["modelle"]:
+            for fassung, masse in modell["intervalle"].items():
+                for mass, bereich in masse.items():
+                    assert bereich["mittel"] == modell["werte"][fassung][mass]
+                    assert bereich["unten"] <= bereich["mittel"] <= bereich["oben"]
+
+    def test_gepaart_gegen_ein_genanntes_modell(
+        self, klient: TestClient, grundlinie, fertiger_lauf
+    ) -> None:
+        antwort = klient.get(
+            "/lernen/api/modelle?intervall=aufnahme&vergleich_mit=small"
+        ).json()
+
+        assert antwort["vergleich_mit"] == "small"
+        eigene = [m for m in antwort["modelle"] if m["art"] == "trainiert"]
+        assert eigene and eigene[0]["unterschied"]
+        # Gegen sich selbst wird nicht verglichen - das ergäbe eine Spalte Nullen.
+        assert not next(m for m in antwort["modelle"] if m["ref"] == "small")["unterschied"]
+
+    def test_unbekannte_blockart_ist_vierhundert(self, klient: TestClient) -> None:
+        assert klient.get("/lernen/api/modelle?intervall=quatsch").status_code == 400
+
+    def test_beim_einzelnen_lauf_dasselbe(
+        self, klient: TestClient, grundlinie, fertiger_lauf
+    ) -> None:
+        job_id = klient.get("/lernen/api/laeufe").json()["laeufe"][0]["job_id"]
+        ohne = klient.get(f"/lernen/api/laeufe/{job_id}").json()
+        mit = klient.get(f"/lernen/api/laeufe/{job_id}?intervall=aufnahme").json()
+
+        assert ohne["intervall"] == "aus"
+        assert all(
+            eintrag["unterschied"] is None
+            for eintraege in ohne["vergleich"].values()
+            for eintrag in eintraege
+        )
+        for fassung, eintraege in mit["vergleich"].items():
+            for stelle, eintrag in enumerate(eintraege):
+                vorher = ohne["vergleich"][fassung][stelle]
+                assert eintrag["grundlinie"] == vorher["grundlinie"]
+                assert eintrag["trainiert"] == vorher["trainiert"]
+                assert eintrag["besser"] == vorher["besser"]

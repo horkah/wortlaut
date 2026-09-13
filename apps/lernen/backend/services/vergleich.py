@@ -29,7 +29,7 @@ from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from wortlaut import augmentierung, laeufe
+from wortlaut import augmentierung, laeufe, streuung
 
 from apps.hoeren.backend.db.models import Erkennung
 
@@ -49,10 +49,26 @@ class Gegenueber:
     grundlinie: float | None
     trainiert: float | None
     anzahl: int
+    # Der gepaarte Vergleich der beiden - `None`, solange niemand ihn
+    # angefordert hat (`blockart = aus`, die Vorgabe) oder zu wenige Aufnahmen
+    # gemeinsam gemessen wurden. Die Differenz ist **trainiert minus
+    # Grundlinie**: bei der Genauigkeit ist positiv gut, bei jeder Fehlerrate
+    # negativ.
+    unterschied: dict | None = None
+    # Die beiden Vertrauensbereiche einzeln, für die Anzeige daneben.
+    bereich_grundlinie: dict | None = None
+    bereich_trainiert: dict | None = None
 
     @property
     def besser(self) -> bool | None:
-        """Ob der trainierte Stand gewonnen hat. `None`, solange eines fehlt."""
+        """Ob der trainierte Stand gewonnen hat. `None`, solange eines fehlt.
+
+        Sagt, wer vorn liegt - **nicht**, ob das mehr ist als Zufall. Diese
+        zweite Frage beantwortet `unterschied`, und zwar nur, wenn sie gestellt
+        wurde. Beide nebeneinander stehen zu lassen ist Absicht: Die Pfeile in
+        der Ansicht gab es vorher, sie sollen bleiben, was sie waren, und die
+        schärfere Auskunft tritt daneben statt an ihre Stelle.
+        """
         if self.grundlinie is None or self.trainiert is None:
             return None
         if self.mass in HOCH_IST_GUT:
@@ -92,13 +108,29 @@ def bewertung(lauf: laeufe.Lauf) -> dict[str, dict[str, dict]]:
     return treffer
 
 
-def je_fassung(lauf: laeufe.Lauf, korpus: Session) -> dict[str, list[Gegenueber]]:
+def _bereich(werte: list[tuple[str, float]], blockart: str) -> dict | None:
+    ergebnis = streuung.intervall(
+        streuung.bilde(werte, blockart), streuung.Verfahren(blockart=blockart)
+    )
+    return ergebnis.als_dict() if ergebnis is not None else None
+
+
+def je_fassung(
+    lauf: laeufe.Lauf, korpus: Session, blockart: str = streuung.AUS
+) -> dict[str, list[Gegenueber]]:
     """Grundlinie gegen trainierten Stand, je Fassung und Maß.
 
     Verglichen wird nur, was **beide** gemessen haben. Eine Aufnahme, die in
     der Auswertung von „hören" noch nicht gerechnet ist, fällt aus beiden
     Mittelwerten - sonst stünde ein Mittel über zwanzig gegen ein Mittel über
     achtzehn, und der Unterschied läge an der Auswahl statt am Modell.
+
+    `blockart` schaltet die Vertrauensbereiche dazu; `aus` ist die Vorgabe und
+    ergibt genau das, was diese Funktion immer schon ergeben hat. Innerhalb
+    **einer** Fassung trägt jede Aufnahme ohnehin nur eine Messung bei - die
+    beiden Blockarten fallen hier also zusammen. Der Unterschied zwischen
+    ihnen zeigt sich erst dort, wo über alle vier Fassungen gemittelt wird
+    (`services/messwerte.py`).
     """
     gemessen = bewertung(lauf)
     if not gemessen:
@@ -115,14 +147,50 @@ def je_fassung(lauf: laeufe.Lauf, korpus: Session) -> dict[str, list[Gegenueber]
         if not gemeinsam:
             continue
         ergebnis[variante] = [
-            Gegenueber(
-                mass=mass,
-                grundlinie=_mittel([getattr(vorher_zeilen[k], mass) for k in gemeinsam]),
-                trainiert=_mittel(
-                    [float(nachher_zeilen[k][mass]) for k in gemeinsam if mass in nachher_zeilen[k]]
-                ),
-                anzahl=len(gemeinsam),
-            )
+            _gegenueber(mass, gemeinsam, vorher_zeilen, nachher_zeilen, blockart)
             for mass in MASSE
         ]
     return ergebnis
+
+
+def _gegenueber(
+    mass: str,
+    gemeinsam: list[str],
+    vorher_zeilen: dict,
+    nachher_zeilen: dict,
+    blockart: str,
+) -> Gegenueber:
+    """Ein Maß vorher und nachher - und, wenn gefragt, wie sicher der Abstand ist."""
+    vorher = [(k, float(getattr(vorher_zeilen[k], mass))) for k in gemeinsam]
+    nachher = [
+        (k, float(nachher_zeilen[k][mass])) for k in gemeinsam if mass in nachher_zeilen[k]
+    ]
+    if blockart == streuung.AUS:
+        return Gegenueber(
+            mass=mass,
+            grundlinie=_mittel([wert for _k, wert in vorher]),
+            trainiert=_mittel([wert for _k, wert in nachher]),
+            anzahl=len(gemeinsam),
+        )
+
+    # Gepaart wird nur über Aufnahmen, die auf **beiden** Seiten eine Zahl zu
+    # diesem Maß haben. Eine fehlende Seite schweigend als null zu zählen wäre
+    # der bequemste Weg zu einem Unterschied, den es nicht gibt.
+    beide = {k for k, _wert in nachher}
+    drillinge = [
+        (k, float(nachher_zeilen[k][mass]), float(getattr(vorher_zeilen[k], mass)))
+        for k in gemeinsam
+        if k in beide
+    ]
+    gemessen = streuung.unterschied(
+        streuung.bilde_paare(drillinge, blockart), streuung.Verfahren(blockart=blockart)
+    )
+    return Gegenueber(
+        mass=mass,
+        grundlinie=_mittel([wert for _k, wert in vorher]),
+        trainiert=_mittel([wert for _k, wert in nachher]),
+        anzahl=len(gemeinsam),
+        unterschied=gemessen.als_dict() if gemessen is not None else None,
+        bereich_grundlinie=_bereich(vorher, blockart),
+        bereich_trainiert=_bereich(nachher, blockart),
+    )
