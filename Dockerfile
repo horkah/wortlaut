@@ -18,40 +18,58 @@
 # wird erst, wenn zum ersten Mal erkannt wird, und ohne Karte bleiben sie
 # unberührt liegen.
 
-# ── Stufe 1: alle drei Frontends bauen ──────────────────────────────────────
-FROM node:22-slim AS frontend
-WORKDIR /bau
-# Erst die Sperrdateien, dann der Rest: So bleibt die Installation im Cache,
-# solange sich an den Abhängigkeiten nichts ändert.
+# ── Stufe 1: die drei Frontends, jede App für sich ──────────────────────────
 #
-# Je App ein Paar aus COPY und RUN, und nicht drei COPY vor einem RUN. Der
-# Unterschied zeigt sich, sobald **eine** Sperrdatei sich ändert: Bei einem
-# gemeinsamen RUN hängt der an allen dreien, und ein neues Paket in „hören"
-# ließ auch „lernen" und „schreiben" von vorn installieren.
+# Drei Stufen und nicht eine, und das ist keine Ordnungsfrage, sondern eine
+# Frage der Abhängigkeit: Innerhalb einer Stufe hängen die Schichten in einer
+# Reihe, und was unter einer verworfenen Schicht steht, wird mit verworfen -
+# auch wenn es mit ihr nichts zu tun hat. Eine geänderte Zeile in „lernen"
+# baute deshalb „schreiben" gleich mit; jetzt baut sie „lernen" und sonst
+# nichts (gemessen: 8 s auf 6 s). Als eigene Stufen haben die drei nichts
+# miteinander zu tun, und BuildKit nimmt sie sich deshalb gleichzeitig vor -
+# das zeigt sich dort, wo wirklich alle drei müssen: Eine Änderung an
+# `packages/ui` kostete in Reihe 14 s reine Bauzeit, nebeneinander 6.
+#
+# Was sie doch teilen, steht in jeder von ihnen noch einmal: `packages/ui` und
+# `assets`. Das ist richtig so - ändert sich dort etwas, geht es in alle drei
+# Bündel ein, also müssen auch alle drei neu gebaut werden. Es steht nur
+# **unter** `npm ci`, damit eine geänderte Svelte-Datei nicht die Installation
+# verwirft.
 #
 # `npm ci` statt `npm install`: baut genau das, was in package-lock.json steht.
-# Der Mount darunter ist der Paketspeicher von npm - er liegt außerhalb des
-# Abbilds, überlebt den Bau und erspart den Weg ins Netz, wenn eine Schicht
-# doch einmal neu gebaut wird.
-COPY apps/hoeren/frontend/package*.json ./apps/hoeren/frontend/
-RUN --mount=type=cache,target=/root/.npm \
-    cd apps/hoeren/frontend && npm ci
-COPY apps/lernen/frontend/package*.json ./apps/lernen/frontend/
-RUN --mount=type=cache,target=/root/.npm \
-    cd apps/lernen/frontend && npm ci
-COPY apps/schreiben/frontend/package*.json ./apps/schreiben/frontend/
-RUN --mount=type=cache,target=/root/.npm \
-    cd apps/schreiben/frontend && npm ci
+# Der Mount darunter ist der Paketspeicher von npm - außerhalb des Abbilds,
+# und er erspart den Weg ins Netz, wenn eine Schicht doch neu gebaut wird. Je
+# App ein eigener Speicher (`id=`), denn die drei Stufen laufen gleichzeitig,
+# und ein gemeinsames Verzeichnis wäre genau das, worüber sie stolpern
+# könnten. Der Preis sind ein paar Dutzend Megabyte doppelt - auf einer Platte,
+# die ohnehin Gigabyte an Bauspeicher hält.
+FROM node:22-slim AS frontendgrund
+WORKDIR /bau
 
-# Das Geteilte zuerst: Was hier liegt, geht in alle drei Bündel ein, also
-# müssen danach auch alle drei neu gebaut werden. Die App-Quellen dahinter,
-# je App eine Schicht - eine Änderung in „lernen" baut dann nur „lernen".
+FROM frontendgrund AS frontend-hoeren
+COPY apps/hoeren/frontend/package*.json ./apps/hoeren/frontend/
+RUN --mount=type=cache,target=/root/.npm,id=npm-hoeren \
+    cd apps/hoeren/frontend && npm ci
 COPY packages/ui ./packages/ui
 COPY assets ./assets
 COPY apps/hoeren/frontend ./apps/hoeren/frontend
 RUN cd apps/hoeren/frontend && npm run build
+
+FROM frontendgrund AS frontend-lernen
+COPY apps/lernen/frontend/package*.json ./apps/lernen/frontend/
+RUN --mount=type=cache,target=/root/.npm,id=npm-lernen \
+    cd apps/lernen/frontend && npm ci
+COPY packages/ui ./packages/ui
+COPY assets ./assets
 COPY apps/lernen/frontend ./apps/lernen/frontend
 RUN cd apps/lernen/frontend && npm run build
+
+FROM frontendgrund AS frontend-schreiben
+COPY apps/schreiben/frontend/package*.json ./apps/schreiben/frontend/
+RUN --mount=type=cache,target=/root/.npm,id=npm-schreiben \
+    cd apps/schreiben/frontend && npm ci
+COPY packages/ui ./packages/ui
+COPY assets ./assets
 COPY apps/schreiben/frontend ./apps/schreiben/frontend
 RUN cd apps/schreiben/frontend && npm run build
 
@@ -127,9 +145,9 @@ COPY apps/lernen ./apps/lernen
 COPY apps/schreiben ./apps/schreiben
 COPY scripts ./scripts
 
-COPY --from=frontend /bau/apps/hoeren/frontend/dist ./apps/hoeren/frontend/dist
-COPY --from=frontend /bau/apps/lernen/frontend/dist ./apps/lernen/frontend/dist
-COPY --from=frontend /bau/apps/schreiben/frontend/dist ./apps/schreiben/frontend/dist
+COPY --from=frontend-hoeren /bau/apps/hoeren/frontend/dist ./apps/hoeren/frontend/dist
+COPY --from=frontend-lernen /bau/apps/lernen/frontend/dist ./apps/lernen/frontend/dist
+COPY --from=frontend-schreiben /bau/apps/schreiben/frontend/dist ./apps/schreiben/frontend/dist
 
 # Die Grundmodelle landen in einem eigenen Ablagepfad und nicht im Abbild;
 # ohne diesen Pfad lädt sie jeder Neustart des Containers erneut herunter.

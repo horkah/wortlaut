@@ -110,7 +110,8 @@ stimmen - und sie sind darauf eingerichtet (siehe die Begründungen im
 | Geändert | Dauer |
 |---|---|
 | nur `apps/**` (Backend) | ~1 s |
-| ein Frontend | ~8 s |
+| ein Frontend | ~6 s - die anderen beiden bleiben stehen |
+| `packages/ui` (geteilte Oberfläche) | ~7 s - alle drei, aber nebeneinander gebaut |
 | `packages/wortlaut/**` | ~3 s |
 | `pyproject.toml` (neue Abhängigkeit) | Minuten - aber ohne Netz, aus dem pip-Speicher |
 
