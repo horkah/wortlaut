@@ -28,7 +28,9 @@ Bekannte deutsche Stimmen (es gibt mehr, siehe die Sammlung auf Hugging Face):
 
 from __future__ import annotations
 
+import shutil
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -62,35 +64,82 @@ def _pfadteile(stimme: str) -> tuple[str, str, str]:
     return gebiet, person, aufloesung
 
 
+# Wie oft ein Download wiederholt wird, bevor aufgegeben wird - und wie lange
+# eine einzelne Leseoperation stocken darf.
+#
+# Beides steht hier, weil genau das einmal schiefging: Die 114 MB der Stimme
+# kamen durch, die 5 kB der Beschreibung daneben blieben in einer stockenden
+# Verbindung hängen, und nach zwei Stunden stand „the operation timed out" da.
+# Zurück blieb eine Stimme, die vollständig aussah und keine war - `stimmen()`
+# verlangt beide Dateien.
+#
+# Ein kurzer Zeitüberschreitungswert **mit** Wiederholung ist dagegen die
+# richtige Wahl: Eine Leitung, die zwei Minuten lang tröpfelt, ist tot, und ein
+# neuer Versuch kostet Sekunden.
+VERSUCHE = 3
+ZEITGRENZE_S = 30
+
+
+def _lade(adresse: str, datei: Path) -> None:
+    """Eine Datei holen - mit Wiederholung, strömend, und erst am Ende sichtbar.
+
+    Erst daneben, dann an die Stelle: Ein abgebrochener Download soll nicht wie
+    eine fertige Stimme aussehen.
+
+    Strömend und nicht `read()` am Stück: Die Stimme wiegt über hundert
+    Megabyte, und die brauchen nicht alle gleichzeitig in den Arbeitsspeicher.
+    """
+    entwurf = datei.with_name(datei.name + ".neu")
+    letzte: Exception | None = None
+    for versuch in range(1, VERSUCHE + 1):
+        try:
+            with (
+                urllib.request.urlopen(adresse, timeout=ZEITGRENZE_S) as quelle,
+                entwurf.open("wb") as offen,
+            ):
+                shutil.copyfileobj(quelle, offen, 1 << 20)
+            entwurf.replace(datei)
+            return
+        except (urllib.error.URLError, OSError, TimeoutError) as ursache:
+            letzte = ursache
+            entwurf.unlink(missing_ok=True)
+            if versuch < VERSUCHE:
+                print(f"    Versuch {versuch} gescheitert ({ursache}) - noch einmal …")
+                time.sleep(2 * versuch)
+    raise VorlesenDownloadFehler(f"{datei.name}: {letzte}")
+
+
+class VorlesenDownloadFehler(RuntimeError):
+    """Eine Stimmdatei ließ sich nicht holen."""
+
+
 def hole(stimme: str, ziel: Path) -> int:
-    """Eine Piper-Stimme herunterladen; gibt zurück, wie viele Dateien kamen."""
+    """Eine Piper-Stimme herunterladen; gibt zurück, wie viele Dateien kamen.
+
+    **Die Beschreibung zuerst, das Modell danach.** Sie ist fünf Kilobyte groß
+    und entscheidet trotzdem darüber, ob die Stimme zählt. Scheitert sie, hat
+    man Sekunden verloren statt hundert Megabyte - andersherum war es einmal,
+    und das war die falsche Reihenfolge.
+    """
     gebiet, person, aufloesung = _pfadteile(stimme)
     sprache = gebiet.split("_", 1)[0]
     ziel.mkdir(parents=True, exist_ok=True)
 
     geholt = 0
-    for endung in (".onnx", ".onnx.json"):
+    for endung in (".onnx.json", ".onnx"):
         datei = ziel / f"{stimme}{endung}"
         if datei.is_file():
             print(f"  {datei.name}: liegt schon da")
             continue
         adresse = f"{QUELLE}/{sprache}/{gebiet}/{person}/{aufloesung}/{stimme}{endung}"
-        # Erst daneben, dann an die Stelle: Ein abgebrochener Download soll
-        # nicht wie eine fertige Stimme aussehen - `PiperMotor.stimmen` prüft
-        # nur, ob beide Dateien da sind.
-        entwurf = datei.with_suffix(datei.suffix + ".neu")
+        print(f"  {datei.name}: wird geladen …")
         try:
-            print(f"  {datei.name}: wird geladen …")
-            with (
-                urllib.request.urlopen(adresse, timeout=120) as quelle,
-                entwurf.open("wb") as datei_offen,
-            ):
-                datei_offen.write(quelle.read())
-        except (urllib.error.URLError, OSError) as ursache:
-            entwurf.unlink(missing_ok=True)
-            print(f"  {datei.name}: gescheitert - {ursache}")
+            _lade(adresse, datei)
+        except VorlesenDownloadFehler as ursache:
+            print(f"  gescheitert: {ursache}")
+            print("  Ein erneuter Aufruf holt nur, was noch fehlt.")
             return geholt
-        entwurf.replace(datei)
+        print(f"  {datei.name}: {datei.stat().st_size / 1e6:.1f} MB")
         geholt += 1
     return geholt
 
