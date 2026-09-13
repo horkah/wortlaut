@@ -54,6 +54,8 @@ AUGMENTIERUNGEN = {
     "umgebung": "Masken/Raum/Rauschen",
     "voll": "Masken/Raum/Rauschen/Tempo",
 }
+# Die fünfte Achse. `fest` fehlt aus demselben Grund wie oben.
+DAUERN = {"geduldig": "bis zum Stillstand"}
 
 
 class MassAntwort(BaseModel):
@@ -247,6 +249,11 @@ def _abschluss(manifest: dict) -> str:
     name = ABSCHLUESSE.get(str(manifest.get("abschluss", "")), "")
     if not name:
         return ""
+    # Zurückgenommen heißt: Der Abschluss hat auf der Validierung nicht
+    # geholfen, ausgeliefert wurde der beste Durchgang. Das als „gemittelt" zu
+    # beschriften wäre die Behauptung eines Gewinns, den es nicht gab.
+    if (manifest.get("abschluss_bericht") or {}).get("zurueckgenommen"):
+        return f"{name} (zurückgenommen)"
     alpha = (manifest.get("abschluss_bericht") or {}).get("alpha")
     if alpha is None:
         return name
@@ -260,9 +267,10 @@ def _stand_herkunft(manifest: dict) -> str:
     grund = str(manifest.get("basismodell", "?")).rsplit("/", 1)[-1]
     datum = str(manifest.get("erstellt", ""))[:10]
     abwandlung = AUGMENTIERUNGEN.get(str(manifest.get("augmentierung", "")), "")
+    dauer = DAUERN.get(str(manifest.get("dauer", "")), "")
     return " · ".join(
         teil
-        for teil in (f"aus {grund}", _abschluss(manifest), abwandlung, datum)
+        for teil in (f"aus {grund}", _abschluss(manifest), abwandlung, dauer, datum)
         if teil.strip(" ·")
     )
 

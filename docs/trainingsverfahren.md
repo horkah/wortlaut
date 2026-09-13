@@ -231,6 +231,10 @@ sie aufgreift.
    Durchgang, also acht- bzw. zwölfmal im ganzen Lauf, auf 30 Aufnahmen. Beide
    Zahlen sind klein; das Minimum der Kurve ist damit selbst eine Zufallsgröße.
    → **B**, **C**
+   
+   Teilweise erledigt (September 2026): Dass **überhaupt ein Minimum** in der
+   Kurve liegt, war bei einem sehr kleinen Korpus nicht der Fall - sie fiel bis
+   zum letzten Durchgang. Dagegen steht jetzt die Wahl `geduldig`, siehe **J**.
 4. ~~**Der Endstand ist ein einzelner Zwischenstand.**~~ **Wählbar seit
    September 2026.** Weder wurden Zwischenstände gemittelt noch wurde gegen das
    Grundmodell interpoliert - dabei sind genau diese beiden Handgriffe in der
@@ -272,6 +276,7 @@ relativ zur heutigen Wortfehlerrate.
 | **G** | Encoder auf die tatsächliche Länge kürzen | 2-4× Tempo | mittel | mittel | |
 | **H** | Kontextverstärkung beim Dekodieren | 3-10 % rel. | gering | gering | |
 | **I** | Vertrauensbereiche auf allen Messwerten | 0 % | gering | keins | ✅ |
+| **J** | Geduldiges Training statt fester Durchgangszahl | 0-20 % rel. | gering | keins | ✅ |
 
 ### A - Augmentierung dorthin, wo sie wirkt ✅ umgesetzt
 
@@ -630,6 +635,60 @@ Datenbank; sie werden beim Zusammenstellen der Tabelle aus den Einzelzeilen
 gerechnet. Das ist richtig so, solange die Zeilen da sind - fehlen sie einmal,
 steht ein Grundmodell ohne Bereich da, während ein trainierter Stand seinen im
 Manifest mitbringt.
+
+### J - Aufhören, wenn es aufhört besser zu werden ✅ umgesetzt
+
+**Woher der Vorschlag kommt.** Nicht aus der Literatur, sondern aus einem Lauf.
+Neun Aufnahmen, LoRA, alle Optionen an: Die Validierungskurve fiel von 10,84
+auf 5,53 und war am zwölften und letzten Durchgang noch im Fallen. Der beste
+Zwischenstand war der letzte. Nicht die Überanpassung hat den Lauf beendet,
+sondern die Zahl im Rezept.
+
+Das ist keine Kleinigkeit, weil es **unsichtbar** ist: Ein Lauf, dessen Kurve
+am Ende noch fällt, sieht in der Ansicht aus wie einer, der fertig ist. Die
+Obergrenze war ausdrücklich als Obergrenze gedacht („im Zweifel lieber zu
+hoch"), und genau im Zweifelsfall stand sie zu niedrig.
+
+**Was.** Eine fünfte Achse des Auftrags:
+
+| Wahl | Was geschieht |
+|---|---|
+| `fest` | die Zahl aus dem Rezept - die Vorgabe und das Verfahren von vorher |
+| `geduldig` | eine weit höhere Obergrenze (LoRA 60, voll 40), Schluss nach `geduld` Prüfungen ohne Gewinn von mehr als `mindestgewinn` |
+
+**Warum das nichts kostet außer Zeit.** Ausgeliefert wird der beste Durchgang
+(`load_best_model_at_end`). Ein Lauf, der zu lange läuft, liefert denselben
+Stand wie einer, der rechtzeitig aufhört - nur später. Die Obergrenze darf
+deshalb weit oben stehen; bei einem kleinen Korpus sind 60 Durchgänge Minuten.
+
+**Drei Entscheidungen darin.**
+
+* **Geduld statt Sofortabbruch.** Fünf Prüfungen bei LoRA, vier beim vollen
+  Training. Bei einer Validierung über wenige Aufnahmen ist der Verlust selbst
+  eine Zufallsgröße; zwei Ausreißer nach oben sind kein Ende der Fahnenstange.
+  Dazu ein Mindestgewinn: Was darunter liegt, ist Rauschen und verlängert den
+  Lauf nur.
+* **Ohne Validierung kein `geduldig`.** Dann gibt es kein Kriterium, und der
+  Lauf fällt auf `fest` zurück und sagt es. Bis irgendetwas passiert
+  weiterzulaufen wäre kein Verfahren, sondern eine Hoffnung.
+* **Auch die hohe Grenze meldet sich.** Wer sie erreicht, ohne die Geduld
+  aufzubrauchen, liest es im Protokoll. Genau diese Auskunft hat gefehlt.
+
+**Was nebenbei mit repariert wurde: der Warmlauf.** Er stand als feste
+Schrittzahl im Rezept (50), und derselbe kleine Lauf hatte insgesamt 24
+Schritte - die Lernrate erreichte nie mehr als die Hälfte ihres Wertes, der
+ganze Lauf war Rampe (gemessen bei Schritt 20: 3,2e-4 statt 1e-3). Der Warmlauf
+ist jetzt auf ein Fünftel der Schritte gedeckelt. Das greift nur dort: Ein Lauf
+über 396 Schritte behält seine 50 und rechnet Gewicht für Gewicht wie vorher.
+
+**Und eine Korrektur an D.** Derselbe Lauf hat gezeigt, dass der Abschluss das
+Ergebnis verschlechtern konnte: bester Durchgang 5,5295, nach Mittelung 5,6504,
+nach der besten Interpolation 5,6435. Der Grund ist, dass bei `beides` die
+Interpolation nicht beim besten Zwischenstand anfängt, sondern beim
+gemittelten - α = 0 holt den besten Einzelstand also nicht zurück. Seitdem
+merkt sich der Abschluss den Stand, mit dem er anfängt, und stellt ihn wieder
+her, wenn er am Ende schlechter dasteht. Der Fall steht als „zurückgenommen" am
+Modellstand, damit ihn niemand für einen Gewinn hält.
 
 ---
 

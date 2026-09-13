@@ -25,9 +25,22 @@ der schon `load_best_model_at_end` den besten Durchgang erkennt. Der WER wäre
 das bessere Maß, verlangte aber einen Dekodierdurchgang je α; das gehört zu
 Vorschlag **B** und nicht hierher.
 
-**Warum α = 0 im Raster steht.** α = 0 ist der feingetunte Stand selbst. Steht
-es zur Wahl, kann die Interpolation auf der Validierung nicht verlieren: Im
-schlimmsten Fall wählt sie genau den Stand, der ohne sie herausgekommen wäre.
+**Warum α = 0 im Raster steht.** α = 0 ist der Stand, mit dem die Interpolation
+anfängt. Steht es zur Wahl, kann sie auf der Validierung nicht verlieren.
+
+**Und warum das allein nicht genügte.** Bei `beides` fängt die Interpolation
+nicht beim besten Zwischenstand an, sondern beim **gemittelten** - α = 0 holt
+also den besten Einzelstand nicht zurück, wenn die Mittelung ihm geschadet hat.
+Genau das ist im September 2026 auf einem sehr kleinen Korpus passiert: Der
+beste Durchgang lag bei 5,5295, die Mittelung über drei Stände bei 5,6504, und
+das beste α machte daraus 5,6435 - ausgeliefert wurde ein Modell, das auf der
+Validierung schlechter war als das, mit dem der Abschluss begann.
+
+Seitdem hält der Abschluss als Ganzes, was die Interpolation allein versprach:
+Er merkt sich den Stand, mit dem er anfängt, und stellt ihn wieder her, wenn er
+am Ende schlechter dasteht. Die Achse misst damit „so gut wie möglich, aber
+nie schlechter" - und der Fall, in dem zurückgenommen wurde, steht als Hinweis
+am Stand, damit ihn niemand für einen Gewinn hält.
 
 **Was hier nicht passiert.** Nichts wird an der Aufteilung, am Manifest oder an
 den Testaufnahmen gedreht, und keine Zahl eines älteren Standes ändert sich.
@@ -91,6 +104,8 @@ class Ergebnis:
     verlust_mittel: float | None = None
     # Je versuchtem α sein Verlust - die Kurve hinter der Wahl.
     versuche: tuple[tuple[float, float], ...] = ()
+    # Ob der Abschluss am Ende zurückgenommen wurde, weil er nicht half.
+    zurueckgenommen: bool = False
     # Warum weniger passiert ist als bestellt. Leer heißt: alles wie bestellt.
     hinweis: str = ""
 
@@ -102,6 +117,7 @@ class Ergebnis:
             "verlust_vorher": self.verlust_vorher,
             "verlust_nachher": self.verlust_nachher,
             "verlust_mittel": self.verlust_mittel,
+            "zurueckgenommen": self.zurueckgenommen,
             "versuche": [list(paar) for paar in self.versuche],
             "hinweis": self.hinweis,
         }
@@ -117,6 +133,7 @@ class _Sammler:
     verlust_vorher: float | None = None
     verlust_nachher: float | None = None
     verlust_mittel: float | None = None
+    zurueckgenommen: bool = False
     versuche: list[tuple[float, float]] = field(default_factory=list)
     hinweise: list[str] = field(default_factory=list)
 
@@ -128,6 +145,7 @@ class _Sammler:
             verlust_vorher=self.verlust_vorher,
             verlust_nachher=self.verlust_nachher,
             verlust_mittel=self.verlust_mittel,
+            zurueckgenommen=self.zurueckgenommen,
             versuche=tuple(self.versuche),
             hinweis=" ".join(self.hinweise),
         )
@@ -403,6 +421,11 @@ def fuehre_aus(
     bericht.sage(f"Validierungsverlust vor dem Abschluss: {sammler.verlust_vorher:.5f}")
 
     ist_lora = _ist_lora(modell)
+    # Der Stand, mit dem wir anfangen - auf dem Prozessor, damit er der Karte
+    # nicht im Weg liegt. Bei LoRA sind das ein paar Megabyte, beim vollen
+    # Training ein Gigabyte Arbeitsspeicher; das ist der Preis für die Zusage,
+    # dass dieser Schritt nicht schaden kann.
+    anfangsstand = _abzug(modell)
 
     if laeufe.mittelt(art):
         anzahl = staende_aus(rezept)
@@ -436,12 +459,53 @@ def fuehre_aus(
 
     sammler.verlust_nachher = messe()
     bericht.sage(f"Validierungsverlust nach dem Abschluss: {sammler.verlust_nachher:.5f}")
+
+    # Die Zusage: Der Abschluss kann nicht verlieren. Ist er am Ende
+    # schlechter als der Stand, mit dem er anfing, wird er zurückgenommen -
+    # und das steht dann als Hinweis am Modell, damit niemand einen Gewinn
+    # darin sieht, wo keiner war.
+    if sammler.verlust_nachher > sammler.verlust_vorher:
+        _einspielen(modell, anfangsstand)
+        sammler.zurueckgenommen = True
+        sammler.hinweise.append(
+            f"Zurückgenommen: Der Abschluss lag mit {sammler.verlust_nachher:.5f} über "
+            f"den {sammler.verlust_vorher:.5f} des besten Durchgangs. Ausgeliefert wird "
+            "dieser."
+        )
+        bericht.sage(sammler.hinweise[-1])
+        sammler.verlust_nachher = sammler.verlust_vorher
+    anfangsstand.clear()
+
     ergebnis = sammler.fertig()
     # `art` heißt im Fortschritt die Art des Ereignisses; welcher Abschluss
     # gemeint ist, steht daneben als `verfahren`.
     felder = ergebnis.als_dict()
     bericht.ereignis(art="abschluss", verfahren=felder.pop("art"), **felder)
     return ergebnis
+
+
+def _abzug(modell) -> dict[str, Any]:
+    """Eine Kopie der Gewichte auf dem Prozessor - der Stand, zu dem es zurückgeht."""
+    import torch
+
+    with torch.no_grad():
+        return {
+            name: wert.detach().to("cpu").clone()
+            for name, wert in modell.state_dict().items()
+            if torch.is_floating_point(wert)
+        }
+
+
+def _einspielen(modell, stand: dict[str, Any]) -> None:
+    """Den Abzug zurückschreiben - an Ort und Stelle, ohne das Modell zu tauschen."""
+    import torch
+
+    with torch.no_grad():
+        eigen = modell.state_dict()
+        for name, wert in stand.items():
+            ziel = eigen.get(name)
+            if ziel is not None:
+                ziel.copy_(wert.to(ziel.device, ziel.dtype))
 
 
 def _ist_lora(modell) -> bool:

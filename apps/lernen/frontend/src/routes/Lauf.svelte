@@ -273,6 +273,9 @@
       {daten?.augmentierungen.find((wahl) => wahl.schluessel === lauf.augmentierung)?.name ??
         lauf.augmentierung} ·
     {/if}
+    {#if lauf.dauer && lauf.dauer !== 'fest'}
+      {daten?.dauern.find((wahl) => wahl.schluessel === lauf.dauer)?.name ?? lauf.dauer} ·
+    {/if}
     {lauf.basismodell} · {lauf.aufnahmen} Aufnahmen
     {#if lauf.version}
       · Stand <strong>{lauf.version}</strong>

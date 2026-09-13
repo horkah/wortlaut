@@ -63,6 +63,8 @@ export type Lauf = {
   abschluss: string;
   /** Womit die Trainingsproben abgewandelt wurden: keine | masken | umgebung | voll. */
   augmentierung: string;
+  /** Wie lange trainiert wurde: fest | geduldig. */
+  dauer: string;
   basismodell: string;
   erstellt: string;
   /** wartet | laeuft | fertig | gescheitert | abgebrochen */
@@ -141,6 +143,7 @@ export type Laufliste = {
   datensaetze: Wahl[];
   abschluesse: Wahl[];
   augmentierungen: Wahl[];
+  dauern: Wahl[];
   basismodell: string;
   bereit: boolean;
   hinweis: string;
@@ -158,6 +161,7 @@ export type Laufeinzeln = {
   datensaetze: Wahl[];
   abschluesse: Wahl[];
   augmentierungen: Wahl[];
+  dauern: Wahl[];
   kurve_training: Punkt[];
   kurve_validierung: Punkt[];
   /** Fassung → die Maße, jeweils vorher und nachher. */
@@ -285,10 +289,11 @@ export const beauftrage = (
   daten: string,
   abschluss: string,
   augmentierung: string,
+  dauer: string,
   schluessel: string,
 ) =>
   anfrage<Lauf>('/laeufe', {
-    ...alsJson({ methode, daten, abschluss, augmentierung }),
+    ...alsJson({ methode, daten, abschluss, augmentierung, dauer }),
     headers: { 'Content-Type': 'application/json', 'X-Trainer-Key': schluessel },
   });
 

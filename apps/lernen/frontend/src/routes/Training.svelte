@@ -49,6 +49,7 @@
   // Die Vorgabe ist das Verfahren von vorher - siehe Kopf dieser Datei.
   let abschluss = $state('bester');
   let augmentierung = $state('keine');
+  let dauer = $state('fest');
   // Der Trainerschlüssel. Er steht hier neben Methode und Datensatz, weil er
   // an derselben Stelle gebraucht wird - aber er gehört nicht zur Bestellung,
   // sondern zur Erlaubnis, sie aufzugeben (siehe `lib/trainerschluessel.ts`).
@@ -89,7 +90,7 @@
         .map(
           (lauf) =>
             `${lauf.methode}/${lauf.daten}/${lauf.abschluss || 'bester'}/` +
-            `${lauf.augmentierung || 'keine'}`,
+            `${lauf.augmentierung || 'keine'}/${lauf.dauer || 'fest'}`,
         ),
     ),
   );
@@ -124,11 +125,13 @@
     const d = daten?.datensaetze.find((wahl) => wahl.schluessel === lauf.daten);
     const a = daten?.abschluesse.find((wahl) => wahl.schluessel === lauf.abschluss);
     const g = daten?.augmentierungen.find((wahl) => wahl.schluessel === lauf.augmentierung);
+    const w = daten?.dauern.find((wahl) => wahl.schluessel === lauf.dauer);
     const teile = [m?.name ?? lauf.methode, d?.name ?? lauf.daten];
     if (lauf.abschluss && lauf.abschluss !== 'bester') teile.push(a?.name ?? lauf.abschluss);
     if (lauf.augmentierung && lauf.augmentierung !== 'keine') {
       teile.push(g?.name ?? lauf.augmentierung);
     }
+    if (lauf.dauer && lauf.dauer !== 'fest') teile.push(w?.name ?? lauf.dauer);
     return teile.join(' · ');
   }
 
@@ -150,7 +153,7 @@
   async function bestelle() {
     bestellt = 'laeuft';
     try {
-      await beauftrageLauf(methode, datensatz, abschluss, augmentierung, schluessel);
+      await beauftrageLauf(methode, datensatz, abschluss, augmentierung, dauer, schluessel);
       // Erst merken, wenn er gestimmt hat: Ein falsch getippter Schlüssel, der
       // den Neustart überlebt, ist einer, den man beim nächsten Mal nicht mehr
       // verdächtigt.
@@ -277,6 +280,23 @@
         {/each}
       </fieldset>
 
+      <!-- Die fünfte Achse. Sie kommt aus einem Befund: Bei einem sehr
+           kleinen Korpus fiel die Validierungskurve am letzten Durchgang noch,
+           die Obergrenze aus dem Rezept band also. Ausgeliefert wird ohnehin
+           der beste Durchgang - Geduld kostet damit Rechenzeit und nie Güte. -->
+      <fieldset>
+        <legend>Wie lange trainiert wird</legend>
+        {#each daten.dauern as wahl (wahl.schluessel)}
+          <label class="option">
+            <input type="radio" bind:group={dauer} value={wahl.schluessel} />
+            <span>
+              <strong>{wahl.name}</strong>
+              <span class="gedaempft">{wahl.erklaerung}</span>
+            </span>
+          </label>
+        {/each}
+      </fieldset>
+
       <!-- Die vierte Achse: was mit einer Probe geschieht, während gelernt
            wird. Anders als „Womit" (welche abgelegten Fassungen als eigene
            Zeilen ins Manifest kommen) wird hier nichts abgelegt - es ist in
@@ -338,7 +358,7 @@
         Training beauftragen
       </button>
       <span class="gedaempft">
-        {#if gerechnetGenau.has(`${methode}/${datensatz}/${abschluss}/${augmentierung}`)}
+        {#if gerechnetGenau.has(`${methode}/${datensatz}/${abschluss}/${augmentierung}/${dauer}`)}
           Diese Kombination ist schon gerechnet - ein zweiter Lauf nimmt die seither
           hinzugekommenen Aufnahmen mit.
         {:else}

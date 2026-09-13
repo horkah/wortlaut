@@ -53,6 +53,19 @@ abschluss:
   # Raster darf deshalb feiner sein als beim vollen Training.
   alphas: [0.0, 0.05, 0.1, 0.2, 0.3, 0.5]
 
+# Wie lange trainiert wird, wenn der Auftrag `geduldig` bestellt (sonst gilt
+# `epochen` oben). Die Obergrenze ist mit Absicht weit: Ausgeliefert wird der
+# beste Durchgang, zu hoch angesetzt kostet sie also Rechenzeit und keine Güte.
+# Bei einem kleinen Korpus sind 60 Durchgänge eine Frage von Minuten.
+epochen_hoechstens: 60
+# Nach wie vielen Prüfungen ohne Verbesserung Schluss ist. Fünf und nicht zwei:
+# Bei einer Validierung über wenige Aufnahmen ist der Verlust selbst eine
+# Zufallsgröße, und zwei Ausreißer nach oben sind kein Ende der Fahnenstange.
+geduld: 5
+# Was als Verbesserung zählt. Alles darunter ist Rauschen und verlängert den
+# Lauf nur.
+mindestgewinn: 0.001
+
 # Die Augmentierung während des Trainings. Welche Stufe gilt, bestellt der
 # Auftrag (`keine`, `masken`, `umgebung`, `voll`); hier stehen ihre Zahlen.
 # Gerechnet wird beim Laden jeder Probe und nichts davon abgelegt - was
