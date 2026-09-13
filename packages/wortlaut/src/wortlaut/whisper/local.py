@@ -15,6 +15,7 @@ Worauf gerechnet wird, entscheidet dieser Kasten nicht, sondern
 
 from __future__ import annotations
 
+import gc
 import logging
 from pathlib import Path
 
@@ -82,6 +83,26 @@ class LokalerTranskriptor:
             return WhisperModel(
                 str(self.modell), device=self.geraet, compute_type=self.rechenart
             )
+
+    def entlade(self) -> None:
+        """Das Modell von der Karte nehmen - jetzt und nicht irgendwann.
+
+        Gebraucht wird das an genau einer Stelle: im Trainer, wo nach jeder
+        Faltung erst gemessen und dann wieder gelernt wird. Beides will die
+        ganze Karte, und CTranslate2 gibt seinen Speicher zurück, sobald
+        niemand mehr auf das Modell zeigt - nur weiß niemand, wann das ist.
+        Der Aufruf hier macht aus diesem Irgendwann ein Jetzt.
+
+        Wer danach wieder `transkribiere` ruft, bekommt das Modell neu
+        geladen. Das kostet Sekunden und ist kein Fehler: Ein Transkriptor ist
+        ein Name für ein Modell, nicht das Modell selbst.
+        """
+        if self._geladen is None:
+            return
+        self._geladen = None
+        # Ohne das bleibt das CTranslate2-Modell hängen, bis der Sammler von
+        # sich aus läuft - und bis dahin ist die Karte belegt.
+        gc.collect()
 
     def transkribiere(self, wav: Path, sprache: str = "de") -> Transkript:
         if self._geladen is None:

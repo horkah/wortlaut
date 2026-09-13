@@ -99,8 +99,24 @@ augmentierung:
 je_grundmodell:
   medium:
     # `medium` hat 769 Millionen Gewichte statt 244. Eingefroren liegen sie in
-    # halber Genauigkeit auf der Karte, dazu kommen die Aktivierungen - mit
-    # Stapel 8 reicht der Speicher einer 11-GB-Karte nicht mehr. Vier mal zwei
-    # ergibt dieselbe wirksame Stapelgröße, nur in zwei Griffen.
-    stapel: 4
-    akkumulation: 2
+    # halber Genauigkeit auf der Karte, dazu kommen die Aktivierungen - und die
+    # sind das Problem, nicht die Gewichte.
+    #
+    # Der erste Versuch war, den Stapel zu halbieren (vier mal zwei statt acht
+    # mal eins, dieselbe wirksame Größe in zwei Griffen). Das reichte nicht:
+    # Gemessen blieben 9,3 GB belegt, von 10,75 GB nutzbaren. Trainieren ging
+    # damit gerade noch - aber danach will der Erkenner auf dieselbe Karte,
+    # und der findet nichts mehr vor. Genau daran ist im September 2026 ein
+    # Lauf gescheitert, mitten in der Auswertung der ersten Faltung.
+    #
+    # Der richtige Griff ist stattdessen, die Aktivierungen nicht aufzuheben,
+    # sondern beim Rückwärtsgang neu zu rechnen. Dieselben Gradienten, ein
+    # Viertel des Platzes - gemessen 2,3 GB statt 9,3 GB bei Stapel 8. Damit
+    # braucht `medium` überhaupt keinen kleineren Stapel mehr und läuft mit
+    # derselben Einstellung wie `small`; nur diese eine Zeile weicht ab.
+    #
+    # Dass es dabei auch noch schneller wurde (68 statt 125 ms je Probe), ist
+    # kein Schreibfehler: Ein Vorrat, der an die Decke stößt, kostet mehr als
+    # die zweite Rechnung. Bei `small` gilt das nicht, und dort steht es
+    # deshalb auch nicht.
+    gradientensparsam: true
