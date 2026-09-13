@@ -39,6 +39,14 @@ TRAINIERT = "trainiert"
 
 METHODEN = {"full": "Volles Training", "lora": "Feintuning (LoRA)"}
 DATEN = {"original": "Nur Originale", "augmentiert": "Mit Abwandlungen"}
+# Die dritte Achse. `bester` fehlt hier mit Absicht: Er ist das Verfahren, nach
+# dem jeder Stand vor September 2026 entstand, und ihn dazuzuschreiben hieße,
+# hundert alte Zeilen um eine Auskunft zu ergänzen, die sie nie unterschied.
+ABSCHLUESSE = {
+    "mittel": "gemittelt",
+    "interpoliert": "mit Grundmodell",
+    "beides": "gemittelt + Grundmodell",
+}
 
 
 class MassAntwort(BaseModel):
@@ -222,10 +230,31 @@ def _stand_name(manifest: dict) -> str:
     return f"{methode} · {daten}"
 
 
+def _abschluss(manifest: dict) -> str:
+    """Wie der Stand abgeschlossen wurde - leer beim Verfahren von vorher.
+
+    Steht ein α daneben, kommt es mit: Zwei interpolierte Stände mit 0,1 und
+    0,5 Grundmodell sind zwei verschiedene Modelle, und in einer Tabelle, die
+    sie vergleicht, darf das nicht dieselbe Zeile sein.
+    """
+    name = ABSCHLUESSE.get(str(manifest.get("abschluss", "")), "")
+    if not name:
+        return ""
+    alpha = (manifest.get("abschluss_bericht") or {}).get("alpha")
+    if alpha is None:
+        return name
+    # Auch die Null: α = 0 heißt, dass die Wahl auf der Validierung den
+    # feingetunten Stand behalten hat - eine Auskunft über diesen Lauf, und
+    # nicht dasselbe wie ein Stand, bei dem nie interpoliert wurde.
+    return f"{name} α={float(alpha):.2f}".replace(".", ",")
+
+
 def _stand_herkunft(manifest: dict) -> str:
     grund = str(manifest.get("basismodell", "?")).rsplit("/", 1)[-1]
     datum = str(manifest.get("erstellt", ""))[:10]
-    return " · ".join(teil for teil in (f"aus {grund}", datum) if teil.strip(" ·"))
+    return " · ".join(
+        teil for teil in (f"aus {grund}", _abschluss(manifest), datum) if teil.strip(" ·")
+    )
 
 
 @router.get("", response_model=UebersichtAntwort)

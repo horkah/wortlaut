@@ -340,6 +340,10 @@ data/modelle/<sprecher_id>/
   "basismodell": "openai/whisper-small",
   "methode": "lora",
   "daten": "augmentiert",
+  "abschluss": "beides",
+  "abschluss_bericht": { "art": "beides", "staende": ["checkpoint-126"],
+                         "alpha": 0.2, "verlust_vorher": 0.412,
+                         "verlust_mittel": 0.401, "verlust_nachher": 0.394 },
   "job_id": "job_01J8…",
   "erstellt": "2026-09-12T14:20:03Z",
   "daten_umfang": { "train": 1832, "validierung": 118, "test": 480 },
@@ -353,7 +357,17 @@ data/modelle/<sprecher_id>/
 Die Version nennt Zeit, Methode und Datensatz, und das ist kein Schmuck: Es
 liegen vier Stände nebeneinander, die sich in genau diesen Punkten
 unterscheiden (zwei Methoden mal zwei Datensätze). Eine Zeitmarke allein ließe
-offen, welcher von den vieren gemeint ist.
+offen, welcher von den vieren gemeint ist. Ist der **Abschluss** nicht der
+gewöhnliche, hängt er hinten an - `…-lora-augmentiert-beides`. Nur dann: Ein
+Stand von früher soll heute heißen, wie er damals hieß, sonst zeigt jeder
+Verweis auf ihn ins Leere.
+
+`abschluss` und `abschluss_bericht` sind die dritte Achse und ihr Ergebnis:
+was am Ende mit den Gewichten geschah, welche Zwischenstände dafür gemittelt
+wurden, welcher Anteil des Grundmodells auf der Validierung gewonnen hat
+(`apps/lernen/training/abschluss.py`). Ein Stand von vor September 2026 hat
+beide Felder nicht - das heißt `bester`, und das ist genau das, was damals
+gerechnet wurde.
 
 `status` ist `fertig`, bis jemand den Stand in `lernen` **freigibt** - dann
 wird er `active` und jeder andere `zurueckgezogen`.

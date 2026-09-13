@@ -264,6 +264,13 @@
   <h2>{lauf.methode === 'lora' ? 'Feintuning (LoRA)' : 'Volles Training'}</h2>
   <p class="gedaempft">
     {lauf.daten === 'original' ? 'Nur Originale' : 'Mit Abwandlungen'} ·
+    <!-- Der Abschluss nur, wenn er nicht der gewöhnliche ist: Ein Lauf von
+         früher soll heute lesen wie damals. Beschriftet vom Server, damit der
+         Name an einer Stelle steht und nicht an zweien. -->
+    {#if lauf.abschluss && lauf.abschluss !== 'bester'}
+      {daten?.abschluesse.find((wahl) => wahl.schluessel === lauf.abschluss)?.name ??
+        lauf.abschluss} ·
+    {/if}
     {lauf.basismodell} · {lauf.aufnahmen} Aufnahmen
     {#if lauf.version}
       · Stand <strong>{lauf.version}</strong>

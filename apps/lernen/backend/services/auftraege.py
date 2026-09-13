@@ -54,6 +54,10 @@ class Auftrag:
     methode: str
     daten: str
     basismodell: str
+    # Was am Ende mit den Gewichten geschieht (`wortlaut/laeufe.py`). Mit
+    # Vorgabe, und die ist das Verfahren von vorher: Ein Auftrag von einem
+    # Aufrufer, der diese Achse nicht kennt, bleibt derselbe Auftrag.
+    abschluss: str = laeufe.ABSCHLUSS_BESTER
 
 
 def _quelle_von(korpus: Session, probe: Probe) -> str:
@@ -148,6 +152,7 @@ def beauftrage(
             "sprecher_id": auftrag.sprecher_id,
             "methode": auftrag.methode,
             "daten": auftrag.daten,
+            "abschluss": auftrag.abschluss,
             "basismodell": auftrag.basismodell,
             "erstellt": laeufe.jetzt(),
             "zeilen": gezaehlt,

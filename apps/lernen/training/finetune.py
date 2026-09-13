@@ -35,6 +35,7 @@ from typing import Any
 import yaml
 from wortlaut import laeufe
 
+from . import abschluss as abschlussrechnung
 from .daten import Proben, Stapler, zeilen_fuer
 
 REZEPTE = Path(__file__).parent / "rezepte"
@@ -145,6 +146,13 @@ def _rueckmeldung(bericht: Bericht):
 
         def on_evaluate(self, args, zustand, steuerung, metrics=None, **weiteres):
             metrics = metrics or {}
+            # Nur die Prüfung je Durchgang gehört in die Kurve. Der Abschluss
+            # misst danach noch mehrfach am selben Schritt (siehe
+            # `abschluss.py`) - unter eigenem Präfix, und daran ist er hier zu
+            # erkennen. Ohne diese Zeile stünde ein halbes Dutzend Punkte
+            # übereinander, alle mit Verlust null.
+            if "eval_loss" not in metrics:
+                return
             bericht.ereignis(
                 art="validierung",
                 schritt=int(zustand.global_step),
@@ -202,8 +210,15 @@ def _trainerklasse():
     return GewichtetesTraining
 
 
-def trainiere(verzeichnis: Path, datenverzeichnis: Path, bericht: Bericht) -> Path:
-    """Das Training selbst; gibt das Verzeichnis mit den fertigen Gewichten zurück."""
+def trainiere(
+    verzeichnis: Path, datenverzeichnis: Path, bericht: Bericht
+) -> tuple[Path, abschlussrechnung.Ergebnis]:
+    """Das Training selbst; gibt die fertigen Gewichte und den Abschluss zurück.
+
+    Der Abschluss ist die dritte Achse eines Laufs (`abschluss.py`): was mit
+    den Gewichten geschieht, wenn die Schleife durch ist. Er steht im Auftrag,
+    und ohne Angabe ist er `bester` - das Verfahren von vorher.
+    """
     import torch
     from transformers import (
         Seq2SeqTrainingArguments,
@@ -217,6 +232,11 @@ def trainiere(verzeichnis: Path, datenverzeichnis: Path, bericht: Bericht) -> Pa
     methode = str(auftrag["methode"])
     basismodell = str(auftrag["basismodell"])
     sprecher_id = str(auftrag["sprecher_id"])
+    # Vor dem Laden geprüft und nicht erst am Ende gebraucht: Ein Tippfehler im
+    # Auftrag soll in Sekunden auffallen und nicht nach zwei Stunden Rechnen.
+    art = abschlussrechnung.pruefe(
+        str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER)
+    )
     rezept = yaml.safe_load(_rezeptpfad(methode).read_text(encoding="utf-8"))
 
     bericht.stufe("laden")
@@ -312,8 +332,15 @@ def trainiere(verzeichnis: Path, datenverzeichnis: Path, bericht: Bericht) -> Pa
         # vollen Training je knapp drei Gigabyte. Sie verschwinden mit dem
         # `arbeitsstand`, sobald der Lauf endet - durchgelaufen oder
         # gescheitert (siehe `main`).
+        #
+        # Wer mittelt, braucht mehr davon: Ein Zwischenstand, den der Trainer
+        # schon weggeräumt hat, lässt sich nicht mehr wiegen. Dafür fällt dann
+        # der Optimierer aus den Sicherungen (`save_only_model`) - er wiegt
+        # zwei Drittel eines Zwischenstandes, und dieses Projekt setzt einen
+        # Lauf nie fort. Ohne Mittelung bleibt beides, wie es war.
         save_strategy="epoch" if hat_pruefung else "no",
-        save_total_limit=1,
+        save_total_limit=abschlussrechnung.zu_behalten(art, rezept),
+        save_only_model=laeufe.mittelt(art),
         load_best_model_at_end=hat_pruefung,
         metric_for_best_model="eval_loss",
         greater_is_better=False,
@@ -354,6 +381,20 @@ def trainiere(verzeichnis: Path, datenverzeichnis: Path, bericht: Bericht) -> Pa
             verlust=round(float(trainer.state.best_metric), 5),
         )
 
+    # Der Abschluss: Was jetzt noch mit den Gewichten geschieht, bevor sie
+    # gesichert werden. Bei `bester` geschieht nichts - dann steht hier
+    # derselbe Stand wie vor dieser Zeile (siehe `abschluss.py`).
+    ergebnis = abschlussrechnung.fuehre_aus(
+        art=art,
+        modell=modell,
+        trainer=trainer,
+        rezept=rezept,
+        basismodell=basismodell,
+        arbeitsstand=ausgabe,
+        hat_pruefung=hat_pruefung,
+        bericht=bericht,
+    )
+
     bericht.stufe("sichern")
     gewichte = verzeichnis / laeufe.GEWICHTE
     if methode == laeufe.LORA:
@@ -368,7 +409,7 @@ def trainiere(verzeichnis: Path, datenverzeichnis: Path, bericht: Bericht) -> Pa
     # sondern ein Satz Gewichte.
     zerteiler.save_pretrained(gewichte)
     ausleser.save_pretrained(gewichte)
-    return gewichte
+    return gewichte, ergebnis
 
 
 # Was neben den umgewandelten Gewichten liegen muss, damit faster-whisper den
@@ -417,12 +458,12 @@ def main(argumente: list[str]) -> int:
     begonnen = time.monotonic()
 
     try:
-        gewichte = trainiere(verzeichnis, datenverzeichnis, bericht)
+        gewichte, ergebnis = trainiere(verzeichnis, datenverzeichnis, bericht)
 
         from .bewerten import bewerte_und_gib_frei
 
         version = bewerte_und_gib_frei(
-            verzeichnis, datenverzeichnis, gewichte, auftrag, bericht
+            verzeichnis, datenverzeichnis, gewichte, auftrag, bericht, ergebnis
         )
     except Exception as ursache:  # noqa: BLE001 - was immer torch wirft
         import traceback

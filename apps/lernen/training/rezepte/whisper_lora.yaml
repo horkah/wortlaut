@@ -36,3 +36,19 @@ lora:
   # Nur die Projektionen der Aufmerksamkeit. Sie entscheiden, worauf das Modell
   # hört; dort sitzt die Anpassung an eine abweichende Aussprache.
   ziele: [q_proj, v_proj]
+
+# Der Abschluss - was am Ende mit den Gewichten geschieht. Gerechnet wird nur,
+# was der Auftrag bestellt (`bester`, `mittel`, `interpoliert`, `beides`); hier
+# stehen die Zahlen dazu.
+abschluss:
+  # Wie viele der besten Zwischenstände gemittelt werden. Drei ist die untere
+  # Kante dessen, was als „Model Soup" beschrieben ist; mehr kostet hier nur
+  # Platz auf der Platte, denn ein LoRA-Zwischenstand wiegt wenige Megabyte.
+  staende: 3
+  # Welche Anteile des Grundmodells versucht werden (WiSE-FT). Gewählt wird auf
+  # der Validierung, und die Null gehört dazu: Mit ihr kann die Interpolation
+  # nicht verlieren - im schlechtesten Fall bleibt der feingetunte Stand.
+  #
+  # Bei LoRA ist das eine Multiplikation am Zusatz und kostet nichts; das
+  # Raster darf deshalb feiner sein als beim vollen Training.
+  alphas: [0.0, 0.05, 0.1, 0.2, 0.3, 0.5]
