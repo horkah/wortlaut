@@ -41,6 +41,70 @@ class TestBeauftragen:
         )
         assert antwort.status_code == 400
 
+    def test_medium_geht_mit_lora(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        sprich(6)
+        antwort = klient.post(
+            "/lernen/api/laeufe",
+            json={
+                "methode": "lora",
+                "daten": "original",
+                "grundmodell": "openai/whisper-medium",
+            },
+        )
+        assert antwort.status_code == 201, antwort.text
+        assert antwort.json()["basismodell"] == "openai/whisper-medium"
+
+    def test_medium_geht_nicht_mit_vollem_training(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        # Es spränge nach zwei Stunden am Speicher der Karte. Hier abzuweisen
+        # kostet nichts.
+        sprich(6)
+        antwort = klient.post(
+            "/lernen/api/laeufe",
+            json={
+                "methode": "full",
+                "daten": "original",
+                "grundmodell": "openai/whisper-medium",
+            },
+        )
+        assert antwort.status_code == 400
+        assert "medium" in antwort.json()["detail"]
+
+    def test_ohne_wahl_gilt_die_vorgabe(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        # Ein Auftrag von einem Aufrufer, der diese Achse nicht kennt, bleibt
+        # derselbe Auftrag wie vor September 2026.
+        sprich(6)
+        lauf = _beauftrage(klient, "lora", "original")
+        liste = klient.get("/lernen/api/laeufe").json()
+        assert lauf["basismodell"] == liste["basismodell"]
+
+    def test_ein_unbekanntes_grundmodell_wird_abgewiesen(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        sprich(6)
+        antwort = klient.post(
+            "/lernen/api/laeufe",
+            json={"methode": "lora", "daten": "original", "grundmodell": "openai/whisper-riesig"},
+        )
+        assert antwort.status_code == 400
+
+    def test_die_liste_nennt_je_grundmodell_seine_methoden(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        # Damit die Oberfläche die unmögliche Kombination gar nicht erst
+        # anbietet - und keine eigene Liste dafür führt.
+        sprich(6)
+        nach_name = {
+            g["name"]: g["methoden"] for g in klient.get("/lernen/api/laeufe").json()["grundmodelle"]
+        }
+        assert nach_name["whisper-small"] == ["full", "lora"]
+        assert nach_name["whisper-medium"] == ["lora"]
+
     def test_der_auftrag_steht_vollstaendig_da(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis
     ) -> None:

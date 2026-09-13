@@ -220,6 +220,48 @@ DAUERN = [
 ]
 
 
+class GrundmodellAntwort(BaseModel):
+    """Ein Grundmodell zur Wahl - und was es verträgt.
+
+    `methoden` steht dabei, damit die Oberfläche die unmögliche Kombination
+    gar nicht erst anbietet: Volles Feintuning von `medium` sprengt den
+    Speicher der Karte, und es nach zwei Stunden am Speicher scheitern zu
+    lassen wäre die schlechtere Auskunft.
+    """
+
+    schluessel: str
+    name: str
+    erklaerung: str
+    methoden: list[str]
+
+
+def _grundmodelle() -> list[GrundmodellAntwort]:
+    konfiguration = einstellungen()
+    beschreibung = {
+        "small": (
+            "244 Millionen Gewichte. Schnell, genügsam, und die Reihe, gegen die "
+            "\u201eh\u00f6ren\u201c seit jeher misst."
+        ),
+        "medium": (
+            "769 Millionen Gewichte - dreimal so groß und deutlich besser im "
+            "Ausgangspunkt. Nur mit LoRA: Volles Feintuning sprengt die Karte. "
+            "Rechnet spürbar länger."
+        ),
+    }
+    antworten = []
+    for modell in konfiguration.grundmodelle():
+        kurz = lauf_layout.kurzname(modell)
+        antworten.append(
+            GrundmodellAntwort(
+                schluessel=modell,
+                name=f"whisper-{kurz}",
+                erklaerung=beschreibung.get(kurz, f"Grundmodell {kurz}."),
+                methoden=list(lauf_layout.methoden_fuer(modell)),
+            )
+        )
+    return antworten
+
+
 class Bestellung(BaseModel):
     methode: str
     daten: str
@@ -230,6 +272,9 @@ class Bestellung(BaseModel):
     augmentierung: str = lauf_layout.AUG_KEINE
     # Die fünfte Achse, ebenfalls mit Vorgabe.
     dauer: str = lauf_layout.DAUER_FEST
+    # Worauf trainiert wird. Leer heißt: die Vorgabe des Servers - ein Auftrag
+    # von einem Aufrufer, der diese Achse nicht kennt, bleibt derselbe Auftrag.
+    grundmodell: str = ""
 
 
 class StandHinweis(BaseModel):
@@ -308,6 +353,7 @@ class EinzelAntwort(BaseModel):
     abschluesse: list[WahlAntwort]
     augmentierungen: list[WahlAntwort]
     dauern: list[WahlAntwort]
+    grundmodelle: list[GrundmodellAntwort]
     kurve_training: list[PunktAntwort]
     kurve_validierung: list[PunktAntwort]
     # fassung -> die Maße, jeweils vorher und nachher
@@ -325,6 +371,7 @@ class ListeAntwort(BaseModel):
     abschluesse: list[WahlAntwort]
     augmentierungen: list[WahlAntwort]
     dauern: list[WahlAntwort]
+    grundmodelle: list[GrundmodellAntwort]
     basismodell: str
     # Wie viele Faltungen ein Lauf rechnet. Vom Server, damit die Oberfläche
     # die Sechs nicht ein zweites Mal kennt.
@@ -435,6 +482,7 @@ def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         abschluesse=ABSCHLUESSE,
         augmentierungen=AUGMENTIERUNGEN,
         dauern=DAUERN,
+        grundmodelle=_grundmodelle(),
         basismodell=konfiguration.lernen_basismodell,
         faltungen=lauf_layout.FALTUNGEN,
         bereit=genug and erlaubt,
@@ -485,6 +533,23 @@ def beauftrage(
         raise HTTPException(status_code=400, detail=f"Unbekannte Dauer: {bestellung.dauer}")
 
     konfiguration = einstellungen()
+    grundmodell = bestellung.grundmodell or konfiguration.lernen_basismodell
+    if grundmodell not in konfiguration.grundmodelle():
+        raise HTTPException(
+            status_code=400, detail=f"Unbekanntes Grundmodell: {grundmodell}"
+        )
+    # Die eine Kombination, die es nicht gibt. Sie hier abzuweisen kostet
+    # nichts; sie zuzulassen kostete zwei Stunden und endete am Speicher.
+    erlaubte = lauf_layout.methoden_fuer(grundmodell)
+    if bestellung.methode not in erlaubte:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"{lauf_layout.kurzname(grundmodell)} lässt sich nur mit "
+                f"{', '.join(erlaubte)} trainieren - volles Feintuning sprengt "
+                "den Speicher der Karte."
+            ),
+        )
     proben = aufteilung.proben(korpus)
     if not aufteilung.genug(proben):
         raise HTTPException(
@@ -507,7 +572,7 @@ def beauftrage(
             abschluss=bestellung.abschluss,
             augmentierung=bestellung.augmentierung,
             dauer=bestellung.dauer,
-            basismodell=konfiguration.lernen_basismodell,
+            basismodell=grundmodell,
         ),
     )
     return _als_antwort(lauf)
@@ -539,6 +604,7 @@ def einzeln(
         abschluesse=ABSCHLUESSE,
         augmentierungen=AUGMENTIERUNGEN,
         dauern=DAUERN,
+        grundmodelle=_grundmodelle(),
         kurve_training=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["training"]],
         kurve_validierung=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["validierung"]],
         vergleich={

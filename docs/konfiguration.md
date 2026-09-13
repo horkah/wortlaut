@@ -121,7 +121,8 @@ Viertelstunde ist der Ausgleich.
 | Variable | Vorgabe | Was sie tut |
 |---|---|---|
 | `WORTLAUT_TRAINER_KEY` | leer | **Training anstoßen**: als Kopfzeile `X-Trainer-Key` vor `POST /lernen/api/laeufe`. Leer heißt abgeschaltet, nicht offen - dann kann hier niemand trainieren |
-| `WORTLAUT_LERNEN_BASISMODELL` | `openai/whisper-small` | worauf trainiert wird - fest und in der Oberfläche nicht wählbar |
+| `WORTLAUT_LERNEN_BASISMODELL` | `openai/whisper-small` | die **Vorgabe**, worauf trainiert wird |
+| `WORTLAUT_LERNEN_GRUNDMODELLE` | `openai/whisper-small,openai/whisper-medium` | was darüber hinaus zur Wahl steht. Jedes davon muss in `WORTLAUT_AUSWERTUNG_MODELLE` stehen, sonst fehlt seinem Stand die Grundlinie. `medium` und größer lassen sich nur mit LoRA trainieren |
 | `WORTLAUT_AUSWERTUNG_MODELLE` | `base,small,medium,large-v3` | welche Grundmodelle in der Modelltabelle gegen die eigenen Stände antreten; dieselbe Variable wie oben, und das ist Absicht |
 | `WORTLAUT_LERNEN_GERAET` | `cuda` | worauf **trainiert** wird; auf einem Prozessor dauert ein Feintuning Tage statt Stunden. Etwas anderes als `WORTLAUT_GERAET` oben: Dort geht es ums Erkennen, hier ums Lernen, und nur das Erkennen darf ausweichen |
 | `WORTLAUT_LERNEN_TAKT_S` | `5` | wie oft der Läufer nach neuen Aufträgen sieht |

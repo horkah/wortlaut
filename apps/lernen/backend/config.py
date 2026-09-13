@@ -59,12 +59,21 @@ class Einstellungen(Grundeinstellungen):
     # das kostet nichts und gehört dem, dessen Stimme darin steckt.
     trainer_key: str = ""
 
-    # Worauf trainiert wird. Fest auf `small` und nicht wählbar: Es ist die
-    # kleinste Stufe, die ganze Sätze trifft, sie passt in den Speicher einer
-    # einzelnen Karte, und sie ist zugleich die Reihe, gegen die in „hören"
-    # schon gemessen wurde (`auswertung_modelle`). Ohne diesen gemeinsamen
-    # Nenner wäre der Vergleich mit der Grundlinie keiner.
+    # Die Vorgabe, worauf trainiert wird - und damit das, was ein Auftrag ohne
+    # eigene Wahl bekommt. `small` ist die kleinste Stufe, die ganze Sätze
+    # trifft, sie passt bequem in den Speicher einer einzelnen Karte, und sie
+    # ist zugleich die Reihe, gegen die in „hören" schon gemessen wurde
+    # (`auswertung_modelle`). Ohne diesen gemeinsamen Nenner wäre der Vergleich
+    # mit der Grundlinie keiner.
     lernen_basismodell: str = "openai/whisper-small"
+    # Was darüber hinaus zur Wahl steht. Seit September 2026 ist das Grundmodell
+    # eine Achse des Auftrags und keine Konstante mehr - `medium` ist der
+    # stärkste Hebel, den dieses Projekt hat, und mit LoRA passt es auf die
+    # Karte (volles Feintuning nicht, siehe `wortlaut/laeufe.py`).
+    #
+    # Jedes hier genannte Modell muss in `auswertung_modelle` stehen, sonst hat
+    # sein trainierter Stand keine Grundlinie, gegen die er antreten könnte.
+    lernen_grundmodelle: str = "openai/whisper-small,openai/whisper-medium"
     # Welche unveränderten Modelle in der Modellübersicht gegen die eigenen
     # Stände antreten. Dieselbe Liste wie in der Auswertung von „hören"
     # (`WORTLAUT_AUSWERTUNG_MODELLE`), und das ist kein Zufall: Von dort
@@ -83,6 +92,20 @@ class Einstellungen(Grundeinstellungen):
     # dass ein Knopfdruck sich wie einer anfühlt; lang genug, dass ein
     # wartender Container nichts tut.
     lernen_takt_s: int = 5
+
+
+    def grundmodelle(self) -> list[str]:
+        """Die wählbaren Grundmodelle, die Vorgabe zuerst.
+
+        Aus einer Zeichenkette und nicht aus einer Liste, weil sie aus der
+        Umgebung kommt; die Vorgabe steht immer vorn und immer drin, auch wenn
+        jemand sie in `WORTLAUT_LERNEN_GRUNDMODELLE` vergisst - sonst hätte ein
+        Auftrag ohne Wahl ein Grundmodell, das es nicht zur Wahl gibt.
+        """
+        genannt = [teil.strip() for teil in self.lernen_grundmodelle.split(",") if teil.strip()]
+        return [self.lernen_basismodell] + [
+            modell for modell in genannt if modell != self.lernen_basismodell
+        ]
 
 
 @lru_cache

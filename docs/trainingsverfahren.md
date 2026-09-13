@@ -780,12 +780,19 @@ gewirkt hat.
 
 ## 9. Was hier bewusst nicht vorgeschlagen wird
 
-* **Ein größeres Grundmodell.** `whisper-medium` oder `large-v3` feinzutunen
-  würde mit hoher Wahrscheinlichkeit helfen - aber es beantwortet die Frage
-  dieses Dokuments nicht, die ausdrücklich lautet: mehr aus demselben Material
-  bei demselben Grundmodell. Außerdem sprengt volles Feintuning von `medium`
-  den Speicher einer 11-GB-Karte. Als LoRA-Variante ist es einen eigenen
-  Versuch wert und gehört in die Modelltabelle, nicht in diese Liste.
+* **Ein größeres Grundmodell.** ~~Beantwortet die Frage dieses Dokuments
+  nicht.~~ **Seit September 2026 wählbar**, und zwar genau so, wie es hier
+  vorgesehen war: `whisper-medium` als **LoRA-Variante**, als eigene Achse des
+  Auftrags und als eigene Zeile in der Modelltabelle. Volles Feintuning von
+  `medium` sprengt weiterhin den Speicher einer 11-GB-Karte und wird gar nicht
+  erst angeboten.
+
+  Die Frage dieses Dokuments bleibt davon unberührt - sie lautet: mehr aus
+  demselben Material **bei demselben Grundmodell**. Ein größeres Grundmodell
+  beantwortet sie nicht, es verschiebt sie. Beides nebeneinander in derselben
+  Tabelle zu haben ist trotzdem richtig: Erst dann ist zu sehen, ob ein
+  Vorschlag von hier noch etwas bringt, wenn der Ausgangspunkt schon besser
+  ist.
 * **Eine Lernratensuche.** Bereits in [lernen.md](lernen.md) verworfen, und das
   Argument steht: Bei einer Validierung über 30 Aufnahmen unterscheidet man
   zwei benachbarte Lernraten nicht verlässlich. Nach **C** und **I** ließe sich

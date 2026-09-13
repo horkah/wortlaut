@@ -91,3 +91,16 @@ augmentierung:
   # ein Merkmal des Sprechers - es zu verwürfeln kann helfen oder schaden.
   tempo_wahrscheinlichkeit: 0.5
   tempo_faktor: [0.9, 1.1]
+
+# Was sich je Grundmodell ändert. Alles, was hier nicht steht, gilt für alle.
+#
+# Der einzige Grund für Abweichungen ist der Platz auf der Karte: Lernrate,
+# Durchgänge und LoRA-Rang hängen daran, *wie* trainiert wird, nicht *woran*.
+je_grundmodell:
+  medium:
+    # `medium` hat 769 Millionen Gewichte statt 244. Eingefroren liegen sie in
+    # halber Genauigkeit auf der Karte, dazu kommen die Aktivierungen - mit
+    # Stapel 8 reicht der Speicher einer 11-GB-Karte nicht mehr. Vier mal zwei
+    # ergibt dieselbe wirksame Stapelgröße, nur in zwei Griffen.
+    stapel: 4
+    akkumulation: 2

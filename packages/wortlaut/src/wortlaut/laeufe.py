@@ -115,6 +115,34 @@ VOLL = "full"
 LORA = "lora"
 METHODEN = (VOLL, LORA)
 
+# ── Grundmodelle ────────────────────────────────────────────────────────────
+#
+# Worauf feingetunt wird. `small` war lange das einzige und ist die Vorgabe
+# geblieben: die kleinste Stufe, die ganze Sätze trifft, und dieselbe Reihe,
+# gegen die „hören" schon misst.
+#
+# `medium` kommt seit September 2026 dazu - aber **nur mit LoRA**. Volles
+# Feintuning von `medium` sprengt den Speicher einer 11-GB-Karte; es gar nicht
+# erst anzubieten ist ehrlicher, als es nach zwei Stunden am Speicher scheitern
+# zu lassen. Als LoRA-Variante war es in `docs/trainingsverfahren.md` schon als
+# eigener Versuch vorgesehen: Das Grundmodell ist der stärkste Hebel überhaupt,
+# und der Zusatz lässt es unangetastet.
+def kurzname(basismodell: str) -> str:
+    """`openai/whisper-medium` → `medium` - so heißt es überall in den Tabellen."""
+    return basismodell.rsplit("/", 1)[-1].removeprefix("whisper-")
+
+
+# Grundmodelle, die für volles Feintuning zu groß sind. Nicht der Karte wegen
+# allein: Auch die Rechenzeit wächst mit dem Quadrat der Aufmerksamkeit, und
+# ein volles `medium` wäre auf dieser Karte kein Nachmittag mehr.
+NUR_MIT_ZUSATZ = ("medium", "large", "large-v2", "large-v3")
+
+
+def methoden_fuer(basismodell: str) -> tuple[str, ...]:
+    """Welche Methoden dieses Grundmodell verträgt - `lora` allein bei den großen."""
+    return (LORA,) if kurzname(basismodell) in NUR_MIT_ZUSATZ else METHODEN
+
+
 NUR_ORIGINAL = "original"
 MIT_VARIANTEN = "augmentiert"
 DATENSAETZE = (NUR_ORIGINAL, MIT_VARIANTEN)

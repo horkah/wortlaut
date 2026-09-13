@@ -43,6 +43,10 @@ from apps.lernen.backend.config import einstellungen
 
 from .daten import zeilen_fuer_faltung
 
+# Das Grundmodell, das nicht im Namen eines Standes auftaucht - es war lange
+# das einzige, und jeder Stand von früher heißt ohne es.
+VORGABE_GRUNDMODELL = "small"
+
 
 def _version(auftrag: dict[str, Any]) -> str:
     """Der Name des Standes: Zeit, Methode, Datensatz - und der Abschluss, wenn einer.
@@ -57,6 +61,12 @@ def _version(auftrag: dict[str, Any]) -> str:
     damals, sonst zeigt jeder Verweis auf ihn ins Leere.
     """
     marke = str(auftrag.get("erstellt", laeufe.jetzt()))[:16].replace(":", "").replace("-", "")
+    # Das Grundmodell direkt hinter der Zeit, und nur wenn es nicht `small`
+    # ist: Es ist der stärkste Unterschied zwischen zwei Ständen, und ein
+    # Stand von früher soll heute heißen wie damals.
+    grund = laeufe.kurzname(str(auftrag.get("basismodell", "")))
+    if grund and grund != VORGABE_GRUNDMODELL:
+        marke = f"{marke}-{grund}"
     name = f"{marke}-{auftrag.get('methode', '?')}-{auftrag.get('daten', '?')}"
     art = str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER)
     if art != laeufe.ABSCHLUSS_BESTER:
