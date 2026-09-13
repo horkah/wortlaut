@@ -1,0 +1,31 @@
+-- Die Tabelle `erkennung` fällt - beide Spalten darin waren tot.
+--
+-- Sie kam mit `003_erkennung.sql` und hielt zwei Dinge: `modell_ref`, also
+-- welches Modell diese App lädt, und `aussteuern`, also ob ein Diktat vor dem
+-- Erkennen lauter gerechnet wird.
+--
+-- `modell_ref` war schon länger ohne Leser. Welches Modell gilt, entscheidet
+-- die Freigabe in „lernen" (`wortlaut/registry.py`) - der eine Ort, an dem die
+-- eigenen Stände und die Grundmodelle nebeneinander gemessen dastehen. Die
+-- Spalte blieb stehen, weil sie niemanden störte; das ist kein Grund, sondern
+-- eine Gewohnheit.
+--
+-- `aussteuern` fällt jetzt aus demselben Grund, aus dem in „hören" die
+-- Abwandlung `pegel` gefallen ist (`009_ohne_pegelvarianten.sql`): Whisper hört
+-- kein Wellenfeld, sondern ein Log-Mel-Spektrogramm, und eine gleichmäßige
+-- Verstärkung verschiebt darin kaum mehr als einen Summanden. Dort war sie als
+-- **Messgröße** verworfen worden, hier stand sie noch als Hörhilfe für den
+-- Ausreißer nach unten - ohne dass je jemand einen Gewinn daran gemessen
+-- hätte. Was sie kostete, war dagegen zu benennen: eine zweite Datei je
+-- Diktat, ein Schalter in der Modellübersicht, diese Tabelle und drei Absätze
+-- Erklärung.
+--
+-- Damit hat „schreiben" keine eigene Einstellung mehr. Es liest den Korpus, es
+-- lädt, was freigegeben ist, und es schreibt Abschnitte und Postausgang - was
+-- hier gewählt werden konnte, wird anderswo entschieden, und das ist die
+-- Ordnung, die diese App ohnehin haben wollte.
+--
+-- Verloren geht nichts: Die Vorgabe war „aussteuern an", und sie gilt jetzt
+-- nirgends mehr. Wer sie ausgeschaltet hatte, bekommt ab sofort dasselbe wie
+-- alle anderen - die Aufnahme, wie sie gesprochen wurde.
+DROP TABLE IF EXISTS erkennung;

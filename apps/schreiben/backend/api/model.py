@@ -1,4 +1,4 @@
-"""Wer hier zuhört - und ob das Diktat vorher ausgesteuert wird.
+"""Wer hier zuhört.
 
 Ein Modell gehört zu genau einem Menschen (Grundentscheidung 3), und wer hier
 diktiert, diktiert auf seinem eigenen. Diese Auskunft hängt deshalb am Zugang
@@ -16,11 +16,17 @@ weiterhin dauerhaft, was gerade arbeitet - samt Methode und Datensatz, denn
 vier Stände vom selben Tag wären sonst nicht auseinanderzuhalten. Wer eine
 Ausgabe beurteilt, beurteilt immer ein bestimmtes Modell.
 
-Was bleibt, ist die zweite Stellschraube: das **Aussteuern** vor dem Erkennen
-(Vorgabe: an). Sie gehört hierher und nicht in die Übersicht - sie ändert
-nicht, wer zuhört, sondern was er zu hören bekommt, und sie wirkt nur auf
-Diktate. Warum sie hilft und warum nur die gehörte Fassung davon betroffen
-ist, steht in `services/erkennung.py`.
+**Dieser Weg liest nur.** Hier stand bis September 2026 eine zweite
+Stellschraube: das Aussteuern vor dem Erkennen. Sie ist weg - Whisper hört ein
+Log-Mel-Spektrogramm, und eine gleichmäßige Verstärkung verschiebt darin kaum
+mehr als einen Summanden. Dieselbe Rechnung war in „hören" schon als Abwandlung
+`pegel` verworfen worden, weil sie zwischen zwei Modellen nichts trennte; hier
+hat sie noch eine Weile als Hörhilfe gestanden, ohne dass je jemand einen
+Gewinn daran messen konnte.
+
+Mit ihr ist der letzte Schreibweg dieser App gefallen und die Tabelle dahinter
+(`004_ohne_aussteuern.sql`). „schreiben" hat damit keine Einstellung mehr, die
+es selbst hält.
 """
 
 from __future__ import annotations
@@ -29,8 +35,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from ..config import einstellungen
-from ..deps import Datenbank, SprecherId, aktive_ref, modellstand
-from ..services import erkennung
+from ..deps import SprecherId, aktive_ref, modellstand
 
 router = APIRouter(prefix="/api/model", tags=["Modell"])
 
@@ -54,20 +59,12 @@ class ModellAntwort(BaseModel):
     laufzeit: str  # local | remote
     # Ob ein trainierter Stand läuft oder ein unverändertes Grundmodell.
     trainiert: bool
-    # Ob das Diktat vor dem Erkennen ausgesteuert wird.
-    aussteuern: bool
     # Eine Zeile für die Kopfzeile - hier gebaut, damit alle Ansichten
     # dieselbe Auskunft geben.
     beschriftung: str
 
 
-class Aufbereitung(BaseModel):
-    """Was geändert werden soll. Was fehlt, bleibt, wie es war."""
-
-    aussteuern: bool | None = None
-
-
-def _antwort(sprecher: str, ausgesteuert: bool) -> ModellAntwort:
+def _antwort(sprecher: str) -> ModellAntwort:
     konfiguration = einstellungen()
     stand = modellstand(konfiguration, sprecher)
 
@@ -85,7 +82,6 @@ def _antwort(sprecher: str, ausgesteuert: bool) -> ModellAntwort:
             wer=None,
             laufzeit=konfiguration.asr,
             trainiert=False,
-            aussteuern=ausgesteuert,
             beschriftung=f"whisper-{name} · unverändert",
         )
 
@@ -103,7 +99,6 @@ def _antwort(sprecher: str, ausgesteuert: bool) -> ModellAntwort:
             wer=None,
             laufzeit=konfiguration.asr,
             trainiert=True,
-            aussteuern=ausgesteuert,
             beschriftung=f"Modellstand {ref} nicht gefunden",
         )
 
@@ -124,7 +119,6 @@ def _antwort(sprecher: str, ausgesteuert: bool) -> ModellAntwort:
         wer=wer,
         laufzeit=konfiguration.asr,
         trainiert=True,
-        aussteuern=ausgesteuert,
         # **Keine Kennzahl in dieser Zeile.** Hier stand einmal die Wortfehlerrate
         # aus dem Manifest, und sie war eine Falle: Das ist das Mittel über die
         # Testeinheiten *dieses* Laufs, während die Modellübersicht in „lernen"
@@ -147,15 +141,5 @@ def _antwort(sprecher: str, ausgesteuert: bool) -> ModellAntwort:
 
 
 @router.get("", response_model=ModellAntwort)
-def modell(sprecher: SprecherId, db: Datenbank) -> ModellAntwort:
-    return _antwort(sprecher, erkennung.aussteuern(db))
-
-
-@router.put("", response_model=ModellAntwort)
-def stelle_ein(
-    aufbereitung: Aufbereitung, sprecher: SprecherId, db: Datenbank
-) -> ModellAntwort:
-    """Die Aufbereitung ändern. Was nicht genannt wird, bleibt stehen."""
-    if aufbereitung.aussteuern is not None:
-        erkennung.setze_aussteuern(db, aufbereitung.aussteuern)
-    return _antwort(sprecher, erkennung.aussteuern(db))
+def modell(sprecher: SprecherId) -> ModellAntwort:
+    return _antwort(sprecher)

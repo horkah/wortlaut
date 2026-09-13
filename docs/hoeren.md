@@ -679,11 +679,11 @@ jeder Auswertung gekostet. Ihre Datenbankzeilen sind gelöscht
 (`009_ohne_pegelvarianten.sql`), ihre Dateien weggeräumt
 (`scripts/varianten_aufraeumen.py`).
 
-Dass die Lautstärke als **Messgröße** nichts taugt, heißt nicht, dass sie
-nirgends hilft: „schreiben" rechnet ein Diktat vor dem Erkennen weiterhin
-lauter, wenn es sehr leise ist (`wortlaut/audio.py`, `steuere_aus`). Eine
-Hörhilfe für den Ausreißer nach unten ist ein anderer Anspruch als
-„unterscheidet zwei Modelle".
+Dieselbe Rechnung stand danach noch eine Weile in „schreiben", das ein Diktat
+vor dem Erkennen lauter rechnete. Auch das ist weg
+(`004_ohne_aussteuern.sql`): Was zwischen zwei Modellen nichts trennt, hilft
+auch einem einzelnen nicht messbar - und es kostete eine zweite Datei je
+Diktat, einen Schalter und eine Tabelle.
 
 Und wovon das alles zu trennen ist: Womit **trainiert** wird, ist eine andere
 Frage. Dort ist die Abwandlung seit September 2026 breit, gewürfelt und

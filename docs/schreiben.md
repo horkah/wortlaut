@@ -37,7 +37,6 @@ backend/
 │   └── zugang.py           wer ruft - für die Kopfzeile
 ├── services/
 │   ├── segmenter.py        umwandeln, transkribieren, an Zeitmarken schneiden
-│   ├── erkennung.py        welches Modell gilt, und die Aufbereitung davor
 │   └── outbox.py           Korrekturen zurück an „hören", mit Wiederholung
 └── db/                     models.py und migrations/
 
@@ -140,7 +139,6 @@ POST   /schreiben/api/sessions/{id}/bestaetigen     → Postausgang, sofort send
 POST   /schreiben/api/segments/{id}/neu     multipart: audio, ersetzt einen
 GET    /schreiben/api/segments/{id}/audio
 GET    /schreiben/api/model                 was geladen ist, und ob ausgesteuert wird
-PUT    /schreiben/api/model                 { aussteuern } - die Aufbereitung ändern
 GET    /schreiben/api/outbox
 POST   /schreiben/api/outbox/senden         noch einmal versuchen
 GET    /schreiben/api/zugang                wer ruft - für die Kopfzeile

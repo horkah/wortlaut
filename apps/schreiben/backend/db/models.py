@@ -22,23 +22,6 @@ class Basis(DeclarativeBase):
     pass
 
 
-class Erkennung(Basis):
-    """Wie die Erkennung dieses Sprechers läuft - genau eine Zeile (`003_erkennung.sql`).
-
-    Fehlt sie, gilt überall die Vorgabe: beim Modell der freigegebene Stand aus
-    „lernen" und, solange es keinen gibt, das unveränderte Grundmodell; beim
-    Aussteuern „an". Eine leere Tabelle ist also keine fehlende Einstellung,
-    sondern die unangetastete.
-    """
-
-    __tablename__ = "erkennung"
-
-    id: Mapped[int] = mapped_column(primary_key=True, default=1)
-    modell_ref: Mapped[str]
-    aussteuern: Mapped[bool]
-    geaendert: Mapped[str]
-
-
 class Sitzung(Basis):
     __tablename__ = "sessions"
 

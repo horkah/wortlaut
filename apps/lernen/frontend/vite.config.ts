@@ -32,9 +32,9 @@ export default defineConfig({
     // Backends gleichzeitig laufen können (Makefile).
     proxy: {
       '/lernen/api': 'http://localhost:8002',
-      // Die Modellübersicht zeigt oben, was „schreiben" gerade geladen hat,
-      // und schaltet dort das Aussteuern - beides gehört jener App, und eine
-      // zweite Wahrheit darüber wäre eine zu viel (siehe `lib/api.ts`).
+      // Die Modellübersicht zeigt oben, was „schreiben" gerade geladen hat -
+      // das gehört jener App, und eine zweite Wahrheit darüber wäre eine zu
+      // viel (siehe `lib/api.ts`).
       '/schreiben/api': 'http://localhost:8001',
       // Die PIN und die Zugangsprüfung stehen im Korpus, und den führt allein
       // „hören" - auch die Ansichten dieser App fragen dessen API. Im Betrieb

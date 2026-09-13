@@ -246,20 +246,18 @@ export type Modelluebersicht = {
 };
 
 /**
- * Was „schreiben" gerade lädt - und ob es vorher aussteuert.
+ * Was „schreiben" gerade lädt.
  *
  * Die Auskunft kommt aus der API von „schreiben" und nicht aus dieser App: Dort
- * wird diktiert, dort liegt der Schalter, und eine zweite Wahrheit darüber wäre
- * eine zu viel. Dass die Modellübersicht sie trotzdem zeigt, hat denselben
- * Grund wie alles andere auf dieser Seite - hier steht die eine Antwort auf
- * „womit spreche ich?".
+ * wird diktiert, und eine zweite Wahrheit darüber wäre eine zu viel. Dass die
+ * Modellübersicht sie trotzdem zeigt, hat denselben Grund wie alles andere auf
+ * dieser Seite - hier steht die eine Antwort auf „womit spreche ich?".
  */
 export type Diktatmodell = {
   sprecher_id: string;
   ref: string;
   basismodell: string;
   trainiert: boolean;
-  aussteuern: boolean;
   beschriftung: string;
 };
 
@@ -371,5 +369,3 @@ async function beiSchreiben<T>(optionen: RequestInit = {}): Promise<T | null> {
 
 export const diktatmodell = () => beiSchreiben<Diktatmodell>();
 
-export const aussteuernSetzen = (aussteuern: boolean) =>
-  beiSchreiben<Diktatmodell>(alsJson({ aussteuern }, 'PUT'));

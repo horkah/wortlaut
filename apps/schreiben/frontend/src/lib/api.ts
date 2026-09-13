@@ -46,8 +46,6 @@ export type Modell = {
   laufzeit: string;
   /** Ob ein trainierter Stand läuft oder ein unverändertes Grundmodell. */
   trainiert: boolean;
-  /** Ob das Diktat vor dem Erkennen ausgesteuert wird. */
-  aussteuern: boolean;
   beschriftung: string;
 };
 
@@ -109,6 +107,3 @@ export const werRuft = () => anfrage<Wer>('/zugang');
  */
 export const modell = () => anfrage<Modell>('/model');
 
-/** Die Aufbereitung ändern - bisher genau eine: das Aussteuern. */
-export const erkennungSetzen = (aenderung: { aussteuern?: boolean }) =>
-  anfrage<Modell>('/model', alsJson(aenderung, 'PUT'));

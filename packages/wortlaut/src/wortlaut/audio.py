@@ -112,66 +112,6 @@ def untersuche(wav: Path) -> Befund:
     )
 
 
-# Wohin `steuere_aus` die Spitze legt. Knapp unter den Anschlag und nicht genau
-# darauf: Beim Runden einzelner Abtastwerte bliebe sonst ein Rest, der als
-# Übersteuerung gezählt würde (siehe `untersuche`).
-ZIEL_SPITZE_DBFS = -1.0
-
-
-def steuere_aus(quelle: Path, ziel: Path) -> None:
-    """Lauter rechnen, bis die Spitze bei `ZIEL_SPITZE_DBFS` steht.
-
-    Ein einziger Faktor über die ganze Aufnahme, bestimmt aus ihrem lautesten
-    Punkt. Absichtlich keine Kompression und keine fensterweise Anpassung -
-    die machten aus einer lauten und einer leisen Stelle dieselbe Lautstärke
-    und änderten damit, *wie* gesprochen wurde. Hier ändert sich nur, wie weit
-    der Regler aufgedreht war. Eine Aufnahme, die schon am Anschlag stand,
-    wird dabei leiser: Den Bereich auszunutzen heißt auch, ihn nicht zu
-    verlassen.
-
-    **Wer das braucht, und wer nicht.** Das ist eine Hörhilfe vor dem Erkennen,
-    für „schreiben" (siehe `services/segmenter.py`): Der Aufnahmepegel eines
-    Browsers hängt am Gerät, am Abstand und an der Stimme, und bei sehr leisen
-    Diktaten schöpft die Merkmalsberechnung ihren Wertebereich nicht aus.
-
-    Sie stand bis September 2026 zugleich als Abwandlung `pegel` in
-    `augmentierung.py` und legte neben jede Korpusaufnahme eine ausgesteuerte
-    Fassung. Als **Messgröße** ist sie dort verworfen: Zwischen zwei Modellen
-    unterschied sie nichts, weil Whisper ein Log-Mel-Spektrogramm hört und eine
-    gleichmäßige Verstärkung darin kaum mehr als einen Summanden verschiebt.
-    Als Hörhilfe für einen Ausreißer nach unten bleibt sie hier - abschaltbar,
-    und mit derselben Rechnung wie vorher.
-
-    Länge, Abtastrate und Format bleiben, was sie waren.
-    """
-    with wave.open(str(quelle), "rb") as datei:
-        if datei.getsampwidth() != 2 or datei.getnchannels() != 1:
-            raise AudioFehler("Erwartet wird mono mit 16 bit - bitte erst umwandeln.")
-        parameter = datei.getparams()
-        werte = array.array("h")
-        werte.frombytes(datei.readframes(datei.getnframes()))
-
-    if not werte:
-        raise AudioFehler(f"{quelle.name} enthält keine Abtastwerte.")
-
-    spitze = max(max(werte), -min(werte))
-    if spitze == 0:
-        # Stille bleibt Stille. Ein Faktor darauf wäre eine Division durch null.
-        ausgesteuert = array.array("h", werte)
-    else:
-        faktor = VOLLAUSSCHLAG * 10 ** (ZIEL_SPITZE_DBFS / 20) / spitze
-        ausgesteuert = array.array(
-            "h", (max(-32768, min(32767, round(wert * faktor))) for wert in werte)
-        )
-
-    ziel.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(ziel), "wb") as neu:
-        neu.setnchannels(parameter.nchannels)
-        neu.setsampwidth(parameter.sampwidth)
-        neu.setframerate(parameter.framerate)
-        neu.writeframes(ausgesteuert.tobytes())
-
-
 def _dbfs(betrag: float) -> float:
     """Linearer Betrag → dBFS. Stille ergibt −120 statt minus unendlich."""
     return 20 * math.log10(max(betrag, 1e-6) / VOLLAUSSCHLAG)

@@ -553,12 +553,8 @@ gemeinsam haben. Zwei Zahlen zum selben Modell, beide richtig - und wer sie
 untereinander sah, musste an einen Fehler glauben. Wie gut ein Modell ist,
 steht jetzt an genau einer Stelle.
 
-Daneben der Schalter für das **Aussteuern** vor dem Erkennen - die zweite
-Stellschraube, die nicht ändert, *wer* zuhört, sondern was er zu hören bekommt.
-
-Beides kommt aus der API von `schreiben` und nicht aus dieser App: Dort wird
-diktiert, dort liegt der Schalter, und eine zweite Wahrheit darüber wäre eine
-zu viel. Antwortet `schreiben` nicht - weil es getrennt betrieben wird und
+Die Auskunft kommt aus der API von `schreiben` und nicht aus dieser App: Dort
+wird diktiert, und eine zweite Wahrheit darüber wäre eine zu viel. Antwortet `schreiben` nicht - weil es getrennt betrieben wird und
 gerade steht -, entfällt die Karte; die Tabelle darunter steht weiterhin.
 
 ---
