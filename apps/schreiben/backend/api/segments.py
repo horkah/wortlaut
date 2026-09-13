@@ -19,7 +19,7 @@ from wortlaut import audio as klang
 
 from ..config import einstellungen
 from ..db.models import Abschnitt, jetzt
-from ..deps import Ablage, Datenbank, SprecherId, Whisper
+from ..deps import Ablage, Datenbank, SprecherId, Whisper, tempo_fuer
 from ..services import segmenter
 from .sessions import SitzungAntwort, abschnitte_von, als_antwort, hole
 
@@ -53,6 +53,7 @@ async def sprich(
             ablage,
             konfiguration.sprache,
             sprecher,
+            tempo_fuer(konfiguration, sprecher),
         )
     except klang.AudioFehler as fehler:
         raise HTTPException(status_code=400, detail=str(fehler)) from fehler
@@ -103,6 +104,7 @@ async def sprich_neu(
             konfiguration.sprache,
             sprecher,
             abschnitt_id,
+            tempo_fuer(konfiguration, sprecher),
         )
     except klang.AudioFehler as fehler:
         raise HTTPException(status_code=400, detail=str(fehler)) from fehler

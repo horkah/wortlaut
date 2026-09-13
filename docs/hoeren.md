@@ -562,6 +562,44 @@ Prüfaufgabe - man schickt sie durch einen Erkenner und vergleicht, was
 herauskommt, mit dem, was dastand. Genau das tut der Reiter **Auswertung**
 (`services/auswertung.py`, `api/auswertung.py`).
 
+## Vorspulen - für sehr langsame Sprecher
+
+In der Verwaltung trägt jedes Profil einen **Tempofaktor**: aus (1-fach),
+2-fach oder 3-fach. Er spult jede Aufnahme vor, bevor irgendein Modell sie
+hört - bei gleicher Tonhöhe, gerechnet mit `atempo` von ffmpeg
+(`wortlaut/tempo.py`).
+
+**Wozu.** Dysarthrische Sprache ist oft stark verlangsamt: gedehnte Vokale,
+lange Pausen mitten im Wort. Whisper ist auf Sprache trainiert, die das nicht
+tut - eine gedehnte Silbe belegt in seinem Spektrogramm den Platz von dreien.
+Ob Vorspulen das näher an Bekanntes rückt oder bloß Information wegwirft, ist
+keine Meinungsfrage, sondern eine Messung. Der Faktor ist der Schalter dafür.
+
+**Was er anfasst.** Alles, was ein Modell zu hören bekommt: die Auswertung
+hier, das Training in „lernen" und das Diktat in „schreiben". Nicht angefasst
+wird der Korpus - gespeichert bleibt die echte Aufnahme, und die Dauer eines
+Abschnitts ist die Zeit, die wirklich gesprochen wurde.
+
+**Was beim Umstellen geschieht - und was ausdrücklich nicht.** Es wird nichts
+gelöscht und nichts neu gerechnet. Jede Messung trägt die Geschwindigkeit, bei
+der sie entstand, als eigene Spalte bei sich (`011_tempo.sql`), und jeder
+Modellstand trägt sie in seinem Namen. Nach dem Umstellen gelten die alten
+Zahlen deshalb **gerade nicht**: Die Auswertung sieht ihre Posten wieder als
+offen, und es muss neu gemessen und neu trainiert werden. Wer zurückstellt,
+bekommt sie unverändert wieder - ohne einen einzigen neuen Lauf.
+
+Entwertet wird also nichts, es gilt nur gerade nicht. Der Preis steht in
+derselben Rechnung: Wer alle drei Faktoren durchmisst, hat am Ende die
+dreifache Zahl an Messzeilen. Für eine Erprobung ist das der richtige Handel -
+Erkennungen sind abgeleitet und jederzeit neu zu rechnen, anders als eine
+Aufnahme, die ein Mensch gesprochen hat.
+
+**Warum nur drei Werte und kein Schieberegler.** Jeder Wert vervielfacht die
+Messzeilen. Ein Regler lüde dazu ein, sieben Zwischenwerte auszuprobieren, von
+denen keiner je wieder mit einem anderen zusammenpasst.
+
+---
+
 Die Zahlen, die dabei entstehen, bleiben nicht hier: Sie sind die Baseline,
 gegen die in `lernen` jedes selbst trainierte Modell antritt (siehe
 [lernen](lernen.md)). Wer dort eine leere Tabelle sieht, hat diesen Lauf noch

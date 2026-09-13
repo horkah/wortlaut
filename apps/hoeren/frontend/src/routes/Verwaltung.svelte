@@ -23,6 +23,8 @@
     sicherungGesamt,
     sprecherAnlegen,
     sprecherListe,
+    TEMPOFAKTOREN,
+    tempoSetzen,
     zugangAusgeben,
     zugangZurueckziehen,
     type Sprecher,
@@ -32,6 +34,8 @@
 
   let sprecher = $state<(Sprecher | Uebersicht)[]>([]);
   let fehler = $state('');
+  /** Welches Profil gerade umgestellt wird - der Wähler bleibt so lange gesperrt. */
+  let stellt = $state('');
   let meldung = $state('');
   let packt = $state(false);
   let name = $state('');
@@ -98,6 +102,44 @@
       await lade();
     } catch (ursache) {
       fehler = ursache instanceof Error ? ursache.message : String(ursache);
+    }
+  }
+
+  /**
+   * Den Tempofaktor umstellen.
+   *
+   * Mit Rückfrage, und zwar einer, die den Preis nennt: Danach ist jede
+   * Auswertung und jedes Modell des alten Faktors außer Kraft, und es muss
+   * alles neu gemessen werden. Das ist umkehrbar - aber nicht umsonst, und
+   * wer es aus Versehen anklickt, soll es vorher erfahren.
+   */
+  async function stelle_tempo(person: Sprecher, faktor: number) {
+    if (faktor === (person.tempo ?? 1)) return;
+    const wohin =
+      faktor === 1 ? 'auf normale Geschwindigkeit' : `auf ${faktor}-fach schneller`;
+    if (
+      !confirm(
+        `„${person.name}“ ${wohin} umstellen?\n\n` +
+          'Alle Auswertungen und Modelle des bisherigen Faktors bleiben erhalten, gelten ' +
+          'aber nicht mehr, solange dieser eingestellt ist. Sie kommen zurück, sobald Sie ' +
+          'zurückstellen. Bis dahin muss alles neu gemessen und neu trainiert werden.',
+      )
+    ) {
+      // Der Wähler zeigt sonst den abgelehnten Wert an - zurück auf das, was gilt.
+      await lade();
+      return;
+    }
+    fehler = '';
+    stellt = person.id;
+    try {
+      await tempoSetzen(person.id, faktor);
+      meldung = `„${person.name}“ steht jetzt ${wohin.replace('auf ', 'auf ')}.`;
+      await lade();
+    } catch (ursache) {
+      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      await lade();
+    } finally {
+      stellt = '';
     }
   }
 
@@ -173,6 +215,38 @@
             ? `Zugang ausgegeben am ${person.zugang_erneuert.slice(0, 10)}`
             : 'Kein Zugang - für niemanden erreichbar'}
         </div>
+        <!-- Vorspulen: die eine Einstellung dieses Profils, die sich
+             nachträglich ändern lässt. Sie steht hier und nicht bei den
+             Aufnahmen, weil sie für Fachleute ist und nicht für den Menschen,
+             der spricht - er merkt nichts davon, es sei denn, er diktiert. -->
+        <label class="tempo">
+          <span class="gedaempft klein">Vorspulen vor jeder Erkennung</span>
+          <select
+            value={person.tempo ?? 1}
+            disabled={stellt === person.id}
+            onchange={(e) => stelle_tempo(person, Number(e.currentTarget.value))}
+          >
+            {#each TEMPOFAKTOREN as faktor (faktor)}
+              <option value={faktor}>
+                {faktor === 1 ? 'Aus - normale Geschwindigkeit' : `${faktor}-fach schneller`}
+              </option>
+            {/each}
+          </select>
+        </label>
+        <p class="gedaempft klein tempo-hinweis">
+          Für Fachleute. Spult die Aufnahmen vor, bevor Auswertung oder Training sie hören -
+          bei gleicher Tonhöhe. Gedacht für sehr langsame Sprecher: Ob Whisper sie schneller
+          besser versteht, ist damit zu messen.
+        </p>
+        {#if (person.tempo ?? 1) !== 1}
+          <p class="warnung-zeile">
+            <strong>Vorgespult mit Faktor {person.tempo}.</strong>
+            Alle Auswertungen und Modelle, die bei normaler Geschwindigkeit entstanden sind,
+            gelten gerade nicht - sie bleiben aber erhalten und gelten wieder, sobald hier
+            „Aus" steht. Neu gemessen und neu trainiert werden muss in der Zwischenzeit alles.
+          </p>
+        {/if}
+
         {#if 'kennzahlen' in person}
           <!-- Nur die Aufsicht bekommt diese Zahlen mitgeliefert. Sie stehen
                hier, weil sie die Frage beantworten, die man vor jedem Griff in
@@ -236,6 +310,30 @@
 {/if}
 
 <style>
+  .tempo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-top: 0.5rem;
+    max-width: 22rem;
+  }
+
+  .tempo-hinweis {
+    margin: 0.25rem 0 0;
+    max-width: 42rem;
+  }
+
+  /* Nicht rot: Das hier ist kein Fehler, sondern ein Zustand, den jemand
+     absichtlich hergestellt hat. Die Warnfarbe der App sagt „aufpassen",
+     nicht „kaputt". */
+  .warnung-zeile {
+    margin: 0.5rem 0 0;
+    padding: 0.5rem 0.7rem;
+    border-left: 3px solid var(--warnung);
+    background: var(--akzent-hell);
+    max-width: 42rem;
+  }
+
   .neuer-zugang {
     border-color: var(--akzent);
   }

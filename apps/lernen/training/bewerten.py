@@ -33,11 +33,12 @@ Fassungen, unabhängig davon, womit trainiert wurde.
 
 from __future__ import annotations
 
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
 
-from wortlaut import corpus, laeufe, metriken, registry, streuung
+from wortlaut import corpus, laeufe, metriken, registry, streuung, tempo
 
 from apps.lernen.backend.config import einstellungen
 
@@ -75,7 +76,16 @@ def _version(auftrag: dict[str, Any]) -> str:
     if abwandlung != laeufe.AUG_KEINE:
         name = f"{name}-{abwandlung}"
     dauer = str(auftrag.get("dauer") or laeufe.DAUER_FEST)
-    return name if dauer == laeufe.DAUER_FEST else f"{name}-{dauer}"
+    if dauer != laeufe.DAUER_FEST:
+        name = f"{name}-{dauer}"
+    # Zuletzt die Geschwindigkeit, und wieder nur, wenn sie nicht die
+    # gewöhnliche ist: Jeder Stand von vor dieser Spalte heißt damit heute, wie
+    # er damals hieß. Im Namen und nicht nur im Manifest, weil zwei Stände mit
+    # gleichem Rezept und verschiedenem Tempo sonst denselben Namen trügen -
+    # und genau daran ist im September 2026 schon einmal die falsche Freigabe
+    # gehangen.
+    faktor = float(auftrag.get("tempo", tempo.VORGABE))
+    return name if faktor == tempo.VORGABE else f"{name}-{tempo.marke(faktor)}"
 
 
 # Wie lange der Trainer auf die Karte wartet, wenn sie gerade belegt ist, und
@@ -183,7 +193,10 @@ def bewerte_faltung(
 
     ergebnis = []
     try:
-        ergebnis = _miss(erkenner, zeilen, korpuswurzel, sprache, faltung, verzeichnis, bericht)
+        ergebnis = _miss(
+            erkenner, zeilen, korpuswurzel, sprache, faltung, verzeichnis, bericht,
+            float(auftrag.get("tempo", tempo.VORGABE)),
+        )
     finally:
         # Auch wenn das Messen scheitert: Die Karte gehört danach der nächsten
         # Faltung. Ein Erkenner, der bis zum nächsten Sammellauf liegen bleibt,
@@ -201,13 +214,24 @@ def _miss(
     faltung: int,
     verzeichnis: Path,
     bericht,
+    faktor: float = tempo.VORGABE,
 ) -> list[dict[str, Any]]:
     """Zeile für Zeile erkennen und bewerten - der Rumpf von `bewerte_faltung`."""
     ergebnis = []
     for nummer, zeile in enumerate(zeilen, start=1):
-        begonnen = time.monotonic()
-        transkript = erkenner.transkribiere(korpuswurzel / str(zeile["audio"]), sprache=sprache)
-        dauer = time.monotonic() - begonnen
+        # Gemessen wird auf demselben Klang, auf dem gelernt wurde. Ein Modell,
+        # das nur vorgespulte Sprache gehört hat, an ungespulter zu messen,
+        # ergäbe eine Zahl über eine Lage, die es nie gibt: Beim Diktieren
+        # bekommt es ebenfalls Vorgespultes (`apps/schreiben/.../segmenter.py`).
+        with tempfile.TemporaryDirectory() as ablage_tmp:
+            wav = korpuswurzel / str(zeile["audio"])
+            if tempo.vorspulen_noetig(faktor):
+                schnell = Path(ablage_tmp) / "vorgespult.wav"
+                tempo.spule_vor(wav, schnell, faktor)
+                wav = schnell
+            begonnen = time.monotonic()
+            transkript = erkenner.transkribiere(wav, sprache=sprache)
+            dauer = time.monotonic() - begonnen
         guete = metriken.bewerte(str(zeile["text"]), transkript.text)
         eintrag = {
             "recording_id": zeile.get("recording_id"),
@@ -356,6 +380,11 @@ def gib_frei(
             "abschluss": str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER),
             "augmentierung": str(auftrag.get("augmentierung") or laeufe.AUG_KEINE),
             "dauer": str(auftrag.get("dauer") or laeufe.DAUER_FEST),
+            # Bei welcher Geschwindigkeit dieser Stand gelernt und gemessen
+            # wurde. „schreiben" liest es und spult beim Diktieren genauso vor;
+            # ohne die Angabe träfe ein Modell für schnelle Sprache auf einen
+            # langsamen Sprecher (`wortlaut/tempo.py`).
+            "tempo": float(auftrag.get("tempo", tempo.VORGABE)),
             "abschluss_bericht": abschluss.als_dict() if abschluss is not None else None,
             # Woher die Einstellungen des Endmodells stammen: der Median über
             # die sechs Faltungen. Ohne diese Zeile wäre nicht mehr zu sagen,

@@ -30,9 +30,9 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session
-from wortlaut import db, registry, storage
+from wortlaut import corpus, db, registry, storage, tempo
 from wortlaut import zugang as zugangsdienst
 from wortlaut.whisper import Transkriptor
 
@@ -136,6 +136,42 @@ def modellstand(
         # gelöschter Stand, der noch freigegeben ist. Sehen soll man das, nicht
         # raten müssen: Die Auskunft in `api/model.py` sagt es ausdrücklich.
         return ref, {}
+
+
+def tempo_fuer(konfiguration: Einstellungen, sprecher_id: str) -> float:
+    """Mit welchem Faktor vorgespult wird, bevor das Modell zuhört.
+
+    **Mit einem Stand: der Faktor, auf dem er gelernt hat.** Ein Modell, das
+    nur vorgespulte Sprache gehört hat, muss sie auch hier bekommen. Bekäme es
+    ungespulte, träfe ein Modell für schnelle Sprache auf einen langsamen
+    Sprecher - und das Ergebnis wäre schlechter als ganz ohne Training, ohne
+    dass irgendwo ein Fehler stünde. Der Faktor steht im Manifest des Standes
+    (`apps/lernen/training/bewerten.py`), also wird er dort gelesen und nicht
+    geraten.
+
+    **Ohne Stand: der Faktor des Sprechers.** Dann rechnet ein unverändertes
+    Grundmodell, und für das gilt genau das, was die Auswertung in „hören"
+    gerade misst - sonst diktierte man unter anderen Bedingungen, als man
+    vergleicht.
+
+    Fehlt die Angabe irgendwo, ist es 1,0: gar nicht vorspulen, der Zustand
+    von immer.
+    """
+    stand = modellstand(konfiguration, sprecher_id)
+    if stand is not None:
+        return float(stand[1].get("tempo", tempo.VORGABE))
+
+    pfad = corpus.datenbank_pfad(konfiguration.data_dir, sprecher_id)
+    if not pfad.is_file():
+        return tempo.VORGABE
+    # Nur lesend, und über eine eigene kurze Verbindung: Der Korpus gehört
+    # „hören" (Grundentscheidung 6), und diese App fasst ihn nicht an - sie
+    # sieht nach.
+    with Session(db.verbinde(pfad)) as sitzung:
+        gefunden = sitzung.execute(
+            text("SELECT tempo FROM speakers LIMIT 1")  # noqa: S608 - keine Eingabe darin
+        ).scalar()
+    return float(gefunden or tempo.VORGABE)
 
 
 def modellpfad(konfiguration: Einstellungen, sprecher_id: str) -> Path | str:

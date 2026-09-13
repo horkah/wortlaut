@@ -18,7 +18,7 @@ from typing import Any
 
 import numpy as np
 import torch
-from wortlaut import laeufe
+from wortlaut import laeufe, tempo
 from wortlaut.augmentierung import ORIGINAL
 
 from .klangwandel import RAHMENSCHRITT, Wandler
@@ -59,9 +59,13 @@ class Proben(torch.utils.data.Dataset):
         ausleser,
         zerteiler,
         wandler: Wandler | None = None,
+        faktor: float = tempo.VORGABE,
+        zwischenlager: Path | None = None,
     ) -> None:
         self.zeilen = zeilen
         self.korpus = korpus
+        self.faktor = faktor
+        self.zwischenlager = zwischenlager
         self.ausleser = ausleser
         self.zerteiler = zerteiler
         # Ohne Wandler bleibt jede Probe, was sie war - das ist die Vorgabe und
@@ -73,9 +77,32 @@ class Proben(torch.utils.data.Dataset):
     def __len__(self) -> int:
         return len(self.zeilen)
 
+    def _pfad(self, relpfad: str) -> Path:
+        """Die Datei, aus der diese Probe gelesen wird - vorgespult, falls verlangt.
+
+        **Einmal gerechnet und nicht je Durchgang.** Vorspulen kostet gemessen
+        80 ms - das ist neben einer Erkennung nichts, aber neben einem
+        Trainingsschritt alles: Die Merkmalsextraktion braucht 9 ms, und bei
+        sechzig Durchgängen über zweihundert Proben wären es anderthalb
+        Stunden allein fürs Vorspulen. Die vorgespulte Fassung ist zudem jedes
+        Mal dieselbe - anders als die gewürfelte Abwandlung nebenan, die genau
+        deshalb **nicht** abgelegt wird (`klangwandel.py`).
+
+        Abgelegt wird im Lauf und nicht im Korpus: Diese Dateien gehören zu
+        diesem Lauf, gehen mit ihm und haben im Korpus nichts zu suchen.
+        """
+        quelle = self.korpus / relpfad
+        if not tempo.vorspulen_noetig(self.faktor) or self.zwischenlager is None:
+            return quelle
+
+        ziel = self.zwischenlager / relpfad
+        if not ziel.is_file():
+            tempo.spule_vor(quelle, ziel, self.faktor)
+        return ziel
+
     def __getitem__(self, stelle: int) -> Probe:
         zeile = self.zeilen[stelle]
-        klang = lies_wav(self.korpus / str(zeile["audio"]))
+        klang = lies_wav(self._pfad(str(zeile["audio"])))
 
         # Erst die Welle, dann das Spektrogramm - in dieser Reihenfolge, weil
         # Raum und Tempo nur an der Welle zu haben sind und die Masken nur am
