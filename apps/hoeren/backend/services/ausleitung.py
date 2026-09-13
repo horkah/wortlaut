@@ -59,12 +59,13 @@ def abgeleitet(sprecher_ids: Iterable[str]) -> sicherung.Abgeleitetes:
     der Unterschied zwischen einer Sicherung, die man wöchentlich wegträgt,
     und einer, die man ihrer Größe wegen lieber sein lässt.
 
-    Die Aufteilung in Lernen und Prüfen (`lernen/…/lernen.sqlite`) bleibt
-    dagegen drin, obwohl auch sie eine Maschine angelegt hat. Sie wiegt
-    Kilobyte, und neu gewürfelt wäre sie eine **andere** Aufteilung: Der
-    Vergleich mit jedem früheren Lauf wäre dahin, und geprüft würde teils auf
-    Aufnahmen, auf denen schon trainiert wurde. Neu zu rechnen ist sie also
-    nicht - nur neu zu erfinden.
+    Hier stand einmal eine Ausnahme: die Aufteilung in Lernen und Prüfen
+    (`lernen/…/lernen.sqlite`). Sie blieb drin, weil sie sich nicht neu rechnen
+    ließ, sondern nur neu erfinden - eine andere Aufteilung hätte jeden
+    Vergleich mit früheren Läufen entwertet. Seit September 2026 gibt es sie
+    nicht mehr: „lernen“ hat keine eigene Datenbank, und die Faltungen der
+    Kreuzvalidierung folgen der Reihenfolge des Korpus. Was aus einer Sicherung
+    zurückkommt, ergibt damit dieselben Faltungen wie vorher.
     """
     return sicherung.Abgeleitetes(
         verzeichnisse=tuple(corpus.varianten_relpfad(kennung) for kennung in sprecher_ids),

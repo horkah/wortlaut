@@ -723,7 +723,6 @@ wortlaut-gesamt-20260822-174500.tgz
 └── daten/
     ├── korpus/spr_…/hoeren.sqlite
     ├── korpus/spr_…/audio/rec_….wav
-    ├── lernen/spr_…/lernen.sqlite    leer (die Aufteilung fiel weg)
     └── diktate/spr_…/…               Arbeitsstand von „schreiben"
 ```
 
