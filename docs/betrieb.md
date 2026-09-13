@@ -125,6 +125,20 @@ danach nur noch das eine neue Rad aus dem Netz.
 Wer am Quelltext nichts geändert hat, braucht das `--build` ohnehin nicht:
 `docker compose up -d` genügt.
 
+**Der Trainer ist in all dem nicht enthalten.** Er steht hinter `profiles:
+[training]`, und ein `docker compose up -d --build` ohne das Profil übergeht
+ihn vollständig: Er wird nicht gebaut, nicht gestartet - und auch nicht
+gestoppt. Wer beides will, nennt ihn:
+
+```bash
+docker compose --profile training up -d --build
+```
+
+Dass er in `docker compose ps` trotzdem auftaucht, ist kein Widerspruch: Die
+Liste zeigt, was läuft, das Profil entscheidet, was angefasst wird. Wer ihn auf
+diesem Wirt immer dabeihaben will, setzt `COMPOSE_PROFILES=training` in die
+`.env` - dann genügt wieder der Befehl ohne Schalter.
+
 Der Preis dafür steht auf der Platte: `docker buildx du` zeigt, was der
 Bauspeicher belegt - die Radspeicher von pip und npm sind darin gut anderthalb
 Gigabyte, die übrigen Schichten wachsen über die Monate auf ein Vielfaches
