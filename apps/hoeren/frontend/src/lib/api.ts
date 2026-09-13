@@ -170,6 +170,32 @@ export const aufnahmeVerwerfen = (aufnahme: string) =>
 export const meineAufnahmeAudio = (aufnahme: string, fassung?: string) =>
   blob(`/recordings/${aufnahme}/audio${fassung ? `?fassung=${encodeURIComponent(fassung)}` : ''}`);
 
+// ── Vorlesen ────────────────────────────────────────────────────────────────
+
+/** Eine Stimme, die der Server sprechen kann. Leere Liste ist der Normalfall. */
+export type Servestimme = {
+  schluessel: string;
+  name: string;
+  erklaerung: string;
+  sprache: string;
+};
+
+export const servestimmen = () => anfrage<Servestimme[]>('/vorlesen/stimmen');
+
+/**
+ * Eine Vorlage in einer Servestimme - als Blob, wie jedes Audio hier.
+ *
+ * Der Server rechnet sie, falls sie noch nicht vorliegt; beim zweiten Mal
+ * kommt sie aus der Ablage (`services/vorlesen.py`). Eine 404 heißt „nimm die
+ * Browserstimme" und ist kein Fehler, den jemand lesen müsste.
+ */
+/** Ein fester Satz in dieser Stimme - zum Vergleichen, bevor man wählt. */
+export const stimmprobe = (stimme: string) =>
+  blob(`/vorlesen/probe?stimme=${encodeURIComponent(stimme)}`);
+
+export const vorlageVorgelesen = (vorlage: string, stimme: string) =>
+  blob(`/prompts/${vorlage}/vorlesung?stimme=${encodeURIComponent(stimme)}`);
+
 // ── Fortschritt ─────────────────────────────────────────────────────────────
 
 export const fortschritt = () => anfrage<Fortschritt>('/progress');

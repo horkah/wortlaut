@@ -13,6 +13,9 @@
     type Menuepunkt,
   } from '$ui/apps';
   import { merkeReiter, vorgabeReiter } from '$ui/reiter';
+  import { zugang } from '$ui/zugang';
+  import type { Servestimme } from '$ui/speak';
+  import { servestimmen, stimmprobe } from './lib/api';
   import { EINSICHT_ROUTE, ladeZugang, zustand } from './lib/zustand.svelte';
   import Verwaltung from './routes/Verwaltung.svelte';
   import Einsicht from './routes/Einsicht.svelte';
@@ -157,8 +160,36 @@
   );
 
   ladeZugang();
+
+  /**
+   * Welche Stimmen der Server sprechen kann.
+   *
+   * Einmal geholt und an den Rahmen weitergereicht, damit die Stimmwahl unter
+   * „Einstellungen" sie anbietet. Eine leere Liste ist der Normalfall: Dann
+   * liest der Browser vor wie bisher (`packages/ui/speak.ts`).
+   *
+   * Scheitert die Abfrage - kein Zugang, Server alt -, bleibt die Liste leer.
+   * Vorlesen ist eine Hilfe und keine Bedingung; ein Fehler darüber gehört
+   * nicht auf die Seite.
+   */
+  let stimmenVomServer = $state<Servestimme[]>([]);
+
+  $effect(() => {
+    if (!zugang()) return;
+    servestimmen()
+      .then((gefunden) => (stimmenVomServer = gefunden))
+      .catch(() => (stimmenVomServer = []));
+  });
 </script>
 
-<Rahmen app="hoeren" punkte={menue} {uebergreifend} sprecher={name} route={offen}>
+<Rahmen
+  app="hoeren"
+  punkte={menue}
+  {uebergreifend}
+  sprecher={name}
+  route={offen}
+  servestimmen={stimmenVomServer}
+  probeHolen={stimmprobe}
+>
   <Ansicht />
 </Rahmen>

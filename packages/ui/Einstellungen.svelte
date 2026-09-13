@@ -14,7 +14,17 @@
    * `ZUGANGSDATEN_PFAD`.
    */
   import Mikrofontest from './Mikrofontest.svelte';
-  import { beiStimmenAenderung, sprich, stimmen, stimmeNachUri } from './speak';
+  import {
+    beiStimmenAenderung,
+    istServestimme,
+    SERVE_PRAEFIX,
+    serveSchluessel,
+    spieleVor,
+    sprich,
+    stimmen,
+    stimmeNachUri,
+    type Servestimme,
+  } from './speak';
   import {
     einstellungen,
     setzeAutoPegel,
@@ -28,6 +38,22 @@
 
   const PROBE = 'Am Montag gehe ich zum Markt und kaufe frisches Brot.';
 
+  /**
+   * Stimmen, die der **Server** sprechen kann - von der App hereingereicht.
+   *
+   * Diese Ansicht liegt in `packages/ui` und wird von allen drei Apps benutzt;
+   * die Servestimmen gibt es aber nur, wo es Vorlagen gibt („hören"). Sie hier
+   * selbst zu holen hieße, dass diese Datei einen Endpunkt kennt, den zwei der
+   * drei Apps nicht haben. Ohne Eigenschaft bleibt alles, wie es war.
+   */
+  let {
+    servestimmen = [],
+    probeHolen,
+  }: {
+    servestimmen?: Servestimme[];
+    probeHolen?: (schluessel: string) => Promise<Blob>;
+  } = $props();
+
   let liste = $state(stimmen());
   let fehler = $state('');
 
@@ -36,9 +62,31 @@
 
   // Über `liste`, damit die Anzeige nachzieht, wenn die Stimmen spät eintreffen.
   const gewaehlt = $derived(stimmeNachUri(einstellungen.stimmeUri, liste));
+  const serveGewaehlt = $derived(
+    istServestimme(einstellungen.stimmeUri)
+      ? servestimmen.find((s) => SERVE_PRAEFIX + s.schluessel === einstellungen.stimmeUri)
+      : undefined,
+  );
+  // Der Wert des Auswahlfelds: eine Servestimme trägt ihr Präfix, eine
+  // Browserstimme ihre `voiceURI`.
+  const wert = $derived(
+    istServestimme(einstellungen.stimmeUri) ? einstellungen.stimmeUri : gewaehlt?.voiceURI,
+  );
 
   async function probe() {
     fehler = '';
+    if (serveGewaehlt && probeHolen) {
+      let url: string | null = null;
+      try {
+        url = URL.createObjectURL(await probeHolen(serveGewaehlt.schluessel));
+        await spieleVor(url, einstellungen.tempo);
+        return;
+      } catch {
+        fehler = 'Diese Stimme spricht gerade nicht - der Browser übernimmt.';
+      } finally {
+        if (url) URL.revokeObjectURL(url);
+      }
+    }
     try {
       await sprich(PROBE, { stimme: gewaehlt, tempo: einstellungen.tempo });
     } catch (ursache) {
@@ -60,27 +108,45 @@
 
 <h2>Vorlesen</h2>
 
-{#if liste.length === 0}
+{#if liste.length === 0 && servestimmen.length === 0}
   <p class="gedaempft">
-    Dieser Browser meldet keine deutsche Stimme. Das Vorsprechen bleibt dann aus; siehe
-    <code>docs/betrieb.md</code>.
+    Dieser Browser meldet keine deutsche Stimme, und auf dem Server liegt keine. Das Vorsprechen
+    bleibt dann aus; siehe <code>docs/betrieb.md</code>.
   </p>
 {:else}
   <label>
     <span>Stimme</span>
-    <select
-      value={gewaehlt?.voiceURI}
-      onchange={(ereignis) => setzeStimme(ereignis.currentTarget.value)}
-    >
-      {#each liste as stimme (stimme.voiceURI)}
-        <option value={stimme.voiceURI}>{stimme.name} ({stimme.lang})</option>
-      {/each}
+    <select value={wert} onchange={(ereignis) => setzeStimme(ereignis.currentTarget.value)}>
+      {#if servestimmen.length}
+        <optgroup label="Vom Server - überall gleich">
+          {#each servestimmen as stimme (stimme.schluessel)}
+            <option value={SERVE_PRAEFIX + stimme.schluessel}>{stimme.name}</option>
+          {/each}
+        </optgroup>
+      {/if}
+      {#if liste.length}
+        <optgroup label="Von diesem Gerät">
+          {#each liste as stimme (stimme.voiceURI)}
+            <option value={stimme.voiceURI}>{stimme.name} ({stimme.lang})</option>
+          {/each}
+        </optgroup>
+      {/if}
     </select>
   </label>
-  <p class="gedaempft">
-    Welche Stimmen zur Wahl stehen und wie natürlich sie klingen, bestimmt das Betriebssystem,
-    nicht diese App.
-  </p>
+  {#if serveGewaehlt}
+    <p class="gedaempft">
+      {serveGewaehlt.erklaerung} Diese Stimme kommt vom Server: Sie klingt auf jedem Gerät gleich -
+      unter Linux wie auf dem Telefon.
+    </p>
+  {:else}
+    <p class="gedaempft">
+      Welche Gerätestimmen zur Wahl stehen und wie natürlich sie klingen, bestimmt das
+      Betriebssystem, nicht diese App.
+      {#if servestimmen.length}
+        Die Stimmen vom Server klingen überall gleich.
+      {/if}
+    </p>
+  {/if}
 {/if}
 
 <label>

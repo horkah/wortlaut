@@ -11,12 +11,21 @@
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import PromptView from '$ui/PromptView.svelte';
   import Recorder from '$ui/Recorder.svelte';
-  import { brichVorlesenAb, sprich, stimmeNachUri, stimmeVerfuegbar } from '$ui/speak';
+  import {
+    brichAllesAb,
+    istServestimme,
+    serveSchluessel,
+    spieleVor,
+    sprich,
+    stimmeNachUri,
+    stimmeVerfuegbar,
+  } from '$ui/speak';
   import {
     aufnahmeSenden,
     aufnahmeVerwerfen,
     naechsteEinheit,
     sitzungBeginnen,
+    vorlageVorgelesen,
     type Aufnahme,
     type Naechste,
   } from '../lib/api';
@@ -75,11 +84,38 @@
     abspielUrl = null;
   }
 
+  /**
+   * Den Satz vorlesen - vom Server, sonst vom Browser.
+   *
+   * Der Rückfall ist stumm und das mit Absicht: Wer einen Satz nachsprechen
+   * will, soll ihn hören und keine Fehlermeldung lesen. Ob die Servestimme
+   * fehlt, Piper nicht installiert ist oder die Datei einmal nicht kommt -
+   * der Unterschied ändert für den Menschen davor nichts.
+   */
   async function vorlesen() {
     if (!ausschnitt?.aktuell) return;
     nachgesprochen = true; // schon der Versuch verändert die Sprechweise
+    const vorlage = ausschnitt.aktuell;
+
+    if (istServestimme(einstellungen.stimmeUri)) {
+      let url: string | null = null;
+      try {
+        const inhalt = await vorlageVorgelesen(
+          vorlage.id,
+          serveSchluessel(einstellungen.stimmeUri!),
+        );
+        url = URL.createObjectURL(inhalt);
+        await spieleVor(url, einstellungen.tempo);
+        return;
+      } catch {
+        // Weiter unten mit der Browserstimme.
+      } finally {
+        if (url) URL.revokeObjectURL(url);
+      }
+    }
+
     try {
-      await sprich(ausschnitt.aktuell.text, {
+      await sprich(vorlage.text, {
         stimme: stimmeNachUri(einstellungen.stimmeUri),
         tempo: einstellungen.tempo,
       });
@@ -90,7 +126,7 @@
 
   async function sende(aufnahme: Blob) {
     if (!ausschnitt?.aktuell) return;
-    brichVorlesenAb();
+    brichAllesAb();
     fehler = '';
     stand = 'sendet';
     abspielUrl = URL.createObjectURL(aufnahme);

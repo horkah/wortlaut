@@ -48,6 +48,10 @@ def abgeleitet(sprecher_ids: Iterable[str]) -> sicherung.Abgeleitetes:
       Aufnahme, verrauscht. Eine Datei je Aufnahme, also die Hälfte des Audios
       im Archiv, und sie entsteht von selbst wieder, sobald jemand misst
       (`services/augmentierung.py`).
+    * **Die vorgelesenen Vorlagen** (`korpus/…/vorlesen/`) - Sätze, die eine
+      Maschine gesprochen hat, damit ein Mensch sie nachsprechen kann. Kein
+      Byte davon ist gesprochen worden; es entsteht in Sekundenbruchteilen
+      wieder (`services/vorlesen.py`).
     * **Die Messwerte der Auswertung** (Tabelle `erkennungen`) - was welches
       Modell aus welcher Fassung gemacht hat. Daraus entstehen die Kurven; ein
       zweiter Lauf rechnet ohnehin nur, was fehlt (`services/auswertung.py`).
@@ -68,7 +72,10 @@ def abgeleitet(sprecher_ids: Iterable[str]) -> sicherung.Abgeleitetes:
     zurückkommt, ergibt damit dieselben Faltungen wie vorher.
     """
     return sicherung.Abgeleitetes(
-        verzeichnisse=tuple(corpus.varianten_relpfad(kennung) for kennung in sprecher_ids),
+        verzeichnisse=(
+            *(corpus.varianten_relpfad(kennung) for kennung in sprecher_ids),
+            *(corpus.vorlesen_relpfad(kennung) for kennung in sprecher_ids),
+        ),
         tabellen={corpus.DATENBANKNAME: (Erkennung.__tablename__,)},
     )
 

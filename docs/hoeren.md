@@ -596,6 +596,59 @@ deutlich hinter der Vorlage, ist genau das das Argument für ein eigenes
 Feintuning; trifft es, war der Weg nicht nötig. Wer wenig Maschine hat, kürzt
 die Liste - gerechnet wird nur, was darin steht.
 
+### Vorlesen: vom Server, sonst vom Browser
+
+Wer nicht flüssig liest, lässt sich den Satz vorlesen und spricht ihn nach. Das
+lief über die Web Speech API des Browsers - keine Infrastruktur, keine Latenz,
+und der Preis war, dass das Betriebssystem entscheidet, wie es klingt. Dieselbe
+Seite klingt auf einem iPhone erträglich und unter Linux mit espeak-ng
+blechern.
+
+Seit September 2026 kann der Server sprechen. Die Sätze sind keine Eingabe: Sie
+stehen als Vorlagen im Korpus, bevor sie jemand hört. Ein Satz, der **einmal**
+gesprochen und als Datei abgelegt wird, klingt danach auf jedem Gerät gleich -
+und wie gut er klingt, hängt am Modell und nicht am Betriebssystem.
+
+| | |
+|---|---|
+| Motor | Piper, auf dem Prozessor, frei (MIT) |
+| Gemessen | 4,34 s Audio in 1,19 s, also **4× Echtzeit** (`de_DE-eva_k-x_low`) |
+| Format | 16 kHz, 16 bit, mono - dasselbe wie überall sonst |
+| Ablage | `korpus/<sprecher>/vorlesen/<vorlage>.<stimme>.wav` |
+
+**Der Motor ist austauschbar.** In `wortlaut/vorlesen.py` steht eine
+Schnittstelle mit genau zwei Fragen - *welche Stimmen hast du* und *sprich
+diesen Satz* - und darunter heute Piper. Ob eine Stimme aus einem Dienst besser
+klingt, ist damit nicht beantwortet, aber billig zu beantworten: Der zweite
+Motor kommt daneben, nicht an seine Stelle, und alles darüber merkt nichts
+davon.
+
+**Stimmen liegen nicht im Abbild.** Je Stimme sind es einige Dutzend Megabyte;
+sie kommen in den Modellspeicher, und welche jemand haben will, entscheidet er:
+
+```bash
+docker compose exec wortlaut python scripts/vorlesen.py --hole de_DE-thorsten-high
+docker compose exec wortlaut python scripts/vorlesen.py   # alle Vorlagen vorab
+```
+
+Das zweite ist eine Bequemlichkeit, keine Bedingung: Vorgelesen wird von selbst,
+wenn jemand auf den Knopf drückt, und beim zweiten Mal liegt der Satz da. Vorab
+gerechnet wartet niemand auf den ersten Satz einer Sitzung.
+
+**Ohne Stimme bleibt alles, wie es war.** Keine abgelegte Stimme, Piper nicht
+installiert, die Datei kommt einmal nicht - in jedem Fall liest der Browser
+vor. Der Rückfall ist stumm, und das mit Absicht: Wer einen Satz nachsprechen
+will, soll ihn hören und keine Fehlermeldung lesen.
+
+**Was abgeleitet ist, wird nicht mitgetragen.** Kein Byte davon ist gesprochen
+worden; es steht nicht in der Sicherung und geht mit dem Sprecher
+(`services/vorlesen.py`).
+
+Unter „Einstellungen" stehen beide Arten nebeneinander zur Wahl - „Vom Server"
+und „Von diesem Gerät" -, mit einer Hörprobe an demselben festen Satz. Der
+Probesatz steht auf dem Server und nicht im Browser: Sonst wäre die Hörprobe
+ein Weg, beliebigen Text sprechen zu lassen.
+
 ### Zwei Fassungen je Aufnahme
 
 Eine Aufnahme ist ein einzelner Fall: diese Stimme, dieses Mikrofon, dieser

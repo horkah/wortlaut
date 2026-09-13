@@ -270,7 +270,10 @@ class TestSicherung:
         assert manifest["dateien"]  # mit Größe und Prüfsumme je Datei
         # Und es schreibt hin, was fehlt - wer in einem Jahr auspackt, soll das
         # nicht für einen Schaden halten.
-        assert manifest["ausgelassen"]["verzeichnisse"] == [corpus.varianten_relpfad(bespielt)]
+        assert manifest["ausgelassen"]["verzeichnisse"] == [
+            corpus.varianten_relpfad(bespielt),
+            corpus.vorlesen_relpfad(bespielt),
+        ]
         assert manifest["ausgelassen"]["tabellen"] == {corpus.DATENBANKNAME: ["erkennungen"]}
 
     def test_gesamtsicherung_enthaelt_alle_sprecher(
