@@ -70,9 +70,9 @@ Material hier weiter tragen als anderswo.
 werden *sollte* - die Vorlage steht daneben. Jede Aufnahme ist damit eine
 fertige Prüfaufgabe. Ein Drittel davon wird von der ersten Aufnahme an zum
 Prüfen zurückgelegt und nie wieder umsortiert; kein trainiertes Modell sieht es
-je. Auf genau diesen Aufnahmen treten die eigenen Stände gegen `whisper-base`,
-`small`, `medium` und `large-v3` an - in einer Tabelle, auf denselben Zahlen,
-mit derselben Rechnung.
+je. Auf genau diesen Aufnahmen treten die eigenen Stände gegen `whisper-small`,
+`medium` und `large-v3` an - in einer Tabelle, auf denselben Zahlen, mit
+derselben Rechnung.
 
 Die Antwort darf dabei auch lauten: *Mein eigenes Modell ist noch nicht besser
 als `medium`.* Dann wird `medium` freigegeben. Ein Projekt, das diese Antwort
@@ -100,7 +100,7 @@ Alle drei Apps laufen, mit Tests, unter einer Adresse, in einem Container.
 
 | | |
 |---|---|
-| **hören** | Textquelle per LLM oder Upload, äußerungsweise aufnehmen, Qualitätsprüfung, Fortschritt, Auswertung gegen vier Grundmodelle, Sicherung, vollständige Löschung |
+| **hören** | Textquelle per LLM oder Upload, äußerungsweise aufnehmen, Qualitätsprüfung, Fortschritt, Auswertung gegen drei Grundmodelle, Sicherung, vollständige Löschung |
 | **lernen** | 2:1-Aufteilung mit Bestandsgarantie, vier Trainingsläufe (voll/LoRA × mit/ohne Abwandlungen), Lernkurven, Vergleich gegen die Grundlinie, eine Modelltabelle mit Freigabe |
 | **schreiben** | diktieren, vorlesen lassen, abschnittsweise neu einsprechen, Korrekturen zurück in den Korpus - gepuffert, wiederholbar, nichts geht verloren |
 

@@ -1,0 +1,31 @@
+-- `base` verschwindet, samt allem, was es gerechnet hat.
+--
+-- Dieselbe Bewegung wie bei `tiny` (`006_ohne_tiny.sql`), aber aus einem
+-- anderen Grund. `tiny` fiel, weil es zu wenig verstand: Seine Zeile sagte
+-- nur noch aus, dass ein zu kleines Modell zu klein ist, und eine Untergrenze,
+-- die selbst nichts versteht, beschreibt keine Grenze, sondern Rauschen.
+--
+-- `base` versteht genug. Es fällt, weil niemand mehr danach fragt. Trainiert
+-- wird auf `small` und `medium` (`wortlaut/laeufe.py`), diktiert wird mit einem
+-- eigenen Stand oder mit `small`, und die Modelltabelle vergleicht die eigenen
+-- Stände gegen genau diese Reihe. Eine Sprosse, unter der keine Entscheidung
+-- mehr hängt, ist keine Untergrenze mehr, sondern eine Spalte - und sie kostete
+-- je Auswertungslauf Rechenzeit, Speicher und eine Zeile in jeder Tabelle.
+--
+-- Gelöscht wird mit, statt liegen zu lassen. Eine Erkennung ist nichts, was
+-- verloren ginge: Anders als eine Aufnahme, die ein Mensch gesprochen hat, ist
+-- sie jederzeit neu zu rechnen - genau darauf beruht schon die
+-- Wiederaufnehmbarkeit des Laufs (`005_auswertung.sql`). Was hier fällt, ist
+-- abgeleitet und ersetzbar.
+--
+-- **Warum nicht stehen lassen.** Eine Zeile, die niemand mehr schreibt, aber
+-- jede Abfrage noch liest, ist schlimmer als keine: Sie ginge in den
+-- gemeinsamen Boden der Modelltabelle ein (`services/messwerte.py`), und der
+-- Vergleich zweier Stände stünde dann für alte Läufe auf anderen Messeinheiten
+-- als für neue. Genau dieser Vergleich über die Zeit ist der Zweck der Tabelle.
+DELETE FROM erkennungen WHERE modell = 'base';
+
+-- Profile werden nicht angefasst. `whisper-base` stand nie zur Wahl, als ein
+-- Profil angelegt wurde (die Verwaltung bietet `small` und `large-v3`), anders
+-- als damals `whisper-tiny`. Ein UPDATE hier wäre ein Griff ins Leere - und
+-- einer, der so aussähe, als hätte es den Fall gegeben.

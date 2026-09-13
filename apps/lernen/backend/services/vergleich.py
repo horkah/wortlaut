@@ -3,7 +3,7 @@
 Die Frage dieser App ist nicht, wie gut ein Modell ist, sondern ob das
 Training es besser gemacht hat. Dafür braucht es zwei Zahlen zu denselben
 Aufnahmen, und die zweite liegt schon da: „hören" hat in seiner Auswertung
-jede Aufnahme durch `base`, `small`, `medium` und `large-v3` geschickt und je
+jede Aufnahme durch `small`, `medium` und `large-v3` geschickt und je
 Fassung gemessen (`apps/hoeren/.../auswertung.py`). Die Zeilen zu `small` auf
 den **Testaufnahmen** sind die Grundlinie - dasselbe Grundmodell, auf das hier
 trainiert wird, an denselben Aufnahmen, mit demselben Maß.

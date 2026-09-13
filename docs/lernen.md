@@ -145,8 +145,8 @@ auf vier bei doppelter Akkumulation, die wirksame Stapelgröße bleibt also
 gleich (`je_grundmodell` in `training/rezepte/whisper_lora.yaml`).
 
 Ein Grundmodell muss in `WORTLAUT_AUSWERTUNG_MODELLE` stehen, sonst hat sein
-trainierter Stand keine Grundlinie, gegen die er antreten könnte. `base`,
-`small`, `medium` und `large-v3` sind dort von Haus aus dabei.
+trainierter Stand keine Grundlinie, gegen die er antreten könnte. `small`,
+`medium` und `large-v3` sind dort von Haus aus dabei.
 
 Alles Übrige - Lernrate, Durchgänge, Stapelgröße, LoRA-Rang - steht in
 `training/rezepte/*.yaml` und nicht in der Oberfläche. Jede Einstellmöglichkeit
@@ -384,7 +384,7 @@ Darunter, sobald der Lauf durch ist, der **Vergleich mit der Grundlinie**.
 Die Frage dieser App ist nicht, wie gut ein Modell ist, sondern ob das Training
 es besser gemacht hat. Dafür braucht es zwei Zahlen zu denselben Aufnahmen, und
 die zweite liegt schon da: `hören` hat in seiner Auswertung jede Aufnahme durch
-`base`, `small`, `medium` und `large-v3` geschickt und je Fassung gemessen. Die
+`small`, `medium` und `large-v3` geschickt und je Fassung gemessen. Die
 Zeilen zu `small` über **alle Aufnahmen** sind die Grundlinie - dasselbe
 Grundmodell, dieselben Aufnahmen, dasselbe Maß, dieselbe Rechnung.
 
@@ -424,7 +424,7 @@ der beide Sorten nebeneinander stehen.
 
 ### Eine Tabelle, ein gemeinsamer Boden
 
-Jede Zeile ist ein Modell - die vier Grundmodelle aus
+Jede Zeile ist ein Modell - die Grundmodelle aus
 `WORTLAUT_AUSWERTUNG_MODELLE` und darunter jeder eigene Stand. Vier Spalten
 tragen die Zahlen: **Genauigkeit**, **WER**, **CER** und die **Rechenzeit** je
 Aufnahme. Der beste Wert jeder Spalte ist hervorgehoben, und ein Klick auf eine
@@ -441,7 +441,7 @@ Boden.
 beide stammen aus derselben Datei (`wortlaut/metriken.py`):
 
 * für die Grundmodelle die **Auswertung** aus `hören` - jede Aufnahme durch
-  `base`, `small`, `medium`, `large-v3`, in allen Fassungen;
+  `small`, `medium` und `large-v3`, in allen Fassungen;
 * für jeden eigenen Stand die **Bewertung** seines Laufs - dieselben
   Aufnahmen, dieselben Fassungen, dieselben Maße, jede aus der Faltung, die sie
   nicht kannte.

@@ -578,12 +578,11 @@ Gerechnet wird auf der Karte, wenn eine da ist - dieselbe Einstellung wie beim
 Diktieren (siehe [Konfiguration](konfiguration.md#rechenwerk---worauf-erkannt-wird)).
 
 Gegeneinander antreten die Modelle aus `WORTLAUT_AUSWERTUNG_MODELLE`. Die
-Vorgabe ist eine Leiter mit vier Sprossen:
+Vorgabe ist eine Leiter mit drei Sprossen:
 
 | Modell | wofür es in der Leiter steht |
 | --- | --- |
-| `base` | die Untergrenze - wo das Verstehen abzubrechen beginnt |
-| `small` | der Alltagsfall, gegen den die anderen zu lesen sind |
+| `small` | der Alltagsfall und die Untergrenze, gegen den die anderen zu lesen sind |
 | `medium` | was mit mehr Rechenzeit noch zu holen wäre |
 | `large-v3` | wo das Verfahren endet - das größte fertige Modell |
 
@@ -762,8 +761,8 @@ echten Unterschied sieht.
 ### Der Lauf
 
 Ein Hintergrundlauf arbeitet die offenen Tripel aus Aufnahme, Modell und
-Fassung ab, eines nach dem anderen - bei vier Modellen und zwei Fassungen also
-sechzehn Messungen je Aufnahme. Vier Eigenschaften sind Absicht:
+Fassung ab, eines nach dem anderen - bei drei Modellen und zwei Fassungen also
+sechs Messungen je Aufnahme. Vier Eigenschaften sind Absicht:
 
 * **Ist nichts offen, läuft auch nichts.** Ein zweiter Start, bei dem alles
   schon gerechnet ist, legt keine Aufgabe an, sondern gibt den unveränderten
@@ -776,11 +775,11 @@ sechzehn Messungen je Aufnahme. Vier Eigenschaften sind Absicht:
   Whisper rechnet, und zwar auf derselben Maschine, auf der jemand gerade
   aufnimmt; ein Neustart des Containers würde sonst jedes Mal ungefragt Stunden
   Rechenzeit binden.
-* **Aufnahmeweise, nicht modellweise.** Erst alle Aufnahmen durch `base`, dann
-  durch `small`, dann durch `medium` wäre sparsamer - je Modell einmal laden. Nur zeigte die Kurve
+* **Aufnahmeweise, nicht modellweise.** Erst alle Aufnahmen durch `small`, dann
+  durch `medium`, dann durch `large-v3` wäre sparsamer - je Modell einmal laden. Nur zeigte die Kurve
   dann lange eine einzige Reihe, und verglichen werden soll gerade. Bezahlt
   wird das damit, dass alle Erkenner gleichzeitig im Speicher liegen; bei
-  `base,small,medium,large-v3` gut zweieinhalb Gigabyte in `int8` auf dem
+  `small,medium,large-v3` gut zweieinhalb Gigabyte in `int8` auf dem
   Prozessor, knapp drei in `int8_float16` auf der Karte. Das ist der Grund für
   die halbe Darstellung: In `float16` wären es gut sechs, und die Karte teilt
   sich die Auswertung mit dem Training und dem Sprachmodell.
@@ -829,9 +828,9 @@ statt auf null zu fallen: Eine Null wäre ein Modell, das nichts verstanden hat.
 Der Fortschritt steht darüber, und die Seite fragt im Takt nach, solange
 gerechnet wird.
 
-Gemessen sind vier Werte je Modell und Aufnahme, im Bild steht einer davon:
-der **beste** der vier. Alle sechzehn Reihen über dieselben Aufnahmen zu legen
-hieße, nichts mehr zu sehen; der beste sagt, was ein Modell aus dieser Aufnahme
+Gemessen sind zwei Werte je Modell und Aufnahme, im Bild steht einer davon:
+der **bessere** der beiden. Alle Reihen über dieselben Aufnahmen zu legen hieße,
+nichts mehr zu sehen; der beste sagt, was ein Modell aus dieser Aufnahme
 herausholen kann, wenn der Ton stimmt. „Am besten" heißt dabei je nach Maß
 größer oder kleiner - bei den Fehlerraten und der Rechenzeit ist der kleinste
 Wert der beste. Eine Kurve, die beim Wechsel des Maßes stillschweigend vom
