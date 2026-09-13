@@ -284,6 +284,33 @@ docker compose exec wortlaut python scripts/varianten_aufraeumen.py --wirklich
 Anlass war der September 2026: `pegel` und `lauter` sind verworfen worden, weil
 sie an Whisper nahezu wirkungslos sind.
 
+### Stimmen fürs Vorlesen
+
+„hören" liest einen Satz vor, damit ihn jemand nachsprechen kann. Ohne
+abgelegte Stimme tut das der Browser - und unter Linux klingt das blechern.
+Eine Serverstimme behebt das für **alle** Geräte auf einmal, weil der Satz dann
+als Datei kommt (siehe [hören](hoeren.md#vorlesen-vom-server-sonst-vom-browser)).
+
+```bash
+# Eine Stimme holen - einmalig, einige Dutzend Megabyte
+docker compose exec wortlaut python scripts/vorlesen.py --hole de_DE-thorsten-high
+
+# Alle Vorlagen vorab sprechen lassen, damit in einer Sitzung niemand wartet
+docker compose exec wortlaut python scripts/vorlesen.py
+```
+
+Die Stimmen landen unter `WORTLAUT_STIMMEN_DIR`, das in den Modellspeicher
+zeigt - dasselbe Volume wie die Whisper-Modelle, also kein zusätzlicher Mount.
+Gemessen braucht Piper für einen Satz von vier Sekunden gut eine Sekunde; der
+ganze Korpus ist in wenigen Minuten gesprochen und wiegt je Satz etwa 140 kB.
+
+Mehrere Stimmen nebeneinander sind erlaubt und gedacht: Wer sie vergleichen
+will, legt zwei ab und wählt unter „Einstellungen". Welche Stimme jemand gut
+nachsprechen kann, ist individuell.
+
+Nötig ist nichts davon. Ohne Stimme, ohne Piper im Abbild oder bei einem Fehler
+liest der Browser vor wie bisher.
+
 ### Der Trainer
 
 „lernen" liefert seine Oberfläche im selben Prozess aus wie die anderen Apps.

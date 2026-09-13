@@ -381,3 +381,35 @@ class TestFassungenAnhoeren:
         for unfug in ("gibtsnicht", "../../etc/passwd"):
             antwort = klient.get(f"/api/recordings/{aufnahme['id']}/audio?fassung={unfug}")
             assert antwort.status_code == 404, unfug
+
+
+class TestVorlesen:
+    """Die Wege zum Vorlesen - und dass sie ohne Stimme still bleiben.
+
+    Ohne abgelegte Stimme gibt es nichts zu sprechen. Beide Wege antworten
+    dann mit 404, und das ist keine Störung, sondern die Ansage an die
+    Oberfläche: nimm die Browserstimme (`packages/ui/speak.ts`).
+    """
+
+    def test_ohne_stimmen_ist_die_liste_leer(self, klient: TestClient) -> None:
+        antwort = klient.get("/api/vorlesen/stimmen")
+        assert antwort.status_code == 200
+        assert antwort.json() == []
+
+    def test_ohne_stimme_gibt_es_keine_vorlesung(
+        self, klient: TestClient, sprecher: str, quelle: str
+    ) -> None:
+        naechste = klient.get(f"/api/prompts/next?sprecher={sprecher}").json()
+        vorlage = naechste["aktuell"]["id"]
+        antwort = klient.get(
+            f"/api/prompts/{vorlage}/vorlesung?stimme=piper/de_DE-thorsten-high"
+        )
+        assert antwort.status_code == 404
+
+    def test_eine_fremde_vorlage_bleibt_fremd(self, klient: TestClient) -> None:
+        antwort = klient.get("/api/prompts/prm_gibtsnicht/vorlesung?stimme=piper/x")
+        assert antwort.status_code == 404
+
+    def test_ohne_zugang_kein_vorlesen(self, klient_ohne_token: TestClient) -> None:
+        assert klient_ohne_token.get("/api/vorlesen/stimmen").status_code == 401
+        assert klient_ohne_token.get("/api/vorlesen/probe?stimme=piper/x").status_code == 401

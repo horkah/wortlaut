@@ -52,6 +52,20 @@ class Grundeinstellungen(BaseSettings):
 
     data_dir: Path = Path("./data")
 
+    # ── Vorlesen ────────────────────────────────────────────────────────────
+    #
+    # Wo die Stimmen für das Vorlesen liegen (`wortlaut/vorlesen.py`). Neben
+    # den Whisper-Modellen und aus demselben Grund: Es sind Modelldateien, sie
+    # wiegen Dutzende Megabyte je Stück, sie gehören nicht ins Abbild und nicht
+    # in die Sicherung - jederzeit neu zu laden, nie gesprochen.
+    #
+    # Die Vorgabe zeigt in den Modellspeicher, den die compose.yaml ohnehin
+    # einhängt. Damit braucht diese Sache kein eigenes Volume.
+    stimmen_dir: Path = Path("./modellcache/stimmen")
+    # Welcher Motor spricht. Heute gibt es einen; der zweite kommt daneben,
+    # nicht an seine Stelle.
+    vorlesen_motor: str = "piper"
+
     geraet: str = rechenwerk.AUTO  # auto | cuda | cpu
     rechenart: str = rechenwerk.AUTO  # auto | int8 | int8_float16 | float16 | float32
 

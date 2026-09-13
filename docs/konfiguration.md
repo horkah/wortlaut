@@ -121,6 +121,8 @@ Viertelstunde ist der Ausgleich.
 | Variable | Vorgabe | Was sie tut |
 |---|---|---|
 | `WORTLAUT_TRAINER_KEY` | leer | **Training anstoßen**: als Kopfzeile `X-Trainer-Key` vor `POST /lernen/api/laeufe`. Leer heißt abgeschaltet, nicht offen - dann kann hier niemand trainieren |
+| `WORTLAUT_STIMMEN_DIR` | `./modellcache/stimmen` | wo die Piper-Stimmen für das Vorlesen liegen. Leer ist der Normalfall - dann liest der Browser vor (`scripts/vorlesen.py --hole`) |
+| `WORTLAUT_VORLESEN_MOTOR` | `piper` | welcher Motor spricht. Heute gibt es einen; der zweite kommt daneben |
 | `WORTLAUT_LERNEN_BASISMODELL` | `openai/whisper-small` | die **Vorgabe**, worauf trainiert wird |
 | `WORTLAUT_LERNEN_GRUNDMODELLE` | `openai/whisper-small,openai/whisper-medium` | was darüber hinaus zur Wahl steht. Jedes davon muss in `WORTLAUT_AUSWERTUNG_MODELLE` stehen, sonst fehlt seinem Stand die Grundlinie. `medium` und größer lassen sich nur mit LoRA trainieren |
 | `WORTLAUT_AUSWERTUNG_MODELLE` | `base,small,medium,large-v3` | welche Grundmodelle in der Modelltabelle gegen die eigenen Stände antreten; dieselbe Variable wie oben, und das ist Absicht |

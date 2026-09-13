@@ -35,6 +35,14 @@ dependencies = [
 #     uv sync --extra asr --extra gpu
 [project.optional-dependencies]
 asr = ["faster-whisper>=1.1"]
+# Vorlesen auf dem Server (`wortlaut/vorlesen.py`). Piper rechnet auf dem
+# Prozessor und braucht keine Karte; die Stimmen selbst liegen nicht hier,
+# sondern im Modellspeicher (`scripts/vorlesen.py`).
+#
+# Ein eigenes Extra, weil es ohne geht: Fehlt Piper, liest der Browser vor wie
+# bisher. Eine feste Abhängigkeit wäre ein Paket mehr in jeder Installation,
+# die diese Hilfe nie benutzt.
+vorlesen = ["piper-tts>=1.3"]
 gpu = [
     # Die Fassungen sind an CTranslate2 4.5+ gebunden: Es verlangt cuDNN 9 und
     # CUDA 12. Eine ältere cuDNN lädt, meldet aber beim ersten Erkennen einen

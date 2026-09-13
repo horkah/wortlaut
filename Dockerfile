@@ -103,9 +103,14 @@ COPY pyproject.toml README.md LICENSE ./
 RUN mkdir -p packages/wortlaut/src/wortlaut \
     && touch packages/wortlaut/src/wortlaut/__init__.py
 
-# `.[asr,gpu]` ist das Projekt samt faster-whisper und den CUDA-Bibliotheken
-# (siehe pyproject.toml). Beides ist in diesem Abbild Pflicht: „schreiben"
-# läuft hier mit, und die Auswertung von „hören" ebenso.
+# `.[asr,gpu,vorlesen]` ist das Projekt samt faster-whisper, den
+# CUDA-Bibliotheken und Piper (siehe pyproject.toml). Die ersten beiden sind in
+# diesem Abbild Pflicht: „schreiben" läuft hier mit, und die Auswertung von
+# „hören" ebenso.
+#
+# Piper ist es nicht - ohne liest der Browser vor wie bisher -, wiegt aber
+# wenige Megabyte und teilt sich onnxruntime mit faster-whisper. Die Stimmen
+# liegen ohnehin außerhalb des Abbilds (`scripts/vorlesen.py`).
 #
 # Der Mount ist der Radspeicher von pip. Er liegt außerhalb des Abbilds - er
 # macht es also kein Byte größer, anders als ein `--no-cache-dir`, das es nur
@@ -119,7 +124,7 @@ RUN mkdir -p packages/wortlaut/src/wortlaut \
 # 0.37). Die Zeile nachzutragen hieße, bei jedem Bau ein Frontend-Abbild aus
 # dem Netz zu holen - ein Grund, sie gerade nicht zu setzen.
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install ".[asr,gpu]"
+    pip install ".[asr,gpu,vorlesen]"
 
 # Und jetzt die Bibliothek selbst über den Platzhalter. `--no-deps`, weil oben
 # schon alles steht; `--force-reinstall`, weil die Fassung dieselbe ist (0.1.0)

@@ -9,12 +9,14 @@ jederzeit unterbrechbar und an derselben Stelle fortsetzbar.
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from wortlaut import ids
 
+from ..config import einstellungen
 from ..db.models import Sitzung, Vorlage, jetzt
-from ..deps import Datenbank, SprecherId
-from ..services import prompt_queue
+from ..deps import Ablage, Datenbank, SprecherId
+from ..services import prompt_queue, vorlesen
 
 router = APIRouter(tags=["Vorlagen"])
 
@@ -83,3 +85,106 @@ def _als_antwort(vorlage: Vorlage | None) -> EinheitAntwort | None:
     return EinheitAntwort(
         id=vorlage.id, text=vorlage.text, dauer_geschaetzt_s=vorlage.dauer_geschaetzt_s
     )
+
+
+class StimmeAntwort(BaseModel):
+    """Eine Stimme, die dieser Server sprechen kann."""
+
+    schluessel: str
+    name: str
+    erklaerung: str
+    sprache: str
+
+
+@router.get("/api/vorlesen/stimmen", response_model=list[StimmeAntwort])
+def verfuegbare_stimmen(sprecher: SprecherId) -> list[StimmeAntwort]:
+    """Welche Stimmen der Server anbietet - oft keine, und das ist kein Fehler.
+
+    Eine leere Liste ist der Normalfall einer frischen Installation: Dann liest
+    der Browser vor wie bisher. Die Oberfläche stellt beides nebeneinander zur
+    Wahl und sagt dazu, was der Unterschied ist (`packages/ui/Einstellungen.svelte`).
+
+    Hinter dem Zugang und nicht offen: Die Liste verrät zwar nichts über einen
+    Menschen, aber sie gehört zu einer App, die als Ganzes hinter dem Zugang
+    liegt - eine Ausnahme davon wäre eine Regel mehr, die jemand prüfen muss.
+    """
+    konfiguration = einstellungen()
+    return [
+        StimmeAntwort(
+            schluessel=stimme.schluessel,
+            name=stimme.name,
+            erklaerung=stimme.erklaerung,
+            sprache=stimme.sprache,
+        )
+        for stimme in vorlesen.stimmen(konfiguration.stimmen_dir, konfiguration.vorlesen_motor)
+    ]
+
+
+# Der Satz, an dem man eine Stimme vergleicht. Er steht **hier** und nicht im
+# Browser: Sonst wäre dies ein Weg, beliebigen Text sprechen zu lassen - und
+# damit Rechenzeit zu binden, ohne dass je eine Vorlage im Spiel wäre.
+PROBESATZ = "Am Montag gehe ich zum Markt und kaufe frisches Brot."
+
+
+@router.get("/api/vorlesen/probe")
+def hoerprobe(stimme: str, sprecher: SprecherId, ablage: Ablage) -> FileResponse:
+    """Einen festen Satz in dieser Stimme - zum Vergleichen, bevor man wählt.
+
+    Abgelegt wird das Ergebnis wie eine Vorlesung, nur unter der Kennung
+    `probe`: Es ist derselbe Satz für jeden, es ändert sich nie, und beim
+    zweiten Hinhören wird nichts mehr gerechnet. Dass es im Korpus des
+    Sprechers liegt, ist kein Zufall - dann geht es mit ihm, wenn er geht.
+    """
+    konfiguration = einstellungen()
+    bekannt = {
+        eintrag.schluessel
+        for eintrag in vorlesen.stimmen(konfiguration.stimmen_dir, konfiguration.vorlesen_motor)
+    }
+    if stimme not in bekannt:
+        raise HTTPException(status_code=404, detail="Diese Stimme steht hier nicht zur Wahl.")
+
+    blob = vorlesen.stelle_probe_her(
+        ablage, sprecher, PROBESATZ, stimme, konfiguration.stimmen_dir,
+        konfiguration.vorlesen_motor,
+    )
+    if blob is None:
+        raise HTTPException(status_code=404, detail="Diese Stimme spricht gerade nicht.")
+    return FileResponse(ablage.pfad(blob), media_type="audio/wav")
+
+
+@router.get("/api/prompts/{vorlage_id}/vorlesung")
+def hoere_vorlage(
+    vorlage_id: str, stimme: str, sprecher: SprecherId, db: Datenbank, ablage: Ablage
+) -> FileResponse:
+    """Diese Vorlage in dieser Stimme - gerechnet, falls sie noch nicht vorliegt.
+
+    **Hier darf gerechnet werden, anders als beim Abhören einer Aufnahme.** Dort
+    ist eine fehlende Datei ein Zeichen, dass ein Lauf sie noch nicht angelegt
+    hat, und ein Abspieler ist kein Anlass, Rechenzeit zu binden. Hier ist der
+    Abspieler der einzige Anlass, den es gibt: Niemand sonst fragt je nach
+    diesem Satz. Piper braucht dafür den Bruchteil einer Sekunde, und beim
+    zweiten Mal liegt die Datei da.
+
+    **404 heißt: nimm die Browserstimme.** Keine Stimme abgelegt, Piper nicht
+    installiert, ein Satz ohne Text - der Aufrufer unterscheidet das nicht und
+    soll es nicht müssen. Vorlesen ist eine Hilfe und keine Bedingung; wer einen
+    Satz nachsprechen will, soll ihn hören und keine Fehlermeldung lesen.
+    """
+    vorlage = db.get(Vorlage, vorlage_id)
+    if vorlage is None or vorlage.speaker_id != sprecher:
+        raise HTTPException(status_code=404, detail="Unbekannte Vorlage")
+
+    konfiguration = einstellungen()
+    bekannt = {
+        eintrag.schluessel
+        for eintrag in vorlesen.stimmen(konfiguration.stimmen_dir, konfiguration.vorlesen_motor)
+    }
+    if stimme not in bekannt:
+        raise HTTPException(status_code=404, detail="Diese Stimme steht hier nicht zur Wahl.")
+
+    blob = vorlesen.stelle_her(
+        ablage, vorlage, stimme, konfiguration.stimmen_dir, konfiguration.vorlesen_motor
+    )
+    if blob is None:
+        raise HTTPException(status_code=404, detail="Dieser Satz lässt sich nicht vorlesen.")
+    return FileResponse(ablage.pfad(blob), media_type="audio/wav")

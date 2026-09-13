@@ -23,6 +23,7 @@
   import Kopfleiste from './Kopfleiste.svelte';
   import Fusszeile from './Fusszeile.svelte';
   import Einstellungen from './Einstellungen.svelte';
+  import type { Servestimme } from './speak';
   import Darstellung from './Darstellung.svelte';
   import {
     DARSTELLUNG_PFAD,
@@ -38,6 +39,8 @@
     sprecher,
     route = '/',
     children,
+    servestimmen = [],
+    probeHolen,
   }: {
     /** Welche der drei Apps diese Seite ist. */
     app: AppSchluessel;
@@ -54,6 +57,13 @@
     route?: string;
     /** Die Ansicht, die diese App zur Route zeigt. */
     children: Snippet;
+    /**
+     * Stimmen, die der Server sprechen kann - nur „hören" hat welche, weil nur
+     * dort Vorlagen stehen. Ohne sie bleibt die Stimmwahl, was sie war.
+     */
+    servestimmen?: Servestimme[];
+    /** Einen Probesatz in einer Servestimme holen - für die Hörprobe dort. */
+    probeHolen?: (schluessel: string) => Promise<Blob>;
   } = $props();
 
   // Großgeschrieben, damit Svelte 5 den Wert als Komponente nimmt. `null`
@@ -66,7 +76,9 @@
 <Kopfleiste {app} {punkte} {uebergreifend} {sprecher} {route} />
 
 <main>
-  {#if Geraet}
+  {#if Geraet === Einstellungen}
+    <Einstellungen {servestimmen} {probeHolen} />
+  {:else if Geraet}
     <Geraet />
   {:else}
     {@render children()}
