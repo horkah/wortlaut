@@ -136,13 +136,13 @@ export type Unterschied = {
 
 export type Gegenueber = {
   mass: string;
-  grundlinie: number | null;
+  baseline: number | null;
   trainiert: number | null;
   besser: boolean | null;
   anzahl: number;
   /** Nur bei angefordertem Bereich; sonst `null`. */
   unterschied: Unterschied | null;
-  bereich_grundlinie: Intervall | null;
+  bereich_baseline: Intervall | null;
   bereich_trainiert: Intervall | null;
 };
 
@@ -198,7 +198,7 @@ export type Mass = {
   stellen: number;
 };
 
-/** Eine Fassung der Aufnahme: Original oder eine der drei Abwandlungen. */
+/** Eine Fassung der Aufnahme: das Original oder eine seiner Abwandlungen. */
 export type Fassung = {
   schluessel: string;
   name: string;

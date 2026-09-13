@@ -159,7 +159,7 @@ wie bei `small` - und es wurde dabei nicht langsamer, sondern schneller
 kostet als die zweite Rechnung.
 
 Ein Grundmodell muss in `WORTLAUT_AUSWERTUNG_MODELLE` stehen, sonst hat sein
-trainierter Stand keine Grundlinie, gegen die er antreten könnte. `small`,
+trainierter Stand keine Baseline, gegen die er antreten könnte. `small`,
 `medium` und `large-v3` sind dort von Haus aus dabei.
 
 Alles Übrige - Lernrate, Durchgänge, Stapelgröße, LoRA-Rang - steht in
@@ -391,15 +391,15 @@ und nicht eine, denn der Trainingsverlust fällt auch dann weiter, wenn das
 Modell nur noch auswendig lernt; erst die zweite Reihe zeigt, wann das anfängt -
 sie ist die, die wieder steigt, während die andere sinkt.
 
-Darunter, sobald der Lauf durch ist, der **Vergleich mit der Grundlinie**.
+Darunter, sobald der Lauf durch ist, der **Vergleich mit der Baseline**.
 
-## Gegen die Grundlinie, nicht ins Blaue
+## Gegen die Baseline, nicht ins Blaue
 
 Die Frage dieser App ist nicht, wie gut ein Modell ist, sondern ob das Training
 es besser gemacht hat. Dafür braucht es zwei Zahlen zu denselben Aufnahmen, und
 die zweite liegt schon da: `hören` hat in seiner Auswertung jede Aufnahme durch
 `small`, `medium` und `large-v3` geschickt und je Fassung gemessen. Die
-Zeilen zu `small` über **alle Aufnahmen** sind die Grundlinie - dasselbe
+Zeilen zu `small` über **alle Aufnahmen** sind die Baseline - dasselbe
 Grundmodell, dieselben Aufnahmen, dasselbe Maß, dieselbe Rechnung.
 
 Drei Entscheidungen stecken darin:
@@ -525,7 +525,7 @@ zweitbeste Wert einer Spalte, trägt sie ein `≈` mit dem Hinweis, dass der
 Vorsprung nicht belegt ist.
 
 Beim einzelnen Lauf gibt es dieselbe Auswahl; dort kommt eine Spalte **Belegt?**
-neben den Unterschied zur Grundlinie. Ein fertiger Lauf schreibt seine Bereiche
+neben den Unterschied zur Baseline. Ein fertiger Lauf schreibt seine Bereiche
 außerdem gleich mit ins Manifest seines Standes (`metriken.streuung`) - Stände
 von vor September 2026 haben sie nicht, und die Ansicht kommt mit beidem
 zurecht.
@@ -611,7 +611,7 @@ Takt ein Vielfaches dessen, was gemeint ist.
 | Was | Wo | Richtung |
 |---|---|---|
 | Korpus | `data/korpus/<sprecher_id>/` | **nur lesend** - „hören" ist sein einziger Schreiber |
-| Grundlinie | Tabelle `erkennungen` im Korpus | nur lesend; gemessen hat sie „hören" unter „Auswertung" |
+| Baseline | Tabelle `erkennungen` im Korpus | nur lesend; gemessen hat sie „hören" unter „Auswertung" |
 | (keine) | — | „lernen“ hat keine eigene Datenbank mehr; die Faltungen folgen dem Korpus, die Läufe sind Verzeichnisse |
 | Läufe | `data/snapshots/<job_id>/` | schreibend; der Trainer schreibt dort mit |
 | Modellstände | `data/modelle/<sprecher_id>/<version>/` | schreibend; „schreiben" liest sie |

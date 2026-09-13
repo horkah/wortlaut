@@ -670,7 +670,7 @@ Test - überlappende Bereiche schließen einen echten Unterschied nicht aus -,
 und genau deshalb steht daneben der Hinweis auf den gepaarten Vergleich, der
 schärfer ist.
 
-**Was noch fehlt.** Die Grundlinie aus „hören" trägt ihre Bereiche nicht in der
+**Was noch fehlt.** Die Baseline aus „hören" trägt ihre Bereiche nicht in der
 Datenbank; sie werden beim Zusammenstellen der Tabelle aus den Einzelzeilen
 gerechnet. Das ist richtig so, solange die Zeilen da sind - fehlen sie einmal,
 steht ein Grundmodell ohne Bereich da, während ein trainierter Stand seinen im

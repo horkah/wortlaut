@@ -53,6 +53,33 @@ vor dem ersten Aufruf zu tun - etwa um zu sehen, was ein Update am Schema
 
 ---
 
+## Wie hier benannt wird
+
+Alles ist deutsch: Bezeichner, Kommentare, Commits, Oberfläche. Das ist keine
+Marotte, sondern folgt aus dem Gegenstand - die Menschen, für die diese App
+gebaut ist, lesen deutsch, und ein Feld, das in der Ansicht anders heißt als im
+Code, ist eine Stelle, an der jemand suchen muss.
+
+**Zwei Ausnahmen, und sie sind beide erlebt.**
+
+**Kein erfundenes Deutsch, wo das englische Wort hier gebräuchlich ist.**
+„Basislinie" oder „Grundlinie" für das, was jeder Baseline nennt, ist keine
+Übersetzung, sondern eine zweite Vokabel, die der Leser erst auf die erste
+zurückführen muss. Dasselbe gälte für LoRA, Token, Commit oder Cache. Die Probe
+ist nicht, ob sich ein deutsches Wort bilden lässt - das lässt es sich immer -,
+sondern ob es draußen jemand benutzt. Im September 2026 fiel „Grundlinie"
+deshalb an 82 Stellen zugunsten von „Baseline".
+
+**Keine Beschriftung, die eine Anzahl festschreibt.** „Beste der vier" stand
+über einer Spalte, weil es einmal vier Fassungen einer Aufnahme gab. Dann
+fielen zwei Abwandlungen weg, und die Überschrift log - ohne dass ein Test
+darauf ansprang, denn sie war richtiger Text an falscher Stelle. Eine
+Beschriftung soll sagen, **was** dort steht, nicht wie viele es sind:
+„Bestwert". Wo die Zahl wirklich gebraucht wird, kommt sie aus den Daten und
+nicht aus dem Satz.
+
+---
+
 ## Der Trainer
 
 Die Oberfläche von `lernen` teilt zu, beauftragt und zeigt - gerechnet wird
@@ -92,7 +119,7 @@ Läuft in gut einer Sekunde: ohne GPU, ohne Netz, ohne Mikrofon.
 | `packages/wortlaut/tests/` | Chunker, Textformate, Audiomessung und -schnitt, Ablage, Migrationen, Registry, Fehlerraten |
 | `apps/hoeren/tests/` | Endpunkte gegen eine echte SQLite-Datei im Temporärverzeichnis; dazu die Trennung: Der Zugang des einen öffnet den Korpus des anderen nicht, und eine fremde Kennung im Parameter endet mit 403 statt mit einem Schreibvorgang. Für die Aufsicht: dass sie ohne Token zu ist, dass ihre Sicherung sich wirklich zurückspielen lässt, und dass es keinen Weg gibt, der mehr als einen Sprecher löscht. Und: dass ein Korpus im ältesten Schemastand beim ersten Zugriff eingeholt wird, statt die Ansicht stillzulegen |
 | `apps/hoeren/tests/test_auswertung.py` | Der Auswertungslauf ohne Whisper: was offen ist, was ein Fehlschlag anrichtet, dass ein zweiter Lauf nichts doppelt tut |
-| `apps/lernen/tests/` | Aufteilung und ihre Beständigkeit, Aufträge, der Vergleich mit der Grundlinie, die Modelltabelle auf gemeinsamen Testaufnahmen, die Freigabe - und dass diese App keinen Weg hat, der in den Korpus schreibt |
+| `apps/lernen/tests/` | Aufteilung und ihre Beständigkeit, Aufträge, der Vergleich mit der Baseline, die Modelltabelle auf gemeinsamen Testaufnahmen, die Freigabe - und dass diese App keinen Weg hat, der in den Korpus schreibt |
 | `apps/schreiben/tests/` | Diktat und Abschnittsersatz, Postausgang, welches Modell geladen wird |
 
 Zwei Regeln halten den Aufwand klein und die Aussagekraft hoch:

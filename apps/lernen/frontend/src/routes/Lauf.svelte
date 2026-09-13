@@ -313,7 +313,7 @@
   {/if}
 
   {#if fassungen.length}
-    <h3>Gegen die Grundlinie</h3>
+    <h3>Gegen die Baseline</h3>
     <p class="gedaempft">
       Dieselben Aufnahmen, die das jeweilige Faltungsmodell nie gesehen hat - einmal durch das unveränderte
       {lauf.basismodell} (gemessen in der Auswertung von „hören") und einmal durch diesen Stand.
@@ -342,7 +342,7 @@
         <thead>
           <tr>
             <th scope="col">Maß</th>
-            <th scope="col">Grundlinie</th>
+            <th scope="col">Baseline</th>
             <th scope="col">Dieser Stand</th>
             <th scope="col">Unterschied</th>
             {#if sicherheit !== 'aus'}
@@ -354,10 +354,10 @@
           {#each vergleich[fassung] as eintrag (eintrag.mass)}
             <tr>
               <th scope="row">{MASSNAMEN[eintrag.mass] ?? eintrag.mass}</th>
-              <td>{zeige(eintrag.mass, eintrag.grundlinie)}</td>
+              <td>{zeige(eintrag.mass, eintrag.baseline)}</td>
               <td class="stark">{zeige(eintrag.mass, eintrag.trainiert)}</td>
               <td class:besser={eintrag.besser === true} class:schlechter={eintrag.besser === false}>
-                {unterschied(eintrag.mass, eintrag.grundlinie, eintrag.trainiert)}
+                {unterschied(eintrag.mass, eintrag.baseline, eintrag.trainiert)}
               </td>
               {#if sicherheit !== 'aus'}
                 <td class="klein">
@@ -398,7 +398,7 @@
     </p>
   {:else if lauf.status === 'fertig'}
     <p class="hinweise">
-      Für diesen Lauf gibt es keine Grundlinie: In „hören" ist die Auswertung für
+      Für diesen Lauf gibt es keine Baseline: In „hören" ist die Auswertung für
       {lauf.basismodell} auf diesen Aufnahmen noch nicht gerechnet. Ohne sie steht die Zahl dieses
       Standes allein da - und eine Verbesserung gegen nichts ist keine.
     </p>

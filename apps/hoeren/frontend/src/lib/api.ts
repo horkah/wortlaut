@@ -433,7 +433,7 @@ export type Laufstand = {
   fremder_lauf: boolean;
 };
 
-/** Eine Fassung der Aufnahme: das Original oder eine der drei Abwandlungen. */
+/** Eine Fassung der Aufnahme: das Original oder eine seiner Abwandlungen. */
 export type Variante = {
   schluessel: string;
   name: string;
@@ -447,9 +447,8 @@ export type Punkt = {
   erstellt: string;
   /**
    * modell → fassung → maß → Wert. Fehlt ein Eintrag, ist er noch nicht
-   * gerechnet. Der Server rechnet hier nichts zusammen: Welche der vier Zahlen
-   * die Kurve zeigt, hängt am gewählten Maß, und die Tabelle zeigt ohnehin
-   * alle vier.
+   * gerechnet. Der Server rechnet hier nichts zusammen: Welche Zahl die Kurve
+   * zeigt, hängt am gewählten Maß, und die Tabelle zeigt ohnehin jede.
    */
   werte: Record<string, Record<string, Record<string, number>>>;
 };

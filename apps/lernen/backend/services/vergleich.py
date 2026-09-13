@@ -1,11 +1,11 @@
-"""Hat es etwas gebracht? - der trainierte Stand gegen die Grundlinie.
+"""Hat es etwas gebracht? - der trainierte Stand gegen die Baseline.
 
 Die Frage dieser App ist nicht, wie gut ein Modell ist, sondern ob das
 Training es besser gemacht hat. Dafür braucht es zwei Zahlen zu denselben
 Aufnahmen, und die zweite liegt schon da: „hören" hat in seiner Auswertung
 jede Aufnahme durch `small`, `medium` und `large-v3` geschickt und je
 Fassung gemessen (`apps/hoeren/.../auswertung.py`). Die Zeilen zu `small` auf
-den **Testaufnahmen** sind die Grundlinie - dasselbe Grundmodell, auf das hier
+den **Testaufnahmen** sind die Baseline - dasselbe Grundmodell, auf das hier
 trainiert wird, an denselben Aufnahmen, mit demselben Maß.
 
 **Warum nicht neu gemessen.** Weil eine zweite Messung derselben Sache eine
@@ -46,17 +46,17 @@ class Gegenueber:
     """Ein Maß, einmal vorher und einmal nachher."""
 
     mass: str
-    grundlinie: float | None
+    baseline: float | None
     trainiert: float | None
     anzahl: int
     # Der gepaarte Vergleich der beiden - `None`, solange niemand ihn
     # angefordert hat (`blockart = aus`, die Vorgabe) oder zu wenige Aufnahmen
     # gemeinsam gemessen wurden. Die Differenz ist **trainiert minus
-    # Grundlinie**: bei der Genauigkeit ist positiv gut, bei jeder Fehlerrate
+    # Baseline**: bei der Genauigkeit ist positiv gut, bei jeder Fehlerrate
     # negativ.
     unterschied: dict | None = None
     # Die beiden Vertrauensbereiche einzeln, für die Anzeige daneben.
-    bereich_grundlinie: dict | None = None
+    bereich_baseline: dict | None = None
     bereich_trainiert: dict | None = None
 
     @property
@@ -69,18 +69,18 @@ class Gegenueber:
         der Ansicht gab es vorher, sie sollen bleiben, was sie waren, und die
         schärfere Auskunft tritt daneben statt an ihre Stelle.
         """
-        if self.grundlinie is None or self.trainiert is None:
+        if self.baseline is None or self.trainiert is None:
             return None
         if self.mass in HOCH_IST_GUT:
-            return self.trainiert > self.grundlinie
-        return self.trainiert < self.grundlinie
+            return self.trainiert > self.baseline
+        return self.trainiert < self.baseline
 
 
 def _mittel(werte: list[float]) -> float | None:
     return sum(werte) / len(werte) if werte else None
 
 
-def grundlinie(korpus: Session, aufnahmen: set[str], basismodell: str) -> dict[str, dict]:
+def baseline(korpus: Session, aufnahmen: set[str], basismodell: str) -> dict[str, dict]:
     """Die gemessenen Zeilen aus „hören" zu diesen Aufnahmen, nach Fassung.
 
     `basismodell` kommt als `openai/whisper-small` herein und heißt in der
@@ -118,7 +118,7 @@ def _bereich(werte: list[tuple[str, float]], blockart: str) -> dict | None:
 def je_fassung(
     lauf: laeufe.Lauf, korpus: Session, blockart: str = streuung.AUS
 ) -> dict[str, list[Gegenueber]]:
-    """Grundlinie gegen trainierten Stand, je Fassung und Maß.
+    """Baseline gegen trainierten Stand, je Fassung und Maß.
 
     Verglichen wird nur, was **beide** gemessen haben. Eine Aufnahme, die in
     der Auswertung von „hören" noch nicht gerechnet ist, fällt aus beiden
@@ -137,7 +137,7 @@ def je_fassung(
         return {}
 
     alle_aufnahmen = {kennung for je_variante in gemessen.values() for kennung in je_variante}
-    vorher = grundlinie(korpus, alle_aufnahmen, str(lauf.auftrag.get("basismodell", "")))
+    vorher = baseline(korpus, alle_aufnahmen, str(lauf.auftrag.get("basismodell", "")))
 
     ergebnis: dict[str, list[Gegenueber]] = {}
     for variante in augmentierung.VARIANTEN:
@@ -168,7 +168,7 @@ def _gegenueber(
     if blockart == streuung.AUS:
         return Gegenueber(
             mass=mass,
-            grundlinie=_mittel([wert for _k, wert in vorher]),
+            baseline=_mittel([wert for _k, wert in vorher]),
             trainiert=_mittel([wert for _k, wert in nachher]),
             anzahl=len(gemeinsam),
         )
@@ -187,10 +187,10 @@ def _gegenueber(
     )
     return Gegenueber(
         mass=mass,
-        grundlinie=_mittel([wert for _k, wert in vorher]),
+        baseline=_mittel([wert for _k, wert in vorher]),
         trainiert=_mittel([wert for _k, wert in nachher]),
         anzahl=len(gemeinsam),
         unterschied=gemessen.als_dict() if gemessen is not None else None,
-        bereich_grundlinie=_bereich(vorher, blockart),
+        bereich_baseline=_bereich(vorher, blockart),
         bereich_trainiert=_bereich(nachher, blockart),
     )

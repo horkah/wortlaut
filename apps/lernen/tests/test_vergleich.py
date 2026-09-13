@@ -1,11 +1,11 @@
-"""Hat es etwas gebracht? - der trainierte Stand gegen die Grundlinie.
+"""Hat es etwas gebracht? - der trainierte Stand gegen die Baseline.
 
 Der Trainer läuft hier nicht, also wird sein Ergebnis nachgestellt: ein
 `zustand.json`, eine `bewertung.jsonl` und ein Manifest in der Registry. Genau
 das hinterlässt ein fertiger Lauf, und genau daraus baut die Ansicht ihren
 Vergleich.
 
-Die Grundlinie dagegen ist echt: Sie entsteht wie im Betrieb, indem die
+Die Baseline dagegen ist echt: Sie entsteht wie im Betrieb, indem die
 Auswertung von „hören" über den Korpus läuft - mit einem Platzhalter statt
 Whisper, denn geprüft wird die Verrechnung und nicht das Hören.
 """
@@ -36,8 +36,8 @@ class PlatzhalterErkenner:
 
 
 @pytest.fixture(autouse=True)
-def _grundlinienmodell(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    # Dasselbe Modell, auf das „lernen" trainiert - sonst wäre die Grundlinie
+def _baseline_modell(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    # Dasselbe Modell, auf das „lernen" trainiert - sonst wäre die Baseline
     # keine.
     monkeypatch.setenv("WORTLAUT_AUSWERTUNG_MODELLE", "small")
     monkeypatch.setattr(
@@ -57,10 +57,10 @@ def aufnahmen(quelle: str, sprich) -> list[str]:
 
 
 @pytest.fixture
-def grundlinie(hoeren: TestClient, aufnahmen: list[str]) -> None:
+def baseline(hoeren: TestClient, aufnahmen: list[str]) -> None:
     """Die Auswertung von „hören" über dieselben Aufnahmen laufen lassen.
 
-    Hängt ausdrücklich an `aufnahmen`: Eine Grundlinie über einen leeren
+    Hängt ausdrücklich an `aufnahmen`: Eine Baseline über einen leeren
     Korpus wäre keine, und die Reihenfolge der Testbausteine ist nichts, auf
     das man sich verlassen sollte, wenn man sie auch hinschreiben kann.
     """
@@ -69,7 +69,7 @@ def grundlinie(hoeren: TestClient, aufnahmen: list[str]) -> None:
     while time.monotonic() < ende:
         if not hoeren.get("/api/auswertung").json()["stand"]["laeuft"]:
             return
-    raise AssertionError("Die Grundlinie wurde nicht fertig.")
+    raise AssertionError("Die Baseline wurde nicht fertig.")
 
 
 def _lauf_fertigstellen(
@@ -134,8 +134,8 @@ def fertiger_lauf(klient: TestClient, aufnahmen: list[str], datenverzeichnis, sp
 
 
 class TestVergleich:
-    def test_stellt_jede_fassung_der_grundlinie_gegenueber(
-        self, klient: TestClient, grundlinie: None, fertiger_lauf
+    def test_stellt_jede_fassung_der_baseline_gegenueber(
+        self, klient: TestClient, baseline: None, fertiger_lauf
     ) -> None:
         job_id, _ = fertiger_lauf
         antwort = klient.get(f"/lernen/api/laeufe/{job_id}").json()
@@ -149,19 +149,19 @@ class TestVergleich:
         # Der Platzhalter hört Unsinn, der nachgestellte Stand trifft fast -
         # also hat sich etwas verbessert.
         assert genauigkeit["trainiert"] == pytest.approx(88.0)
-        assert genauigkeit["grundlinie"] < genauigkeit["trainiert"]
+        assert genauigkeit["baseline"] < genauigkeit["trainiert"]
         assert genauigkeit["besser"] is True
 
     def test_bei_den_fehlerraten_ist_kleiner_besser(
-        self, klient: TestClient, grundlinie: None, fertiger_lauf
+        self, klient: TestClient, baseline: None, fertiger_lauf
     ) -> None:
         job_id, _ = fertiger_lauf
         antwort = klient.get(f"/lernen/api/laeufe/{job_id}").json()
         wer = next(e for e in antwort["vergleich"]["original"] if e["mass"] == "wer")
-        assert wer["trainiert"] < wer["grundlinie"]
+        assert wer["trainiert"] < wer["baseline"]
         assert wer["besser"] is True
 
-    def test_ohne_grundlinie_gibt_es_nichts_zu_vergleichen(
+    def test_ohne_baseline_gibt_es_nichts_zu_vergleichen(
         self, klient: TestClient, fertiger_lauf
     ) -> None:
         # Die Auswertung in „hören" ist hier nie gelaufen. Dann steht der
@@ -171,7 +171,7 @@ class TestVergleich:
         assert klient.get(f"/lernen/api/laeufe/{job_id}").json()["vergleich"] == {}
 
     def test_verglichen_wird_nur_was_beide_gemessen_haben(
-        self, klient: TestClient, grundlinie: None, fertiger_lauf
+        self, klient: TestClient, baseline: None, fertiger_lauf
     ) -> None:
         job_id, _ = fertiger_lauf
         antwort = klient.get(f"/lernen/api/laeufe/{job_id}").json()
@@ -209,7 +209,7 @@ class TestModelluebersicht:
         assert "Nur Originale" in eigene[0]["name"]
 
     def test_gemessen_wird_auf_denselben_aufnahmen(
-        self, klient: TestClient, grundlinie: None, fertiger_lauf
+        self, klient: TestClient, baseline: None, fertiger_lauf
     ) -> None:
         antwort = klient.get("/lernen/api/modelle").json()
 
@@ -226,7 +226,7 @@ class TestModelluebersicht:
         assert gezaehlt == {antwort["gemeinsame_einheiten"]}
 
     def test_der_nachgestellte_stand_schlaegt_den_platzhalter(
-        self, klient: TestClient, grundlinie: None, fertiger_lauf
+        self, klient: TestClient, baseline: None, fertiger_lauf
     ) -> None:
         # Der Platzhalter-Erkenner hört Unsinn, der nachgestellte Stand trifft
         # fast - in der Tabelle muss das zu sehen sein.
@@ -428,7 +428,7 @@ class TestVertrauensbereiche:
     """
 
     def test_ohne_parameter_bleibt_alles_wie_es_war(
-        self, klient: TestClient, grundlinie, fertiger_lauf
+        self, klient: TestClient, baseline, fertiger_lauf
     ) -> None:
         antwort = klient.get("/lernen/api/modelle").json()
 
@@ -438,7 +438,7 @@ class TestVertrauensbereiche:
         assert all(not modell["unterschied"] for modell in antwort["modelle"])
 
     def test_bereiche_aendern_die_zahlen_nicht(
-        self, klient: TestClient, grundlinie, fertiger_lauf
+        self, klient: TestClient, baseline, fertiger_lauf
     ) -> None:
         ohne = klient.get("/lernen/api/modelle").json()
         mit = klient.get("/lernen/api/modelle?intervall=aufnahme").json()
@@ -454,7 +454,7 @@ class TestVertrauensbereiche:
                     assert bereich["unten"] <= bereich["mittel"] <= bereich["oben"]
 
     def test_gepaart_gegen_ein_genanntes_modell(
-        self, klient: TestClient, grundlinie, fertiger_lauf
+        self, klient: TestClient, baseline, fertiger_lauf
     ) -> None:
         antwort = klient.get(
             "/lernen/api/modelle?intervall=aufnahme&vergleich_mit=small"
@@ -470,7 +470,7 @@ class TestVertrauensbereiche:
         assert klient.get("/lernen/api/modelle?intervall=quatsch").status_code == 400
 
     def test_beim_einzelnen_lauf_dasselbe(
-        self, klient: TestClient, grundlinie, fertiger_lauf
+        self, klient: TestClient, baseline, fertiger_lauf
     ) -> None:
         job_id = klient.get("/lernen/api/laeufe").json()["laeufe"][0]["job_id"]
         ohne = klient.get(f"/lernen/api/laeufe/{job_id}").json()
@@ -485,6 +485,6 @@ class TestVertrauensbereiche:
         for fassung, eintraege in mit["vergleich"].items():
             for stelle, eintrag in enumerate(eintraege):
                 vorher = ohne["vergleich"][fassung][stelle]
-                assert eintrag["grundlinie"] == vorher["grundlinie"]
+                assert eintrag["baseline"] == vorher["baseline"]
                 assert eintrag["trainiert"] == vorher["trainiert"]
                 assert eintrag["besser"] == vorher["besser"]

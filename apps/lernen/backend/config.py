@@ -64,7 +64,7 @@ class Einstellungen(Grundeinstellungen):
     # trifft, sie passt bequem in den Speicher einer einzelnen Karte, und sie
     # ist zugleich die Reihe, gegen die in „hören" schon gemessen wurde
     # (`auswertung_modelle`). Ohne diesen gemeinsamen Nenner wäre der Vergleich
-    # mit der Grundlinie keiner.
+    # mit der Baseline keiner.
     lernen_basismodell: str = "openai/whisper-small"
     # Was darüber hinaus zur Wahl steht. Seit September 2026 ist das Grundmodell
     # eine Achse des Auftrags und keine Konstante mehr - `medium` ist der
@@ -72,7 +72,7 @@ class Einstellungen(Grundeinstellungen):
     # Karte (volles Feintuning nicht, siehe `wortlaut/laeufe.py`).
     #
     # Jedes hier genannte Modell muss in `auswertung_modelle` stehen, sonst hat
-    # sein trainierter Stand keine Grundlinie, gegen die er antreten könnte.
+    # sein trainierter Stand keine Baseline, gegen die er antreten könnte.
     lernen_grundmodelle: str = "openai/whisper-small,openai/whisper-medium"
     # Welche unveränderten Modelle in der Modellübersicht gegen die eigenen
     # Stände antreten. Dieselbe Liste wie in der Auswertung von „hören"

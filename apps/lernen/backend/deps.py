@@ -14,7 +14,7 @@ unter `data/snapshots/`, die Modellstände in der Registry.
 
 Der **Korpus** (`hoeren.sqlite`) wird hier nur gelesen. Er gehört „hören"
 (Grundentscheidung 6); daraus kommen die Aufnahmen, ihre Vorlagen und die
-Grundlinie. Dass er nur lesend vorkommt, ist keine Zusage auf Papier: Es gibt
+Baseline. Dass er nur lesend vorkommt, ist keine Zusage auf Papier: Es gibt
 in dieser App keinen Weg, der in ihn schreibt - und seit dem Wegfall der
 eigenen Datenbank auch keinen, der überhaupt irgendwo schreibt.
 """
