@@ -205,7 +205,32 @@
     diktat = await ladeDiktatmodell();
   }
 
+  /**
+   * Ein Modell freigeben - nach einer Rückfrage, die es beim Namen nennt.
+   *
+   * Die Rückfrage ist nicht Zierde. Diese Liste enthält Zeilen, die einander
+   * ähneln - sechs Achsen, und zwei Läufe können sich in genau einer
+   * unterscheiden. Ein Klick ändert, womit ein Mensch ab sofort diktiert;
+   * dass dabei genannt wird, **welches** Modell gemeint ist, ist die letzte
+   * Stelle, an der ein Vergreifen auffällt.
+   *
+   * Genannt wird beides: was gilt und was gelten soll. „Statt" ist die
+   * Information, die fehlt, wenn man nur das Ziel liest.
+   */
   async function freigeben(ref: string) {
+    const neu = uebersicht?.modelle.find((m) => m.ref === ref);
+    const alt = uebersicht?.modelle.find((m) => m.freigegeben);
+    const zeilen = [
+      `„${neu?.name ?? ref}" für „schreiben" freigeben?`,
+      '',
+      neu?.herkunft ?? '',
+      '',
+      alt ? `Statt bisher: „${alt.name}" (${alt.herkunft})` : 'Bisher gilt das Grundmodell.',
+      '',
+      'Ab sofort wird damit diktiert.',
+    ];
+    if (!confirm(zeilen.join('\n'))) return;
+
     arbeitet = ref;
     try {
       uebersicht = await gibFrei(ref, sicherheit, gegen);

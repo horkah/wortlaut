@@ -39,23 +39,23 @@ TRAINIERT = "trainiert"
 
 METHODEN = {"full": "Volles Training", "lora": "Feintuning (LoRA)"}
 DATEN = {"original": "Nur Originale", "augmentiert": "Mit Abwandlungen"}
-# Die dritte Achse. `bester` fehlt hier mit Absicht: Er ist das Verfahren, nach
-# dem jeder Stand vor September 2026 entstand, und ihn dazuzuschreiben hieße,
-# hundert alte Zeilen um eine Auskunft zu ergänzen, die sie nie unterschied.
+# Die übrigen Achsen, kurz beschriftet - sie stehen seit September 2026 im
+# **Titel** einer Zeile und müssen deshalb in eine Tabellenspalte passen.
+#
+# Die Vorgabewerte fehlen überall (`bester`, `keine`, `fest`): Sie sind das
+# Verfahren, nach dem jeder Stand davor entstand, und sie in jede Zeile zu
+# schreiben ergäbe Wörter, die nichts unterscheiden.
 ABSCHLUESSE = {
     "mittel": "gemittelt",
-    "interpoliert": "mit Grundmodell",
-    "beides": "gemittelt + Grundmodell",
+    "interpoliert": "interpoliert",
+    "beides": "gemittelt+interpoliert",
 }
-# Die vierte Achse, nach derselben Regel: `keine` fehlt, weil es das Verfahren
-# ist, nach dem jeder Stand vor September 2026 entstand.
 AUGMENTIERUNGEN = {
     "masken": "Masken",
-    "umgebung": "Masken/Raum/Rauschen",
-    "voll": "Masken/Raum/Rauschen/Tempo",
+    "umgebung": "Umgebung",
+    "voll": "Umgebung+Tempo",
 }
-# Die fünfte Achse. `fest` fehlt aus demselben Grund wie oben.
-DAUERN = {"geduldig": "bis zum Stillstand"}
+DAUERN = {"geduldig": "geduldig"}
 
 
 class MassAntwort(BaseModel):
@@ -235,18 +235,49 @@ def _grundmodellnamen() -> list[str]:
     return namen
 
 
+def _achsen(manifest: dict) -> list[str]:
+    """Die Achsen, in denen dieser Stand von der Vorgabe abweicht.
+
+    **Warum das in den Titel gehört und nicht in die Nebenzeile.** Bis
+    September 2026 hieß ein Stand nach Methode und Datensatz, und das genügte,
+    solange es nur diese beiden Achsen gab. Inzwischen sind es sechs - und zwei
+    Läufe, die sich nur im Abschluss unterschieden, trugen damit **denselben
+    Titel**. In einer Liste, in der je Zeile ein Knopf „freigeben" steht, ist
+    das kein Schönheitsfehler, sondern die Falle, in die man tritt: Zwei Stände
+    hießen beide „Feintuning (LoRA) · Mit Abwandlungen", unterschieden nur
+    durch ein Fragment tief in der grauen Nebenzeile - und freigegeben wurde
+    daraufhin der falsche.
+
+    Das Grundmodell steht mit dabei, sobald es nicht die Vorgabe ist: Es ist
+    der stärkste Unterschied zwischen zwei Ständen überhaupt.
+    """
+    teile = []
+    grund = lauf_layout.kurzname(str(manifest.get("basismodell", "")))
+    if grund and grund != lauf_layout.kurzname(einstellungen().lernen_basismodell):
+        teile.append(f"whisper-{grund}")
+    for karte, wert in (
+        (ABSCHLUESSE, manifest.get("abschluss")),
+        (AUGMENTIERUNGEN, manifest.get("augmentierung")),
+        (DAUERN, manifest.get("dauer")),
+    ):
+        beschriftung = karte.get(str(wert or ""), "")
+        if beschriftung:
+            teile.append(beschriftung)
+    return teile
+
+
 def _stand_name(manifest: dict) -> str:
+    """Der Titel einer Zeile - und er muss diese Zeile von jeder anderen trennen."""
     methode = METHODEN.get(str(manifest.get("methode")), str(manifest.get("methode", "?")))
     daten = DATEN.get(str(manifest.get("daten")), str(manifest.get("daten", "?")))
-    return f"{methode} · {daten}"
+    return " · ".join([methode, daten, *_achsen(manifest)])
 
 
-def _abschluss(manifest: dict) -> str:
-    """Wie der Stand abgeschlossen wurde - leer beim Verfahren von vorher.
+def _abschluss_befund(manifest: dict) -> str:
+    """Was beim Abschluss herauskam - α, oder dass er zurückgenommen wurde.
 
-    Steht ein α daneben, kommt es mit: Zwei interpolierte Stände mit 0,1 und
-    0,5 Grundmodell sind zwei verschiedene Modelle, und in einer Tabelle, die
-    sie vergleicht, darf das nicht dieselbe Zeile sein.
+    Das gehört in die Nebenzeile und nicht in den Titel: Es unterscheidet zwei
+    Zeilen nicht, es erklärt eine.
     """
     name = ABSCHLUESSE.get(str(manifest.get("abschluss", "")), "")
     if not name:
@@ -255,24 +286,28 @@ def _abschluss(manifest: dict) -> str:
     # geholfen, ausgeliefert wurde der beste Durchgang. Das als „gemittelt" zu
     # beschriften wäre die Behauptung eines Gewinns, den es nicht gab.
     if (manifest.get("abschluss_bericht") or {}).get("zurueckgenommen"):
-        return f"{name} (zurückgenommen)"
+        return "zurückgenommen"
     alpha = (manifest.get("abschluss_bericht") or {}).get("alpha")
     if alpha is None:
-        return name
+        return ""
     # Auch die Null: α = 0 heißt, dass die Wahl auf der Validierung den
     # feingetunten Stand behalten hat - eine Auskunft über diesen Lauf, und
     # nicht dasselbe wie ein Stand, bei dem nie interpoliert wurde.
-    return f"{name} α={float(alpha):.2f}".replace(".", ",")
+    return f"α={float(alpha):.2f}".replace(".", ",")
 
 
 def _stand_herkunft(manifest: dict) -> str:
+    """Die Nebenzeile: woher der Stand kommt und **wann** er entstand.
+
+    Die Uhrzeit und nicht nur das Datum. Wer an einem Nachmittag drei Läufe
+    rechnet, hat sonst drei Zeilen mit demselben Datum - und wenn zwei davon
+    dasselbe Rezept tragen, wieder nichts, woran man sie auseinanderhält.
+    """
     grund = f"whisper-{lauf_layout.kurzname(str(manifest.get('basismodell', '?')))}"
-    datum = str(manifest.get("erstellt", ""))[:10]
-    abwandlung = AUGMENTIERUNGEN.get(str(manifest.get("augmentierung", "")), "")
-    dauer = DAUERN.get(str(manifest.get("dauer", "")), "")
+    wann = str(manifest.get("erstellt", "")).replace("T", " ")[:16]
     return " · ".join(
         teil
-        for teil in (f"aus {grund}", _abschluss(manifest), abwandlung, dauer, datum)
+        for teil in (f"aus {grund}", _abschluss_befund(manifest), wann)
         if teil.strip(" ·")
     )
 

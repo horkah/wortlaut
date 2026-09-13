@@ -319,6 +319,105 @@ class TestModelluebersicht:
         ).status_code == 404
 
 
+class TestFreigabe:
+    """Was gilt, hat ein Mensch gewählt - und nichts sonst.
+
+    Der Anlass steht in `api/modelle.py`: Zwei Stände, die sich nur im
+    Abschluss unterschieden, trugen denselben Titel. Freigegeben wurde
+    daraufhin der falsche, und der Verdacht lag zunächst auf der Freigabe
+    selbst. Sie war es nicht - aber geprüft gehört beides.
+    """
+
+    def _stand(self, datenverzeichnis, sprecher: str, version: str, **felder) -> str:
+        kennung = f"{sprecher}/{version}"
+        registry.schreibe_stand(
+            datenverzeichnis,
+            {
+                "id": kennung,
+                "sprecher_id": sprecher,
+                "basismodell": "openai/whisper-small",
+                "methode": "lora",
+                "daten": "augmentiert",
+                "erstellt": "2026-09-14T14:47:00+00:00",
+                "daten_umfang": {},
+                "metriken": {},
+                "laufzeit": "faster-whisper>=1.1",
+                "status": "fertig",
+                **felder,
+            },
+        )
+        return kennung
+
+    def test_ein_neuer_stand_gibt_sich_nicht_selbst_frei(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis, sprecher: str
+    ) -> None:
+        sprich(6)
+        erster = self._stand(
+            datenverzeichnis, sprecher, "20260914T1447-lora-augmentiert", abschluss="bester"
+        )
+        assert (
+            klient.post("/lernen/api/modelle/freigabe", json={"ref": erster}).status_code == 200
+        )
+
+        # Und nun der zweite, so wie der Trainer ihn einträgt: alles gleich bis
+        # auf den Abschluss, Status `fertig`.
+        zweiter = self._stand(
+            datenverzeichnis,
+            sprecher,
+            "20260914T1448-lora-augmentiert-beides",
+            abschluss="beides",
+            erstellt="2026-09-14T14:48:00+00:00",
+        )
+
+        uebersicht = klient.get("/lernen/api/modelle").json()
+        nach_ref = {m["ref"]: m for m in uebersicht["modelle"]}
+        assert uebersicht["freigegeben"] == erster
+        assert nach_ref[erster]["freigegeben"] is True
+        assert nach_ref[zweiter]["freigegeben"] is False
+        assert sum(1 for m in uebersicht["modelle"] if m["freigegeben"]) == 1
+
+    def test_zwei_staende_heissen_nie_gleich(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis, sprecher: str
+    ) -> None:
+        # Die eigentliche Ursache. In einer Liste mit einem Knopf „freigeben"
+        # je Zeile ist ein doppelter Titel die Falle, in die man tritt.
+        sprich(6)
+        self._stand(
+            datenverzeichnis, sprecher, "20260914T1447-lora-augmentiert", abschluss="bester"
+        )
+        self._stand(
+            datenverzeichnis,
+            sprecher,
+            "20260914T1448-lora-augmentiert-beides",
+            abschluss="beides",
+            erstellt="2026-09-14T14:48:00+00:00",
+        )
+        namen = [m["name"] for m in klient.get("/lernen/api/modelle").json()["modelle"]]
+        assert len(namen) == len(set(namen)), namen
+
+    def test_zwei_aktive_manifeste_geben_keines_frei(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis, sprecher: str
+    ) -> None:
+        # Ohne Freigabedatei zählen die Manifeste - aber nur, wenn sie sich
+        # einig sind. „Das neuere von beiden" wäre eine Entscheidung, und die
+        # trifft hier kein Programm.
+        sprich(6)
+        self._stand(
+            datenverzeichnis, sprecher, "20260914T1447-lora-augmentiert", status="active"
+        )
+        self._stand(
+            datenverzeichnis,
+            sprecher,
+            "20260914T1448-lora-augmentiert-beides",
+            abschluss="beides",
+            status="active",
+        )
+        assert registry.freigegeben(datenverzeichnis, sprecher) == ""
+        uebersicht = klient.get("/lernen/api/modelle").json()
+        assert uebersicht["freigegeben"] == ""
+        assert not any(m["freigegeben"] for m in uebersicht["modelle"])
+
+
 class TestVertrauensbereiche:
     """Die Zugabe muss eine Zugabe bleiben.
 

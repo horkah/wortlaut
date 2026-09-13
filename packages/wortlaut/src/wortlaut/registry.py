@@ -116,9 +116,20 @@ def sprecher_verzeichnis(datenverzeichnis: Path, sprecher_id: str) -> Path:
 def freigegeben(datenverzeichnis: Path, sprecher_id: str) -> str:
     """Was dieser Mensch benutzt: ein Grundmodellname, eine Standkennung - oder nichts.
 
-    Gelesen wird `freigabe.json`. Fehlt sie, zählen die Manifeste: Eine
-    Installation, die schon Stände freigegeben hatte, bevor es die Datei gab,
-    soll nach dem Aufspielen nicht stumm auf das Grundmodell zurückfallen.
+    **`freigabe.json` ist die Wahrheit.** Sie entsteht nur an einer Stelle: wenn
+    ein Mensch in „lernen" auf „freigeben" drückt (`gib_frei`). Steht etwas
+    darin, gilt das und sonst nichts.
+
+    Fehlt sie, zählen ersatzweise die Manifeste - für eine Installation, die
+    schon Stände freigegeben hatte, bevor es die Datei gab. Dieser Ersatz greift
+    aber **nur, wenn er eindeutig ist**: Sagt genau ein Manifest `active`, ist
+    das die Antwort; sagen es zwei, gilt keines.
+
+    Der zweite Fall wäre sonst die eine Stelle im Projekt, an der sich ein
+    Modell von selbst auswählt - „das neuere von beiden" ist eine Entscheidung,
+    und Entscheidungen darüber, womit ein Mensch diktiert, trifft hier kein
+    Programm. Zurückzufallen auf das Grundmodell ist die sichere Richtung: Es
+    ist die Vorgabe, es ist sichtbar, und ein Griff genügt, um es zu ändern.
     """
     datei = sprecher_verzeichnis(datenverzeichnis, sprecher_id) / FREIGABE
     try:
@@ -133,7 +144,7 @@ def freigegeben(datenverzeichnis: Path, sprecher_id: str) -> str:
         for stand in alle_staende(datenverzeichnis, sprecher_id)
         if stand.get("status") == "active"
     ]
-    return aktive[-1] if aktive else ""
+    return aktive[0] if len(aktive) == 1 else ""
 
 
 def gib_frei(datenverzeichnis: Path, sprecher_id: str, ref: str) -> str:
