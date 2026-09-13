@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from wortlaut import laeufe
+from wortlaut import laeufe, tempo
 
 from . import abschluss as abschlussrechnung
 from . import klangwandel
@@ -421,8 +421,17 @@ def trainiere(
     lernzeilen, messzeilen = zeilen_fuer_faltung(
         verzeichnis, faltung, str(auftrag.get("daten") or laeufe.NUR_ORIGINAL)
     )
-    lern = Proben(lernzeilen, korpuswurzel, ausleser, zerteiler, wandler)
-    pruef = Proben(messzeilen, korpuswurzel, ausleser, zerteiler)
+    # Der Tempofaktor steht im Auftrag und nicht im Rezept: Er ist kein
+    # Verfahrensparameter, sondern der Zustand, in dem der Korpus betrachtet
+    # wird (`services/auftraege.py`). Vorgespult wird beim ersten Zugriff je
+    # Datei und dann nicht wieder; das Zwischenlager geht mit dem Lauf.
+    faktor = float(auftrag.get("tempo", tempo.VORGABE))
+    zwischenlager = verzeichnis / laeufe.VORGESPULT if tempo.vorspulen_noetig(faktor) else None
+    if zwischenlager is not None:
+        bericht.sage(f"Vorgespult: Faktor {faktor:g} - Tonhöhe bleibt")
+
+    lern = Proben(lernzeilen, korpuswurzel, ausleser, zerteiler, wandler, faktor, zwischenlager)
+    pruef = Proben(messzeilen, korpuswurzel, ausleser, zerteiler, None, faktor, zwischenlager)
     bericht.sage(f"Proben: {len(lern)} zum Lernen, {len(pruef)} zum Steuern")
     if wandler.taetig:
         bericht.sage(f"Augmentierung: {abwandlung} (nur auf den Lernproben)")

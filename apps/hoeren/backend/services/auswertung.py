@@ -51,17 +51,17 @@ abbricht.
 from __future__ import annotations
 
 import asyncio
+import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from sqlalchemy import Engine, delete, func, select
 from sqlalchemy.orm import Session
-from wortlaut import ids, metriken, storage
-from wortlaut import rechenwerk
+from wortlaut import ids, metriken, rechenwerk, storage, tempo
 from wortlaut.whisper import Transkriptor
 
-from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
+from ..db.models import Aufnahme, Erkennung, Sprecher, Vorlage, jetzt
 from . import augmentierung
 
 # Nur brauchbare Aufnahmen: Was verworfen wurde, ist kein Prüfstück, sondern
@@ -161,8 +161,19 @@ def gueltige_aufnahmen(db: Session) -> list[tuple[Aufnahme, Vorlage]]:
     )
 
 
-def _fertig(db: Session, werk: str) -> set[tuple[str, str, str]]:
-    """Was schon gemessen ist - **auf dem Rechenwerk, das gerade gilt**.
+def tempo_des_sprechers(db: Session) -> float:
+    """Um welchen Faktor die Aufnahmen dieses Korpus vorgespult werden.
+
+    Je Korpus eine Datenbank und darin ein Sprecher - der Faktor gehört
+    deshalb an ihn und nicht an einen Lauf (siehe `011_tempo.sql`). Fehlt die
+    Zeile (ein frisch angelegter, noch leerer Korpus), gilt 1,0: gar nicht
+    vorspulen, der Zustand von immer.
+    """
+    return float(db.scalar(select(Sprecher.tempo)) or tempo.VORGABE)
+
+
+def _fertig(db: Session, werk: str, faktor: float) -> set[tuple[str, str, str]]:
+    """Was schon gemessen ist - auf dem **Rechenwerk** und beim **Tempo**, die gerade gelten.
 
     Die Einschränkung ist neu und sie ist der Preis der Vergleichbarkeit. Eine
     Zeile, die auf dem Prozessor entstand, während jetzt die Karte rechnet,
@@ -173,18 +184,28 @@ def _fertig(db: Session, werk: str) -> set[tuple[str, str, str]]:
     Neu gerechnet wird deshalb, was aus einem anderen Rechenwerk stammt oder
     aus keinem bekannten (die Zeilen von vor `008_rechenwerk.sql`). Das kostet
     einmal einen vollen Lauf - auf der Karte sind das Minuten statt Stunden.
+
+    **Das Tempo steht aus demselben Grund daneben und wirkt doch anders.** Eine
+    Zahl aus vorgespulter Sprache ist mit einer aus ungespulter nicht zu
+    vergleichen, also gilt sie bei einem anderen Faktor nicht. Anders als beim
+    Rechenwerk wird die alte Zeile dabei aber **nicht** ersetzt: Sie bleibt
+    stehen und zählt wieder, sobald der Faktor zurückgestellt ist
+    (`011_tempo.sql`). Wer 1,0 und 2,0 vergleichen will, misst jede Reihe
+    genau einmal und nicht bei jedem Hin und Her aufs Neue.
     """
     return {
         (zeile.recording_id, zeile.modell, zeile.variante)
         for zeile in db.execute(
             select(Erkennung.recording_id, Erkennung.modell, Erkennung.variante).where(
-                Erkennung.rechenwerk == werk
+                Erkennung.rechenwerk == werk, Erkennung.tempo == faktor
             )
         ).all()
     }
 
 
-def offene_posten(db: Session, namen: list[str], werk: str) -> list[Posten]:
+def offene_posten(
+    db: Session, namen: list[str], werk: str, faktor: float
+) -> list[Posten]:
     """Was noch zu rechnen ist, in der Reihenfolge, in der gerechnet wird.
 
     Die Schachtelung ist die Reihenfolge des Laufs: Aufnahme, dann Modell,
@@ -192,7 +213,7 @@ def offene_posten(db: Session, namen: list[str], werk: str) -> list[Posten]:
     und genau nebeneinander werden sie später gelesen - eine halb gerechnete
     Aufnahme zeigt lieber ein vollständiges Modell als vier angefangene.
     """
-    erledigt = _fertig(db, werk)
+    erledigt = _fertig(db, werk, faktor)
     return [
         posten
         for aufnahme, vorlage in gueltige_aufnahmen(db)
@@ -212,7 +233,9 @@ def offene_posten(db: Session, namen: list[str], werk: str) -> list[Posten]:
     ]
 
 
-def zaehle(db: Session, namen: list[str], werk: str) -> tuple[int, int]:
+def zaehle(
+    db: Session, namen: list[str], werk: str, faktor: float
+) -> tuple[int, int]:
     """(erledigt, gesamt) - beides aus der Datenbank, nie aus einem Zähler.
 
     Ein mitlaufender Zähler wäre nach jedem Neustart falsch, und genau ein
@@ -241,6 +264,10 @@ def zaehle(db: Session, namen: list[str], werk: str) -> tuple[int, int]:
                 # sonst stünde der Balken bei 100 %, während der Lauf noch
                 # rechnet.
                 Erkennung.rechenwerk == werk,
+                # ... und dasselbe für das Tempo: Zeilen aus einer anderen
+                # Geschwindigkeit gelten gerade nicht, auch wenn sie liegen
+                # bleiben.
+                Erkennung.tempo == faktor,
             )
         )
         or 0
@@ -249,12 +276,34 @@ def zaehle(db: Session, namen: list[str], werk: str) -> tuple[int, int]:
 
 
 def _rechne(
-    posten: Posten, wav: Path, sprache: str, transkriptor: Transkriptor, werk: str
+    posten: Posten,
+    wav: Path,
+    sprache: str,
+    transkriptor: Transkriptor,
+    werk: str,
+    faktor: float,
 ) -> Erkennung:
-    """Erkennen und messen - der Teil, der rechnet und keine Datenbank anfasst."""
-    begonnen = time.monotonic()
-    transkript = transkriptor.transkribiere(wav, sprache=sprache)
-    dauer = time.monotonic() - begonnen
+    """Erkennen und messen - der Teil, der rechnet und keine Datenbank anfasst.
+
+    Vorgespult wird hier und nicht im Korpus: Die vorgespulte Fassung ist ein
+    Zwischenergebnis auf dem Weg zur Zahl, kein Bestandteil der Sammlung. Sie
+    lebt so lange wie dieser Aufruf. Das kostet gemessen 80 ms je Aufnahme -
+    neben einer Erkennung, die Sekunden dauert, ist das nichts, und es erspart
+    dem Korpus eine dritte Garnitur Audiodateien, die niemand hören will.
+
+    **Die Rechenzeit gilt der Erkennung allein.** Die Uhr läuft erst danach an.
+    Sonst stünde in der Spalte die Summe aus Erkennen und Vorspulen, und ein
+    Modell sähe bei Faktor 2 langsamer aus, obwohl es schneller fertig war.
+    """
+    with tempfile.TemporaryDirectory() as verzeichnis:
+        if tempo.vorspulen_noetig(faktor):
+            schnell = Path(verzeichnis) / "vorgespult.wav"
+            tempo.spule_vor(wav, schnell, faktor)
+            wav = schnell
+
+        begonnen = time.monotonic()
+        transkript = transkriptor.transkribiere(wav, sprache=sprache)
+        dauer = time.monotonic() - begonnen
     # **Nach** dem Erkennen gefragt und nicht davor: Ob die Karte den Platz
     # hergab, zeigt sich beim Laden. Wich der Transkriptor auf den Prozessor
     # aus, steht das hier - und die Zeile daneben ist als das lesbar, was sie
@@ -280,6 +329,7 @@ def _rechne(
         genauigkeit=guete.genauigkeit,
         rechenzeit_s=dauer,
         rechenwerk=werk,
+        tempo=faktor,
         erstellt=jetzt(),
     )
 
@@ -310,15 +360,21 @@ async def _arbeite(
     # danach fest: Ein Lauf, der auf halber Strecke die Maschine wechselte,
     # hinterließe eine Spalte mit zwei Maßstäben.
     werk = rechenwerk.marke(*rechenwerk.waehle(geraet, rechenart))
+    # Einmal gelesen und danach fest, aus demselben Grund wie das Rechenwerk:
+    # Ein Lauf, der auf halber Strecke die Geschwindigkeit wechselte,
+    # hinterließe eine Spalte mit zwei Maßstäben. Wer den Faktor umstellt,
+    # während gerechnet wird, sieht die Wirkung beim nächsten Lauf.
+    with Session(engine) as db:
+        faktor = tempo_des_sprechers(db)
 
     while True:
         with Session(engine) as db:
             offen = [
                 posten
-                for posten in offene_posten(db, namen, werk)
+                for posten in offene_posten(db, namen, werk, faktor)
                 if posten.marke not in uebersprungen
             ]
-            zustand.erledigt, zustand.gesamt = zaehle(db, namen, werk)
+            zustand.erledigt, zustand.gesamt = zaehle(db, namen, werk, faktor)
             zustand.uebersprungen = len(uebersprungen)
 
         if not offen:
@@ -361,6 +417,7 @@ async def _arbeite(
                 sprache,
                 transkriptor_fuer(posten.modell, geraet, rechenart),
                 werk,
+                faktor,
             )
         except asyncio.CancelledError:
             raise
@@ -382,6 +439,11 @@ async def _arbeite(
                     Erkennung.recording_id == posten.aufnahme_id,
                     Erkennung.modell == posten.modell,
                     Erkennung.variante == posten.variante,
+                    # Und nur die dieser Geschwindigkeit. Eine Zeile aus einem
+                    # anderen Faktor ist keine veraltete Fassung derselben
+                    # Messung, sondern eine eigene - sie bleibt liegen und gilt
+                    # wieder, sobald zurückgestellt wird (`011_tempo.sql`).
+                    Erkennung.tempo == faktor,
                 )
             )
             db.add(erkennung)
@@ -390,7 +452,7 @@ async def _arbeite(
 
 def stand(db: Session, namen: list[str], werk: str) -> Stand:
     """Der Stand für die Oberfläche - auch dann, wenn gerade kein Lauf läuft."""
-    erledigt, gesamt = zaehle(db, namen, werk)
+    erledigt, gesamt = zaehle(db, namen, werk, tempo_des_sprechers(db))
     if _lauf is None:
         return Stand(laeuft=False, erledigt=erledigt, gesamt=gesamt)
 
@@ -436,8 +498,9 @@ def starte(
 
     werk = rechenwerk.marke(*rechenwerk.waehle(geraet, rechenart))
     with Session(engine) as db:
-        if not offene_posten(db, namen, werk):
-            erledigt, gesamt = zaehle(db, namen, werk)
+        faktor = tempo_des_sprechers(db)
+        if not offene_posten(db, namen, werk, faktor):
+            erledigt, gesamt = zaehle(db, namen, werk, faktor)
             return Stand(
                 laeuft=False, sprecher_id=sprecher_id, erledigt=erledigt, gesamt=gesamt
             )

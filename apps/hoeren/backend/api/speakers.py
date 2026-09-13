@@ -14,7 +14,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from wortlaut import corpus, db, ids
+from wortlaut import corpus, db, ids, tempo
+from wortlaut.audio import AudioFehler
 
 from ..config import einstellungen
 from ..db.models import Sprecher, jetzt
@@ -29,12 +30,28 @@ class NeuerSprecher(BaseModel):
     basismodell: str = "openai/whisper-large-v3"
 
 
+class TempoAenderung(BaseModel):
+    """Der einzige Wert dieses Profils, den man nachträglich umstellen kann.
+
+    Ausdrücklich nicht Name, Sprache oder Grundmodell: Die stehen in jeder
+    schon gemessenen Zeile mit drin, und sie im Nachhinein zu ändern hieße,
+    die Vergangenheit umzuschreiben. Beim Tempo ist es anders - es steht als
+    eigene Spalte neben jeder Messung, und deshalb kann es sich ändern, ohne
+    dass eine alte Zahl dadurch falsch wird (`011_tempo.sql`).
+    """
+
+    tempo: float
+
+
 class SprecherAntwort(BaseModel):
     id: str
     name: str
     sprache: str
     basismodell: str
     erstellt: str
+    # Um welchen Faktor die Aufnahmen vorgespult werden, bevor ein Modell sie
+    # hört. 1,0 heißt: gar nicht (siehe `wortlaut/tempo.py`).
+    tempo: float = 1.0
     # Wann der geltende Zugang ausgegeben wurde; None heißt: keiner da. Der
     # Zugang selbst steht hier nie - er ist nur beim Ausgeben zu sehen.
     zugang_erneuert: str | None = None
@@ -84,6 +101,40 @@ def einzeln(sprecher_id: str) -> SprecherAntwort:
         return _als_antwort(sprecher)
 
 
+@router.patch("/{sprecher_id}", response_model=SprecherAntwort)
+def aendere(sprecher_id: str, eingabe: TempoAenderung) -> SprecherAntwort:
+    """Den Tempofaktor dieses Sprechers umstellen.
+
+    **Was dabei geschieht - und was ausdrücklich nicht.** Es wird nichts
+    gelöscht und nichts neu gerechnet. Alle Auswertungen und alle
+    Modellstände, die es gibt, bleiben, wie sie sind; sie tragen die
+    Geschwindigkeit, bei der sie entstanden, als eigene Angabe bei sich. Nach
+    dem Umstellen gelten sie deshalb **gerade nicht** - die Auswertung
+    betrachtet ihre Posten wieder als offen, und die Modelltafel weist ihre
+    Stände als bei anderer Geschwindigkeit gemessen aus.
+
+    Wer zurückstellt, bekommt sie unverändert wieder. Das ist der ganze Sinn
+    der Sache: Ein Faktor ist ein Zustand, in dem man den Korpus eine Weile
+    betrachtet, und kein Eingriff in das, was schon dasteht.
+
+    Der Preis steht daneben: Wer alle drei Faktoren durchmisst, hat am Ende
+    die dreifache Zahl an Messzeilen. Für eine Erprobung ist das der richtige
+    Handel - Erkennungen sind abgeleitet und jederzeit neu zu rechnen.
+    """
+    try:
+        faktor = tempo.pruefe(float(eingabe.tempo))
+    except AudioFehler as ursache:
+        raise HTTPException(status_code=422, detail=str(ursache)) from ursache
+
+    with Session(engine_fuer(sprecher_id)) as sitzung:
+        sprecher = sitzung.get(Sprecher, sprecher_id)
+        if sprecher is None:
+            raise HTTPException(status_code=404, detail="Unbekannter Sprecher")
+        sprecher.tempo = faktor
+        sitzung.commit()
+        return _als_antwort(sprecher)
+
+
 def _als_antwort(sprecher: Sprecher) -> SprecherAntwort:
     return SprecherAntwort(
         id=sprecher.id,
@@ -91,5 +142,6 @@ def _als_antwort(sprecher: Sprecher) -> SprecherAntwort:
         sprache=sprecher.sprache,
         basismodell=sprecher.basismodell,
         erstellt=sprecher.erstellt,
+        tempo=sprecher.tempo,
         zugang_erneuert=sprecher.zugang_erneuert,
     )

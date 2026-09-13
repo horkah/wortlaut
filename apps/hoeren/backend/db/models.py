@@ -30,6 +30,10 @@ class Sprecher(Basis):
     sprache: Mapped[str]
     basismodell: Mapped[str]
     erstellt: Mapped[str]
+    # Um welchen Faktor die Aufnahmen dieses Sprechers vorgespult werden,
+    # bevor irgendein Modell sie hört (siehe `011_tempo.sql` und
+    # `wortlaut/tempo.py`). 1,0 heißt: gar nicht - der Normalfall.
+    tempo: Mapped[float] = mapped_column(default=1.0)
     # Prüfwert des Sprecherzugangs, siehe `wortlaut.zugang`. NULL heißt:
     # zurückgezogen - dann kommt niemand an diesen Korpus heran.
     zugang_hash: Mapped[str | None] = mapped_column(default=None)
@@ -124,4 +128,8 @@ class Erkennung(Basis):
     # Angabe ist die Rechenzeit daneben keine Auskunft, sondern eine Zahl.
     # Leer heißt „unbekannt" - gemessen, bevor es die Spalte gab.
     rechenwerk: Mapped[str]
+    # Mit welchem Faktor vorgespult war, was hier gemessen wurde. Teil des
+    # Schlüssels wie `rechenwerk`: Eine Zahl aus vorgespulter Sprache ist mit
+    # einer aus ungespulter nicht zu vergleichen (siehe `011_tempo.sql`).
+    tempo: Mapped[float] = mapped_column(default=1.0)
     erstellt: Mapped[str]

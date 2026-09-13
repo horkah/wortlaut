@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from wortlaut import audio as klang
-from wortlaut import ids, storage
+from wortlaut import ids, storage, tempo
 from wortlaut.whisper import Transkriptor
 
 from ..config import audio_relpfad
@@ -52,16 +52,30 @@ def zerlege(
     ablage: storage.Ablage,
     sprache: str,
     sprecher_id: str,
+    faktor: float = tempo.VORGABE,
 ) -> list[Rohabschnitt]:
     """Aufnahme des Browsers → Abschnitte mit je eigener WAV-Datei.
 
     Wirft `AudioFehler`, wenn die Umwandlung scheitert; eine Aufnahme ohne
     verstandenes Wort ergibt eine leere Liste - das ist kein Fehler, sondern
     eine Antwort, mit der die Oberfläche umgehen kann.
+
+    **Vorgespult wird nur, was das Modell hört.** Gespeichert und geschnitten
+    wird die echte Aufnahme. Das ist kein Feinschliff, sondern die Bedingung
+    dafür, dass hinterher noch etwas stimmt: Im Korpus liegt die Stimme dieses
+    Menschen, nicht eine beschleunigte Fassung davon, und die Dauer eines
+    Abschnitts ist die Zeit, die er wirklich gesprochen hat.
+
+    **Und deshalb müssen die Zeitmarken zurückgerechnet werden.** Whisper
+    meldet sie in der Zeit, die es gehört hat - bei Faktor 2 also in halber.
+    Ungerechnet geschnitten ergäbe das Abschnitte, die bei der Hälfte der
+    Aufnahme enden, und niemand sähe daran, woran es liegt.
     """
     with tempfile.TemporaryDirectory() as verzeichnis:
         wav = _als_wav(eingang, Path(verzeichnis))
-        transkript = transkriptor.transkribiere(wav, sprache)
+        transkript = transkriptor.transkribiere(
+            _vorgespult(wav, Path(verzeichnis), faktor), sprache
+        )
 
         abschnitte: list[Rohabschnitt] = []
         for nummer, abschnitt in enumerate(transkript.abschnitte):
@@ -69,7 +83,9 @@ def zerlege(
                 continue  # Whisper meldet gelegentlich stumme Segmente
             kennung = ids.neue_id("seg")
             ausschnitt = Path(verzeichnis) / f"{nummer}.wav"
-            klang.schneide_ausschnitt(wav, ausschnitt, abschnitt.start_s, abschnitt.ende_s)
+            klang.schneide_ausschnitt(
+                wav, ausschnitt, abschnitt.start_s * faktor, abschnitt.ende_s * faktor
+            )
             relpfad = audio_relpfad(sprecher_id, kennung)
             # `lege_ab` verschiebt - die Ausschnitte sind temporäre Dateien.
             ablage.lege_ab(relpfad, ausschnitt)
@@ -78,7 +94,7 @@ def zerlege(
                     id=kennung,
                     text=abschnitt.text,
                     blob=relpfad,
-                    dauer_s=max(0.0, abschnitt.ende_s - abschnitt.start_s),
+                    dauer_s=max(0.0, (abschnitt.ende_s - abschnitt.start_s) * faktor),
                 )
             )
         return abschnitte
@@ -91,6 +107,7 @@ def sprich_neu_ein(
     sprache: str,
     sprecher_id: str,
     kennung: str,
+    faktor: float = tempo.VORGABE,
 ) -> Rohabschnitt:
     """Eine einzelne, kurze Aufnahme für genau einen Abschnitt.
 
@@ -100,7 +117,11 @@ def sprich_neu_ein(
     """
     with tempfile.TemporaryDirectory() as verzeichnis:
         wav = _als_wav(eingang, Path(verzeichnis))
-        transkript = transkriptor.transkribiere(wav, sprache)
+        # Hier wird nicht geschnitten, also braucht auch nichts zurückgerechnet
+        # zu werden - der Befund gilt der echten Aufnahme wie eh und je.
+        transkript = transkriptor.transkribiere(
+            _vorgespult(wav, Path(verzeichnis), faktor), sprache
+        )
         befund = klang.untersuche(wav)
         relpfad = audio_relpfad(sprecher_id, kennung)
         ablage.lege_ab(relpfad, wav)
@@ -108,6 +129,20 @@ def sprich_neu_ein(
     return Rohabschnitt(
         id=kennung, text=transkript.text.strip(), blob=relpfad, dauer_s=befund.dauer_s
     )
+
+
+def _vorgespult(wav: Path, verzeichnis: Path, faktor: float) -> Path:
+    """Die Fassung, die das Modell zu hören bekommt - bei Faktor 1 die eigene.
+
+    Die Datei lebt so lange wie das temporäre Verzeichnis des Aufrufers, also
+    bis das Diktat zerlegt ist. Abgelegt wird sie nirgends: Was aufbewahrt
+    wird, ist die echte Aufnahme.
+    """
+    if not tempo.vorspulen_noetig(faktor):
+        return wav
+    schnell = verzeichnis / "vorgespult.wav"
+    tempo.spule_vor(wav, schnell, faktor)
+    return schnell
 
 
 def _als_wav(eingang: bytes, verzeichnis: Path) -> Path:

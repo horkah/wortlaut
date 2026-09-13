@@ -71,7 +71,12 @@ PROTOKOLL = "protokoll.txt"
 # `raeume_zwischenstaende_auf`).
 ARBEITSSTAND = "arbeitsstand"
 GEWICHTE = "gewichte"
-ZWISCHENSTAENDE = (ARBEITSSTAND, GEWICHTE)
+# Die vorgespulten Fassungen, falls dieser Lauf mit einem Tempofaktor rechnet
+# (`wortlaut/tempo.py`). Sie gehören hierher und nicht in den Korpus: Sie sind
+# abgeleitet, gehören zu diesem einen Lauf und wären im Korpus eine dritte
+# Garnitur Audiodateien, die niemand hören will.
+VORGESPULT = "vorgespult"
+ZWISCHENSTAENDE = (ARBEITSSTAND, GEWICHTE, VORGESPULT)
 
 # ── Die Faltungen ───────────────────────────────────────────────────────────
 #
