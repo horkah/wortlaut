@@ -119,11 +119,34 @@ Zwei Fragen, die sich nicht vermischen lassen, also zwei Achsen:
 | **Feintuning (LoRA)** | kleiner Zusatz, eine Probe je Aufnahme | kleiner Zusatz, vier Proben je Aufnahme |
 
 Erst der Vergleich der vier sagt, ob das Mehr an Daten oder das Mehr an
-Freiheit geholfen hat. Trainiert wird immer auf `whisper-small`, fest und in
-der Oberfläche nicht wählbar: Es ist die kleinste Stufe, die ganze Sätze
-trifft, es passt in den Speicher einer einzelnen Karte, und es ist dieselbe
-Reihe, gegen die `hören` schon misst. Ohne diesen gemeinsamen Nenner wäre der
-Vergleich mit der Grundlinie keiner.
+Freiheit geholfen hat.
+
+### Worauf trainiert wird
+
+Seit September 2026 ist auch das Grundmodell eine Wahl:
+
+| | | Mit vollem Training | Mit LoRA |
+|---|---|---|---|
+| **whisper-small** | 244 M Gewichte, die Vorgabe | ja | ja |
+| **whisper-medium** | 769 M Gewichte | **nein** | ja |
+
+`small` bleibt die Vorgabe: die kleinste Stufe, die ganze Sätze trifft, bequem
+im Speicher einer einzelnen Karte, und dieselbe Reihe, gegen die `hören` schon
+misst.
+
+`medium` ist der stärkste Hebel, den dieses Projekt hat - dreimal so viele
+Gewichte und ein deutlich besserer Ausgangspunkt. **Nur mit LoRA**: Volles
+Feintuning von `medium` sprengt den Speicher einer 11-GB-Karte. Die
+Kombination wird deshalb gar nicht erst angeboten und zusätzlich in der API
+und im Trainer abgewiesen - nach zwei Stunden am Speicher zu scheitern wäre
+die schlechteste aller Auskünfte. Mit LoRA passt es: Das Grundmodell bleibt
+eingefroren, gelernt wird ein kleiner Zusatz. Der Stapel fällt dabei von acht
+auf vier bei doppelter Akkumulation, die wirksame Stapelgröße bleibt also
+gleich (`je_grundmodell` in `training/rezepte/whisper_lora.yaml`).
+
+Ein Grundmodell muss in `WORTLAUT_AUSWERTUNG_MODELLE` stehen, sonst hat sein
+trainierter Stand keine Grundlinie, gegen die er antreten könnte. `base`,
+`small`, `medium` und `large-v3` sind dort von Haus aus dabei.
 
 Alles Übrige - Lernrate, Durchgänge, Stapelgröße, LoRA-Rang - steht in
 `training/rezepte/*.yaml` und nicht in der Oberfläche. Jede Einstellmöglichkeit

@@ -31,7 +31,21 @@ export type Aufteilung = {
   genug: boolean;
 };
 
-/** Eine Wahlmöglichkeit beim Beauftragen - eine der vier Achsen eines Laufs. */
+/**
+ * Ein Grundmodell zur Wahl - und was es verträgt.
+ *
+ * `methoden` steht dabei, damit die Oberfläche die unmögliche Kombination gar
+ * nicht erst anbietet: Volles Feintuning von `medium` sprengt den Speicher der
+ * Karte (siehe `wortlaut/laeufe.py`).
+ */
+export type Grundmodell = {
+  schluessel: string;
+  name: string;
+  erklaerung: string;
+  methoden: string[];
+};
+
+/** Eine Wahlmöglichkeit beim Beauftragen - eine der Achsen eines Laufs. */
 export type Wahl = {
   schluessel: string;
   name: string;
@@ -134,6 +148,8 @@ export type Laufliste = {
   abschluesse: Wahl[];
   augmentierungen: Wahl[];
   dauern: Wahl[];
+  grundmodelle: Grundmodell[];
+  /** Die Vorgabe, worauf trainiert wird. */
   basismodell: string;
   /** Wie viele Faltungen ein Lauf rechnet. */
   faltungen: number;
@@ -154,6 +170,7 @@ export type Laufeinzeln = {
   abschluesse: Wahl[];
   augmentierungen: Wahl[];
   dauern: Wahl[];
+  grundmodelle: Grundmodell[];
   kurve_training: Punkt[];
   kurve_validierung: Punkt[];
   /** Fassung → die Maße, jeweils vorher und nachher. */
@@ -282,10 +299,11 @@ export const beauftrage = (
   abschluss: string,
   augmentierung: string,
   dauer: string,
+  grundmodell: string,
   schluessel: string,
 ) =>
   anfrage<Lauf>('/laeufe', {
-    ...alsJson({ methode, daten, abschluss, augmentierung, dauer }),
+    ...alsJson({ methode, daten, abschluss, augmentierung, dauer, grundmodell }),
     headers: { 'Content-Type': 'application/json', 'X-Trainer-Key': schluessel },
   });
 

@@ -229,7 +229,7 @@ def _grundmodellnamen() -> list[str]:
     ]
     # Das Grundmodell, auf das trainiert wird, steht immer dabei - sonst fehlte
     # ausgerechnet die Grundlinie, gegen die jeder Stand antritt.
-    kurz = konfiguration.lernen_basismodell.rsplit("/", 1)[-1].removeprefix("whisper-")
+    kurz = lauf_layout.kurzname(konfiguration.lernen_basismodell)
     if kurz not in namen:
         namen.append(kurz)
     return namen
@@ -266,7 +266,7 @@ def _abschluss(manifest: dict) -> str:
 
 
 def _stand_herkunft(manifest: dict) -> str:
-    grund = str(manifest.get("basismodell", "?")).rsplit("/", 1)[-1]
+    grund = f"whisper-{lauf_layout.kurzname(str(manifest.get('basismodell', '?')))}"
     datum = str(manifest.get("erstellt", ""))[:10]
     abwandlung = AUGMENTIERUNGEN.get(str(manifest.get("augmentierung", "")), "")
     dauer = DAUERN.get(str(manifest.get("dauer", "")), "")

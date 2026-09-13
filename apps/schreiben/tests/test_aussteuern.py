@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from fastapi.testclient import TestClient
-from wortlaut import audio, augmentierung, registry
+from wortlaut import audio, registry
 
 if TYPE_CHECKING:  # nur für die Typen - zur Laufzeit kommt der Ersatz als Fixture
     from apps.schreiben.tests.conftest import Testtranskriptor

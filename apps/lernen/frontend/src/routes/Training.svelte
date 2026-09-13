@@ -31,6 +31,7 @@
     type Laufliste,
   } from '../lib/api';
   import { setzeTrainerschluessel, trainerschluessel } from '../lib/trainerschluessel';
+  import { setzeTrainingswahl, trainingswahl } from '../lib/trainingswahl';
   import { LAUF_ROUTE, gehZu } from '../lib/zustand.svelte';
 
   // Während gerechnet wird, soll der Balken mitwachsen - aber ein Takt von
@@ -44,12 +45,42 @@
   // Welcher Lauf gerade gelöscht wird - der Knopf sperrt sich so lange selbst.
   let loescht = $state('');
 
-  let methode = $state('lora');
-  let datensatz = $state('original');
-  // Die Vorgabe ist das Verfahren von vorher - siehe Kopf dieser Datei.
-  let abschluss = $state('bester');
-  let augmentierung = $state('keine');
-  let dauer = $state('fest');
+  // Die Wahl kommt aus dem Browser und geht dorthin zurück: Wer vier Läufe
+  // vergleicht, sieht sich zwischendurch Kurven an, und nach der Rückkehr soll
+  // nicht alles wieder auf der Vorgabe stehen (siehe `lib/trainingswahl.ts`).
+  // Die Vorgaben selbst sind das Verfahren von vorher - siehe Kopf dieser Datei.
+  const gemerkt = trainingswahl();
+  let grundmodell = $state(gemerkt.grundmodell);
+  let methode = $state(gemerkt.methode);
+  let datensatz = $state(gemerkt.datensatz);
+  let abschluss = $state(gemerkt.abschluss);
+  let augmentierung = $state(gemerkt.augmentierung);
+  let dauer = $state(gemerkt.dauer);
+
+  $effect(() => {
+    setzeTrainingswahl({ grundmodell, methode, datensatz, abschluss, augmentierung, dauer });
+  });
+
+  /**
+   * Welche Methoden das gewählte Grundmodell verträgt.
+   *
+   * Der Server sagt es je Grundmodell mit; die Seite führt keine eigene Liste.
+   * Steht die Wahl auf einer Kombination, die es nicht gibt - etwa weil beim
+   * letzten Besuch ein anderes Grundmodell gewählt war -, rückt die Methode auf
+   * die erste zurück, die geht.
+   */
+  const gewaehltesGrundmodell = $derived(
+    daten?.grundmodelle.find((g) => g.schluessel === (grundmodell || daten?.basismodell)),
+  );
+  const erlaubteMethoden = $derived(
+    gewaehltesGrundmodell?.methoden ?? (daten?.methoden ?? []).map((m) => m.schluessel),
+  );
+
+  $effect(() => {
+    if (erlaubteMethoden.length && !erlaubteMethoden.includes(methode)) {
+      methode = erlaubteMethoden[0];
+    }
+  });
   // Der Trainerschlüssel. Er steht hier neben Methode und Datensatz, weil er
   // an derselben Stelle gebraucht wird - aber er gehört nicht zur Bestellung,
   // sondern zur Erlaubnis, sie aufzugeben (siehe `lib/trainerschluessel.ts`).
@@ -153,7 +184,15 @@
   async function bestelle() {
     bestellt = 'laeuft';
     try {
-      await beauftrageLauf(methode, datensatz, abschluss, augmentierung, dauer, schluessel);
+      await beauftrageLauf(
+        methode,
+        datensatz,
+        abschluss,
+        augmentierung,
+        dauer,
+        grundmodell,
+        schluessel,
+      );
       // Erst merken, wenn er gestimmt hat: Ein falsch getippter Schlüssel, der
       // den Neustart überlebt, ist einer, den man beim nächsten Mal nicht mehr
       // verdächtigt.
@@ -254,14 +293,45 @@
     <p>{daten.hinweis}</p>
   {:else if daten}
     <div class="wahlen">
+      <!-- Das Grundmodell zuerst: Es ist der stärkste Hebel und entscheidet
+           zugleich, welche Methoden überhaupt noch zur Wahl stehen. -->
       <fieldset>
-        <legend>Wie trainiert wird</legend>
-        {#each daten.methoden as wahl (wahl.schluessel)}
+        <legend>Worauf trainiert wird</legend>
+        {#each daten.grundmodelle as wahl (wahl.schluessel)}
           <label class="option">
-            <input type="radio" bind:group={methode} value={wahl.schluessel} />
+            <input
+              type="radio"
+              bind:group={grundmodell}
+              value={wahl.schluessel === daten.basismodell ? '' : wahl.schluessel}
+            />
             <span>
               <strong>{wahl.name}</strong>
               <span class="gedaempft">{wahl.erklaerung}</span>
+            </span>
+          </label>
+        {/each}
+      </fieldset>
+
+      <fieldset>
+        <legend>Wie trainiert wird</legend>
+        {#each daten.methoden as wahl (wahl.schluessel)}
+          {@const geht = erlaubteMethoden.includes(wahl.schluessel)}
+          <label class="option" class:nichtmoeglich={!geht}>
+            <input
+              type="radio"
+              bind:group={methode}
+              value={wahl.schluessel}
+              disabled={!geht}
+            />
+            <span>
+              <strong>{wahl.name}</strong>
+              <span class="gedaempft">
+                {wahl.erklaerung}
+                {#if !geht}
+                  <br />Mit {gewaehltesGrundmodell?.name} nicht möglich: Es sprengt den Speicher
+                  der Karte.
+                {/if}
+              </span>
             </span>
           </label>
         {/each}
@@ -554,6 +624,14 @@
   .option .gedaempft {
     font-size: 0.85rem;
     line-height: 1.4;
+  }
+
+  /* Nicht versteckt, sondern abgeblendet: Dass volles Training mit `medium`
+     nicht geht, ist eine Auskunft. Eine Wahl, die spurlos verschwindet,
+     hinterlässt die Frage, ob man sie sich eingebildet hat. */
+  .option.nichtmoeglich {
+    cursor: default;
+    opacity: 0.55;
   }
 
   /* Ein Hinweis, kein Alarm: Dass Aufnahmen dazugekommen sind, ist der

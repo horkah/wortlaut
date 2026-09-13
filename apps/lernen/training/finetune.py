@@ -61,6 +61,20 @@ def _rezeptpfad(methode: str) -> Path:
     return REZEPTE / f"whisper_{methode}.yaml"
 
 
+def _rezept_fuer(methode: str, basismodell: str) -> dict[str, Any]:
+    """Das Rezept dieser Methode, mit den Abweichungen dieses Grundmodells darüber.
+
+    Ein Rezept je Methode und nicht je Kombination: Lernrate, Durchgänge und
+    LoRA-Rang hängen daran, wie trainiert wird, nicht woran. Was am Grundmodell
+    hängt, ist der Platz auf der Karte - `medium` ist dreimal so groß wie
+    `small`, und derselbe Stapel passt nicht mehr. Genau dafür steht
+    `je_grundmodell` in der YAML-Datei, und nur dafür.
+    """
+    rezept = yaml.safe_load(_rezeptpfad(methode).read_text(encoding="utf-8"))
+    abweichungen = (rezept.get("je_grundmodell") or {}).get(laeufe.kurzname(basismodell), {})
+    return {**rezept, **abweichungen}
+
+
 class Bericht:
     """Der Draht nach draußen: Zustand, Fortschritt, Protokoll.
 
@@ -304,7 +318,16 @@ def trainiere(
         raise RuntimeError(
             f"Unbekannte Dauer: {dauer}. Zur Wahl stehen: {', '.join(laeufe.DAUERN)}."
         )
-    rezept = yaml.safe_load(_rezeptpfad(methode).read_text(encoding="utf-8"))
+    # Die eine Kombination, die es nicht gibt - hier noch einmal geprüft und
+    # nicht nur in der API. Ein Auftrag kann von Hand im Verzeichnis liegen,
+    # und zwei Stunden zu rechnen, um dann am Speicher zu scheitern, ist die
+    # schlechteste aller Auskünfte.
+    if methode not in laeufe.methoden_fuer(basismodell):
+        raise RuntimeError(
+            f"{laeufe.kurzname(basismodell)} lässt sich nur mit "
+            f"{', '.join(laeufe.methoden_fuer(basismodell))} trainieren."
+        )
+    rezept = _rezept_fuer(methode, basismodell)
 
     bericht.stufe("laden")
     bericht.sage(f"Rezept: {rezept['name']} · Grundmodell: {basismodell}")
