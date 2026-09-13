@@ -14,31 +14,21 @@ import { alsJson, api } from '$ui/api';
 import type { Wer } from '$ui/wer';
 export { setzeZugang, zugang } from '$ui/zugang';
 
-/** Ein Teil der Aufteilung, beschriftet vom Server. */
-export type Teil = {
-  schluessel: string;
-  name: string;
-  erklaerung: string;
-};
-
-export type Probe = {
-  /** Der Platz im Muster - daran hängt, welcher Teil zugeteilt wurde. */
-  nummer: number;
-  aufnahme_id: string;
-  teil: string;
-  dauer_s: number;
-  erstellt: string;
-  text: string;
-};
-
+/**
+ * Wie der Korpus auf die Faltungen der Kreuzvalidierung fällt.
+ *
+ * Ohne Liste der Aufnahmen: Die steht unter „Meine Daten", einmal und
+ * vollständig (siehe `routes/Aufteilung.svelte`).
+ */
 export type Aufteilung = {
-  teile: Teil[];
-  muster: string[];
-  anzahl: Record<string, number>;
-  sekunden: Record<string, number>;
-  proben: Probe[];
-  /** Zuteilungen zu gelöschten Aufnahmen - der Platz bleibt vergeben. */
-  verwaist: number;
+  /** Wie viele Faltungen gerechnet werden - die Zahl kommt vom Server. */
+  faltungen: number;
+  aufnahmen: number;
+  sekunden: number;
+  /** Faltung (als Zeichenkette) → wie viele Aufnahmen darin liegen. */
+  je_faltung: Record<string, number>;
+  /** Ob jede Faltung wenigstens eine Aufnahme hat. */
+  genug: boolean;
 };
 
 /** Eine Wahlmöglichkeit beim Beauftragen - eine der vier Achsen eines Laufs. */
@@ -145,6 +135,8 @@ export type Laufliste = {
   augmentierungen: Wahl[];
   dauern: Wahl[];
   basismodell: string;
+  /** Wie viele Faltungen ein Lauf rechnet. */
+  faltungen: number;
   bereit: boolean;
   hinweis: string;
   /** Ob der Server vor einem Auftrag den Trainerschlüssel sehen will. */

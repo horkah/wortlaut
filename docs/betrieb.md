@@ -71,7 +71,7 @@ Aufträge an und zeigt, was daraus wird; das Training selbst läuft im Container
 `accelerate` voraus - sie stehen absichtlich nicht in `uv sync`, denn drei
 Gigabyte CUDA für eine Oberfläche wären der falsche Handel.
 
-Ohne Karte lässt sich alles außer dem Rechnen ansehen: Die Aufteilung steht,
+Ohne Karte lässt sich alles außer dem Rechnen ansehen: Die Faltungen stehen,
 Aufträge sammeln sich und gehen nicht verloren.
 
 `make migrate` schreibt alle Korpora auf einmal fort. Nötig ist es dafür
@@ -505,7 +505,7 @@ App „lernen" - alles unter `/lernen`, jeder Weg außer `/gesundheit` verlangt
 kommen hier nicht durch: Ein Modell gehört einem Menschen.
 
 ```
-GET    /lernen/api/aufteilung                     wer lernt, steuert, prüft
+GET    /lernen/api/aufteilung                     die Faltungen in Zahlen
 GET    /lernen/api/laeufe                         die Liste, ohne Kurven
 POST   /lernen/api/laeufe                         { methode, daten, abschluss? }
 GET    /lernen/api/laeufe/{id}                    Kurven, Vergleich, Protokoll
@@ -723,7 +723,7 @@ wortlaut-gesamt-20260822-174500.tgz
 └── daten/
     ├── korpus/spr_…/hoeren.sqlite
     ├── korpus/spr_…/audio/rec_….wav
-    ├── lernen/spr_…/lernen.sqlite    die Aufteilung in Lernen und Prüfen
+    ├── lernen/spr_…/lernen.sqlite    leer (die Aufteilung fiel weg)
     └── diktate/spr_…/…               Arbeitsstand von „schreiben"
 ```
 

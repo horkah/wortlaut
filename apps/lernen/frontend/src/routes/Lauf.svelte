@@ -9,7 +9,7 @@
    * sinkt. Eine Kurve allein beantwortete die falsche Frage.
    *
    * **Warum der Vergleich unten und nicht oben.** Weil er erst am Ende
-   * entsteht: Die Testaufnahmen hört das fertige Modell, nicht das
+   * entsteht: Die zurückgehaltene Faltung hört das Modell dieser Faltung, nicht das
    * halbfertige. Solange oben eine Kurve wächst, gibt es unten nichts zu
    * sehen - und das ist besser, als eine Zahl zu zeigen, die sich noch ändert.
    */
@@ -315,7 +315,7 @@
   {#if fassungen.length}
     <h3>Gegen die Grundlinie</h3>
     <p class="gedaempft">
-      Dieselben Testaufnahmen, die das Modell nie gesehen hat - einmal durch das unveränderte
+      Dieselben Aufnahmen, die das jeweilige Faltungsmodell nie gesehen hat - einmal durch das unveränderte
       {lauf.basismodell} (gemessen in der Auswertung von „hören") und einmal durch diesen Stand.
     </p>
 
@@ -387,7 +387,7 @@
         </tbody>
       </table>
       <p class="gedaempft klein">
-        Über {vergleich[fassung][0]?.anzahl ?? 0} Testaufnahmen - nur solche, die beide Seiten
+        Über {vergleich[fassung][0]?.anzahl ?? 0} Aufnahmen - nur solche, die beide Seiten
         gemessen haben.
       </p>
     {/each}

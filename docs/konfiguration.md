@@ -72,7 +72,7 @@ reicht. Wer wenig Maschine hat, kürzt auf `base,small`.
 
 **Eine Einstellung und nicht drei, und das ist der Punkt.** Sie gilt für
 `schreiben` beim Diktieren, für die Auswertung in `hören` und für den Trainer,
-wenn er seinen fertigen Stand auf den Testaufnahmen misst. Diese drei schicken
+wenn er seine Faltungsmodelle an den zurückgehaltenen Aufnahmen misst. Diese drei schicken
 dieselben Modelle über dieselben Aufnahmen, und ihre Rechenzeiten stehen in der
 Modellübersicht von `lernen` nebeneinander - vergleichbar sind sie nur, wenn
 sie von derselben Maschine stammen. Zwischen Karte und Prozessor liegt beim

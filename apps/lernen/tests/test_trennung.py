@@ -53,14 +53,14 @@ class TestFremdeLaeufe:
         assert fremder.get(f"/lernen/api/laeufe/{meiner}").status_code == 404
         assert fremder.post(f"/lernen/api/laeufe/{meiner}/abbruch").status_code == 404
 
-    def test_die_aufteilung_eines_anderen_bleibt_seine(
+    def test_die_faltungen_eines_anderen_bleiben_seine(
         self, klient: TestClient, fremder: TestClient, quelle: str, sprich
     ) -> None:
         sprich(6)
-        assert len(klient.get("/lernen/api/aufteilung").json()["proben"]) == 6
+        assert klient.get("/lernen/api/aufteilung").json()["aufnahmen"] == 6
         # Der zweite Sprecher hat einen eigenen, leeren Korpus - und eine
         # eigene Datenbank daneben.
-        assert fremder.get("/lernen/api/aufteilung").json()["proben"] == []
+        assert fremder.get("/lernen/api/aufteilung").json()["aufnahmen"] == 0
 
 
 class TestKorpusBleibtUnberuehrt:
@@ -100,7 +100,7 @@ class TestLoeschung:
     das stehen, was auf die gelöschten Daten zeigt.
     """
 
-    def test_aufteilung_und_laeufe_gehen_mit(
+    def test_die_laeufe_gehen_mit(
         self,
         klient: TestClient,
         verwalter: TestClient,
@@ -114,8 +114,9 @@ class TestLoeschung:
         sprich(6)
         klient.post("/lernen/api/laeufe", json={"methode": "lora", "daten": "original"})
 
-        # Beides liegt jetzt da …
-        assert (datenverzeichnis / "lernen" / sprecher).is_dir()
+        # Der Schnappschuss liegt jetzt da. Eine eigene Datenbank hat „lernen"
+        # seit dem Wegfall der Aufteilung nicht mehr zu füllen - die Faltungen
+        # folgen der Reihenfolge des Korpus (`services/aufteilung.py`).
         assert loeschung.schnappschuesse(datenverzeichnis, sprecher)
 
         entfernt = loeschung.loesche(datenverzeichnis, sprecher)
@@ -124,7 +125,7 @@ class TestLoeschung:
         assert not (datenverzeichnis / "lernen" / sprecher).exists()
         assert not loeschung.schnappschuesse(datenverzeichnis, sprecher)
         assert not (datenverzeichnis / "korpus" / sprecher).exists()
-        assert len(entfernt) >= 3
+        assert len(entfernt) >= 2
 
     def test_der_schnappschuss_traegt_seine_marke(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis, sprecher: str

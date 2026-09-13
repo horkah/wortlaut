@@ -50,20 +50,21 @@ Abschnitt 7.
 
 | # | Schritt | Wo |
 |---|---|---|
-| 1 | Aufteilung in Training / Validierung / Test, einmalig und dauerhaft | `wortlaut/laeufe.py:94` (`MUSTER`), `apps/lernen/backend/services/aufteilung.py` |
+| 1 | Sechs Faltungen, der Reihe nach vergeben | `wortlaut/laeufe.py` (`faltung_fuer`), `apps/lernen/backend/services/aufteilung.py` |
 | 2 | Manifest schreiben: je Probe Pfad, Text, Herkunft, Gewicht, Teil | `apps/lernen/backend/services/auftraege.py:_manifestzeile` |
 | 3 | WAV → Log-Mel, Text → Marken, Stapel bilden | `apps/lernen/training/daten.py:63` (`Proben.__getitem__`), `:77` (`Stapler`) |
 | 4 | **Modell aus Daten** - der eigentliche Lernschritt | `apps/lernen/training/finetune.py:205` (`trainiere`), `:341` (`trainer.train()`) |
 | 5 | Die Verlustrechnung, die dieses Projekt von der Vorgabe abweichen lässt | `apps/lernen/training/finetune.py:174` (`GewichtetesTraining.compute_loss`) |
 | 6 | LoRA verschmelzen, sichern | `finetune.py:357` ff. (`bericht.stufe("sichern")`) |
 | 7 | Umwandlung nach CTranslate2 float16 | `finetune.py:381` (`wandle_um`) |
-| 8 | Messung auf dem Testdrittel, Eintrag in die Registry | `apps/lernen/training/bewerten.py:50`, `:134` |
+| 8 | Messung je Faltung, Endmodell auf allem, Eintrag in die Registry | `apps/lernen/training/bewerten.py`, `finetune.kreuzvalidiere` |
 
 Wer nur **eine** Stelle lesen will, an der aus Trainingsdaten ein verbessertes
 Modell wird, liest `finetune.py:282-341`: dort stehen die Hyperparameter, dort
 wird der Trainer gebaut, dort läuft er.
 
-**Die Aufteilung in Zahlen.** Das Muster über sechs Plätze
+**Die Aufteilung in Zahlen** *(Stand vor September 2026; heute wird
+kreuzvalidiert, siehe **C**)*. Das Muster über sechs Plätze
 (`train, train, test, train, validierung, test`) ergibt genau: 1/2 Training,
 1/6 Validierung, 1/3 Test. Bei den anderthalb Stunden, von denen der
 Projekttext ausgeht - grob 180 Aufnahmen - sind das etwa **90 Trainings-,
@@ -269,7 +270,7 @@ relativ zur heutigen Wortfehlerrate.
 |---|---|---|---|---|---|
 | **A** | SpecAugment + Tempo-/Raumvariation statt reiner Amplitude | 5-15 % rel. | mittel | gering | ✅ |
 | **B** | Auswahl nach WER, häufiger geprüft | 3-8 % rel. | mittel | gering | |
-| **C** | k-fache Kreuzvalidierung über Training+Validierung | indirekt | mittel | keins | |
+| **C** | k-fache Kreuzvalidierung über alle Daten | indirekt | mittel | keins | ✅ |
 | **D** | Gewichtsmittelung / Interpolation mit dem Grundmodell | 2-6 % rel. | gering | gering | ✅ |
 | **E** | LoRA-Ziele erweitern, Rang prüfen | 0-5 % rel. | gering | gering | |
 | **F** | Korrekturgewicht messen statt setzen; Selbsttraining | 5-20 % rel. | hoch | mittel | |
@@ -329,7 +330,7 @@ und Abschluss:
   (`finetune.py`). Die Validierung steuert den Lauf - sie sagt, welcher
   Durchgang der beste war und welches α gewinnt (**D**); eine Validierung, die
   in jedem Durchgang anders klingt, misst den Würfel und nicht das Modell. Das
-  Testdrittel wird ohnehin nie angefasst.
+  zurückgehaltene Faltung wird nicht mitgelernt.
 * **Die Masken enden beim letzten gesprochenen Rahmen.** Whisper füllt jede
   Aufnahme auf 30 Sekunden auf; bei einem Satz von vier Sekunden sind 2600 von
   3000 Rahmen Stille. Ein Balken an zufälliger Stelle träfe fast immer die
@@ -378,28 +379,66 @@ werden. Je feiner geprüft und je öfter ausgewählt wird, desto mehr passt man
 sich an 30 Aufnahmen an. Das ist der Grund, warum **C** und **I**
 dazugehören.
 
-### C - Kreuzvalidierung statt einer festen Sechstelmenge
+### C - Kreuzvalidierung statt einer festen Sechstelmenge ✅ umgesetzt
 
-**Was.** Training und Validierung (zusammen zwei Drittel) in k = 5 Faltungen
-teilen und k Läufe rechnen; der Test bleibt unangetastet. Ergebnis ist nicht
-ein Modell, sondern eine **Schätzung mit Streuung** für jede Rezeptvariante.
+**Was geplant war.** Training und Validierung (zusammen zwei Drittel) in k = 5
+Faltungen teilen und k Läufe rechnen; der Test bleibt unangetastet.
 
-**Warum.** Eine Auswahl über 30 Aufnahmen hat eine Standardabweichung in der
-Größenordnung der Unterschiede, die man messen will. Die Aussage „Rezept X ist
-besser als Y" ist bei einer festen Sechstelmenge kaum abzusichern; mit fünf
-Faltungen ist sie es. Der Aufteilungsentwurf des Projekts erlaubt das ohne
-Bruch: Die Faltung läuft **innerhalb** der Nichttestmenge, die Zusage „kein
-Testmaterial im Training" bleibt unberührt, und die Zuteilungstabelle wird
-nicht angefasst.
+**Was daraus geworden ist - und es ist mehr.** Das Testdrittel ist ganz
+weggefallen. Kreuzvalidiert wird über **alle** Aufnahmen, sechsfach, und die
+Faltung folgt schlicht der Reihenfolge des Korpus: 1, 2, 3, 4, 5, 6, 1, 2, …
 
-**Wofür, konkret.** Nicht, um k Modelle auszuliefern, sondern um genau die
-Fragen zu entscheiden, die heute offen sind: Trägt Tempoveränderung oder
-schadet sie? Ist 0,5 das richtige Korrekturgewicht? Lohnt Rang 32 gegenüber
-Rang 8? Jede dieser Fragen ist ein Vergleich zweier Zahlen, und ohne Streuung
-ist so ein Vergleich eine Meinung.
+Der Anlass war ein Korpus von neun Aufnahmen. Darin bestand der Test aus
+dreien, die Validierung aus **einer**. Eine Fehlerrate über drei Aufnahmen ist
+keine Auskunft, sondern ein Würfelwurf - und ein zurückgehaltenes Drittel, das
+nie etwas lernt, ist bei dieser Korpusgröße purer Verlust.
 
-**Kosten.** Fünffache Rechenzeit je beantworteter Frage. Deshalb hängt an
-diesem Vorschlag der Tempo-Vorschlag **G**.
+**Ein Lauf sind jetzt sieben Trainings.**
+
+| | Lernt auf | Gemessen an |
+|---|---|---|
+| Faltung 1 … 6 | fünf Sechsteln | dem zurückgehaltenen Sechstel |
+| Endmodell | allem | nichts |
+
+Nach den sechs Faltungen liegt zu **jeder** Aufnahme eine Messung von einem
+Modell vor, das sie nie gehört hat; diese Zeilen zusammen sind die Zahl des
+Laufs. Danach wird ein siebtes Mal trainiert, auf allem, mit dem Median der
+Durchgangszahl und dem Median des α aus den Faltungen - das ist der Stand, der
+in „schreiben" diktiert.
+
+**Vier Entscheidungen darin.**
+
+* **Zwei Modelle, eine Zeile in der Tabelle.** Die Zahlen stammen aus den sechs
+  Faltungsmodellen, ausgeliefert wird das siebte. Es hat mehr gesehen und ist
+  sehr wahrscheinlich besser - und genau deshalb nicht mehr ehrlich messbar. Die
+  Zahl daneben ist die vorsichtige. Das muss man wissen, und deshalb steht es
+  in der Ansicht.
+* **Die Faltung wird nicht gespeichert.** Die alte Zuteilung musste es, weil
+  eine Aufnahme, die einmal geprüft hatte, nie wieder trainieren durfte. In
+  fünf von sechs Faltungen trainiert jetzt jede Aufnahme ohnehin; die Faltung
+  entscheidet nur, wo sie gemessen wird. Sie folgt deshalb dem Korpus und steht
+  im Schnappschuss - eine Tabelle daneben wäre die erste Wahrheit, die nach der
+  nächsten Löschung nicht mehr stimmt.
+* **Gemessen wird immer auf allen Fassungen**, gelernt je nach `daten`. Damit
+  ist das Manifest für beide Datensätze dasselbe und bleibt, was es sein soll:
+  der Schnappschuss des Korpus, nicht die Anweisung an den Trainer.
+* **Ein unabhängiger Test fehlt, und das steht so da.** Die Kreuzvalidierung
+  sagt, wie gut das Verfahren auf **diesem** Korpus arbeitet, nicht, wie gut es
+  auf der nächsten Aufnahme arbeitet. Wirklich unabhängige Testaufnahmen werden
+  eigens aufgenommen werden.
+
+**Kosten.** Siebenfache Rechenzeit je Lauf. Die Doku hat hier früher **G**
+(Encoder kürzen) als Voraussetzung genannt; die gemessenen Laufzeiten auf
+dieser Karte sagen etwas anderes - 0,6 bis 6,2 Minuten je Training, also unter
+einer Stunde für einen ganzen Lauf. **G** bleibt nützlich, ist aber keine
+Bedingung mehr.
+
+**Eine Einschränkung, ehrlich benannt.** Mit `geduldig` steuert die
+zurückgehaltene Faltung zugleich den Abbruch **und** liefert die Messung. Das
+ist mild optimistisch - der Stopppunkt ist auf derselben Menge gewählt, an der
+gemessen wird. Mit `fest` besteht das Problem nicht. Sauber wäre eine
+geschachtelte Kreuzvalidierung; sie kostet das Quadrat und ist es bei dieser
+Korpusgröße nicht wert.
 
 ### D - Zwei Handgriffe am Ende, die fast nichts kosten ✅ umgesetzt
 
@@ -442,9 +481,10 @@ geworden, neben Methode und Datensatz (`wortlaut/laeufe.py`):
   sagen, was gewirkt hat. `bester` rechnet Gewicht für Gewicht das Verfahren
   von vorher, und ein Auftrag ohne dieses Feld ist derselbe Auftrag wie im
   August.
-* **α wird auf der Validierung gewählt, nie am Test.** Das Testdrittel wird nie
-  angefasst; ein α, das auf ihm gewählt wäre, machte aus der Testzahl eine
-  Trainingszahl. Gemessen wird der Validierungsverlust - dieselbe Größe, an der
+* **α wird an der zurückgehaltenen Faltung gewählt, nie an Gelerntem.** Sie
+  wird nicht mitgelernt; ein α, das auf Trainingsmaterial gewählt wäre, machte
+  aus der Messzahl eine Trainingszahl. Das Endmodell wählt gar nicht - es
+  übernimmt den Median aus den sechs Faltungen (**C**). Gemessen wird der Validierungsverlust - dieselbe Größe, an der
   schon `load_best_model_at_end` den besten Durchgang erkennt. Der WER wäre das
   bessere Maß, verlangte aber je α einen Dekodierdurchgang; das gehört zu **B**.
 * **α = 0 steht im Raster.** α = 0 ist der feingetunte Stand selbst. Steht es
@@ -563,7 +603,7 @@ gemessen wie alles andere, und zwar auf allen vier Fassungen.
 
 ### I - Vertrauensbereiche, und zwar zuerst ✅ umgesetzt
 
-**Warum zuerst.** 60 Testaufnahmen ergeben ein 95-%-Intervall, das mehrere
+**Warum zuerst.** 60 gemessene Aufnahmen ergeben ein 95-%-Intervall, das mehrere
 Prozentpunkte breit ist. Ein Großteil der Unterschiede, um die es in dieser
 Liste geht, liegt darunter. Ohne Intervall ist jeder Vergleich in der
 Modelltabelle eine Rangfolge von Rauschen - und das Projekt hat sich in seinem
@@ -729,11 +769,12 @@ Stufen, gestützt auf die Ergebnisse von **C**. Das ist zugleich die Stufe, die
 am ehesten den Entwurf berührt: Ein Gewicht je Probe aus der Korrekturhistorie
 verlangt ein zusätzliches Feld im Manifest.
 
-Zwei Grundsätze, die über allen Stufen stehen: Das Testdrittel wird nie
-angefasst - jede Auswahl, jede Einstellung, jede Faltung läuft auf den anderen
-zwei Dritteln. Und jede Maßnahme kommt als **weitere Achse** in die bestehende
-Vergleichstafel, nicht als stille Änderung des Rezepts; sonst ist hinterher
-nicht mehr zu sagen, was gewirkt hat.
+Zwei Grundsätze, die über allen Stufen stehen: **Kein Modell hört die
+Aufnahmen, an denen es gemessen wird** - seit September 2026 sorgt dafür die
+Kreuzvalidierung statt eines stillgelegten Testdrittels (**C**). Und jede
+Maßnahme kommt als **weitere Achse** in die bestehende Vergleichstafel, nicht
+als stille Änderung des Rezepts; sonst ist hinterher nicht mehr zu sagen, was
+gewirkt hat.
 
 ---
 

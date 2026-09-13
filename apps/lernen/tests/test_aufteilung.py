@@ -1,14 +1,21 @@
-"""Die Aufteilung: zwei Drittel lernen, ein Drittel prüft - und es bleibt dabei.
+"""Die Faltungen: sechs, der Reihe nach vergeben, nirgends gespeichert.
 
-Die wichtigste Zusage dieser App steht hier: Eine Aufnahme, die einmal geprüft
-hat, trainiert nie. Bricht sie, sieht man das an keiner Zahl - ein Modell, das
-seine Prüfung kennt, sieht schlicht gut aus. Deshalb wird sie hier geprüft und
-nicht dort, wo sie auffiele.
+Hier stand bis September 2026 die wichtigste Zusage dieser App - eine Aufnahme,
+die einmal geprüft hat, trainiert nie. Es gibt sie nicht mehr, weil es das
+Testdrittel nicht mehr gibt: Gemessen wird mit sechsfacher Kreuzvalidierung
+über den ganzen Korpus, und dabei trainiert jede Aufnahme in fünf von sechs
+Faltungen.
+
+Was an ihre Stelle tritt, ist eine schwächere, aber immer noch tragende Zusage:
+**Eine Aufnahme trägt genau eine Faltung.** Trüge sie zwei, hörte ein Modell
+die Aufnahme, an der es gemessen wird - und das sieht gut aus. Geprüft wird das
+dort, wo es entsteht: am Manifest (`test_laeufe.py`).
+
+Hier bleibt die Ansicht: dass sie die Zahlen nennt, ohne die Aufnahmen ein
+zweites Mal aufzuzählen.
 """
 
 from __future__ import annotations
-
-from collections.abc import Callable
 
 from fastapi.testclient import TestClient
 from wortlaut import laeufe
@@ -16,11 +23,10 @@ from wortlaut import laeufe
 from apps.lernen.backend.main import app
 
 
-def _teile(klient: TestClient) -> dict[str, str]:
-    """Aufnahme-Kennung → Teil, so wie die Ansicht es zeigt."""
+def _uebersicht(klient: TestClient) -> dict:
     antwort = klient.get("/lernen/api/aufteilung")
     assert antwort.status_code == 200, antwort.text
-    return {probe["aufnahme_id"]: probe["teil"] for probe in antwort.json()["proben"]}
+    return antwort.json()
 
 
 class TestZugriff:
@@ -35,91 +41,57 @@ class TestZugriff:
             assert verwaltung.get("/lernen/api/aufteilung").status_code == 401
 
 
-class TestZuteilung:
-    def test_folgt_dem_muster(self, klient: TestClient, quelle: str, sprich) -> None:
-        kennungen = sprich(6)
-        teile = _teile(klient)
-        # Genau das Muster aus `wortlaut/laeufe.py`, in der Reihenfolge des
-        # Korpus - also nach Alter der Aufnahme.
-        assert [teile[k] for k in kennungen] == list(laeufe.MUSTER)
-
-    def test_zwei_drittel_lernen_ein_drittel_prueft(
-        self, klient: TestClient, quelle: str, sprich
-    ) -> None:
-        sprich(12)
-        anzahl = klient.get("/lernen/api/aufteilung").json()["anzahl"]
-        lernend = anzahl[laeufe.TRAIN] + anzahl[laeufe.VALIDIERUNG]
-        assert lernend == 2 * anzahl[laeufe.TEST]
-
-    def test_neue_aufnahmen_werden_beim_hinsehen_zugeteilt(
-        self, klient: TestClient, quelle: str, sprich
-    ) -> None:
-        sprich(3)
-        assert len(_teile(klient)) == 3
-        sprich(3)
-        # Kein Knopf dazwischen: Wer die Seite ansieht, sieht den aktuellen
-        # Stand. Ein Knopf wäre einer, den jemand vergisst.
-        assert len(_teile(klient)) == 6
-
-    def test_bestehende_zuteilungen_bleiben_stehen(
-        self, klient: TestClient, quelle: str, sprich
-    ) -> None:
+class TestFaltungen:
+    def test_folgen_der_reihenfolge(self, klient: TestClient, quelle: str, sprich) -> None:
+        # Sechs Aufnahmen, sechs Faltungen, je eine.
         sprich(6)
-        vorher = _teile(klient)
+        daten = _uebersicht(klient)
+        assert daten["faltungen"] == laeufe.FALTUNGEN
+        assert daten["aufnahmen"] == 6
+        assert daten["je_faltung"] == {str(nummer): 1 for nummer in range(laeufe.FALTUNGEN)}
+        assert daten["genug"] is True
+
+    def test_die_siebte_faengt_wieder_vorn_an(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        sprich(8)
+        je_faltung = _uebersicht(klient)["je_faltung"]
+        assert je_faltung["0"] == 2
+        assert je_faltung["1"] == 2
+        assert je_faltung["2"] == 1
+
+    def test_neue_aufnahmen_zaehlen_sofort_mit(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        # Kein Knopf „jetzt zuteilen": Die Faltung folgt der Reihenfolge des
+        # Korpus und wird bei jedem Hinsehen neu gerechnet.
         sprich(6)
-        nachher = _teile(klient)
-        assert all(nachher[kennung] == teil for kennung, teil in vorher.items())
+        assert _uebersicht(klient)["aufnahmen"] == 6
+        sprich(3)
+        assert _uebersicht(klient)["aufnahmen"] == 9
 
-
-class TestNachDemLoeschen:
-    def test_eine_verworfene_aufnahme_sortiert_die_uebrigen_nicht_um(
-        self, klient: TestClient, hoeren: TestClient, quelle: str, sprich
+    def test_zu_wenige_aufnahmen_sind_nicht_genug(
+        self, klient: TestClient, quelle: str, sprich
     ) -> None:
-        # Der Fall, für den die Tabelle überhaupt existiert: Würde beim
-        # Trainieren durchgezählt statt nachgeschlagen, rückte hier alles um
-        # einen Platz vor - und Aufnahmen, die bisher geprüft haben, landeten
-        # im Training eines Modells, das anschließend an ihnen gemessen wird.
-        kennungen = sprich(9)
-        vorher = _teile(klient)
+        # Unter sechs bliebe eine Faltung leer - ein Training, das auf nichts
+        # misst, und eine Zahl, die keine ist.
+        sprich(3)
+        daten = _uebersicht(klient)
+        assert daten["genug"] is False
+        assert daten["je_faltung"]["5"] == 0
 
-        assert hoeren.delete(f"/api/recordings/{kennungen[0]}").status_code == 204
-
-        nachher = _teile(klient)
-        assert kennungen[0] not in nachher
-        assert all(nachher[k] == vorher[k] for k in kennungen[1:])
-
-    def test_die_naechste_aufnahme_erbt_keinen_freigewordenen_platz(
-        self, klient: TestClient, hoeren: TestClient, quelle: str, sprich
-    ) -> None:
-        kennungen = sprich(6)
-        _teile(klient)
-        assert hoeren.delete(f"/api/recordings/{kennungen[1]}").status_code == 204
-        _teile(klient)
-
-        neu = sprich(1)[0]
-        # Platz 1 ist frei geworden, die neue Aufnahme bekommt trotzdem Platz 6:
-        # Eine wiederverwendete Nummer wäre genau das Umsortieren, das diese
-        # Tabelle verhindern soll.
-        proben = klient.get("/lernen/api/aufteilung").json()["proben"]
-        gefunden = next(probe for probe in proben if probe["aufnahme_id"] == neu)
-        assert gefunden["nummer"] == 6
-        assert gefunden["teil"] == laeufe.teil_fuer(6)
-
-    def test_verwaiste_zuteilungen_werden_gezeigt_und_nicht_verschwiegen(
-        self, klient: TestClient, hoeren: TestClient, quelle: str, sprich
-    ) -> None:
-        kennungen = sprich(6)
-        _teile(klient)
-        assert hoeren.delete(f"/api/recordings/{kennungen[0]}").status_code == 204
-
-        antwort = klient.get("/lernen/api/aufteilung").json()
-        assert antwort["verwaist"] == 1
-        assert sum(antwort["anzahl"].values()) == 5
-
-
-class TestOhneAufnahmen:
     def test_leerer_korpus_ist_kein_fehler(self, klient: TestClient) -> None:
-        antwort = klient.get("/lernen/api/aufteilung")
-        assert antwort.status_code == 200
-        assert antwort.json()["proben"] == []
-        assert antwort.json()["anzahl"] == {"train": 0, "validierung": 0, "test": 0}
+        daten = _uebersicht(klient)
+        assert daten["aufnahmen"] == 0
+        assert daten["sekunden"] == 0
+        assert daten["genug"] is False
+
+    def test_die_aufnahmen_selbst_stehen_hier_nicht(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        # Sie stehen unter „Meine Daten", einmal und vollständig. Zwei Listen
+        # über dieselbe Sache sind eine zu viel.
+        sprich(6)
+        daten = _uebersicht(klient)
+        assert "proben" not in daten
+        assert not any(isinstance(wert, list) for wert in daten.values())

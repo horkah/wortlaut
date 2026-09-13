@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import math
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -38,7 +39,7 @@ from wortlaut import laeufe
 
 from . import abschluss as abschlussrechnung
 from . import klangwandel
-from .daten import Proben, Stapler, zeilen_fuer
+from .daten import Proben, Stapler, zeilen_fuer_faltung
 
 REZEPTE = Path(__file__).parent / "rezepte"
 # Der Keim des Laufs. Er steht hier und nicht nur in den Trainerargumenten,
@@ -95,6 +96,19 @@ class Bericht:
         laeufe.haenge_an(
             self.verzeichnis / laeufe.FORTSCHRITT, {"zeit": laeufe.jetzt(), **felder}
         )
+
+    def faltung(self, nummer: int | None) -> None:
+        """Welche der sieben Trainings gerade läuft - für den Balken der Liste.
+
+        `None` ist das Endmodell. Es steht im Zustand und nicht nur im
+        Fortschritt, weil die Übersicht es zeigt und dafür keine
+        tausendzeilige Datei lesen soll.
+        """
+        self.zustand["faltung"] = nummer
+        self.zustand["faltungen_gesamt"] = laeufe.FALTUNGEN
+        self.zustand["schritt"] = 0
+        self._schreibe()
+        self.ereignis(art="faltung", nummer=nummer)
 
     def schritt(self, schritt: int, gesamt: int) -> None:
         """Der Balken. Im Zustand und nicht nur im Fortschritt: Die Liste der
@@ -221,10 +235,44 @@ def _trainerklasse():
     return GewichtetesTraining
 
 
+def _name_fuer(faltung: int | None) -> str:
+    """Wie das Verzeichnis einer Faltung heißt - `endmodell`, wenn keine."""
+    return "endmodell" if faltung is None else f"faltung-{faltung}"
+
+
+def _bester_durchgang(trainer, obergrenze: float, hat_pruefung: bool) -> float:
+    """Bei welchem Durchgang dieser Lauf am besten stand.
+
+    Ohne Steuergröße gibt es keinen besten - dann ist es die Zahl, die gelaufen
+    ist. Das trifft nur das Endmodell, und dort ist die Zahl ohnehin von außen
+    gesetzt.
+    """
+    if not hat_pruefung or not trainer.state.best_model_checkpoint:
+        return float(trainer.state.epoch or obergrenze)
+    schritt = int(Path(trainer.state.best_model_checkpoint).name.rsplit("-", 1)[-1])
+    je_durchgang = max(1.0, float(trainer.state.max_steps) / max(1e-9, float(obergrenze)))
+    return round(schritt / je_durchgang, 2)
+
+
 def trainiere(
-    verzeichnis: Path, datenverzeichnis: Path, bericht: Bericht
-) -> tuple[Path, abschlussrechnung.Ergebnis]:
-    """Das Training selbst; gibt die fertigen Gewichte und den Abschluss zurück.
+    verzeichnis: Path,
+    datenverzeichnis: Path,
+    bericht: Bericht,
+    faltung: int | None = None,
+    vorgaben: dict[str, Any] | None = None,
+) -> tuple[Path, abschlussrechnung.Ergebnis, dict[str, Any]]:
+    """Ein Training; gibt Gewichte, Abschluss und die gelernten Kennzahlen zurück.
+
+    **Einmal je Faltung, und einmal für das Endmodell.** `faltung` sagt, welches
+    Sechstel des Korpus draußen bleibt: Gelernt wird auf den anderen fünf,
+    gesteuert und gemessen auf diesem einen. `faltung = None` ist das
+    Endmodell - es lernt auf allem, wird an nichts gemessen und ist der Stand,
+    der später in „schreiben" diktiert.
+
+    **`vorgaben` ist das Wissen aus den Faltungen.** Das Endmodell hat keine
+    Validierung, kann also weder seine Durchgangszahl noch sein α selbst
+    finden. Beides bringt es aus den sechs Läufen davor mit - der Median über
+    die Faltungen. Genau dafür ist die Kreuzvalidierung da.
 
     Der Abschluss ist die dritte Achse eines Laufs (`abschluss.py`): was mit
     den Gewichten geschieht, wenn die Schleife durch ist. Er steht im Auftrag,
@@ -303,31 +351,29 @@ def trainiere(
         bericht.sage(f"LoRA: {trainierbar:,} von {gesamt:,} Gewichten werden gelernt")
 
     korpuswurzel = datenverzeichnis / corpus.sprecher_relpfad(sprecher_id)
-    # Der Wandler steht **nur** an den Lernproben. Die Validierung steuert den
-    # Lauf - sie sagt, welcher Durchgang der beste war und welches α gewinnt;
-    # eine Validierung, die in jedem Durchgang anders klingt, misst den Würfel
-    # statt das Modell (siehe `klangwandel.py`).
+    # Der Wandler steht **nur** an den Lernproben. Das zurückgehaltene Sechstel
+    # steuert den Lauf - es sagt, welcher Durchgang der beste war und welches α
+    # gewinnt; eine Steuergröße, die in jedem Durchgang anders klingt, misst
+    # den Würfel statt das Modell (siehe `klangwandel.py`).
     wandler = klangwandel.Wandler(
         stufe=abwandlung,
         einstellungen=klangwandel.einstellungen_aus(rezept),
-        keim=KEIM,
+        keim=KEIM + (faltung or 0),
     )
-    lern = Proben(
-        zeilen_fuer(verzeichnis, {laeufe.TRAIN}), korpuswurzel, ausleser, zerteiler, wandler
+    lernzeilen, messzeilen = zeilen_fuer_faltung(
+        verzeichnis, faltung, str(auftrag.get("daten") or laeufe.NUR_ORIGINAL)
     )
-    pruef = Proben(
-        zeilen_fuer(verzeichnis, {laeufe.VALIDIERUNG}), korpuswurzel, ausleser, zerteiler
-    )
+    lern = Proben(lernzeilen, korpuswurzel, ausleser, zerteiler, wandler)
+    pruef = Proben(messzeilen, korpuswurzel, ausleser, zerteiler)
     bericht.sage(f"Proben: {len(lern)} zum Lernen, {len(pruef)} zum Steuern")
     if wandler.taetig:
         bericht.sage(f"Augmentierung: {abwandlung} (nur auf den Lernproben)")
     if not len(lern):
         raise RuntimeError("Das Manifest enthält keine Trainingsprobe.")
 
-    # Ohne Validierungsproben lässt sich nicht sagen, welcher Durchgang der
-    # beste war - dann bleibt nur der letzte, und die Zahl der Durchgänge ist
-    # wieder eine Wette. Das trifft nur sehr kleine Korpora; ab einem Dutzend
-    # Aufnahmen gibt es eine Validierung (siehe `wortlaut/laeufe.py`).
+    # Das Endmodell hat nichts zurückgehalten und damit keine Steuergröße. Es
+    # ist nicht das Modell, das beurteilt wird - beurteilt haben die sechs
+    # Faltungen davor -, sondern das, das ausgeliefert wird.
     hat_pruefung = len(pruef) > 0
 
     # Wie viele Durchgänge, und wann Schluss ist.
@@ -342,9 +388,18 @@ def trainiere(
             "Geduldig nicht möglich: Ohne Validierungsproben gibt es kein "
             "Kriterium. Es gilt die feste Zahl Durchgänge."
         )
-    durchgaenge = float(
-        rezept.get("epochen_hoechstens", rezept["epochen"]) if geduldig else rezept["epochen"]
-    )
+    if vorgaben and vorgaben.get("durchgaenge"):
+        # Das Endmodell nimmt die Zahl aus den Faltungen mit und sucht nicht
+        # selbst - suchen könnte es ohnehin nicht, es hat nichts zurückgehalten.
+        durchgaenge = float(vorgaben["durchgaenge"])
+        geduldig = False
+        bericht.sage(f"Durchgänge aus den Faltungen übernommen: {durchgaenge:.1f}")
+    else:
+        durchgaenge = float(
+            rezept.get("epochen_hoechstens", rezept["epochen"])
+            if geduldig
+            else rezept["epochen"]
+        )
 
     # Der Warmlauf, gedeckelt auf einen Anteil des Laufs.
     #
@@ -370,7 +425,11 @@ def trainiere(
             f"- der Lauf hat nur {gesamtschritte}."
         )
 
-    ausgabe = verzeichnis / laeufe.ARBEITSSTAND
+    # Je Faltung ein eigener Arbeitsstand. Sie liegen nacheinander da und nicht
+    # nebeneinander - was eine Faltung hinterlässt, räumt `main` weg, bevor die
+    # nächste anfängt (beim vollen Training wären sieben Stände sonst sieben
+    # Gigabyte).
+    ausgabe = verzeichnis / laeufe.ARBEITSSTAND / _name_fuer(faltung)
     argumente = Seq2SeqTrainingArguments(
         output_dir=str(ausgabe),
         per_device_train_batch_size=int(rezept["stapel"]),
@@ -494,10 +553,11 @@ def trainiere(
         arbeitsstand=ausgabe,
         hat_pruefung=hat_pruefung,
         bericht=bericht,
+        alpha_vorgabe=(vorgaben or {}).get("alpha"),
     )
 
     bericht.stufe("sichern")
-    gewichte = verzeichnis / laeufe.GEWICHTE
+    gewichte = verzeichnis / laeufe.GEWICHTE / _name_fuer(faltung)
     if methode == laeufe.LORA:
         # Zusammengerechnet und nicht als Zusatz gespeichert: Was danach kommt,
         # ist die Umwandlung nach CTranslate2, und die kennt kein LoRA. Ein
@@ -510,7 +570,14 @@ def trainiere(
     # sondern ein Satz Gewichte.
     zerteiler.save_pretrained(gewichte)
     ausleser.save_pretrained(gewichte)
-    return gewichte, ergebnis
+
+    # Was diese Faltung gelernt hat und das Endmodell später mitnimmt: bei
+    # welchem Durchgang sie am besten stand und welches α gewonnen hat.
+    kennzahlen: dict[str, Any] = {
+        "durchgaenge": _bester_durchgang(trainer, durchgaenge, hat_pruefung),
+        "alpha": ergebnis.alpha,
+    }
+    return gewichte, ergebnis, kennzahlen
 
 
 # Was neben den umgewandelten Gewichten liegen muss, damit faster-whisper den
@@ -542,6 +609,73 @@ def wandle_um(gewichte: Path, ziel: Path, bericht: Bericht) -> None:
     ).convert(str(ziel), quantization="float16", force=True)
 
 
+def _median(werte: list[float]) -> float | None:
+    """Der Median - die Zahl, mit der die Faltungen mehrheitlich einverstanden sind.
+
+    Nicht das Mittel: Eine Faltung, die aus der Reihe fällt, soll die
+    Entscheidung nicht mitnehmen. Bei sechs Werten ist das der Durchschnitt der
+    beiden mittleren.
+    """
+    da = sorted(wert for wert in werte if wert is not None)
+    if not da:
+        return None
+    mitte = len(da) // 2
+    return da[mitte] if len(da) % 2 else (da[mitte - 1] + da[mitte]) / 2
+
+
+def kreuzvalidiere(
+    verzeichnis: Path, datenverzeichnis: Path, auftrag: dict[str, Any], bericht: Bericht
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Sechs Trainings, sechs Messungen - und was das Endmodell daraus mitnimmt.
+
+    Je Faltung wird auf fünf Sechsteln gelernt und auf dem sechsten gemessen.
+    Danach ist **jede** Aufnahme genau einmal von einem Modell gehört worden,
+    das sie nie gesehen hat; die Zeilen daraus sind die Zahl dieses Laufs.
+
+    Weggeräumt wird nach jeder Faltung sofort. Sieben Stände des vollen
+    Trainings nebeneinander wären sieben Gigabyte, und gebraucht wird immer nur
+    der eine, der gerade misst.
+    """
+    from .bewerten import bewerte_faltung
+
+    zeilen: list[dict[str, Any]] = []
+    gelernt: list[dict[str, Any]] = []
+
+    for faltung in range(laeufe.FALTUNGEN):
+        bericht.faltung(faltung)
+        bericht.sage(f"── Faltung {faltung + 1} von {laeufe.FALTUNGEN}")
+        gewichte, ergebnis, kennzahlen = trainiere(
+            verzeichnis, datenverzeichnis, bericht, faltung=faltung
+        )
+        ct2 = verzeichnis / laeufe.GEWICHTE / f"ct2-faltung-{faltung}"
+        wandle_um(gewichte, ct2, bericht)
+        zeilen.extend(
+            bewerte_faltung(verzeichnis, datenverzeichnis, ct2, auftrag, faltung, bericht)
+        )
+        gelernt.append({**kennzahlen, "faltung": faltung, "abschluss": ergebnis.als_dict()})
+        # Sofort und nicht am Ende: Die nächste Faltung braucht den Platz.
+        shutil.rmtree(gewichte.parent, ignore_errors=True)
+        shutil.rmtree(verzeichnis / laeufe.ARBEITSSTAND / _name_fuer(faltung), ignore_errors=True)
+
+    mitgenommen = {
+        "durchgaenge": _median([float(k["durchgaenge"]) for k in gelernt]),
+        "alpha": _median([k["alpha"] for k in gelernt if k["alpha"] is not None]),
+        "faltungen": gelernt,
+    }
+    bericht.sage(
+        f"Aus den Faltungen: {mitgenommen['durchgaenge']:.1f} Durchgänge"
+        + (f", α = {mitgenommen['alpha']:.2f}" if mitgenommen["alpha"] is not None else "")
+    )
+    bericht.ereignis(
+        art="kreuzvalidierung",
+        faltungen=laeufe.FALTUNGEN,
+        zeilen=len(zeilen),
+        durchgaenge=mitgenommen["durchgaenge"],
+        alpha=mitgenommen["alpha"],
+    )
+    return zeilen, mitgenommen
+
+
 def main(argumente: list[str]) -> int:
     if len(argumente) != 1:
         print(__doc__)
@@ -559,12 +693,22 @@ def main(argumente: list[str]) -> int:
     begonnen = time.monotonic()
 
     try:
-        gewichte, ergebnis = trainiere(verzeichnis, datenverzeichnis, bericht)
+        # Erst die Messung, dann der Stand, der ausgeliefert wird. Sieben
+        # Trainings also, und das ist der Preis dafür, dass die Zahl über den
+        # ganzen Korpus geht statt über ein Drittel.
+        zeilen, mitgenommen = kreuzvalidiere(verzeichnis, datenverzeichnis, auftrag, bericht)
 
-        from .bewerten import bewerte_und_gib_frei
+        bericht.faltung(None)
+        bericht.sage("── Endmodell: lernt auf allem, was da ist")
+        gewichte, ergebnis, _ = trainiere(
+            verzeichnis, datenverzeichnis, bericht, faltung=None, vorgaben=mitgenommen
+        )
 
-        version = bewerte_und_gib_frei(
-            verzeichnis, datenverzeichnis, gewichte, auftrag, bericht, ergebnis
+        from .bewerten import gib_frei
+
+        version = gib_frei(
+            verzeichnis, datenverzeichnis, gewichte, auftrag, bericht, ergebnis,
+            zeilen=zeilen, mitgenommen=mitgenommen,
         )
     except Exception as ursache:  # noqa: BLE001 - was immer torch wirft
         import traceback

@@ -65,53 +65,53 @@ class TestBeauftragen:
 
 
 class TestManifest:
-    def test_keine_testaufnahme_im_training(
+    def test_jede_aufnahme_traegt_genau_eine_faltung(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis
     ) -> None:
-        # Die Zusage, an der alles hängt. Bricht sie, misst der Test das
-        # Auswendiggelernte - und das sieht gut aus.
+        # Die Zusage, an der alles hängt: Eine Aufnahme wird in genau einer
+        # Faltung gemessen und in den anderen fünf gelernt. Trüge sie zwei,
+        # hörte ein Modell die Aufnahme, an der es gemessen wird - und das
+        # sieht gut aus.
         sprich(12)
         lauf = _beauftrage(klient, "lora", "augmentiert")
 
         zeilen = _manifest(datenverzeichnis, lauf["job_id"])
-        pruefend = {z["recording_id"] for z in zeilen if z["split"] == laeufe.TEST}
-        lernend = {z["recording_id"] for z in zeilen if z["split"] != laeufe.TEST}
-        assert pruefend and lernend
-        assert not (pruefend & lernend)
+        je_aufnahme: dict[str, set[int]] = {}
+        for zeile in zeilen:
+            je_aufnahme.setdefault(zeile["recording_id"], set()).add(zeile["faltung"])
+        assert je_aufnahme
+        assert all(len(faltungen) == 1 for faltungen in je_aufnahme.values())
 
-    def test_nur_originale_heisst_nur_originale(
+    def test_die_faltungen_folgen_der_reihenfolge(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis
     ) -> None:
-        sprich(6)
+        # 1, 2, 3, 4, 5, 6, 1, 2, … - und keine Aufnahme bleibt ohne.
+        sprich(12)
         lauf = _beauftrage(klient, "lora", "original")
+
         zeilen = _manifest(datenverzeichnis, lauf["job_id"])
+        vergeben = sorted({z["faltung"] for z in zeilen})
+        assert vergeben == list(range(laeufe.FALTUNGEN))
 
-        gelernt = [z for z in zeilen if z["split"] != laeufe.TEST]
-        assert {z["variante"] for z in gelernt} == {augmentierung.ORIGINAL}
-
-    def test_mit_abwandlungen_heisst_eine_probe_je_fassung(
+    def test_alle_fassungen_stehen_im_manifest(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis
     ) -> None:
-        # Die Zahl steht in `augmentierung` und nicht hier: Sie war einmal vier
-        # und ist seit September 2026 zwei (`pegel` und `lauter` verworfen).
-        sprich(6)
-        schlicht = _manifest(datenverzeichnis, _beauftrage(klient, "lora", "original")["job_id"])
-        reich = _manifest(datenverzeichnis, _beauftrage(klient, "lora", "augmentiert")["job_id"])
-
-        gelernt = lambda zeilen: [z for z in zeilen if z["split"] != laeufe.TEST]  # noqa: E731
-        assert len(gelernt(reich)) == len(augmentierung.VARIANTEN) * len(gelernt(schlicht))
-
-    def test_geprueft_wird_immer_auf_allen_fassungen(
-        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
-    ) -> None:
-        # Auch beim Lauf „nur Originale": Die zu vergleichenden Modelle sollen
-        # sich in ihren Trainingsdaten unterscheiden und in nichts sonst -
-        # schon gar nicht in dem, woran sie gemessen werden.
+        # Auch beim Lauf „nur Originale": Gemessen wird immer auf allen
+        # Fassungen, gelernt je nach Auftrag - und die Auswahl trifft der
+        # Trainer, nicht das Manifest. Der Schnappschuss ist der Korpus, nicht
+        # die Anweisung.
         sprich(6)
         for daten in ("original", "augmentiert"):
             zeilen = _manifest(datenverzeichnis, _beauftrage(klient, "lora", daten)["job_id"])
-            pruefend = [z for z in zeilen if z["split"] == laeufe.TEST]
-            assert {z["variante"] for z in pruefend} == set(augmentierung.VARIANTEN)
+            assert {z["variante"] for z in zeilen} == set(augmentierung.VARIANTEN)
+
+    def test_das_manifest_ist_fuer_beide_datensaetze_dasselbe(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        sprich(6)
+        schlicht = _manifest(datenverzeichnis, _beauftrage(klient, "lora", "original")["job_id"])
+        reich = _manifest(datenverzeichnis, _beauftrage(klient, "lora", "augmentiert")["job_id"])
+        assert len(schlicht) == len(reich)
 
     def test_jede_zeile_zeigt_auf_eine_vorhandene_datei(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis, sprecher: str
@@ -306,25 +306,18 @@ class TestLoeschen:
         assert antwort.status_code == 409
         assert laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]).is_dir()
 
-    def test_die_aufteilung_bleibt_unberuehrt(
+    def test_die_faltungen_bleiben_unberuehrt(
         self, klient: TestClient, quelle: str, sprich
     ) -> None:
-        # Die Zusage, an der alles hängt: Eine Aufnahme, die geprüft hat,
-        # trainiert nie - auch nicht, nachdem jemand Läufe aufgeräumt hat.
+        # Läufe zu löschen fasst den Korpus nicht an - und damit auch die
+        # Faltungen nicht, die aus seiner Reihenfolge kommen.
         sprich(9)
-        vorher = {
-            probe["aufnahme_id"]: probe["teil"]
-            for probe in klient.get("/lernen/api/aufteilung").json()["proben"]
-        }
+        vorher = klient.get("/lernen/api/aufteilung").json()
         for methode in ("lora", "full"):
             lauf = _beauftrage(klient, methode)
             assert klient.delete(f"/lernen/api/laeufe/{lauf['job_id']}").status_code == 200
 
-        nachher = {
-            probe["aufnahme_id"]: probe["teil"]
-            for probe in klient.get("/lernen/api/aufteilung").json()["proben"]
-        }
-        assert nachher == vorher
+        assert klient.get("/lernen/api/aufteilung").json() == vorher
 
     def test_unbekannter_lauf_ist_vierhundertvier(self, klient: TestClient) -> None:
         assert klient.delete("/lernen/api/laeufe/job_gibtesnicht").status_code == 404

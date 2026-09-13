@@ -31,7 +31,7 @@ from pydantic import BaseModel
 from wortlaut import laeufe as lauf_layout, registry, streuung
 
 from ..config import einstellungen
-from ..deps import Datenbank, Korpus, SprecherId
+from ..deps import Korpus, SprecherId
 from ..services import aufteilung, auftraege, vergleich
 
 router = APIRouter(prefix="/lernen/api/laeufe", tags=["Läufe"])
@@ -326,6 +326,9 @@ class ListeAntwort(BaseModel):
     augmentierungen: list[WahlAntwort]
     dauern: list[WahlAntwort]
     basismodell: str
+    # Wie viele Faltungen ein Lauf rechnet. Vom Server, damit die Oberfläche
+    # die Sechs nicht ein zweites Mal kennt.
+    faltungen: int
     # Ob überhaupt beauftragt werden kann, und wenn nicht, warum. Es sind zwei
     # Gründe, aus denen nicht: zu wenige Aufnahmen - oder kein hinterlegter
     # Trainerschlüssel, dann kann es auf diesem Server niemand.
@@ -408,11 +411,10 @@ def _hole(sprecher: str, job_id: str) -> lauf_layout.Lauf:
 
 
 @router.get("", response_model=ListeAntwort)
-def liste(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
+def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
     konfiguration = einstellungen()
-    proben = aufteilung.proben(db, korpus)
-    anzahl = aufteilung.zaehle(proben)
-    genug = anzahl[lauf_layout.TRAIN] > 0 and anzahl[lauf_layout.TEST] > 0
+    proben = aufteilung.proben(korpus)
+    genug = aufteilung.genug(proben)
     # Ohne hinterlegten Schlüssel ist diese Seite eine Leseseite: Die Läufe von
     # früher bleiben sichtbar, beauftragen kann hier niemand mehr.
     erlaubt = bool(konfiguration.trainer_key)
@@ -434,6 +436,7 @@ def liste(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         augmentierungen=AUGMENTIERUNGEN,
         dauern=DAUERN,
         basismodell=konfiguration.lernen_basismodell,
+        faltungen=lauf_layout.FALTUNGEN,
         bereit=genug and erlaubt,
         schluessel_noetig=erlaubt,
         # Der Schlüssel zuerst: Wer ohnehin nicht trainieren darf, soll nicht
@@ -444,8 +447,8 @@ def liste(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
             else "Auf diesem Server ist kein Trainerschlüssel hinterlegt - "
             "hier lässt sich kein Training anstoßen."
             if not erlaubt
-            else "Es braucht Aufnahmen zum Lernen und welche zum Prüfen - "
-            "beides kommt aus \u201ehören\u201c."
+            else f"Sechsfache Kreuzvalidierung braucht mindestens "
+            f"{lauf_layout.FALTUNGEN} Aufnahmen - sie kommen aus \u201ehören\u201c."
         ),
     )
 
@@ -457,7 +460,7 @@ def liste(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
     dependencies=[Depends(_pruefe_trainerschluessel)],
 )
 def beauftrage(
-    bestellung: Bestellung, db: Datenbank, korpus: Korpus, sprecher: SprecherId
+    bestellung: Bestellung, korpus: Korpus, sprecher: SprecherId
 ) -> LaufAntwort:
     """Einen Lauf beauftragen - der einzige Weg, der den Trainerschlüssel verlangt.
 
@@ -482,12 +485,16 @@ def beauftrage(
         raise HTTPException(status_code=400, detail=f"Unbekannte Dauer: {bestellung.dauer}")
 
     konfiguration = einstellungen()
-    proben = aufteilung.proben(db, korpus)
-    anzahl = aufteilung.zaehle(proben)
-    if not anzahl[lauf_layout.TRAIN]:
-        raise HTTPException(status_code=409, detail="Keine Aufnahme zum Lernen im Korpus.")
-    if not anzahl[lauf_layout.TEST]:
-        raise HTTPException(status_code=409, detail="Keine Aufnahme zum Prüfen im Korpus.")
+    proben = aufteilung.proben(korpus)
+    if not aufteilung.genug(proben):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Für sechsfache Kreuzvalidierung braucht es mindestens "
+                f"{lauf_layout.FALTUNGEN} brauchbare Aufnahmen - vorhanden sind "
+                f"{len(proben)}."
+            ),
+        )
 
     lauf = auftraege.beauftrage(
         konfiguration.data_dir,

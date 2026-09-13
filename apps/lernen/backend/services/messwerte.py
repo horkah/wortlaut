@@ -4,11 +4,12 @@ Die Frage dieser Ansicht ist nicht „wie gut ist ein Modell", sondern „welche
 von diesen hört *diesem* Menschen am besten zu". Das ist eine Frage nach einer
 Rangfolge, und eine Rangfolge braucht einen gemeinsamen Boden.
 
-**Der gemeinsame Boden sind die Testaufnahmen.** Ein Drittel des Korpus ist von
-der ersten Aufnahme an zum Prüfen bestimmt und wird nie wieder umsortiert
-(siehe `aufteilung.py`). Kein trainiertes Modell hat sie je gesehen; die
-unveränderten Grundmodelle sowieso nicht. Nur an ihnen darf verglichen werden -
-auf allem anderen hätte die eine Seite gelernt und die andere nicht.
+**Der gemeinsame Boden sind alle Aufnahmen.** Seit September 2026 wird
+kreuzvalidiert (siehe `aufteilung.py`): Jede Zahl eines trainierten Standes
+stammt aus der Faltung, die genau diese Aufnahme zurückgehalten hat - kein
+Modell hat je gehört, woran es gemessen wird. Die unveränderten Grundmodelle
+haben ohnehin nie etwas gelernt. Beide Seiten stehen damit auf demselben,
+größeren Boden: dem ganzen Korpus statt einem Drittel davon.
 
 **Gemessen wurde bereits, hier wird nur zusammengetragen.** Zwei Rechnungen
 liegen längst vor, und beide stammen aus `wortlaut/metriken.py`:
@@ -17,7 +18,7 @@ liegen längst vor, und beide stammen aus `wortlaut/metriken.py`:
   `small`, `medium`, `large-v3`, in allen Fassungen
   (`apps/hoeren/backend/api/auswertung.py`).
 * Für jeden trainierten Stand die `bewertung.jsonl` seines Laufs - dieselben
-  Testaufnahmen, dieselben Fassungen, dieselben Maße
+  Aufnahmen, dieselben Fassungen, dieselben Maße
   (`apps/lernen/training/bewerten.py`).
 
 Ein drittes Mal zu messen wäre eine dritte Gelegenheit, es anders zu machen -
@@ -51,9 +52,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from wortlaut import augmentierung, laeufe, streuung
 
+from apps.hoeren.backend.services.auswertung import gueltige_aufnahmen
 from apps.hoeren.backend.db.models import Erkennung
 
-from . import aufteilung
 
 # Die Maße, die eine Zeile der Tabelle trägt - dieselben Namen wie in „hören",
 # damit niemand zwei Vokabulare im Kopf halten muss.
@@ -209,13 +210,16 @@ def _mittelwerte(zeilen: list[dict[str, float]]) -> dict[str, float]:
     return ergebnis
 
 
-def testaufnahmen(db: Session, korpus: Session) -> set[str]:
-    """Die Aufnahmen, an denen gemessen werden darf - der Testteil der Aufteilung."""
-    return {
-        probe.aufnahme.id
-        for probe in aufteilung.proben(db, korpus)
-        if probe.teil == laeufe.TEST
-    }
+def messaufnahmen(korpus: Session) -> set[str]:
+    """Die Aufnahmen, an denen gemessen wird - seit September 2026 alle.
+
+    Vorher war es der Testteil der Aufteilung: ein Drittel, das kein Modell je
+    gesehen hatte. Seit die Läufe kreuzvalidieren, ist jede Aufnahme genau
+    einmal von einem Modell gehört worden, das sie nicht kannte
+    (`training/bewerten.py`) - und die Grundmodelle aus „hören" haben ohnehin
+    nie etwas gelernt. Beide Seiten stehen damit auf demselben, größeren Boden.
+    """
+    return {aufnahme.id for aufnahme, _vorlage in gueltige_aufnahmen(korpus)}
 
 
 def grundmodelle(korpus: Session, namen: list[str], aufnahmen: set[str]) -> dict[str, Messreihe]:
