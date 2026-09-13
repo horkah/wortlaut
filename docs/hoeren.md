@@ -595,7 +595,7 @@ deutlich hinter der Vorlage, ist genau das das Argument für ein eigenes
 Feintuning; trifft es, war der Weg nicht nötig. Wer wenig Maschine hat, kürzt
 die Liste - gerechnet wird nur, was darin steht.
 
-### Vier Fassungen je Aufnahme
+### Zwei Fassungen je Aufnahme
 
 Eine Aufnahme ist ein einzelner Fall: diese Stimme, dieses Mikrofon, dieser
 Abstand, dieser Raum, dieser Pegel. Ein Modell, das damit zurechtkommt, muss
@@ -604,29 +604,43 @@ Aufnahmesituation gut vertragen. Zu wissen, was von beidem zutrifft, ist der
 eigentliche Zweck der Auswertung, denn die nächste Aufnahme entsteht mit
 anderem Pegel und anderem Grundgeräusch.
 
-Gemessen wird deshalb nicht die Aufnahme, sondern die Aufnahme und drei
-Abwandlungen davon (`packages/wortlaut/src/wortlaut/augmentierung.py`):
+Gemessen wird deshalb nicht die Aufnahme allein, sondern die Aufnahme und eine
+Abwandlung davon (`packages/wortlaut/src/wortlaut/augmentierung.py`):
 
 | Fassung | was sie tut | wonach sie fragt |
 | --- | --- | --- |
 | `original` | nichts - die Aufnahme, wie sie gesprochen wurde | der Ausgangswert |
-| `pegel` | lauter, bis die Spitze bei −1 dBFS steht | lag es nur daran, dass es zu leise war? |
-| `lauter` | alles mal 1,15, für jede Aufnahme derselbe Faktor | was passiert, wenn jemand pauschal aufdreht? |
 | `rauschen` | weißes Rauschen, 20 dB unter der Aufnahme | hält es einem Lüfter, einer Straße stand? |
 
-Vier Zahlen je Modell und Aufnahme also, und erst ihr Zusammenhang ist die
-Auskunft: Liegen die vier dicht beieinander, versteht das Modell den Sprecher.
+Zwei Zahlen je Modell und Aufnahme also, und erst ihr Zusammenhang ist die
+Auskunft: Liegen sie dicht beieinander, versteht das Modell den Sprecher.
 Fallen sie auseinander, verträgt es eine bestimmte Aufnahmesituation.
 
-Drei Entscheidungen stecken darin:
+**Hier standen bis September 2026 zwei weitere Fassungen**, und sie sind
+verworfen: `pegel` (lauter bis knapp unter den Anschlag) und `lauter` (alles
+mal 1,15). Beide änderten allein die Lautstärke, und Whisper hört kein
+Wellenfeld, sondern ein Log-Mel-Spektrogramm - eine gleichmäßige Verstärkung
+verschiebt darin kaum mehr als einen Summanden. Über Monate haben sie drei
+Spalten gefüllt, die sich nicht unterschieden, und zwei Drittel der Rechenzeit
+jeder Auswertung gekostet. Ihre Datenbankzeilen sind gelöscht
+(`009_ohne_pegelvarianten.sql`), ihre Dateien weggeräumt
+(`scripts/varianten_aufraeumen.py`).
 
-* **`pegel` und `lauter` sind nicht dasselbe.** `pegel` schöpft den
-  Wertebereich aus - jede Aufnahme landet danach gleich laut, und wer schon am
-  Anschlag stand, wird dabei leiser: „optimal ausnutzen" heißt auch, den
-  Bereich nicht zu verlassen. `lauter` lässt den Abstand zwischen leisen und
-  lauten Aufnahmen stehen und schneidet ab, wo es nicht mehr passt. Das erste
-  ist der Regler, den ein Programm stellt, das zweite der, an dem ein Mensch
-  dreht.
+Dass die Lautstärke als **Messgröße** nichts taugt, heißt nicht, dass sie
+nirgends hilft: „schreiben" rechnet ein Diktat vor dem Erkennen weiterhin
+lauter, wenn es sehr leise ist (`wortlaut/audio.py`, `steuere_aus`). Eine
+Hörhilfe für den Ausreißer nach unten ist ein anderer Anspruch als
+„unterscheidet zwei Modelle".
+
+Und wovon das alles zu trennen ist: Womit **trainiert** wird, ist eine andere
+Frage. Dort ist die Abwandlung seit September 2026 breit, gewürfelt und
+flüchtig - Masken im Spektrogramm, Raum, Rauschen, Tempo, je Durchgang anders
+und nirgends abgelegt (siehe [lernen](lernen.md) und
+`apps/lernen/training/klangwandel.py`). Die Fassungen hier sind das Gegenteil:
+wenige, feste, seit Monaten vergleichbare Messpunkte.
+
+Zwei Entscheidungen stecken in der verbliebenen:
+
 * **Das Rauschen liegt in festem Abstand zur Aufnahme, nicht auf festem
   Pegel.** Ein absoluter Rauschpegel träfe eine leise Aufnahme viel härter als
   eine laute; die Abwandlung wäre für jede Aufnahme eine andere, und der
@@ -637,10 +651,11 @@ Drei Entscheidungen stecken darin:
   Maschine dasselbe Rauschen, und eine gelöschte Datei kommt Byte für Byte so
   zurück, wie sie war - sonst wäre eine wiederholte Messung keine Wiederholung.
 
-Die Fassungen werden **aufbewahrt**, nicht im Speicher hergestellt und wieder
-vergessen. Damit hat nicht nur die Auswertung etwas davon: Auf der Platte steht
-ein viermal so großer Datensatz, den ein späteres Feintuning ohne weiteres
-Zutun mitnehmen kann. Sie entstehen beim Hochladen einer Aufnahme und, falls
+Die Fassung wird **aufbewahrt** - nicht, weil das Rechnen teuer wäre (gemessen
+33 ms je Aufnahme, der ganze Korpus in 13 Sekunden), sondern aus zwei anderen
+Gründen: Die Ansicht spielt genau diese Datei zum Mithören ab, und das Manifest
+eines Trainingslaufs zeigt auf sie - ein Schnappschuss, dessen Dateien es nicht
+gibt, wäre keiner. Sie entsteht beim Hochladen einer Aufnahme und, falls
 eine fehlt, spätestens kurz bevor der Lauf sie braucht - so kommt auch jeder
 Korpus, der vor dieser Änderung angelegt wurde, ohne Zutun zu seinen Dateien.
 `make augmentieren` (im Container `python scripts/augmentieren.py`) zieht das
@@ -693,7 +708,7 @@ echten Unterschied sieht.
 ### Der Lauf
 
 Ein Hintergrundlauf arbeitet die offenen Tripel aus Aufnahme, Modell und
-Fassung ab, eines nach dem anderen - bei vier Modellen und vier Fassungen also
+Fassung ab, eines nach dem anderen - bei vier Modellen und zwei Fassungen also
 sechzehn Messungen je Aufnahme. Vier Eigenschaften sind Absicht:
 
 * **Ist nichts offen, läuft auch nichts.** Ein zweiter Start, bei dem alles

@@ -71,8 +71,6 @@
 
   const FASSUNGSNAMEN: Record<string, string> = {
     original: 'Original',
-    pegel: 'Ausgesteuert',
-    lauter: '15 % lauter',
     rauschen: 'Mit Rauschen',
   };
 
@@ -271,6 +269,10 @@
       {daten?.abschluesse.find((wahl) => wahl.schluessel === lauf.abschluss)?.name ??
         lauf.abschluss} ·
     {/if}
+    {#if lauf.augmentierung && lauf.augmentierung !== 'keine'}
+      {daten?.augmentierungen.find((wahl) => wahl.schluessel === lauf.augmentierung)?.name ??
+        lauf.augmentierung} ·
+    {/if}
     {lauf.basismodell} · {lauf.aufnahmen} Aufnahmen
     {#if lauf.version}
       · Stand <strong>{lauf.version}</strong>
@@ -388,7 +390,7 @@
     {/each}
 
     <p class="gedaempft">
-      Liegen die vier Fassungen dicht beieinander, hat das Modell den Sprecher verstanden. Gewinnt
+      Liegen die Fassungen dicht beieinander, hat das Modell den Sprecher verstanden. Gewinnt
       es beim Original und verliert beim Rauschen, hat es die Aufnahmesituation gelernt.
     </p>
   {:else if lauf.status === 'fertig'}

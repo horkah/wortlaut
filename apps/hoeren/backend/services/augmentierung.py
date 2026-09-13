@@ -14,21 +14,28 @@ ist, gibt es keine einzige Fassung, und niemand soll dafür ein Skript suchen
 müssen. Teuer ist es nicht - nachzusehen, ob eine Fassung da ist, ist ein
 Blick ins Dateisystem, und eine vorhandene Datei wird nie neu gerechnet.
 
-**Warum sie überhaupt liegen bleiben.** Man könnte jede Fassung im
-Arbeitsspeicher herstellen, messen und wieder vergessen. Dann wäre die
-Auswertung aber das einzige, was je etwas davon hat. So steht ein viermal so
-großer Datensatz auf der Platte, den ein späteres Feintuning ohne weiteres
-Zutun mitnehmen kann.
+**Warum sie überhaupt liegen bleiben - und warum das kein Kostenargument ist.**
+Man könnte jede Fassung im Arbeitsspeicher herstellen, messen und wieder
+vergessen; gemessen kostet eine 33 ms, das gäbe über den ganzen Korpus 13
+Sekunden. Zeit ist also nicht der Grund. Es sind zwei andere: Die Ansicht
+spielt genau diese Datei zum Mithören ab, und das Manifest eines Laufs zeigt
+auf sie - ein Schnappschuss, dessen Dateien es nicht gibt, wäre keiner.
+
+Was in der **Ausbildung** darüber hinaus an Abwandlung nötig ist, entsteht
+dagegen im Trainer und bleibt nirgends liegen
+(`apps/lernen/training/klangwandel.py`). Dort wären es Dutzende Fassungen je
+Aufnahme und je Durchgang eine andere; sie abzulegen wäre teuer und
+sinnlos zugleich.
 
 **Warum sie trotzdem nicht mitgesichert werden.** Liegenbleiben ist billig,
-Wegtragen nicht: Diese Dateien sind drei Viertel des Audios im
-Datenverzeichnis, und keine einzige davon ist gesprochen worden. Eine
+Wegtragen nicht: Diese Dateien sind die Hälfte des Audios im Datenverzeichnis,
+und keine einzige davon ist gesprochen worden. Eine
 Sicherung lässt sie deshalb draußen und rechnet sie nach dem Zurückspielen neu
 - in Millisekunden je Datei, und ohnehin erst, wenn jemand misst (siehe
 `services/ausleitung.py`).
 
 **Warum sie beim Löschen mitgehen.** Eine abgewandelte Fassung ist dieselbe
-Stimme, nur lauter oder verrauscht. Sie ist damit derselbe Gesundheitsdatensatz
+Stimme, nur verrauscht. Sie ist damit derselbe Gesundheitsdatensatz
 wie das Original (Grundentscheidung 6), und wer eine Aufnahme wegwirft, hat
 nicht drei Kopien davon gemeint.
 """

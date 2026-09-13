@@ -1,0 +1,29 @@
+-- Zwei Fassungen fallen weg: `pegel` und `lauter`.
+--
+-- `007_varianten.sql` legte fest, dass jede Aufnahme viermal gemessen wird:
+-- wie gesprochen, ausgesteuert, pauschal lauter, mit Grundrauschen. Die
+-- Überlegung dahinter steht dort und war richtig - die Frage ist, ob ein
+-- Modell den Sprecher versteht oder nur seine Aufnahmesituation.
+--
+-- Zwei der drei Abwandlungen beantworten sie nicht. `pegel` und `lauter`
+-- ändern beide allein die Lautstärke, und Whisper hört kein Wellenfeld,
+-- sondern ein Log-Mel-Spektrogramm: Eine gleichmäßige Verstärkung verschiebt
+-- darin im Wesentlichen einen Summanden, den die Merkmalsberechnung ohnehin
+-- wieder einfängt. Gemessen hat das über Monate drei Spalten gefüllt, die sich
+-- nicht unterschieden - und zwei Drittel der Rechenzeit jeder Auswertung
+-- gekostet.
+--
+-- **Warum gelöscht und nicht stehen gelassen.** Eine Zeile, die niemand mehr
+-- schreibt, aber jeder noch liest, ist schlimmer als keine: Sie geht in jeden
+-- Mittelwert über „alle Fassungen" ein, und der hieße dann für alte Stände
+-- etwas anderes als für neue. Genau der Vergleich über die Zeit ist aber der
+-- Zweck dieser Tabelle. Also weg damit, in einem Schritt, für alle.
+--
+-- Die Dateien daneben gehen nicht hier weg - SQL kennt das Dateisystem nicht.
+-- Das tut `scripts/varianten_aufraeumen.py`, und zwar für jede Fassung, die
+-- es einmal gab und heute nicht mehr gibt.
+DELETE FROM erkennungen WHERE variante IN ('pegel', 'lauter');
+
+-- Der Index aus `007_varianten.sql` bleibt, wie er ist: Er stimmt weiterhin -
+-- je Aufnahme, Modell und Fassung genau eine Zeile -, es sind nur weniger
+-- Fassungen. Ihn zu ändern hieße, eine Regel umzuschreiben, die richtig ist.

@@ -129,7 +129,7 @@ def je_fassung(
     ergibt genau das, was diese Funktion immer schon ergeben hat. Innerhalb
     **einer** Fassung trägt jede Aufnahme ohnehin nur eine Messung bei - die
     beiden Blockarten fallen hier also zusammen. Der Unterschied zwischen
-    ihnen zeigt sich erst dort, wo über alle vier Fassungen gemittelt wird
+    ihnen zeigt sich erst dort, wo über alle Fassungen gemittelt wird
     (`services/messwerte.py`).
     """
     gemessen = bewertung(lauf)

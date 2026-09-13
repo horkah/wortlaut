@@ -45,9 +45,9 @@ def abgeleitet(sprecher_ids: Iterable[str]) -> sicherung.Abgeleitetes:
     Rechenergebnisse:
 
     * **Die abgewandelten Fassungen** (`korpus/…/audio/varianten/`) - dieselbe
-      Aufnahme ausgesteuert, lauter, verrauscht. Drei Dateien je Aufnahme,
-      also drei Viertel des Audios im Archiv, und jede entsteht von selbst
-      wieder, sobald jemand misst (`services/augmentierung.py`).
+      Aufnahme, verrauscht. Eine Datei je Aufnahme, also die Hälfte des Audios
+      im Archiv, und sie entsteht von selbst wieder, sobald jemand misst
+      (`services/augmentierung.py`).
     * **Die Messwerte der Auswertung** (Tabelle `erkennungen`) - was welches
       Modell aus welcher Fassung gemacht hat. Daraus entstehen die Kurven; ein
       zweiter Lauf rechnet ohnehin nur, was fehlt (`services/auswertung.py`).

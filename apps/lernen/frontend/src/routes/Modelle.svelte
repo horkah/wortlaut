@@ -346,7 +346,7 @@
     <p class="gedaempft klein hinweiszeile">
       Unter jeder Zahl der Bereich, in dem sie liegen dürfte - 95 % aus 2000 Ziehungen
       {sicherheit === 'aufnahme'
-        ? ' über die Aufnahmen (jede mit allen ihren Fassungen, weil vier Fassungen einer Aufnahme vier Messungen an einem Gegenstand sind)'
+        ? ' über die Aufnahmen (jede mit allen ihren Fassungen, weil die Fassungen einer Aufnahme mehrere Messungen an einem Gegenstand sind)'
         : ' über die einzelnen Messungen - das in der Literatur übliche Verfahren, hier aber zu schmal, weil die Fassungen einer Aufnahme nicht unabhängig sind'}.
       Die Zahlen selbst ändern sich dadurch nicht.
       {#if uebersicht.vergleich_mit}

@@ -252,22 +252,37 @@ nicht: `WORKDIR` steht auf `/srv/wortlaut`, `WORTLAUT_DATA_DIR` kommt aus der
 `compose.yaml`. Zweimal aufgerufen tut er beim zweiten Mal nichts - was
 gelaufen ist, steht in `schema_migrations`.
 
-Daneben steht `scripts/augmentieren.py`. Es rechnet die abgewandelten Fassungen
-aller Aufnahmen - ausgesteuert, pauschal lauter, mit Rauschen; jede Aufnahme
-wird damit viermal gemessen (siehe [hören](hoeren.md#vier-fassungen-je-aufnahme)).
-Nötig ist es nicht: Die Fassungen entstehen beim Hochladen einer Aufnahme und
-spätestens dann, wenn die Auswertung sie braucht. Es ist der Weg, das für alle
-Korpora auf einmal und **vor** einem Lauf zu tun - oder vor einer Sicherung,
-die den vollständigen Datensatz enthalten soll.
+Daneben steht `scripts/augmentieren.py`. Es rechnet die abgewandelte Fassung
+aller Aufnahmen - verrauscht; jede Aufnahme wird damit zweimal gemessen (siehe
+[hören](hoeren.md#zwei-fassungen-je-aufnahme)). Nötig ist es nicht: Die Fassung
+entsteht beim Hochladen einer Aufnahme und spätestens dann, wenn die Auswertung
+sie braucht. Es ist der Weg, das für alle Korpora auf einmal und **vor** einem
+Lauf zu tun - oder vor einer Sicherung, die den vollständigen Datensatz
+enthalten soll.
 
 ```bash
 docker compose exec wortlaut python scripts/augmentieren.py
-# spr_…: 42 Aufnahmen, 126 Fassungen neu gerechnet
+# spr_…: 42 Aufnahmen, 42 Fassungen neu gerechnet
 # spr_…: 12 Aufnahmen, 0 Fassungen neu gerechnet   ← war schon vollständig
 ```
 
 Auf dem Wirt heißt dasselbe `make augmentieren`. Ein zweiter Lauf rechnet
-nichts neu, und er kostet Platz: Der Korpus wird dadurch etwa viermal so groß.
+nichts neu, und er kostet Platz: Der Korpus wird dadurch etwa doppelt so groß.
+
+Das Gegenstück dazu ist `scripts/varianten_aufraeumen.py`. Es entfernt
+Fassungen, die es **nicht mehr** gibt - Dateien einer abgeschafften Abwandlung
+stehen in keiner Tabelle, also räumt sie auch keine Migration weg. Es kennt
+keine Namensliste, sondern vergleicht, was auf der Platte liegt, mit dem, was
+`augmentierung.VARIANTEN` heute nennt. Ohne `--wirklich` zeigt es nur, was
+wegginge:
+
+```bash
+docker compose exec wortlaut python scripts/varianten_aufraeumen.py
+docker compose exec wortlaut python scripts/varianten_aufraeumen.py --wirklich
+```
+
+Anlass war der September 2026: `pegel` und `lauter` sind verworfen worden, weil
+sie an Whisper nahezu wirkungslos sind.
 
 ### Der Trainer
 

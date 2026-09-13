@@ -7,18 +7,24 @@ bloß diese eine Aufnahmesituation gut verträgt, lässt sich daran nicht
 ablesen - und das ist die Frage, auf die es ankommt, denn die nächste Aufnahme
 entsteht mit anderem Pegel und anderem Grundgeräusch.
 
-Deshalb bekommt jede Aufnahme drei Abwandlungen, und zwar bewusst schlichte:
+Deshalb bekommt jede Aufnahme eine Abwandlung, und zwar eine bewusst schlichte:
 
-* **`pegel`** - lauter gerechnet, bis die Spitze knapp unter den Anschlag
-  stößt. Der Wertebereich wird ausgeschöpft, ohne ihn zu verlassen. Das ist
-  die Frage „liegt es nur daran, dass es zu leise war?".
-* **`lauter`** - alles mal 1,15, für jede Aufnahme derselbe Faktor. Nicht
-  dasselbe wie `pegel`: Hier ändert sich der Abstand zwischen leisen und
-  lauten Aufnahmen **nicht**, und wer schon nah am Anschlag lag, stößt jetzt
-  daran. Genau das ist der Fall, den jemand herstellt, der am Regler dreht.
 * **`rauschen`** - ein kleines, hörbares Grundrauschen darüber, in festem
   Abstand zur Lautstärke der Aufnahme selbst. Das ist der Lüfter, die Straße,
   das billige Mikrofon.
+
+**Warum nur noch eine.** Hier standen bis September 2026 zwei weitere:
+`pegel` (lauter gerechnet bis knapp unter den Anschlag) und `lauter` (alles
+mal 1,15). Beide sind gemessen worden, und beide sind an Whisper nahezu
+wirkungslos: Das Modell hört kein Wellenfeld, sondern ein Log-Mel-Spektrogramm,
+und eine gleichmäßige Verstärkung verschiebt darin im Wesentlichen einen
+Summanden. Was zwei Drittel der Rechenzeit einer Auswertung kostete, trennte
+keine zwei Modelle voneinander - und eine Fassung, die nichts unterscheidet,
+ist keine Messung, sondern eine Spalte. Sie sind samt ihren Dateien und
+Datenbankzeilen verworfen (`009_ohne_pegelvarianten.sql`).
+
+Was blieb, ist die eine, die wirklich etwas anderes verlangt: Rauschen ändert
+das Spektrogramm an jeder Stelle und nicht nur seine Höhe.
 
 **Warum fester Abstand und nicht fester Pegel.** Ein absoluter Rauschpegel
 träfe eine leise Aufnahme viel härter als eine laute - die Abwandlung wäre für
@@ -31,6 +37,13 @@ Messung, die sich nicht wiederholen lässt, ist keine. Der Würfel bekommt
 deshalb die Kennung der Aufnahme als Keim: Dieselbe Aufnahme ergibt bei jedem
 Lauf, auf jeder Maschine, dasselbe Rauschen. Eine gelöschte und neu gerechnete
 Datei ist Byte für Byte dieselbe wie vorher.
+
+**Wovon das hier zu unterscheiden ist.** Dies sind die Fassungen, in denen
+**gemessen** wird - dieselben für jedes Modell, seit Monaten vergleichbar, und
+deshalb absichtlich wenige. Womit **trainiert** wird, ist eine andere Frage und
+steht woanders (`apps/lernen/training/klangwandel.py`): Dort darf die
+Abwandlung breit, zufällig und je Durchgang verschieden sein, denn dort soll
+sie nichts vergleichbar machen, sondern ein Modell härter.
 
 Gerechnet wird ohne numpy, allein mit der Standardbibliothek - wie in
 `audio.py` und aus demselben Grund: Bei Ausschnitten von wenigen Sekunden ist
@@ -47,7 +60,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from .audio import VOLLAUSSCHLAG, AudioFehler
+from .audio import AudioFehler
 
 # Die unabgewandelte Aufnahme. Sie ist keine Abwandlung und wird nirgends
 # erzeugt - sie liegt schon da. Der Name steht hier, damit er an einer Stelle
@@ -58,14 +71,6 @@ ORIGINAL = "original"
 # abgeschnitten: Ein Überlauf klänge nicht laut, sondern kaputt.
 KLEINSTER = -32768
 GROESSTER = 32767
-
-# Wohin `pegel` die Spitze legt. Knapp unter den Anschlag und nicht genau
-# darauf: Beim Runden einzelner Abtastwerte bliebe sonst ein Rest, der als
-# Übersteuerung gezählt würde (siehe `audio.untersuche`).
-ZIEL_SPITZE_DBFS = -1.0
-
-# Der eine Faktor von `lauter`, für jede Aufnahme derselbe: 15 % mehr.
-LAUTER_FAKTOR = 1.15
 
 # Wie weit das Rauschen unter der Aufnahme selbst liegt. 20 dB sind deutlich
 # zu hören und lassen die Sprache trotzdem vorn: Es soll stören, nicht
@@ -78,48 +83,8 @@ def _begrenzt(wert: float) -> int:
     return max(KLEINSTER, min(GROESSTER, round(wert)))
 
 
-def _verstaerkt(werte: array.array, faktor: float) -> array.array:
-    return array.array("h", (_begrenzt(wert * faktor) for wert in werte))
-
-
-def _spitze(werte: array.array) -> int:
-    return max(max(werte), -min(werte))
-
-
 def _rms(werte: array.array) -> float:
     return math.sqrt(sum(wert * wert for wert in werte) / len(werte))
-
-
-def pegel_ausschoepfen(werte: array.array, keim: str) -> array.array:
-    """Lauter, bis die Spitze bei `ZIEL_SPITZE_DBFS` steht.
-
-    Das schlichteste Verfahren, den Wertebereich auszunutzen: ein einziger
-    Faktor über die ganze Aufnahme, bestimmt aus ihrem lautesten Punkt.
-    Absichtlich keine Kompression und keine fensterweise Anpassung - die
-    machten aus einer lauten und einer leisen Stelle dieselbe Lautstärke und
-    änderten damit, *wie* gesprochen wurde. Hier ändert sich nur, wie weit der
-    Regler aufgedreht war.
-
-    Eine Aufnahme, die schon am Anschlag stand, wird dabei leiser. Das ist
-    richtig so: „den Bereich optimal ausnutzen" heißt auch, ihn nicht zu
-    verlassen.
-    """
-    spitze = _spitze(werte)
-    if spitze == 0:
-        # Stille bleibt Stille. Ein Faktor darauf wäre eine Division durch null.
-        return array.array("h", werte)
-    return _verstaerkt(werte, VOLLAUSSCHLAG * 10 ** (ZIEL_SPITZE_DBFS / 20) / spitze)
-
-
-def gleichmaessig_lauter(werte: array.array, keim: str) -> array.array:
-    """Alles mal `LAUTER_FAKTOR` - für jede Aufnahme derselbe Faktor.
-
-    Dass eine ohnehin laute Aufnahme dabei an den Anschlag stößt, ist nicht
-    der Fehler dieser Abwandlung, sondern ihr Gegenstand: Genau das passiert,
-    wenn jemand pauschal lauter dreht. Abgeschnitten wird hart - eine weiche
-    Begrenzung wäre eine zweite, unausgesprochene Bearbeitung.
-    """
-    return _verstaerkt(werte, LAUTER_FAKTOR)
 
 
 def mit_rauschen(werte: array.array, keim: str) -> array.array:
@@ -150,18 +115,6 @@ class Abwandlung:
 
 
 ABWANDLUNGEN = (
-    Abwandlung(
-        name="pegel",
-        titel="Ausgesteuert",
-        erklaerung="Lauter gerechnet, bis die Spitze knapp unter dem Anschlag steht.",
-        rechne=pegel_ausschoepfen,
-    ),
-    Abwandlung(
-        name="lauter",
-        titel="15 % lauter",
-        erklaerung="Alles mal 1,15 - für jede Aufnahme derselbe Faktor.",
-        rechne=gleichmaessig_lauter,
-    ),
     Abwandlung(
         name="rauschen",
         titel="Mit Rauschen",

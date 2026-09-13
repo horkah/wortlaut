@@ -161,12 +161,52 @@ ABSCHLUESSE = [
 ]
 
 
+AUGMENTIERUNGEN = [
+    WahlAntwort(
+        schluessel=lauf_layout.AUG_KEINE,
+        name="Keine",
+        erklaerung=(
+            "Jede Probe so, wie sie im Schnappschuss steht - das Verfahren, "
+            "nach dem alle bisherigen Stände entstanden sind."
+        ),
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.AUG_MASKEN,
+        name="Masken (SpecAugment)",
+        erklaerung=(
+            "Zeit- und Frequenzbalken ins Spektrogramm. Das Modell lernt, aus dem "
+            "Rest zu schließen, statt sich auf einzelne Bänder zu verlassen. "
+            "Kostet praktisch nichts."
+        ),
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.AUG_UMGEBUNG,
+        name="Masken, Raum und Rauschen",
+        erklaerung=(
+            "Dazu ein gewürfelter Raum und ein gewürfeltes Grundgeräusch - der "
+            "Abstand zum Mikrofon, die Wand dahinter, der Lüfter."
+        ),
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.AUG_VOLL,
+        name="Dazu Tempo",
+        erklaerung=(
+            "Zusätzlich schneller und langsamer gesprochen. Kann helfen oder "
+            "schaden: Bei dysarthrischer Sprache ist das Tempo selbst ein Merkmal "
+            "des Sprechers. Deshalb eine eigene Stufe - damit man es misst."
+        ),
+    ),
+]
+
+
 class Bestellung(BaseModel):
     methode: str
     daten: str
     # Die dritte Achse, mit Vorgabe: Eine Bestellung ohne dieses Feld ist
     # dieselbe Bestellung wie vor September 2026.
     abschluss: str = lauf_layout.ABSCHLUSS_BESTER
+    # Die vierte Achse, ebenfalls mit Vorgabe.
+    augmentierung: str = lauf_layout.AUG_KEINE
 
 
 class StandHinweis(BaseModel):
@@ -190,6 +230,9 @@ class LaufAntwort(BaseModel):
     # das Feld nicht im Auftrag stehen und heißt hier `bester` - das ist keine
     # Annahme, sondern genau das, was damals gerechnet wurde.
     abschluss: str
+    # Womit die Trainingsproben abgewandelt wurden. Ein Lauf von vor dieser
+    # Achse heißt hier `keine` - genau das, was damals gerechnet wurde.
+    augmentierung: str
     basismodell: str
     erstellt: str
     status: str
@@ -238,6 +281,7 @@ class EinzelAntwort(BaseModel):
     methoden: list[WahlAntwort]
     datensaetze: list[WahlAntwort]
     abschluesse: list[WahlAntwort]
+    augmentierungen: list[WahlAntwort]
     kurve_training: list[PunktAntwort]
     kurve_validierung: list[PunktAntwort]
     # fassung -> die Maße, jeweils vorher und nachher
@@ -253,6 +297,7 @@ class ListeAntwort(BaseModel):
     methoden: list[WahlAntwort]
     datensaetze: list[WahlAntwort]
     abschluesse: list[WahlAntwort]
+    augmentierungen: list[WahlAntwort]
     basismodell: str
     # Ob überhaupt beauftragt werden kann, und wenn nicht, warum. Es sind zwei
     # Gründe, aus denen nicht: zu wenige Aufnahmen - oder kein hinterlegter
@@ -309,6 +354,7 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         methode=str(lauf.auftrag.get("methode", "")),
         daten=str(lauf.auftrag.get("daten", "")),
         abschluss=str(lauf.auftrag.get("abschluss") or lauf_layout.ABSCHLUSS_BESTER),
+        augmentierung=str(lauf.auftrag.get("augmentierung") or lauf_layout.AUG_KEINE),
         basismodell=str(lauf.auftrag.get("basismodell", "")),
         erstellt=str(lauf.auftrag.get("erstellt", "")),
         status=lauf.status,
@@ -357,6 +403,7 @@ def liste(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         methoden=METHODEN,
         datensaetze=DATENSAETZE,
         abschluesse=ABSCHLUESSE,
+        augmentierungen=AUGMENTIERUNGEN,
         basismodell=konfiguration.lernen_basismodell,
         bereit=genug and erlaubt,
         schluessel_noetig=erlaubt,
@@ -397,6 +444,11 @@ def beauftrage(
         raise HTTPException(
             status_code=400, detail=f"Unbekannter Abschluss: {bestellung.abschluss}"
         )
+    if bestellung.augmentierung not in lauf_layout.AUGMENTIERUNGEN:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unbekannte Augmentierung: {bestellung.augmentierung}",
+        )
 
     konfiguration = einstellungen()
     proben = aufteilung.proben(db, korpus)
@@ -415,6 +467,7 @@ def beauftrage(
             methode=bestellung.methode,
             daten=bestellung.daten,
             abschluss=bestellung.abschluss,
+            augmentierung=bestellung.augmentierung,
             basismodell=konfiguration.lernen_basismodell,
         ),
     )
@@ -445,6 +498,7 @@ def einzeln(
         methoden=METHODEN,
         datensaetze=DATENSAETZE,
         abschluesse=ABSCHLUESSE,
+        augmentierungen=AUGMENTIERUNGEN,
         kurve_training=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["training"]],
         kurve_validierung=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["validierung"]],
         vergleich={

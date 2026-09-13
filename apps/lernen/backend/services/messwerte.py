@@ -14,10 +14,10 @@ auf allem anderen hätte die eine Seite gelernt und die andere nicht.
 liegen längst vor, und beide stammen aus `wortlaut/metriken.py`:
 
 * Für die Grundmodelle die Auswertung von „hören" - jede Aufnahme durch `base`,
-  `small`, `medium`, `large-v3`, in allen vier Fassungen
+  `small`, `medium`, `large-v3`, in allen Fassungen
   (`apps/hoeren/backend/api/auswertung.py`).
 * Für jeden trainierten Stand die `bewertung.jsonl` seines Laufs - dieselben
-  Testaufnahmen, dieselben vier Fassungen, dieselben Maße
+  Testaufnahmen, dieselben Fassungen, dieselben Maße
   (`apps/lernen/training/bewerten.py`).
 
 Ein drittes Mal zu messen wäre eine dritte Gelegenheit, es anders zu machen -
@@ -131,7 +131,7 @@ class Messreihe:
 
         Gezogen wird je **Aufnahme** und nicht je Einheit, sobald mehrere
         Fassungen in der Reihe stehen: Vier Fassungen derselben Aufnahme sind
-        vier Messungen an einem Gegenstand (siehe `wortlaut/streuung.py`).
+        mehrere Messungen an einem Gegenstand (siehe `wortlaut/streuung.py`).
         """
         if blockart == streuung.AUS:
             return {}

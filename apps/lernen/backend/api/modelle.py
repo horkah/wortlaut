@@ -47,6 +47,13 @@ ABSCHLUESSE = {
     "interpoliert": "mit Grundmodell",
     "beides": "gemittelt + Grundmodell",
 }
+# Die vierte Achse, nach derselben Regel: `keine` fehlt, weil es das Verfahren
+# ist, nach dem jeder Stand vor September 2026 entstand.
+AUGMENTIERUNGEN = {
+    "masken": "Masken",
+    "umgebung": "Masken/Raum/Rauschen",
+    "voll": "Masken/Raum/Rauschen/Tempo",
+}
 
 
 class MassAntwort(BaseModel):
@@ -252,8 +259,11 @@ def _abschluss(manifest: dict) -> str:
 def _stand_herkunft(manifest: dict) -> str:
     grund = str(manifest.get("basismodell", "?")).rsplit("/", 1)[-1]
     datum = str(manifest.get("erstellt", ""))[:10]
+    abwandlung = AUGMENTIERUNGEN.get(str(manifest.get("augmentierung", "")), "")
     return " · ".join(
-        teil for teil in (f"aus {grund}", _abschluss(manifest), datum) if teil.strip(" ·")
+        teil
+        for teil in (f"aus {grund}", _abschluss(manifest), abwandlung, datum)
+        if teil.strip(" ·")
     )
 
 

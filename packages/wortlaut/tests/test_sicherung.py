@@ -36,7 +36,7 @@ def _bestand(wurzel: Path, *, mit_tabelle: bool = True) -> None:
     (wurzel / "korpus/spr_a/audio").mkdir(parents=True, exist_ok=True)
     (wurzel / "korpus/spr_a/audio/rec_1.wav").write_bytes(b"gesprochen")
     (wurzel / "korpus/spr_a/audio/varianten").mkdir(parents=True, exist_ok=True)
-    (wurzel / "korpus/spr_a/audio/varianten/rec_1.pegel.wav").write_bytes(b"gerechnet")
+    (wurzel / "korpus/spr_a/audio/varianten/rec_1.rauschen.wav").write_bytes(b"gerechnet")
 
 
 AUSGELASSEN = sicherung.Abgeleitetes(

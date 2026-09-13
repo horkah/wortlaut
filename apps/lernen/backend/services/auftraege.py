@@ -58,6 +58,9 @@ class Auftrag:
     # Vorgabe, und die ist das Verfahren von vorher: Ein Auftrag von einem
     # Aufrufer, der diese Achse nicht kennt, bleibt derselbe Auftrag.
     abschluss: str = laeufe.ABSCHLUSS_BESTER
+    # Womit die Trainingsproben beim Laden abgewandelt werden. Auch hier mit
+    # Vorgabe: `keine` ist das Verfahren von vorher.
+    augmentierung: str = laeufe.AUG_KEINE
 
 
 def _quelle_von(korpus: Session, probe: Probe) -> str:
@@ -153,6 +156,7 @@ def beauftrage(
             "methode": auftrag.methode,
             "daten": auftrag.daten,
             "abschluss": auftrag.abschluss,
+            "augmentierung": auftrag.augmentierung,
             "basismodell": auftrag.basismodell,
             "erstellt": laeufe.jetzt(),
             "zeilen": gezaehlt,

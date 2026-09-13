@@ -20,12 +20,12 @@
    * `kennzahlen`) - und gerade das Auseinanderfallen der beiden ist dieselbe
    * Auskunft wie der Einbruch in der Kurve, nur als Zahl.
    *
-   * **Warum im Bild nur eine von vier Zahlen steht.** Gemessen wird jede
-   * Aufnahme viermal je Modell: einmal, wie sie gesprochen wurde, und einmal
-   * je Abwandlung (ausgesteuert, pauschal lauter, mit Rauschen - siehe
-   * `wortlaut/augmentierung.py`). Alle vier in die Kurve zu legen ergäbe bei
-   * vier Modellen sechzehn Reihen über denselben Aufnahmen; man sähe nichts
-   * mehr. Die Kurve zeigt deshalb je Modell den **besten** der vier Werte -
+   * **Warum im Bild nur eine Zahl je Modell steht.** Gemessen wird jede
+   * Aufnahme in jeder Fassung: einmal, wie sie gesprochen wurde, und einmal
+   * je Abwandlung (heute nur noch `rauschen` - siehe
+   * `wortlaut/augmentierung.py`). Alle in die Kurve zu legen ergäbe bei vier
+   * Modellen ein Vielfaches an Reihen über denselben Aufnahmen; man sähe
+   * nichts mehr. Die Kurve zeigt deshalb je Modell den **besten** Wert -
    * was das Modell aus dieser Aufnahme herausholen kann, wenn der Ton stimmt.
    * „Am besten" heißt dabei je nach Maß größer oder kleiner: Bei den
    * Fehlerraten ist der kleinste Wert der beste, und eine Kurve, die beim
@@ -714,9 +714,9 @@
     <p class="gedaempft">
       {aktuelleMetrik.erklaerung}
       {aktuelleMetrik.hoch_ist_gut ? 'Höher ist besser.' : 'Niedriger ist besser.'}
-      Im Bild steht je Modell der beste seiner vier Werte - die Aufnahme wird
-      viermal gemessen, einmal wie gesprochen und einmal je Abwandlung. Alle
-      vier stehen in der Tabelle darunter.
+      Im Bild steht je Modell sein bester Wert - die Aufnahme wird in jeder
+      Fassung gemessen, einmal wie gesprochen und einmal je Abwandlung. Alle
+      stehen in der Tabelle darunter.
     </p>
   {/if}
 
