@@ -47,12 +47,13 @@ class Einstellungen(Grundeinstellungen):
     # (`wortlaut/einstellungen.py`); warum die Leiter so aussieht, wie sie
     # aussieht, steht dort.
     #
-    # Unten steht `base` und nicht mehr `tiny`. Eine Untergrenze soll zeigen,
-    # wo das Verstehen abzubrechen beginnt, und dafür muss sie selbst noch
-    # etwas verstehen: `tiny` traf bei abweichender Aussprache so wenig, dass
-    # seine Zeile nur noch aussagte, dass ein zu kleines Modell zu klein ist.
-    # `base` kostet kaum mehr Rechenzeit und liefert eine Reihe, gegen die
-    # sich `small` lesen lässt.
+    # Unten steht `small`, und darunter nichts mehr. Erst fiel `tiny`, weil es
+    # bei abweichender Aussprache so wenig traf, dass seine Zeile nur noch
+    # aussagte, dass ein zu kleines Modell zu klein ist; dann fiel `base`, weil
+    # es zwar genug verstand, aber niemand mehr danach fragte. Trainiert wird
+    # auf `small` und `medium`, diktiert wird mit einem eigenen Stand oder
+    # `small` - eine Sprosse, unter der keine Entscheidung mehr hängt, kostet
+    # Rechenzeit und Speicher für eine Spalte, die niemand liest.
     #
     # Oben steht `large-v3`, und das ist die teuerste Zeile der Liste: gut
     # anderthalb Gigabyte zusätzlich im Speicher und je Aufnahme ein

@@ -38,11 +38,19 @@ from . import rechenwerk
 # Tabellenzeile ohne Messung. Dieselbe Variable gesetzt, gilt sie ohnehin für
 # beide; auseinanderlaufen konnten nur die Vorgaben.
 #
-# Es ist eine Leiter mit vier Sprossen: `base` ist die Untergrenze, `small` der
-# Alltagsfall, `medium` zeigt, was mit mehr Rechenzeit noch zu holen wäre, und
+# Es ist eine Leiter mit drei Sprossen: `small` ist der Alltagsfall und die
+# Untergrenze, `medium` zeigt, was mit mehr Rechenzeit noch zu holen wäre, und
 # `large-v3` sagt, wo das Verfahren selbst endet. Wer wenig Maschine hat, kürzt
 # die Liste - gerechnet wird nur, was darin steht.
-AUSWERTUNG_MODELLE = "base,small,medium,large-v3"
+#
+# Unten stand einmal `tiny`, dann `base`. Beide sind gefallen, und beim zweiten
+# Mal aus einem anderen Grund als beim ersten: `tiny` verstand zu wenig, um eine
+# Untergrenze zu sein. `base` verstand genug - nur fragt es niemand mehr.
+# Trainiert wird auf `small` und `medium`, diktiert wird mit einem eigenen Stand
+# oder `small`, und eine Sprosse, unter der nichts mehr steht, ist keine Leiter,
+# sondern eine Spalte. Sie kostete je Auswertungslauf Rechenzeit und Speicher
+# für eine Zahl, die keine Entscheidung mehr trug.
+AUSWERTUNG_MODELLE = "small,medium,large-v3"
 
 
 class Grundeinstellungen(BaseSettings):

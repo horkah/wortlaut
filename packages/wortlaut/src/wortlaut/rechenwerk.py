@@ -27,7 +27,7 @@ Umgebungsvariable - was zählt, ist nicht, ob jemand eine Karte gemeint hat,
 sondern ob die Laufzeit eine sieht.
 
 **Warum `int8_float16` auf der Karte und nicht `float16`.** Speicher. Die
-Auswertung hält vier Modelle gleichzeitig im Speicher (sie rechnet
+Auswertung hält alle Grundmodelle gleichzeitig im Speicher (sie rechnet
 aufnahmeweise, nicht modellweise), `large-v3` darunter; in `float16` sind das
 gut sechs Gigabyte. Daneben will ein volles Training acht und das Sprachmodell
 für die Textquelle weitere sechs - auf einer einzelnen Karte mit elf geht das

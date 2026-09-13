@@ -50,7 +50,7 @@ ist jederzeit neu zu laden und gehört deshalb nicht ins Volume der Daten
 | `WORTLAUT_LLM_API_KEY` | leer | bei lokalem Ollama leer |
 | `WORTLAUT_LLM_MODEL` | `gemma2:9b` | für ein paar Vorlesesätze genügt ein kleines Modell |
 | `WORTLAUT_LLM_BASE_URL` | leer | nur bei `openai`, z. B. `http://ollama:11434/v1` |
-| `WORTLAUT_AUSWERTUNG_MODELLE` | `base,small,medium,large-v3` | welche Grundmodelle gegeneinander antreten - dieselbe Liste, gegen die in `lernen` die eigenen Stände antreten |
+| `WORTLAUT_AUSWERTUNG_MODELLE` | `small,medium,large-v3` | welche Grundmodelle gegeneinander antreten - dieselbe Liste, gegen die in `lernen` die eigenen Stände antreten |
 
 Die beiden Token sind kein Zugang zu den Aufnahmen: Dorthin führt allein der
 persönliche Zugang eines Sprechers (siehe [hören](hoeren.md)).
@@ -59,7 +59,7 @@ Zur Auswertungsliste: `medium` braucht auf einer CPU je Aufnahme etwa das Drei-
 bis Zehnfache ihrer Dauer, `large-v3` noch einmal ein Mehrfaches davon und gut
 anderthalb Gigabyte Speicher obendrauf. Sie steht trotzdem in der Vorgabe, denn
 nur das größte fertige Modell beantwortet, ob überhaupt eines für diese Stimme
-reicht. Wer wenig Maschine hat, kürzt auf `base,small`.
+reicht. Wer wenig Maschine hat, kürzt auf `small`.
 
 ---
 
@@ -83,7 +83,7 @@ dem Prozessor, der Trainer auf der Karte, und in der Tabelle standen vier
 Sekunden neben einer Viertelsekunde für dasselbe Modell.
 
 **Warum `int8_float16` und nicht `float16`.** Speicher. Die Auswertung hält
-alle vier Modelle gleichzeitig im Speicher (sie rechnet aufnahmeweise, nicht
+alle drei Modelle gleichzeitig im Speicher (sie rechnet aufnahmeweise, nicht
 modellweise), `large-v3` darunter; in `float16` sind das gut sechs Gigabyte.
 Daneben will ein volles Training acht und das Sprachmodell für die Textquelle
 weitere sechs - auf einer einzelnen Karte mit elf geht das nicht auf.
@@ -125,7 +125,7 @@ Viertelstunde ist der Ausgleich.
 | `WORTLAUT_VORLESEN_MOTOR` | `piper` | welcher Motor spricht. Heute gibt es einen; der zweite kommt daneben |
 | `WORTLAUT_LERNEN_BASISMODELL` | `openai/whisper-small` | die **Vorgabe**, worauf trainiert wird |
 | `WORTLAUT_LERNEN_GRUNDMODELLE` | `openai/whisper-small,openai/whisper-medium` | was darüber hinaus zur Wahl steht. Jedes davon muss in `WORTLAUT_AUSWERTUNG_MODELLE` stehen, sonst fehlt seinem Stand die Grundlinie. `medium` und größer lassen sich nur mit LoRA trainieren |
-| `WORTLAUT_AUSWERTUNG_MODELLE` | `base,small,medium,large-v3` | welche Grundmodelle in der Modelltabelle gegen die eigenen Stände antreten; dieselbe Variable wie oben, und das ist Absicht |
+| `WORTLAUT_AUSWERTUNG_MODELLE` | `small,medium,large-v3` | welche Grundmodelle in der Modelltabelle gegen die eigenen Stände antreten; dieselbe Variable wie oben, und das ist Absicht |
 | `WORTLAUT_LERNEN_GERAET` | `cuda` | worauf **trainiert** wird; auf einem Prozessor dauert ein Feintuning Tage statt Stunden. Etwas anderes als `WORTLAUT_GERAET` oben: Dort geht es ums Erkennen, hier ums Lernen, und nur das Erkennen darf ausweichen |
 | `WORTLAUT_LERNEN_TAKT_S` | `5` | wie oft der Läufer nach neuen Aufträgen sieht |
 

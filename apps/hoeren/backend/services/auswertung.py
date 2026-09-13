@@ -19,13 +19,13 @@ Messen - aber die CPU ist dieselbe). Ein Neustart des Containers würde sonst
 jedes Mal ungefragt Stunden Rechenzeit binden. Wer messen will, sagt es.
 
 **Warum aufnahmeweise und nicht modellweise.** Die naheliegende Reihenfolge
-wäre, erst alle Aufnahmen durch `base` zu schicken, dann durch `small`, dann
-durch `medium`. Sie wäre auch sparsamer: je Modell einmal laden. Nur zeigt die
+wäre, erst alle Aufnahmen durch `small` zu schicken, dann durch `medium`, dann
+durch `large-v3`. Sie wäre auch sparsamer: je Modell einmal laden. Nur zeigt die
 Kurve dann lange Zeit eine einzige Reihe, und verglichen werden soll gerade.
 Also andersherum: Aufnahme für Aufnahme durch alle Modelle, damit die ersten
 Punkte sofort vollständig sind. Bezahlt wird das damit, dass alle Erkenner
-gleichzeitig im Speicher liegen (`_transkriptoren`) - bei base, small, medium
-und large-v3 in `int8` gut zweieinhalb Gigabyte.
+gleichzeitig im Speicher liegen (`_transkriptoren`) - bei small, medium und
+large-v3 in `int8` gut zweieinhalb Gigabyte.
 
 **Warum mehrfach je Aufnahme und Modell.** Eine Aufnahme ist ein einzelner
 Fall: dieser Pegel, dieses Mikrofon, dieser Raum. Ein Modell, das damit

@@ -15,7 +15,7 @@ größeren Boden: dem ganzen Korpus statt einem Drittel davon.
 liegen längst vor, und beide stammen aus `wortlaut/metriken.py`:
 
 * Für die Grundmodelle die Auswertung von „hören" - jede Aufnahme durch `base`,
-  `small`, `medium`, `large-v3`, in allen Fassungen
+  `small`, `medium` und `large-v3`, in allen Fassungen
   (`apps/hoeren/backend/api/auswertung.py`).
 * Für jeden trainierten Stand die `bewertung.jsonl` seines Laufs - dieselben
   Aufnahmen, dieselben Fassungen, dieselben Maße

@@ -17,9 +17,9 @@ Basis ist `openai/whisper-large-v3`, Laufzeit faster-whisper (CTranslate2), Trai
 2026 nicht mehr - sondern weil es das einzige ist, bei dem Trainingsrezept,
 Laufzeit-Ökosystem und dokumentierte Ergebnisse für genau diesen Fall vollständig
 vorliegen. MIT-Lizenz, keine Attributionspflicht. Für die Entwicklung ohne GPU
-genügt `whisper-small`; unterhalb von `whisper-base` wird nicht gemessen -
-`whisper-tiny` versteht bei abweichender Aussprache zu wenig, um einen
-Vergleich zu tragen.
+genügt `whisper-small`; darunter wird nicht gemessen - `whisper-tiny` versteht
+bei abweichender Aussprache zu wenig, um einen Vergleich zu tragen, und
+`whisper-base` verstand zwar genug, nur fragte niemand mehr danach.
 
 **2. Aufnahme erfolgt äußerungsweise, nicht am Stück.**
 `hören` zeigt immer genau eine kurze Einheit und nimmt genau dazu auf. Jedes
@@ -517,7 +517,7 @@ Zwei Spalten tragen mehr Bedeutung, als ihr Name verrät:
 | Frontend | Svelte 5, Vite, TypeScript | kompiliert weg, kein Laufzeit-Framework auf schwachen Geräten |
 | Aufnahme | `MediaRecorder` (Opus), serverseitig ffmpeg → 16 kHz mono WAV | Browser liefern kein WAV, Konvertierung an einer Stelle |
 | Vorlesen | Web Speech API | deutsche Stimmen fast überall vorhanden, keine Infrastruktur, keine Latenz - dafür schwankt die Qualität je nach Betriebssystem stark, Stimme und Tempo sind deshalb einstellbar |
-| ASR | faster-whisper (CTranslate2), auf der Karte `int8_float16`, sonst `int8` | schnellste brauchbare Whisper-Laufzeit auf beidem; die halbe Darstellung, weil vier Modelle gleichzeitig im Speicher liegen und sich die Karte mit Training und Sprachmodell teilen |
+| ASR | faster-whisper (CTranslate2), auf der Karte `int8_float16`, sonst `int8` | schnellste brauchbare Whisper-Laufzeit auf beidem; die halbe Darstellung, weil mehrere Modelle gleichzeitig im Speicher liegen und sich die Karte mit Training und Sprachmodell teilen |
 | ASR entfernt | OpenAI-kompatibler Endpunkt | ein Adapter deckt mehrere Anbieter ab |
 | Training | HF Transformers, Datasets, Accelerate | Standardrezept für Whisper, breit dokumentiert |
 | Diagramme | Apache ECharts, nachgeladen und nur mit den eingetragenen Teilen | Finger und Maus gleichermaßen, gemischte Reihen in einem Bild, und `connect` koppelt mehrere Diagramme aneinander - der Punkt, an dem die schlankeren Bibliotheken aufhören |
