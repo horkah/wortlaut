@@ -64,9 +64,10 @@ class Testtranskriptor:
 
     abschnitte: list[Abschnitt] = field(default_factory=lambda: list(VORGABE))
     aufrufe: int = 0
-    # Die Spitze der Datei, die zuletzt zu hören war - daran lässt sich
-    # ablesen, ob vor dem Erkennen ausgesteuert wurde (siehe
-    # `test_aussteuern.py`). Das echte Modell sieht dieselbe Datei.
+    # Die Spitze der Datei, die zuletzt zu hören war. Sie belegte einmal, dass
+    # vor dem Erkennen ausgesteuert wurde; die Aufbereitung ist weg
+    # (`004_ohne_aussteuern.sql`), der Wert bleibt als Beleg dafür, dass das
+    # Modell genau die aufgenommene Datei zu hören bekommt.
     gehoerte_spitze: int = 0
 
     def transkribiere(self, wav: Path, sprache: str = "de") -> Transkript:

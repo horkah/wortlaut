@@ -44,7 +44,7 @@ from .config import Einstellungen, einstellungen
 # das Belegen und Freigeben ihres Speichers dazu.
 #
 # Der Schlüssel der Transkriptoren ist das **Modell** und nicht der Sprecher:
-# Seit sich das Modell zur Laufzeit freigeben lässt (`services/erkennung.py`),
+# Seit sich das Modell zur Laufzeit freigeben lässt (`wortlaut/registry.py`),
 # gäbe ein Zwischenspeicher je Sprecher nach einem Wechsel weiter das alte
 # Modell heraus - ein Fehler, den niemand als Fehler erkennte, weil einfach
 # der gewohnte Text herauskäme.
@@ -106,7 +106,7 @@ def transkriptor_fuer(sprecher_id: str) -> Transkriptor:
 def aktive_ref(konfiguration: Einstellungen, sprecher_id: str) -> str:
     """Was für diesen Menschen gilt - eine Standkennung oder ein Grundmodellname.
 
-    Die Rangfolge steht in `services/erkennung.py`; hier wird sie ausgeführt:
+    Die Rangfolge steht in `api/model.py`; hier wird sie ausgeführt:
 
     1. `WORTLAUT_MODELL_REF` - der eine Stand für alle, zum Erproben.
     2. Die Freigabe *dieses* Sprechers (`wortlaut/registry.py`). Sie entsteht

@@ -420,32 +420,6 @@ sie erzeugt hat. Die Zeile unter dem Aufnahmeknopf nennt es dauerhaft, samt
 Methode und Datensatz - vier Stände vom selben Tag wären sonst nicht
 auseinanderzuhalten.
 
-### Aussteuern vor dem Erkennen
-
-Daneben steht ein Schalter, und er ist **an**: Vor dem Erkennen
-wird das Diktat lauter gerechnet, bis seine Spitze knapp unter dem Anschlag
-steht - dieselbe Abwandlung, die `hören` als `pegel` neben jede Aufnahme legt.
-Der Aufnahmepegel eines Browsers hängt am Gerät, am Abstand und an der Stimme;
-bei leisen Aufnahmen schöpft Whisper den Wertebereich nicht aus, den seine
-Merkmalsberechnung erwartet, und gerade die kleineren Modelle hören mit
-Aussteuerung merklich besser. Es ist zugleich das schlichteste denkbare
-Verfahren - ein einziger Faktor über die ganze Aufnahme - und ändert nichts
-daran, *wie* gesprochen wurde, nur daran, wie weit der Regler aufgedreht war.
-
-Abschaltbar bleibt es trotzdem: Wer eine gut ausgesteuerte Kette hat, gewinnt
-nichts mehr und soll die Aufbereitung nicht aufgedrängt bekommen. Der Schalter
-steht in der Modellübersicht von `lernen`, bei dem Modell, auf das er wirkt -
-er ändert nicht, wer zuhört, sondern was dieser zu hören bekommt.
-
-**Ausgesteuert wird nur, was Whisper hört.** Abgelegt und später als Korrektur
-an „hören" gegeben wird die Aufnahme, wie sie gesprochen wurde - sie soll im
-Korpus so liegen, wie sie entstanden ist, und nicht schon bearbeitet. Dieselbe
-Rechnung stand bis September 2026 in „hören" als Abwandlung `pegel` neben jeder
-Aufnahme; als Messgröße ist sie dort verworfen (siehe
-[hören](hoeren.md#zwei-fassungen-je-aufnahme)), als Hörhilfe bleibt sie hier.
-
----
-
 ## Datenmodell
 
 **hören**
@@ -481,7 +455,6 @@ stehen kann.
 | `sessions` | eine Diktiersitzung |
 | `segments` | Text, Reihenfolge, Audio, Herkunft (initial/neu) |
 | `outbox` | offene Korrekturen mit Wiederholungszähler |
-| `erkennung` | die Aufbereitung dieses Sprechers - genau eine Zeile |
 
 Zugriff über SQLAlchemy 2.0 mit typisierten Modellen. Schemaänderungen als
 nummerierte `.sql`-Dateien. Kein Alembic - bei diesem Schemaumfang ist die

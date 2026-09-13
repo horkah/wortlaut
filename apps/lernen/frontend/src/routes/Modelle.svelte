@@ -28,7 +28,6 @@
    */
   import { onMount } from 'svelte';
   import {
-    aussteuernSetzen,
     diktatmodell as ladeDiktatmodell,
     gibFrei,
     modelle as ladeModelle,
@@ -245,15 +244,6 @@
     }
   }
 
-  async function schalteAussteuern(an: boolean) {
-    arbeitet = 'aussteuern';
-    try {
-      diktat = (await aussteuernSetzen(an)) ?? diktat;
-    } finally {
-      arbeitet = '';
-    }
-  }
-
   onMount(hole);
 </script>
 
@@ -303,21 +293,6 @@
         </p>
       {/if}
 
-      <label class="umschalter">
-        <span>Vor dem Erkennen aussteuern</span>
-        <input
-          type="checkbox"
-          role="switch"
-          checked={diktat.aussteuern}
-          disabled={arbeitet === 'aussteuern'}
-          onchange={(ereignis) => schalteAussteuern(ereignis.currentTarget.checked)}
-        />
-      </label>
-      <p class="gedaempft klein">
-        Das Diktat wird lauter gerechnet, bis seine lauteste Stelle knapp unter dem Anschlag steht -
-        ein einziger Faktor über die ganze Aufnahme. Vor allem die kleineren Modelle hören damit
-        besser. Gespeichert wird die Aufnahme trotzdem so, wie sie gesprochen wurde.
-      </p>
     </div>
   {/if}
 
@@ -573,29 +548,6 @@
 
   .kennzahl .gedaempft {
     font-size: 0.78rem;
-  }
-
-  /* Beschriftung links, Schalter rechts - und auf einem schmalen Telefon
-     untereinander. Das Stylesheet macht `label > span` sonst klein, grau und
-     zu einer eigenen Zeile darüber. */
-  .umschalter {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem 1rem;
-    margin: 0.9rem 0 0;
-    padding-top: 0.7rem;
-    border-top: 1px solid var(--rand);
-    cursor: pointer;
-  }
-
-  .umschalter span {
-    display: inline;
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
-    color: inherit;
   }
 
   /* Was gemessen wurde, links; welche Fassung gezeigt wird, rechts. Beides
