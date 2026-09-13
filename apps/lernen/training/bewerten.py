@@ -36,15 +36,21 @@ from .daten import zeilen_fuer
 
 
 def _version(auftrag: dict[str, Any]) -> str:
-    """Der Name des Standes: Zeit, Methode, Datensatz.
+    """Der Name des Standes: Zeit, Methode, Datensatz - und der Abschluss, wenn einer.
 
     Alle drei, weil vier Stände nebeneinander liegen, die sich in genau diesen
     Punkten unterscheiden. Eine Zeitmarke allein ließe offen, welcher von den
     vieren gemeint ist - und ein Verzeichnisname, den man nachschlagen muss,
     ist keiner.
+
+    Der Abschluss steht nur dann dabei, wenn er nicht `bester` ist. Das ist
+    keine Sparsamkeit: Ein Stand von früher soll heute genauso heißen wie
+    damals, sonst zeigt jeder Verweis auf ihn ins Leere.
     """
     marke = str(auftrag.get("erstellt", laeufe.jetzt()))[:16].replace(":", "").replace("-", "")
-    return f"{marke}-{auftrag.get('methode', '?')}-{auftrag.get('daten', '?')}"
+    name = f"{marke}-{auftrag.get('methode', '?')}-{auftrag.get('daten', '?')}"
+    art = str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER)
+    return name if art == laeufe.ABSCHLUSS_BESTER else f"{name}-{art}"
 
 
 def bewerte(
@@ -185,6 +191,7 @@ def bewerte_und_gib_frei(
     gewichte: Path,
     auftrag: dict[str, Any],
     bericht,
+    abschluss=None,
 ) -> str:
     """Umwandeln, bewerten, in die Registry eintragen. Gibt die Version zurück.
 
@@ -211,6 +218,13 @@ def bewerte_und_gib_frei(
             "basismodell": auftrag.get("basismodell"),
             "methode": auftrag.get("methode"),
             "daten": auftrag.get("daten"),
+            # Die dritte Achse, als schlichte Zeichenkette neben den beiden
+            # anderen - und daneben, was dabei herauskam: die gemittelten
+            # Zwischenstände, das gewählte α, die Verluste davor und danach.
+            # Ein Stand, dessen α niemand mehr nachsehen kann, ist mit keinem
+            # anderen zu vergleichen.
+            "abschluss": str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER),
+            "abschluss_bericht": abschluss.als_dict() if abschluss is not None else None,
             "job_id": auftrag.get("job_id"),
             "erstellt": laeufe.jetzt(),
             "daten_umfang": auftrag.get("zeilen", {}),

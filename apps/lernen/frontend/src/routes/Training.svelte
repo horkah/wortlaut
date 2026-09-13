@@ -2,12 +2,18 @@
   /**
    * Läufe beauftragen und ihnen zusehen.
    *
-   * **Warum vier Knöpfe und keine Formularseite.** Es gibt genau vier Läufe:
-   * zwei Methoden mal zwei Datensätze. Alles andere steht fest - das
-   * Grundmodell, die Aufteilung, die Zahlen des Rezepts. Eine Seite voller
-   * Felder täuschte eine Freiheit vor, die es nicht gibt, und jede
-   * Einstellmöglichkeit wäre eine, deren Wirkung später niemand mehr
-   * zuzuordnen weiß.
+   * **Warum wenige Wahlen und keine Formularseite.** Zwei Methoden, zwei
+   * Datensätze, dazu der Abschluss: was am Ende mit den Gewichten geschieht.
+   * Alles andere steht fest - das Grundmodell, die Aufteilung, die Zahlen des
+   * Rezepts. Eine Seite voller Felder täuschte eine Freiheit vor, die es nicht
+   * gibt, und jede Einstellmöglichkeit wäre eine, deren Wirkung später niemand
+   * mehr zuzuordnen weiß.
+   *
+   * Jede der drei Wahlen ist deshalb eine Achse der Vergleichstafel und keine
+   * Stellschraube: Sie steht im Auftrag, sie steht am Modellstand, und sie
+   * lässt sich hinterher gegen die anderen messen. Der Abschluss hat mit
+   * `bester` genau die Vorgabe, nach der jeder Stand von vorher entstand -
+   * wer nichts wählt, rechnet, was dieses Projekt immer gerechnet hat.
    *
    * **Warum die Liste im Takt nachfragt.** Ein Training dauert Stunden. Der
    * Balken soll währenddessen wachsen, ohne dass jemand neu lädt - und er soll
@@ -40,6 +46,8 @@
 
   let methode = $state('lora');
   let datensatz = $state('original');
+  // Die Vorgabe ist das Verfahren von vorher - siehe Kopf dieser Datei.
+  let abschluss = $state('bester');
   // Der Trainerschlüssel. Er steht hier neben Methode und Datensatz, weil er
   // an derselben Stelle gebraucht wird - aber er gehört nicht zur Bestellung,
   // sondern zur Erlaubnis, sie aufzugeben (siehe `lib/trainerschluessel.ts`).
@@ -64,10 +72,28 @@
     ),
   );
 
+  /**
+   * Dasselbe mit dem Abschluss dazu - für den Satz neben dem Knopf.
+   *
+   * Die Tafel darüber bleibt bei den vier Feldern: Sie beantwortet die erste
+   * Frage dieser App (Methode gegen Datensatz), und ein Raster aus sechzehn
+   * Feldern beantwortete gar keine mehr. Wer aber gerade denselben Lauf mit
+   * einem anderen Abschluss bestellt, hat etwas Neues bestellt - und soll
+   * nicht lesen, das sei schon gerechnet.
+   */
+  const gerechnetGenau = $derived(
+    new Set(
+      laeufe
+        .filter((lauf) => lauf.status === 'fertig')
+        .map((lauf) => `${lauf.methode}/${lauf.daten}/${lauf.abschluss || 'bester'}`),
+    ),
+  );
+
   const STUFEN: Record<string, string> = {
     vorbereiten: 'wird vorbereitet',
     laden: 'Modell wird geladen',
     training: 'trainiert',
+    abschluss: 'die Gewichte werden abgeschlossen',
     sichern: 'wird gesichert',
     umwandeln: 'wird umgewandelt',
     bewerten: 'wird an den Testaufnahmen gemessen',
@@ -81,10 +107,21 @@
     abgebrochen: 'zurückgenommen',
   };
 
+  /**
+   * Die Überschrift einer Laufkarte.
+   *
+   * Der Abschluss steht nur dabei, wenn er nicht der gewöhnliche ist: Ein Lauf
+   * von früher soll heute heißen, wie er damals hieß, sonst sieht die Liste
+   * nach einer Änderung aus, wo keine ist.
+   */
   function bezeichnung(lauf: Lauf): string {
     const m = daten?.methoden.find((wahl) => wahl.schluessel === lauf.methode);
     const d = daten?.datensaetze.find((wahl) => wahl.schluessel === lauf.daten);
-    return `${m?.name ?? lauf.methode} · ${d?.name ?? lauf.daten}`;
+    const a = daten?.abschluesse.find((wahl) => wahl.schluessel === lauf.abschluss);
+    const kern = `${m?.name ?? lauf.methode} · ${d?.name ?? lauf.daten}`;
+    return lauf.abschluss && lauf.abschluss !== 'bester'
+      ? `${kern} · ${a?.name ?? lauf.abschluss}`
+      : kern;
   }
 
   function zeit(roh: string): string {
@@ -105,7 +142,7 @@
   async function bestelle() {
     bestellt = 'laeuft';
     try {
-      await beauftrageLauf(methode, datensatz, schluessel);
+      await beauftrageLauf(methode, datensatz, abschluss, schluessel);
       // Erst merken, wenn er gestimmt hat: Ein falsch getippter Schlüssel, der
       // den Neustart überlebt, ist einer, den man beim nächsten Mal nicht mehr
       // verdächtigt.
@@ -231,6 +268,23 @@
           </label>
         {/each}
       </fieldset>
+
+      <!-- Die dritte Achse. Sie fasst das Training nicht an: Sie entscheidet
+           nur, welcher Stand aus einem gelaufenen Training ausgeliefert wird -
+           und lässt sich damit an denselben Testaufnahmen messen wie die
+           beiden anderen. -->
+      <fieldset>
+        <legend>Was am Ende zählt</legend>
+        {#each daten.abschluesse as wahl (wahl.schluessel)}
+          <label class="option">
+            <input type="radio" bind:group={abschluss} value={wahl.schluessel} />
+            <span>
+              <strong>{wahl.name}</strong>
+              <span class="gedaempft">{wahl.erklaerung}</span>
+            </span>
+          </label>
+        {/each}
+      </fieldset>
     </div>
 
     {#if daten.schluessel_noetig}
@@ -258,7 +312,7 @@
         Training beauftragen
       </button>
       <span class="gedaempft">
-        {#if gerechnet.has(`${methode}/${datensatz}`)}
+        {#if gerechnetGenau.has(`${methode}/${datensatz}/${abschluss}`)}
           Diese Kombination ist schon gerechnet - ein zweiter Lauf nimmt die seither
           hinzugekommenen Aufnahmen mit.
         {:else}

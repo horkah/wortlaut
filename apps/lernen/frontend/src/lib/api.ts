@@ -41,7 +41,7 @@ export type Aufteilung = {
   verwaist: number;
 };
 
-/** Eine Wahlmöglichkeit beim Beauftragen: Methode oder Datensatz. */
+/** Eine Wahlmöglichkeit beim Beauftragen: Methode, Datensatz oder Abschluss. */
 export type Wahl = {
   schluessel: string;
   name: string;
@@ -59,6 +59,8 @@ export type Lauf = {
   sprecher_id: string;
   methode: string;
   daten: string;
+  /** Was am Ende mit den Gewichten geschah: bester | mittel | interpoliert | beides. */
+  abschluss: string;
   basismodell: string;
   erstellt: string;
   /** wartet | laeuft | fertig | gescheitert | abgebrochen */
@@ -135,6 +137,7 @@ export type Laufliste = {
   laeufe: Lauf[];
   methoden: Wahl[];
   datensaetze: Wahl[];
+  abschluesse: Wahl[];
   basismodell: string;
   bereit: boolean;
   hinweis: string;
@@ -150,6 +153,7 @@ export type Laufeinzeln = {
   lauf: Lauf;
   methoden: Wahl[];
   datensaetze: Wahl[];
+  abschluesse: Wahl[];
   kurve_training: Punkt[];
   kurve_validierung: Punkt[];
   /** Fassung → die Maße, jeweils vorher und nachher. */
@@ -272,9 +276,14 @@ export const lauf = (jobId: string, intervall = 'aus') =>
  * Modell entsteht. Das eine gegen das andere zu tauschen hieße, entweder für
  * niemanden zu trainieren oder ohne Erlaubnis.
  */
-export const beauftrage = (methode: string, daten: string, schluessel: string) =>
+export const beauftrage = (
+  methode: string,
+  daten: string,
+  abschluss: string,
+  schluessel: string,
+) =>
   anfrage<Lauf>('/laeufe', {
-    ...alsJson({ methode, daten }),
+    ...alsJson({ methode, daten, abschluss }),
     headers: { 'Content-Type': 'application/json', 'X-Trainer-Key': schluessel },
   });
 

@@ -108,6 +108,39 @@ Durchgänge im Rezept wird zu einer Wette, die man je Korpus neu abschließen
 müsste. So ist sie nur noch eine Obergrenze: Zu hoch angesetzt kostet sie
 Rechenzeit, zu niedrig kostet sie Güte - im Zweifel lieber zu hoch.
 
+### Die dritte Achse: was am Ende zählt
+
+Seit September 2026 ist „der beste Durchgang" nicht mehr die einzige Antwort
+darauf, welcher Stand aus einem gelaufenen Training herauskommt. Beim
+Beauftragen steht eine dritte Wahl daneben - der **Abschluss**
+(`training/abschluss.py`):
+
+| | Was geschieht | Was es kostet |
+|---|---|---|
+| **Bester Durchgang** | der Zwischenstand mit dem besten Validierungsverlust | nichts - das Verfahren von vorher |
+| **Beste Durchgänge gemittelt** | die besten drei Zwischenstände Gewicht für Gewicht gemittelt („Model Soup") | Platz auf der Platte, keine Rechenzeit |
+| **Mit dem Grundmodell verrechnet** | θ = α·θ_grund + (1−α)·θ_fein, α auf der Validierung gewählt (WiSE-FT) | je α ein Durchgang durch die Validierung: Sekunden |
+| **Beides** | erst mitteln, dann verrechnen | beides zusammen |
+
+Die Trainingsschleife fasst keine davon an; sie entscheiden allein, welcher
+Stand aus einem gelaufenen Training ausgeliefert wird. Deshalb sind sie eine
+**Achse** und keine stille Verbesserung: Jede lässt sich an denselben
+Testaufnahmen messen wie Methode und Datensatz, und die Vorgabe „Bester
+Durchgang" rechnet Gewicht für Gewicht das, wonach jeder Stand von vorher
+entstand. Wer nichts wählt, ändert nichts.
+
+Zwei Zusagen stehen dabei fest. **α wird nie am Testdrittel gewählt** - es wird
+nie angefasst, sonst wäre die Testzahl eine Trainingszahl. Und **α = 0 steht im
+Raster**: α = 0 ist der feingetunte Stand selbst, die Interpolation kann auf der
+Validierung also nicht verlieren. Wie viele Zwischenstände gemittelt werden und
+welche α versucht werden, steht in `training/rezepte/*.yaml`, nicht in der
+Oberfläche.
+
+Was dabei herauskam, trägt der Modellstand bei sich: die gemittelten
+Zwischenstände, das gewählte α und der Validierungsverlust davor und danach. Ein
+Stand, dessen α niemand mehr nachsehen kann, wäre mit keinem anderen zu
+vergleichen - in der Modelltabelle steht es deshalb in der Nebenzeile.
+
 Das ist auch die Antwort auf die naheliegende Frage, ob sich aus demselben
 Material mehr herausholen ließe, indem man mit mehreren Lernraten trainiert.
 Bei knapp hundert Trainingsaufnahmen lohnt sich das nicht: Die Gefahr ist nicht,
@@ -118,11 +151,12 @@ demselben Material mehr heraus als jede Lernratensuche, und er kostet keinen
 zusätzlichen Lauf. Der Hebel, der wirklich zieht, sind mehr Aufnahmen.
 
 Welche Hebel es darüber hinaus gibt - Augmentierung im Merkmalsraum, Auswahl
-nach Wortfehlerrate statt Verlust, Gewichtsmittelung, Kontextverstärkung beim
+nach Wortfehlerrate statt Verlust, Kreuzvalidierung, Kontextverstärkung beim
 Dekodieren - und in welcher Reihenfolge sie sich lohnen, steht in
 [Das Trainingsverfahren](trainingsverfahren.md). Dort steht auch, warum der
-erste Schritt kein Trainingsschritt ist, sondern ein Vertrauensbereich auf den
-Zahlen, die diese App heute anzeigt.
+erste Schritt kein Trainingsschritt war, sondern ein Vertrauensbereich auf den
+Zahlen, die diese App anzeigt - und warum der zweite die dritte Achse oben ist:
+Sie ist der billigste Schritt, der die Schleife nicht anfasst.
 
 Zwei weitere Entscheidungen in den Rezepten sind keine Geschmacksfrage:
 

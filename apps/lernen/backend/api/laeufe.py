@@ -128,9 +128,45 @@ DATENSAETZE = [
 ]
 
 
+ABSCHLUESSE = [
+    WahlAntwort(
+        schluessel=lauf_layout.ABSCHLUSS_BESTER,
+        name="Bester Durchgang",
+        erklaerung=(
+            "Ausgeliefert wird der Zwischenstand mit dem besten Validierungsverlust - "
+            "das Verfahren, nach dem alle bisherigen Stände entstanden sind."
+        ),
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.ABSCHLUSS_MITTEL,
+        name="Beste Durchgänge gemittelt",
+        erklaerung=(
+            "Die besten drei Zwischenstände werden Gewicht für Gewicht gemittelt. "
+            "Kostet keine Rechenzeit, nur Platz auf der Platte."
+        ),
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.ABSCHLUSS_INTERPOLIERT,
+        name="Mit dem Grundmodell verrechnet",
+        erklaerung=(
+            "Der fertige Stand wird anteilig mit dem Grundmodell gemischt, damit er "
+            "weniger vergisst. Der Anteil wird auf der Validierung gewählt, nie am Test."
+        ),
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.ABSCHLUSS_BEIDES,
+        name="Beides",
+        erklaerung="Erst mitteln, dann mit dem Grundmodell verrechnen.",
+    ),
+]
+
+
 class Bestellung(BaseModel):
     methode: str
     daten: str
+    # Die dritte Achse, mit Vorgabe: Eine Bestellung ohne dieses Feld ist
+    # dieselbe Bestellung wie vor September 2026.
+    abschluss: str = lauf_layout.ABSCHLUSS_BESTER
 
 
 class StandHinweis(BaseModel):
@@ -150,6 +186,10 @@ class LaufAntwort(BaseModel):
     sprecher_id: str
     methode: str
     daten: str
+    # Was am Ende mit den Gewichten geschah. Ein Lauf von vor dieser Achse hat
+    # das Feld nicht im Auftrag stehen und heißt hier `bester` - das ist keine
+    # Annahme, sondern genau das, was damals gerechnet wurde.
+    abschluss: str
     basismodell: str
     erstellt: str
     status: str
@@ -197,6 +237,7 @@ class EinzelAntwort(BaseModel):
     lauf: LaufAntwort
     methoden: list[WahlAntwort]
     datensaetze: list[WahlAntwort]
+    abschluesse: list[WahlAntwort]
     kurve_training: list[PunktAntwort]
     kurve_validierung: list[PunktAntwort]
     # fassung -> die Maße, jeweils vorher und nachher
@@ -211,6 +252,7 @@ class ListeAntwort(BaseModel):
     laeufe: list[LaufAntwort]
     methoden: list[WahlAntwort]
     datensaetze: list[WahlAntwort]
+    abschluesse: list[WahlAntwort]
     basismodell: str
     # Ob überhaupt beauftragt werden kann, und wenn nicht, warum. Es sind zwei
     # Gründe, aus denen nicht: zu wenige Aufnahmen - oder kein hinterlegter
@@ -266,6 +308,7 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         sprecher_id=lauf.sprecher_id,
         methode=str(lauf.auftrag.get("methode", "")),
         daten=str(lauf.auftrag.get("daten", "")),
+        abschluss=str(lauf.auftrag.get("abschluss") or lauf_layout.ABSCHLUSS_BESTER),
         basismodell=str(lauf.auftrag.get("basismodell", "")),
         erstellt=str(lauf.auftrag.get("erstellt", "")),
         status=lauf.status,
@@ -313,6 +356,7 @@ def liste(db: Datenbank, korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         aufnahmen_neu=max(0, len(proben) - zuletzt),
         methoden=METHODEN,
         datensaetze=DATENSAETZE,
+        abschluesse=ABSCHLUESSE,
         basismodell=konfiguration.lernen_basismodell,
         bereit=genug and erlaubt,
         schluessel_noetig=erlaubt,
@@ -349,6 +393,10 @@ def beauftrage(
         raise HTTPException(status_code=400, detail=f"Unbekannte Methode: {bestellung.methode}")
     if bestellung.daten not in lauf_layout.DATENSAETZE:
         raise HTTPException(status_code=400, detail=f"Unbekannter Datensatz: {bestellung.daten}")
+    if bestellung.abschluss not in lauf_layout.ABSCHLUESSE:
+        raise HTTPException(
+            status_code=400, detail=f"Unbekannter Abschluss: {bestellung.abschluss}"
+        )
 
     konfiguration = einstellungen()
     proben = aufteilung.proben(db, korpus)
@@ -366,6 +414,7 @@ def beauftrage(
             sprecher_id=sprecher,
             methode=bestellung.methode,
             daten=bestellung.daten,
+            abschluss=bestellung.abschluss,
             basismodell=konfiguration.lernen_basismodell,
         ),
     )
@@ -395,6 +444,7 @@ def einzeln(
         lauf=_als_antwort(lauf),
         methoden=METHODEN,
         datensaetze=DATENSAETZE,
+        abschluesse=ABSCHLUESSE,
         kurve_training=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["training"]],
         kurve_validierung=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["validierung"]],
         vergleich={

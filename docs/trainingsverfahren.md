@@ -9,9 +9,11 @@ Aufträge, Warteschlange, Modelltabelle, Freigabe. Hier geht es allein um die
 Rechnung.
 
 > **Stand: September 2026.** Die Abschnitte 1 bis 5 beschreiben, was läuft.
-> Ab Abschnitt 6 wird vorgeschlagen. Umgesetzt ist davon bisher **Stufe 0**
-> (Vorschlag **I**, Vertrauensbereiche) - und zwar als abschaltbare Zugabe:
-> Ohne sie zeigt die App Zahl für Zahl dasselbe wie vorher.
+> Ab Abschnitt 6 wird vorgeschlagen. Umgesetzt sind davon bisher **Stufe 0**
+> (Vorschlag **I**, Vertrauensbereiche) und die erste Hälfte von **Stufe 1**
+> (Vorschlag **D**, Gewichtsmittelung und Interpolation) - beides so, dass es
+> abwählbar bleibt: Wer nichts einschaltet und nichts wählt, bekommt Zahl für
+> Zahl und Gewicht für Gewicht dasselbe wie vorher.
 
 ---
 
@@ -224,10 +226,13 @@ sie aufgreift.
    Durchgang, also acht- bzw. zwölfmal im ganzen Lauf, auf 30 Aufnahmen. Beide
    Zahlen sind klein; das Minimum der Kurve ist damit selbst eine Zufallsgröße.
    → **B**, **C**
-4. **Der Endstand ist ein einzelner Zwischenstand.** Weder werden Zwischenstände
-   gemittelt noch wird gegen das Grundmodell interpoliert. Genau diese beiden
-   Handgriffe sind in der Literatur die billigste bekannte Absicherung gegen
-   katastrophales Vergessen und gegen Überanpassung. → **D**
+4. ~~**Der Endstand ist ein einzelner Zwischenstand.**~~ **Wählbar seit
+   September 2026.** Weder wurden Zwischenstände gemittelt noch wurde gegen das
+   Grundmodell interpoliert - dabei sind genau diese beiden Handgriffe in der
+   Literatur die billigste bekannte Absicherung gegen katastrophales Vergessen
+   und gegen Überanpassung. Beides steht jetzt als dritte Achse beim
+   Beauftragen; die Vorgabe bleibt der einzelne beste Zwischenstand. Siehe
+   **D**.
 5. ~~**Kein Maß für Zufall.**~~ **Erledigt** (September 2026). `bewerten.py`
    lieferte Mittelwerte über 60 Testaufnahmen mal vier Fassungen, und ob 14,2 %
    gegen 13,8 % ein Unterschied war oder Rauschen, sagte keine Zahl im Projekt.
@@ -256,7 +261,7 @@ relativ zur heutigen Wortfehlerrate.
 | **A** | SpecAugment + Tempo-/Raumvariation statt reiner Amplitude | 5-15 % rel. | mittel | gering | |
 | **B** | Auswahl nach WER, häufiger geprüft | 3-8 % rel. | mittel | gering | |
 | **C** | k-fache Kreuzvalidierung über Training+Validierung | indirekt | mittel | keins | |
-| **D** | Gewichtsmittelung / Interpolation mit dem Grundmodell | 2-6 % rel. | gering | gering | |
+| **D** | Gewichtsmittelung / Interpolation mit dem Grundmodell | 2-6 % rel. | gering | gering | ✅ |
 | **E** | LoRA-Ziele erweitern, Rang prüfen | 0-5 % rel. | gering | gering | |
 | **F** | Korrekturgewicht messen statt setzen; Selbsttraining | 5-20 % rel. | hoch | mittel | |
 | **G** | Encoder auf die tatsächliche Länge kürzen | 2-4× Tempo | mittel | mittel | |
@@ -339,7 +344,7 @@ ist so ein Vergleich eine Meinung.
 **Kosten.** Fünffache Rechenzeit je beantworteter Frage. Deshalb hängt an
 diesem Vorschlag der Tempo-Vorschlag **G**.
 
-### D - Zwei Handgriffe am Ende, die fast nichts kosten
+### D - Zwei Handgriffe am Ende, die fast nichts kosten ✅ umgesetzt
 
 **Was.** (i) *Gewichtsmittelung*: die besten drei bis fünf Zwischenstände
 elementweise mitteln, statt einen zu nehmen. (ii) *Interpolation mit dem
@@ -360,9 +365,60 @@ einer Wette, die man vor dem Training eingeht - und der Regler lässt sich
 messen. Sehr wahrscheinlich erlaubt er zugleich eine **höhere** Lernrate im
 Training, weil ihr Schaden nachträglich zurückgenommen werden kann.
 
-**Umsetzung.** Rein nachgelagert, zwischen `trainer.train()` und
-`save_pretrained` - etwa zwanzig Zeilen, ohne Eingriff in die Schleife. Für
-LoRA ist (ii) trivial: α wirkt direkt auf die Skalierung des Zusatzes.
+**Was jetzt dasteht.** Gerechnet wird in `apps/lernen/training/abschluss.py`,
+aufgerufen zwischen `trainer.train()` und `save_pretrained` - ohne einen
+Eingriff in die Schleife. Der **Abschluss** ist eine dritte Achse des Auftrags
+geworden, neben Methode und Datensatz (`wortlaut/laeufe.py`):
+
+| Wahl | Was geschieht |
+|---|---|
+| `bester` | der beste Zwischenstand - die Vorgabe und das Verfahren von vorher |
+| `mittel` | die besten Zwischenstände elementweise gemittelt |
+| `interpoliert` | θ = α·θ_grund + (1−α)·θ_fein, α auf der Validierung gewählt |
+| `beides` | erst mitteln, dann interpolieren |
+
+**Fünf Entscheidungen darin.**
+
+* **Eine Achse, keine Verbesserung.** Beides ist billig genug, um es einfach
+  immer zu tun - und genau das wäre hier falsch gewesen: Jede Maßnahme kommt
+  als weitere Achse in die Vergleichstafel, sonst ist hinterher nicht mehr zu
+  sagen, was gewirkt hat. `bester` rechnet Gewicht für Gewicht das Verfahren
+  von vorher, und ein Auftrag ohne dieses Feld ist derselbe Auftrag wie im
+  August.
+* **α wird auf der Validierung gewählt, nie am Test.** Das Testdrittel wird nie
+  angefasst; ein α, das auf ihm gewählt wäre, machte aus der Testzahl eine
+  Trainingszahl. Gemessen wird der Validierungsverlust - dieselbe Größe, an der
+  schon `load_best_model_at_end` den besten Durchgang erkennt. Der WER wäre das
+  bessere Maß, verlangte aber je α einen Dekodierdurchgang; das gehört zu **B**.
+* **α = 0 steht im Raster.** α = 0 ist der feingetunte Stand selbst. Steht es
+  zur Wahl, kann die Interpolation auf der Validierung nicht verlieren - im
+  schlechtesten Fall wählt sie den Stand, der ohne sie herausgekommen wäre. Ein
+  gewähltes α = 0 ist deshalb keine Null, sondern ein Ergebnis, und es steht
+  auch so in der Modelltabelle.
+* **Für LoRA ist die Interpolation eine Multiplikation.** θ_fein = θ_grund + Δ,
+  also ist α·θ_grund + (1−α)·θ_fein genau θ_grund + (1−α)·Δ - und Δ mit (1−α)
+  zu malnehmen heißt, die B-Matrizen des Zusatzes zu skalieren. Kein
+  Näherungsverfahren, kein zweiter Satz voller Gewichte. Die **Mittelung** ist
+  bei LoRA dagegen eine Näherung: Gemittelt wird der Zusatz, und B·A ist in B
+  und A zusammen nicht linear. Das ist das übliche Vorgehen; ob es taugt, sagt
+  die Vergleichstafel.
+* **Wer mittelt, braucht mehr Platz.** `save_total_limit` steigt von 1 auf die
+  Zahl der zu mittelnden Stände - ein Zwischenstand, den der Trainer schon
+  weggeräumt hat, lässt sich nicht mehr wiegen. Dafür fällt bei diesen Läufen
+  der Optimierer aus den Sicherungen (`save_only_model`): Er wiegt zwei Drittel
+  eines Zwischenstandes, und dieses Projekt setzt einen Lauf nie fort. Ohne
+  Mittelung bleibt beides, wie es war.
+
+**Was ein Stand davon mitbringt.** Im Manifest des Modellstandes steht neben
+`methode` und `daten` jetzt `abschluss`, und daneben, was dabei herauskam: die
+gemittelten Zwischenstände, das gewählte α, der Validierungsverlust davor,
+nach der Mittelung und danach. Ein Stand, dessen α niemand mehr nachsehen kann,
+wäre mit keinem anderen zu vergleichen.
+
+**Wo es nicht rechnet.** Ohne Validierungsproben - ein Korpus unter einem
+Dutzend Aufnahmen - gibt es weder eine Rangfolge der Zwischenstände noch ein
+Maß für α. Dann fällt der Lauf auf `bester` zurück und schreibt es ins
+Protokoll. Das ist ehrlicher, als α zu würfeln.
 
 ### E - LoRA genauer einstellen
 
@@ -533,11 +589,18 @@ kann jetzt ihr Intervall tragen, und der Vergleich zweier Stände nennt einen
 p-Wert statt einer Rangfolge. Was bleibt: die Gewohnheit, beides auch
 anzusehen, bevor ein Rezept geändert wird.
 
-**Stufe 1 - billige Gewinne am fertigen Modell.** Vorschlag **D**, danach
-**H** in seiner kleinen Form (Startprompt). Beide fassen die Trainingsschleife
-nicht an, beide sind nachgelagert, beide lassen sich an Stufe 0 messen. Wenn
-hier nichts herauskommt, ist das eine wichtige Information, bevor Stufe 2
-Rechenzeit verbrennt.
+**Stufe 1 - billige Gewinne am fertigen Modell. Zur Hälfte erledigt,
+September 2026.** Vorschlag **D** ✅, danach **H** in seiner kleinen Form
+(Startprompt). Beide fassen die Trainingsschleife nicht an, beide sind
+nachgelagert, beide lassen sich an Stufe 0 messen. Wenn hier nichts
+herauskommt, ist das eine wichtige Information, bevor Stufe 2 Rechenzeit
+verbrennt.
+
+Was **D** angeht, ist damit der Weg gebaut und nicht die Frage beantwortet: Ob
+Mittelung und Interpolation auf diesen Aufnahmen etwas bringen, sagt erst ein
+Lauf je Wahl - gemessen mit den Bereichen aus Stufe 0 und gepaart gegen den
+Stand mit `bester` derselben Methode und desselben Datensatzes. Genau dafür ist
+es eine Achse geworden.
 
 **Stufe 2 - das Trainingsziel richtigstellen.** Vorschlag **B**, dann **A**
 ohne Tempoveränderung (also SpecAugment und Raum), dann **G**, damit **C**

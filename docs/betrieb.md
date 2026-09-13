@@ -450,7 +450,7 @@ kommen hier nicht durch: Ein Modell gehört einem Menschen.
 ```
 GET    /lernen/api/aufteilung                     wer lernt, steuert, prüft
 GET    /lernen/api/laeufe                         die Liste, ohne Kurven
-POST   /lernen/api/laeufe                         { methode, daten }
+POST   /lernen/api/laeufe                         { methode, daten, abschluss? }
 GET    /lernen/api/laeufe/{id}                    Kurven, Vergleich, Protokoll
 POST   /lernen/api/laeufe/{id}/abbruch            einen wartenden zurücknehmen
 DELETE /lernen/api/laeufe/{id}                    ersatzlos löschen, samt Modell

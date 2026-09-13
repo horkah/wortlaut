@@ -10,7 +10,7 @@ Hier ist das ein Verzeichnis je Auftrag:
 
     data/snapshots/<job_id>/
     ├── sprecher.txt          nur die Sprecher-ID - die Zusage an die Löschung
-    ├── auftrag.json          was zu tun ist: Sprecher, Methode, Daten, Rezept
+    ├── auftrag.json          was zu tun ist: Sprecher, Methode, Daten, Abschluss
     ├── manifest.jsonl        der Schnappschuss: je Zeile eine Trainingsprobe
     ├── zustand.json          was daraus geworden ist - vom Trainer geschrieben
     ├── fortschritt.jsonl     je Zeile ein Ereignis: Schritt, Verlust, Stufe
@@ -111,6 +111,49 @@ METHODEN = (VOLL, LORA)
 NUR_ORIGINAL = "original"
 MIT_VARIANTEN = "augmentiert"
 DATENSAETZE = (NUR_ORIGINAL, MIT_VARIANTEN)
+
+# ── Der Abschluss ───────────────────────────────────────────────────────────
+#
+# Die dritte Achse: was am Ende mit den Gewichten geschieht, wenn die Schleife
+# durch ist. Sie fasst das Training nicht an - sie entscheidet nur, welcher
+# Stand aus einem gelaufenen Training ausgeliefert wird.
+#
+# **Warum das eine Wahl ist und keine stille Verbesserung.** Beides sind
+# Standardhandgriffe mit erwartetem Gewinn, und beide könnten schlicht immer
+# laufen. Dann aber wäre jeder Vergleich mit einem Stand von vorher ein
+# Vergleich zweier Rezepte, von dem niemand mehr wüsste, welche Hälfte gewirkt
+# hat. Also: eine weitere Achse in derselben Vergleichstafel, und `bester` ist
+# und bleibt genau das, was dieses Projekt bisher gerechnet hat.
+#
+# `bester`        Der beste Zwischenstand der Validierung - das Verfahren von
+#                 vorher, Gewicht für Gewicht.
+# `mittel`        Die besten Zwischenstände elementweise gemittelt („Model
+#                 Soup"). Kostet keine Trainingszeit, nur Platz auf der Platte.
+# `interpoliert`  Der beste Stand, anteilig mit dem Grundmodell verrechnet
+#                 (WiSE-FT): θ = α·θ_grund + (1−α)·θ_fein. α wird auf der
+#                 Validierung gewählt - nie auf dem Testdrittel.
+# `beides`        Erst mitteln, dann interpolieren.
+ABSCHLUSS_BESTER = "bester"
+ABSCHLUSS_MITTEL = "mittel"
+ABSCHLUSS_INTERPOLIERT = "interpoliert"
+ABSCHLUSS_BEIDES = "beides"
+ABSCHLUESSE = (
+    ABSCHLUSS_BESTER,
+    ABSCHLUSS_MITTEL,
+    ABSCHLUSS_INTERPOLIERT,
+    ABSCHLUSS_BEIDES,
+)
+
+
+def mittelt(abschluss: str) -> bool:
+    """Ob dieser Abschluss mehrere Zwischenstände mittelt."""
+    return abschluss in (ABSCHLUSS_MITTEL, ABSCHLUSS_BEIDES)
+
+
+def interpoliert(abschluss: str) -> bool:
+    """Ob dieser Abschluss gegen das Grundmodell interpoliert."""
+    return abschluss in (ABSCHLUSS_INTERPOLIERT, ABSCHLUSS_BEIDES)
+
 
 # Der Zustand eines Laufs, wie ihn `zustand.json` nennt.
 WARTET = "wartet"

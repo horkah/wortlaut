@@ -36,3 +36,22 @@ fp16: true
 # Gegen Ausreißer in einzelnen Stapeln, die bei kleinen Datensätzen häufiger
 # vorkommen als bei großen.
 gradientenbegrenzung: 1.0
+
+# Der Abschluss - was am Ende mit den Gewichten geschieht. Gerechnet wird nur,
+# was der Auftrag bestellt (`bester`, `mittel`, `interpoliert`, `beides`); hier
+# stehen die Zahlen dazu.
+abschluss:
+  # Wie viele der besten Zwischenstände gemittelt werden. Drei und nicht fünf,
+  # und das ist eine Platzfrage: Beim vollen Training wiegt ein Zwischenstand
+  # knapp ein Gigabyte (ohne Optimierer, siehe `save_only_model` in
+  # `finetune.py`). Wer Platz hat, darf hier höher gehen.
+  staende: 3
+  # Welche Anteile des Grundmodells versucht werden (WiSE-FT). Gewählt wird auf
+  # der Validierung, und die Null gehört dazu: Mit ihr kann die Interpolation
+  # nicht verlieren - im schlechtesten Fall bleibt der feingetunte Stand.
+  #
+  # Fünf Werte und kein feineres Raster: Jeder kostet einen Durchgang durch die
+  # Validierung und ein Umschreiben aller Gewichte. Bei dreißig Aufnahmen sind
+  # das Sekunden, aber die Schrittweite darunter unterscheidet ohnehin nichts,
+  # was eine Validierung dieser Größe noch trennen könnte.
+  alphas: [0.0, 0.1, 0.2, 0.3, 0.5]
