@@ -233,12 +233,19 @@ services:
       # Textquelle anlegt, wartet erneut die knapp sechs Sekunden, die das
       # Laden von sechs Gigabyte dauert.
       #
-      # Länger ist nicht umsonst: Solange es liegt, belegt es diese sechs
-      # Gigabyte, und es ist dieselbe Karte, auf der ein Training acht will.
-      # Eine Viertelstunde ist der Ausgleich - lang genug für eine Sitzung, in
-      # der jemand ein paar Textquellen anlegt, kurz genug, um vor dem
-      # nächsten Training wieder frei zu sein. Über die .env zu ändern.
-      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-15m}
+      # Länger ist nicht umsonst: Solange es liegt, belegt es diese Gigabyte,
+      # und es ist dieselbe Karte, auf der trainiert wird. Nachgemessen sind es
+      # bei `gemma2:9b` 5,4 GB von 10,75 nutzbaren - der mit Abstand größte
+      # einzelne Posten auf dieser Karte.
+      #
+      # Eine Viertelstunde stand hier lange als Ausgleich. Sie war zu lang: Wer
+      # eine Textquelle anlegt und danach ein Training startet, hat die 5,4 GB
+      # noch volle vierzehn Minuten gegen sich, und der Trainer ist der
+      # einzige, der daran scheitert statt langsamer zu werden
+      # (`training/bewerten.py`). Eine Minute deckt weiterhin den Fall ab, für
+      # den das gedacht war - mehrere Textquellen hintereinander -, und gibt
+      # die Karte danach frei. Über die .env zu ändern.
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-1m}
     volumes:
       # Die geladenen Modelle überleben hier einen Neustart - und sie liegen
       # aus demselben Grund neben den Whisper-Modellen und nicht im Volume:

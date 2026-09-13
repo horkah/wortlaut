@@ -78,6 +78,69 @@ def _version(auftrag: dict[str, Any]) -> str:
     return name if dauer == laeufe.DAUER_FEST else f"{name}-{dauer}"
 
 
+# Wie lange der Trainer auf die Karte wartet, wenn sie gerade belegt ist, und
+# in welchen Abständen er nachsieht. Zusammen rund zehn Minuten.
+#
+# **Warum überhaupt gewartet wird.** Auf dieser Karte rechnen vier: der
+# Trainer, die Auswertung in „hören", das Diktat in „schreiben" und das
+# Sprachmodell der Textquelle. Die ersten drei sprechen sich nicht ab, und der
+# vierte hält seine fünf Gigabyte noch eine Weile nach der letzten Frage.
+#
+# Für drei von ihnen ist eine belegte Karte kein Unglück: Sie fallen auf den
+# Prozessor zurück und werden langsamer (`whisper/local.py`). Der Trainer tut
+# das mit Absicht nicht - er misst hier Rechenzeiten, und eine, die vom
+# Prozessor stammt, wäre in der Modelltafel eine Falle. Er scheitert also.
+#
+# Nur ist das die teuerste aller Antworten: Ein Lauf, der seit einer Stunde
+# rechnet, ist verloren, weil jemand einen Satz diktiert hat. Zehn Minuten
+# warten kostet dagegen zehn Minuten, und die kürzeren Belegungen - eine
+# Diktatsitzung, das Sprachmodell nach seiner Minute - sind in dieser Zeit
+# vorbei.
+#
+# **Warum nicht länger.** Weil ein Auswertungslauf über alle Aufnahmen Stunden
+# dauern kann. Den auszusitzen hieße, die Karte zu blockieren statt zu teilen,
+# und am Ende stünde dieselbe Frage bloß später. Wer eine Auswertung und ein
+# Training zugleich startet, soll das erfahren.
+WARTEZEITEN_S = (5, 10, 20, 30, 60, 60, 60, 60, 60, 60, 60, 60)
+
+
+def _hole_karte(erkenner, bericht) -> None:
+    """Den Erkenner jetzt laden - und warten, wenn die Karte gerade belegt ist.
+
+    Ausdrücklich hier und nicht im Transkriptor: Warten ist die richtige
+    Antwort für einen Lauf, der Stunden gerechnet hat, und die falsche für ein
+    Diktat, hinter dem ein Mensch sitzt. Derselbe Griff wäre an der anderen
+    Stelle ein Fehler.
+
+    Wiederholt wird **nur** bei Speichermangel. Ein Modell, das nicht zu laden
+    ist, weil es fehlt oder beschädigt ist, wird davon in zehn Minuten nicht
+    heil - und der Fehler soll sofort dastehen.
+    """
+    from .finetune import raeume_karte
+
+    # Gezählt wird über den Index und nicht über die Pausenlänge: Eine Pause
+    # von null Sekunden heißt „gleich noch einmal" und nicht „aufgeben", und
+    # beides in eine Zahl zu legen ist genau die Art Abkürzung, die später
+    # jemand falsch liest.
+    versuche = len(WARTEZEITEN_S) + 1
+    for nummer in range(1, versuche + 1):
+        try:
+            erkenner.lade()
+            if nummer > 1:
+                bericht.sage(f"  Karte frei nach {nummer - 1} vergeblichen Versuchen.")
+            return
+        except Exception as ursache:  # noqa: BLE001 - CTranslate2 wirft nackte RuntimeError
+            if "out of memory" not in str(ursache).lower() or nummer == versuche:
+                raise
+            if nummer == 1:
+                # Vielleicht sind wir es selbst: Was der Trainer eben noch
+                # hielt, gibt torch nicht von sich aus an den Treiber zurück
+                # (siehe `finetune.raeume_karte`).
+                raeume_karte(bericht)
+                bericht.sage("  Karte belegt - es wird gewartet.")
+            time.sleep(WARTEZEITEN_S[nummer - 1])
+
+
 def bewerte_faltung(
     verzeichnis: Path,
     datenverzeichnis: Path,
@@ -115,6 +178,7 @@ def bewerte_faltung(
     # behaupteten.
     geraet, rechenart = einstellungen().rechenwerk()
     erkenner = LokalerTranskriptor(str(ct2), geraet=geraet, rechenart=rechenart)
+    _hole_karte(erkenner, bericht)
     sprache = str(auftrag.get("sprache") or "de")
 
     ergebnis = []

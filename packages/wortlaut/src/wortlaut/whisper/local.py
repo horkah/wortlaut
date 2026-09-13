@@ -104,9 +104,21 @@ class LokalerTranskriptor:
         # sich aus läuft - und bis dahin ist die Karte belegt.
         gc.collect()
 
-    def transkribiere(self, wav: Path, sprache: str = "de") -> Transkript:
+    def lade(self) -> None:
+        """Das Modell jetzt auf die Karte holen, statt beim ersten Satz.
+
+        Das Gegenstück zu `entlade`, und es gibt beide aus demselben Grund:
+        Wer sich mit anderen eine Karte teilt, muss den Augenblick kennen, in
+        dem der Platz genommen wird. Von selbst liegt er im ersten Aufruf von
+        `transkribiere` - mitten in einer Schleife also, wo ein Fehlschlag
+        nicht mehr zu beantworten ist. Wer vorher lädt, kann warten
+        (`training/bewerten.py`).
+        """
         if self._geladen is None:
             self._geladen = self._lade()
+
+    def transkribiere(self, wav: Path, sprache: str = "de") -> Transkript:
+        self.lade()
 
         rohabschnitte, _info = self._geladen.transcribe(str(wav), language=sprache)
         abschnitte = [
