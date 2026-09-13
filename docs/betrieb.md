@@ -103,6 +103,33 @@ Den Weg im Browser deckt das nicht ab - dafür gibt es
 docker compose up -d --build
 ```
 
+**Was ein Neubau kostet.** Das `--build` ist billig, solange die Schichten
+stimmen - und sie sind darauf eingerichtet (siehe die Begründungen im
+`Dockerfile`):
+
+| Geändert | Dauer |
+|---|---|
+| nur `apps/**` (Backend) | ~1 s |
+| ein Frontend | ~8 s |
+| `packages/wortlaut/**` | ~3 s |
+| `pyproject.toml` (neue Abhängigkeit) | Minuten - aber ohne Netz, aus dem pip-Speicher |
+
+Bis September 2026 kostete die dritte Zeile **234 Sekunden**: Die Bibliothek
+stand über `pip install`, also lud jede geänderte Zeile darin 1,35 GB cuBLAS
+und cuDNN neu. Jetzt hängt die teure Schicht allein an `pyproject.toml` - an
+der Datei, in der die Abhängigkeiten wirklich stehen. Die Räder liegen zudem in
+einem BuildKit-Cache außerhalb des Abbilds; auch eine neue Abhängigkeit holt
+danach nur noch das eine neue Rad aus dem Netz.
+
+Wer am Quelltext nichts geändert hat, braucht das `--build` ohnehin nicht:
+`docker compose up -d` genügt.
+
+Der Preis dafür steht auf der Platte: `docker buildx du` zeigt, was der
+Bauspeicher belegt - die Radspeicher von pip und npm sind darin gut anderthalb
+Gigabyte, die übrigen Schichten wachsen über die Monate auf ein Vielfaches
+davon. `docker buildx prune` räumt auf; der nächste Bau dauert dann wieder
+einmalig seine vier Minuten.
+
 **Ein Container für alles.** Darin ein uvicorn für beide Apps: „hören" auf der
 Wurzel, „schreiben" unter `/schreiben` - zusammengesetzt in `apps/gesamt.py`,
 gebaut vom `Dockerfile` im Wurzelverzeichnis. Compose bindet ihn an
