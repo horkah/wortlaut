@@ -579,7 +579,7 @@ Takt ein Vielfaches dessen, was gemeint ist.
 |---|---|---|
 | Korpus | `data/korpus/<sprecher_id>/` | **nur lesend** - „hören" ist sein einziger Schreiber |
 | Grundlinie | Tabelle `erkennungen` im Korpus | nur lesend; gemessen hat sie „hören" unter „Auswertung" |
-| (nichts) | `data/lernen/<sprecher_id>/lernen.sqlite` | leer, seit die Aufteilung wegfiel - die Faltungen folgen dem Korpus |
+| (keine) | — | „lernen“ hat keine eigene Datenbank mehr; die Faltungen folgen dem Korpus, die Läufe sind Verzeichnisse |
 | Läufe | `data/snapshots/<job_id>/` | schreibend; der Trainer schreibt dort mit |
 | Modellstände | `data/modelle/<sprecher_id>/<version>/` | schreibend; „schreiben" liest sie |
 | Freigabe | `data/modelle/<sprecher_id>/freigabe.json` | schreibend; „schreiben" liest sie |

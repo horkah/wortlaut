@@ -16,23 +16,19 @@ mit welchen Grenzen.
 from __future__ import annotations
 
 from functools import lru_cache
-from pathlib import Path
 
 from wortlaut.einstellungen import AUSWERTUNG_MODELLE, Grundeinstellungen
 
-# Die eigene Ablage dieser App: die Aufteilung in Lernen und Prüfen, je
-# Sprecher eine Datei.
+# Der Name des Ablageordners dieser App. Er steht noch hier, weil
+# `scripts/purge_speaker.py` und die Löschung in „hören" ihn kennen müssen -
+# auf älteren Installationen liegt dort eine `lernen.sqlite` aus der Zeit vor
+# der Kreuzvalidierung, und die soll mit dem Sprecher verschwinden.
 #
-#     data/lernen/<sprecher_id>/lernen.sqlite
-#
-# Nach Sprecher gegliedert wie Korpus und Diktate, und aus demselben Grund:
-# `scripts/purge_speaker.py` löscht ein Verzeichnis, keinen Filter.
-#
-# Die Läufe selbst liegen **nicht** hier, sondern unter `data/snapshots/`
-# (siehe `wortlaut/laeufe.py`) - ein Verzeichnis je Auftrag, das der Trainer
-# in einem anderen Container beschreibt.
+# Geschrieben wird darin nichts mehr: Diese App hat seit September 2026 keine
+# eigene Datenbank (siehe `deps.py`). Was sie hat, liegt in Verzeichnissen -
+# die Läufe unter `data/snapshots/` (siehe `wortlaut/laeufe.py`), die
+# Modellstände in der Registry.
 LERNEN = "lernen"
-DATENBANKNAME = "lernen.sqlite"
 
 
 def sprecher_relpfad(sprecher_id: str) -> str:
@@ -87,14 +83,6 @@ class Einstellungen(Grundeinstellungen):
     # dass ein Knopfdruck sich wie einer anfühlt; lang genug, dass ein
     # wartender Container nichts tut.
     lernen_takt_s: int = 5
-
-    @property
-    def migrationsverzeichnis(self) -> Path:
-        return Path(__file__).parent / "db" / "migrations"
-
-    def datenbank(self, sprecher_id: str) -> Path:
-        """Die Lerndatenbank eines Sprechers. Je Sprecher eine Datei."""
-        return self.data_dir / sprecher_relpfad(sprecher_id) / DATENBANKNAME
 
 
 @lru_cache

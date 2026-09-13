@@ -392,7 +392,6 @@ wortlaut-gesamt-20260822-174500.tgz
 └── daten/
     ├── korpus/spr_…/hoeren.sqlite
     ├── korpus/spr_…/audio/rec_….wav
-    ├── lernen/spr_…/lernen.sqlite    die Aufteilung in Lernen und Prüfen
     └── diktate/spr_…/…               Arbeitsstand von „schreiben"
 ```
 
@@ -422,12 +421,14 @@ mit; geleert wird in der Sicherungskopie nur diese eine Tabelle, und auch das
 schreibt `sicherung.json` unter `ausgelassen` hin, damit niemand das Fehlende
 für einen Schaden hält.
 
-Eine Ausnahme bleibt drin, obwohl auch sie eine Maschine angelegt hat: die
-Aufteilung in Lernen und Prüfen (`lernen/spr_…/lernen.sqlite`). Sie wiegt
-Kilobyte, und neu gewürfelt wäre sie eine *andere* Aufteilung - der Vergleich
-mit jedem früheren Lauf wäre dahin, und geprüft würde teils auf Aufnahmen, auf
-denen schon trainiert wurde. Neu zu rechnen ist sie nicht, nur neu zu
-erfinden.
+Hier stand einmal eine Ausnahme: die Aufteilung in Lernen und Prüfen
+(`lernen/spr_…/lernen.sqlite`). Sie musste mit, weil sie sich nicht neu rechnen
+ließ, sondern nur neu erfinden - und eine andere Aufteilung hätte jeden
+Vergleich mit früheren Läufen entwertet. Seit September 2026 gibt es sie nicht
+mehr: „lernen“ hat keine eigene Datenbank, und die Faltungen der
+Kreuzvalidierung folgen der Reihenfolge des Korpus (siehe
+[lernen](lernen.md)). Was aus einer Sicherung zurückkommt, ergibt damit
+dieselben Faltungen wie vorher.
 
 Es gibt sie je Sprecher und über alle auf einmal, letztere als **eine** Datei.
 Der Dienst darf dabei laufen: Die Datenbanken werden nicht kopiert, sondern

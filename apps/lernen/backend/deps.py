@@ -1,21 +1,22 @@
-"""Gemeinsame Abhängigkeiten der Endpunkte: Zugang, Datenbank, Korpus.
+"""Gemeinsame Abhängigkeiten der Endpunkte: Zugang und Korpus.
 
 Dieselbe Aufgabe wie in `apps/hoeren/backend/deps.py` und `apps/schreiben/…`
 und aus demselben Grund: Der Sprecher wird aus dem vorgelegten Zugang
 **abgeleitet** und nirgends behauptet. Wer hier ein Modell trainiert,
 trainiert sein eigenes; die Bindung zieht der Server, nicht der Aufrufer.
 
-Zwei Datenbanken kommen hier zusammen, und die Richtung ist die ganze Ordnung
-dieser App:
+**Diese App hat keine eigene Datenbank mehr.** Sie hatte eine, und darin stand
+genau eine Sache: die Aufteilung in Lernen und Prüfen. Mit dem Testdrittel ist
+sie im September 2026 weggefallen - die Faltungen der Kreuzvalidierung folgen
+der Reihenfolge des Korpus und stehen im Schnappschuss jedes Laufs
+(`services/aufteilung.py`). Was bleibt, liegt in Verzeichnissen: die Läufe
+unter `data/snapshots/`, die Modellstände in der Registry.
 
-* **Der Korpus** (`hoeren.sqlite`) wird **nur gelesen**. Er gehört „hören"
-  (Grundentscheidung 6). Daraus kommen die Aufnahmen, ihre Vorlagen und die
-  Grundlinie - was die unveränderten Modelle in der Auswertung erreicht haben.
-* **Die eigene Datenbank** (`lernen.sqlite`) wird geschrieben. Darin steht
-  genau eine Sache: die Aufteilung in Lernen und Prüfen.
-
-Dass der Korpus hier nur lesend vorkommt, ist keine Zusage auf Papier: Es gibt
-in dieser App keinen Weg, der in ihn schreibt.
+Der **Korpus** (`hoeren.sqlite`) wird hier nur gelesen. Er gehört „hören"
+(Grundentscheidung 6); daraus kommen die Aufnahmen, ihre Vorlagen und die
+Grundlinie. Dass er nur lesend vorkommt, ist keine Zusage auf Papier: Es gibt
+in dieser App keinen Weg, der in ihn schreibt - und seit dem Wegfall der
+eigenen Datenbank auch keinen, der überhaupt irgendwo schreibt.
 """
 
 from __future__ import annotations
@@ -31,22 +32,7 @@ from wortlaut import zugang as zugangsdienst
 
 from .config import einstellungen
 
-_engines: dict[str, Engine] = {}
 _korpus_engines: dict[str, Engine] = {}
-
-
-def engine_fuer(sprecher_id: str) -> Engine:
-    """Die Lerndatenbank eines Sprechers; legt sie beim ersten Zugriff an.
-
-    Anlegen ist hier unbedenklich - es ist die eigene Ablage dieser App. Der
-    Korpus daneben wird ausdrücklich nicht angelegt (siehe `korpus_engine`).
-    """
-    if sprecher_id not in _engines:
-        konfiguration = einstellungen()
-        pfad = konfiguration.datenbank(sprecher_id)
-        db.wende_migrationen_an(pfad, konfiguration.migrationsverzeichnis)
-        _engines[sprecher_id] = db.verbinde(pfad)
-    return _engines[sprecher_id]
 
 
 def korpus_engine(sprecher_id: str) -> Engine:
@@ -66,13 +52,16 @@ def korpus_engine(sprecher_id: str) -> Engine:
 
 
 def vergiss_engines(sprecher_id: str = "") -> None:
-    """Nach dem Löschen eines Sprechers - und zwischen zwei Tests."""
-    for zwischenspeicher in (_engines, _korpus_engines):
-        namen = [sprecher_id] if sprecher_id else list(zwischenspeicher)
-        for name in namen:
-            engine = zwischenspeicher.pop(name, None)
-            if engine is not None:
-                engine.dispose()
+    """Nach dem Löschen eines Sprechers - und zwischen zwei Tests.
+
+    Nur noch ein Zwischenspeicher, seit diese App keine eigene Datenbank mehr
+    hat: der lesende Zugriff auf den Korpus.
+    """
+    namen = [sprecher_id] if sprecher_id else list(_korpus_engines)
+    for name in namen:
+        engine = _korpus_engines.pop(name, None)
+        if engine is not None:
+            engine.dispose()
 
 
 def _sprecher_id(authorization: Annotated[str | None, Header()] = None) -> str:
@@ -108,16 +97,10 @@ def _sprecher_id(authorization: Annotated[str | None, Header()] = None) -> str:
     return wer.sprecher_id
 
 
-def _sitzung(sprecher_id: Annotated[str, Depends(_sprecher_id)]) -> Iterator[Session]:
-    with Session(engine_fuer(sprecher_id)) as sitzung:
-        yield sitzung
-
-
 def _korpus(sprecher_id: Annotated[str, Depends(_sprecher_id)]) -> Iterator[Session]:
     with Session(korpus_engine(sprecher_id)) as sitzung:
         yield sitzung
 
 
 SprecherId = Annotated[str, Depends(_sprecher_id)]
-Datenbank = Annotated[Session, Depends(_sitzung)]
 Korpus = Annotated[Session, Depends(_korpus)]

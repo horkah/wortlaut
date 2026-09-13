@@ -29,7 +29,7 @@ from pydantic import BaseModel
 from wortlaut import augmentierung, laeufe as lauf_layout, registry, streuung
 
 from ..config import einstellungen
-from ..deps import Datenbank, Korpus, SprecherId
+from ..deps import Korpus, SprecherId
 from ..services import messwerte
 
 router = APIRouter(prefix="/lernen/api/modelle", tags=["Modelle"])
@@ -279,7 +279,6 @@ def _stand_herkunft(manifest: dict) -> str:
 
 @router.get("", response_model=UebersichtAntwort)
 def uebersicht(
-    db: Datenbank,
     korpus: Korpus,
     sprecher: SprecherId,
     intervall: str = streuung.AUS,
@@ -457,7 +456,6 @@ def _hinweis(
 @router.post("/freigabe", response_model=UebersichtAntwort)
 def gib_frei(
     freigabe: Freigabe,
-    db: Datenbank,
     korpus: Korpus,
     sprecher: SprecherId,
     intervall: str = streuung.AUS,
@@ -485,4 +483,4 @@ def gib_frei(
     # Dieselben Parameter zurückgegeben, mit denen die Tabelle gerade angezeigt
     # wird: Sonst verlöre sie beim Freigeben ihre Bereiche und die Ansicht
     # müsste ein zweites Mal fragen.
-    return uebersicht(db, korpus, sprecher, intervall, vergleich_mit)
+    return uebersicht(korpus, sprecher, intervall, vergleich_mit)
