@@ -13,7 +13,7 @@ zweite Gelegenheit wäre, sie anders zu machen - ein anderes Gerät, eine andere
 Quantisierung, eine andere Textangleichung. Gemessen wird einmal, und was
 verglichen wird, stammt aus derselben Rechnung.
 
-**Warum nur die Testaufnahmen.** Auf allem anderen hat das trainierte Modell
+**Warum über alle Aufnahmen.** Auf allem anderen hat das trainierte Modell
 gelernt. Eine Verbesserung dort ist keine Auskunft, sondern eine
 Selbstverständlichkeit.
 

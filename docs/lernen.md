@@ -42,43 +42,72 @@ Gerechnet wird einer nach dem anderen, über alle Sprecher hinweg: Es gibt eine
 Karte, und zwei Läufe darauf wären zusammen langsamer als nacheinander -
 dieselbe Überlegung wie beim Lauf der Auswertung in `hören`.
 
-## Die Aufteilung: 2:1, und sie hält
+## Sechsfache Kreuzvalidierung über alles
 
-Zwei Drittel der Aufnahmen trainieren, ein Drittel prüft. Die Zahl ist der
-leichte Teil; der schwierige ist, dass die Zuteilung **hält**.
+Jede Aufnahme bekommt der Reihe nach eine Faltung - die erste in Faltung 1, die
+zweite in Faltung 2, nach der sechsten geht es wieder von vorn los. Ein
+Trainingslauf rechnet dann **sieben** Trainings:
 
-Die naheliegende Lösung wäre, beim Trainieren durchzuzählen: Aufnahme 1 und 2
-lernen, Aufnahme 3 prüft. Das ist bis zur ersten gelöschten Aufnahme richtig.
-Danach rückt alles dahinter um einen Platz vor - und Aufnahmen, die bisher
-geprüft haben, landen im Training eines Modells, das anschließend an ihnen
-gemessen wird. Die Zahl, die dabei herauskommt, sieht gut aus und bedeutet
-nichts.
+| | Lernt auf | Gemessen an |
+|---|---|---|
+| Faltung 1 … 6 | fünf Sechsteln | dem zurückgehaltenen Sechstel |
+| Endmodell | allem | nichts |
 
-Die Zuteilung steht deshalb in einer Tabelle, einmal je Aufnahme, und wird nie
-wieder angefasst (`data/lernen/<sprecher_id>/lernen.sqlite` - die einzige
-eigene Tabelle dieser App). Verschwindet eine Aufnahme, verschwindet ihre Zeile
-mit; die übrigen behalten ihren Platz, und die nächste neue erbt ihn nicht. Das
-Verhältnis weicht dadurch leicht von 2:1 ab. Das ist der richtige Preis: Ein
-sauberes Verhältnis wäre hier nur zu haben, indem man die Trennung zwischen
-Lernen und Prüfen aufweicht, und dann misst niemand mehr etwas.
+Nach den sechs Faltungen ist **jede einzelne Aufnahme** genau einmal von einem
+Modell gehört worden, das sie nie gesehen hat. Diese Messungen zusammen sind
+die Zahl, die in der Modelltabelle steht - sie steht damit auf dem ganzen
+Korpus statt auf einem Drittel davon.
 
-Zugeteilt wird nach einem festen Muster über sechs Plätze:
+### Was hier vorher stand, und warum es weg ist
 
-| Platz | 1 | 2 | 3 | 4 | 5 | 6 |
-|---|---|---|---|---|---|---|
-| Teil | Training | Training | **Test** | Training | Validierung | **Test** |
+Bis September 2026 gab es ein festes Testdrittel: zwei Drittel lernen, ein
+Drittel prüft, einmal zugeteilt und nie wieder umsortiert. Der Gedanke war
+richtig - ungesehene Aufnahmen, an denen gemessen wird -, die Ausführung trug
+nicht. Bei einem Korpus von neun Aufnahmen bestand der Test aus dreien und die
+Validierung aus **einer**. Eine Fehlerrate über drei Aufnahmen ist keine
+Auskunft, sondern ein Würfelwurf, und eine Abbruchentscheidung über eine
+Aufnahme erst recht.
 
-Vier zum Lernen, zwei zum Prüfen - genau 2:1. Einer der vier ist die
-Validierung; sie gehört zum Lernen, weil sie es steuert, ist aber keine
-Trainingsprobe: Sonst sagte die Lernkurve nur, wie gut das Modell auswendig
-gelernt hat. Ein festes Muster und kein Zufall, weil eine zufällige Auswahl
-einen gespeicherten Keim bräuchte, um nachvollziehbar zu sein - also ebenfalls
-eine gespeicherte Zuteilung, nur schwerer zu lesen.
+Die Kreuzvalidierung beantwortet dieselbe Frage über alle Aufnahmen. Sie ist
+dabei ausdrücklich **kein Ersatz für einen unabhängigen Test**: Sie sagt, wie
+gut das Verfahren auf diesem Korpus arbeitet, nicht, wie gut es auf der
+nächsten Aufnahme arbeiten wird. Wirklich unabhängige Testaufnahmen werden
+eigens aufgenommen werden; bis dahin steht hier keiner, und das ist ehrlicher,
+als ein Sechstel so zu nennen.
 
-Zugeteilt wird beim Hinsehen: Jede Abfrage der Ansicht und jeder Auftrag holt
-nach, was noch keine Zeile hat. Ein eigener Knopf dafür wäre einer, den jemand
-vergisst - und ein Modell, das ohne die neuen Aufnahmen trainiert, sagt nicht,
-dass sie fehlten.
+### Warum die Faltung nirgends gespeichert ist
+
+Die alte Zuteilung **musste** in einer Tabelle stehen. Hätte man beim
+Trainieren durchgezählt, wäre nach der ersten gelöschten Aufnahme alles
+dahinter um einen Platz vorgerückt - und Aufnahmen, die bisher geprüft haben,
+wären im Training eines Modells gelandet, das anschließend an ihnen gemessen
+wird.
+
+Diese Gefahr gibt es nicht mehr: In fünf von sechs Faltungen trainiert jede
+Aufnahme ohnehin. Welche Faltung sie trägt, entscheidet nur, in welchem der
+sechs Läufe sie gemessen wird. Die Faltung folgt deshalb schlicht der
+Reihenfolge des Korpus, wird bei jedem Auftrag neu gerechnet und im
+Schnappschuss festgehalten. Eine Tabelle daneben wäre eine zweite Wahrheit über
+dieselbe Sache - und die erste, die nicht mehr stimmt, sobald jemand eine
+Aufnahme löscht.
+
+Verglichen werden deshalb **Läufe**, nicht Faltungen: Jeder Lauf misst über
+alle Aufnahmen, die er kennt, und trägt sein Manifest bei sich.
+
+### Das Modell, das am Ende benutzt wird
+
+Nach den sechs Messläufen wird ein siebtes Mal trainiert - auf **allen**
+Aufnahmen, mit den Einstellungen, die sich in den Faltungen bewährt haben: der
+Median der Durchgangszahl und der Median des α (siehe
+[Die dritte Achse](#die-dritte-achse-was-am-ende-zählt)). Dieser Stand wird
+gespeichert und steht in „Modelle" zur Freigabe für „schreiben".
+
+Er hat mehr gesehen als jedes der sechs Messmodelle und ist deshalb sehr
+wahrscheinlich besser als sie - und genau deshalb lässt er sich nicht mehr
+ehrlich messen: Er kennt jede Aufnahme, an der man ihn prüfen könnte. **Die
+Zahl neben ihm ist die vorsichtige aus der Kreuzvalidierung, nicht seine
+eigene.** Das ist der Preis dafür, dass das ausgelieferte Modell alles gesehen
+hat, was da war - und bei kleinen Korpora ist das der Preis wert.
 
 ## Vier Läufe, und warum nicht mehr
 
@@ -125,11 +154,11 @@ Beauftragen steht eine dritte Wahl daneben - der **Abschluss**
 Die Trainingsschleife fasst keine davon an; sie entscheiden allein, welcher
 Stand aus einem gelaufenen Training ausgeliefert wird. Deshalb sind sie eine
 **Achse** und keine stille Verbesserung: Jede lässt sich an denselben
-Testaufnahmen messen wie Methode und Datensatz, und die Vorgabe „Bester
+Aufnahmen messen wie Methode und Datensatz, und die Vorgabe „Bester
 Durchgang" rechnet Gewicht für Gewicht das, wonach jeder Stand von vorher
 entstand. Wer nichts wählt, ändert nichts.
 
-Zwei Zusagen stehen dabei fest. **α wird nie am Testdrittel gewählt** - es wird
+Zwei Zusagen stehen dabei fest. **α wird nie an der gemessenen Faltung gewählt** - sie wird
 nie angefasst, sonst wäre die Testzahl eine Trainingszahl. Und **α = 0 steht im
 Raster**: α = 0 ist der feingetunte Stand selbst, die Interpolation kann auf der
 Validierung also nicht verlieren. Wie viele Zwischenstände gemittelt werden und
@@ -180,7 +209,7 @@ Rauschen" gegen „Dazu Tempo" ist der Versuch, der sie beantwortet.
 **Abgewandelt wird nur, woraus gelernt wird.** Die Validierung bleibt sauber:
 Sie sagt, welcher Durchgang der beste war und welches α gewinnt - eine
 Validierung, die in jedem Durchgang anders klingt, misst den Würfel statt das
-Modell. Das Testdrittel wird ohnehin nie angefasst.
+Modell. Die zurückgehaltene Faltung wird nicht mitgelernt.
 
 ### Die fünfte Achse: wie lange trainiert wird
 
@@ -256,14 +285,18 @@ Zwei weitere Entscheidungen in den Rezepten sind keine Geschmacksfrage:
   Gewicht steht je Zeile im Manifest und wirkt im Verlust je Probe
   (`training/finetune.py`).
 
-## Aufteilung und Training
+## Wie gemessen wird, und Training
 
-**Aufteilung** zeigt, wer lernt, steuert und prüft - als Streifen, als Tabelle
-und als Liste mit dem Platz im Muster daneben. Es gibt hier keinen Knopf, der
-etwas verschiebt: Er wäre der Weg, auf dem eine Testaufnahme ins Training
-rutscht. Die Liste steht trotzdem da, weil die Zusage sonst eine Behauptung
-wäre - wer wissen will, ob seine Prüfaufnahmen ungesehen sind, muss sie sehen
-können.
+**Wie gemessen wird** erklärt die Kreuzvalidierung: wie die Aufnahmen auf die
+sechs Faltungen fallen, was in den sieben Trainings geschieht und warum die
+Zahl neben dem Endmodell nicht seine eigene ist. Dazu ein Blick darauf, wie
+schwer die Faltungen sind - bei einem Korpus, der nicht durch sechs teilbar
+ist, sind sie es nicht ganz.
+
+Die Aufnahmen selbst stehen dort **nicht**. Sie stehen unter „Meine Daten",
+einmal und vollständig, mit Text, Dauer und zum Anhören; die Ansicht verlinkt
+dorthin. Zwei Listen über dieselbe Sache sind eine zu viel - die zweite ist
+die, die irgendwann nicht mehr stimmt.
 
 **Training** beauftragt und zeigt den Stand. Je Lauf ein Balken und die Stufe
 daneben (laden, training, umwandeln, bewerten). Der Balken bleibt leer, solange
@@ -310,10 +343,9 @@ sagt, liegt im gelöschten Lauf. Ist der Stand gerade freigegeben, steht auch
 das in der Abfrage: In `schreiben` ändert sich dann, womit diktiert wird - die
 Freigabe geht mit, statt auf ein Verzeichnis zu zeigen, das es nicht mehr gibt.
 
-Was **nicht** mitgeht, ist die Aufteilung. Sie hängt an den Aufnahmen und nicht
-an einem Lauf; sie mitzulöschen hieße, sie beim nächsten Mal neu zu würfeln -
-und damit Testaufnahmen ins Training zu lassen, die vorher geprüft haben. Ein
-rechnender Lauf lässt sich nicht löschen: In sein Verzeichnis schreibt gerade
+Was **nicht** mitgeht, ist der Korpus. Er gehört „hören" und nicht diesem
+Lauf; die Faltungen hängen an seiner Reihenfolge und werden beim nächsten
+Auftrag ohnehin neu gerechnet. Ein rechnender Lauf lässt sich nicht löschen: In sein Verzeichnis schreibt gerade
 ein anderer Container.
 
 Ein Klick führt in den **einzelnen Lauf**: zwei Kurven über den Schritten. Die
@@ -330,7 +362,7 @@ Die Frage dieser App ist nicht, wie gut ein Modell ist, sondern ob das Training
 es besser gemacht hat. Dafür braucht es zwei Zahlen zu denselben Aufnahmen, und
 die zweite liegt schon da: `hören` hat in seiner Auswertung jede Aufnahme durch
 `base`, `small`, `medium` und `large-v3` geschickt und je Fassung gemessen. Die
-Zeilen zu `small` auf den **Testaufnahmen** sind die Grundlinie - dasselbe
+Zeilen zu `small` über **alle Aufnahmen** sind die Grundlinie - dasselbe
 Grundmodell, dieselben Aufnahmen, dasselbe Maß, dieselbe Rechnung.
 
 Drei Entscheidungen stecken darin:
@@ -338,8 +370,10 @@ Drei Entscheidungen stecken darin:
 * **Nicht neu gemessen.** Eine zweite Messung derselben Sache wäre eine zweite
   Gelegenheit, sie anders zu machen - ein anderes Gerät, eine andere
   Quantisierung, eine andere Textangleichung.
-* **Nur die Testaufnahmen.** Auf allem anderen hat das Modell gelernt; eine
-  Verbesserung dort ist keine Auskunft, sondern eine Selbstverständlichkeit.
+* **Jede Aufnahme aus der Faltung, die sie nicht kannte.** Auf allem, was ein
+  Modell gelernt hat, ist eine Verbesserung keine Auskunft, sondern eine
+  Selbstverständlichkeit. Die Kreuzvalidierung macht genau das für den ganzen
+  Korpus möglich - ohne ein Sechstel dauerhaft stillzulegen.
 * **Je Fassung.** Geprüft wird immer auf allen Fassungen (Original und mit
   Rauschen), auch beim Lauf „nur Originale": Die zu
   vergleichenden Modelle sollen sich in ihren Trainingsdaten unterscheiden und
@@ -374,11 +408,11 @@ Aufnahme. Der beste Wert jeder Spalte ist hervorgehoben, und ein Klick auf eine
 Spaltenüberschrift sortiert danach - bei den Fehlerraten von selbst andersherum,
 denn dort ist klein besser.
 
-Gemessen wird an den **Testaufnahmen**: dem Drittel des Korpus, das von der
-ersten Aufnahme an zum Prüfen bestimmt ist und nie wieder umsortiert wird. Kein
-trainiertes Modell hat sie je gesehen, die Grundmodelle sowieso nicht. Nur an
-ihnen darf verglichen werden - auf allem anderen hätte die eine Seite gelernt
-und die andere nicht.
+Gemessen wird über **alle Aufnahmen**. Bei den trainierten Ständen kommt jede
+Zahl aus der Faltung, die diese Aufnahme zurückgehalten hat - kein Modell hat
+je die Aufnahme gehört, an der es gemessen wird. Die Grundmodelle haben
+ohnehin nie etwas gelernt. Beide Seiten stehen damit auf demselben, größeren
+Boden.
 
 **Gemessen wird dabei nichts neu.** Zwei Rechnungen liegen längst vor, und
 beide stammen aus derselben Datei (`wortlaut/metriken.py`):
@@ -386,7 +420,8 @@ beide stammen aus derselben Datei (`wortlaut/metriken.py`):
 * für die Grundmodelle die **Auswertung** aus `hören` - jede Aufnahme durch
   `base`, `small`, `medium`, `large-v3`, in allen Fassungen;
 * für jeden eigenen Stand die **Bewertung** seines Laufs - dieselben
-  Testaufnahmen, dieselben Fassungen, dieselben Maße.
+  Aufnahmen, dieselben Fassungen, dieselben Maße, jede aus der Faltung, die sie
+  nicht kannte.
 
 Ein drittes Mal zu messen wäre eine dritte Gelegenheit, es anders zu machen:
 anderes Gerät, andere Quantisierung, andere Textangleichung.
@@ -424,7 +459,7 @@ einzelnen Lauf, nur über alle Modelle auf einmal.
 
 ### Wie weit die Zahlen tragen
 
-Sechzig Testaufnahmen ergeben ein 95-%-Intervall, das mehrere Prozentpunkte
+Sechzig gemessene Aufnahmen ergeben ein 95-%-Intervall, das mehrere Prozentpunkte
 breit ist - breiter als die meisten Unterschiede, um die es hier geht. Eine
 Tabelle, die 0,142 neben 0,138 stellt und die kleinere Zahl hervorhebt,
 behauptet dann etwas, das sie nicht gemessen hat.
@@ -544,7 +579,7 @@ Takt ein Vielfaches dessen, was gemeint ist.
 |---|---|---|
 | Korpus | `data/korpus/<sprecher_id>/` | **nur lesend** - „hören" ist sein einziger Schreiber |
 | Grundlinie | Tabelle `erkennungen` im Korpus | nur lesend; gemessen hat sie „hören" unter „Auswertung" |
-| Aufteilung | `data/lernen/<sprecher_id>/lernen.sqlite` | die einzige eigene Tabelle dieser App |
+| (nichts) | `data/lernen/<sprecher_id>/lernen.sqlite` | leer, seit die Aufteilung wegfiel - die Faltungen folgen dem Korpus |
 | Läufe | `data/snapshots/<job_id>/` | schreibend; der Trainer schreibt dort mit |
 | Modellstände | `data/modelle/<sprecher_id>/<version>/` | schreibend; „schreiben" liest sie |
 | Freigabe | `data/modelle/<sprecher_id>/freigabe.json` | schreibend; „schreiben" liest sie |

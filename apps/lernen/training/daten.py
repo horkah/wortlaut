@@ -19,6 +19,7 @@ from typing import Any
 import numpy as np
 import torch
 from wortlaut import laeufe
+from wortlaut.augmentierung import ORIGINAL
 
 from .klangwandel import RAHMENSCHRITT, Wandler
 
@@ -131,16 +132,34 @@ class Stapler:
         }
 
 
-def zeilen_fuer(verzeichnis: Path, teile: set[str]) -> list[dict[str, Any]]:
-    """Die Manifestzeilen dieser Teile - die einzige Stelle, die `split` auswertet.
+def zeilen_fuer_faltung(
+    verzeichnis: Path, faltung: int | None, daten: str
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Was in dieser Faltung gelernt und was daran gemessen wird.
 
-    Eine Stelle, weil hier die Zusage hängt, dass keine Testaufnahme ins
-    Training gerät. Stünde die Bedingung an zwei Orten, könnte einer davon
-    einmal falsch sein, und niemand sähe es am Ergebnis: Ein Modell, das seine
-    Prüfung kennt, sieht schlicht gut aus.
+    Gibt zwei Listen zurück: die Lernzeilen und die Messzeilen. Eine Stelle für
+    beides, weil hier die eine Zusage der Kreuzvalidierung hängt - **kein
+    Modell hört die Aufnahmen, an denen es gemessen wird**. Stünde die
+    Bedingung an zwei Orten, könnte einer davon einmal falsch sein, und niemand
+    sähe es am Ergebnis: Ein Modell, das seine Prüfung kennt, sieht schlicht
+    gut aus.
+
+    `faltung = None` heißt: das Endmodell. Es lernt auf allem und wird an
+    nichts gemessen - die Zahlen des Laufs stammen aus den sechs Faltungen
+    davor (siehe `finetune.py`).
+
+    **Gemessen wird immer auf allen Fassungen**, gelernt je nach `daten`. Das
+    ist kein Versehen, sondern der Punkt: Die zu vergleichenden Modelle
+    unterscheiden sich in ihren Trainingsdaten und in nichts sonst - schon gar
+    nicht in dem, woran sie gemessen werden.
     """
-    return [
-        zeile
-        for zeile in laeufe.manifestzeilen(verzeichnis)
-        if str(zeile.get("split", "")) in teile
-    ]
+    lern: list[dict[str, Any]] = []
+    mess: list[dict[str, Any]] = []
+    for zeile in laeufe.manifestzeilen(verzeichnis):
+        eigene = faltung is not None and int(zeile.get("faltung", -1)) == faltung
+        if eigene:
+            mess.append(zeile)
+            continue
+        if daten == laeufe.MIT_VARIANTEN or str(zeile.get("variante")) == ORIGINAL:
+            lern.append(zeile)
+    return lern, mess

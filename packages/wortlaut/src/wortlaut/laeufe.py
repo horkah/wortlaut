@@ -72,31 +72,38 @@ ARBEITSSTAND = "arbeitsstand"
 GEWICHTE = "gewichte"
 ZWISCHENSTAENDE = (ARBEITSSTAND, GEWICHTE)
 
-# ── Die Aufteilung ──────────────────────────────────────────────────────────
+# ── Die Faltungen ───────────────────────────────────────────────────────────
 #
-# Zwei Drittel lernen, ein Drittel prüft. Das Muster steht hier und nicht in
-# der App, weil beide Seiten es lesen: „lernen" teilt danach zu, der Trainer
-# baut danach seine Datensätze.
-TRAIN = "train"
-VALIDIERUNG = "validierung"
-TEST = "test"
-TEILE = (TRAIN, VALIDIERUNG, TEST)
-
-# Sechs Plätze, immer wieder: vier zum Lernen, zwei zum Prüfen - also genau
-# 2:1. Einer der vier ist die Validierung; sie gehört zum Lernen (sie steuert
-# es), ist aber keine Trainingsprobe, sonst sagte die Lernkurve nur, wie gut
-# das Modell auswendig gelernt hat.
+# Sechsfache Kreuzvalidierung über **alle** Aufnahmen. Jede Aufnahme bekommt
+# der Reihe nach eine Faltung - 1, 2, 3, 4, 5, 6, 1, 2, … -, und je Faltung
+# läuft ein Training: gelernt wird auf den anderen fünf Sechsteln, gemessen auf
+# diesem einen. Sechs Trainings später ist **jede** Aufnahme genau einmal von
+# einem Modell gehört worden, das sie nie gesehen hat.
 #
-# Warum ein festes Muster und keine Zufallsauswahl: Die Zuteilung muss ohne
-# gespeicherten Zufallskeim nachvollziehbar sein, und sie darf sich nie wieder
-# ändern - eine Aufnahme, die einmal geprüft hat, darf nie trainieren, sonst
-# misst der Test das Auswendiggelernte.
-MUSTER = (TRAIN, TRAIN, TEST, TRAIN, VALIDIERUNG, TEST)
+# **Was hier bis September 2026 stand, und warum es weg ist.** Ein festes
+# Testdrittel, einmal vergeben und nie wieder angefasst. Der Gedanke war
+# richtig, die Ausführung trug nicht: Bei einem Korpus von neun Aufnahmen
+# bestand der Test aus dreien und die Validierung aus einer, und eine Zahl über
+# drei Aufnahmen ist keine Auskunft, sondern ein Würfelwurf. Die Kreuzvalidierung
+# beantwortet dieselbe Frage über den ganzen Korpus statt über ein Drittel.
+#
+# Wirklich unabhängige Testaufnahmen sind damit nicht ersetzt - sie werden
+# eigens aufgenommen werden. Bis dahin steht hier kein Test, und das ist
+# ehrlicher, als ein Sechstel so zu nennen.
+#
+# **Warum gerechnet und nicht gespeichert.** Die alte Zuteilung musste in einer
+# Tabelle stehen, weil eine Aufnahme, die einmal geprüft hatte, nie wieder
+# trainieren durfte - verschob sich ihr Platz, war die Messung entwertet. Diese
+# Zusage gibt es nicht mehr: In fünf von sechs Faltungen trainiert jede
+# Aufnahme ohnehin. Die Faltung folgt deshalb einfach der Reihenfolge des
+# Korpus, steht in jedem Schnappschuss und braucht keine zweite Wahrheit
+# daneben.
+FALTUNGEN = 6
 
 
-def teil_fuer(nummer: int) -> str:
-    """Welcher Teil der `nummer`-ten je zugeteilten Aufnahme zusteht (ab 0)."""
-    return MUSTER[nummer % len(MUSTER)]
+def faltung_fuer(nummer: int) -> int:
+    """Welche Faltung der `nummer`-ten Aufnahme zusteht (ab 0)."""
+    return nummer % FALTUNGEN
 
 
 # ── Methoden und Datensätze ─────────────────────────────────────────────────

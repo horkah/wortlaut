@@ -6,24 +6,31 @@ Container mit Karte.
 
 **Was im Verzeichnis steht, bevor der Trainer es anfasst.** Der Auftrag - wer,
 womit, wie - und das Manifest: jede Probe mit ihrem Pfad, ihrem Text, ihrer
-Herkunft und ihrem Teil der Aufteilung. Das Manifest ist der Schnappschuss:
+Herkunft und ihrer Faltung. Das Manifest ist der Schnappschuss:
 Ab hier steht fest, womit trainiert wird, auch wenn derselbe Mensch in der
 nächsten Stunde zwanzig weitere Aufnahmen macht. Ohne diesen Schnitt wäre
 hinterher nicht mehr zu sagen, worauf ein Modell eigentlich gelernt hat.
 
-**Warum die Testaufnahmen mit im Manifest stehen.** Sie werden nicht
-trainiert - ihr `split` sagt es, und der Trainer hält sich daran. Sie stehen
-darin, weil der Lauf sie am Ende braucht: Das fertige Modell hört sie noch
-einmal, und was dabei herauskommt, ist die Zahl, die den Lauf beurteilt. Sie
-zweimal zusammenzustellen - einmal zum Trainieren, einmal zum Prüfen - hieße,
-zwei Stellen zu haben, an denen sich die Auswahl unterscheiden kann.
+**Warum jede Aufnahme ihre Faltung trägt.** Gemessen wird mit sechsfacher
+Kreuzvalidierung über den ganzen Korpus (`services/aufteilung.py`): Je Faltung
+läuft ein Training, das auf den anderen fünf Sechsteln lernt und auf diesem
+einen misst. Die Faltung einer Zeile sagt also beides - in welchem der sechs
+Läufe sie gelernt wird und in welchem sie zählt.
 
-**Warum je Fassung eine Zeile.** „hören" legt neben jede Aufnahme drei
-abgewandelte Fassungen (`wortlaut/augmentierung.py`). Ob sie mittrainiert
-werden, ist die zweite Frage dieser App und steht im Auftrag (`daten`).
-Geprüft wird dagegen **immer** auf allen vier - dieselben vier, die in der
-Auswertung von „hören" schon gemessen wurden. Nur so ist die Grundlinie eine
-Grundlinie und kein anderer Versuch.
+**Warum kein Testdrittel mehr.** Es stand bis September 2026 hier, und der
+Gedanke war richtig: ungesehene Aufnahmen, an denen gemessen wird. Die
+Ausführung trug nicht. Bei neun Aufnahmen bestand der Test aus dreien, die
+Validierung aus einer - Zahlen über drei Aufnahmen sind keine Auskunft. Die
+Kreuzvalidierung beantwortet dieselbe Frage über alle Aufnahmen. Wirklich
+unabhängige Testaufnahmen sind damit nicht ersetzt; sie werden eigens
+aufgenommen werden.
+
+**Warum je Fassung eine Zeile - und zwar immer alle.** „hören" legt neben jede
+Aufnahme eine abgewandelte Fassung (`wortlaut/augmentierung.py`). Ob sie
+mittrainiert wird, steht im Auftrag (`daten`) und entscheidet der Trainer beim
+Lesen. Ins Manifest gehören trotzdem alle: **Gemessen** wird immer auf allen
+Fassungen - dieselben, die in der Auswertung von „hören" schon gemessen
+wurden. Nur so ist die Grundlinie eine Grundlinie und kein anderer Versuch.
 """
 
 from __future__ import annotations
@@ -72,19 +79,6 @@ def _quelle_von(korpus: Session, probe: Probe) -> str:
     return "korrektur" if quelle is not None and quelle.art == "korrektur" else "vorlage"
 
 
-def _fassungen(teil: str, daten: str) -> tuple[str, ...]:
-    """Welche Fassungen einer Aufnahme in den Lauf gehören.
-
-    Geprüft wird immer auf allen vieren, trainiert je nach Auftrag. Das ist
-    kein Versehen, sondern der Punkt: Die zu vergleichenden Modelle
-    unterscheiden sich in ihren Trainingsdaten und in nichts sonst - schon gar
-    nicht in dem, woran sie gemessen werden.
-    """
-    if teil == laeufe.TEST or daten == laeufe.MIT_VARIANTEN:
-        return augmentierung.VARIANTEN
-    return (augmentierung.ORIGINAL,)
-
-
 def _manifestzeile(
     probe: Probe, variante: str, quelle: str, sprecher_id: str
 ) -> dict[str, Any]:
@@ -105,7 +99,9 @@ def _manifestzeile(
         "variante": variante,
         "dauer_s": probe.aufnahme.dauer_s,
         "gewicht": GEWICHTE.get(quelle, 1.0),
-        "split": probe.teil,
+        # In welcher der sechs Faltungen diese Aufnahme gemessen wird - und
+        # damit in welchen fünf sie gelernt wird.
+        "faltung": probe.faltung,
         "recording_id": probe.aufnahme.id,
     }
 
@@ -113,15 +109,23 @@ def _manifestzeile(
 def schreibe_manifest(
     ziel: Path, korpus: Session, proben: list[Probe], sprecher_id: str, daten: str
 ) -> dict[str, int]:
-    """Das Manifest schreiben; gibt zurück, wie viele Zeilen je Teil entstanden."""
-    gezaehlt = dict.fromkeys(laeufe.TEILE, 0)
+    """Das Manifest schreiben; gibt zurück, wie viele Zeilen je Faltung entstanden.
+
+    `daten` steht hier nicht mehr im Weg: Geschrieben werden immer alle
+    Fassungen, und welche davon gelernt werden dürfen, entscheidet der Trainer
+    am Auftrag (`training/daten.py`). Das Manifest ist damit für jeden Lauf
+    dasselbe und bleibt, was es sein soll - der Schnappschuss des Korpus, nicht
+    die Anweisung an den Trainer.
+    """
+    gezaehlt = {str(faltung): 0 for faltung in range(laeufe.FALTUNGEN)}
     with ziel.open("w", encoding="utf-8") as datei:
         for probe in proben:
             quelle = _quelle_von(korpus, probe)
-            for variante in _fassungen(probe.teil, daten):
+            for variante in augmentierung.VARIANTEN:
                 zeile = _manifestzeile(probe, variante, quelle, sprecher_id)
                 datei.write(json.dumps(zeile, ensure_ascii=False) + "\n")
-                gezaehlt[probe.teil] += 1
+                gezaehlt[str(probe.faltung)] += 1
+    gezaehlt["gesamt"] = sum(gezaehlt.values())
     return gezaehlt
 
 
@@ -215,10 +219,9 @@ def loesche(datenverzeichnis: Path, sprecher_id: str, job_id: str) -> Geloescht:
     hervorging. Die Oberfläche sagt das vorher, ausdrücklich und samt der
     Angabe, ob der Stand gerade freigegeben ist (siehe `api/laeufe.py`).
 
-    **Was nicht mitgeht: die Aufteilung.** Sie hängt an den Aufnahmen und nicht
-    an einem Lauf. Sie mit zu löschen hieße, sie beim nächsten Lauf neu zu
-    würfeln - und damit Testaufnahmen ins Training zu lassen, die vorher
-    geprüft haben.
+    **Was nicht mitgeht: der Korpus.** Er gehört „hören" und nicht diesem Lauf.
+    Die Faltungen hängen an ihm und werden beim nächsten Auftrag neu gerechnet;
+    gespeichert ist daran nichts (`services/aufteilung.py`).
     """
     lauf = laeufe.lies_lauf(datenverzeichnis, job_id)
     if lauf is None or lauf.sprecher_id != sprecher_id:

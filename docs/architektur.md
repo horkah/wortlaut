@@ -152,12 +152,12 @@ wortlaut/
 │   │   │   ├── deps.py            # Zugang, eigene Datenbank, Korpus (lesend!)
 │   │   │   ├── api/               # aufteilung.py, laeufe.py, modelle.py
 │   │   │   ├── services/
-│   │   │   │   ├── aufteilung.py  # 2:1, einmal vergeben und nie umsortiert
+│   │   │   │   ├── aufteilung.py  # sechs Faltungen, der Reihe nach
 │   │   │   │   ├── auftraege.py   # Schnappschuss und Auftrag schreiben
 │   │   │   │   ├── messwerte.py   # alle Modelle auf denselben Testaufnahmen
 │   │   │   │   └── vergleich.py   # trainierter Stand gegen die Grundlinie
-│   │   │   └── db/                # genau eine Tabelle: die Aufteilung
-│   │   ├── frontend/              # Aufteilung, Training (Kurven), Modelle
+│   │   │   └── db/                # leer, seit die Aufteilung wegfiel
+│   │   ├── frontend/              # Wie gemessen wird, Training, Modelle
 │   │   ├── training/              # das, was auf der GPU läuft - eigenes Abbild
 │   │   │   ├── Dockerfile         # pytorch/cuda, ~4 GB, eigener Compose-Dienst
 │   │   │   ├── laeufer.py         # wartet auf Aufträge, einer nach dem anderen
@@ -165,7 +165,7 @@ wortlaut/
 │   │   │   ├── bewerten.py        # Testaufnahmen messen, Stand eintragen
 │   │   │   ├── daten.py           # Manifest → Merkmale und Marken
 │   │   │   └── rezepte/           # whisper_full.yaml, whisper_lora.yaml
-│   │   └── tests/                 # Aufteilung, Aufträge, Vergleich, Grenzen
+│   │   └── tests/                 # Faltungen, Aufträge, Vergleich, Grenzen
 │   │
 │   └── schreiben/                 # App „schreiben"
 │       ├── Dockerfile
@@ -299,7 +299,7 @@ Eine Zeile pro Aufnahme:
 
 ```json
 {"audio":"audio/rec_01J8….wav","text":"…","quelle":"vorlage","modus":"gelesen",
- "dauer_s":4.8,"gewicht":1.0,"split":"train"}
+ "dauer_s":4.8,"gewicht":1.0,"faltung":"train"}
 ```
 
 Der Schnappschuss ist der Grund, warum weiter aufgenommen werden kann, während ein
@@ -464,7 +464,7 @@ Aufnahme; als Messgröße ist sie dort verworfen (siehe
 
 | Tabelle | Zweck |
 |---|---|
-| `aufteilung` | je Aufnahme: Training, Validierung oder Test - einmal vergeben, nie geändert |
+| *(keine)* | Die Aufteilung ist im September 2026 weggefallen (`002_ohne_aufteilung.sql`); die Faltungen der Kreuzvalidierung folgen der Reihenfolge des Korpus und stehen im Schnappschuss |
 
 Es ist genau eine Tabelle, und das ist Absicht. Eine Jobtabelle daneben hätte
 nahegelegen und wäre eine zweite Wahrheit über denselben Lauf gewesen: Der

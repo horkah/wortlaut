@@ -100,7 +100,7 @@ class TestVerteilung:
             "/lernen/api/aufteilung", headers={"Authorization": f"Bearer {zugang}"}
         )
         assert antwort.status_code == 200, antwort.text
-        assert antwort.json()["proben"] == []
+        assert antwort.json()["aufnahmen"] == 0
 
     def test_lernen_bleibt_hinter_dem_zugang(self, klient: TestClient) -> None:
         # Ein Modell gehört einem Menschen - ohne dessen Zugang gibt es hier

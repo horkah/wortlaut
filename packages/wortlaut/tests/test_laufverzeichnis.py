@@ -24,22 +24,20 @@ def _auftrag(datenverzeichnis: Path, job_id: str, sprecher: str = "spr_a") -> Pa
     return verzeichnis
 
 
-class TestMuster:
-    def test_zwei_drittel_lernen_ein_drittel_prueft(self) -> None:
-        teile = [laeufe.teil_fuer(nummer) for nummer in range(len(laeufe.MUSTER))]
-        lernend = sum(1 for teil in teile if teil != laeufe.TEST)
-        pruefend = sum(1 for teil in teile if teil == laeufe.TEST)
-        assert lernend == 2 * pruefend
+class TestFaltungen:
+    def test_jede_faltung_kommt_gleich_oft_vor(self) -> None:
+        vergeben = [laeufe.faltung_fuer(nummer) for nummer in range(laeufe.FALTUNGEN * 4)]
+        assert sorted(set(vergeben)) == list(range(laeufe.FALTUNGEN))
+        assert all(vergeben.count(faltung) == 4 for faltung in range(laeufe.FALTUNGEN))
 
     def test_wiederholt_sich_ohne_ende(self) -> None:
-        laenge = len(laeufe.MUSTER)
-        assert laeufe.teil_fuer(0) == laeufe.teil_fuer(laenge) == laeufe.teil_fuer(2 * laenge)
+        # 1, 2, 3, 4, 5, 6, 1, 2, … - die siebte Aufnahme fängt wieder vorn an.
+        n = laeufe.FALTUNGEN
+        assert laeufe.faltung_fuer(0) == laeufe.faltung_fuer(n) == laeufe.faltung_fuer(2 * n)
 
-    def test_die_validierung_ist_keine_testaufnahme(self) -> None:
-        # Sie steuert das Lernen und gehört deshalb dazu - aber sie ist nicht
-        # das, woran gemessen wird.
-        assert laeufe.VALIDIERUNG in laeufe.MUSTER
-        assert laeufe.VALIDIERUNG != laeufe.TEST
+    def test_die_erste_aufnahme_traegt_die_erste_faltung(self) -> None:
+        assert laeufe.faltung_fuer(0) == 0
+        assert laeufe.faltung_fuer(laeufe.FALTUNGEN - 1) == laeufe.FALTUNGEN - 1
 
 
 class TestWarteschlange:

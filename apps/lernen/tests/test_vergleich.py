@@ -81,14 +81,15 @@ def _lauf_fertigstellen(
         json.loads(zeile)
         for zeile in (verzeichnis / laeufe.MANIFEST).read_text(encoding="utf-8").splitlines()
     ]
+    # Nachgestellt wird, was die Kreuzvalidierung hinterlässt: zu **jeder**
+    # Zeile eine Messung, jeweils aus der Faltung, die sie zurückgehalten hat.
     for zeile in zeilen:
-        if zeile["split"] != laeufe.TEST:
-            continue
         laeufe.haenge_an(
             verzeichnis / laeufe.BEWERTUNG,
             {
                 "recording_id": zeile["recording_id"],
                 "variante": zeile["variante"],
+                "faltung": zeile["faltung"],
                 "text": zeile["text"],
                 "wer": 0.1,
                 "cer": 0.05,

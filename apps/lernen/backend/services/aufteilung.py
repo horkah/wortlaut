@@ -1,140 +1,89 @@
-"""Wer lernt, wer steuert, wer prüft - und warum das nie wieder umsortiert wird.
+"""Wie der Korpus in sechs Faltungen zerfällt - und warum das nirgends steht.
 
-Zwei Drittel der Aufnahmen trainieren das Modell, ein Drittel prüft es. Die
-Zahl allein wäre leicht: jede dritte Aufnahme in den Test. Schwierig ist die
-zweite Hälfte der Zusage - dass die Zuteilung **hält**.
+Jede Aufnahme bekommt der Reihe nach eine Faltung: 1, 2, 3, 4, 5, 6, 1, 2, …
+Je Faltung läuft ein Training, das auf den anderen fünf Sechsteln lernt und auf
+diesem einen misst. Sechs Trainings später ist jede Aufnahme genau einmal von
+einem Modell gehört worden, das sie nie gesehen hat - und das ist die Zahl, die
+in der Modelltabelle steht.
 
-**Warum sie gespeichert wird und nicht gerechnet.** Die naheliegende Lösung
-wäre, beim Trainieren durchzuzählen: Aufnahme 1, 2 lernen, Aufnahme 3 prüft,
-und so weiter. Das ist bis zur ersten gelöschten Aufnahme richtig. Danach rückt
-alles dahinter um einen Platz vor - und Aufnahmen, die bisher geprüft haben,
-landen im Training eines Modells, das anschließend an ihnen gemessen wird. Die
-Zahl, die dabei herauskommt, sieht gut aus und bedeutet nichts.
+**Warum hier nichts mehr gespeichert wird.** Bis September 2026 stand in einer
+Tabelle, welche Aufnahme lernt, steuert und prüft; einmal vergeben und nie
+wieder angefasst. Das musste so sein, solange es ein Testdrittel gab: Eine
+Aufnahme, die einmal geprüft hatte, durfte nie trainieren, sonst maß der Test
+das Auswendiggelernte. Rückte durch eine Löschung alles um einen Platz vor, war
+genau das passiert.
 
-Deshalb steht die Zuteilung in einer Tabelle, einmal je Aufnahme, und wird nie
-wieder angefasst. Verschwindet eine Aufnahme, verschwindet ihre Zeile mit - die
-übrigen behalten ihren Platz. Das Verhältnis weicht dadurch leicht von 2:1 ab;
-das ist der richtige Preis. Ein sauberes Verhältnis wäre hier nur zu haben,
-indem man die Trennung zwischen Lernen und Prüfen aufweicht, und dann misst
-niemand mehr etwas.
+Diese Gefahr gibt es nicht mehr. In fünf von sechs Faltungen trainiert jede
+Aufnahme ohnehin; welche Faltung sie trägt, entscheidet nur, in welchem der
+sechs Läufe sie gemessen wird. Die Faltung folgt deshalb schlicht der
+Reihenfolge des Korpus, wird bei jedem Auftrag neu gerechnet und im
+Schnappschuss festgehalten (`services/auftraege.py`). Eine Tabelle daneben wäre
+eine zweite Wahrheit über dieselbe Sache.
 
-**Warum ein Muster und kein Zufall.** Eine zufällige Auswahl bräuchte einen
-gespeicherten Keim, um nachvollziehbar zu sein - also ebenfalls eine
-gespeicherte Zuteilung, nur schwerer zu lesen. Das Muster steht in
-`wortlaut/laeufe.py` und ist an der Nummer abzulesen, die neben jeder Zeile
-steht.
-
-**Wann zugeteilt wird.** Beim Hinsehen. Jede Abfrage dieser Ansicht und jeder
-Auftrag holt zuerst nach, was noch keine Zeile hat - in der Reihenfolge des
-Korpus, also nach Alter. Ein eigener Knopf dafür wäre einer, den jemand
-vergisst, und ein Modell, das ohne die neuen Aufnahmen trainiert, sagt nicht,
-dass sie fehlten.
+**Was dabei verloren geht, und warum das in Ordnung ist.** Wer eine Aufnahme
+löscht, verschiebt die Faltungen aller jüngeren. Zwei Läufe über verschiedene
+Korpusstände messen damit auf verschiedenen Faltungen. Das ist kein Bruch: Jeder
+Lauf misst über **alle** Aufnahmen, die er kennt, und trägt sein Manifest bei
+sich. Verglichen werden Läufe, nicht Faltungen.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from wortlaut import laeufe
 
 from apps.hoeren.backend.db.models import Aufnahme, Vorlage
 from apps.hoeren.backend.services.auswertung import gueltige_aufnahmen
 
-from ..db.models import Zuteilung
-
 
 @dataclass(frozen=True)
 class Probe:
-    """Eine Aufnahme mit ihrer Vorlage und ihrem Platz in der Aufteilung."""
+    """Eine Aufnahme mit ihrer Vorlage und ihrer Faltung."""
 
     aufnahme: Aufnahme
     vorlage: Vorlage
-    teil: str
+    faltung: int
     nummer: int
 
 
-def _zugeteilt(db: Session) -> dict[str, Zuteilung]:
-    return {zeile.recording_id: zeile for zeile in db.scalars(select(Zuteilung))}
+def proben(korpus: Session) -> list[Probe]:
+    """Alle brauchbaren Aufnahmen mit ihrer Faltung, älteste zuerst.
 
-
-def _naechste_nummer(db: Session) -> int:
-    """Eine mehr als die höchste vergebene - nie eine wiederverwendete.
-
-    Wiederzuverwenden, was eine gelöschte Aufnahme freigemacht hat, wäre genau
-    das Umsortieren, das diese Tabelle verhindern soll: Die nächste Aufnahme
-    bekäme den Platz einer alten und damit womöglich deren Teil.
+    Die Reihenfolge ist die des Korpus und damit die des Aufnehmens. Sie ist
+    zugleich die Zuteilung: Die `nummer`-te Aufnahme trägt die `nummer % 6`-te
+    Faltung. Nichts daran ist gespeichert, und nichts muss es sein.
     """
-    hoechste = db.scalar(select(func.max(Zuteilung.nummer)))
-    return 0 if hoechste is None else hoechste + 1
-
-
-def teile_zu(db: Session, korpus: Session) -> int:
-    """Allen noch unzugeteilten Aufnahmen ihren Teil geben; gibt deren Anzahl zurück.
-
-    In der Reihenfolge des Korpus - älteste zuerst -, damit die Zuteilung nicht
-    davon abhängt, wann jemand diese Seite geöffnet hat.
-    """
-    bekannt = set(_zugeteilt(db))
-    nummer = _naechste_nummer(db)
-    neu = 0
-
-    for aufnahme, _vorlage in gueltige_aufnahmen(korpus):
-        if aufnahme.id in bekannt:
-            continue
-        db.add(
-            Zuteilung(
-                recording_id=aufnahme.id,
-                teil=laeufe.teil_fuer(nummer),
-                nummer=nummer,
-                zugeteilt=laeufe.jetzt(),
-            )
-        )
-        nummer += 1
-        neu += 1
-
-    if neu:
-        db.commit()
-    return neu
-
-
-def proben(db: Session, korpus: Session) -> list[Probe]:
-    """Alle brauchbaren Aufnahmen mit ihrem Teil, älteste zuerst.
-
-    Teilt vorher zu, was noch keinen Platz hat. Aufnahmen ohne Zeile kann es
-    danach nicht mehr geben; sollte doch eine durchrutschen - etwa weil sie
-    zwischen zwei Abfragen entstanden ist -, bleibt sie draußen, statt
-    stillschweigend im Training zu landen.
-    """
-    teile_zu(db, korpus)
-    zuteilung = _zugeteilt(db)
     return [
         Probe(
             aufnahme=aufnahme,
             vorlage=vorlage,
-            teil=zuteilung[aufnahme.id].teil,
-            nummer=zuteilung[aufnahme.id].nummer,
+            faltung=laeufe.faltung_fuer(nummer),
+            nummer=nummer,
         )
-        for aufnahme, vorlage in gueltige_aufnahmen(korpus)
-        if aufnahme.id in zuteilung
+        for nummer, (aufnahme, vorlage) in enumerate(gueltige_aufnahmen(korpus))
     ]
 
 
-def zaehle(proben_liste: list[Probe]) -> dict[str, int]:
-    """Wie viele Aufnahmen auf jeden Teil entfallen - in fester Reihenfolge."""
+def zaehle(proben_liste: list[Probe]) -> dict[int, int]:
+    """Wie viele Aufnahmen auf jede Faltung entfallen - alle sechs, auch leere.
+
+    Alle sechs, weil eine fehlende Faltung eine Auskunft ist: Unter sechs
+    Aufnahmen bleiben Faltungen leer, und ein Lauf darüber hätte Sechstel, die
+    nichts messen.
+    """
     return {
-        teil: sum(1 for probe in proben_liste if probe.teil == teil) for teil in laeufe.TEILE
+        faltung: sum(1 for probe in proben_liste if probe.faltung == faltung)
+        for faltung in range(laeufe.FALTUNGEN)
     }
 
 
-def verwaist(db: Session, korpus: Session) -> list[str]:
-    """Zuteilungen zu Aufnahmen, die es nicht mehr gibt.
+def genug(proben_liste: list[Probe]) -> bool:
+    """Ob sich damit kreuzvalidieren lässt: mindestens eine Aufnahme je Faltung.
 
-    Sie bleiben stehen, und das ist Absicht: Ihre Nummer ist vergeben, und
-    genau daran hängt, dass die übrigen ihren Teil behalten. Gezeigt werden sie
-    trotzdem - eine Aufteilung, die von hundert Zeilen spricht, während achtzig
-    Aufnahmen da sind, soll das sagen und nicht verschweigen.
+    Weniger als sechs Aufnahmen ergeben leere Faltungen - ein Training, das auf
+    nichts misst, und eine Zahl, die keine ist. Dann steht die Schaltfläche
+    still und sagt, woran es liegt.
     """
-    vorhanden = {aufnahme.id for aufnahme, _ in gueltige_aufnahmen(korpus)}
-    return sorted(kennung for kennung in _zugeteilt(db) if kennung not in vorhanden)
+    return all(anzahl > 0 for anzahl in zaehle(proben_liste).values())

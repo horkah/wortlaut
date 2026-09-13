@@ -102,7 +102,7 @@
     abschluss: 'die Gewichte werden abgeschlossen',
     sichern: 'wird gesichert',
     umwandeln: 'wird umgewandelt',
-    bewerten: 'wird an den Testaufnahmen gemessen',
+    bewerten: 'misst die zurückgehaltene Faltung',
   };
 
   const STATUS: Record<string, string> = {
@@ -317,7 +317,7 @@
 
       <!-- Die dritte Achse. Sie fasst das Training nicht an: Sie entscheidet
            nur, welcher Stand aus einem gelaufenen Training ausgeliefert wird -
-           und lässt sich damit an denselben Testaufnahmen messen wie die
+           und lässt sich damit an denselben Aufnahmen messen wie die
            beiden anderen. -->
       <fieldset>
         <legend>Was am Ende zählt</legend>
@@ -442,8 +442,7 @@
 
         <p class="gedaempft klein">
           {zeit(lauf.erstellt)} · {lauf.aufnahmen} Aufnahmen ·
-          {lauf.zeilen.train ?? 0} Proben zum Lernen,
-          {lauf.zeilen.test ?? 0} zum Prüfen
+          {lauf.zeilen.gesamt ?? 0} Proben über {daten?.faltungen ?? 6} Faltungen
         </p>
 
         {#if lauf.status === 'laeuft'}

@@ -392,27 +392,46 @@ def fuehre_aus(
     arbeitsstand: Path,
     hat_pruefung: bool,
     bericht,
+    alpha_vorgabe: float | None = None,
 ) -> Ergebnis:
     """Den bestellten Abschluss rechnen; gibt zurück, was dabei herauskam.
 
     Das Modell wird dabei an Ort und Stelle verändert - danach steht in ihm
     der Stand, der gesichert und ausgeliefert wird.
 
-    **Ohne Validierung gibt es keinen Abschluss.** Beide Handgriffe brauchen
-    sie: die Mittelung, um zu wissen, welche Zwischenstände die besten sind,
-    die Interpolation, um α zu wählen. Bei einem Korpus, der zu klein für eine
-    Validierung ist, fällt der Lauf deshalb auf `bester` zurück und sagt es -
-    das ist ehrlicher, als α zu würfeln.
+    **Ohne Steuergröße gibt es nichts zu wählen** - aber womöglich etwas zu
+    übernehmen. Beide Handgriffe brauchen ein Maß: die Mittelung, um zu wissen,
+    welche Zwischenstände die besten sind, die Interpolation, um α zu wählen.
+    Das Endmodell der Kreuzvalidierung hat keines; es hat nichts
+    zurückgehalten.
+
+    Es bringt aber ein α aus den sechs Faltungen mit (`alpha_vorgabe`), und das
+    wird angewandt, ohne es noch einmal zu prüfen. Genau dafür ist die
+    Kreuzvalidierung da: Sie beantwortet die Frage einmal über den ganzen
+    Korpus, statt sie siebenmal an je einem Sechstel neu zu stellen. Die
+    **Mittelung** wird dabei nicht übernommen - sie ist kein Parameter, sondern
+    eine Auswahl unter Zwischenständen, und die lässt sich ohne Maß nicht
+    treffen.
     """
     sammler = _Sammler(art=art)
     if art == laeufe.ABSCHLUSS_BESTER:
         return sammler.fertig()
 
     if not hat_pruefung:
-        sammler.hinweise.append(
-            "Ohne Validierungsproben nicht gerechnet - der beste Stand bleibt stehen."
-        )
-        bericht.sage("Abschluss übersprungen: keine Validierung im Manifest.")
+        if alpha_vorgabe is not None and laeufe.interpoliert(art):
+            bericht.stufe("abschluss")
+            _nur_interpolieren(modell, basismodell, float(alpha_vorgabe), bericht)
+            sammler.alpha = float(alpha_vorgabe)
+            sammler.hinweise.append(
+                f"α = {float(alpha_vorgabe):.2f} aus den Faltungen übernommen, ohne "
+                "eigene Messung. Gemittelt wurde nicht - dafür fehlt das Maß."
+            )
+            bericht.sage(sammler.hinweise[-1])
+        else:
+            sammler.hinweise.append(
+                "Ohne Steuergröße nicht gerechnet - der Stand bleibt, wie er ist."
+            )
+            bericht.sage("Abschluss übersprungen: nichts zurückgehalten, nichts zu messen.")
         return sammler.fertig()
 
     bericht.stufe("abschluss")
@@ -506,6 +525,28 @@ def _einspielen(modell, stand: dict[str, Any]) -> None:
             ziel = eigen.get(name)
             if ziel is not None:
                 ziel.copy_(wert.to(ziel.device, ziel.dtype))
+
+
+def _nur_interpolieren(modell, basismodell: str, alpha: float, bericht) -> None:
+    """Ein gegebenes α anwenden, ohne zu messen - der Weg des Endmodells."""
+    import torch
+
+    ist_lora = _ist_lora(modell)
+    with torch.no_grad():
+        if ist_lora:
+            for gewicht in _lora_zusaetze(modell):
+                gewicht.mul_(1.0 - alpha)
+        else:
+            grund = _grundgewichte(basismodell)
+            eigen = modell.state_dict()
+            for name, wert in eigen.items():
+                if name not in grund or not torch.is_floating_point(wert):
+                    continue
+                gemischt = alpha * grund[name].to(torch.float32) + (1.0 - alpha) * wert.detach().to(
+                    "cpu", torch.float32
+                )
+                wert.copy_(gemischt.to(wert.dtype))
+    bericht.sage(f"Mit dem Grundmodell verrechnet: α = {alpha:.2f} (aus den Faltungen)")
 
 
 def _ist_lora(modell) -> bool:

@@ -2,7 +2,7 @@
 
 Dieser eine Weg beantwortet die ganze Frage „womit spreche ich?": Er stellt die
 unveränderten Grundmodelle und die selbst trainierten Stände nebeneinander,
-misst sie an denselben Testaufnahmen (siehe `services/messwerte.py`) und sagt,
+misst sie an denselben Aufnahmen (siehe `services/messwerte.py`) und sagt,
 welches davon freigegeben ist. Freigegeben heißt: Damit diktiert „schreiben".
 
 **Warum beide Sorten in einer Liste.** Weil die Frage eine ist. Früher stand
@@ -110,7 +110,7 @@ MASSE = [
         name="Rechenzeit",
         kurz="Zeit",
         erklaerung=(
-            "Sekunden je Testaufnahme - die andere Hälfte jeder Modellwahl. "
+            "Sekunden je Aufnahme - die andere Hälfte jeder Modellwahl. "
             "Sie hängt an der Maschine und nicht am Modell: Zwischen Karte und "
             "Prozessor liegt das Zehn- bis Zwanzigfache. Verglichen wird sie "
             "deshalb nur, wenn alle Zeilen dasselbe Rechenwerk nennen."
@@ -172,7 +172,7 @@ class ModellAntwort(BaseModel):
     # nicht nennenswert.
     rechenwerk: str
     # fassung -> maß -> Wert. Leer heißt: für dieses Modell liegt auf den
-    # gemeinsamen Testaufnahmen nichts vor.
+    # gemeinsamen Aufnahmen nichts vor.
     werte: dict[str, dict[str, float]]
     # fassung -> wie viele Einheiten in diesem Mittel stecken.
     einheiten: dict[str, int]
@@ -191,9 +191,11 @@ class UebersichtAntwort(BaseModel):
     fassungen: list[FassungAntwort]
     # Was gerade gilt; leer heißt: es gilt, womit die Installation anfängt.
     freigegeben: str
-    # Wie viele Aufnahmen im Testteil liegen und wie viele Einheiten (Aufnahme
-    # mal Fassung) wirklich von allen gemessen wurden.
-    testaufnahmen: int
+    # Wie viele Aufnahmen es gibt und wie viele Einheiten (Aufnahme mal
+    # Fassung) wirklich von allen gemessen wurden. Seit der Kreuzvalidierung
+    # sind das alle: Jede Aufnahme ist einmal von einem Modell gehört worden,
+    # das sie nicht kannte (`training/bewerten.py`).
+    messaufnahmen: int
     gemeinsame_einheiten: int
     # Ob alle Zahlen auf demselben Boden stehen. `false` heißt: Es gibt keine
     # Einheit, die jedes messende Modell hat - jede Zeile rechnet dann auf dem,
@@ -283,7 +285,7 @@ def uebersicht(
     intervall: str = streuung.AUS,
     vergleich_mit: str = "",
 ) -> UebersichtAntwort:
-    """Alle Modelle mit ihren Zahlen auf den gemeinsamen Testaufnahmen.
+    """Alle Modelle mit ihren Zahlen auf den gemeinsamen Aufnahmen.
 
     **Was `intervall` tut - und was es ausdrücklich nicht tut.** Es legt neben
     jede Zahl den Bereich, in dem sie liegen dürfte (`wortlaut/streuung.py`).
@@ -312,7 +314,7 @@ def uebersicht(
             detail=f"Unbekannte Blockart. Zur Wahl stehen: {', '.join(streuung.BLOCKARTEN)}.",
         )
     konfiguration = einstellungen()
-    aufnahmen = messwerte.testaufnahmen(db, korpus)
+    aufnahmen = messwerte.messaufnahmen(korpus)
     namen = _grundmodellnamen()
 
     reihen = messwerte.grundmodelle(korpus, namen, aufnahmen)
@@ -402,7 +404,7 @@ def uebersicht(
         masse=MASSE,
         fassungen=FASSUNGEN,
         freigegeben=freigegeben,
-        testaufnahmen=len(aufnahmen),
+        messaufnahmen=len(aufnahmen),
         gemeinsame_einheiten=len(gemeinsam),
         vergleichbar=vergleichbar,
         zeit_vergleichbar=zeit_vergleichbar,
@@ -429,8 +431,8 @@ def _hinweis(
     """
     if not aufnahmen:
         return (
-            "Noch keine Testaufnahmen. Ein Drittel des Korpus wird zum Prüfen "
-            "zurückgelegt, sobald in \u201ehören\u201c gesprochen wird."
+            "Noch keine Aufnahmen im Korpus. Gemessen wird über alle, sobald in "
+            "\u201ehören\u201c gesprochen wird."
         )
     if not any(reihen[name].werte for name in namen):
         return (
@@ -445,7 +447,7 @@ def _hinweis(
         )
     if not messwerte.gemeinsame_einheiten(list(reihen.values())):
         return (
-            "Die Zahlen stehen nicht auf demselben Boden: Es gibt keine Testaufnahme, "
+            "Die Zahlen stehen nicht auf demselben Boden: Es gibt keine Aufnahme, "
             "die jedes Modell gemessen hat. Ein erneuter Lauf der Auswertung in "
             "\u201ehören\u201c holt die fehlenden nach."
         )

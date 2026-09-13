@@ -235,7 +235,7 @@
 <h2>Modelle</h2>
 <p class="gedaempft">
   Was diesem Menschen zuhören kann - die selbst trainierten Stände und die unveränderten
-  Grundmodelle, an denselben Testaufnahmen gemessen. Freigegeben ist höchstens eines; mit dem
+  Grundmodelle, an denselben Aufnahmen gemessen. Freigegeben ist höchstens eines; mit dem
   arbeitet „schreiben".
 </p>
 

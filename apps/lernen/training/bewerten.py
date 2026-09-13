@@ -1,9 +1,18 @@
-"""Das fertige Modell hört die Testaufnahmen - und wird eingetragen.
+"""Jede Aufnahme einmal ungehört - und der Stand, der ausgeliefert wird.
 
-Der letzte Teil eines Laufs, und der einzige, der eine Zahl hervorbringt, die
-etwas heißt. Die Testaufnahmen hat das Modell nie gesehen: Ihre Zuteilung steht
-seit ihrer ersten Aufnahme fest und ändert sich nie wieder (siehe
-`apps/lernen/backend/services/aufteilung.py`).
+Der Teil eines Laufs, der die Zahl hervorbringt, und er steht nicht am Ende,
+sondern sechsmal mittendrin. Je Faltung hört das eben trainierte Modell das
+Sechstel, das es nicht kannte (`services/aufteilung.py`); nach sechs Faltungen
+liegt zu **jeder** Aufnahme eine Messung von einem Modell vor, das sie nie
+gesehen hat.
+
+**Zwei Modelle, eine Zeile in der Tabelle - und das muss man wissen.** Die
+Zahlen eines Laufs stammen aus den sechs Faltungsmodellen. Das Modell, das
+gespeichert und in „schreiben" angeboten wird, ist ein siebtes: auf dem ganzen
+Korpus trainiert, mit den Einstellungen, die sich in den Faltungen bewährt
+haben. Es ist damit besser als jedes der sechs - es hat mehr gesehen -, und
+gerade deshalb lässt es sich nicht mehr ehrlich messen. Die Zahl daneben ist
+die vorsichtige.
 
 **Warum hier und nicht im Webdienst.** Weil das Modell hier schon liegt - eben
 umgewandelt, auf einer Maschine mit Karte. Es dafür in einen anderen Container
@@ -32,7 +41,7 @@ from wortlaut import corpus, laeufe, metriken, registry, streuung
 
 from apps.lernen.backend.config import einstellungen
 
-from .daten import zeilen_fuer
+from .daten import zeilen_fuer_faltung
 
 
 def _version(auftrag: dict[str, Any]) -> str:
@@ -59,18 +68,29 @@ def _version(auftrag: dict[str, Any]) -> str:
     return name if dauer == laeufe.DAUER_FEST else f"{name}-{dauer}"
 
 
-def bewerte(
-    verzeichnis: Path, datenverzeichnis: Path, ct2: Path, auftrag: dict[str, Any], bericht
-) -> dict[str, Any]:
-    """Jede Testzeile durch das neue Modell; schreibt `bewertung.jsonl`."""
+def bewerte_faltung(
+    verzeichnis: Path,
+    datenverzeichnis: Path,
+    ct2: Path,
+    auftrag: dict[str, Any],
+    faltung: int,
+    bericht,
+) -> list[dict[str, Any]]:
+    """Das Modell dieser Faltung hört ihr Sechstel; hängt an `bewertung.jsonl` an.
+
+    Gibt die Zeilen zurück, damit `main` sie über alle sechs Faltungen sammeln
+    kann - sie zusammen sind die Auskunft über dieses Rezept.
+    """
     from wortlaut.whisper.local import LokalerTranskriptor
 
     sprecher_id = str(auftrag["sprecher_id"])
     korpuswurzel = datenverzeichnis / corpus.sprecher_relpfad(sprecher_id)
-    zeilen = zeilen_fuer(verzeichnis, {laeufe.TEST})
+    _lern, zeilen = zeilen_fuer_faltung(
+        verzeichnis, faltung, str(auftrag.get("daten") or laeufe.NUR_ORIGINAL)
+    )
 
     bericht.stufe("bewerten", test_zeilen=len(zeilen))
-    bericht.sage(f"Testaufnahmen: {len(zeilen)} Zeilen über alle Fassungen")
+    bericht.sage(f"Faltung {faltung + 1}: {len(zeilen)} Zeilen über alle Fassungen")
 
     # Der Pfad des umgewandelten Modells statt eines Namens - faster-whisper
     # nimmt beides, und so wird sicher dieser Stand geladen und nicht ein
@@ -96,6 +116,9 @@ def bewerte(
         eintrag = {
             "recording_id": zeile.get("recording_id"),
             "variante": zeile.get("variante"),
+            # Welche Faltung diese Zeile gemessen hat - und damit, welches der
+            # sechs Modelle sie gehört hat, ohne sie zu kennen.
+            "faltung": faltung,
             "text": transkript.text,
             "wer": guete.wer,
             "cer": guete.cer,
@@ -113,7 +136,7 @@ def bewerte(
         if nummer % 10 == 0 or nummer == len(zeilen):
             bericht.sage(f"  bewertet: {nummer}/{len(zeilen)}")
 
-    return _zusammengefasst(ergebnis)
+    return ergebnis
 
 
 # Die Maße, zu denen ein Vertrauensbereich mitgeschrieben wird. Die Rechenzeit
@@ -191,15 +214,22 @@ def _zusammengefasst(
     }
 
 
-def bewerte_und_gib_frei(
+def gib_frei(
     verzeichnis: Path,
     datenverzeichnis: Path,
     gewichte: Path,
     auftrag: dict[str, Any],
     bericht,
     abschluss=None,
+    zeilen: list[dict[str, Any]] | None = None,
+    mitgenommen: dict[str, Any] | None = None,
 ) -> str:
-    """Umwandeln, bewerten, in die Registry eintragen. Gibt die Version zurück.
+    """Das Endmodell umwandeln und eintragen. Gibt die Version zurück.
+
+    **Gemessen wird hier nichts mehr.** Die Zahlen dieses Standes sind die der
+    sechs Faltungen (`zeilen`) - jede Aufnahme einmal, von einem Modell, das
+    sie nicht kannte. Das Endmodell selbst kennt den ganzen Korpus; es an ihm
+    zu messen ergäbe eine schöne Zahl ohne Aussage.
 
     Eingetragen wird mit `status: fertig` und nicht `active`: Ein durchgelaufenes
     Training ist noch kein Modell, das jemand benutzen soll. Zwischen „hat
@@ -214,7 +244,7 @@ def bewerte_und_gib_frei(
     ct2 = ziel / "ct2"
 
     wandle_um(gewichte, ct2, bericht)
-    gemessen = bewerte(verzeichnis, datenverzeichnis, ct2, auftrag, bericht)
+    gemessen = _zusammengefasst(zeilen or [])
 
     registry.schreibe_stand(
         datenverzeichnis,
@@ -224,15 +254,17 @@ def bewerte_und_gib_frei(
             "basismodell": auftrag.get("basismodell"),
             "methode": auftrag.get("methode"),
             "daten": auftrag.get("daten"),
-            # Die dritte Achse, als schlichte Zeichenkette neben den beiden
-            # anderen - und daneben, was dabei herauskam: die gemittelten
-            # Zwischenstände, das gewählte α, die Verluste davor und danach.
-            # Ein Stand, dessen α niemand mehr nachsehen kann, ist mit keinem
-            # anderen zu vergleichen.
+            # Die Achsen des Auftrags, als schlichte Zeichenketten - und
+            # daneben, was dabei herauskam. Ein Stand, dessen α niemand mehr
+            # nachsehen kann, ist mit keinem anderen zu vergleichen.
             "abschluss": str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER),
             "augmentierung": str(auftrag.get("augmentierung") or laeufe.AUG_KEINE),
             "dauer": str(auftrag.get("dauer") or laeufe.DAUER_FEST),
             "abschluss_bericht": abschluss.als_dict() if abschluss is not None else None,
+            # Woher die Einstellungen des Endmodells stammen: der Median über
+            # die sechs Faltungen. Ohne diese Zeile wäre nicht mehr zu sagen,
+            # wie lange dieser Stand trainiert hat.
+            "kreuzvalidierung": mitgenommen or {},
             "job_id": auftrag.get("job_id"),
             "erstellt": laeufe.jetzt(),
             "daten_umfang": auftrag.get("zeilen", {}),
