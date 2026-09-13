@@ -301,8 +301,19 @@ docker compose exec wortlaut python scripts/vorlesen.py
 
 Die Stimmen landen unter `WORTLAUT_STIMMEN_DIR`, das in den Modellspeicher
 zeigt - dasselbe Volume wie die Whisper-Modelle, also kein zusätzlicher Mount.
-Gemessen braucht Piper für einen Satz von vier Sekunden gut eine Sekunde; der
-ganze Korpus ist in wenigen Minuten gesprochen und wiegt je Satz etwa 140 kB.
+`de_DE-thorsten-high` wiegt 114 MB.
+
+**Wie lange das dauert**, gemessen mit genau dieser Stimme auf dieser Maschine:
+
+| | |
+|---|---|
+| Sprechen | 31 ms je Zeichen, also 1,7× Echtzeit |
+| Durchsatz | rund 24 Sätze je Minute |
+| Ein Korpus von 265 Vorlagen | **etwa 11 Minuten**, danach ~35 MB auf der Platte |
+
+Der erste Aufruf holt zuerst die kleine Beschreibungsdatei und dann das Modell,
+und beide mit Wiederholung. Bricht etwas ab, holt ein erneuter Aufruf nur, was
+noch fehlt.
 
 Mehrere Stimmen nebeneinander sind erlaubt und gedacht: Wer sie vergleichen
 will, legt zwei ab und wählt unter „Einstellungen". Welche Stimme jemand gut
