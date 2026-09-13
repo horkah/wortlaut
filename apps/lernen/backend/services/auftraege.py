@@ -226,10 +226,23 @@ def loesche(datenverzeichnis: Path, sprecher_id: str, job_id: str) -> Geloescht:
     lauf = laeufe.lies_lauf(datenverzeichnis, job_id)
     if lauf is None or lauf.sprecher_id != sprecher_id:
         raise LookupError(job_id)
-    if lauf.status == laeufe.LAEUFT:
+    if lauf.status == laeufe.LAEUFT and not lauf.haengt:
         # In das Verzeichnis schreibt gerade ein anderer Container. Es unter
         # ihm wegzuziehen hieße, einen laufenden Prozess ins Leere greifen zu
         # lassen - und das Ergebnis wäre ein halb geschriebener Modellstand.
+        #
+        # `und not haengt` ist der Unterschied zwischen einem Wächter und einer
+        # Falle. Der Zustand `laeuft` ist eine Behauptung des rechnenden
+        # Prozesses, und sie bleibt stehen, wenn er sie nicht mehr
+        # zurücknehmen kann - weil sein Container neu gestartet wurde, weil die
+        # Maschine neu gestartet ist, weil der Kern ihn erschlagen hat. Vorher
+        # war so ein Lauf für immer unlöschbar: Er rechnete nicht, sagte aber,
+        # er rechne, und niemand kam an ihn heran.
+        #
+        # Eine Viertelstunde ohne ein geschriebenes Byte ist keine Rechnung
+        # mehr (`wortlaut/laeufe.py`). Falls doch noch ein Prozess daran hängt,
+        # greift er nach dem Löschen ins Leere und stirbt - das ist der Preis,
+        # und er ist kleiner als ein Verzeichnis, das niemand loswird.
         raise RuntimeError(
             "Dieser Lauf rechnet gerade. Erst wenn er durch ist, lässt er sich löschen."
         )

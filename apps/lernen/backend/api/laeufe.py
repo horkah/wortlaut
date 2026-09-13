@@ -319,8 +319,17 @@ class LaufAntwort(BaseModel):
     # entstanden ist. Er ginge beim Löschen mit.
     stand: StandHinweis | None
     # Ob sich dieser Lauf löschen lässt. Ein rechnender nicht: In sein
-    # Verzeichnis schreibt gerade ein anderer Container.
+    # Verzeichnis schreibt gerade ein anderer Container. Ein hängender schon -
+    # dort schreibt seit einer Viertelstunde niemand mehr.
     loeschbar: bool
+    # Sagt `laeuft`, rührt sich aber nicht mehr (`wortlaut/laeufe.py`). Die
+    # Ansicht zeigt das statt eines Fortschrittsbalkens, der so tut, als käme
+    # gleich der nächste Schritt.
+    haengt: bool
+    # Seit wann nichts mehr geschrieben wurde, in Sekunden - nur bei `laeuft`
+    # eine Auskunft, sonst `null`. Damit die Ansicht „seit 20 Minuten" sagen
+    # kann und nicht bloß „hängt".
+    stillstand_s: float | None
 
 
 class PunktAntwort(BaseModel):
@@ -443,7 +452,11 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         version=lauf.zustand.get("version"),
         fehler=lauf.zustand.get("fehler"),
         stand=_stand_zu(lauf),
-        loeschbar=lauf.status != lauf_layout.LAEUFT,
+        loeschbar=lauf.status != lauf_layout.LAEUFT or lauf.haengt,
+        haengt=lauf.haengt,
+        stillstand_s=(
+            round(lauf.stillstand_s) if lauf.status == lauf_layout.LAEUFT else None
+        ),
     )
 
 

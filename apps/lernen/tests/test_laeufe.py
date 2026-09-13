@@ -10,6 +10,8 @@ Lauf unsichtbar bleibt.
 from __future__ import annotations
 
 import json
+import os
+import time
 
 from fastapi.testclient import TestClient
 from wortlaut import augmentierung, laeufe
@@ -18,6 +20,19 @@ from wortlaut import augmentierung, laeufe
 def _manifest(datenverzeichnis, job_id: str) -> list[dict]:
     pfad = laeufe.lauf_verzeichnis(datenverzeichnis, job_id) / laeufe.MANIFEST
     return [json.loads(zeile) for zeile in pfad.read_text(encoding="utf-8").splitlines()]
+
+
+def _altere(verzeichnis, sekunden: float) -> None:
+    """Alle Dateien eines Laufs um `sekunden` zurückdatieren.
+
+    Der Puls eines Laufs sind die Änderungszeiten seiner Dateien
+    (`laeufe.Lauf.stillstand_s`). Ihn zu stellen ist der einzige Weg, einen
+    Stillstand zu prüfen, ohne eine Viertelstunde zu warten.
+    """
+    wann = time.time() - sekunden
+    for datei in verzeichnis.rglob("*"):
+        if datei.is_file():
+            os.utime(datei, (wann, wann))
 
 
 def _beauftrage(klient: TestClient, methode: str = "lora", daten: str = "original") -> dict:
@@ -370,6 +385,61 @@ class TestLoeschen:
         assert antwort.status_code == 409
         assert laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]).is_dir()
 
+    def test_ein_haengender_laesst_sich_loeschen(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        # `laeuft` ist eine Behauptung des rechnenden Prozesses, und sie bleibt
+        # stehen, wenn er sie nicht mehr zurücknehmen kann. Vorher war so ein
+        # Lauf für immer unlöschbar.
+        sprich(6)
+        lauf = _beauftrage(klient)
+        verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"])
+        laeufe.schreibe_json(
+            verzeichnis / laeufe.ZUSTAND, {"status": laeufe.LAEUFT, "stufe": "training"}
+        )
+        _altere(verzeichnis, laeufe.STILLSTAND_S + 60)
+
+        zeile = klient.get("/lernen/api/laeufe").json()["laeufe"][0]
+        assert zeile["haengt"] is True
+        assert zeile["loeschbar"] is True
+        assert zeile["stillstand_s"] > laeufe.STILLSTAND_S
+
+        assert klient.delete(f"/lernen/api/laeufe/{lauf['job_id']}").status_code == 200
+        assert not verzeichnis.is_dir()
+
+    def test_kurz_still_heisst_noch_nicht_haengend(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        # Ein Lauf darf still sein: Das Umwandeln schreibt minutenlang nichts,
+        # und auf eine belegte Karte wartet der Trainer bis zu neun Minuten.
+        sprich(6)
+        lauf = _beauftrage(klient)
+        verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"])
+        laeufe.schreibe_json(
+            verzeichnis / laeufe.ZUSTAND, {"status": laeufe.LAEUFT, "stufe": "training"}
+        )
+        _altere(verzeichnis, laeufe.STILLSTAND_S - 60)
+
+        zeile = klient.get("/lernen/api/laeufe").json()["laeufe"][0]
+        assert zeile["haengt"] is False
+        assert zeile["loeschbar"] is False
+        assert klient.delete(f"/lernen/api/laeufe/{lauf['job_id']}").status_code == 409
+
+    def test_ein_wartender_haengt_nie(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        # Eine Warteschlange, in der lange niemand drankam, ist keine Störung.
+        # Nur `laeuft` kann hängen, denn nur dort ist Stillstand ein Widerspruch.
+        sprich(6)
+        lauf = _beauftrage(klient)
+        _altere(laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]), 10 * 24 * 3600)
+
+        zeile = klient.get("/lernen/api/laeufe").json()["laeufe"][0]
+        assert zeile["status"] == laeufe.WARTET
+        assert zeile["haengt"] is False
+        assert zeile["stillstand_s"] is None
+        assert zeile["loeschbar"] is True
+
     def test_die_faltungen_bleiben_unberuehrt(
         self, klient: TestClient, quelle: str, sprich
     ) -> None:
@@ -393,6 +463,61 @@ class TestLoeschen:
         lauf = _beauftrage(klient)
         assert klient.delete(f"/lernen/api/laeufe/{lauf['job_id']}").status_code == 200
         assert klient.delete(f"/lernen/api/laeufe/{lauf['job_id']}").status_code == 404
+
+
+class TestVerwaisteLaeufe:
+    """Was beim Start des Trainers mit Läufen geschieht, die `laeuft` sagen.
+
+    Dieser Läufer rechnet einen Auftrag nach dem anderen in einem
+    Unterprozess, den er selbst startet. Fährt er hoch, rechnet nichts - es
+    kann nichts rechnen. Jeder Lauf, der dann `laeuft` behauptet, ist von einem
+    Vorgänger übrig, den es nicht mehr gibt. Das ist keine Schätzung wie
+    `haengt`, sondern eine Feststellung.
+    """
+
+    def test_der_start_macht_aus_laeuft_gescheitert(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        from apps.lernen.training import laeufer
+
+        sprich(6)
+        lauf = _beauftrage(klient)
+        verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"])
+        laeufe.schreibe_json(
+            verzeichnis / laeufe.ZUSTAND,
+            {"status": laeufe.LAEUFT, "stufe": "training", "schritt": 50},
+        )
+
+        assert laeufer.raeume_verwaiste_auf() == [lauf["job_id"]]
+
+        zeile = klient.get("/lernen/api/laeufe").json()["laeufe"][0]
+        assert zeile["status"] == laeufe.GESCHEITERT
+        assert zeile["loeschbar"] is True
+        assert "neu startete" in (zeile["fehler"] or "")
+        # Was bis dahin gerechnet wurde, bleibt lesbar - der Zustand wird
+        # ergänzt und nicht ersetzt.
+        assert laeufe.lies_json(verzeichnis / laeufe.ZUSTAND)["schritt"] == 50
+
+    def test_fertige_und_wartende_bleiben_unberuehrt(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        from apps.lernen.training import laeufer
+
+        sprich(6)
+        wartend = _beauftrage(klient)
+        fertig = _beauftrage(klient)
+        laeufe.schreibe_json(
+            laeufe.lauf_verzeichnis(datenverzeichnis, fertig["job_id"]) / laeufe.ZUSTAND,
+            {"status": laeufe.FERTIG},
+        )
+
+        assert laeufer.raeume_verwaiste_auf() == []
+
+        zustaende = {
+            z["job_id"]: z["status"] for z in klient.get("/lernen/api/laeufe").json()["laeufe"]
+        }
+        assert zustaende[wartend["job_id"]] == laeufe.WARTET
+        assert zustaende[fertig["job_id"]] == laeufe.FERTIG
 
 
 class TestNeueAufnahmen:

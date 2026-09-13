@@ -82,8 +82,13 @@ export type Lauf = {
   fehler: string | null;
   /** `null`, solange kein Modell aus diesem Lauf entstanden ist. */
   stand: StandHinweis | null;
-  /** Ein rechnender Lauf lässt sich nicht löschen - ein anderer Container schreibt dort. */
+  /** Ein rechnender Lauf lässt sich nicht löschen - ein anderer Container schreibt dort.
+   *  Ein hängender schon: Dort schreibt seit einer Viertelstunde niemand mehr. */
   loeschbar: boolean;
+  /** Sagt `laeuft`, hat aber seit einer Viertelstunde nichts geschrieben. */
+  haengt: boolean;
+  /** Seit wann nichts mehr geschrieben wurde, in Sekunden - nur bei `laeuft`. */
+  stillstand_s: number | null;
 };
 
 export type Punkt = {
