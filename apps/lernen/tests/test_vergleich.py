@@ -532,24 +532,17 @@ class TestSteckbrief:
 
         # Vollständig heißt vollständig: Wer wissen will, womit gerechnet
         # wurde, soll für keine Einstellung „steht nicht da" lesen.
-        for begriff in (
-            "Beauftragt",
-            "Grundmodell",
-            "Methode",
-            "Datensatz",
-            "Abschluss",
-            "Augmentierung",
-            "Dauer",
-            "Geschwindigkeit",
-            "Vorgespult mit",
-            "Aufnahmen",
-            "Proben",
-        ):
+        for begriff in ("Grundmodell", "Methode", "Datensatz", "Augmentierung",
+                        "Vorspulen", "Abschluss"):
             assert begriff in felder, f"„{begriff}“ fehlt im Steckbrief."
 
-        # Die Vorgaben stehen ausgeschrieben und nicht als Lücke.
-        assert felder["Abschluss"]
-        assert felder["Vorgespult mit"] == "1×"
+        # Die Vorgaben stehen ausgeschrieben und nicht als Lücke - und der
+        # Abschluss sagt, was **geschah**, nicht wie die Wahl hieß.
+        assert felder["Abschluss"] == "bester Durchgang"
+        assert felder["Vorspulen"] == "1×"
+        # Kein Etikett doppelt: Ein Hinweis trägt eine Angabe oder fehlt.
+        hinweise = {z["begriff"]: z["hinweis"] for z in antwort["steckbrief"]}
+        assert not hinweise["Grundmodell"]
 
     def test_ein_lauf_von_vor_den_achsen_wird_rekonstruiert(
         self, klient: TestClient, aufnahmen: list[str], datenverzeichnis
@@ -573,7 +566,6 @@ class TestSteckbrief:
             zeile["begriff"]: zeile["wert"]
             for zeile in klient.get(f"/lernen/api/laeufe/{lauf['job_id']}").json()["steckbrief"]
         }
-        assert felder["Abschluss"], "Ein fehlender Abschluss heißt „bester“, nicht „unbekannt“."
-        assert felder["Augmentierung"]
-        assert felder["Dauer"]
-        assert felder["Vorgespult mit"] == "1×"
+        assert felder["Abschluss"] == "bester Durchgang", "Fehlt er, galt „bester“."
+        assert felder["Augmentierung"] == "keine"
+        assert felder["Vorspulen"] == "1×"

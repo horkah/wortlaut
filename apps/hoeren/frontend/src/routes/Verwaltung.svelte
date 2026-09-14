@@ -234,16 +234,14 @@
           </select>
         </label>
         <p class="gedaempft klein tempo-hinweis">
-          Für Fachleute. Spult die Aufnahmen vor, bevor Auswertung oder Training sie hören -
-          bei gleicher Tonhöhe. Gedacht für sehr langsame Sprecher: Ob Whisper sie schneller
-          besser versteht, ist damit zu messen.
+          Für Fachleute: spult vor Auswertung und Training vor, bei gleicher Tonhöhe. Für sehr
+          langsame Sprecher - ob Whisper sie schneller besser versteht, ist damit messbar.
         </p>
         {#if (person.tempo ?? 1) !== 1}
           <p class="warnung-zeile">
             <strong>Vorgespult mit Faktor {person.tempo}.</strong>
-            Alle Auswertungen und Modelle, die bei normaler Geschwindigkeit entstanden sind,
-            gelten gerade nicht - sie bleiben aber erhalten und gelten wieder, sobald hier
-            „Aus" steht. Neu gemessen und neu trainiert werden muss in der Zwischenzeit alles.
+            Messungen anderer Geschwindigkeit gelten nicht, bleiben aber erhalten und kommen
+            beim Zurückstellen wieder. Bis dahin ist alles neu zu messen.
           </p>
         {/if}
 
@@ -293,9 +291,8 @@
     <h2>Gesamtsicherung</h2>
     <div class="karte">
       <p class="gedaempft">
-        Alle Korpora und alle Aufnahmen in <strong>einer</strong> Datei - die Sicherung, die man
-        wegträgt. Zurück kommt der Stand mit <code>scripts/restore.py</code>. Modellstände sind
-        nicht darin: Sie sind groß und lassen sich neu rechnen, die Aufnahmen nicht.
+        Alle Korpora in <strong>einer</strong> Datei, zurückzuspielen mit
+        <code>scripts/restore.py</code>. Ohne Modellstände - die sind groß und neu zu rechnen.
       </p>
       <button class="knopf haupt" disabled={packt} onclick={sichereAlles}>
         {packt ? 'Wird gepackt …' : 'Gesamtsicherung herunterladen (.tgz)'}
