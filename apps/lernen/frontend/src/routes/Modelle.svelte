@@ -346,16 +346,15 @@
 
   {#if sicherheit !== 'aus'}
     <p class="gedaempft klein hinweiszeile">
-      Unter jeder Zahl der Bereich, in dem sie liegen dürfte - 95 % aus 2000 Ziehungen
+      95-%-Bereich aus 2000 Ziehungen, blockweise über
+      {sicherheit === 'aufnahme' ? 'die Aufnahmen' : 'die einzelnen Messungen'}.
       {sicherheit === 'aufnahme'
-        ? ' über die Aufnahmen (jede mit allen ihren Fassungen, weil die Fassungen einer Aufnahme mehrere Messungen an einem Gegenstand sind)'
-        : ' über die einzelnen Messungen - das in der Literatur übliche Verfahren, hier aber zu schmal, weil die Fassungen einer Aufnahme nicht unabhängig sind'}.
-      Die Zahlen selbst ändern sich dadurch nicht.
+        ? 'Die Fassungen einer Aufnahme sind nicht unabhängig - deshalb diese Blockart.'
+        : 'Üblich in der Literatur, hier zu schmal: Die Fassungen einer Aufnahme sind nicht unabhängig.'}
       {#if uebersicht.vergleich_mit}
-        Statt des Bereichs steht der gepaarte Abstand zu „{uebersicht.modelle.find(
+        Statt des Bereichs der gepaarte Abstand zu „{uebersicht.modelle.find(
           (m) => m.ref === uebersicht!.vergleich_mit,
-        )?.name ?? uebersicht.vergleich_mit}" - auf denselben Aufnahmen gerechnet und deshalb
-        schärfer als zwei Bereiche nebeneinander.
+        )?.name ?? uebersicht.vergleich_mit}" - schärfer, weil auf denselben Aufnahmen.
       {/if}
     </p>
   {/if}
@@ -496,24 +495,19 @@
 
   {#if !uebersicht.zeit_vergleichbar && uebersicht.modelle.some((m) => m.werte[fassung])}
     <p class="warnung">
-      Die Rechenzeiten stammen von verschiedenen Maschinen und sind untereinander
-      keine Auskunft: Dasselbe Modell braucht auf einem Prozessor das Zehn- bis
-      Zwanzigfache dessen, was es auf einer Karte braucht. Die Marke an der Zahl sagt,
-      worauf sie entstand. Ein erneuter Lauf der Auswertung in „hören“ misst alles auf
-      demselben Rechenwerk nach - auf der Karte sind das Minuten.
+      Rechenzeiten von verschiedenen Rechenwerken - nicht vergleichbar (Prozessor: zehn- bis
+      zwanzigfach). Die Marke steht an jeder Zahl. Ein neuer Auswertungslauf in „hören“ misst
+      alles auf demselben nach.
     </p>
   {/if}
 
   <p class="gedaempft klein">
-    Freigeben zieht jedes andere Modell zurück - es gilt immer höchstens eines, und es gilt sofort;
-    ein Neustart ist dafür nicht nötig. Ein größeres Grundmodell hört genauer und rechnet länger:
-    Nach dem Wechsel dauert das erste Diktat spürbar, weil das Modell erst geladen wird.
+    Es gilt höchstens ein Modell, und sofort. Nach einem Wechsel dauert das erste Diktat länger -
+    das Modell wird geladen.
   </p>
   <p class="gedaempft klein">
-    Die Zahlen kommen aus zwei Rechnungen, die es längst gibt: für die Grundmodelle aus der
-    Auswertung in „hören", für jeden eigenen Stand aus der Bewertung seines Laufs. Gemessen wird
-    einmal - ein zweites Mal wäre eine zweite Gelegenheit, es anders zu machen. Aufgeschlüsselt je
-    Aufnahme steht beides dort, wo es entstanden ist.
+    Zahlen: Grundmodelle aus der Auswertung in „hören", eigene Stände aus der Bewertung ihres
+    Laufs. Je Aufnahme aufgeschlüsselt jeweils dort.
   </p>
 {/if}
 

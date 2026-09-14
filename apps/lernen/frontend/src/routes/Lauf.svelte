@@ -324,9 +324,8 @@
 
   {#if hatKurve}
     <p class="gedaempft">
-      Die durchgezogene Linie ist der Trainingsverlust, die gestrichelte die Validierung. Fallen
-      beide, lernt das Modell. Fällt die eine und steigt die andere, lernt es die Trainingssätze
-      auswendig - dann waren es zu viele Durchgänge.
+      Durchgezogen: Trainingsverlust. Gestrichelt: Validierung. Fallen beide, lernt das Modell;
+      steigt die gestrichelte, lernt es auswendig.
       {#if pruefung.length}
         Geprüft wird einmal je Durchgang; {pruefung.length}
         {pruefung.length === 1 ? 'Prüfung' : 'Prüfungen'} bisher.
@@ -351,10 +350,8 @@
     </label>
     {#if sicherheit !== 'aus'}
       <p class="gedaempft klein">
-        Der Unterschied wird gepaart gerechnet: beide Seiten auf denselben Aufnahmen, 2000
-        Ziehungen, 95 %. Der Pfeil sagt, wer vorn liegt; der Bereich daneben sagt, ob das mehr ist
-        als Zufall. Innerhalb einer Fassung hat jede Aufnahme nur eine Messung - die beiden
-        Blockarten fallen hier deshalb zusammen.
+        Gepaart auf denselben Aufnahmen, 2000 Ziehungen, 95 %. Schließt der Bereich die Null
+        aus, ist der Unterschied belegt.
       </p>
     {/if}
 

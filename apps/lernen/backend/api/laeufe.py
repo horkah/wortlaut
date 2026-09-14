@@ -123,8 +123,8 @@ DATENSAETZE = [
         schluessel=lauf_layout.MIT_VARIANTEN,
         name="Mit Abwandlungen",
         erklaerung=(
-            "Dazu die drei abgewandelten Fassungen jeder Aufnahme - viermal so "
-            "viele Proben, und eine Chance, Pegel und Rauschen zu überhören."
+            "Dazu jede abgewandelte Fassung als eigene Probe - härter gegen "
+            "Aufnahmebedingungen, die der Korpus so nicht enthält."
         ),
     ),
 ]
@@ -151,8 +151,8 @@ ABSCHLUESSE = [
         schluessel=lauf_layout.ABSCHLUSS_INTERPOLIERT,
         name="Mit dem Grundmodell verrechnet",
         erklaerung=(
-            "Der fertige Stand wird anteilig mit dem Grundmodell gemischt, damit er "
-            "weniger vergisst. Der Anteil wird auf der Validierung gewählt, nie am Test."
+            "Anteilig mit dem Grundmodell gemischt, gegen das Vergessen. Der "
+            "Anteil α wird auf der Validierung gewählt."
         ),
     ),
     WahlAntwort(
@@ -176,9 +176,8 @@ AUGMENTIERUNGEN = [
         schluessel=lauf_layout.AUG_MASKEN,
         name="Masken (SpecAugment)",
         erklaerung=(
-            "Zeit- und Frequenzbalken ins Spektrogramm. Das Modell lernt, aus dem "
-            "Rest zu schließen, statt sich auf einzelne Bänder zu verlassen. "
-            "Kostet praktisch nichts."
+            "Zeit- und Frequenzbalken ins Spektrogramm - das Modell lernt, aus dem "
+            "Rest zu schließen. Kostet praktisch nichts."
         ),
     ),
     WahlAntwort(
@@ -193,9 +192,8 @@ AUGMENTIERUNGEN = [
         schluessel=lauf_layout.AUG_VOLL,
         name="Dazu Tempo",
         erklaerung=(
-            "Zusätzlich schneller und langsamer gesprochen. Kann helfen oder "
-            "schaden: Bei dysarthrischer Sprache ist das Tempo selbst ein Merkmal "
-            "des Sprechers. Deshalb eine eigene Stufe - damit man es misst."
+            "Zusätzlich Tempo. Eigene Stufe, weil es bei dysarthrischer Sprache "
+            "auch schaden kann - dort ist das Tempo ein Merkmal des Sprechers."
         ),
     ),
 ]
@@ -214,9 +212,8 @@ DAUERN = [
         schluessel=lauf_layout.DAUER_GEDULDIG,
         name="Bis nichts mehr besser wird",
         erklaerung=(
-            "Eine weit höhere Obergrenze, und Schluss, sobald die Validierung "
-            "mehrere Durchgänge lang nicht mehr besser wird. Kostet Rechenzeit "
-            "und nie Güte: Ausgeliefert wird ohnehin der beste Durchgang."
+            "Höhere Obergrenze, Schluss bei ausbleibender Verbesserung. Kostet "
+            "Rechenzeit und nie Güte - ausgeliefert wird der beste Durchgang."
         ),
     ),
 ]
@@ -227,18 +224,16 @@ TEMPI = [
         schluessel=lauf_layout.TEMPO_WIE_EINGESTELLT,
         name="Wie im Profil eingestellt",
         erklaerung=(
-            "Die Geschwindigkeit, die für diesen Sprecher in „hören\u201c unter "
-            "Verwaltung steht - dieselbe, mit der auch gemessen und diktiert wird."
+            "Der Faktor aus dem Sprecherprofil - derselbe, mit dem gemessen und "
+            "diktiert wird."
         ),
     ),
     WahlAntwort(
         schluessel=lauf_layout.TEMPO_OPTIMAL,
         name="Beste suchen (0,8 bis 3,0)",
         erklaerung=(
-            "Sucht vor jeder Faltung die Geschwindigkeit, bei der das unveränderte "
-            "Grundmodell diesen Sprecher am besten versteht, und trainiert damit. "
-            "Kostet etwa eine Minute je Faltung. Der gefundene Faktor steht "
-            "hinterher beim Lauf - wie das Gewicht α."
+            "Acht Stützstellen am unveränderten Grundmodell, je Faltung neu; "
+            "der Median gilt fürs Endmodell. Etwa eine Minute je Faltung."
         ),
     ),
 ]
@@ -556,33 +551,88 @@ def _wahlname(liste: list[WahlAntwort], schluessel: str) -> str:
     return schluessel
 
 
+# Was eine Augmentierungsstufe wirklich tut. Die Namen der Achse („Dazu
+# Tempo") sagen, wie sich eine Stufe von der darunter unterscheidet - richtig
+# im Wahlfeld, wo man sie untereinander sieht, und nichtssagend im Steckbrief,
+# wo eine allein steht. Die Griffe stehen in `training/klangwandel.py`.
+AUGMENTIERUNG_GRIFFE = {
+    lauf_layout.AUG_KEINE: "keine",
+    lauf_layout.AUG_MASKEN: "SpecAugment",
+    lauf_layout.AUG_UMGEBUNG: "SpecAugment + Raum + Rauschen",
+    lauf_layout.AUG_VOLL: "SpecAugment + Raum + Rauschen + Tempo",
+}
+
+
+def _manifest_zu(lauf: lauf_layout.Lauf) -> dict:
+    """Das Manifest des Standes, der aus diesem Lauf entstand - oder leer.
+
+    Dort stehen die Zahlen, mit denen wirklich gerechnet wurde; im Lauf selbst
+    steht nur, was bestellt war. Solange kein Stand da ist (der Lauf wartet
+    oder scheiterte), bleibt der Steckbrief auf das Bestellte beschränkt - und
+    sagt damit immer noch alles, was zu diesem Zeitpunkt wahr ist.
+    """
+    version = str(lauf.zustand.get("version") or "")
+    if not version:
+        return {}
+    try:
+        return registry.lies_stand(einstellungen().data_dir, lauf.sprecher_id, version)
+    except (OSError, ValueError):
+        return {}
+
+
+def _zahl(wert: float | int | None, stellen: int = 2) -> str:
+    """Eine Zahl deutsch geschrieben, ohne überflüssige Nullen: `1,75`, `12`."""
+    if wert is None:
+        return ""
+    text = f"{float(wert):.{stellen}f}".rstrip("0").rstrip(".")
+    return text.replace(".", ",")
+
+
+def _abschlusstext(manifest: dict) -> str:
+    """Was der Abschluss **getan** hat - nicht, wie die Achse heißt.
+
+    „Beides" ist der Name einer Wahl und kein Ergebnis. Hier steht, was daraus
+    wurde: über wie viele Stände gemittelt, welches α die Validierung gewählt
+    hat, oder dass der Abschluss zurückgenommen wurde, weil er nicht half.
+    """
+    bericht = manifest.get("abschluss_bericht") or {}
+    art = str(bericht.get("art") or manifest.get("abschluss") or lauf_layout.ABSCHLUSS_BESTER)
+    if bericht.get("zurueckgenommen"):
+        return "zurückgenommen - der beste Durchgang war besser"
+    if art == lauf_layout.ABSCHLUSS_BESTER:
+        return "bester Durchgang"
+
+    teile = []
+    staende = list(bericht.get("staende") or [])
+    if staende:
+        teile.append(f"Mittel aus {len(staende)} Ständen")
+    alpha = bericht.get("alpha")
+    if alpha is not None:
+        teile.append(f"α = {_zahl(alpha)} Grundmodell")
+    return ", ".join(teile) or _wahlname(ABSCHLUESSE, art)
+
+
 def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
-    """Was diesen Lauf ausmacht - vollständig, benannt, in fester Reihenfolge.
+    """Was diesen Lauf ausmacht - in Zahlen, nicht in Sätzen.
 
-    **Wozu.** Die Kopfzeile der Einzelansicht war ein Fließtext, der die
-    Achsen nur nannte, wenn sie von der Vorgabe abwichen. Das ist als
-    Überschrift richtig - ein Lauf von früher soll heute lesen wie damals -
-    und als Auskunft falsch: Wer wissen will, womit genau gerechnet wurde,
-    bekam für die Hälfte der Einstellungen die Antwort „steht nicht da", und
-    „steht nicht da" heißt hier „war die Vorgabe" und nicht „unbekannt".
+    Der Steckbrief nennt jede Achse, auch die auf Vorgabe: „steht nicht da"
+    hieße sonst für die Hälfte der Einstellungen „war die Vorgabe" und nicht
+    „unbekannt", und diesen Schluss soll niemand ziehen müssen.
 
-    Der Steckbrief nennt deshalb **jede** Achse, auch die auf Vorgabe, und
-    dazu, was dabei herauskam.
+    **Was hier nicht steht: Erklärungen.** Ein Hinweis kommt nur dazu, wenn er
+    eine Angabe trägt, die im Wert selbst nicht steckt - die Herkunft eines
+    Faktors etwa, oder dass gemessen wurde, was das Modell nie gehört hat.
+    „Grundmodell: openai/whisper-medium - worauf feingetunt wurde" ist kein
+    Hinweis, sondern das Etikett ein zweites Mal.
 
-    **Warum das auch für alte Läufe geht.** Der Auftrag eines Laufs liegt in
-    seinem Verzeichnis, seit es Läufe gibt (`wortlaut/laeufe.py`). Was darin
-    fehlt, ist eine Achse, die es damals noch nicht gab - und dann galt ihre
-    Vorgabe, weil es nichts anderes gab, das hätte gelten können. Ein fehlendes
-    `abschluss` heißt `bester`, nicht „unbekannt". Rekonstruiert wird hier also
-    nichts geraten, sondern gelesen, was der Code damals getan hat.
-
-    **Warum vom Server.** Damit die Namen der Achsen an einer Stelle stehen -
-    denselben, aus denen auch die Wahlfelder gebaut werden. Eine Ansicht, die
-    sie ein zweites Mal buchstabiert, ist die zweite Gelegenheit, sie
-    auseinanderlaufen zu lassen (siehe `ProfilAntwort` in „hören").
+    **Für alte Läufe geht das, ohne zu raten.** Was im Auftrag fehlt, ist eine
+    Achse, die es damals nicht gab - und dann galt ihre Vorgabe, weil nichts
+    anderes gelten konnte. Ein fehlendes `abschluss` heißt `bester`.
     """
     auftrag = lauf.auftrag
     zustand = lauf.zustand
+    manifest = _manifest_zu(lauf)
+    kv = dict(manifest.get("kreuzvalidierung") or {})
     zeilen: list[SteckbriefZeile] = []
 
     def dazu(begriff: str, wert: object, hinweis: str = "") -> None:
@@ -591,55 +641,111 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
 
     version = str(zustand.get("version") or "")
     if version:
-        dazu("Kennung", registry.kurzkennung(version), "derselbe Code wie in „schreiben“")
-        dazu("Stand", version, "der vollständige Name des Modellstandes")
+        dazu("Kennung", registry.kurzkennung(version))
+        dazu("Stand", version)
 
-    dazu("Beauftragt", _zeitpunkt(str(auftrag.get("erstellt", ""))))
-    dazu("Begonnen", _zeitpunkt(str(zustand.get("begonnen", ""))))
-    dazu("Beendet", _zeitpunkt(str(zustand.get("beendet", ""))))
-    dazu(
-        "Gerechnet",
-        _dauer_lesbar(str(zustand.get("begonnen", "")), str(zustand.get("beendet", ""))),
-        "sieben Trainings: sechs Faltungen und das Endmodell",
-    )
+    # ── Was gelernt wurde ───────────────────────────────────────────────────
+    dazu("Grundmodell", str(auftrag.get("basismodell", "")))
 
-    dazu("Grundmodell", str(auftrag.get("basismodell", "")), "worauf feingetunt wurde")
-    dazu("Methode", _wahlname(METHODEN, str(auftrag.get("methode", ""))))
-    dazu("Datensatz", _wahlname(DATENSAETZE, str(auftrag.get("daten", ""))))
-    dazu(
-        "Abschluss",
-        _wahlname(ABSCHLUESSE, str(auftrag.get("abschluss") or lauf_layout.ABSCHLUSS_BESTER)),
-        "was am Ende mit den Gewichten geschah",
-    )
+    rezept = dict(manifest.get("rezept") or {})
+    methode = str(auftrag.get("methode", ""))
+    if methode == lauf_layout.LORA and rezept.get("lora_rang"):
+        ziele = ", ".join(rezept.get("lora_ziele") or [])
+        dazu(
+            "Methode",
+            f"LoRA · Rang {rezept['lora_rang']}, α {rezept.get('lora_alpha')}",
+            ziele,
+        )
+    else:
+        dazu("Methode", _wahlname(METHODEN, methode))
+
+    aufnahmen = auftrag.get("aufnahmen")
+    proben = dict(auftrag.get("zeilen") or {}).get("gesamt")
+    umfang = f"{proben} Proben aus {aufnahmen} Aufnahmen" if proben and aufnahmen else ""
+    dazu("Datensatz", _wahlname(DATENSAETZE, str(auftrag.get("daten", ""))), umfang)
+
+    stufe = str(auftrag.get("augmentierung") or lauf_layout.AUG_KEINE)
     dazu(
         "Augmentierung",
-        _wahlname(AUGMENTIERUNGEN, str(auftrag.get("augmentierung") or lauf_layout.AUG_KEINE)),
-        "nur auf den Lernproben, in jedem Durchgang neu gewürfelt",
-    )
-    dazu("Dauer", _wahlname(DAUERN, str(auftrag.get("dauer") or lauf_layout.DAUER_FEST)))
-
-    gesucht = str(auftrag.get("tempowahl") or lauf_layout.TEMPO_WIE_EINGESTELLT)
-    dazu("Geschwindigkeit", _wahlname(TEMPI, gesucht))
-    faktor = _tempo_des_laufs(lauf)
-    dazu(
-        "Vorgespult mit",
-        f"{faktor:g}×".replace(".", ",") if faktor is not None else "wird gesucht",
-        "so hört dieses Modell - und so bekommt es „schreiben“ zu hören"
-        if faktor is not None and faktor != 1.0
+        AUGMENTIERUNG_GRIFFE.get(stufe, _wahlname(AUGMENTIERUNGEN, stufe)),
+        "nur auf den Lernproben, je Durchgang neu gewürfelt"
+        if stufe != lauf_layout.AUG_KEINE
         else "",
     )
 
-    dazu("Aufnahmen", auftrag.get("aufnahmen"), "Grundlage des Schnappschusses")
-    zeilenzahl = dict(auftrag.get("zeilen") or {})
-    dazu(
-        "Proben",
-        zeilenzahl.get("gesamt"),
-        f"über {lauf_layout.FALTUNGEN} Faltungen, Aufnahme mal Fassung",
-    )
+    faktor = _tempo_des_laufs(lauf)
+    gesucht = str(auftrag.get("tempowahl") or lauf_layout.TEMPO_WIE_EINGESTELLT)
+    if faktor is None:
+        dazu("Vorspulen", "wird gesucht")
+    elif gesucht == lauf_layout.TEMPO_OPTIMAL:
+        dazu("Vorspulen", f"{_zahl(faktor)}×", f"gesucht, Median aus {lauf_layout.FALTUNGEN} Faltungen")
+    else:
+        dazu("Vorspulen", f"{_zahl(faktor)}×", "aus dem Sprecherprofil" if faktor != 1.0 else "")
 
-    messwerte_ = dict(zustand.get("metriken") or {})
-    dazu("Gemessen auf", messwerte_.get("test_einheiten"), "Einheiten, jede ungehört")
-    dazu("Rechenwerk", messwerte_.get("rechenwerk"), "worauf gerechnet wurde")
+    # ── Wie gelernt wurde ───────────────────────────────────────────────────
+    if rezept.get("lernrate") is not None:
+        warm = rezept.get("warmlauf_schritte")
+        dazu(
+            "Lernrate",
+            f"{float(rezept['lernrate']):.0e}".replace("e-0", "e-"),
+            f"Warmlauf {warm} Schritte" if warm else "",
+        )
+    if rezept.get("stapel"):
+        akk = int(rezept.get("akkumulation") or 1)
+        wirksam = int(rezept["stapel"]) * akk
+        dazu(
+            "Stapel",
+            f"{rezept['stapel']} × {akk}" if akk > 1 else str(rezept["stapel"]),
+            f"wirksam {wirksam}" if akk > 1 else "",
+        )
+
+    gelaufen = kv.get("durchgaenge")
+    obergrenze = (
+        rezept.get("epochen_hoechstens")
+        if str(auftrag.get("dauer")) == lauf_layout.DAUER_GEDULDIG
+        else rezept.get("epochen")
+    )
+    geduldig = str(auftrag.get("dauer")) == lauf_layout.DAUER_GEDULDIG
+    if gelaufen is not None:
+        # Die gelaufenen Durchgänge stehen in der Kreuzvalidierung und damit
+        # auch bei Ständen, die das Rezept noch nicht mitschrieben. Die
+        # Obergrenze kommt nur dazu, wenn sie bekannt ist - geraten wird sie
+        # nicht: Ein Rezept ist eine Datei, die sich seit dem Lauf geändert
+        # haben kann.
+        grenze = f" von höchstens {obergrenze}" if obergrenze else ""
+        geduld = rezept.get("geduld")
+        dazu(
+            "Durchgänge",
+            f"{_zahl(gelaufen, 1)}{grenze}",
+            f"Median der Faltungen · Geduld {geduld}" if geduldig and geduld else "Median der Faltungen",
+        )
+    else:
+        dazu("Dauer", _wahlname(DAUERN, str(auftrag.get("dauer") or lauf_layout.DAUER_FEST)))
+
+    dazu("Abschluss", _abschlusstext(manifest))
+
+    # ── Was dabei herauskam ─────────────────────────────────────────────────
+    gemessen = dict(zustand.get("metriken") or {})
+    einheiten = gemessen.get("test_einheiten")
+    dazu(
+        "Gemessen",
+        f"{einheiten} Einheiten" if einheiten else "",
+        "jede von einem Modell, das sie nicht kannte",
+    )
+    dazu("Rechenwerk", gemessen.get("rechenwerk"))
+
+    # Ein Zeitpunkt steht immer da: solange nicht gerechnet wurde, der der
+    # Bestellung - sonst trüge ein wartender Lauf gar kein Datum.
+    begonnen = str(zustand.get("begonnen", ""))
+    if begonnen:
+        spanne = _dauer_lesbar(begonnen, str(zustand.get("beendet", "")))
+        dazu(
+            "Gerechnet",
+            _zeitpunkt(begonnen),
+            f"{spanne}, {lauf_layout.FALTUNGEN} Faltungen und das Endmodell" if spanne else "",
+        )
+    else:
+        dazu("Beauftragt", _zeitpunkt(str(auftrag.get("erstellt", ""))))
     return zeilen
 
 

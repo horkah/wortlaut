@@ -142,18 +142,16 @@
     <h2>Diesen Browser übergeben</h2>
     {#if wechseln}
       <p class="gedaempft">
-        Ein Browser trägt genau einen Zugang. Wird hier der
-        <code>WORTLAUT_AUTH_TOKEN</code> (Verwaltung) oder der
-        <code>WORTLAUT_ADMIN_TOKEN</code> (Aufsicht) eingetragen, gilt der persönliche Zugang von
-        <strong>{name}</strong> in diesem Browser nicht mehr - er kommt mit einem Klick auf den
-        persönlichen Link zurück. Der Server sieht am Vorgelegten, welches von beidem es ist.
+        Ein Browser trägt genau einen Zugang. Mit dem
+        <code>WORTLAUT_AUTH_TOKEN</code> (Verwaltung) oder
+        <code>WORTLAUT_ADMIN_TOKEN</code> (Aufsicht) gilt der von
+        <strong>{name}</strong> hier nicht mehr - der persönliche Link holt ihn zurück.
       </p>
       {@render formular()}
     {:else}
       <p class="gedaempft">
-        Zum Sichern, Umbenennen oder Löschen braucht es den Verwalter- oder den Aufsichtstoken.
-        Dieser Browser gehört danach der Verwaltung bzw. der Aufsicht; die Sprecherliste steht
-        dann in jeder App im Menü.
+        Sichern, Umbenennen und Löschen brauchen den Verwalter- oder Aufsichtstoken. Danach steht
+        die Sprecherliste in jeder App im Menü.
       </p>
       <button class="knopf" onclick={() => (wechseln = true)}>Zugang wechseln</button>
     {/if}
@@ -163,15 +161,12 @@
       persönlichen Link. Er wird einmal geöffnet und gilt danach in allen drei Apps.
     </p>
     <p class="gedaempft">
-      Für die Verwaltung: der <code>WORTLAUT_AUTH_TOKEN</code> des Servers. Er legt Profile an und
-      gibt die persönlichen Links aus. Der Wert bleibt in diesem Browser und wird beim
-      Zurücksetzen unter „Einstellungen" nicht angetastet.
+      <strong>Verwaltung:</strong> der <code>WORTLAUT_AUTH_TOKEN</code> des Servers - Profile
+      anlegen und persönliche Links ausgeben.
     </p>
     <p class="gedaempft">
-      Für die <strong>Aufsicht</strong>: der <code>WORTLAUT_ADMIN_TOKEN</code>, in dasselbe Feld.
-      Sie sieht in jeden Korpus, benennt um, sichert und löscht. Dieser Browser gehört danach der
-      Aufsicht - ein Sprecher, der ihn vorher benutzt hat, öffnet einmal wieder seinen
-      persönlichen Link.
+      <strong>Aufsicht:</strong> der <code>WORTLAUT_ADMIN_TOKEN</code>, in dasselbe Feld - Einsicht
+      in jeden Korpus, umbenennen, sichern, löschen.
     </p>
     {@render formular()}
   {/if}

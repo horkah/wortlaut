@@ -61,16 +61,12 @@
   <div class="karte">
     <h3>Sechsfache Kreuzvalidierung</h3>
     <p>
-      Die Aufnahmen werden der Reihe nach auf {faltungen} Faltungen verteilt - die erste
-      Aufnahme in Faltung 1, die zweite in Faltung 2, und nach der sechsten geht es wieder
-      von vorn los. Dann wird {faltungen}-mal trainiert: Jedes Mal bleibt eine Faltung
-      draußen, gelernt wird auf den anderen fünf, und gemessen wird auf der einen, die das
-      Modell nicht kennt.
+      Die Aufnahmen gehen reihum auf {faltungen} Faltungen. Dann wird {faltungen}-mal
+      trainiert: gelernt auf fünf Faltungen, gemessen auf der sechsten.
     </p>
     <p>
-      Am Ende ist <strong>jede einzelne Aufnahme</strong> genau einmal von einem Modell gehört
-      worden, das sie nie gesehen hat. Das ist die Zahl, die in der Modelltabelle steht - und
-      sie steht auf dem ganzen Korpus statt auf einem Drittel davon.
+      So ist am Ende <strong>jede Aufnahme</strong> genau einmal von einem Modell gehört
+      worden, das sie nicht kannte. Das ist die Zahl in der Modelltabelle.
     </p>
 
     {#if daten.aufnahmen > 0}
@@ -93,43 +89,35 @@
 
     {#if !daten.genug}
       <p class="hinweise">
-        Für {faltungen} Faltungen braucht es mindestens {faltungen} brauchbare Aufnahmen -
-        sonst bliebe eine Faltung leer und ein Training würde auf nichts gemessen. Vorhanden
+        {faltungen} Faltungen brauchen mindestens {faltungen} brauchbare Aufnahmen - vorhanden
         sind {daten.aufnahmen}.
       </p>
     {/if}
 
     <p class="klein">
-      Die Aufnahmen selbst stehen unter
-      <a href="/#{MEINE_DATEN_PFAD}">Meine Daten</a> - dort einmal und vollständig, mit Text,
-      Dauer und zum Anhören.
+      Die Aufnahmen selbst: <a href="/#{MEINE_DATEN_PFAD}">Meine Daten</a>.
     </p>
   </div>
 
   <div class="karte">
     <h3>Das Modell, das Sie am Ende benutzen</h3>
     <p>
-      Nach den {faltungen} Messläufen wird noch ein letztes Mal trainiert, diesmal auf
-      <strong>allen</strong> Aufnahmen - mit den Einstellungen, die sich in den Faltungen
-      bewährt haben: wie viele Durchgänge es braucht und wie stark mit dem Grundmodell
-      verrechnet wird. Dieses Modell wird gespeichert und steht in „Modelle" zur Freigabe für
-      „schreiben".
+      Nach den {faltungen} Messläufen wird ein letztes Mal trainiert - auf
+      <strong>allen</strong> Aufnahmen, mit den Einstellungen, die sich in den Faltungen
+      bewährt haben (Durchgänge, α, Tempo). Dieser Stand steht in „Modelle" zur Freigabe.
     </p>
     <p class="gedaempft">
-      Es hat mehr gesehen als jedes der {faltungen} Messmodelle und ist deshalb sehr
-      wahrscheinlich besser als sie - und genau deshalb lässt es sich nicht mehr ehrlich
-      messen: Es kennt jede Aufnahme, an der man es prüfen könnte. Die Zahl, die daneben
-      steht, ist die vorsichtige aus der Kreuzvalidierung.
+      Er kennt jede Aufnahme und lässt sich deshalb nicht mehr messen. Die Zahl daneben ist
+      die vorsichtige aus der Kreuzvalidierung.
     </p>
   </div>
 
   <div class="karte">
     <h3>Was noch fehlt</h3>
     <p class="gedaempft">
-      Ein wirklich unabhängiger Test - Aufnahmen, die eigens dafür entstehen und in kein
-      Training geraten. Bis es sie gibt, steht hier keiner, und das ist ehrlicher, als ein
-      Sechstel so zu nennen: Die Kreuzvalidierung sagt, wie gut das Verfahren auf diesem
-      Korpus arbeitet, nicht, wie gut es auf der nächsten Aufnahme arbeiten wird.
+      Ein unabhängiger Test - eigens aufgenommen, in keinem Training. Die Kreuzvalidierung
+      sagt, wie gut das Verfahren auf <em>diesem</em> Korpus arbeitet, nicht wie gut auf der
+      nächsten Aufnahme.
     </p>
   </div>
 {/if}

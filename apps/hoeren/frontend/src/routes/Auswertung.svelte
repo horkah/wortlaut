@@ -767,10 +767,9 @@
       {/each}
     </table>
     <p class="gedaempft">
-      Über alle gerechneten Aufnahmen. Der Median ist der Normalfall - die
-      Aufnahme in der Mitte; das Mittel nimmt jeden Ausreißer mit. Stehen die
-      beiden weit auseinander, ist das Modell nicht gleichmäßig schlechter,
-      sondern verreißt einzelne Aufnahmen. Welche, zeigt die Kurve darüber.
+      Über alle gerechneten Aufnahmen. Median = Normalfall, Mittel = mit
+      Ausreißern. Weit auseinander heißt: Das Modell verreißt einzelne
+      Aufnahmen - welche, zeigt die Kurve.
     </p>
     <p class="gedaempft">
       Die Fassungen sind dieselbe Aufnahme unter veränderten Bedingungen:
@@ -781,11 +780,10 @@
       {/each}
     </ul>
     <p class="gedaempft">
-      Liegen die Zeilen eines Modells dicht beieinander, versteht es den
-      Sprecher. Fallen sie auseinander, verträgt es bloß eine bestimmte
-      Aufnahmesituation. Die oberste Zeile je Modell ist die Reihe im Bild - je
-      Aufnahme der beste Wert über alle Fassungen, und deshalb nicht der beste
-      der Mediane darunter.
+      Dicht beieinander: Das Modell versteht den Sprecher. Weit auseinander: Es
+      verträgt nur eine bestimmte Aufnahmesituation. Der Bestwert oben ist je
+      Aufnahme der beste über alle Fassungen - und damit nicht der beste der
+      Mediane darunter.
     </p>
   {/if}
 

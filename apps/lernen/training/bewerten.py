@@ -49,6 +49,39 @@ from .daten import zeilen_fuer_faltung
 VORGABE_GRUNDMODELL = "small"
 
 
+def _rezeptauszug(auftrag: dict[str, Any]) -> dict[str, Any]:
+    """Die Stellschrauben des Rezepts, wie sie für diesen Lauf galten.
+
+    Nur die, die man wissen will, um einen Lauf zu wiederholen oder zwei zu
+    vergleichen - nicht das ganze Rezept. Die Augmentierungsparameter etwa
+    stehen nicht darin: Welche Stufe galt, sagt der Auftrag, und die Zahlen
+    dahinter sind für den Leser eines Steckbriefs kein Unterschied.
+    """
+    from .finetune import _rezept_fuer
+
+    try:
+        rezept = _rezept_fuer(
+            str(auftrag.get("methode", "")), str(auftrag.get("basismodell", ""))
+        )
+    except Exception:  # noqa: BLE001 - ein fehlendes Rezept kostet den Stand nicht
+        return {}
+
+    lora = rezept.get("lora") or {}
+    return {
+        "lernrate": rezept.get("lernrate"),
+        "warmlauf_schritte": rezept.get("warmlauf_schritte"),
+        "stapel": rezept.get("stapel"),
+        "akkumulation": rezept.get("akkumulation"),
+        "epochen": rezept.get("epochen"),
+        "epochen_hoechstens": rezept.get("epochen_hoechstens"),
+        "geduld": rezept.get("geduld"),
+        "gradientensparsam": bool(rezept.get("gradientensparsam", False)),
+        "lora_rang": lora.get("rang"),
+        "lora_alpha": lora.get("alpha"),
+        "lora_ziele": list(lora.get("ziele") or []),
+    }
+
+
 def geltendes_tempo(auftrag: dict[str, Any], mitgenommen: dict[str, Any] | None) -> float:
     """Mit welcher Geschwindigkeit dieser Stand wirklich gerechnet hat.
 
@@ -407,6 +440,12 @@ def gib_frei(
             # ohne die Angabe träfe ein Modell für schnelle Sprache auf einen
             # langsamen Sprecher (`wortlaut/tempo.py`).
             "tempo": faktor,
+            # Die Zahlen, mit denen wirklich gerechnet wurde. Sie standen
+            # bisher nur im Rezept - und ein Rezept ist eine Datei, die sich
+            # ändert. Wer in einem halben Jahr wissen will, mit welcher
+            # Lernrate dieser Stand entstand, soll nicht die Git-Historie einer
+            # YAML-Datei lesen müssen.
+            "rezept": _rezeptauszug(auftrag),
             "abschluss_bericht": abschluss.als_dict() if abschluss is not None else None,
             # Woher die Einstellungen des Endmodells stammen: der Median über
             # die sechs Faltungen. Ohne diese Zeile wäre nicht mehr zu sagen,
