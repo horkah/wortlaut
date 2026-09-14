@@ -70,6 +70,11 @@ def zerlege(
     meldet sie in der Zeit, die es gehört hat - bei Faktor 2 also in halber.
     Ungerechnet geschnitten ergäbe das Abschnitte, die bei der Hälfte der
     Aufnahme enden, und niemand sähe daran, woran es liegt.
+
+    **Was hinter dem Ende der Aufnahme liegt, fällt weg.** Whisper meldet
+    gelegentlich Segmente, die erst nach dem letzten Abtastwert beginnen - es
+    hört ein aufgefülltes Fenster und findet in der Stille Sprache. Ein solcher
+    Abschnitt hat kein Audio und wird übergangen, wie ein stummes Segment auch.
     """
     with tempfile.TemporaryDirectory() as verzeichnis:
         wav = _als_wav(eingang, Path(verzeichnis))
@@ -77,15 +82,31 @@ def zerlege(
             _vorgespult(wav, Path(verzeichnis), faktor), sprache
         )
 
+        # Woran die Zeitmarken gemessen werden. Whisper hört nicht die Aufnahme,
+        # sondern ein auf 30 Sekunden aufgefülltes Fenster - was es in der
+        # Auffüllung zu hören meint, liegt hinter dem letzten Abtastwert.
+        aufnahmedauer = klang.dauer(wav)
+
         abschnitte: list[Rohabschnitt] = []
         for nummer, abschnitt in enumerate(transkript.abschnitte):
             if not abschnitt.text:
                 continue  # Whisper meldet gelegentlich stumme Segmente
+            start_s = abschnitt.start_s * faktor
+            ende_s = min(abschnitt.ende_s * faktor, aufnahmedauer)
+            if start_s >= aufnahmedauer:
+                # Ein Abschnitt, der erst hinter dem Ende der Aufnahme beginnt.
+                # Dazu gibt es kein Audio - also auch keinen Satz, den jemand
+                # gesprochen hätte; das ist eine Erfindung aus der Stille.
+                #
+                # Er wird übergangen wie ein stummes Segment und nicht als
+                # Fehler behandelt. Vorher scheiterte am leeren Schnitt das
+                # **ganze** Diktat mit „Leerer Ausschnitt 13,00-15,00 s" - alles
+                # richtig Verstandene ging mit, und auf dem Telefon stand ein
+                # Satz, mit dem niemand etwas anfangen kann.
+                continue
             kennung = ids.neue_id("seg")
             ausschnitt = Path(verzeichnis) / f"{nummer}.wav"
-            klang.schneide_ausschnitt(
-                wav, ausschnitt, abschnitt.start_s * faktor, abschnitt.ende_s * faktor
-            )
+            klang.schneide_ausschnitt(wav, ausschnitt, start_s, ende_s)
             relpfad = audio_relpfad(sprecher_id, kennung)
             # `lege_ab` verschiebt - die Ausschnitte sind temporäre Dateien.
             ablage.lege_ab(relpfad, ausschnitt)
@@ -94,7 +115,9 @@ def zerlege(
                     id=kennung,
                     text=abschnitt.text,
                     blob=relpfad,
-                    dauer_s=max(0.0, (abschnitt.ende_s - abschnitt.start_s) * faktor),
+                    # Die gestutzte Grenze, nicht die gemeldete: Was hier steht,
+                    # soll die Datei daneben auch hergeben.
+                    dauer_s=max(0.0, ende_s - start_s),
                 )
             )
         return abschnitte

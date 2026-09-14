@@ -63,6 +63,18 @@ einzeln ersetzen noch einzeln als Audio-Text-Paar zurückgeben.
 Die zusammenhängende Aufnahme wird nach dem Schnitt nicht behalten. Sie wäre
 eine zweite Kopie derselben Stimmdaten und wird nicht mehr gebraucht.
 
+**Nicht jedes gemeldete Segment wird ein Abschnitt.** Whisper hört die Aufnahme
+in einem auf 30 Sekunden aufgefüllten Fenster und meldet gelegentlich ein
+Segment, das erst hinter dem letzten Abtastwert beginnt - meist der bekannte
+Untertitelsatz aus der Stille. Dazu gibt es kein Audio, also auch keinen
+Abschnitt: Er wird übergangen wie ein stummes Segment. Ein gemeldetes **Ende**
+hinter der Aufnahme wird dagegen auf sie gestutzt, und die Dauer in der Zeile
+ist die des gestutzten Ausschnitts.
+
+Das ist keine Feinheit, sondern der Unterschied zwischen einem übergangenen
+Satz und einem verlorenen Diktat: Bis September 2026 scheiterte am leeren
+Schnitt der ganze Aufruf, und mit ihm alles richtig Verstandene davor.
+
 ## Ein großer Knopf
 
 Die Zielperson kann schlecht lesen und schreiben (Grundentscheidung 7). Daraus
