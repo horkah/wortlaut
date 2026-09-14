@@ -38,6 +38,7 @@
     type Modelluebersicht,
     type Unterschied,
   } from '../lib/api';
+  import { LAUF_ROUTE } from '../lib/zustand.svelte';
 
   let uebersicht = $state<Modelluebersicht | null>(null);
   let diktat = $state<Diktatmodell | null>(null);
@@ -442,7 +443,20 @@ Vergleichs - benutzbar bleibt das Modell, es spult beim Diktieren selbst vor."
                   </span>
                 {/if}
               </span>
-              <span class="gedaempft klein">{modell.herkunft}</span>
+              <span class="gedaempft klein">
+                {modell.herkunft}
+                <!-- Von hier aus in die Einzelansicht des Laufs: Steckbrief,
+                     Lernkurven, Protokoll. Derselbe Ort und dasselbe Wort wie
+                     unter „Training" - wer eine Zahl in dieser Tafel nicht
+                     glaubt, will wissen, wie sie zustande kam, und soll ihn
+                     nicht in einem anderen Reiter suchen müssen.
+
+                     Nur bei eigenen Ständen: Ein Grundmodell hat keinen Lauf,
+                     und ein Link ins Leere wäre schlimmer als keiner. -->
+                {#if modell.job_id}
+                  · <a href="#{LAUF_ROUTE}{modell.job_id}">Details</a>
+                {/if}
+              </span>
             </th>
 
             {#each masse as mass (mass.schluessel)}
