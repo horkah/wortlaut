@@ -153,6 +153,30 @@ NUR_ORIGINAL = "original"
 MIT_VARIANTEN = "augmentiert"
 DATENSAETZE = (NUR_ORIGINAL, MIT_VARIANTEN)
 
+# ── Die Geschwindigkeit ─────────────────────────────────────────────────────
+#
+# Eine weitere Achse, und die einzige, die etwas **sucht**, statt etwas zu
+# setzen.
+#
+# Am Sprecherprofil hängt ein Tempofaktor: Er gilt für die Auswertung, fürs
+# Diktieren und, solange hier `wie_eingestellt` steht, auch fürs Training
+# (`011_tempo.sql`). Gemessen hat er im September 2026 spürbar geholfen - nur
+# ist der eingestellte Wert der, den jemand als erstes ausprobiert hat, und
+# nicht der beste.
+#
+# `optimal` sucht ihn: je Faltung ein Raster über 0,8 bis 3,0, gemessen am
+# unveränderten Grundmodell auf den Lernzeilen dieser Faltung
+# (`training/tempowahl.py`). Das Endmodell nimmt den Median der sechs mit,
+# genau wie bei den Durchgängen und beim α.
+#
+# **Warum das eine Wahl ist und keine stille Verbesserung.** Weil es Zeit
+# kostet - etwa eine Minute je Faltung - und weil ein gesuchter Wert und ein
+# gesetzter zwei verschiedene Dinge sind. In der Tafel stehen sie
+# nebeneinander, und dann ist zu sehen, ob die Suche etwas gefunden hat.
+TEMPO_WIE_EINGESTELLT = "wie_eingestellt"
+TEMPO_OPTIMAL = "optimal"
+TEMPI = (TEMPO_WIE_EINGESTELLT, TEMPO_OPTIMAL)
+
 # ── Der Abschluss ───────────────────────────────────────────────────────────
 #
 # Die dritte Achse: was am Ende mit den Gewichten geschieht, wenn die Schleife

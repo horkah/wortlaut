@@ -465,6 +465,71 @@ class TestLoeschen:
         assert klient.delete(f"/lernen/api/laeufe/{lauf['job_id']}").status_code == 404
 
 
+class TestTempowahl:
+    """Die Achse, die etwas sucht statt etwas zu setzen."""
+
+    def test_die_vorgabe_ist_das_verfahren_von_vorher(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        # Eine Bestellung ohne diese Achse bleibt dieselbe Bestellung.
+        sprich(6)
+        lauf = _beauftrage(klient)
+        auftrag = laeufe.lies_json(
+            laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]) / laeufe.AUFTRAG
+        )
+        assert auftrag["tempowahl"] == laeufe.TEMPO_WIE_EINGESTELLT
+        # Und der Lauf zeigt den Faktor des Profils, nicht „wird gesucht".
+        assert klient.get("/lernen/api/laeufe").json()["laeufe"][0]["tempo"] == 1.0
+
+    def test_optimal_wird_eingetragen_und_noch_nicht_beantwortet(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        sprich(6)
+        antwort = klient.post(
+            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original", "tempowahl": "optimal"}
+        )
+        assert antwort.status_code == 201, antwort.text
+
+        auftrag = laeufe.lies_json(
+            laeufe.lauf_verzeichnis(datenverzeichnis, antwort.json()["job_id"]) / laeufe.AUFTRAG
+        )
+        assert auftrag["tempowahl"] == laeufe.TEMPO_OPTIMAL
+        # Der eingefrorene Profilwert bleibt daneben stehen: Er ist der
+        # Ausgangspunkt, gegen den sich die Suche messen lassen muss.
+        assert auftrag["tempo"] == 1.0
+
+        # Solange die Faltungen laufen, steht das Ergebnis nicht fest - und
+        # dann sagt die Auskunft `null` statt einer Zahl, die sie nicht hat.
+        zeile = klient.get("/lernen/api/laeufe").json()["laeufe"][0]
+        assert zeile["tempowahl"] == laeufe.TEMPO_OPTIMAL
+        assert zeile["tempo"] is None
+
+    def test_der_gefundene_faktor_erscheint_sobald_er_feststeht(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        sprich(6)
+        antwort = klient.post(
+            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original", "tempowahl": "optimal"}
+        )
+        verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, antwort.json()["job_id"])
+        # So sieht es aus, wenn der Trainer `bericht.merke(tempo=…)` geschrieben hat.
+        laeufe.schreibe_json(
+            verzeichnis / laeufe.ZUSTAND, {"status": laeufe.FERTIG, "tempo": 1.75}
+        )
+        assert klient.get("/lernen/api/laeufe").json()["laeufe"][0]["tempo"] == 1.75
+
+    def test_eine_unbekannte_wahl_wird_abgewiesen(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        sprich(6)
+        antwort = klient.post(
+            "/lernen/api/laeufe",
+            json={"methode": "lora", "daten": "original", "tempowahl": "schneller!"},
+        )
+        assert antwort.status_code == 400
+        assert "Tempowahl" in antwort.json()["detail"]
+
+
 class TestVerwaisteLaeufe:
     """Was beim Start des Trainers mit Läufen geschieht, die `laeuft` sagen.
 

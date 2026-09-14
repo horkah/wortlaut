@@ -49,7 +49,27 @@ from .daten import zeilen_fuer_faltung
 VORGABE_GRUNDMODELL = "small"
 
 
-def _version(auftrag: dict[str, Any]) -> str:
+def geltendes_tempo(auftrag: dict[str, Any], mitgenommen: dict[str, Any] | None) -> float:
+    """Mit welcher Geschwindigkeit dieser Stand wirklich gerechnet hat.
+
+    Bei `wie_eingestellt` der Wert aus dem Auftrag - der, der beim Beauftragen
+    im Profil stand. Bei `optimal` der Median über die sechs Faltungen, denn
+    genau damit ist das Endmodell trainiert worden.
+
+    **Warum das nicht egal ist.** Diese Zahl geht in den Namen des Standes und
+    in sein Manifest, und „schreiben" liest sie, um beim Diktieren genauso
+    vorzuspulen. Stünde hier der bestellte statt des gefundenen Faktors, bekäme
+    ein Modell, das auf 1,75 gelernt hat, beim Diktieren 1,0 zu hören - und der
+    ganze Lauf wäre umsonst gewesen, ohne dass irgendwo ein Fehler stünde.
+    """
+    if str(auftrag.get("tempowahl") or laeufe.TEMPO_WIE_EINGESTELLT) == laeufe.TEMPO_OPTIMAL:
+        gefunden = (mitgenommen or {}).get("tempo")
+        if gefunden is not None:
+            return float(gefunden)
+    return float(auftrag.get("tempo", tempo.VORGABE))
+
+
+def _version(auftrag: dict[str, Any], faktor: float | None = None) -> str:
     """Der Name des Standes: Zeit, Methode, Datensatz - und der Abschluss, wenn einer.
 
     Alle drei, weil vier Stände nebeneinander liegen, die sich in genau diesen
@@ -84,8 +104,8 @@ def _version(auftrag: dict[str, Any]) -> str:
     # gleichem Rezept und verschiedenem Tempo sonst denselben Namen trügen -
     # und genau daran ist im September 2026 schon einmal die falsche Freigabe
     # gehangen.
-    faktor = float(auftrag.get("tempo", tempo.VORGABE))
-    return name if faktor == tempo.VORGABE else f"{name}-{tempo.marke(faktor)}"
+    wirklich = geltendes_tempo(auftrag, None) if faktor is None else faktor
+    return name if wirklich == tempo.VORGABE else f"{name}-{tempo.marke(wirklich)}"
 
 
 # Wie lange der Trainer auf die Karte wartet, wenn sie gerade belegt ist, und
@@ -158,6 +178,7 @@ def bewerte_faltung(
     auftrag: dict[str, Any],
     faltung: int,
     bericht,
+    faktor: float | None = None,
 ) -> list[dict[str, Any]]:
     """Das Modell dieser Faltung hört ihr Sechstel; hängt an `bewertung.jsonl` an.
 
@@ -195,7 +216,7 @@ def bewerte_faltung(
     try:
         ergebnis = _miss(
             erkenner, zeilen, korpuswurzel, sprache, faltung, verzeichnis, bericht,
-            float(auftrag.get("tempo", tempo.VORGABE)),
+            float(auftrag.get("tempo", tempo.VORGABE)) if faktor is None else faktor,
         )
     finally:
         # Auch wenn das Messen scheitert: Die Karte gehört danach der nächsten
@@ -359,7 +380,8 @@ def gib_frei(
     from .finetune import wandle_um
 
     sprecher_id = str(auftrag["sprecher_id"])
-    version = _version(auftrag)
+    faktor = geltendes_tempo(auftrag, mitgenommen)
+    version = _version(auftrag, faktor)
     ziel = registry.stand_verzeichnis(datenverzeichnis, sprecher_id, version)
     ct2 = ziel / "ct2"
 
@@ -384,7 +406,7 @@ def gib_frei(
             # wurde. „schreiben" liest es und spult beim Diktieren genauso vor;
             # ohne die Angabe träfe ein Modell für schnelle Sprache auf einen
             # langsamen Sprecher (`wortlaut/tempo.py`).
-            "tempo": float(auftrag.get("tempo", tempo.VORGABE)),
+            "tempo": faktor,
             "abschluss_bericht": abschluss.als_dict() if abschluss is not None else None,
             # Woher die Einstellungen des Endmodells stammen: der Median über
             # die sechs Faltungen. Ohne diese Zeile wäre nicht mehr zu sagen,

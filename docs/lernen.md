@@ -158,6 +158,44 @@ wie bei `small` - und es wurde dabei nicht langsamer, sondern schneller
 (68 statt 125 ms je Probe), weil ein Vorrat, der an die Decke stößt, mehr
 kostet als die zweite Rechnung.
 
+## Wie schnell gehört wird
+
+Am Sprecherprofil hängt eine Geschwindigkeit (siehe
+[hören](hoeren.md#vorspulen---für-sehr-langsame-sprecher)). Sie gilt fürs
+Messen, fürs Diktieren und normalerweise auch fürs Training. Diese Achse hat
+zwei Werte:
+
+* **Wie im Profil eingestellt** - die Vorgabe und das Verfahren von vorher.
+* **Beste suchen (0,8 bis 3,0)** - der Trainer sucht sie selbst.
+
+**Wie gesucht wird.** Vor jeder Faltung läuft das **unveränderte Grundmodell**
+über eine Stichprobe von zwei Dutzend Lernzeilen dieser Faltung, bei acht
+Stützstellen zwischen 0,8 und 3,0, und der WER entscheidet. Das kostet etwa
+eine Minute je Faltung - ein Lauf von einer Stunde wird dadurch nicht zu acht,
+was er würde, wenn man je Faktor einmal trainierte.
+
+**Warum je Faltung.** Weil die Wahl sonst Daten sähe, an denen später gemessen
+wird. Auf den Lernzeilen der eigenen Faltung gewählt, ist es kein Leck; das
+Endmodell nimmt den Median der sechs mit, genau wie bei den Durchgängen und
+beim α.
+
+**Was das ist: ein Stellvertreter.** Gemessen wird, wie gut das *Grundmodell*
+diesen Sprecher bei Tempo x versteht; gesucht ist, bei welchem Tempo das
+*feingetunte* Modell ihn am besten versteht. Die Annahme dahinter - ein
+besserer Ausgangspunkt bleibt auch nach dem Feintuning besser - ist plausibel
+und nicht bewiesen. Wer es genau wissen will, stellt am Profil zwei feste
+Faktoren ein, beauftragt je einen Lauf und vergleicht sie in der Tafel.
+
+**Warum ein grobes Raster.** Über zwei Dutzend Aufnahmen ist der WER selbst
+eine Zufallsgröße. Eine Suche auf 0,05 genau optimierte das Rauschen und fände
+bei einer zweiten Stichprobe einen anderen Wert - mit derselben Überzeugung.
+
+Der gefundene Faktor steht danach in der Überschrift des Laufs, im Namen des
+Standes und in seinem Manifest - und „schreiben" liest ihn von dort, um beim
+Diktieren genauso vorzuspulen.
+
+---
+
 Ein Grundmodell muss in `WORTLAUT_AUSWERTUNG_MODELLE` stehen, sonst hat sein
 trainierter Stand keine Baseline, gegen die er antreten könnte. `small`,
 `medium` und `large-v3` sind dort von Haus aus dabei.

@@ -1,8 +1,8 @@
 /**
  * Die Wahl beim Beauftragen - über einen Reiterwechsel hinweg.
  *
- * Sechs Achsen hat ein Auftrag inzwischen: Grundmodell, Methode, Datensatz,
- * Abschluss, Augmentierung, Dauer. Wer vier Läufe hintereinander beauftragt,
+ * Sieben Achsen hat ein Auftrag inzwischen: Grundmodell, Methode, Datensatz,
+ * Abschluss, Augmentierung, Dauer, Tempowahl. Wer vier Läufe hintereinander beauftragt,
  * um sie zu vergleichen, ändert zwischen zweien davon genau eine - und
  * zwischendurch sieht er sich die Kurven des vorigen an. Bis September 2026
  * stand nach der Rückkehr alles wieder auf der Vorgabe, und man fing von vorn
@@ -28,6 +28,7 @@ export type Trainingswahl = {
   abschluss: string;
   augmentierung: string;
   dauer: string;
+  tempowahl: string;
 };
 
 /**
@@ -41,6 +42,7 @@ export const VORGABE: Trainingswahl = {
   abschluss: 'bester',
   augmentierung: 'keine',
   dauer: 'fest',
+  tempowahl: 'wie_eingestellt',
 };
 
 export function trainingswahl(): Trainingswahl {
@@ -58,6 +60,7 @@ export function trainingswahl(): Trainingswahl {
       abschluss: gelesen.abschluss ?? VORGABE.abschluss,
       augmentierung: gelesen.augmentierung ?? VORGABE.augmentierung,
       dauer: gelesen.dauer ?? VORGABE.dauer,
+      tempowahl: gelesen.tempowahl ?? VORGABE.tempowahl,
     };
   } catch {
     // Gesperrter Speicher oder kaputtes JSON - beides kein Fehlerfall.

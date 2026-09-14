@@ -72,6 +72,9 @@ class Auftrag:
     # Wie lange trainiert wird. `fest` ist die Zahl aus dem Rezept und das
     # Verfahren von vorher.
     dauer: str = laeufe.DAUER_FEST
+    # Ob die Geschwindigkeit gesucht wird oder die des Profils gilt.
+    # `wie_eingestellt` ist das Verfahren von vorher.
+    tempowahl: str = laeufe.TEMPO_WIE_EINGESTELLT
 
 
 def _quelle_von(korpus: Session, probe: Probe) -> str:
@@ -183,6 +186,10 @@ def beauftrage(
             # bestellt wurde, wird auch so gerechnet, und der Stand trägt die
             # Angabe hinterher bei sich (`011_tempo.sql`).
             "tempo": _tempo_des_sprechers(korpus),
+            # Ob der Trainer diesen Faktor benutzt oder sich einen sucht. Der
+            # eingefrorene Wert darüber bleibt trotzdem stehen: Er ist der
+            # Ausgangspunkt, gegen den sich eine Suche messen lassen muss.
+            "tempowahl": auftrag.tempowahl,
             "erstellt": laeufe.jetzt(),
             "zeilen": gezaehlt,
             "aufnahmen": len(proben),
