@@ -134,10 +134,22 @@ def waehle(
         laeufe.kurzname(basismodell), geraet=geraet, rechenart=rechenart
     )
 
+    # Eine eigene Stufe, und nicht mehr stillschweigend unter „laden".
+    #
+    # Die Suche dauert rund eine Minute je Faltung - acht Dekodierdurchgänge
+    # über zwei Dutzend Aufnahmen. Solange stand in der Übersicht „Modell wird
+    # geladen", und das war schlicht falsch: Das Modell war längst geladen, es
+    # rechnete nur etwas anderes. Eine Stufe, die eine Minute lang das Falsche
+    # behauptet, ist schlimmer als gar keine.
+    bericht.stufe("tempowahl")
     bericht.sage(f"  Tempowahl: {len(proben)} Aufnahmen × {len(RASTER)} Faktoren")
     versuche: list[tuple[float, float]] = []
     try:
-        for faktor in RASTER:
+        for nummer, faktor in enumerate(RASTER, start=1):
+            # Der Balken bewegt sich auch hier. Acht Schritte sind wenige, aber
+            # sie sind gezählt - und ein Balken, der eine Minute lang stillsteht,
+            # sieht aus wie ein Lauf, der hängt (`laeufe.Lauf.haengt`).
+            bericht.schritt(nummer, len(RASTER))
             werte = []
             for zeile in proben:
                 text = _erkenne(erkenner, korpuswurzel / str(zeile["audio"]), faktor, sprache)

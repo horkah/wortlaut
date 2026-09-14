@@ -331,11 +331,23 @@ class LaufAntwort(BaseModel):
     # Profil, wie er beim Beauftragen dastand. `null`, solange die Suche noch
     # läuft - dann ist es schlicht noch nicht entschieden.
     tempo: float | None = None
+    # Ob dieser Faktor endgültig ist. Bei `optimal` steht während der
+    # Kreuzvalidierung der Median dessen, was bis dahin gefunden wurde - eine
+    # Zahl, die sich noch ändern kann, ist mehr wert als keine, solange
+    # dransteht, dass sie es kann.
+    tempo_endgueltig: bool = True
     basismodell: str
     erstellt: str
     status: str
-    # Woran gerade gearbeitet wird: laden, training, export, bewertung.
+    # Woran gerade gearbeitet wird: laden, tempowahl, training, abschluss,
+    # sichern, umwandeln, bewerten.
     stufe: str
+    # Die Faltung, die gerade rechnet (ab 0), und wie viele es sind. `null`
+    # heißt: das Endmodell - es hat keine. Ohne diese Angabe erschiene
+    # „Modell wird geladen" siebenmal im Lauf, ohne dass zu sehen wäre, dass
+    # es jedes Mal ein anderes Training ist.
+    faltung: int | None = None
+    faltungen_gesamt: int = lauf_layout.FALTUNGEN
     # 0 bis 1, aus Schritt und Schrittzahl - `null`, solange der Trainer noch
     # nicht gesagt hat, wie viele es werden.
     anteil: float | None
@@ -481,10 +493,13 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         dauer=str(lauf.auftrag.get("dauer") or lauf_layout.DAUER_FEST),
         tempowahl=str(lauf.auftrag.get("tempowahl") or lauf_layout.TEMPO_WIE_EINGESTELLT),
         tempo=_tempo_des_laufs(lauf),
+        tempo_endgueltig=bool(lauf.zustand.get("tempo_endgueltig", True)),
         basismodell=str(lauf.auftrag.get("basismodell", "")),
         erstellt=str(lauf.auftrag.get("erstellt", "")),
         status=lauf.status,
         stufe=str(lauf.zustand.get("stufe", "")),
+        faltung=lauf.zustand.get("faltung"),
+        faltungen_gesamt=int(lauf.zustand.get("faltungen_gesamt", lauf_layout.FALTUNGEN)),
         anteil=_anteil(lauf),
         aufnahmen=int(lauf.auftrag.get("aufnahmen", 0)),
         zeilen=dict(lauf.auftrag.get("zeilen", {})),
@@ -675,10 +690,20 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
 
     faktor = _tempo_des_laufs(lauf)
     gesucht = str(auftrag.get("tempowahl") or lauf_layout.TEMPO_WIE_EINGESTELLT)
+    endgueltig = bool(zustand.get("tempo_endgueltig", True))
     if faktor is None:
-        dazu("Vorspulen", "wird gesucht")
+        dazu("Vorspulen", "wird gesucht", "noch keine Faltung durch")
     elif gesucht == lauf_layout.TEMPO_OPTIMAL:
-        dazu("Vorspulen", f"{_zahl(faktor)}×", f"gesucht, Median aus {lauf_layout.FALTUNGEN} Faltungen")
+        laeuft = zustand.get("faltung")
+        dazu(
+            "Vorspulen",
+            f"{_zahl(faktor)}×" + ("" if endgueltig else " (vorläufig)"),
+            f"Median aus {lauf_layout.FALTUNGEN} Faltungen"
+            if endgueltig
+            else f"Median der bisherigen, gerade Faltung {int(laeuft) + 1}"
+            if laeuft is not None
+            else "Median der bisherigen",
+        )
     else:
         dazu("Vorspulen", f"{_zahl(faktor)}×", "aus dem Sprecherprofil" if faktor != 1.0 else "")
 

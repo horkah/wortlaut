@@ -814,6 +814,7 @@ def kreuzvalidiere(
     zeilen: list[dict[str, Any]] = []
     gelernt: list[dict[str, Any]] = []
 
+    gesucht = str(auftrag.get("tempowahl") or laeufe.TEMPO_WIE_EINGESTELLT)
     for faltung in range(laeufe.FALTUNGEN):
         bericht.faltung(faltung)
         bericht.sage(f"── Faltung {faltung + 1} von {laeufe.FALTUNGEN}")
@@ -837,6 +838,22 @@ def kreuzvalidiere(
             )
         )
         gelernt.append({**kennzahlen, "faltung": faltung, "abschluss": ergebnis.als_dict()})
+        if gesucht == laeufe.TEMPO_OPTIMAL:
+            # Nach **jeder** Faltung, nicht erst nach allen sechs.
+            #
+            # Der Median steht endgültig erst am Ende fest - die Übersicht sagte
+            # deshalb über den ganzen Lauf hinweg „Tempo wird gesucht", auch als
+            # längst fünf Faltungen einen Faktor gefunden hatten. Das ist keine
+            # Auskunft, sondern ein Platzhalter, der sich als eine ausgibt.
+            #
+            # Gemeldet wird der Median dessen, was bis hierher gefunden wurde,
+            # und dazu, dass er noch vorläufig ist. Eine Zahl, die sich noch
+            # ändern kann, ist mehr wert als keine - solange dransteht, dass sie
+            # es kann.
+            bericht.merke(
+                tempo=_median([float(k["tempo"]) for k in gelernt]),
+                tempo_endgueltig=False,
+            )
         # Sofort und nicht am Ende: Die nächste Faltung braucht den Platz.
         # Das gilt für die Platte und für die Karte gleichermaßen - der
         # Erkenner ist in `bewerte_faltung` schon freigegeben, hier kommt zurück,
@@ -856,7 +873,6 @@ def kreuzvalidiere(
         "tempo": _median([float(k["tempo"]) for k in gelernt]),
         "faltungen": gelernt,
     }
-    gesucht = str(auftrag.get("tempowahl") or laeufe.TEMPO_WIE_EINGESTELLT)
     bericht.sage(
         f"Aus den Faltungen: {mitgenommen['durchgaenge']:.1f} Durchgänge"
         + (f", α = {mitgenommen['alpha']:.2f}" if mitgenommen["alpha"] is not None else "")
@@ -875,10 +891,9 @@ def kreuzvalidiere(
         tempo=mitgenommen["tempo"],
     )
     if gesucht == laeufe.TEMPO_OPTIMAL and mitgenommen["tempo"] is not None:
-        # Damit die Übersicht die gefundene Zahl zeigen kann, ohne das
-        # Protokoll zu lesen - und damit „wird gesucht" endet, sobald sie
-        # feststeht (`api/laeufe._tempo_des_laufs`).
-        bericht.merke(tempo=float(mitgenommen["tempo"]))
+        # Jetzt steht er fest: derselbe Wert, mit dem gleich das Endmodell
+        # trainiert wird.
+        bericht.merke(tempo=float(mitgenommen["tempo"]), tempo_endgueltig=True)
     return zeilen, mitgenommen
 
 
