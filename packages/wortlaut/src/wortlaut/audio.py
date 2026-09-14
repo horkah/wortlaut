@@ -117,6 +117,18 @@ def _dbfs(betrag: float) -> float:
     return 20 * math.log10(max(betrag, 1e-6) / VOLLAUSSCHLAG)
 
 
+def dauer(wav: Path) -> float:
+    """Wie lang eine WAV-Datei ist, ohne sie zu lesen.
+
+    `untersuche` weiß das auch, liest dafür aber jeden Abtastwert und rechnet
+    Pegel, Clipping und Randstille mit. Wer nur wissen will, wie weit die
+    Aufnahme reicht - etwa um eine Zeitmarke daran zu messen -, bekommt es hier
+    aus dem Kopf der Datei.
+    """
+    with wave.open(str(wav), "rb") as datei:
+        return datei.getnframes() / datei.getframerate()
+
+
 def schneide_ausschnitt(quelle: Path, ziel: Path, start_s: float, ende_s: float) -> None:
     """Schreibt den Bereich [start_s, ende_s) einer WAV-Datei in eine neue Datei.
 

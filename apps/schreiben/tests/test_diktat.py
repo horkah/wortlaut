@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import pytest
 from fastapi.testclient import TestClient
 from wortlaut.whisper import Abschnitt
 
@@ -67,6 +68,41 @@ class TestDiktieren:
         whisper.abschnitte = []
         antwort = klient.post(f"/schreiben/api/sessions/{sitzung}/segments", files=aufnahme)
         assert antwort.status_code == 422
+
+    def test_uebergeht_was_hinter_dem_ende_der_aufnahme_liegt(
+        self,
+        klient: TestClient,
+        sitzung: str,
+        aufnahme: dict,
+        whisper: Testtranskriptor,
+        audioverzeichnis: Path,
+    ) -> None:
+        # Die Aufnahme ist acht Sekunden lang (siehe `conftest`). Whisper hört
+        # ein auf 30 Sekunden aufgefülltes Fenster und findet in der Stille
+        # dahinter noch einen Satz - im September 2026 scheiterte daran ein
+        # ganzes Diktat, weil der leere Schnitt einen Fehler warf.
+        whisper.abschnitte = [
+            Abschnitt(start_s=0.0, ende_s=2.0, text="Ich möchte einen Kaffee."),
+            Abschnitt(start_s=9.0, ende_s=11.0, text="Untertitel von Stephanie Geiges"),
+        ]
+
+        antwort = klient.post(f"/schreiben/api/sessions/{sitzung}/segments", files=aufnahme)
+
+        assert antwort.status_code == 201, antwort.text
+        assert [a["text"] for a in antwort.json()["abschnitte"]] == ["Ich möchte einen Kaffee."]
+        assert len(audiodateien(audioverzeichnis)) == 1
+
+    def test_stutzt_ein_ende_hinter_der_aufnahme(
+        self, klient: TestClient, sitzung: str, aufnahme: dict, whisper: Testtranskriptor
+    ) -> None:
+        # Hier gibt es Audio, nur weniger als gemeldet. Was in der Zeile steht,
+        # soll die Datei daneben auch hergeben.
+        whisper.abschnitte = [Abschnitt(start_s=6.0, ende_s=12.0, text="Und ein Stück Kuchen.")]
+
+        antwort = klient.post(f"/schreiben/api/sessions/{sitzung}/segments", files=aufnahme)
+
+        assert antwort.status_code == 201, antwort.text
+        assert antwort.json()["abschnitte"][0]["dauer_s"] == pytest.approx(2.0, abs=0.05)
 
     def test_kennt_die_sitzung_nach_dem_neuladen(
         self, klient: TestClient, sitzung: str, diktat: dict

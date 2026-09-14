@@ -48,6 +48,13 @@ class TestUntersuche:
             audio.untersuche(wav_schreiben(tmp_path / "nichts.wav", sekunden=0.0))
 
 
+class TestDauer:
+    def test_liest_die_laenge_aus_dem_kopf(self, tmp_path: Path, wav_schreiben) -> None:
+        wav = wav_schreiben(tmp_path / "a.wav", sekunden=3.5)
+        assert audio.dauer(wav) == pytest.approx(3.5, abs=0.01)
+        assert audio.dauer(wav) == pytest.approx(audio.untersuche(wav).dauer_s, abs=0.01)
+
+
 class TestWandleInWav:
     @ohne_ffmpeg
     def test_macht_16khz_mono_daraus(self, tmp_path: Path, wav_schreiben) -> None:
