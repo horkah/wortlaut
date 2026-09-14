@@ -528,3 +528,60 @@ class TestFremdesTempo:
         grund = [zeile for zeile in nachher if zeile["art"] == "grundmodell"]
         assert all(zeile["gilt"] for zeile in grund)
         assert all(not zeile["werte"] for zeile in grund)
+
+
+class TestSteckbrief:
+    """Jede Achse benannt - auch die auf Vorgabe, auch bei alten Läufen."""
+
+    def test_jede_achse_steht_da(self, klient: TestClient, fertiger_lauf) -> None:
+        job_id, _version = fertiger_lauf
+        antwort = klient.get(f"/lernen/api/laeufe/{job_id}").json()
+        felder = {zeile["begriff"]: zeile["wert"] for zeile in antwort["steckbrief"]}
+
+        # Vollständig heißt vollständig: Wer wissen will, womit gerechnet
+        # wurde, soll für keine Einstellung „steht nicht da" lesen.
+        for begriff in (
+            "Beauftragt",
+            "Grundmodell",
+            "Methode",
+            "Datensatz",
+            "Abschluss",
+            "Augmentierung",
+            "Dauer",
+            "Geschwindigkeit",
+            "Vorgespult mit",
+            "Aufnahmen",
+            "Proben",
+        ):
+            assert begriff in felder, f"„{begriff}“ fehlt im Steckbrief."
+
+        # Die Vorgaben stehen ausgeschrieben und nicht als Lücke.
+        assert felder["Abschluss"]
+        assert felder["Vorgespult mit"] == "1×"
+
+    def test_ein_lauf_von_vor_den_achsen_wird_rekonstruiert(
+        self, klient: TestClient, aufnahmen: list[str], datenverzeichnis
+    ) -> None:
+        # Ein Auftrag, wie ihn der Code von früher geschrieben hat: ohne
+        # `abschluss`, `augmentierung`, `dauer`, `tempo`, `tempowahl`. Was
+        # fehlt, ist keine Unbekannte - es galt die Vorgabe, weil es nichts
+        # anderes gab, das hätte gelten können.
+        from wortlaut import laeufe as l
+
+        lauf = klient.post(
+            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original"}
+        ).json()
+        pfad = l.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]) / l.AUFTRAG
+        alt = l.lies_json(pfad)
+        for weg in ("abschluss", "augmentierung", "dauer", "tempo", "tempowahl"):
+            alt.pop(weg, None)
+        l.schreibe_json(pfad, alt)
+
+        felder = {
+            zeile["begriff"]: zeile["wert"]
+            for zeile in klient.get(f"/lernen/api/laeufe/{lauf['job_id']}").json()["steckbrief"]
+        }
+        assert felder["Abschluss"], "Ein fehlender Abschluss heißt „bester“, nicht „unbekannt“."
+        assert felder["Augmentierung"]
+        assert felder["Dauer"]
+        assert felder["Vorgespult mit"] == "1×"

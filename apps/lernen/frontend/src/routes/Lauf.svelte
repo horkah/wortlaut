@@ -277,10 +277,32 @@
       {daten?.dauern.find((wahl) => wahl.schluessel === lauf.dauer)?.name ?? lauf.dauer} ·
     {/if}
     {lauf.basismodell} · {lauf.aufnahmen} Aufnahmen
-    {#if lauf.version}
-      · Stand <strong>{lauf.version}</strong>
-    {/if}
   </p>
+
+  <!-- Der Steckbrief: **jede** Achse, auch die auf Vorgabe.
+       Die Zeile darüber ist eine Überschrift und nennt nur, was abweicht -
+       das ist dort richtig, ein Lauf von früher soll lesen wie damals. Als
+       Auskunft wäre es falsch: „steht nicht da" hieße für die Hälfte der
+       Einstellungen „war die Vorgabe" und nicht „unbekannt", und das muss man
+       wissen, statt es zu schließen.
+
+       Beschriftet vom Server (`api/laeufe.steckbrief`), damit die Namen der
+       Achsen an einer Stelle stehen - denselben, aus denen auch die
+       Wahlfelder gebaut werden. -->
+  {#if daten?.steckbrief?.length}
+    <details class="steckbrief" open>
+      <summary>Steckbrief des Trainings</summary>
+      <dl>
+        {#each daten.steckbrief as feld (feld.begriff)}
+          <dt>{feld.begriff}</dt>
+          <dd>
+            {feld.wert}
+            {#if feld.hinweis}<span class="gedaempft klein">{feld.hinweis}</span>{/if}
+          </dd>
+        {/each}
+      </dl>
+    </details>
+  {/if}
 
   {#if lauf.status === 'gescheitert' && lauf.fehler}
     <p class="fehler">{lauf.fehler}</p>
@@ -419,6 +441,50 @@
 {/if}
 
 <style>
+  .steckbrief {
+    margin: 0 0 1rem;
+    border: 1px solid var(--rand);
+    border-radius: 4px;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .steckbrief summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  /* Zwei Spalten, solange Platz ist; darunter untereinander. Der Begriff
+     bleibt links stehen und trägt kein Doppelpunkt-Ornament - die Spalte sagt
+     schon, dass er einer ist. */
+  .steckbrief dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.25rem 1rem;
+    margin: 0.6rem 0 0.2rem;
+  }
+
+  .steckbrief dt {
+    color: var(--gedaempft);
+  }
+
+  .steckbrief dd {
+    margin: 0;
+  }
+
+  .steckbrief dd .klein {
+    display: block;
+  }
+
+  @media (max-width: 40rem) {
+    .steckbrief dl {
+      grid-template-columns: 1fr;
+    }
+
+    .steckbrief dt {
+      margin-top: 0.4rem;
+    }
+  }
+
   .zurueck {
     margin: 0 0 0.4rem;
     font-size: 0.9rem;

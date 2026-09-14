@@ -23,6 +23,8 @@ Karte darin; hier entsteht nur das Verzeichnis, an dem er ihn erkennt (siehe
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import secrets
 from typing import Annotated
 
@@ -392,6 +394,9 @@ class GegenueberAntwort(BaseModel):
 
 class EinzelAntwort(BaseModel):
     lauf: LaufAntwort
+    # Der Steckbrief dieses Laufs: jede Achse benannt, auch die auf Vorgabe
+    # (siehe `steckbrief`). Vom Server, damit die Namen an einer Stelle stehen.
+    steckbrief: list[SteckbriefZeile]
     methoden: list[WahlAntwort]
     datensaetze: list[WahlAntwort]
     abschluesse: list[WahlAntwort]
@@ -502,6 +507,140 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
             round(lauf.stillstand_s) if lauf.status == lauf_layout.LAEUFT else None
         ),
     )
+
+
+class SteckbriefZeile(BaseModel):
+    """Ein Feld des Steckbriefs: Begriff, Wert, und wo nötig eine Erläuterung."""
+
+    begriff: str
+    wert: str
+    # Was den Wert einordnet - die Einheit, die Herkunft, der Vorbehalt. Leer,
+    # wo der Wert für sich steht.
+    hinweis: str = ""
+
+
+def _zeitpunkt(roh: str) -> str:
+    """`2026-09-14T08:52:23+00:00` → `14.09.2026, 08:52`.
+
+    Ohne Sekunden: Sie stehen im Auftrag und helfen niemandem beim Lesen.
+    Bleibt die Zeichenkette unverständlich, wird sie durchgereicht - eine
+    unlesbare Angabe ist immer noch eine Angabe, ein verschluckter Wert wäre
+    keine.
+    """
+    try:
+        return datetime.fromisoformat(roh).strftime("%d.%m.%Y, %H:%M")
+    except (TypeError, ValueError):
+        return roh
+
+
+def _dauer_lesbar(von: str, bis: str) -> str:
+    """`2026-09-14T08:52:23+00:00` bis `…09:34:36+00:00` → `42 Minuten`."""
+    try:
+        anfang = datetime.fromisoformat(von)
+        ende = datetime.fromisoformat(bis)
+    except (TypeError, ValueError):
+        return ""
+    sekunden = max(0.0, (ende - anfang).total_seconds())
+    if sekunden < 90:
+        return f"{sekunden:.0f} Sekunden"
+    if sekunden < 5400:
+        return f"{sekunden / 60:.0f} Minuten"
+    return f"{sekunden / 3600:.1f} Stunden".replace(".", ",")
+
+
+def _wahlname(liste: list[WahlAntwort], schluessel: str) -> str:
+    """Der Name einer Achsenwahl, oder der Schlüssel, wenn es ihn nicht mehr gibt."""
+    for wahl in liste:
+        if wahl.schluessel == schluessel:
+            return wahl.name
+    return schluessel
+
+
+def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
+    """Was diesen Lauf ausmacht - vollständig, benannt, in fester Reihenfolge.
+
+    **Wozu.** Die Kopfzeile der Einzelansicht war ein Fließtext, der die
+    Achsen nur nannte, wenn sie von der Vorgabe abwichen. Das ist als
+    Überschrift richtig - ein Lauf von früher soll heute lesen wie damals -
+    und als Auskunft falsch: Wer wissen will, womit genau gerechnet wurde,
+    bekam für die Hälfte der Einstellungen die Antwort „steht nicht da", und
+    „steht nicht da" heißt hier „war die Vorgabe" und nicht „unbekannt".
+
+    Der Steckbrief nennt deshalb **jede** Achse, auch die auf Vorgabe, und
+    dazu, was dabei herauskam.
+
+    **Warum das auch für alte Läufe geht.** Der Auftrag eines Laufs liegt in
+    seinem Verzeichnis, seit es Läufe gibt (`wortlaut/laeufe.py`). Was darin
+    fehlt, ist eine Achse, die es damals noch nicht gab - und dann galt ihre
+    Vorgabe, weil es nichts anderes gab, das hätte gelten können. Ein fehlendes
+    `abschluss` heißt `bester`, nicht „unbekannt". Rekonstruiert wird hier also
+    nichts geraten, sondern gelesen, was der Code damals getan hat.
+
+    **Warum vom Server.** Damit die Namen der Achsen an einer Stelle stehen -
+    denselben, aus denen auch die Wahlfelder gebaut werden. Eine Ansicht, die
+    sie ein zweites Mal buchstabiert, ist die zweite Gelegenheit, sie
+    auseinanderlaufen zu lassen (siehe `ProfilAntwort` in „hören").
+    """
+    auftrag = lauf.auftrag
+    zustand = lauf.zustand
+    zeilen: list[SteckbriefZeile] = []
+
+    def dazu(begriff: str, wert: object, hinweis: str = "") -> None:
+        if wert not in (None, ""):
+            zeilen.append(SteckbriefZeile(begriff=begriff, wert=str(wert), hinweis=hinweis))
+
+    version = str(zustand.get("version") or "")
+    if version:
+        dazu("Kennung", registry.kurzkennung(version), "derselbe Code wie in „schreiben“")
+        dazu("Stand", version, "der vollständige Name des Modellstandes")
+
+    dazu("Beauftragt", _zeitpunkt(str(auftrag.get("erstellt", ""))))
+    dazu("Begonnen", _zeitpunkt(str(zustand.get("begonnen", ""))))
+    dazu("Beendet", _zeitpunkt(str(zustand.get("beendet", ""))))
+    dazu(
+        "Gerechnet",
+        _dauer_lesbar(str(zustand.get("begonnen", "")), str(zustand.get("beendet", ""))),
+        "sieben Trainings: sechs Faltungen und das Endmodell",
+    )
+
+    dazu("Grundmodell", str(auftrag.get("basismodell", "")), "worauf feingetunt wurde")
+    dazu("Methode", _wahlname(METHODEN, str(auftrag.get("methode", ""))))
+    dazu("Datensatz", _wahlname(DATENSAETZE, str(auftrag.get("daten", ""))))
+    dazu(
+        "Abschluss",
+        _wahlname(ABSCHLUESSE, str(auftrag.get("abschluss") or lauf_layout.ABSCHLUSS_BESTER)),
+        "was am Ende mit den Gewichten geschah",
+    )
+    dazu(
+        "Augmentierung",
+        _wahlname(AUGMENTIERUNGEN, str(auftrag.get("augmentierung") or lauf_layout.AUG_KEINE)),
+        "nur auf den Lernproben, in jedem Durchgang neu gewürfelt",
+    )
+    dazu("Dauer", _wahlname(DAUERN, str(auftrag.get("dauer") or lauf_layout.DAUER_FEST)))
+
+    gesucht = str(auftrag.get("tempowahl") or lauf_layout.TEMPO_WIE_EINGESTELLT)
+    dazu("Geschwindigkeit", _wahlname(TEMPI, gesucht))
+    faktor = _tempo_des_laufs(lauf)
+    dazu(
+        "Vorgespult mit",
+        f"{faktor:g}×".replace(".", ",") if faktor is not None else "wird gesucht",
+        "so hört dieses Modell - und so bekommt es „schreiben“ zu hören"
+        if faktor is not None and faktor != 1.0
+        else "",
+    )
+
+    dazu("Aufnahmen", auftrag.get("aufnahmen"), "Grundlage des Schnappschusses")
+    zeilenzahl = dict(auftrag.get("zeilen") or {})
+    dazu(
+        "Proben",
+        zeilenzahl.get("gesamt"),
+        f"über {lauf_layout.FALTUNGEN} Faltungen, Aufnahme mal Fassung",
+    )
+
+    messwerte_ = dict(zustand.get("metriken") or {})
+    dazu("Gemessen auf", messwerte_.get("test_einheiten"), "Einheiten, jede ungehört")
+    dazu("Rechenwerk", messwerte_.get("rechenwerk"), "worauf gerechnet wurde")
+    return zeilen
 
 
 def _tempo_des_laufs(lauf: lauf_layout.Lauf) -> float | None:
@@ -683,6 +822,7 @@ def einzeln(
     protokoll = lauf.verzeichnis / lauf_layout.PROTOKOLL
     return EinzelAntwort(
         lauf=_als_antwort(lauf),
+        steckbrief=steckbrief(lauf),
         methoden=METHODEN,
         datensaetze=DATENSAETZE,
         abschluesse=ABSCHLUESSE,

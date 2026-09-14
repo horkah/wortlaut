@@ -178,8 +178,18 @@ export type Laufliste = {
   aufnahmen_neu: number;
 };
 
+/** Ein Feld des Steckbriefs - Begriff, Wert und, wo nötig, die Einordnung. */
+export type SteckbriefZeile = {
+  begriff: string;
+  wert: string;
+  /** Was den Wert einordnet: Einheit, Herkunft, Vorbehalt. Leer, wo er für sich steht. */
+  hinweis: string;
+};
+
 export type Laufeinzeln = {
   lauf: Lauf;
+  /** Jede Achse benannt, auch die auf Vorgabe - vom Server beschriftet. */
+  steckbrief: SteckbriefZeile[];
   methoden: Wahl[];
   datensaetze: Wahl[];
   abschluesse: Wahl[];
