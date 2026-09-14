@@ -79,22 +79,6 @@
 
   const masse = $derived(uebersicht?.masse ?? []);
 
-  /**
-   * Die Geschwindigkeit, die gerade gilt.
-   *
-   * Abgeleitet aus den Zeilen, die der Server als geltend meldet, statt als
-   * eigenes Feld: Der Server hat die Entscheidung schon getroffen (`gilt`),
-   * und zwei Wahrheiten darüber wären eine zu viel. Gibt es keine geltende
-   * Zeile, ist es 1 - dann steht das Abzeichen ohnehin an jeder.
-   */
-  const jetzigesTempo = $derived(
-    uebersicht?.modelle.find((m) => m.gilt)?.tempo ?? 1,
-  );
-
-  /** `1.75` → `1,75×`, `2` → `2×`. Ohne Nullen, die niemand liest. */
-  function tempoText(faktor: number): string {
-    return `${faktor.toFixed(2).replace(/0+$/, '').replace(/\.$/, '').replace('.', ',')}×`;
-  }
   const fassungen = $derived(uebersicht?.fassungen ?? []);
   const gewaehlteFassung = $derived(fassungen.find((f) => f.schluessel === fassung));
 
@@ -415,13 +399,7 @@
       </thead>
       <tbody>
         {#each zeilen as modell (modell.ref)}
-          <!-- `fremdes-tempo` graut die Zeile, blendet sie aber nicht aus.
-               Eine Vergleichstafel, die Zeilen verschwinden lässt, sobald
-               jemand eine Einstellung ändert, ist keine mehr - und der Stand
-               ist ja nicht kaputt: Er bringt sein Tempo beim Diktieren mit.
-               Was fehlt, ist der gemeinsame Boden, und genau das sagt die
-               Zeile jetzt. -->
-          <tr class:frei={modell.freigegeben} class:fremdes-tempo={!modell.gilt}>
+          <tr class:frei={modell.freigegeben}>
             <th scope="row" class="modellspalte">
               <span class="zeile">
                 {#if modell.kennung}<code class="kennung">{modell.kennung}</code>{/if}
@@ -431,16 +409,6 @@
                 {/if}
                 {#if modell.freigegeben}
                   <span class="abzeichen">freigegeben</span>
-                {/if}
-                {#if !modell.gilt}
-                  <span
-                    class="abzeichen leise"
-                    title="Diese Zahlen sind bei {tempoText(modell.tempo)} entstanden, gemessen
-wird gerade bei {tempoText(jetzigesTempo)}. Sie stehen deshalb außerhalb des
-Vergleichs - benutzbar bleibt das Modell, es spult beim Diktieren selbst vor."
-                  >
-                    bei {tempoText(modell.tempo)}
-                  </span>
                 {/if}
               </span>
               <span class="gedaempft klein">
@@ -559,17 +527,6 @@ Vergleichs - benutzbar bleibt das Modell, es spult beim Diktieren selbst vor."
     border-radius: 3px;
     color: var(--gedaempft);
     white-space: nowrap;
-  }
-
-  /* Ausgegraut, nicht ausgeblendet: Die Zahlen stimmen, sie stehen nur
-     außerhalb des Vergleichs. Wer sie sehen will, sieht sie - wer die
-     geltenden vergleicht, sieht auf einen Blick, welche dazugehören. */
-  tr.fremdes-tempo {
-    opacity: 0.55;
-  }
-
-  tr.fremdes-tempo .name {
-    font-style: italic;
   }
 
   /* Die Zeile, die sagt, womit gerade gesprochen wird - sie steht über der

@@ -491,43 +491,35 @@ class TestVertrauensbereiche:
 
 
 class TestFremdesTempo:
-    """Stände einer anderen Geschwindigkeit: sichtbar, aber außerhalb des Vergleichs."""
+    """Ein Stand mit abweichender Geschwindigkeit zählt ganz normal mit.
 
-    def test_ein_stand_fremder_geschwindigkeit_bleibt_stehen_und_gilt_nicht(
+    Er stand eine Weile außerhalb des Vergleichs, grau und ohne gemeinsamen
+    Boden - aus Sorge, seine Zahlen seien mit den übrigen nicht zu halten. Die
+    Sorge war unbegründet: Ein Stand **bringt sein Tempo mit**, „schreiben"
+    liest es aus seinem Manifest und spult beim Diktieren genauso vor. Damit
+    ist das Vorspulen kein Teil der Prüfbedingungen, sondern ein Teil des
+    Modells, und jede Zeile der Tafel beantwortet dieselbe Frage.
+    """
+
+    def test_er_bleibt_in_der_tafel_und_im_vergleich(
         self, klient: TestClient, verwalter: TestClient, sprecher: str, baseline, fertiger_lauf
     ) -> None:
-        from apps.hoeren.backend.db.models import Sprecher
-        from apps.hoeren.backend.deps import engine_fuer
         from sqlalchemy.orm import Session
 
-        zeilen = klient.get("/lernen/api/modelle").json()["modelle"]
-        assert zeilen, "Ohne Modelle ist hier nichts zu prüfen."
-        assert all(zeile["gilt"] for zeile in zeilen)
+        from apps.hoeren.backend.db.models import Sprecher
+        from apps.hoeren.backend.deps import engine_fuer
 
-        # Der Sprecher wird auf 2-fach gestellt; die Stände bleiben bei 1,0.
+        vorher = klient.get("/lernen/api/modelle").json()
+        assert vorher["modelle"]
+
         with Session(engine_fuer(sprecher)) as db:
             db.get(Sprecher, sprecher).tempo = 2.0
             db.commit()
 
-        nachher = klient.get("/lernen/api/modelle").json()["modelle"]
-        # Nicht verschwunden - das ist die Entscheidung: Eine Vergleichstafel,
-        # die Zeilen versteckt, sobald jemand eine Einstellung ändert, ist keine.
-        assert len(nachher) == len(zeilen)
-
-        # Die trainierten Stände tragen ihre Geschwindigkeit im Manifest und
-        # stehen damit außerhalb des Vergleichs.
-        trainiert = [zeile for zeile in nachher if zeile["art"] == "trainiert"]
-        assert trainiert, "Ohne trainierten Stand ist hier nichts zu prüfen."
-        assert not any(zeile["gilt"] for zeile in trainiert)
-        assert all(zeile["tempo"] == 1.0 for zeile in trainiert)
-
-        # Die Grundmodelle dagegen gelten weiter - sie lesen aus `erkennungen`
-        # und damit ohnehin nur, was beim geltenden Tempo gemessen wurde. Bei
-        # 2-fach ist das noch nichts, und genau das steht dann da: keine Zahlen
-        # statt falscher.
-        grund = [zeile for zeile in nachher if zeile["art"] == "grundmodell"]
-        assert all(zeile["gilt"] for zeile in grund)
-        assert all(not zeile["werte"] for zeile in grund)
+        nachher = klient.get("/lernen/api/modelle").json()
+        assert len(nachher["modelle"]) == len(vorher["modelle"])
+        # Kein Vorbehalt mehr an der Zeile - weder als Feld noch als Zustand.
+        assert all("gilt" not in zeile for zeile in nachher["modelle"])
 
 
 class TestSteckbrief:

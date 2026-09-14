@@ -160,25 +160,19 @@ kostet als die zweite Rechnung.
 
 ## Stände einer anderen Geschwindigkeit
 
-Wird der Tempofaktor eines Sprechers umgestellt, stehen die Modelle, die bei
-der alten Geschwindigkeit gelernt haben, weiter in der Tafel - **grau, mit dem
-Faktor daneben, und außerhalb des Vergleichs**.
+Sie stehen in der Tafel wie jeder andere und werden verglichen wie jeder
+andere. Eine Weile standen sie grau und außerhalb des gemeinsamen Bodens -
+aus Sorge, ihre Zahlen seien mit den übrigen nicht zu halten.
 
-**Warum grau und nicht weg.** Diese Tafel ist ein Vergleichsinstrument. Eine,
-die Zeilen verschwinden lässt, sobald jemand eine Einstellung ändert, ist
-keines mehr - und die Zahlen sind ja nicht falsch, sie sind nur bei anderen
-Bedingungen entstanden. Dasselbe gilt in „hören" für die Messungen selbst:
-Sie werden nie gelöscht, sie gelten gerade nicht.
+Die Sorge war unbegründet, und der Grund wurde erst beim Nachsehen klar: Ein
+Stand **bringt sein Tempo mit**. Es steht in seinem Manifest, und „schreiben"
+liest es dort und spult beim Diktieren genauso vor. Das Vorspulen ist damit
+kein Teil der Prüfbedingungen, sondern ein Teil des Modells - und jede Zeile
+der Tafel beantwortet dieselbe Frage: Was macht dieses Ding aus dieser
+Aufnahme? Genau die Frage, für die eine Vergleichstafel da ist.
 
-**Warum außerhalb des Vergleichs.** Der gemeinsame Boden der Tafel ist die
-Menge der Aufnahmen, die *alle* Modelle gemessen haben. Ein Stand von 2-fach
-hat zu denselben Aufnahmen Zahlen wie einer von 1-fach - nur bedeuten sie
-etwas anderes. Ließe man sie in den Boden ein, verglichen die Spalten zwei
-Messungen, die nie gegeneinander angetreten sind.
-
-**Benutzbar bleibt so ein Stand trotzdem.** Er trägt seine Geschwindigkeit im
-Manifest, und „schreiben" spult beim Diktieren genauso vor. Grau heißt „nicht
-vergleichbar", nicht „kaputt".
+Mit welcher Geschwindigkeit ein Stand gelernt hat, steht in seinem Namen
+(`…-2.25x`) und vollständig in seinem Steckbrief unter „Details".
 
 ---
 
