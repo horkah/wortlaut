@@ -49,6 +49,7 @@ from pathlib import Path
 from typing import Any
 
 from wortlaut import laeufe, metriken, tempo
+from wortlaut.text import chunker
 from wortlaut.augmentierung import ORIGINAL
 
 # Die Stützstellen. Unten dicht, oben weit: Zwischen 1,0 und 2,0 entscheidet
@@ -83,6 +84,12 @@ class Ergebnis:
     """Was die Suche gefunden hat - für Protokoll, Stand und Vergleichstafel."""
 
     faktor: float
+    # `gesucht` oder `geschaetzt` - welches Verfahren diesen Faktor fand.
+    art: str = "gesucht"
+    # Nur bei `geschaetzt`: die beiden Summen und ihr ungerundetes Verhältnis.
+    ton_s: float | None = None
+    text_s: float | None = None
+    roh: float | None = None
     # Je Faktor sein WER - die Kurve hinter der Wahl. Ohne sie ist die Zahl
     # oben nicht zu beurteilen: Ein Optimum, das sich vom Nachbarn um ein
     # Promille unterscheidet, ist keines.
@@ -95,10 +102,83 @@ class Ergebnis:
     def als_dict(self) -> dict[str, Any]:
         return {
             "faktor": self.faktor,
+            "art": self.art,
+            "ton_s": self.ton_s,
+            "text_s": self.text_s,
+            "roh": self.roh,
             "versuche": [list(paar) for paar in self.versuche],
             "proben": self.proben,
             "hinweis": self.hinweis,
         }
+
+
+# Was für Anfang und Ende jeder Aufnahme dazugerechnet wird: Luftholen,
+# Ansetzen, das Stück Stille vor dem ersten Laut und nach dem letzten. Eine
+# Sekunde ist grob und genügt - bei Sätzen von fünf bis fünfzehn Sekunden
+# verschiebt sie den Faktor um weniger als eine Viertelstufe, und feiner wäre
+# eine Genauigkeit, die die Schätzung nicht hergibt.
+ZUSCHLAG_S = 1.0
+
+# Auf welches Raster der geschätzte Faktor gerundet wird.
+STUFE = 0.25
+
+
+def auf_stufe(faktor: float) -> float:
+    """Auf die nächste Viertelstufe, innerhalb der erlaubten Spanne."""
+    gerundet = round(float(faktor) / STUFE) * STUFE
+    return round(tempo.in_spanne(gerundet), 2)
+
+
+def aus_dauern(zeilen: list[dict[str, Any]], bericht) -> Ergebnis:
+    """Den Faktor aus Textlänge und Aufnahmedauer rechnen - ohne eine Erkennung.
+
+    **Die Idee.** Ein Text braucht bei gewöhnlichem Sprechtempo eine bestimmte
+    Zeit; wie lange, weiß dieses Projekt längst - `chunker.dauer()` schätzt es
+    aus der Zeichenzahl und schneidet damit die Vorlagen zu. Wie lange der
+    Mensch wirklich gebraucht hat, steht in jeder Manifestzeile. Das Verhältnis
+    aus beidem **ist** sein Tempo: Wer für einen Text doppelt so lange braucht
+    wie vorgesehen, spricht halb so schnell - und vorgespult um genau diesen
+    Faktor klingt er wie jemand, den Whisper kennt.
+
+    Gerechnet über die **Summen** einer Faltung und nicht je Aufnahme: Ein
+    einzelner Satz kann eine lange Pause enthalten oder einen Versprecher, und
+    ein Mittel über Quotienten gewichtete kurze Aufnahmen genauso stark wie
+    lange. Die Summe tut das nicht.
+
+    **Was das nicht ist.** Es misst nicht, was Whisper versteht, sondern wie
+    weit dieser Mensch von der Norm abweicht. Ob der so gefundene Faktor auch
+    der beste für die Erkennung ist, sagt erst der Vergleich in der Tafel -
+    dafür steht `optimal` daneben.
+
+    Kostet nichts: keine Erkennung, kein Modell, keine Karte. Nur Arithmetik
+    über Zeilen, die ohnehin gelesen sind.
+    """
+    original = [zeile for zeile in zeilen if str(zeile.get("variante")) == ORIGINAL]
+    ton = sum(float(zeile.get("dauer_s") or 0.0) for zeile in original)
+    text = sum(
+        chunker.dauer(str(zeile.get("text") or "")) + ZUSCHLAG_S for zeile in original
+    )
+    if not original or ton <= 0 or text <= 0:
+        return Ergebnis(
+            faktor=tempo.VORGABE,
+            art="geschaetzt",
+            hinweis="Keine brauchbaren Dauern - 1,0 gilt.",
+        )
+
+    roh = ton / text
+    faktor = auf_stufe(roh)
+    bericht.sage(
+        f"  Tempo geschätzt: {ton:.0f} s Ton auf {text:.0f} s Text "
+        f"({len(original)} Aufnahmen) → {roh:.2f} → {faktor:g}"
+    )
+    return Ergebnis(
+        faktor=faktor,
+        art="geschaetzt",
+        proben=len(original),
+        ton_s=round(ton, 1),
+        text_s=round(text, 1),
+        roh=round(roh, 4),
+    )
 
 
 def zusammengelegt(faltungen: list[dict[str, Any]]) -> tuple[float | None, list[dict[str, Any]]]:

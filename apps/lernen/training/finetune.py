@@ -440,7 +440,20 @@ def trainiere(
     # Datei und dann nicht wieder; das Zwischenlager geht mit dem Lauf.
     faktor = float(auftrag.get("tempo", tempo.VORGABE))
     tempoergebnis: tempowahl.Ergebnis | None = None
-    if str(auftrag.get("tempowahl") or laeufe.TEMPO_WIE_EINGESTELLT) == laeufe.TEMPO_OPTIMAL:
+    gewaehlt = laeufe.tempowahl_aus(auftrag)
+
+    if gewaehlt == laeufe.TEMPO_GESCHAETZT:
+        # Gerechnet und nicht gesucht: aus Textlänge und Aufnahmedauer dieser
+        # Faltung. Kostet keine Erkennung (siehe `tempowahl.aus_dauern`).
+        if vorgaben and vorgaben.get("tempo") is not None:
+            faktor = float(vorgaben["tempo"])
+            bericht.sage(f"Tempo aus den Faltungen übernommen: Faktor {faktor:g}")
+        else:
+            tempoergebnis = tempowahl.aus_dauern(lernzeilen, bericht)
+            faktor = tempoergebnis.faktor
+            if tempoergebnis.hinweis:
+                bericht.sage(f"  {tempoergebnis.hinweis}")
+    elif gewaehlt == laeufe.TEMPO_OPTIMAL:
         if vorgaben and vorgaben.get("tempo") is not None:
             # Das Endmodell sucht nicht noch einmal: Es übernimmt, worauf sich
             # die sechs Faltungen geeinigt haben - wie bei den Durchgängen und
@@ -806,7 +819,14 @@ def _gewaehltes_tempo(gelernt: list[dict[str, Any]], auftrag: dict[str, Any]) ->
     faktoren = [float(k["tempo"]) for k in gelernt if k.get("tempo") is not None]
     if not faktoren:
         return None
-    if str(auftrag.get("tempowahl") or laeufe.TEMPO_WIE_EINGESTELLT) != laeufe.TEMPO_OPTIMAL:
+    gewaehlt = laeufe.tempowahl_aus(auftrag)
+    if gewaehlt == laeufe.TEMPO_GESCHAETZT:
+        # Das Mittel der sechs geschätzten Faktoren, wieder auf eine
+        # Viertelstufe gerundet. Der Median wäre hier zu grob: Sechs Werte, die
+        # alle nah beieinanderliegen, mitteln sich sauber, und ein Ausreißer
+        # ist bei einer Rechnung über Summen ohnehin nicht zu erwarten.
+        return tempowahl.auf_stufe(sum(faktoren) / len(faktoren))
+    if gewaehlt != laeufe.TEMPO_OPTIMAL:
         return _median(faktoren)
     bester, _punkte = tempowahl.zusammengelegt(gelernt)
     return bester if bester is not None else _median(faktoren)
@@ -830,7 +850,7 @@ def kreuzvalidiere(
     zeilen: list[dict[str, Any]] = []
     gelernt: list[dict[str, Any]] = []
 
-    gesucht = str(auftrag.get("tempowahl") or laeufe.TEMPO_WIE_EINGESTELLT)
+    gewaehlt = laeufe.tempowahl_aus(auftrag)
     for faltung in range(laeufe.FALTUNGEN):
         bericht.faltung(faltung)
         bericht.sage(f"── Faltung {faltung + 1} von {laeufe.FALTUNGEN}")
@@ -854,7 +874,7 @@ def kreuzvalidiere(
             )
         )
         gelernt.append({**kennzahlen, "faltung": faltung, "abschluss": ergebnis.als_dict()})
-        if gesucht == laeufe.TEMPO_OPTIMAL:
+        if gewaehlt != laeufe.TEMPO_AUS:
             # Nach **jeder** Faltung, nicht erst nach allen sechs.
             #
             # Der Median steht endgültig erst am Ende fest - die Übersicht sagte
@@ -896,7 +916,7 @@ def kreuzvalidiere(
         + (f", α = {mitgenommen['alpha']:.2f}" if mitgenommen["alpha"] is not None else "")
         + (
             f", Tempo = {mitgenommen['tempo']:.2f}"
-            if gesucht == laeufe.TEMPO_OPTIMAL and mitgenommen["tempo"] is not None
+            if gewaehlt != laeufe.TEMPO_AUS and mitgenommen["tempo"] is not None
             else ""
         )
     )
@@ -908,7 +928,7 @@ def kreuzvalidiere(
         alpha=mitgenommen["alpha"],
         tempo=mitgenommen["tempo"],
     )
-    if gesucht == laeufe.TEMPO_OPTIMAL and mitgenommen["tempo"] is not None:
+    if gewaehlt != laeufe.TEMPO_AUS and mitgenommen["tempo"] is not None:
         # Jetzt steht er fest: derselbe Wert, mit dem gleich das Endmodell
         # trainiert wird.
         bericht.merke(tempo=float(mitgenommen["tempo"]), tempo_endgueltig=True)

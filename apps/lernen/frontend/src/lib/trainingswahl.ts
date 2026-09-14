@@ -42,7 +42,7 @@ export const VORGABE: Trainingswahl = {
   abschluss: 'bester',
   augmentierung: 'keine',
   dauer: 'fest',
-  tempowahl: 'wie_eingestellt',
+  tempowahl: 'aus',
 };
 
 export function trainingswahl(): Trainingswahl {

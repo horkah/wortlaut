@@ -477,7 +477,7 @@ class TestTempowahl:
         auftrag = laeufe.lies_json(
             laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]) / laeufe.AUFTRAG
         )
-        assert auftrag["tempowahl"] == laeufe.TEMPO_WIE_EINGESTELLT
+        assert auftrag["tempowahl"] == laeufe.TEMPO_AUS
         # Ohne Suche gilt schlicht 1,0 - gar nicht vorspulen.
         assert klient.get("/lernen/api/laeufe").json()["laeufe"][0]["tempo"] == 1.0
 
@@ -548,6 +548,55 @@ class TestTempowahl:
         fertig = klient.get("/lernen/api/laeufe").json()["laeufe"][0]
         assert fertig["tempo"] == 2.25
         assert fertig["tempo_endgueltig"] is True
+
+    def test_geschaetzt_rechnet_aus_den_dauern(self) -> None:
+        """Aufnahmedauer geteilt durch geschätzte Sprechdauer, auf 0,25 gerundet."""
+        from apps.lernen.training.tempowahl import ZUSCHLAG_S, aus_dauern, auf_stufe
+        from wortlaut.text import chunker
+
+        class Bericht:
+            def sage(self, _text: str) -> None:
+                pass
+
+        text = "Der Hund läuft über die Straße und bellt laut."
+        soll = chunker.dauer(text) + ZUSCHLAG_S
+        for faktor in (1.0, 1.5, 2.0, 3.0):
+            zeilen = [
+                {"variante": "original", "text": text, "dauer_s": soll * faktor}
+            ] * 8
+            assert aus_dauern(zeilen, Bericht()).faktor == auf_stufe(faktor)
+
+    def test_geschaetzt_bleibt_in_der_spanne(self) -> None:
+        # Ein Sprecher, der viermal so lange braucht wie vorgesehen, landet an
+        # der Obergrenze und nicht darüber - bei 4,5 bliebe von einer kurzen
+        # Silbe zu wenig übrig.
+        from apps.lernen.training.tempowahl import aus_dauern
+        from wortlaut import tempo
+
+        class Bericht:
+            def sage(self, _text: str) -> None:
+                pass
+
+        zeilen = [{"variante": "original", "text": "Kurz.", "dauer_s": 60.0}] * 5
+        assert aus_dauern(zeilen, Bericht()).faktor == tempo.SPANNE[1]
+
+    def test_ohne_dauern_gilt_eins(self) -> None:
+        from apps.lernen.training.tempowahl import aus_dauern
+
+        class Bericht:
+            def sage(self, _text: str) -> None:
+                pass
+
+        ergebnis = aus_dauern([], Bericht())
+        assert ergebnis.faktor == 1.0
+        assert ergebnis.hinweis
+
+    def test_alte_auftraege_gelten_als_aus(self) -> None:
+        # `wie_eingestellt` gab es bis September 2026; der Profilfaktor ist
+        # gefallen, der Wert steht noch in alten Aufträgen.
+        assert laeufe.tempowahl_aus({"tempowahl": "wie_eingestellt"}) == laeufe.TEMPO_AUS
+        assert laeufe.tempowahl_aus({}) == laeufe.TEMPO_AUS
+        assert laeufe.tempowahl_aus({"tempowahl": "geschaetzt"}) == laeufe.TEMPO_GESCHAETZT
 
     def test_eine_unbekannte_wahl_wird_abgewiesen(
         self, klient: TestClient, quelle: str, sprich
