@@ -33,6 +33,7 @@
   import { setzeTrainerschluessel, trainerschluessel } from '../lib/trainerschluessel';
   import { setzeTrainingswahl, trainingswahl } from '../lib/trainingswahl';
   import { LAUF_ROUTE, gehZu } from '../lib/zustand.svelte';
+  import { zeitpunkt } from '$ui/zeit';
 
   // Während gerechnet wird, soll der Balken mitwachsen - aber ein Takt von
   // einer Sekunde brächte nichts: Ein Trainingsschritt dauert länger.
@@ -275,12 +276,6 @@
     return teile.join(' · ');
   }
 
-  function zeit(roh: string): string {
-    if (!roh) return '';
-    const wann = new Date(roh);
-    return Number.isNaN(wann.getTime()) ? roh : wann.toLocaleString('de-DE');
-  }
-
   async function hole() {
     try {
       daten = await ladeLaeufe();
@@ -340,7 +335,7 @@
    * sich, womit in „schreiben" diktiert wird.
    */
   async function loesche(lauf: Lauf) {
-    const zeilen = [`${bezeichnung(lauf)} vom ${zeit(lauf.erstellt)} löschen?`, ''];
+    const zeilen = [`${bezeichnung(lauf)} vom ${zeitpunkt(lauf.erstellt)} löschen?`, ''];
     if (lauf.stand) {
       zeilen.push(`Das Modell „${lauf.stand.version}" wird mitgelöscht.`);
       if (lauf.stand.freigegeben) {
@@ -665,7 +660,7 @@
         </div>
 
         <p class="gedaempft klein">
-          {zeit(lauf.erstellt)} · {lauf.aufnahmen} Aufnahmen ·
+          {zeitpunkt(lauf.erstellt)} · {lauf.aufnahmen} Aufnahmen ·
           {lauf.zeilen.gesamt ?? 0} Proben über {daten?.faltungen ?? 6} Faltungen
         </p>
 

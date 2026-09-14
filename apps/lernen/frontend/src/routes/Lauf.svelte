@@ -13,6 +13,7 @@
    * halbfertige. Solange oben eine Kurve wächst, gibt es unten nichts zu
    * sehen - und das ist besser, als eine Zahl zu zeigen, die sich noch ändert.
    */
+  import { zeitpunkt } from '$ui/zeit';
   import { onMount } from 'svelte';
   import { einstellungen } from '$ui/einstellungen.svelte';
   import type { Diagramm } from '../lib/diagramm';
@@ -296,7 +297,7 @@
         {#each daten.steckbrief as feld (feld.begriff)}
           <dt>{feld.begriff}</dt>
           <dd>
-            {feld.wert}
+            {feld.art === 'zeit' ? zeitpunkt(feld.wert) : feld.wert}
             {#if feld.hinweis}<span class="gedaempft klein">{feld.hinweis}</span>{/if}
           </dd>
         {/each}
