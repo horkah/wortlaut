@@ -403,7 +403,18 @@
             <th scope="row" class="modellspalte">
               <span class="zeile">
                 {#if modell.kennung}<code class="kennung">{modell.kennung}</code>{/if}
-                <span class="name">{modell.name}</span>
+                <!-- Der Name **ist** der Weg in die Einzelansicht: Steckbrief,
+                     Lernkurven, Protokoll. Ein Link „Details" darunter war eine
+                     zweite Beschriftung für dasselbe Ziel; wer eine Zahl in
+                     dieser Tafel nicht glaubt, klickt auf das Modell.
+
+                     Nur bei eigenen Ständen: Ein Grundmodell hat keinen Lauf,
+                     und ein Link ins Leere wäre schlimmer als keiner. -->
+                {#if modell.job_id}
+                  <a class="name titel" href="#{LAUF_ROUTE}{modell.job_id}">{modell.name}</a>
+                {:else}
+                  <span class="name">{modell.name}</span>
+                {/if}
                 {#if modell.art === 'trainiert'}
                   <span class="abzeichen leise">eigenes</span>
                 {/if}
@@ -413,17 +424,6 @@
               </span>
               <span class="gedaempft klein">
                 {modell.herkunft}{#if modell.erstellt} · {zeitpunkt(modell.erstellt)}{/if}
-                <!-- Von hier aus in die Einzelansicht des Laufs: Steckbrief,
-                     Lernkurven, Protokoll. Derselbe Ort und dasselbe Wort wie
-                     unter „Training" - wer eine Zahl in dieser Tafel nicht
-                     glaubt, will wissen, wie sie zustande kam, und soll ihn
-                     nicht in einem anderen Reiter suchen müssen.
-
-                     Nur bei eigenen Ständen: Ein Grundmodell hat keinen Lauf,
-                     und ein Link ins Leere wäre schlimmer als keiner. -->
-                {#if modell.job_id}
-                  · <a href="#{LAUF_ROUTE}{modell.job_id}">Details</a>
-                {/if}
               </span>
             </th>
 
@@ -513,6 +513,18 @@
 {/if}
 
 <style>
+  /* Wie unter „Training": aussehen wie eine Überschrift, sich anfassen lassen
+     wie ein Link. */
+  .titel {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .titel:hover,
+  .titel:focus-visible {
+    text-decoration: underline;
+  }
+
   /* Dieselbe Kennung wie in „Training" und „schreiben" - und deshalb auch
      dieselbe Gestalt. */
   .kennung {

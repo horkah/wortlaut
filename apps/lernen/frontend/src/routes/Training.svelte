@@ -613,9 +613,14 @@
             <!-- Der kurze Code vor dem sprechenden Titel, nicht statt seiner:
                  Der Titel sagt, **was** dieser Stand ist, die Kennung sagt,
                  **welcher** - und sie ist dieselbe in der Modelltafel und in
-                 „schreiben" (`registry.kurzkennung`). -->
+                 „schreiben" (`registry.kurzkennung`).
+
+                 Der Titel **ist** der Weg in die Einzelansicht. Ein Knopf
+                 „Details" daneben war eine zweite Beschriftung für dasselbe
+                 Ziel und nahm eine Zeile ein; wer wissen will, was hinter
+                 einem Lauf steckt, klickt ohnehin auf seinen Namen. -->
             {#if lauf.kennung}<code class="kennung">{lauf.kennung}</code>{/if}
-            {bezeichnung(lauf)}
+            <a class="titel" href="#{LAUF_ROUTE}{lauf.job_id}">{bezeichnung(lauf)}</a>
           </p>
           <span class="rechts">
             <!-- Ein hängender Lauf sagt im Zustand `laeuft`. Das hier ist die
@@ -693,29 +698,35 @@
           <p class="hinweise">{lauf.fehler}</p>
         {/if}
 
-        <div class="reihe">
-          <!-- „Details" und nicht „Ergebnis ansehen" oder „Kurven ansehen":
-               Dahinter liegt immer dasselbe - Steckbrief, Lernkurven,
-               Protokoll -, und derselbe Ort soll überall gleich heißen. Aus
-               der Modelltafel führt derselbe Link mit demselben Wort dorthin.
-               Zwei Namen für eine Seite sind zwei Seiten in der Vorstellung
-               dessen, der sie sucht. -->
-          <a class="knopf" href="#{LAUF_ROUTE}{lauf.job_id}">Details</a>
-          {#if lauf.status === 'wartet'}
+        {#if lauf.status === 'wartet'}
+          <div class="reihe">
             <button class="knopf" onclick={() => nimmZurueck(lauf.job_id)}>
               Zurücknehmen
             </button>
             <span class="gedaempft klein">
               Solange niemand rechnet, lässt sich der Auftrag zurückziehen.
             </span>
-          {/if}
-        </div>
+          </div>
+        {/if}
       </div>
     {/each}
   </div>
 {/if}
 
 <style>
+  /* Der Titel ist der Weg in die Einzelansicht. Er soll aussehen wie eine
+     Überschrift und sich anfassen lassen wie ein Link - unterstrichen erst
+     beim Zeigen, damit die Liste nicht wie ein Linkverzeichnis aussieht. */
+  .titel {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .titel:hover,
+  .titel:focus-visible {
+    text-decoration: underline;
+  }
+
   /* Die Kurzkennung: klein, einfarbig, monospace - sie soll gefunden und
      verglichen werden, nicht gelesen. */
   .kennung {
