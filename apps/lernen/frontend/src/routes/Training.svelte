@@ -661,9 +661,13 @@
         {/if}
 
         <div class="reihe">
-          <a class="knopf" href="#{LAUF_ROUTE}{lauf.job_id}">
-            {lauf.status === 'fertig' ? 'Ergebnis ansehen' : 'Kurven ansehen'}
-          </a>
+          <!-- „Details" und nicht „Ergebnis ansehen" oder „Kurven ansehen":
+               Dahinter liegt immer dasselbe - Steckbrief, Lernkurven,
+               Protokoll -, und derselbe Ort soll überall gleich heißen. Aus
+               der Modelltafel führt derselbe Link mit demselben Wort dorthin.
+               Zwei Namen für eine Seite sind zwei Seiten in der Vorstellung
+               dessen, der sie sucht. -->
+          <a class="knopf" href="#{LAUF_ROUTE}{lauf.job_id}">Details</a>
           {#if lauf.status === 'wartet'}
             <button class="knopf" onclick={() => nimmZurueck(lauf.job_id)}>
               Zurücknehmen
