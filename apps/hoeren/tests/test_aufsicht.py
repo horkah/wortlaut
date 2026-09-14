@@ -492,3 +492,37 @@ def _manifest(archiv: bytes) -> dict:
         eintrag = geoeffnet.extractfile(sicherung.MANIFEST)
         assert eintrag is not None
         return json.loads(eintrag.read().decode("utf-8"))
+
+
+class TestEinProfilEineBeschreibung:
+    """Verwaltung und Aufsicht liefern dasselbe Profil - Feld für Feld.
+
+    Es gab dieses Profil zweimal als Pydantic-Modell, einmal je Ansicht. Das
+    ist harmlos, solange niemand ein Feld hinzufügt - und im September 2026 kam
+    `tempo` dazu, aber nur in einem der beiden. Die Verwaltung zeigte
+    „2-fach", die Aufsicht „normal", und beide lasen dieselbe Datenbankzeile.
+
+    Dieser Test prüft nicht `tempo`, sondern die Regel dahinter: Was die eine
+    Ansicht über ein Profil sagt, sagt die andere auch. Ein Feld, das jemand
+    künftig nur an einer Stelle ergänzt, fällt hier auf.
+    """
+
+    def test_dieselben_felder_mit_denselben_werten(
+        self, verwalter: TestClient, aufsicht: TestClient, sprecher: str
+    ) -> None:
+        verwalter.patch(f"/api/speakers/{sprecher}", json={"tempo": 2.0})
+
+        aus_verwaltung = verwalter.get(f"/api/speakers/{sprecher}").json()
+        alle = aufsicht.get("/api/admin/speakers").json()
+        aus_aufsicht = next(zeile for zeile in alle if zeile["id"] == sprecher)
+
+        # Die Aufsicht bringt Kennzahlen und die PIN-Auskunft zusätzlich mit;
+        # alles andere muss sich decken.
+        gemeinsam = set(aus_verwaltung) & set(aus_aufsicht)
+        assert set(aus_verwaltung) <= set(aus_aufsicht), (
+            "Die Verwaltung kennt Felder, die der Aufsicht fehlen: "
+            f"{set(aus_verwaltung) - set(aus_aufsicht)}"
+        )
+        for feld in sorted(gemeinsam):
+            assert aus_verwaltung[feld] == aus_aufsicht[feld], f"Feld {feld} weicht ab."
+        assert aus_aufsicht["tempo"] == 2.0

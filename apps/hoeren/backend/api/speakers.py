@@ -20,6 +20,7 @@ from wortlaut.audio import AudioFehler
 from ..config import einstellungen
 from ..db.models import Sprecher, jetzt
 from ..deps import engine_fuer
+from ..services.uebersicht import ProfilAntwort, profilfelder
 
 router = APIRouter(prefix="/api/speakers", tags=["Sprecher"])
 
@@ -43,18 +44,11 @@ class TempoAenderung(BaseModel):
     tempo: float
 
 
-class SprecherAntwort(BaseModel):
-    id: str
-    name: str
-    sprache: str
-    basismodell: str
-    erstellt: str
-    # Um welchen Faktor die Aufnahmen vorgespult werden, bevor ein Modell sie
-    # hört. 1,0 heißt: gar nicht (siehe `wortlaut/tempo.py`).
-    tempo: float = 1.0
-    # Wann der geltende Zugang ausgegeben wurde; None heißt: keiner da. Der
-    # Zugang selbst steht hier nie - er ist nur beim Ausgeben zu sehen.
-    zugang_erneuert: str | None = None
+# Was ein Profil ist, steht an einer Stelle und nicht an zweien: in
+# `services/uebersicht.py`. Diese Datei liefert es nackt aus, die Aufsicht mit
+# Kennzahlen daneben - und ein neues Feld erreicht beide, ohne dass jemand
+# daran denken müsste (siehe den Kopf von `ProfilAntwort`).
+SprecherAntwort = ProfilAntwort
 
 
 @router.post("", response_model=SprecherAntwort, status_code=201)
@@ -136,12 +130,4 @@ def aendere(sprecher_id: str, eingabe: TempoAenderung) -> SprecherAntwort:
 
 
 def _als_antwort(sprecher: Sprecher) -> SprecherAntwort:
-    return SprecherAntwort(
-        id=sprecher.id,
-        name=sprecher.name,
-        sprache=sprecher.sprache,
-        basismodell=sprecher.basismodell,
-        erstellt=sprecher.erstellt,
-        tempo=sprecher.tempo,
-        zugang_erneuert=sprecher.zugang_erneuert,
-    )
+    return SprecherAntwort(**profilfelder(sprecher))

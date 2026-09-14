@@ -43,15 +43,55 @@ class Kennzahlen(BaseModel):
     bytes_audio: int
 
 
-class UebersichtAntwort(BaseModel):
-    """Ein Sprecher mit dem Umfang seiner Daten - Profil plus Kennzahlen."""
+class ProfilAntwort(BaseModel):
+    """Ein Sprecherprofil, wie es überall ausgeliefert wird.
+
+    **Die eine Beschreibung dieses Dings.** Es gab sie zweimal: einmal hier für
+    die Aufsicht und einmal in `api/speakers.py` für die Verwaltung. Zwei
+    Klassen mit denselben Feldern sind so lange harmlos, wie niemand ein Feld
+    hinzufügt - und genau das geschah im September 2026 mit `tempo`. Die
+    Verwaltung zeigte „2-fach", die Aufsicht „normal", und beide lasen
+    dieselbe Datenbankzeile. Kein Fehler im Code, der die Zahl ausrechnet;
+    einer in der Buchführung darüber, was ein Profil überhaupt ist.
+
+    Wer hier ein Feld ergänzt, ergänzt es für alle. Das ist der ganze Zweck
+    dieser Klasse.
+    """
 
     id: str
     name: str
     sprache: str
     basismodell: str
     erstellt: str
-    zugang_erneuert: str | None
+    # Um welchen Faktor die Aufnahmen vorgespult werden, bevor ein Modell sie
+    # hört (`wortlaut/tempo.py`). 1,0 heißt: gar nicht.
+    tempo: float = 1.0
+    # Wann der geltende Zugang ausgegeben wurde; None heißt: keiner da. Der
+    # Zugang selbst steht hier nie - er ist nur beim Ausgeben zu sehen.
+    zugang_erneuert: str | None = None
+
+
+def profilfelder(sprecher) -> dict:
+    """Die Profilfelder eines Sprechers - die eine Stelle, die sie abliest.
+
+    Dasselbe Argument wie bei `ProfilAntwort`: Zwei Stellen, die ein Objekt in
+    dieselben sechs Felder übersetzen, sind zwei Gelegenheiten, eines zu
+    vergessen.
+    """
+    return {
+        "id": sprecher.id,
+        "name": sprecher.name,
+        "sprache": sprecher.sprache,
+        "basismodell": sprecher.basismodell,
+        "erstellt": sprecher.erstellt,
+        "tempo": sprecher.tempo,
+        "zugang_erneuert": sprecher.zugang_erneuert,
+    }
+
+
+class UebersichtAntwort(ProfilAntwort):
+    """Ein Sprecher mit dem Umfang seiner Daten - Profil plus Kennzahlen."""
+
     # Nie die PIN selbst oder ihr Prüfwert - nur, ob eine gesetzt ist (siehe
     # `services/pin.py`).
     pin_gesetzt: bool
@@ -135,12 +175,7 @@ def profil(
     bloecke = sitzung.scalars(select(Aufnahme.blob).where(gueltig)).all()
     dauer = select(func.coalesce(func.sum(Aufnahme.dauer_s), 0.0)).where(gueltig)
     return UebersichtAntwort(
-        id=sprecher.id,
-        name=sprecher.name,
-        sprache=sprecher.sprache,
-        basismodell=sprecher.basismodell,
-        erstellt=sprecher.erstellt,
-        zugang_erneuert=sprecher.zugang_erneuert,
+        **profilfelder(sprecher),
         pin_gesetzt=sprecher.pin_hash is not None,
         kennzahlen=Kennzahlen(
             aufnahmen=_zaehle(sitzung, Aufnahme, gueltig),
