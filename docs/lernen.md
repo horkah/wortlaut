@@ -158,6 +158,33 @@ wie bei `small` - und es wurde dabei nicht langsamer, sondern schneller
 (68 statt 125 ms je Probe), weil ein Vorrat, der an die Decke stößt, mehr
 kostet als die zweite Rechnung.
 
+## Warum sich Zahlen ändern, wenn ein Modell verschwindet
+
+Die Modelltafel rechnet **jede** Zahl über die Messeinheiten, die alle Modelle
+gemeinsam haben. Das ist ihr Zweck: Zwei Wortfehlerraten über verschiedene
+Aufnahmen sind kein Vergleich, sondern zwei Zahlen nebeneinander.
+
+Die Folge erwartet nur niemand, solange sie nicht dasteht: **Die Zahl eines
+Modells ist damit keine Eigenschaft dieses Modells allein.** Fällt eine Zeile
+weg - gelöscht, oder weil ein Lauf mit ihr verschwindet -, wächst die
+Schnittmenge, und jede übrige Zahl ändert sich.
+
+Gemessen an einem echten Korpus: Ein Stand, der nur 40 der 264 Einheiten
+gehört hatte, hielt die ganze Tafel auf diesen 40. Nach seinem Löschen stiegen
+alle Wortfehlerraten um rund 0,15 - nicht weil ein Modell schlechter wurde,
+sondern weil plötzlich über 264 statt über 40 Aufnahmen gemittelt wurde.
+
+Deshalb sagt die Tafel es **vorher**: Begrenzt eine einzelne Zeile den Boden
+um mehr als ein Viertel, steht ihr Name über der Tabelle, samt der Zahl, die
+ohne sie gälte. Und die Sicherheitsabfrage beim Löschen eines Laufs nennt es
+ebenfalls.
+
+Wer stabile Zahlen will, hält den Bestand gleichmäßig: Ein erneuter Lauf der
+Auswertung in „hören" misst die Grundmodelle über den heutigen Korpus, und ein
+neuer Trainingslauf misst seinen Stand ebenso.
+
+---
+
 ## Stände einer anderen Geschwindigkeit
 
 Sie stehen in der Tafel wie jeder andere und werden verglichen wie jeder

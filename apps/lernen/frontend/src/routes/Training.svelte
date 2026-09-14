@@ -349,6 +349,14 @@
             'bis ein anderer Stand freigegeben wird.',
         );
       }
+      // Die Folge, die niemand erwartet: Die Modelltafel rechnet jede Zahl
+      // über die Messungen, die **alle** Modelle haben. Fällt eine Zeile weg,
+      // wächst diese Schnittmenge - und jede übrige Zahl ändert sich.
+      // Gemessen waren das 0,15 WER, als ein alter Stand verschwand.
+      zeilen.push(
+        'In der Modelltafel können sich dadurch die Zahlen der übrigen Modelle ändern: ' +
+          'Sie stehen auf den Messungen, die alle Modelle gemeinsam haben.',
+      );
       zeilen.push('');
     }
     zeilen.push('Auftrag, Schnappschuss, Kurven und Protokoll verschwinden mit.');

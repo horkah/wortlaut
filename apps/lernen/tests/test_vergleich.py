@@ -569,3 +569,57 @@ class TestSteckbrief:
         assert felder["Abschluss"] == "bester Durchgang", "Fehlt er, galt „bester“."
         assert felder["Augmentierung"] == "keine"
         assert felder["Vorspulen"] == "1×"
+
+
+class TestGemeinsamerBoden:
+    """Die Zahl eines Modells hängt daran, welche anderen es gibt - und das muss dastehen.
+
+    Die Tafel rechnet jede Zahl über die Einheiten, die **alle** Modelle
+    gemessen haben. Das ist der Sinn der Sache: Zwei Wortfehlerraten über
+    verschiedene Aufnahmen sind kein Vergleich. Die Folge erwartet nur niemand:
+    Verschwindet eine Zeile, wächst der Boden, und jede andere Zahl ändert
+    sich. An einem echten Korpus waren das 0,15 WER auf einen Schlag.
+    """
+
+    def _reihe(self, einheiten: int) -> object:
+        from apps.lernen.backend.services.messwerte import Messreihe
+
+        reihe = Messreihe()
+        for nummer in range(einheiten):
+            reihe.werte[(f"rec_{nummer:03d}", "original")] = {"wer": 0.5}
+        reihe.werke.add("cuda/int8_float16")
+        return reihe
+
+    def test_eine_schmale_zeile_begrenzt_und_wird_benannt(self) -> None:
+        from apps.lernen.backend.api.modelle import bodenbegrenzer
+
+        reihen = {"small": self._reihe(100), "spr/gross": self._reihe(100),
+                  "spr/schmal": self._reihe(20)}
+        begrenzer, jetzt, ohne = bodenbegrenzer(reihen)
+        assert begrenzer == "spr/schmal"
+        assert (jetzt, ohne) == (20, 100)
+
+    def test_ohne_begrenzer_schweigt_die_auskunft(self) -> None:
+        # Gleich breite Zeilen: Löschen ändert nichts, also wird nichts gesagt.
+        # Eine Warnung, die immer angeht, liest bald niemand mehr.
+        from apps.lernen.backend.api.modelle import bodenbegrenzer
+
+        reihen = {"small": self._reihe(100), "spr/a": self._reihe(100), "spr/b": self._reihe(100)}
+        assert bodenbegrenzer(reihen) == ("", 100, 100)
+
+    def test_kleine_unterschiede_loesen_nichts_aus(self) -> None:
+        # 100 gegen 95 ist kein „andere Zahlen", sondern ein Rundungsrest.
+        from apps.lernen.backend.api.modelle import bodenbegrenzer
+
+        reihen = {"small": self._reihe(100), "spr/fast": self._reihe(95)}
+        assert bodenbegrenzer(reihen)[0] == ""
+
+    def test_die_tafel_sagt_es_vorher(self, klient: TestClient, baseline, fertiger_lauf) -> None:
+        from apps.lernen.backend.api.modelle import _hinweis
+        from apps.lernen.backend.services.messwerte import Messreihe
+
+        reihen = {"small": self._reihe(100), "spr/gross": self._reihe(100),
+                  "spr/schmal": self._reihe(20)}
+        text = _hinweis({"rec_000"}, reihen, ["small"], [{"id": "spr/schmal", "methode": "lora"}])
+        assert "20" in text and "100" in text
+        assert "Löschen" in text, "Der Satz muss sagen, dass es auch beim Löschen gilt."
