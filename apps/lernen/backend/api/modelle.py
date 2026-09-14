@@ -489,6 +489,47 @@ def uebersicht(
     )
 
 
+def bodenbegrenzer(reihen: dict[str, messwerte.Messreihe]) -> tuple[str, int, int]:
+    """Welche Zeile den gemeinsamen Boden schmal hält - und wie breit er ohne sie wäre.
+
+    **Warum das gesagt werden muss.** Die Tabelle rechnet jede Zahl über die
+    Einheiten, die **alle** Modelle gemessen haben. Das ist der Sinn der Sache:
+    Zwei Wortfehlerraten über verschiedene Aufnahmen sind kein Vergleich.
+
+    Es hat aber eine Folge, die niemand erwartet, solange sie nicht dasteht:
+    Die Zahl eines Modells ist damit keine Eigenschaft dieses Modells allein.
+    Verschwindet eine Zeile, wächst der Boden - und **jede** andere Zahl ändert
+    sich. Gemessen an einem echten Korpus im September 2026 waren das 0,15 WER
+    auf einen Schlag, nachdem ein alter Stand gelöscht wurde, der nur ein
+    Sechstel der heutigen Aufnahmen gehört hatte.
+
+    Das ist kein Fehler in der Rechnung, sondern eine Eigenschaft, die man
+    kennen muss, bevor man löscht. Diese Funktion beantwortet die Frage
+    „welche Zeile kostet mich wie viel Boden" - und die Ansicht sagt es
+    vorher, statt es hinterher geschehen zu lassen.
+
+    Gibt `("", boden, boden)` zurück, wenn keine einzelne Zeile den Boden
+    nennenswert schmälert.
+    """
+    messende = {ref: reihe for ref, reihe in reihen.items() if reihe.werte}
+    jetzt = len(messwerte.gemeinsame_einheiten(list(messende.values())))
+    if len(messende) < 2:
+        return "", jetzt, jetzt
+
+    begrenzer, breiteste = "", jetzt
+    for ref in messende:
+        ohne = [reihe for schluessel, reihe in messende.items() if schluessel != ref]
+        breite = len(messwerte.gemeinsame_einheiten(ohne))
+        if breite > breiteste:
+            begrenzer, breiteste = ref, breite
+    # Ein Viertel mehr Boden ist der Unterschied zwischen „ungefähr dasselbe"
+    # und „andere Zahlen". Darunter zu warnen hieße, bei jedem Rundungsrest zu
+    # warnen - und eine Warnung, die immer angeht, liest bald niemand mehr.
+    if breiteste < jetzt * 1.25:
+        return "", jetzt, jetzt
+    return begrenzer, jetzt, breiteste
+
+
 def _hinweis(
     aufnahmen: set[str],
     reihen: dict[str, messwerte.Messreihe],
@@ -523,7 +564,24 @@ def _hinweis(
             "die jedes Modell gemessen hat. Ein erneuter Lauf der Auswertung in "
             "\u201ehören\u201c holt die fehlenden nach."
         )
+
+    begrenzer, jetzt, ohne = bodenbegrenzer(reihen)
+    if begrenzer:
+        return (
+            f"Alle Zahlen stehen auf {jetzt} gemeinsamen Einheiten - mehr hat "
+            f"\u201e{_zeilenname(begrenzer, staende)}\u201c nicht gemessen. Ohne diese "
+            f"Zeile wären es {ohne}, und dann fiele jede Zahl der Tabelle anders aus. "
+            "Auch beim Löschen."
+        )
     return ""
+
+
+def _zeilenname(ref: str, staende: list[dict]) -> str:
+    """Wie eine Zeile heißt - ob Grundmodell oder eigener Stand."""
+    for manifest in staende:
+        if str(manifest.get("id", "")) == ref:
+            return _stand_name(manifest)
+    return f"whisper-{ref}"
 
 
 @router.post("/freigabe", response_model=UebersichtAntwort)
