@@ -488,3 +488,43 @@ class TestVertrauensbereiche:
                 assert eintrag["baseline"] == vorher["baseline"]
                 assert eintrag["trainiert"] == vorher["trainiert"]
                 assert eintrag["besser"] == vorher["besser"]
+
+
+class TestFremdesTempo:
+    """Stände einer anderen Geschwindigkeit: sichtbar, aber außerhalb des Vergleichs."""
+
+    def test_ein_stand_fremder_geschwindigkeit_bleibt_stehen_und_gilt_nicht(
+        self, klient: TestClient, verwalter: TestClient, sprecher: str, baseline, fertiger_lauf
+    ) -> None:
+        from apps.hoeren.backend.db.models import Sprecher
+        from apps.hoeren.backend.deps import engine_fuer
+        from sqlalchemy.orm import Session
+
+        zeilen = klient.get("/lernen/api/modelle").json()["modelle"]
+        assert zeilen, "Ohne Modelle ist hier nichts zu prüfen."
+        assert all(zeile["gilt"] for zeile in zeilen)
+
+        # Der Sprecher wird auf 2-fach gestellt; die Stände bleiben bei 1,0.
+        with Session(engine_fuer(sprecher)) as db:
+            db.get(Sprecher, sprecher).tempo = 2.0
+            db.commit()
+
+        nachher = klient.get("/lernen/api/modelle").json()["modelle"]
+        # Nicht verschwunden - das ist die Entscheidung: Eine Vergleichstafel,
+        # die Zeilen versteckt, sobald jemand eine Einstellung ändert, ist keine.
+        assert len(nachher) == len(zeilen)
+
+        # Die trainierten Stände tragen ihre Geschwindigkeit im Manifest und
+        # stehen damit außerhalb des Vergleichs.
+        trainiert = [zeile for zeile in nachher if zeile["art"] == "trainiert"]
+        assert trainiert, "Ohne trainierten Stand ist hier nichts zu prüfen."
+        assert not any(zeile["gilt"] for zeile in trainiert)
+        assert all(zeile["tempo"] == 1.0 for zeile in trainiert)
+
+        # Die Grundmodelle dagegen gelten weiter - sie lesen aus `erkennungen`
+        # und damit ohnehin nur, was beim geltenden Tempo gemessen wurde. Bei
+        # 2-fach ist das noch nichts, und genau das steht dann da: keine Zahlen
+        # statt falscher.
+        grund = [zeile for zeile in nachher if zeile["art"] == "grundmodell"]
+        assert all(zeile["gilt"] for zeile in grund)
+        assert all(not zeile["werte"] for zeile in grund)

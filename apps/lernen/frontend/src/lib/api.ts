@@ -228,6 +228,14 @@ export type Modell = {
   version: string | null;
   job_id: string | null;
   freigegeben: boolean;
+  /** Bei welcher Geschwindigkeit die Zahlen dieser Zeile entstanden sind. */
+  tempo: number;
+  /**
+   * Ob sie zu der Geschwindigkeit passt, die gerade gilt. `false` heißt:
+   * außerhalb des Vergleichs - die Zahlen stimmen, sind aber gegen die der
+   * anderen nicht zu halten. Der Stand selbst bleibt benutzbar.
+   */
+  gilt: boolean;
   /** Worauf gemessen wurde: `cuda/int8_float16`, `cpu/int8`, leer = unbekannt oder gemischt. */
   rechenwerk: string;
   /** Fassung → Maß → Wert. Leer heißt: auf den gemeinsamen Testaufnahmen nichts. */
