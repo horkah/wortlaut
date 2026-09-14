@@ -216,3 +216,64 @@ class TestVerschwundenerStand:
         monkeypatch.setenv("WORTLAUT_MODELL_REF", "spr_test/gibtsnicht")
         einstellungen.cache_clear()
         assert "nicht gefunden" in klient.get("/schreiben/api/model").json()["beschriftung"]
+
+
+class TestGeschwindigkeit:
+    """Ein Stand bringt sein Tempo mit - und „schreiben" richtet sich danach.
+
+    Das ist die Bedingung dafür, dass ein Modell mit abweichender
+    Geschwindigkeit überhaupt benutzbar ist: Es hat nie ungespulte Sprache
+    gehört. Bekäme es sie hier, träfe ein Modell für schnelle Sprache auf einen
+    langsamen Sprecher, und das Ergebnis wäre schlechter als ganz ohne
+    Training - ohne dass irgendwo ein Fehler stünde.
+    """
+
+    def _stand_mit(self, datenverzeichnis, sprecher: str, tempo: float) -> dict:
+        manifest = {
+            **MANIFEST,
+            "id": f"{sprecher}/2026-09-14T0852-lora-{tempo:g}x",
+            "sprecher_id": sprecher,
+            "tempo": tempo,
+        }
+        registry.schreibe_stand(datenverzeichnis, manifest)
+        registry.gib_frei(datenverzeichnis, sprecher, manifest["id"])
+        return manifest
+
+    def test_der_faktor_des_standes_gilt(
+        self, klient: TestClient, datenverzeichnis, sprecher: str
+    ) -> None:
+        from apps.schreiben.backend.deps import tempo_fuer, zwischenspeicher_leeren
+
+        for faktor in (1.0, 2.0, 2.25, 3.0):
+            self._stand_mit(datenverzeichnis, sprecher, faktor)
+            einstellungen.cache_clear()
+            zwischenspeicher_leeren()
+            assert tempo_fuer(einstellungen(), sprecher) == faktor
+
+    def test_ein_stand_mit_fremdem_tempo_bleibt_waehlbar(
+        self, klient: TestClient, datenverzeichnis, sprecher: str
+    ) -> None:
+        # Freigeben, benutzen, und die Auskunft nennt ihn - ohne Vorbehalt.
+        # Ein Modell, das sein Tempo mitbringt, ist kein Sonderfall.
+        from apps.schreiben.backend.deps import zwischenspeicher_leeren
+
+        manifest = self._stand_mit(datenverzeichnis, sprecher, 2.25)
+        einstellungen.cache_clear()
+        zwischenspeicher_leeren()
+
+        antwort = klient.get("/schreiben/api/model").json()
+        assert antwort["ref"] == manifest["id"]
+        assert antwort["trainiert"] is True
+        assert antwort["kennung"] == registry.kurzkennung(manifest["id"].split("/", 1)[-1])
+
+    def test_ein_grundmodell_folgt_dem_profil(
+        self, klient: TestClient, datenverzeichnis, sprecher: str
+    ) -> None:
+        # Ohne Stand rechnet ein unverändertes Grundmodell, und für das gilt,
+        # was die Auswertung in „hören" gerade misst - sonst diktierte man
+        # unter anderen Bedingungen, als man vergleicht.
+        from apps.schreiben.backend.deps import tempo_fuer, zwischenspeicher_leeren
+
+        einstellungen.cache_clear()
+        zwischenspeicher_leeren()
+        assert tempo_fuer(einstellungen(), sprecher) == 1.0
