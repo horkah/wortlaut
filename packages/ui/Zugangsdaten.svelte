@@ -3,15 +3,23 @@
    * Der Zugang dieses Browsers - dieselbe Ansicht in jeder App.
    *
    * Sie steht hier und nicht in einer App, weil es nur **einen** Zugang gibt:
-   * Beide Apps lesen denselben Eintrag desselben Browsers (siehe `zugang.ts`),
-   * und wer ihn hier einträgt, ist damit auch drüben angemeldet. Zwei
-   * Formulare für dasselbe Geheimnis wären zwei Gelegenheiten, es
-   * auseinanderlaufen zu lassen.
+   * Alle drei Apps lesen denselben Eintrag desselben Browsers (siehe
+   * `zugang.ts`), und wer ihn hier einträgt, ist damit auch in den anderen
+   * angemeldet. Zwei Formulare für dasselbe Geheimnis wären zwei
+   * Gelegenheiten, es auseinanderlaufen zu lassen.
    *
-   * Was die Apps unterscheiden, kommt als Eigenschaft herein: „hören" nimmt in
-   * dasselbe Feld auch Verwalter- und Aufsichtstoken (`verwaltet`), und jede
-   * App weiß selbst, wohin es nach einem angenommenen Zugang weitergeht
-   * (`weiter`).
+   * **Und deshalb ist die Übergabe hier nicht mehr an eine App gebunden.** Bis
+   * September 2026 zeigte nur „hören" den Abschnitt „Diesen Browser
+   * übergeben"; ein Schalter `verwaltet` gab ihn frei, mit der Begründung, nur
+   * dort gebe es etwas zu verwalten. Das verwechselte zwei Dinge: *Wo* die
+   * Verwaltung arbeitet, und *wo* man sich als Verwaltung ausweist. Wer in
+   * „lernen" oder „schreiben" saß, kam an das Feld gar nicht heran - er musste
+   * erst wissen, dass es in einer dritten App steht. Ein Zugang, der überall
+   * gilt, wird überall eingetragen; wohin es danach geht, sagt das Menü
+   * (`uebergreifendePunkte` in `apps.ts`).
+   *
+   * Was die Apps noch unterscheidet, kommt als Eigenschaft herein: jede weiß
+   * selbst, wohin es nach einem angenommenen Zugang weitergeht (`weiter`).
    *
    * Der Menüpunkt dazu steht immer im Menü, gerade auch ohne gültigen Zugang:
    * Dann ist er der einzige Weg herein, und ein Menü, das ihn erst nach der
@@ -37,7 +45,6 @@
   let {
     art,
     name = null,
-    verwaltet = false,
     pruefe,
     weiter,
   }: {
@@ -45,12 +52,6 @@
     art: string;
     /** Der Name des Sprechers, falls einer hier ist. */
     name?: string | null;
-    /**
-     * Ob diese App außer Sprecherzugängen auch Verwalter- und Aufsichtstoken
-     * kennt. Nur „hören" verwaltet welche; in „schreiben" gäbe es dazu nichts
-     * zu sagen, und der Server wiese sie ohnehin ab.
-     */
-    verwaltet?: boolean;
     /**
      * Beim Server nachfragen, wer jetzt ruft - wirft, wenn der Zugang nicht
      * gilt. Jede App reicht ihren eigenen Weg herein; die Antwort ist
@@ -126,51 +127,52 @@
       der einmal geöffnet wurde, und gilt weiter - hier ist nichts einzutragen.
     </p>
     <p class="gedaempft">
-      Derselbe Zugang gilt in beiden Apps: einmal geöffnet, überall angemeldet. Geht er verloren,
-      gibt die Verwaltung einen neuen Link aus; der alte gilt dann nicht mehr.
+      Derselbe Zugang gilt in allen drei Apps: einmal geöffnet, überall angemeldet. Geht er
+      verloren, gibt die Verwaltung einen neuen Link aus; der alte gilt dann nicht mehr.
     </p>
 
-    {#if verwaltet}
-      <!-- Der Weg in die Verwaltung und in die Aufsicht führt über dasselbe
-           Feld, und ohne ihn käme man von einem Sprechergerät nie dorthin. Er
-           steht trotzdem hinter einem Klick: Wer hier aufnimmt, soll nicht als
-           Erstes ein Token-Feld sehen. -->
-      <h2>Diesen Browser übergeben</h2>
-      {#if wechseln}
-        <p class="gedaempft">
-          Ein Browser trägt genau einen Zugang. Wird hier der
-          <code>WORTLAUT_AUTH_TOKEN</code> (Verwaltung) oder der
-          <code>WORTLAUT_ADMIN_TOKEN</code> (Aufsicht) eingetragen, gilt der persönliche Zugang von
-          <strong>{name}</strong> in diesem Browser nicht mehr - er kommt mit einem Klick auf den
-          persönlichen Link zurück. Der Server sieht am Vorgelegten, welches von beidem es ist.
-        </p>
-        {@render formular()}
-      {:else}
-        <p class="gedaempft">
-          Zum Sichern, Umbenennen oder Löschen braucht es den Verwalter- oder den Aufsichtstoken.
-          Dieser Browser gehört danach der Verwaltung bzw. der Aufsicht.
-        </p>
-        <button class="knopf" onclick={() => (wechseln = true)}>Zugang wechseln</button>
-      {/if}
+    <!-- Der Weg in die Verwaltung und in die Aufsicht führt über dasselbe
+         Feld, und ohne ihn käme man von einem Sprechergerät nie dorthin. Er
+         steht trotzdem hinter einem Klick: Wer hier aufnimmt, soll nicht als
+         Erstes ein Token-Feld sehen.
+
+         In **jeder** App, nicht nur in „hören": Es ist derselbe Browser und
+         derselbe Zugang, und wo man ihn übergibt, hat mit dem Reiter nichts zu
+         tun, auf dem man gerade steht. -->
+    <h2>Diesen Browser übergeben</h2>
+    {#if wechseln}
+      <p class="gedaempft">
+        Ein Browser trägt genau einen Zugang. Wird hier der
+        <code>WORTLAUT_AUTH_TOKEN</code> (Verwaltung) oder der
+        <code>WORTLAUT_ADMIN_TOKEN</code> (Aufsicht) eingetragen, gilt der persönliche Zugang von
+        <strong>{name}</strong> in diesem Browser nicht mehr - er kommt mit einem Klick auf den
+        persönlichen Link zurück. Der Server sieht am Vorgelegten, welches von beidem es ist.
+      </p>
+      {@render formular()}
+    {:else}
+      <p class="gedaempft">
+        Zum Sichern, Umbenennen oder Löschen braucht es den Verwalter- oder den Aufsichtstoken.
+        Dieser Browser gehört danach der Verwaltung bzw. der Aufsicht; die Sprecherliste steht
+        dann in jeder App im Menü.
+      </p>
+      <button class="knopf" onclick={() => (wechseln = true)}>Zugang wechseln</button>
     {/if}
   {:else}
     <p class="gedaempft">
       Wer aufnehmen oder diktieren will, braucht hier nichts einzutragen - dafür gibt es den
-      persönlichen Link. Er wird einmal geöffnet und gilt danach in beiden Apps.
+      persönlichen Link. Er wird einmal geöffnet und gilt danach in allen drei Apps.
     </p>
-    {#if verwaltet}
-      <p class="gedaempft">
-        Für die Verwaltung: der <code>WORTLAUT_AUTH_TOKEN</code> des Servers. Er legt Profile an und
-        gibt die persönlichen Links aus. Der Wert bleibt in diesem Browser und wird beim
-        Zurücksetzen unter „Einstellungen" nicht angetastet.
-      </p>
-      <p class="gedaempft">
-        Für die <strong>Aufsicht</strong>: der <code>WORTLAUT_ADMIN_TOKEN</code>, in dasselbe Feld.
-        Sie sieht in jeden Korpus, benennt um, sichert und löscht. Dieser Browser gehört danach der
-        Aufsicht - ein Sprecher, der ihn vorher benutzt hat, öffnet einmal wieder seinen
-        persönlichen Link.
-      </p>
-    {/if}
+    <p class="gedaempft">
+      Für die Verwaltung: der <code>WORTLAUT_AUTH_TOKEN</code> des Servers. Er legt Profile an und
+      gibt die persönlichen Links aus. Der Wert bleibt in diesem Browser und wird beim
+      Zurücksetzen unter „Einstellungen" nicht angetastet.
+    </p>
+    <p class="gedaempft">
+      Für die <strong>Aufsicht</strong>: der <code>WORTLAUT_ADMIN_TOKEN</code>, in dasselbe Feld.
+      Sie sieht in jeden Korpus, benennt um, sichert und löscht. Dieser Browser gehört danach der
+      Aufsicht - ein Sprecher, der ihn vorher benutzt hat, öffnet einmal wieder seinen
+      persönlichen Link.
+    </p>
     {@render formular()}
   {/if}
 </PinSchloss>

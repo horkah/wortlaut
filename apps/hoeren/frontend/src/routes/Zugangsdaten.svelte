@@ -24,7 +24,7 @@
   }
 </script>
 
-<Zugangsdaten art={zustand.art} name={zustand.name} verwaltet {pruefe}>
+<Zugangsdaten art={zustand.art} name={zustand.name} {pruefe}>
   {#snippet weiter()}
     <!-- Wer wegen des Tokens hergeschickt wurde, will jetzt zu den Sprechern. -->
     <button class="knopf haupt" onclick={() => gehZu(SPRECHER_PFAD)}>
