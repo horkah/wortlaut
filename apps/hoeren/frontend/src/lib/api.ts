@@ -27,14 +27,10 @@ export type Sprecher = {
   sprache: string;
   basismodell: string;
   erstellt: string;
-  /** Um welchen Faktor vorgespult wird, bevor ein Modell zuhört. 1 = gar nicht. */
-  tempo: number;
   /** Wann der geltende Zugang ausgegeben wurde; null heißt: noch keiner da. */
   zugang_erneuert: string | null;
 };
 
-/** Die Faktoren, die zur Wahl stehen - dieselben wie in `wortlaut/tempo.py`. */
-export const TEMPOFAKTOREN = [1, 2, 3] as const;
 
 /** Ein frisch ausgegebener Zugang - im Klartext nur genau hier. */
 export type NeuerZugang = { sprecher_id: string; zugang: string; erneuert: string };
@@ -94,16 +90,6 @@ export const sprecherListe = () => anfrage<Sprecher[]>('/speakers');
 export const sprecherAnlegen = (eingabe: { name: string; basismodell: string }) =>
   anfrage<Sprecher>('/speakers', alsJson(eingabe));
 
-/**
- * Den Tempofaktor eines Sprechers umstellen.
- *
- * Es wird nichts gelöscht und nichts neu gerechnet: Auswertungen und
- * Modellstände tragen die Geschwindigkeit, bei der sie entstanden, bei sich
- * und gelten danach *gerade nicht*. Wer zurückstellt, bekommt sie unverändert
- * wieder.
- */
-export const tempoSetzen = (id: string, tempo: number) =>
-  anfrage<Sprecher>(`/speakers/${id}`, alsJson({ tempo }, 'PATCH'));
 
 /** Neuen Zugang ausgeben. Ein vorhandener gilt danach nicht mehr. */
 export const zugangAusgeben = (sprecher: string) =>

@@ -502,16 +502,16 @@ class TestEinProfilEineBeschreibung:
     `tempo` dazu, aber nur in einem der beiden. Die Verwaltung zeigte
     „2-fach", die Aufsicht „normal", und beide lasen dieselbe Datenbankzeile.
 
-    Dieser Test prüft nicht `tempo`, sondern die Regel dahinter: Was die eine
-    Ansicht über ein Profil sagt, sagt die andere auch. Ein Feld, das jemand
-    künftig nur an einer Stelle ergänzt, fällt hier auf.
+    Der Anlass war `tempo`; es ist inzwischen wieder gefallen
+    (`012_ohne_profiltempo.sql`). Geprüft wird trotzdem weiter, denn die Regel
+    dahinter bleibt: Was die eine Ansicht über ein Profil sagt, sagt die andere
+    auch. Ein Feld, das jemand künftig nur an einer Stelle ergänzt, fällt hier
+    auf.
     """
 
     def test_dieselben_felder_mit_denselben_werten(
         self, verwalter: TestClient, aufsicht: TestClient, sprecher: str
     ) -> None:
-        verwalter.patch(f"/api/speakers/{sprecher}", json={"tempo": 2.0})
-
         aus_verwaltung = verwalter.get(f"/api/speakers/{sprecher}").json()
         alle = aufsicht.get("/api/admin/speakers").json()
         aus_aufsicht = next(zeile for zeile in alle if zeile["id"] == sprecher)
@@ -525,4 +525,3 @@ class TestEinProfilEineBeschreibung:
         )
         for feld in sorted(gemeinsam):
             assert aus_verwaltung[feld] == aus_aufsicht[feld], f"Feld {feld} weicht ab."
-        assert aus_aufsicht["tempo"] == 2.0

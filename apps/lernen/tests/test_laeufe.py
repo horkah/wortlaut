@@ -478,7 +478,7 @@ class TestTempowahl:
             laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]) / laeufe.AUFTRAG
         )
         assert auftrag["tempowahl"] == laeufe.TEMPO_WIE_EINGESTELLT
-        # Und der Lauf zeigt den Faktor des Profils, nicht „wird gesucht".
+        # Ohne Suche gilt schlicht 1,0 - gar nicht vorspulen.
         assert klient.get("/lernen/api/laeufe").json()["laeufe"][0]["tempo"] == 1.0
 
     def test_optimal_wird_eingetragen_und_noch_nicht_beantwortet(
@@ -494,9 +494,6 @@ class TestTempowahl:
             laeufe.lauf_verzeichnis(datenverzeichnis, antwort.json()["job_id"]) / laeufe.AUFTRAG
         )
         assert auftrag["tempowahl"] == laeufe.TEMPO_OPTIMAL
-        # Der eingefrorene Profilwert bleibt daneben stehen: Er ist der
-        # Ausgangspunkt, gegen den sich die Suche messen lassen muss.
-        assert auftrag["tempo"] == 1.0
 
         # Solange die Faltungen laufen, steht das Ergebnis nicht fest - und
         # dann sagt die Auskunft `null` statt einer Zahl, die sie nicht hat.
