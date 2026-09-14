@@ -30,6 +30,8 @@ from wortlaut import augmentierung, laeufe as lauf_layout, registry, streuung
 
 from ..config import einstellungen
 from ..deps import Korpus, SprecherId
+from apps.hoeren.backend.services import auswertung as hoeren_auswertung
+
 from ..services import messwerte
 
 router = APIRouter(prefix="/lernen/api/modelle", tags=["Modelle"])
@@ -166,6 +168,13 @@ class ModellAntwort(BaseModel):
     version: str | None
     job_id: str | None
     freigegeben: bool
+    # Bei welcher Geschwindigkeit die Zahlen dieser Zeile entstanden sind.
+    tempo: float = 1.0
+    # Ob sie zu der Geschwindigkeit passt, die für diesen Sprecher gerade gilt.
+    # `false` heißt: Die Zeile steht außerhalb des Vergleichs - ihre Zahlen
+    # stimmen, sie sind nur gegen die der anderen nicht zu halten. Der Stand
+    # selbst bleibt benutzbar: Er bringt sein Tempo beim Diktieren mit.
+    gilt: bool = True
     # Worauf die Zahlen dieser Zeile gemessen wurden - `cuda/int8_float16`,
     # `cpu/int8`, leer bei Unbekanntem oder Gemischtem. Nur die **Rechenzeit**
     # hängt daran; Genauigkeit und Fehlerraten ändern sich mit der Maschine
@@ -367,6 +376,11 @@ def uebersicht(
     aufnahmen = messwerte.messaufnahmen(korpus)
     namen = _grundmodellnamen()
 
+    # Die Geschwindigkeit, die für diesen Sprecher gerade gilt. Alles, was bei
+    # einer anderen gemessen wurde, steht weiter in der Tabelle - aber
+    # außerhalb des Vergleichs (siehe `_gilt` und `gemeinsam` unten).
+    jetziges_tempo = hoeren_auswertung.tempo_des_sprechers(korpus)
+
     reihen = messwerte.grundmodelle(korpus, namen, aufnahmen)
     staende = registry.alle_staende(konfiguration.data_dir, sprecher)
     for manifest in staende:
@@ -379,7 +393,30 @@ def uebersicht(
             messwerte.stand(lauf, aufnahmen) if lauf is not None else messwerte.Messreihe()
         )
 
-    gemeinsam = messwerte.gemeinsame_einheiten(list(reihen.values()))
+    # **Nur die Stände der geltenden Geschwindigkeit tragen den Boden.**
+    #
+    # Ein Stand, der auf 2-fach gelernt und gemessen wurde, hat zu denselben
+    # Aufnahmen Zahlen wie einer von 1-fach - nur bedeuten sie etwas anderes.
+    # Ließe man sie in den gemeinsamen Boden ein, verglichen die Spalten
+    # nebeneinander zwei Messungen, die nie gegeneinander angetreten sind, und
+    # die Tabelle behauptete einen Vergleich, den es nicht gibt.
+    #
+    # Ausgeblendet wird deshalb nicht, sondern herausgenommen: Die Zeile bleibt
+    # stehen, mit ihren Zahlen, grau und mit dem Grund daneben. Eine
+    # Vergleichstafel, die Zeilen versteckt, sobald eine Einstellung sich
+    # ändert, ist keine mehr - und der Stand selbst ist ja nicht kaputt, er
+    # bringt sein Tempo beim Diktieren mit (`schreiben/deps.tempo_fuer`).
+    tempo_je_ref = {
+        str(manifest.get("id", "")): float(manifest.get("tempo", 1.0) or 1.0)
+        for manifest in staende
+    }
+
+    def _gilt(ref: str) -> bool:
+        return tempo_je_ref.get(ref, jetziges_tempo) == jetziges_tempo
+
+    gemeinsam = messwerte.gemeinsame_einheiten(
+        [reihe for ref, reihe in reihen.items() if _gilt(ref)]
+    )
     # Vergleichbar heißt: Es gibt mindestens zwei Modelle mit Zahlen, und diese
     # Zahlen stehen auf denselben Messeinheiten. Ein einzelnes gemessenes
     # Modell ergibt zwar eine Schnittmenge mit sich selbst, aber keinen
@@ -388,7 +425,7 @@ def uebersicht(
     # Ohne gemeinsamen Boden rechnet jede Zeile auf dem, was sie hat. Eine
     # leere Tabelle verschwiege, dass überhaupt gemessen wurde; der Vorbehalt
     # steht stattdessen als Hinweis darüber.
-    messende = [ref for ref, reihe in reihen.items() if reihe.werte]
+    messende = [ref for ref, reihe in reihen.items() if reihe.werte and _gilt(ref)]
     vergleichbar = len(messende) > 1 and bool(gemeinsam)
     # Die Rechenzeit ist eine Eigenschaft der Maschine, nicht des Modells:
     # Dasselbe whisper-small braucht auf einem Prozessor das Zehn- bis
@@ -406,7 +443,12 @@ def uebersicht(
 
     def zeile(ref: str, art: str, name: str, herkunft: str, manifest: dict) -> ModellAntwort:
         reihe = reihen[ref]
-        boden = gemeinsam if vergleichbar else set(reihe.werte)
+        gilt = _gilt(ref)
+        # Eine Zeile außerhalb des Vergleichs rechnet auf dem, was sie hat -
+        # der gemeinsame Boden ist ja gerade nicht ihrer. Ihre Zahlen bleiben
+        # damit ihre eigenen und sind neben denen der anderen als das erkennbar,
+        # was sie sind: bei anderer Geschwindigkeit gemessen.
+        boden = gemeinsam if (vergleichbar and gilt) else set(reihe.werte)
         return ModellAntwort(
             ref=ref,
             art=art,
@@ -420,6 +462,8 @@ def uebersicht(
             version=str(manifest["id"]).split("/", 1)[-1] if manifest.get("id") else None,
             job_id=manifest.get("job_id"),
             freigegeben=ref == freigegeben,
+            tempo=tempo_je_ref.get(ref, jetziges_tempo),
+            gilt=gilt,
             werte=reihe.mittel(boden),
             einheiten=reihe.einheiten_je_fassung(boden),
             intervalle=reihe.intervalle(boden, intervall),

@@ -129,10 +129,39 @@
         .filter((lauf) => lauf.status === 'fertig')
         .map(
           (lauf) =>
-            `${lauf.methode}/${lauf.daten}/${lauf.abschluss || 'bester'}/` +
-            `${lauf.augmentierung || 'keine'}/${lauf.dauer || 'fest'}`,
+            [
+              lauf.basismodell,
+              lauf.methode,
+              lauf.daten,
+              lauf.abschluss || 'bester',
+              lauf.augmentierung || 'keine',
+              lauf.dauer || 'fest',
+              lauf.tempowahl || 'wie_eingestellt',
+            ].join('/'),
         ),
     ),
+  );
+
+  /**
+   * Die gerade eingestellte Bestellung als Schlüssel - dieselbe Form wie in
+   * `gerechnetGenau`.
+   *
+   * Das Grundmodell steht mit darin, und das fehlte bis September 2026: Ein
+   * fertiger `small`-Lauf meldete eine `medium`-Bestellung als „schon
+   * gerechnet". Solange es nur ein Grundmodell gab, war der Schlüssel
+   * vollständig; seither war er es nicht mehr, ohne dass sich etwas daran
+   * geändert hätte - der stillste aller Fehler.
+   */
+  const bestellschluessel = $derived(
+    [
+      grundmodell || daten?.basismodell || '',
+      methode,
+      datensatz,
+      abschluss,
+      augmentierung,
+      dauer,
+      tempowahl,
+    ].join('/'),
   );
 
   const STUFEN: Record<string, string> = {
@@ -187,7 +216,17 @@
     const a = daten?.abschluesse.find((wahl) => wahl.schluessel === lauf.abschluss);
     const g = daten?.augmentierungen.find((wahl) => wahl.schluessel === lauf.augmentierung);
     const w = daten?.dauern.find((wahl) => wahl.schluessel === lauf.dauer);
-    const teile = [m?.name ?? lauf.methode, d?.name ?? lauf.daten];
+    // Das Grundmodell zuerst, und **immer**, nicht nur wenn es abweicht.
+    //
+    // Bis September 2026 stand es hier gar nicht. Solange es nur `small` gab,
+    // fiel das nicht auf; seit `medium` dazukam, sah man einer Laufkarte nicht
+    // mehr an, worauf sie trainiert hat - und das ist der stärkste Unterschied
+    // zwischen zwei Läufen überhaupt. Die Abwesenheit eines Namens ist eben
+    // keine Auskunft „dann eben das übliche", sondern gar keine.
+    const grund =
+      daten?.grundmodelle.find((g) => g.schluessel === lauf.basismodell)?.name ??
+      lauf.basismodell.replace(/^.*\//, '');
+    const teile = [grund, m?.name ?? lauf.methode, d?.name ?? lauf.daten];
     if (lauf.abschluss && lauf.abschluss !== 'bester') teile.push(a?.name ?? lauf.abschluss);
     if (lauf.augmentierung && lauf.augmentierung !== 'keine') {
       teile.push(g?.name ?? lauf.augmentierung);
@@ -488,7 +527,7 @@
         Training beauftragen
       </button>
       <span class="gedaempft">
-        {#if gerechnetGenau.has(`${methode}/${datensatz}/${abschluss}/${augmentierung}/${dauer}`)}
+        {#if gerechnetGenau.has(bestellschluessel)}
           Diese Kombination ist schon gerechnet - ein zweiter Lauf nimmt die seither
           hinzugekommenen Aufnahmen mit.
         {:else}

@@ -52,8 +52,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from wortlaut import augmentierung, laeufe, streuung
 
-from apps.hoeren.backend.services.auswertung import gueltige_aufnahmen
 from apps.hoeren.backend.db.models import Erkennung
+from apps.hoeren.backend.services import auswertung
+from apps.hoeren.backend.services.auswertung import gueltige_aufnahmen
 
 
 # Die Maße, die eine Zeile der Tabelle trägt - dieselben Namen wie in „hören",
@@ -223,16 +224,24 @@ def messaufnahmen(korpus: Session) -> set[str]:
 
 
 def grundmodelle(korpus: Session, namen: list[str], aufnahmen: set[str]) -> dict[str, Messreihe]:
-    """Was die unveränderten Modelle in „hören" auf diesen Aufnahmen erreicht haben."""
+    """Was die unveränderten Modelle in „hören" auf diesen Aufnahmen erreicht haben.
+
+    **Nur bei der Geschwindigkeit, die gerade gilt.** Der Korpus trägt seit
+    `011_tempo.sql` je Tempofaktor eine eigene Garnitur Messungen. Ohne diese
+    Bedingung stünden hier die Zahlen aller Faktoren in einem Topf, und das
+    Mittel darüber beschriebe kein Modell, sondern eine Mischung.
+    """
     reihen = {name: Messreihe() for name in namen}
     if not aufnahmen or not namen:
         return reihen
 
+    faktor = auswertung.tempo_des_sprechers(korpus)
     for zeile in korpus.scalars(
         select(Erkennung).where(
             Erkennung.modell.in_(namen),
             Erkennung.recording_id.in_(aufnahmen),
             Erkennung.variante.in_(augmentierung.VARIANTEN),
+            Erkennung.tempo == faktor,
         )
     ):
         reihen[zeile.modell].werte[(zeile.recording_id, zeile.variante)] = {
