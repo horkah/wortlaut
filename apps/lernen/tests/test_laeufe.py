@@ -677,3 +677,67 @@ class TestNeueAufnahmen:
         antwort = klient.get("/lernen/api/laeufe").json()
         assert antwort["aufnahmen_jetzt"] == 5
         assert antwort["aufnahmen_neu"] == 0
+
+
+class TestFortschrittsbalken:
+    """Von 0 bis 100, nie rückwärts - über alle sieben Trainings eines Laufs."""
+
+    def _lauf(self, auftrag: dict, zustand: dict):
+        class Lauf:
+            def __init__(self) -> None:
+                self.auftrag, self.zustand = auftrag, zustand
+                self.job_id, self.sprecher_id = "job_x", "spr_x"
+
+            @property
+            def status(self) -> str:
+                return str(self.zustand.get("status", laeufe.WARTET))
+
+        return Lauf()
+
+    def _verlauf(self, tempowahl: str) -> list[float]:
+        """Einen ganzen Lauf durchspielen, Stufe für Stufe."""
+        from apps.lernen.backend.api.laeufe import STUFENFOLGE, _anteil
+
+        auftrag = {"tempowahl": tempowahl}
+        werte = [_anteil(self._lauf(auftrag, {"status": laeufe.LAEUFT, "stufe": "vorbereiten"}))]
+        for nummer in range(laeufe.FALTUNGEN + 1):
+            endmodell = nummer == laeufe.FALTUNGEN
+            zustand = {"status": laeufe.LAEUFT, "faltung": None if endmodell else nummer}
+            for name, _gewicht in STUFENFOLGE:
+                if name == "tempowahl" and (tempowahl != "optimal" or endmodell):
+                    continue
+                if name == "bewerten" and endmodell:
+                    continue
+                zustand["stufe"] = name
+                for schritt in (0, 50, 100) if name in {"training", "tempowahl"} else (None,):
+                    if schritt is None:
+                        zustand.pop("schritt", None)
+                        zustand.pop("schritte_gesamt", None)
+                    else:
+                        zustand["schritt"], zustand["schritte_gesamt"] = schritt, 100
+                    werte.append(_anteil(self._lauf(auftrag, dict(zustand))))
+        werte.append(_anteil(self._lauf(auftrag, {"status": laeufe.FERTIG})))
+        return werte
+
+    def test_steigt_monoton_von_null_auf_eins(self) -> None:
+        for wahl in ("wie_eingestellt", "optimal"):
+            werte = self._verlauf(wahl)
+            assert werte[0] == 0.0, wahl
+            assert werte[-1] == 1.0, wahl
+            rueckwaerts = [
+                (a, b) for a, b in zip(werte, werte[1:]) if b < a - 1e-9
+            ]
+            assert not rueckwaerts, f"{wahl}: Balken springt zurück bei {rueckwaerts[:3]}"
+
+    def test_keine_groben_spruenge(self) -> None:
+        # Der Balken soll laufen und nicht hüpfen. Ein Zehntel auf einmal wäre
+        # ein Hüpfer; gemessen sind es höchstens gut zwei Prozentpunkte.
+        for wahl in ("wie_eingestellt", "optimal"):
+            werte = self._verlauf(wahl)
+            groesster = max(b - a for a, b in zip(werte, werte[1:]))
+            assert groesster < 0.1, f"{wahl}: Sprung von {groesster:.1%}"
+
+    def test_ein_wartender_hat_keinen_balken(self) -> None:
+        from apps.lernen.backend.api.laeufe import _anteil
+
+        assert _anteil(self._lauf({}, {"status": laeufe.WARTET})) is None

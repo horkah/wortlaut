@@ -459,12 +459,95 @@ class ListeAntwort(BaseModel):
     aufnahmen_neu: int
 
 
+# Grobe Anteile der Stufen an **einem** Training, in der Reihenfolge, in der
+# sie durchlaufen werden.
+#
+# Geschätzt und nicht gemessen - absichtlich. Wie lange eine Faltung braucht,
+# hängt am Korpus, am Grundmodell und an der Karte; eine Zahl, die das alles
+# nachrechnete, wäre genauer und nicht besser. Gefragt ist ein Balken, der
+# gleichmäßig läuft, und dafür genügen Größenordnungen: Das Training ist die
+# Hälfte, die Tempowahl kostet eine Minute, alles andere sind Sekunden bis
+# wenige Minuten.
+STUFENFOLGE: tuple[tuple[str, float], ...] = (
+    ("laden", 0.10),
+    ("tempowahl", 0.15),
+    ("training", 0.50),
+    ("abschluss", 0.10),
+    ("sichern", 0.03),
+    ("umwandeln", 0.05),
+    ("bewerten", 0.07),
+)
+
+# Welche Stufen ein Schrittwerk haben, also innerhalb ihrer selbst
+# weiterzählen. Bei allen anderen bleibt der Balken auf dem Anfang der Stufe
+# stehen - das ist ehrlicher als eine erfundene Bewegung.
+MIT_SCHRITTEN = frozenset({"training", "tempowahl"})
+
+
 def _anteil(lauf: lauf_layout.Lauf) -> float | None:
-    gesamt = lauf.zustand.get("schritte_gesamt")
-    schritt = lauf.zustand.get("schritt")
-    if not gesamt or schritt is None:
+    """Wie weit der **ganze Lauf** ist - von 0 bis 1, und nie rückwärts.
+
+    **Warum das nicht der Schrittzähler ist.** Ein Lauf rechnet sieben
+    Trainings: sechs Faltungen und das Endmodell. Jedes zählt seine Schritte
+    von vorn, und der Balken stand deshalb siebenmal bei null und siebenmal bei
+    hundert Prozent. Er sprang zusätzlich innerhalb einer Faltung, seit die
+    Tempowahl ihre acht Stützstellen mitzählt.
+
+    Gerechnet wird deshalb kaskadiert: Jedes der sieben Trainings bekommt
+    denselben Anteil am Ganzen, und innerhalb eines Trainings verteilen sich
+    die Stufen nach `STUFENFOLGE`. Was ein Lauf nicht durchläuft - keine
+    Tempowahl, keine Bewertung beim Endmodell -, wird vorher herausgerechnet,
+    sonst bliebe an dieser Stelle eine Lücke, über die der Balken springt.
+
+    **Monoton, solange die Stufen in dieser Reihenfolge kommen.** Sie tun es;
+    `finetune.py` ruft sie so auf. Ein unbekannter Stufenname zählt als „noch
+    nicht begonnen" und hält den Balken, statt ihn zurückzuwerfen.
+    """
+    zustand = lauf.zustand
+    if lauf.status == lauf_layout.FERTIG:
+        return 1.0
+    if lauf.status != lauf_layout.LAEUFT:
         return None
-    return min(1.0, float(schritt) / float(gesamt))
+
+    trainings = lauf_layout.FALTUNGEN + 1
+    # Ohne den Schlüssel hat noch keine Faltung begonnen; mit dem Schlüssel und
+    # `None` ist es das Endmodell - das siebte und letzte Training.
+    endmodell = "faltung" in zustand and zustand.get("faltung") is None
+    nummer = trainings - 1 if endmodell else int(zustand.get("faltung") or 0)
+
+    # Welche Stufen in **diesem** Training vorkommen. Das Endmodell sucht kein
+    # Tempo (es übernimmt den Median) und wird an nichts gemessen.
+    sucht = (
+        str(lauf.auftrag.get("tempowahl") or lauf_layout.TEMPO_WIE_EINGESTELLT)
+        == lauf_layout.TEMPO_OPTIMAL
+        and not endmodell
+    )
+    stufen = [
+        (name, gewicht)
+        for name, gewicht in STUFENFOLGE
+        if (name != "tempowahl" or sucht) and (name != "bewerten" or not endmodell)
+    ]
+    summe = sum(gewicht for _name, gewicht in stufen)
+
+    jetzt = str(zustand.get("stufe", ""))
+    davor = 0.0
+    innen = 0.0
+    for name, gewicht in stufen:
+        if name != jetzt:
+            davor += gewicht
+            continue
+        if name in MIT_SCHRITTEN:
+            gesamt = float(zustand.get("schritte_gesamt") or 0)
+            schritt = float(zustand.get("schritt") or 0)
+            innen = gewicht * min(1.0, schritt / gesamt) if gesamt else 0.0
+        break
+    else:
+        # Ein Name, den diese Liste nicht kennt („vorbereiten" etwa): Dann
+        # steht dieses Training noch am Anfang.
+        davor = 0.0
+
+    im_training = (davor + innen) / summe if summe else 0.0
+    return min(1.0, (nummer + im_training) / trainings)
 
 
 def _stand_zu(lauf: lauf_layout.Lauf) -> StandHinweis | None:
