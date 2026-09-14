@@ -518,6 +518,40 @@ class TestTempowahl:
         )
         assert klient.get("/lernen/api/laeufe").json()["laeufe"][0]["tempo"] == 1.75
 
+    def test_der_vorlaeufige_faktor_erscheint_mit_vermerk(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        # Während der Kreuzvalidierung steht der Median dessen, was bis dahin
+        # gefunden wurde. „wird gesucht" über zwanzig Minuten ist kein Zustand,
+        # sondern ein Platzhalter, der sich als einer ausgibt.
+        sprich(6)
+        antwort = klient.post(
+            "/lernen/api/laeufe",
+            json={"methode": "lora", "daten": "original", "tempowahl": "optimal"},
+        ).json()
+        verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, antwort["job_id"])
+
+        laeufe.schreibe_json(
+            verzeichnis / laeufe.ZUSTAND,
+            {"status": laeufe.LAEUFT, "stufe": "training", "faltung": 2,
+             "tempo": 2.0, "tempo_endgueltig": False},
+        )
+        zeile = klient.get("/lernen/api/laeufe").json()["laeufe"][0]
+        assert zeile["tempo"] == 2.0
+        assert zeile["tempo_endgueltig"] is False
+        # Und die Faltung erreicht die Ansicht, damit „Modell wird geladen"
+        # nicht siebenmal gleich aussieht.
+        assert zeile["faltung"] == 2
+        assert zeile["faltungen_gesamt"] == laeufe.FALTUNGEN
+
+        laeufe.schreibe_json(
+            verzeichnis / laeufe.ZUSTAND,
+            {"status": laeufe.FERTIG, "tempo": 2.25, "tempo_endgueltig": True},
+        )
+        fertig = klient.get("/lernen/api/laeufe").json()["laeufe"][0]
+        assert fertig["tempo"] == 2.25
+        assert fertig["tempo_endgueltig"] is True
+
     def test_eine_unbekannte_wahl_wird_abgewiesen(
         self, klient: TestClient, quelle: str, sprich
     ) -> None:

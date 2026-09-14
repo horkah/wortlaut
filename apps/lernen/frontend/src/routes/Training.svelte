@@ -167,12 +167,34 @@
   const STUFEN: Record<string, string> = {
     vorbereiten: 'wird vorbereitet',
     laden: 'Modell wird geladen',
+    tempowahl: 'sucht die Geschwindigkeit',
     training: 'trainiert',
     abschluss: 'die Gewichte werden abgeschlossen',
     sichern: 'wird gesichert',
     umwandeln: 'wird umgewandelt',
     bewerten: 'misst die zurückgehaltene Faltung',
   };
+
+  /**
+   * Welches der sieben Trainings gerade läuft.
+   *
+   * Ohne diese Angabe erschien „Modell wird geladen" siebenmal im Lauf, ohne
+   * dass zu sehen war, dass es jedes Mal ein anderes Training ist - wer nach
+   * zwanzig Minuten wieder hinsah, las dieselbe Zeile wie am Anfang und
+   * schloss auf einen Lauf, der hängt.
+   */
+  function wobei(lauf: Lauf): string {
+    const stufe = STUFEN[lauf.stufe] ?? lauf.stufe;
+    if (lauf.status !== 'laeuft') return stufe;
+    // `faltung === null` heißt: das siebte Training, das auf allem lernt.
+    // Auch das gehört dazu - sonst sieht die letzte halbe Stunde eines Laufs
+    // aus wie die erste.
+    const wo =
+      lauf.faltung === null
+        ? 'Endmodell'
+        : `Faltung ${lauf.faltung + 1} von ${lauf.faltungen_gesamt}`;
+    return `${wo} · ${stufe}`;
+  }
 
   /**
    * Wie lange ein Lauf schon stillsteht, für Menschen.
@@ -238,7 +260,15 @@
     // gesucht wird, steht das da; eine Überschrift, die erst später stimmt,
     // wäre schlimmer als eine, die auf sich warten lässt.
     if (lauf.tempowahl === 'optimal') {
-      teile.push(lauf.tempo === null ? 'Tempo wird gesucht' : `Tempo ${tempoText(lauf.tempo)}`);
+      // Sobald eine Faltung einen Faktor gefunden hat, steht er da - mit dem
+      // Vermerk, dass er noch wandern kann. „wird gesucht" über zwanzig
+      // Minuten ist kein Zustand, sondern ein Platzhalter, der sich als einer
+      // ausgibt.
+      teile.push(
+        lauf.tempo === null
+          ? 'Tempo wird gesucht'
+          : `Tempo ${tempoText(lauf.tempo)}${lauf.tempo_endgueltig ? '' : ' (vorläufig)'}`,
+      );
     } else if (lauf.tempo !== null && lauf.tempo !== 1) {
       teile.push(`Tempo ${tempoText(lauf.tempo)}`);
     }
@@ -649,7 +679,7 @@
             <div class="fuellung" style="width: {(lauf.anteil ?? 0) * 100}%"></div>
           </div>
           <p class="klein">
-            {STUFEN[lauf.stufe] ?? lauf.stufe}
+            {wobei(lauf)}
             {#if lauf.anteil !== null}
               <span class="gedaempft">· {(lauf.anteil * 100).toFixed(0)} %</span>
             {/if}

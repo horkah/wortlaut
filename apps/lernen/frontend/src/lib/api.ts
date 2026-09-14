@@ -76,11 +76,16 @@ export type Lauf = {
    * `null` heißt bei `optimal`: wird noch gesucht.
    */
   tempo: number | null;
+  /** Ob der Faktor endgültig ist - bei `optimal` erst nach der letzten Faltung. */
+  tempo_endgueltig: boolean;
   basismodell: string;
   erstellt: string;
   /** wartet | laeuft | fertig | gescheitert | abgebrochen */
   status: string;
   stufe: string;
+  /** Welche Faltung gerade rechnet (ab 0); null heißt: das Endmodell. */
+  faltung: number | null;
+  faltungen_gesamt: number;
   /** 0 bis 1; `null`, solange der Trainer die Schrittzahl nicht genannt hat. */
   anteil: number | null;
   aufnahmen: number;
