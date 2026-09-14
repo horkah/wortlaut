@@ -86,6 +86,8 @@ export type Lauf = {
   aufnahmen: number;
   zeilen: Record<string, number>;
   version: string | null;
+  /** Der kurze Code des Standes aus diesem Lauf (`K7M2Q`); null, solange keiner da ist. */
+  kennung: string | null;
   fehler: string | null;
   /** `null`, solange kein Modell aus diesem Lauf entstanden ist. */
   stand: StandHinweis | null;
@@ -226,6 +228,8 @@ export type Modell = {
   daten: string | null;
   erstellt: string | null;
   version: string | null;
+  /** Der kurze Code dieses Standes (`K7M2Q`); null bei einem Grundmodell. */
+  kennung: string | null;
   job_id: string | null;
   freigegeben: boolean;
   /** Bei welcher Geschwindigkeit die Zahlen dieser Zeile entstanden sind. */

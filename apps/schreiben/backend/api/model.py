@@ -33,6 +33,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 from pydantic import BaseModel
+from wortlaut import registry
 
 from ..config import einstellungen
 from ..deps import SprecherId, aktive_ref, modellstand
@@ -59,6 +60,10 @@ class ModellAntwort(BaseModel):
     laufzeit: str  # local | remote
     # Ob ein trainierter Stand läuft oder ein unverändertes Grundmodell.
     trainiert: bool
+    # Der kurze Code dieses Standes (`K7M2Q`) - dieselbe Kennung wie in
+    # „lernen" (`registry.kurzkennung`). `null` bei einem Grundmodell und bei
+    # einem Stand, den es nicht mehr gibt.
+    kennung: str | None = None
     # Eine Zeile für die Kopfzeile - hier gebaut, damit alle Ansichten
     # dieselbe Auskunft geben.
     beschriftung: str
@@ -119,6 +124,7 @@ def _antwort(sprecher: str) -> ModellAntwort:
         wer=wer,
         laufzeit=konfiguration.asr,
         trainiert=True,
+        kennung=registry.kurzkennung(ref.split("/", 1)[-1]),
         # **Keine Kennzahl in dieser Zeile.** Hier stand einmal die Wortfehlerrate
         # aus dem Manifest, und sie war eine Falle: Das ist das Mittel über die
         # Testeinheiten *dieses* Laufs, während die Modellübersicht in „lernen"

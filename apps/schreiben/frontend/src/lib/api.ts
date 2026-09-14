@@ -46,6 +46,8 @@ export type Modell = {
   laufzeit: string;
   /** Ob ein trainierter Stand läuft oder ein unverändertes Grundmodell. */
   trainiert: boolean;
+  /** Der kurze Code dieses Standes (`K7M2Q`); null bei einem Grundmodell. */
+  kennung: string | null;
   beschriftung: string;
 };
 

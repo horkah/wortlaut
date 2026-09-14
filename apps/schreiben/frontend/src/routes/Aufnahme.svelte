@@ -19,6 +19,7 @@
   // Modellübersicht in „lernen": Wer sie liest, denkt gerade darüber nach,
   // ob ein anderes Modell besser zuhören würde.
   const beschriftung = $derived(zustand.modellstand?.beschriftung ?? '');
+  const kennung = $derived(zustand.modellstand?.kennung ?? null);
 
   let stand = $state<'bereit' | 'verstehe'>('bereit');
   let fehler = $state('');
@@ -67,12 +68,28 @@
 
   {#if beschriftung}
     <p class="modellstand gedaempft">
-      <a href={MODELLE_URL}>{beschriftung}</a>
+      <!-- Dieselbe Kurzkennung wie in „lernen". Sie steht hier, weil genau
+           hier die Frage aufkommt, welches der Modelle aus der Tafel gerade
+           zuhört - und der sprechende Titel allein beantwortet sie nicht,
+           wenn zwei Stände dasselbe Rezept haben. -->
+      <a href={MODELLE_URL}>
+        {#if kennung}<code class="kennung">{kennung}</code>{/if}{beschriftung}
+      </a>
     </p>
   {/if}
 </div>
 
 <style>
+  /* Dieselbe Gestalt wie in „lernen" - es ist dieselbe Kennung. */
+  .kennung {
+    font-size: 0.8em;
+    padding: 0.05em 0.35em;
+    border: 1px solid var(--rand);
+    border-radius: 3px;
+    margin-right: 0.35em;
+    white-space: nowrap;
+  }
+
   .mitte {
     display: flex;
     flex-direction: column;
