@@ -73,7 +73,7 @@ class Auftrag:
     dauer: str = laeufe.DAUER_FEST
     # Ob die Geschwindigkeit gesucht wird oder die des Profils gilt.
     # `wie_eingestellt` ist das Verfahren von vorher.
-    tempowahl: str = laeufe.TEMPO_WIE_EINGESTELLT
+    tempowahl: str = laeufe.TEMPO_AUS
 
 
 def _quelle_von(korpus: Session, probe: Probe) -> str:

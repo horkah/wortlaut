@@ -155,27 +155,45 @@ DATENSAETZE = (NUR_ORIGINAL, MIT_VARIANTEN)
 
 # ── Die Geschwindigkeit ─────────────────────────────────────────────────────
 #
-# Eine weitere Achse, und die einzige, die etwas **sucht**, statt etwas zu
-# setzen.
+# Dysarthrische Sprache ist oft stark verlangsamt, und Whisper versteht sie
+# vorgespult messbar besser. Nur wieviel - das hängt am Sprecher. Drei Wege
+# führen zu einer Antwort, und sie kosten sehr verschieden viel:
 #
-# Am Sprecherprofil hängt ein Tempofaktor: Er gilt für die Auswertung, fürs
-# Diktieren und, solange hier `wie_eingestellt` steht, auch fürs Training
-# (`011_tempo.sql`). Gemessen hat er im September 2026 spürbar geholfen - nur
-# ist der eingestellte Wert der, den jemand als erstes ausprobiert hat, und
-# nicht der beste.
+# * `aus` - gar nicht vorspulen. Die Vorgabe und der Zustand von immer.
+# * `geschaetzt` - aus den Daten gerechnet, ohne eine einzige Erkennung: Wie
+#   lange bräuchte dieser Text bei gewöhnlichem Sprechtempo, und wie lange hat
+#   der Sprecher wirklich gebraucht? Das Verhältnis ist der Faktor. Kostet
+#   nichts und ist sofort da (`training/tempowahl.aus_dauern`).
+# * `optimal` - gesucht, je Faltung acht bis zehn Stützstellen am
+#   unveränderten Grundmodell. Kostet rund eine Minute je Faltung und misst,
+#   was das Modell wirklich versteht, statt es auszurechnen.
 #
-# `optimal` sucht ihn: je Faltung ein Raster über 0,8 bis 3,0, gemessen am
-# unveränderten Grundmodell auf den Lernzeilen dieser Faltung
-# (`training/tempowahl.py`). Das Endmodell nimmt den Median der sechs mit,
-# genau wie bei den Durchgängen und beim α.
+# **Warum beide Rechenwege nebeneinander.** Sie beantworten verschiedene
+# Fragen. Der geschätzte Faktor sagt, wie stark dieser Mensch von der Norm
+# abweicht; der gesuchte sagt, bei welcher Geschwindigkeit dieses Modell ihn am
+# besten versteht. Das muss nicht dasselbe sein - und solange es nicht gemessen
+# ist, gehören beide in die Tafel und nicht eines in den Quelltext.
 #
-# **Warum das eine Wahl ist und keine stille Verbesserung.** Weil es Zeit
-# kostet - etwa eine Minute je Faltung - und weil ein gesuchter Wert und ein
-# gesetzter zwei verschiedene Dinge sind. In der Tafel stehen sie
-# nebeneinander, und dann ist zu sehen, ob die Suche etwas gefunden hat.
-TEMPO_WIE_EINGESTELLT = "wie_eingestellt"
+# Hier stand bis September 2026 `wie_eingestellt`: der Faktor aus dem
+# Sprecherprofil. Den gibt es nicht mehr (`012_ohne_profiltempo.sql`). Ein
+# Auftrag von damals trägt den Wert noch; er wird wie `aus` gelesen, und das
+# ist richtig - das Profil stand bei allen außer einem Sprecher auf 1,0, und
+# wo es anders stand, trägt der fertige Stand seinen Faktor bei sich.
+TEMPO_AUS = "aus"
+TEMPO_GESCHAETZT = "geschaetzt"
 TEMPO_OPTIMAL = "optimal"
-TEMPI = (TEMPO_WIE_EINGESTELLT, TEMPO_OPTIMAL)
+TEMPI = (TEMPO_AUS, TEMPO_GESCHAETZT, TEMPO_OPTIMAL)
+
+
+def tempowahl_aus(auftrag: dict[str, Any]) -> str:
+    """Welches Verfahren dieser Auftrag bestellt hat.
+
+    Die eine Stelle, die einen Auftrag darauf befragt - und die einzige, die
+    den alten Wert `wie_eingestellt` kennt. Alles, was nicht `geschaetzt` oder
+    `optimal` heißt, heißt `aus`.
+    """
+    gewaehlt = str(auftrag.get("tempowahl") or TEMPO_AUS)
+    return gewaehlt if gewaehlt in (TEMPO_GESCHAETZT, TEMPO_OPTIMAL) else TEMPO_AUS
 
 # ── Der Abschluss ───────────────────────────────────────────────────────────
 #

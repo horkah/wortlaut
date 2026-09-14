@@ -205,205 +205,50 @@ Mit welcher Geschwindigkeit ein Stand gelernt hat, steht in seinem Namen
 
 ## Wie schnell gehört wird
 
-Am Sprecherprofil hängt eine Geschwindigkeit (siehe
-[hören](hoeren.md#vorspulen---für-sehr-langsame-sprecher)). Sie gilt fürs
-Messen, fürs Diktieren und normalerweise auch fürs Training. Diese Achse hat
-zwei Werte:
+Dysarthrische Sprache ist oft stark verlangsamt, und Whisper versteht sie
+vorgespult messbar besser. Wieviel, hängt am Sprecher. Drei Wege:
 
-* **Wie im Profil eingestellt** - die Vorgabe und das Verfahren von vorher.
-* **Beste suchen (0,8 bis 3,0)** - der Trainer sucht sie selbst.
-
-**Wie gesucht wird.** Vor jeder Faltung läuft das **unveränderte Grundmodell**
-über eine Stichprobe von zwei Dutzend Lernzeilen dieser Faltung, bei acht
-Stützstellen zwischen 0,8 und 3,0, und der WER entscheidet. Das kostet etwa
-eine Minute je Faltung - ein Lauf von einer Stunde wird dadurch nicht zu acht,
-was er würde, wenn man je Faktor einmal trainierte.
-
-**Warum je Faltung.** Weil die Wahl sonst Daten sähe, an denen später gemessen
-wird. Auf den Lernzeilen der eigenen Faltung gewählt, ist es kein Leck; das
-Endmodell nimmt den Median der sechs mit, genau wie bei den Durchgängen und
-beim α.
-
-**Was das ist: ein Stellvertreter.** Gemessen wird, wie gut das *Grundmodell*
-diesen Sprecher bei Tempo x versteht; gesucht ist, bei welchem Tempo das
-*feingetunte* Modell ihn am besten versteht. Die Annahme dahinter - ein
-besserer Ausgangspunkt bleibt auch nach dem Feintuning besser - ist plausibel
-und nicht bewiesen. Wer es genau wissen will, stellt am Profil zwei feste
-Faktoren ein, beauftragt je einen Lauf und vergleicht sie in der Tafel.
-
-**Warum ein grobes Raster.** Über zwei Dutzend Aufnahmen ist der WER selbst
-eine Zufallsgröße. Eine Suche auf 0,05 genau optimierte das Rauschen und fände
-bei einer zweiten Stichprobe einen anderen Wert - mit derselben Überzeugung.
-
-Der gefundene Faktor steht danach in der Überschrift des Laufs, im Namen des
-Standes und in seinem Manifest - und „schreiben" liest ihn von dort, um beim
-Diktieren genauso vorzuspulen.
-
----
-
-Ein Grundmodell muss in `WORTLAUT_AUSWERTUNG_MODELLE` stehen, sonst hat sein
-trainierter Stand keine Baseline, gegen die er antreten könnte. `small`,
-`medium` und `large-v3` sind dort von Haus aus dabei.
-
-Alles Übrige - Lernrate, Durchgänge, Stapelgröße, LoRA-Rang - steht in
-`training/rezepte/*.yaml` und nicht in der Oberfläche. Jede Einstellmöglichkeit
-dort wäre eine, deren Wirkung später niemand mehr zuzuordnen weiß.
-
-Ausgeliefert wird **nicht der letzte Durchgang, sondern der beste.** Bei
-wenigen hundert kurzen Sätzen dreht die Validierungskurve irgendwo in der Mitte
-und steigt danach wieder - das Modell lernt die Trainingssätze auswendig. Wer
-den letzten Stand nimmt, liefert genau dieses Modell aus, und die Zahl der
-Durchgänge im Rezept wird zu einer Wette, die man je Korpus neu abschließen
-müsste. So ist sie nur noch eine Obergrenze: Zu hoch angesetzt kostet sie
-Rechenzeit, zu niedrig kostet sie Güte - im Zweifel lieber zu hoch.
-
-### Die dritte Achse: was am Ende zählt
-
-Seit September 2026 ist „der beste Durchgang" nicht mehr die einzige Antwort
-darauf, welcher Stand aus einem gelaufenen Training herauskommt. Beim
-Beauftragen steht eine dritte Wahl daneben - der **Abschluss**
-(`training/abschluss.py`):
-
-| | Was geschieht | Was es kostet |
+| Wahl | Verfahren | Kosten |
 |---|---|---|
-| **Bester Durchgang** | der Zwischenstand mit dem besten Validierungsverlust | nichts - das Verfahren von vorher |
-| **Beste Durchgänge gemittelt** | die besten drei Zwischenstände Gewicht für Gewicht gemittelt („Model Soup") | Platz auf der Platte, keine Rechenzeit |
-| **Mit dem Grundmodell verrechnet** | θ = α·θ_grund + (1−α)·θ_fein, α auf der Validierung gewählt (WiSE-FT) | je α ein Durchgang durch die Validierung: Sekunden |
-| **Beides** | erst mitteln, dann verrechnen | beides zusammen |
+| **Aus** | gar nicht vorspulen | – |
+| **Aus den Dauern geschätzt** | Aufnahmedauer ÷ geschätzte Sprechdauer der Texte | nichts |
+| **Gesucht (0,75–4,0)** | Stützstellen am unveränderten Grundmodell | ~1 Min. je Faltung |
 
-Die Trainingsschleife fasst keine davon an; sie entscheiden allein, welcher
-Stand aus einem gelaufenen Training ausgeliefert wird. Deshalb sind sie eine
-**Achse** und keine stille Verbesserung: Jede lässt sich an denselben
-Aufnahmen messen wie Methode und Datensatz, und die Vorgabe „Bester
-Durchgang" rechnet Gewicht für Gewicht das, wonach jeder Stand von vorher
-entstand. Wer nichts wählt, ändert nichts.
+**Die Schätzung** rechnet je Faltung zwei Summen: wie lange die Texte bei
+gewöhnlichem Sprechtempo dauern würden (`chunker.dauer`, 13 Zeichen je
+Sekunde, plus eine Sekunde je Aufnahme für Ansetzen und Abklingen) und wie
+lange sie wirklich gedauert haben. Ihr Verhältnis ist der Faktor, gerundet auf
+eine Viertelstufe. Über Summen und nicht je Aufnahme: Ein einzelner Satz kann
+eine lange Pause enthalten, und ein Mittel über Quotienten gewichtete kurze
+Aufnahmen so stark wie lange. Das Endmodell nimmt das Mittel der sechs
+Faltungen, wieder auf eine Viertelstufe.
 
-Zwei Zusagen stehen dabei fest. **α wird nie an der gemessenen Faltung gewählt** - sie wird
-nie angefasst, sonst wäre die Testzahl eine Trainingszahl. Und **α = 0 steht im
-Raster**: α = 0 ist der feingetunte Stand selbst, die Interpolation kann auf der
-Validierung also nicht verlieren. Wie viele Zwischenstände gemittelt werden und
-welche α versucht werden, steht in `training/rezepte/*.yaml`, nicht in der
-Oberfläche.
+**Die Suche** dekodiert je Faltung eine Stichprobe von bis zu zwei Dutzend
+Lernaufnahmen bei acht Stützstellen mit dem **unveränderten Grundmodell** und
+nimmt den kleinsten WER. Gewinnt die oberste Stützstelle, wird nachgelegt
+(3,5, dann 4,0): Ein Optimum am Rand ist keines, sondern die Auskunft, dass zu
+kurz gesucht wurde.
 
-Was dabei herauskam, trägt der Modellstand bei sich: die gemittelten
-Zwischenstände, das gewählte α und der Validierungsverlust davor und danach. Ein
-Stand, dessen α niemand mehr nachsehen kann, wäre mit keinem anderen zu
-vergleichen - in der Modelltabelle steht es deshalb in der Nebenzeile.
+Am Ende werden die sechs Kurven **übereinandergelegt** und das Minimum der
+gemittelten Kurve genommen - nicht der Median der sechs Sieger. Eine einzelne
+Faltung hört zu wenige Aufnahmen, als dass ihr Sieger mehr wäre als Zufall;
+zusammengelegt sind dieselben Kurven glatt. Der Standardfehler steht je
+Stützstelle daneben, und Faktoren innerhalb eines Fehlers vom besten gelten
+als nicht unterscheidbar.
 
-### Die vierte Achse: wie abgewandelt wird
+**Beide Verfahren beantworten verschiedene Fragen.** Die Schätzung sagt, wie
+weit dieser Mensch von der Norm abweicht; die Suche sagt, bei welcher
+Geschwindigkeit das Modell ihn am besten versteht. An einem echten Korpus
+gingen sie deutlich auseinander - geschätzt 4,4 (auf 4,0 gestutzt), gesucht
+3,0. Welches der bessere Faktor ist, sagt der Vergleich in der Modelltafel;
+dafür stehen beide als eigene Achse darin und nicht eines im Quelltext.
 
-„Womit" oben sagt, **welche abgelegten Fassungen** einer Aufnahme als eigene
-Zeilen ins Manifest kommen. Die vierte Achse sagt etwas anderes: **was mit
-einer Zeile geschieht, wenn sie geladen wird** - zur Laufzeit, gewürfelt, und
-nichts davon liegt hinterher auf der Platte (`training/klangwandel.py`):
+**Je Faltung und nicht einmal für den Lauf.** Sonst sähe die Wahl Daten, an
+denen später gemessen wird.
 
-| | Was mit einer Probe geschieht | Aufwand je Probe |
-|---|---|---|
-| **Keine** | nichts - die Vorgabe und das Verfahren von vorher | 0 |
-| **Masken** | SpecAugment: Zeit- und Frequenzbalken im Spektrogramm | 0,08 ms |
-| **Masken, Raum und Rauschen** | dazu ein gewürfelter Raum und ein gewürfeltes Grundgeräusch | 0,8 ms |
-| **Dazu Tempo** | zusätzlich schneller und langsamer gesprochen | 4,4 ms |
-
-Zum Vergleich: Der Merkmalsausleser, den jede Probe ohnehin durchläuft, kostet
-9,1 ms. Selbst die breiteste Stufe ist damit umsonst zu haben - vorbereitet
-wird in zwei Ladefäden, während die Karte rechnet.
-
-**Warum nichts davon abgelegt wird.** Nicht aus Platzgründen und nicht aus
-Zeitgründen - beides wäre zu haben. Sondern weil eine Datei je Aufnahme in
-jedem Durchgang *dieselbe* wäre, und gerade das soll sie nicht sein: Die
-Wirkung einer Regularisierung liegt darin, dass das Modell die Aufnahme nie
-zweimal gleich hört. Eine Datei wäre hier nicht die Ersparnis, sondern der
-Verlust.
-
-**Warum die Lautstärke fehlt.** Sie wäre der billigste Griff von allen und ist
-der einzige, von dem wir wissen, dass er nichts bringt - genau deshalb sind in
-„hören" die Fassungen `pegel` und `lauter` verworfen worden. Was bleibt, muss
-das Spektrogramm an jeder Stelle verändern, nicht bloß seine Höhe.
-
-**Warum Tempo eine eigene Stufe hat.** Bei dysarthrischer Sprache ist das
-Sprechtempo kein Zufall, sondern ein Merkmal des Sprechers - womöglich genau
-das, auf das dieses Modell sich einstellen soll. Es zu verwürfeln kann helfen
-oder schaden. Das ist eine Frage und keine Meinung, und „Masken, Raum und
-Rauschen" gegen „Dazu Tempo" ist der Versuch, der sie beantwortet.
-
-**Abgewandelt wird nur, woraus gelernt wird.** Die Validierung bleibt sauber:
-Sie sagt, welcher Durchgang der beste war und welches α gewinnt - eine
-Validierung, die in jedem Durchgang anders klingt, misst den Würfel statt das
-Modell. Die zurückgehaltene Faltung wird nicht mitgelernt.
-
-### Die fünfte Achse: wie lange trainiert wird
-
-Die Zahl der Durchgänge im Rezept ist als **Obergrenze** gemeint: „Zu hoch
-angesetzt kostet sie Rechenzeit, zu niedrig kostet sie Güte - im Zweifel lieber
-zu hoch." Im September 2026 hat sich gezeigt, dass sie bei einem sehr kleinen
-Korpus zu niedrig war, und dass man das einem fertigen Lauf nicht ansieht: Eine
-Kurve, die am letzten Durchgang noch fällt, sieht aus wie eine, die fertig ist.
-
-Der Lauf, der es zeigte - neun Aufnahmen, davon fünf zum Lernen:
-
-| Durchgang | 1 | 4 | 8 | 12 (Schluss) |
-|---|---|---|---|---|
-| Validierungsverlust | 10,84 | 9,06 | 6,77 | **5,53** |
-
-Monoton fallend bis zum Schluss, der beste Durchgang war der letzte. Die
-Obergrenze hat gebunden, nicht die Überanpassung.
-
-Deshalb gibt es beim Beauftragen jetzt eine Wahl:
-
-| | Was geschieht |
-|---|---|
-| **Feste Zahl Durchgänge** | so viele, wie im Rezept stehen - die Vorgabe und das Verfahren von vorher |
-| **Bis nichts mehr besser wird** | eine weit höhere Obergrenze (LoRA 60, volles Training 40), und Schluss, sobald die Validierung mehrere Prüfungen lang nicht mehr besser wird |
-
-**Geduld kostet Rechenzeit und nie Güte.** Ausgeliefert wird ohnehin der beste
-Durchgang; ein Lauf, der zu lange läuft, liefert denselben Stand wie einer, der
-rechtzeitig aufhört - nur später. Das ist der Grund, warum die Obergrenze so
-weit oben stehen darf.
-
-**Wann es nicht geht.** Ohne Validierungsproben gibt es kein Kriterium für
-„wird nicht mehr besser". Ein zu kleiner Korpus fällt deshalb auf die feste
-Zahl zurück und bekommt es ins Protokoll geschrieben - weiterzulaufen, bis
-irgendetwas passiert, wäre kein Verfahren, sondern eine Hoffnung.
-
-**Und wenn auch die hohe Grenze bindet**, sagt der Lauf es: Wer die Obergrenze
-erreicht, ohne die Geduld aufzubrauchen, liest im Protokoll, dass es womöglich
-noch besser geworden wäre. Genau diese Auskunft hat gefehlt.
-
-**Der Warmlauf ist mitgewachsen.** Er stand als feste Schrittzahl im Rezept -
-50 Schritte, bis die Lernrate ihren vollen Wert erreicht. Derselbe kleine Lauf
-hatte insgesamt 24 Schritte: Die Lernrate kam nie über die Hälfte, der ganze
-Lauf war Rampe (gemessen bei Schritt 20: 3,2e-4 statt 1e-3). Der Warmlauf ist
-deshalb auf ein Fünftel des Laufs gedeckelt. Für jeden Lauf, der lang genug
-ist, ändert das nichts - bei 264 Proben bleiben es die 50 aus dem Rezept.
-
-Das ist auch die Antwort auf die naheliegende Frage, ob sich aus demselben
-Material mehr herausholen ließe, indem man mit mehreren Lernraten trainiert.
-Bei knapp hundert Trainingsaufnahmen lohnt sich das nicht: Die Gefahr ist nicht,
-zu wenig zu lernen, sondern zu viel, und eine Validierung über zwanzig
-Aufnahmen unterscheidet zwei benachbarte Lernraten nicht verlässlich - was man
-dann misst, ist Rauschen. Der beste Durchgang statt des letzten holt aus
-demselben Material mehr heraus als jede Lernratensuche, und er kostet keinen
-zusätzlichen Lauf. Der Hebel, der wirklich zieht, sind mehr Aufnahmen.
-
-Welche Hebel es darüber hinaus gibt - Augmentierung im Merkmalsraum, Auswahl
-nach Wortfehlerrate statt Verlust, Kreuzvalidierung, Kontextverstärkung beim
-Dekodieren - und in welcher Reihenfolge sie sich lohnen, steht in
-[Das Trainingsverfahren](trainingsverfahren.md). Dort steht auch, warum der
-erste Schritt kein Trainingsschritt war, sondern ein Vertrauensbereich auf den
-Zahlen, die diese App anzeigt - und warum der zweite die dritte Achse oben ist:
-Sie ist der billigste Schritt, der die Schleife nicht anfasst.
-
-Zwei weitere Entscheidungen in den Rezepten sind keine Geschmacksfrage:
-
-* **Volles Training läuft mit 1e-5, LoRA mit 1e-3.** Das ist kein Tippfehler.
-  Beim vollen Training zieht eine zu hohe Lernrate dem Modell in wenigen
-  hundert Schritten alles aus, was es vorher konnte; die LoRA-Matrizen dagegen
-  starten bei null und müssen erst etwas werden.
-* **Korrekturen wiegen 0,5.** Sie stammen aus `schreiben`: Ihr Text ist keine
-  Vorgabe, sondern eine vom Menschen abgenickte Maschinenausgabe. Wer sie
-  gleichrangig einspeist, trainiert dem Modell seine eigenen Fehler an. Das
-  Gewicht steht je Zeile im Manifest und wirkt im Verlust je Probe
-  (`training/finetune.py`).
+Der gefundene Faktor steht in der Überschrift des Laufs, im Namen des Standes
+und in seinem Manifest - und „schreiben" liest ihn von dort, um beim Diktieren
+genauso vorzuspulen.
 
 ## Wie gemessen wird, und Training
 

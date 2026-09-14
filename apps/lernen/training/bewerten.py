@@ -95,7 +95,7 @@ def geltendes_tempo(auftrag: dict[str, Any], mitgenommen: dict[str, Any] | None)
     ein Modell, das auf 1,75 gelernt hat, beim Diktieren 1,0 zu hören - und der
     ganze Lauf wäre umsonst gewesen, ohne dass irgendwo ein Fehler stünde.
     """
-    if str(auftrag.get("tempowahl") or laeufe.TEMPO_WIE_EINGESTELLT) == laeufe.TEMPO_OPTIMAL:
+    if laeufe.tempowahl_aus(auftrag) != laeufe.TEMPO_AUS:
         gefunden = (mitgenommen or {}).get("tempo")
         if gefunden is not None:
             return float(gefunden)

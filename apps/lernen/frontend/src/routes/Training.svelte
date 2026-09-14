@@ -260,14 +260,14 @@
     // das ist die Zahl, die zwei Läufe voneinander trennt. Solange sie noch
     // gesucht wird, steht das da; eine Überschrift, die erst später stimmt,
     // wäre schlimmer als eine, die auf sich warten lässt.
-    if (lauf.tempowahl === 'optimal') {
+    if (lauf.tempowahl !== 'aus') {
       // Sobald eine Faltung einen Faktor gefunden hat, steht er da - mit dem
       // Vermerk, dass er noch wandern kann. „wird gesucht" über zwanzig
       // Minuten ist kein Zustand, sondern ein Platzhalter, der sich als einer
       // ausgibt.
       teile.push(
         lauf.tempo === null
-          ? 'Tempo wird gesucht'
+          ? 'Tempo wird ermittelt'
           : `Tempo ${tempoText(lauf.tempo)}${lauf.tempo_endgueltig ? '' : ' (vorläufig)'}`,
       );
     } else if (lauf.tempo !== null && lauf.tempo !== 1) {

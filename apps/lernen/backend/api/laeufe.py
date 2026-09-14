@@ -221,19 +221,25 @@ DAUERN = [
 
 TEMPI = [
     WahlAntwort(
-        schluessel=lauf_layout.TEMPO_WIE_EINGESTELLT,
-        name="Wie im Profil eingestellt",
+        schluessel=lauf_layout.TEMPO_AUS,
+        name="Aus",
+        erklaerung="Gar nicht vorspulen - der Zustand von immer.",
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.TEMPO_GESCHAETZT,
+        name="Aus den Dauern geschätzt",
         erklaerung=(
-            "Der Faktor aus dem Sprecherprofil - derselbe, mit dem gemessen und "
-            "diktiert wird."
+            "Aufnahmedauer geteilt durch die geschätzte Sprechdauer der Texte, "
+            "je Faltung, auf eine Viertelstufe gerundet. Kostet nichts."
         ),
     ),
     WahlAntwort(
         schluessel=lauf_layout.TEMPO_OPTIMAL,
-        name="Beste suchen (0,8 bis 3,0)",
+        name="Gesucht (0,75 bis 4,0)",
         erklaerung=(
-            "Acht Stützstellen am unveränderten Grundmodell, je Faltung neu; "
-            "der Median gilt fürs Endmodell. Etwa eine Minute je Faltung."
+            "Acht bis zehn Stützstellen am unveränderten Grundmodell, je "
+            "Faltung neu; am Ende die Kurven übereinandergelegt. Etwa eine "
+            "Minute je Faltung."
         ),
     ),
 ]
@@ -292,7 +298,7 @@ class Bestellung(BaseModel):
     # Die fünfte Achse, ebenfalls mit Vorgabe.
     dauer: str = lauf_layout.DAUER_FEST
     # Die sechste, und die einzige, die etwas sucht statt etwas zu setzen.
-    tempowahl: str = lauf_layout.TEMPO_WIE_EINGESTELLT
+    tempowahl: str = lauf_layout.TEMPO_AUS
     # Worauf trainiert wird. Leer heißt: die Vorgabe des Servers - ein Auftrag
     # von einem Aufrufer, der diese Achse nicht kennt, bleibt derselbe Auftrag.
     grundmodell: str = ""
@@ -325,7 +331,7 @@ class LaufAntwort(BaseModel):
     # Wie lange trainiert wurde. Ein Lauf von vor dieser Achse heißt `fest`.
     dauer: str
     # Ob die Geschwindigkeit gesucht wurde oder die des Profils galt.
-    tempowahl: str = lauf_layout.TEMPO_WIE_EINGESTELLT
+    tempowahl: str = lauf_layout.TEMPO_AUS
     # Die Geschwindigkeit, mit der dieser Lauf wirklich gerechnet hat. Bei
     # `optimal` der gefundene Median über die Faltungen, sonst der Wert aus dem
     # Profil, wie er beim Beauftragen dastand. `null`, solange die Suche noch
@@ -518,8 +524,7 @@ def _anteil(lauf: lauf_layout.Lauf) -> float | None:
     # Welche Stufen in **diesem** Training vorkommen. Das Endmodell sucht kein
     # Tempo (es übernimmt den Median) und wird an nichts gemessen.
     sucht = (
-        str(lauf.auftrag.get("tempowahl") or lauf_layout.TEMPO_WIE_EINGESTELLT)
-        == lauf_layout.TEMPO_OPTIMAL
+        lauf_layout.tempowahl_aus(lauf.auftrag) == lauf_layout.TEMPO_OPTIMAL
         and not endmodell
     )
     stufen = [
@@ -574,7 +579,7 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         abschluss=str(lauf.auftrag.get("abschluss") or lauf_layout.ABSCHLUSS_BESTER),
         augmentierung=str(lauf.auftrag.get("augmentierung") or lauf_layout.AUG_KEINE),
         dauer=str(lauf.auftrag.get("dauer") or lauf_layout.DAUER_FEST),
-        tempowahl=str(lauf.auftrag.get("tempowahl") or lauf_layout.TEMPO_WIE_EINGESTELLT),
+        tempowahl=lauf_layout.tempowahl_aus(lauf.auftrag),
         tempo=_tempo_des_laufs(lauf),
         tempo_endgueltig=bool(lauf.zustand.get("tempo_endgueltig", True)),
         basismodell=str(lauf.auftrag.get("basismodell", "")),
@@ -765,23 +770,28 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
     )
 
     faktor = _tempo_des_laufs(lauf)
-    gesucht = str(auftrag.get("tempowahl") or lauf_layout.TEMPO_WIE_EINGESTELLT)
+    gesucht = lauf_layout.tempowahl_aus(auftrag)
     endgueltig = bool(zustand.get("tempo_endgueltig", True))
     if faktor is None:
         dazu("Vorspulen", "wird gesucht", "noch keine Faltung durch")
-    elif gesucht == lauf_layout.TEMPO_OPTIMAL:
+    elif gesucht != lauf_layout.TEMPO_AUS:
         laeuft = zustand.get("faltung")
+        woher = (
+            f"gesucht, Minimum der {lauf_layout.FALTUNGEN} zusammengelegten Kurven"
+            if gesucht == lauf_layout.TEMPO_OPTIMAL
+            else f"geschätzt, Mittel aus {lauf_layout.FALTUNGEN} Faltungen"
+        )
         dazu(
             "Vorspulen",
             f"{_zahl(faktor)}×" + ("" if endgueltig else " (vorläufig)"),
-            f"Median aus {lauf_layout.FALTUNGEN} Faltungen"
+            woher
             if endgueltig
-            else f"Median der bisherigen, gerade Faltung {int(laeuft) + 1}"
+            else f"noch offen, gerade Faltung {int(laeuft) + 1}"
             if laeuft is not None
-            else "Median der bisherigen",
+            else "noch offen",
         )
     else:
-        dazu("Vorspulen", f"{_zahl(faktor)}×", "aus dem Sprecherprofil" if faktor != 1.0 else "")
+        dazu("Vorspulen", f"{_zahl(faktor)}×")
 
     # ── Wie gelernt wurde ───────────────────────────────────────────────────
     if rezept.get("lernrate") is not None:
@@ -867,7 +877,7 @@ def _tempo_des_laufs(lauf: lauf_layout.Lauf) -> float | None:
     gewaehlt = lauf.zustand.get("tempo")
     if gewaehlt is not None:
         return float(gewaehlt)
-    if str(lauf.auftrag.get("tempowahl") or "") == lauf_layout.TEMPO_OPTIMAL:
+    if lauf_layout.tempowahl_aus(lauf.auftrag) != lauf_layout.TEMPO_AUS:
         return None
     return float(lauf.auftrag.get("tempo", 1.0))
 
