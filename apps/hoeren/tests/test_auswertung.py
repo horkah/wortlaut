@@ -531,6 +531,37 @@ class TestVorspulen:
         wieder = klient.get("/api/auswertung").json()["stand"]
         assert wieder["erledigt"] == fertig["erledigt"] == wieder["gesamt"]
 
+    def test_die_kurve_zeigt_nur_das_geltende_tempo(
+        self,
+        klient: TestClient,
+        verwalter: TestClient,
+        sprecher: str,
+        quelle: str,
+        sprich,
+        antworten: dict,
+    ) -> None:
+        # Der Widerspruch, der das hier ausgelöst hat: „0 von 96 erledigt" über
+        # einer vollen Kurve. Beide Zahlen stimmten für sich - der Zähler
+        # siebte nach Tempo, die Kurve nicht.
+        antworten.update({"small": "irgendetwas", "medium": "irgendetwas"})
+        sprich()
+        _laufe_bis_fertig(klient)
+        voll = klient.get("/api/auswertung").json()
+        assert any(punkt["werte"] for punkt in voll["punkte"])
+
+        self._setze(verwalter, sprecher, 2.0)
+
+        leer = klient.get("/api/auswertung").json()
+        assert leer["stand"]["erledigt"] == 0
+        assert not any(punkt["werte"] for punkt in leer["punkte"]), (
+            "Die Kurve zeigt Zahlen, die der Zähler nicht mehr zählt."
+        )
+
+        # Und zurück: dieselbe Kurve wie vorher, ohne neuen Lauf.
+        self._setze(verwalter, sprecher, 1.0)
+        wieder = klient.get("/api/auswertung").json()
+        assert [p["werte"] for p in wieder["punkte"]] == [p["werte"] for p in voll["punkte"]]
+
     def test_ein_unbekannter_faktor_wird_abgewiesen(
         self, verwalter: TestClient, sprecher: str
     ) -> None:

@@ -44,10 +44,34 @@ from .audio import ABTASTRATE, AudioFehler
 FAKTOREN = (1.0, 2.0, 3.0)
 VORGABE = 1.0
 
-# `atempo` kann je Durchgang höchstens verdoppeln; für das Dreifache werden
-# zwei hintereinandergehängt. Das ist keine Krücke, sondern die von ffmpeg
-# vorgesehene Art.
-_FILTER = {2.0: "atempo=2.0", 3.0: "atempo=1.5,atempo=2.0"}
+# Die Grenzen, innerhalb derer gesucht werden darf (siehe
+# `apps/lernen/training/tempowahl.py`). Unter 0,8 wird gedehnt statt
+# vorgespult - das kann helfen, wenn jemand sehr schnell spricht -, über 3,0
+# bleibt von einer kurzen Silbe zu wenig übrig, als dass ein Spektrogramm sie
+# noch zeigte.
+SPANNE = (0.8, 3.0)
+
+# Was ein einzelner `atempo` verträgt. Darüber hinaus werden mehrere
+# hintereinandergehängt; das ist die von ffmpeg vorgesehene Art und keine
+# Krücke.
+_JE_STUFE = (0.5, 2.0)
+
+
+def filterkette(faktor: float) -> str:
+    """Die ffmpeg-Filterkette für diesen Faktor.
+
+    Ein `atempo` schafft höchstens das Doppelte, also wird der Faktor auf
+    mehrere aufgeteilt: 3,0 wird zu zweimal ~1,732. Gleichmäßig aufgeteilt und
+    nicht `2,0 · 1,5` - jede Stufe rechnet neu, und zwei gleich große Schritte
+    verteilen den Fehler besser als ein großer und ein kleiner.
+    """
+    stufen = 1
+    while faktor ** (1 / stufen) > _JE_STUFE[1] or faktor ** (1 / stufen) < _JE_STUFE[0]:
+        stufen += 1
+        if stufen > 8:  # pragma: no cover - bei dieser SPANNE unerreichbar
+            raise AudioFehler(f"Faktor {faktor:g} lässt sich nicht zerlegen.")
+    einzeln = faktor ** (1 / stufen)
+    return ",".join([f"atempo={einzeln:.6f}"] * stufen)
 
 
 def pruefe(faktor: float) -> float:
@@ -72,8 +96,17 @@ def marke(faktor: float) -> str:
 
 
 def vorspulen_noetig(faktor: float) -> bool:
-    """Ob überhaupt etwas zu tun ist. Bei 1,0 ist es das nicht."""
-    return faktor in _FILTER
+    """Ob überhaupt etwas zu tun ist. Bei 1,0 ist es das nicht.
+
+    Mit einer kleinen Toleranz, weil der Faktor aus einer Suche kommen kann
+    und 0,9999999 kein Vorspulen ist, sondern eine Kommastelle.
+    """
+    return abs(faktor - VORGABE) > 1e-6
+
+
+def in_spanne(faktor: float) -> float:
+    """Der Faktor, auf die erlaubte Spanne gestutzt."""
+    return min(max(float(faktor), SPANNE[0]), SPANNE[1])
 
 
 def spule_vor(quelle: Path, ziel: Path, faktor: float) -> None:
@@ -86,13 +119,17 @@ def spule_vor(quelle: Path, ziel: Path, faktor: float) -> None:
     """
     if not vorspulen_noetig(faktor):
         raise AudioFehler(f"Bei Faktor {faktor:g} ist nichts vorzuspulen.")
+    if not SPANNE[0] <= faktor <= SPANNE[1]:
+        raise AudioFehler(
+            f"Faktor {faktor:g} liegt außerhalb von {SPANNE[0]:g} bis {SPANNE[1]:g}."
+        )
     ziel.parent.mkdir(parents=True, exist_ok=True)
     # Schalter und Wert gehören paarweise in eine Zeile:
     # fmt: off
     befehl = [
         "ffmpeg", "-nostdin", "-loglevel", "error", "-y",
         "-i", str(quelle),
-        "-filter:a", _FILTER[faktor],
+        "-filter:a", filterkette(faktor),
         "-ac", "1",
         "-ar", str(ABTASTRATE),
         "-sample_fmt", "s16",

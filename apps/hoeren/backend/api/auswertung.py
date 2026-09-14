@@ -246,11 +246,20 @@ def _nummeriert(db: Datenbank) -> list[tuple[int, Aufnahme, Vorlage]]:
 def uebersicht(db: Datenbank, sprecher: SprecherId) -> AuswertungAntwort:
     """Die Kurve und der Stand des Laufs - die Auskunft, die die Seite abfragt."""
     namen = _namen()
+    # Nur die Zeilen der Geschwindigkeit, die gerade gilt.
+    #
+    # Ohne diese Bedingung stand hier ein Widerspruch: Nach dem Umstellen auf
+    # Faktor 2 meldete der Balken „0 von 96 erledigt" - und darunter lag die
+    # volle Kurve aus den Zeilen von Faktor 1. Beide Zahlen stimmten für sich,
+    # nebeneinander behaupteten sie Unsinn. Der Zähler siebte nach Tempo
+    # (`services/auswertung.py`), die Kurve nicht.
+    faktor = auswertung.tempo_des_sprechers(db)
     nach_aufnahme: dict[str, dict[str, dict[str, dict[str, float]]]] = {}
     for erkennung in db.scalars(
         select(Erkennung).where(
             Erkennung.modell.in_(namen),
             Erkennung.variante.in_(augmentierung.VARIANTEN),
+            Erkennung.tempo == faktor,
         )
     ):
         je_modell = nach_aufnahme.setdefault(erkennung.recording_id, {})
@@ -333,10 +342,19 @@ def vergleich(aufnahme_id: str, db: Datenbank, sprecher: SprecherId) -> Vergleic
         if aufnahme.id != aufnahme_id:
             continue
 
+        # Auch hier nur die geltende Geschwindigkeit, und hier wiegt es
+        # schwerer als in der Kurve: Seit je Tempo eine Zeile dastehen darf
+        # (`011_tempo.sql`), gibt es zu einem Modell und einer Fassung
+        # mehrere - und dieses Wörterbuch behielte stillschweigend die
+        # zuletzt gelesene. Welche das ist, sagt die Reihenfolge der
+        # Datenbank, also niemand.
         gerechnet = {
             (erkennung.modell, erkennung.variante): erkennung
             for erkennung in db.scalars(
-                select(Erkennung).where(Erkennung.recording_id == aufnahme_id)
+                select(Erkennung).where(
+                    Erkennung.recording_id == aufnahme_id,
+                    Erkennung.tempo == auswertung.tempo_des_sprechers(db),
+                )
             )
         }
         return VergleichAntwort(

@@ -220,6 +220,28 @@ DAUERN = [
 ]
 
 
+TEMPI = [
+    WahlAntwort(
+        schluessel=lauf_layout.TEMPO_WIE_EINGESTELLT,
+        name="Wie im Profil eingestellt",
+        erklaerung=(
+            "Die Geschwindigkeit, die für diesen Sprecher in „hören\u201c unter "
+            "Verwaltung steht - dieselbe, mit der auch gemessen und diktiert wird."
+        ),
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.TEMPO_OPTIMAL,
+        name="Beste suchen (0,8 bis 3,0)",
+        erklaerung=(
+            "Sucht vor jeder Faltung die Geschwindigkeit, bei der das unveränderte "
+            "Grundmodell diesen Sprecher am besten versteht, und trainiert damit. "
+            "Kostet etwa eine Minute je Faltung. Der gefundene Faktor steht "
+            "hinterher beim Lauf - wie das Gewicht α."
+        ),
+    ),
+]
+
+
 class GrundmodellAntwort(BaseModel):
     """Ein Grundmodell zur Wahl - und was es verträgt.
 
@@ -272,6 +294,8 @@ class Bestellung(BaseModel):
     augmentierung: str = lauf_layout.AUG_KEINE
     # Die fünfte Achse, ebenfalls mit Vorgabe.
     dauer: str = lauf_layout.DAUER_FEST
+    # Die sechste, und die einzige, die etwas sucht statt etwas zu setzen.
+    tempowahl: str = lauf_layout.TEMPO_WIE_EINGESTELLT
     # Worauf trainiert wird. Leer heißt: die Vorgabe des Servers - ein Auftrag
     # von einem Aufrufer, der diese Achse nicht kennt, bleibt derselbe Auftrag.
     grundmodell: str = ""
@@ -303,6 +327,13 @@ class LaufAntwort(BaseModel):
     augmentierung: str
     # Wie lange trainiert wurde. Ein Lauf von vor dieser Achse heißt `fest`.
     dauer: str
+    # Ob die Geschwindigkeit gesucht wurde oder die des Profils galt.
+    tempowahl: str = lauf_layout.TEMPO_WIE_EINGESTELLT
+    # Die Geschwindigkeit, mit der dieser Lauf wirklich gerechnet hat. Bei
+    # `optimal` der gefundene Median über die Faltungen, sonst der Wert aus dem
+    # Profil, wie er beim Beauftragen dastand. `null`, solange die Suche noch
+    # läuft - dann ist es schlicht noch nicht entschieden.
+    tempo: float | None = None
     basismodell: str
     erstellt: str
     status: str
@@ -362,6 +393,7 @@ class EinzelAntwort(BaseModel):
     abschluesse: list[WahlAntwort]
     augmentierungen: list[WahlAntwort]
     dauern: list[WahlAntwort]
+    tempi: list[WahlAntwort]
     grundmodelle: list[GrundmodellAntwort]
     kurve_training: list[PunktAntwort]
     kurve_validierung: list[PunktAntwort]
@@ -380,6 +412,7 @@ class ListeAntwort(BaseModel):
     abschluesse: list[WahlAntwort]
     augmentierungen: list[WahlAntwort]
     dauern: list[WahlAntwort]
+    tempi: list[WahlAntwort]
     grundmodelle: list[GrundmodellAntwort]
     basismodell: str
     # Wie viele Faltungen ein Lauf rechnet. Vom Server, damit die Oberfläche
@@ -442,6 +475,8 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         abschluss=str(lauf.auftrag.get("abschluss") or lauf_layout.ABSCHLUSS_BESTER),
         augmentierung=str(lauf.auftrag.get("augmentierung") or lauf_layout.AUG_KEINE),
         dauer=str(lauf.auftrag.get("dauer") or lauf_layout.DAUER_FEST),
+        tempowahl=str(lauf.auftrag.get("tempowahl") or lauf_layout.TEMPO_WIE_EINGESTELLT),
+        tempo=_tempo_des_laufs(lauf),
         basismodell=str(lauf.auftrag.get("basismodell", "")),
         erstellt=str(lauf.auftrag.get("erstellt", "")),
         status=lauf.status,
@@ -458,6 +493,27 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
             round(lauf.stillstand_s) if lauf.status == lauf_layout.LAEUFT else None
         ),
     )
+
+
+def _tempo_des_laufs(lauf: lauf_layout.Lauf) -> float | None:
+    """Mit welcher Geschwindigkeit dieser Lauf wirklich gerechnet hat.
+
+    Bei `wie_eingestellt` ist es der Wert, der beim Beauftragen im Profil
+    stand - eingefroren im Auftrag, damit ein späteres Umstellen des Profils
+    nicht rückwirkend behauptet, dieser Lauf sei ein anderer gewesen.
+
+    Bei `optimal` ist es der Median der Faktoren, die die sechs Faltungen
+    gefunden haben - dieselbe Art, wie das Endmodell auch die Durchgänge und
+    das α mitnimmt. Solange die Faltungen laufen, steht er noch nicht fest;
+    dann ist es `None`, und die Ansicht sagt „wird gesucht" statt einer Zahl,
+    die sie noch gar nicht hat.
+    """
+    gewaehlt = lauf.zustand.get("tempo")
+    if gewaehlt is not None:
+        return float(gewaehlt)
+    if str(lauf.auftrag.get("tempowahl") or "") == lauf_layout.TEMPO_OPTIMAL:
+        return None
+    return float(lauf.auftrag.get("tempo", 1.0))
 
 
 def _hole(sprecher: str, job_id: str) -> lauf_layout.Lauf:
@@ -495,6 +551,7 @@ def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         abschluesse=ABSCHLUESSE,
         augmentierungen=AUGMENTIERUNGEN,
         dauern=DAUERN,
+        tempi=TEMPI,
         grundmodelle=_grundmodelle(),
         basismodell=konfiguration.lernen_basismodell,
         faltungen=lauf_layout.FALTUNGEN,
@@ -544,6 +601,10 @@ def beauftrage(
         )
     if bestellung.dauer not in lauf_layout.DAUERN:
         raise HTTPException(status_code=400, detail=f"Unbekannte Dauer: {bestellung.dauer}")
+    if bestellung.tempowahl not in lauf_layout.TEMPI:
+        raise HTTPException(
+            status_code=400, detail=f"Unbekannte Tempowahl: {bestellung.tempowahl}"
+        )
 
     konfiguration = einstellungen()
     grundmodell = bestellung.grundmodell or konfiguration.lernen_basismodell
@@ -585,6 +646,7 @@ def beauftrage(
             abschluss=bestellung.abschluss,
             augmentierung=bestellung.augmentierung,
             dauer=bestellung.dauer,
+            tempowahl=bestellung.tempowahl,
             basismodell=grundmodell,
         ),
     )
@@ -617,6 +679,7 @@ def einzeln(
         abschluesse=ABSCHLUESSE,
         augmentierungen=AUGMENTIERUNGEN,
         dauern=DAUERN,
+        tempi=TEMPI,
         grundmodelle=_grundmodelle(),
         kurve_training=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["training"]],
         kurve_validierung=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["validierung"]],

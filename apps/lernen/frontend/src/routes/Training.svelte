@@ -56,9 +56,18 @@
   let abschluss = $state(gemerkt.abschluss);
   let augmentierung = $state(gemerkt.augmentierung);
   let dauer = $state(gemerkt.dauer);
+  let tempowahl = $state(gemerkt.tempowahl);
 
   $effect(() => {
-    setzeTrainingswahl({ grundmodell, methode, datensatz, abschluss, augmentierung, dauer });
+    setzeTrainingswahl({
+      grundmodell,
+      methode,
+      datensatz,
+      abschluss,
+      augmentierung,
+      dauer,
+      tempowahl,
+    });
   });
 
   /**
@@ -160,6 +169,11 @@
     abgebrochen: 'zurückgenommen',
   };
 
+  /** `1.75` → `1,75×`, `2` → `2×`. Ohne Nullen, die niemand liest. */
+  function tempoText(faktor: number): string {
+    return `${faktor.toFixed(2).replace(/0+$/, '').replace(/\.$/, '').replace('.', ',')}×`;
+  }
+
   /**
    * Die Überschrift einer Laufkarte.
    *
@@ -179,6 +193,16 @@
       teile.push(g?.name ?? lauf.augmentierung);
     }
     if (lauf.dauer && lauf.dauer !== 'fest') teile.push(w?.name ?? lauf.dauer);
+    // Die gefundene Geschwindigkeit statt des Namens der Achse: „Beste suchen"
+    // sagt, was bestellt war, „Tempo 1,75×" sagt, was dabei herauskam - und
+    // das ist die Zahl, die zwei Läufe voneinander trennt. Solange sie noch
+    // gesucht wird, steht das da; eine Überschrift, die erst später stimmt,
+    // wäre schlimmer als eine, die auf sich warten lässt.
+    if (lauf.tempowahl === 'optimal') {
+      teile.push(lauf.tempo === null ? 'Tempo wird gesucht' : `Tempo ${tempoText(lauf.tempo)}`);
+    } else if (lauf.tempo !== null && lauf.tempo !== 1) {
+      teile.push(`Tempo ${tempoText(lauf.tempo)}`);
+    }
     return teile.join(' · ');
   }
 
@@ -201,12 +225,15 @@
     bestellt = 'laeuft';
     try {
       await beauftrageLauf(
-        methode,
-        datensatz,
-        abschluss,
-        augmentierung,
-        dauer,
-        grundmodell,
+        {
+          methode,
+          daten: datensatz,
+          abschluss,
+          augmentierung,
+          dauer,
+          tempowahl,
+          grundmodell,
+        },
         schluessel,
       );
       // Erst merken, wenn er gestimmt hat: Ein falsch getippter Schlüssel, der
@@ -393,6 +420,23 @@
         {#each daten.augmentierungen as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={augmentierung} value={wahl.schluessel} />
+            <span>
+              <strong>{wahl.name}</strong>
+              <span class="gedaempft">{wahl.erklaerung}</span>
+            </span>
+          </label>
+        {/each}
+      </fieldset>
+
+      <!-- Die sechste Achse, und die einzige, die etwas **sucht**.
+           Am Sprecherprofil hängt eine Geschwindigkeit; sie gilt fürs Messen,
+           fürs Diktieren und normalerweise auch hier. Nur ist der eingestellte
+           Wert der, den jemand zuerst ausprobiert hat, und nicht der beste. -->
+      <fieldset>
+        <legend>Wie schnell gehört wird</legend>
+        {#each daten.tempi as wahl (wahl.schluessel)}
+          <label class="option">
+            <input type="radio" bind:group={tempowahl} value={wahl.schluessel} />
             <span>
               <strong>{wahl.name}</strong>
               <span class="gedaempft">{wahl.erklaerung}</span>

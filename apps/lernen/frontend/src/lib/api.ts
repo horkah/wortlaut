@@ -69,6 +69,13 @@ export type Lauf = {
   augmentierung: string;
   /** Wie lange trainiert wurde: fest | geduldig. */
   dauer: string;
+  /** Ob die Geschwindigkeit gesucht wurde oder die des Profils galt. */
+  tempowahl: string;
+  /**
+   * Die Geschwindigkeit, mit der dieser Lauf wirklich gerechnet hat.
+   * `null` heißt bei `optimal`: wird noch gesucht.
+   */
+  tempo: number | null;
   basismodell: string;
   erstellt: string;
   /** wartet | laeuft | fertig | gescheitert | abgebrochen */
@@ -153,6 +160,7 @@ export type Laufliste = {
   abschluesse: Wahl[];
   augmentierungen: Wahl[];
   dauern: Wahl[];
+  tempi: Wahl[];
   grundmodelle: Grundmodell[];
   /** Die Vorgabe, worauf trainiert wird. */
   basismodell: string;
@@ -175,6 +183,7 @@ export type Laufeinzeln = {
   abschluesse: Wahl[];
   augmentierungen: Wahl[];
   dauern: Wahl[];
+  tempi: Wahl[];
   grundmodelle: Grundmodell[];
   kurve_training: Punkt[];
   kurve_validierung: Punkt[];
@@ -296,17 +305,25 @@ export const lauf = (jobId: string, intervall = 'aus') =>
  * Modell entsteht. Das eine gegen das andere zu tauschen hieße, entweder für
  * niemanden zu trainieren oder ohne Erlaubnis.
  */
-export const beauftrage = (
-  methode: string,
-  daten: string,
-  abschluss: string,
-  augmentierung: string,
-  dauer: string,
-  grundmodell: string,
-  schluessel: string,
-) =>
+export type Bestellung = {
+  methode: string;
+  daten: string;
+  abschluss: string;
+  augmentierung: string;
+  dauer: string;
+  tempowahl: string;
+  grundmodell: string;
+};
+
+/**
+ * Die Achsen als Objekt und nicht als Reihe von Argumenten: Es sind inzwischen
+ * sieben, alle vom selben Typ, und zwei vertauschte fielen niemandem auf -
+ * weder dem Übersetzer noch dem Leser. Der Schlüssel steht daneben, weil er
+ * kein Teil der Bestellung ist, sondern die Erlaubnis dazu.
+ */
+export const beauftrage = (bestellung: Bestellung, schluessel: string) =>
   anfrage<Lauf>('/laeufe', {
-    ...alsJson({ methode, daten, abschluss, augmentierung, dauer, grundmodell }),
+    ...alsJson(bestellung),
     headers: { 'Content-Type': 'application/json', 'X-Trainer-Key': schluessel },
   });
 

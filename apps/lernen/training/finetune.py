@@ -39,6 +39,7 @@ import yaml
 from wortlaut import laeufe, tempo
 
 from . import abschluss as abschlussrechnung
+from . import tempowahl
 from . import klangwandel
 from .daten import Proben, Stapler, zeilen_fuer_faltung
 
@@ -111,6 +112,18 @@ class Bericht:
         laeufe.haenge_an(
             self.verzeichnis / laeufe.FORTSCHRITT, {"zeit": laeufe.jetzt(), **felder}
         )
+
+    def merke(self, **felder: Any) -> None:
+        """Einen Wert in den Zustand legen, den die Übersicht sehen soll.
+
+        Für das, was ein Lauf **herausgefunden** hat und nicht bloß tut: die
+        gewählte Geschwindigkeit etwa. Im Zustand und nicht nur im Fortschritt,
+        weil die Liste es neben jedem Lauf zeigt und dafür keine
+        tausendzeilige Datei lesen soll - dieselbe Überlegung wie bei
+        `faltung`.
+        """
+        self.zustand.update(felder)
+        self._schreibe()
 
     def faltung(self, nummer: int | None) -> None:
         """Welche der sieben Trainings gerade läuft - für den Balken der Liste.
@@ -426,6 +439,25 @@ def trainiere(
     # wird (`services/auftraege.py`). Vorgespult wird beim ersten Zugriff je
     # Datei und dann nicht wieder; das Zwischenlager geht mit dem Lauf.
     faktor = float(auftrag.get("tempo", tempo.VORGABE))
+    tempoergebnis: tempowahl.Ergebnis | None = None
+    if str(auftrag.get("tempowahl") or laeufe.TEMPO_WIE_EINGESTELLT) == laeufe.TEMPO_OPTIMAL:
+        if vorgaben and vorgaben.get("tempo") is not None:
+            # Das Endmodell sucht nicht noch einmal: Es übernimmt, worauf sich
+            # die sechs Faltungen geeinigt haben - wie bei den Durchgängen und
+            # beim α auch.
+            faktor = float(vorgaben["tempo"])
+            bericht.sage(f"Tempo aus den Faltungen übernommen: Faktor {faktor:g}")
+        else:
+            # Gesucht wird auf den **Lernzeilen** dieser Faltung. Die Messzeilen
+            # anzufassen hieße, die Wahl an Daten zu treffen, an denen später
+            # gemessen wird (siehe `tempowahl.py`).
+            tempoergebnis = tempowahl.waehle(
+                lernzeilen, korpuswurzel, basismodell, sprache, bericht, faltung
+            )
+            faktor = tempoergebnis.faktor
+            if tempoergebnis.hinweis:
+                bericht.sage(f"  {tempoergebnis.hinweis}")
+
     zwischenlager = verzeichnis / laeufe.VORGESPULT if tempo.vorspulen_noetig(faktor) else None
     if zwischenlager is not None:
         bericht.sage(f"Vorgespult: Faktor {faktor:g} - Tonhöhe bleibt")
@@ -664,6 +696,8 @@ def trainiere(
     kennzahlen: dict[str, Any] = {
         "durchgaenge": _bester_durchgang(trainer, durchgaenge, hat_pruefung),
         "alpha": ergebnis.alpha,
+        "tempo": faktor,
+        "tempowahl": tempoergebnis.als_dict() if tempoergebnis is not None else None,
     }
 
     # Die Karte räumen, bevor jemand anders sie braucht. Ausdrücklich `del`
@@ -789,7 +823,18 @@ def kreuzvalidiere(
         ct2 = verzeichnis / laeufe.GEWICHTE / f"ct2-faltung-{faltung}"
         wandle_um(gewichte, ct2, bericht)
         zeilen.extend(
-            bewerte_faltung(verzeichnis, datenverzeichnis, ct2, auftrag, faltung, bericht)
+            bewerte_faltung(
+                verzeichnis,
+                datenverzeichnis,
+                ct2,
+                auftrag,
+                faltung,
+                bericht,
+                # Der Faktor **dieser** Faltung und nicht der des Auftrags: Bei
+                # `optimal` hat sie sich einen eigenen gesucht, und gemessen
+                # werden muss auf dem Klang, auf dem gelernt wurde.
+                faktor=float(kennzahlen["tempo"]),
+            )
         )
         gelernt.append({**kennzahlen, "faltung": faltung, "abschluss": ergebnis.als_dict()})
         # Sofort und nicht am Ende: Die nächste Faltung braucht den Platz.
@@ -803,11 +848,23 @@ def kreuzvalidiere(
     mitgenommen = {
         "durchgaenge": _median([float(k["durchgaenge"]) for k in gelernt]),
         "alpha": _median([k["alpha"] for k in gelernt if k["alpha"] is not None]),
+        # Der Median der sechs gefundenen Geschwindigkeiten. Dass er zwischen
+        # zwei Stützstellen des Rasters liegen kann, ist kein Mangel: Was
+        # gesucht war, ist die Gegend, und der Median ist ihre ehrlichste
+        # Zusammenfassung - genau wie beim α, das auch nicht auf sein Raster
+        # zurückgerundet wird.
+        "tempo": _median([float(k["tempo"]) for k in gelernt]),
         "faltungen": gelernt,
     }
+    gesucht = str(auftrag.get("tempowahl") or laeufe.TEMPO_WIE_EINGESTELLT)
     bericht.sage(
         f"Aus den Faltungen: {mitgenommen['durchgaenge']:.1f} Durchgänge"
         + (f", α = {mitgenommen['alpha']:.2f}" if mitgenommen["alpha"] is not None else "")
+        + (
+            f", Tempo = {mitgenommen['tempo']:.2f}"
+            if gesucht == laeufe.TEMPO_OPTIMAL and mitgenommen["tempo"] is not None
+            else ""
+        )
     )
     bericht.ereignis(
         art="kreuzvalidierung",
@@ -815,7 +872,13 @@ def kreuzvalidiere(
         zeilen=len(zeilen),
         durchgaenge=mitgenommen["durchgaenge"],
         alpha=mitgenommen["alpha"],
+        tempo=mitgenommen["tempo"],
     )
+    if gesucht == laeufe.TEMPO_OPTIMAL and mitgenommen["tempo"] is not None:
+        # Damit die Übersicht die gefundene Zahl zeigen kann, ohne das
+        # Protokoll zu lesen - und damit „wird gesucht" endet, sobald sie
+        # feststeht (`api/laeufe._tempo_des_laufs`).
+        bericht.merke(tempo=float(mitgenommen["tempo"]))
     return zeilen, mitgenommen
 
 

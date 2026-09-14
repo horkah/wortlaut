@@ -296,6 +296,22 @@ def _abschluss_befund(manifest: dict) -> str:
     return f"α={float(alpha):.2f}".replace(".", ",")
 
 
+def _tempo_befund(manifest: dict) -> str:
+    """Bei welcher Geschwindigkeit dieser Stand gelernt hat - wenn nicht 1,0.
+
+    Neben dem α und aus demselben Grund: Es unterscheidet zwei Zeilen nicht,
+    es erklärt eine. Und es ist die Angabe, ohne die niemand versteht, warum
+    ein Stand plötzlich deutlich besser dasteht als seine Nachbarn.
+
+    Bei 1,0 steht hier nichts - jeder Stand von vor dieser Spalte hat so
+    gerechnet, und eine Zeile „normal" an jedem einzelnen wäre Lärm.
+    """
+    faktor = float(manifest.get("tempo", 1.0) or 1.0)
+    if faktor == 1.0:
+        return ""
+    return f"Tempo {faktor:.2f}".replace(".", ",").rstrip("0").rstrip(",") + "×"
+
+
 def _stand_herkunft(manifest: dict) -> str:
     """Die Nebenzeile: woher der Stand kommt und **wann** er entstand.
 
@@ -307,7 +323,7 @@ def _stand_herkunft(manifest: dict) -> str:
     wann = str(manifest.get("erstellt", "")).replace("T", " ")[:16]
     return " · ".join(
         teil
-        for teil in (f"aus {grund}", _abschluss_befund(manifest), wann)
+        for teil in (f"aus {grund}", _abschluss_befund(manifest), _tempo_befund(manifest), wann)
         if teil.strip(" ·")
     )
 
