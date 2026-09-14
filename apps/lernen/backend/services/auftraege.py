@@ -41,11 +41,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
-from wortlaut import augmentierung, corpus, ids, laeufe, registry, tempo
+from wortlaut import augmentierung, corpus, ids, laeufe, registry
 
-from apps.hoeren.backend.db.models import Sprecher, Textquelle
+from apps.hoeren.backend.db.models import Textquelle
 from apps.lernen.backend.services.aufteilung import Probe
 
 # Womit eine Probe zählt. Korrekturen stammen aus „schreiben": Ihr Text ist
@@ -133,16 +132,6 @@ def schreibe_manifest(
     return gezaehlt
 
 
-def _tempo_des_sprechers(korpus: Session) -> float:
-    """Der Tempofaktor aus dem Profil - je Korpus eine Datenbank, ein Sprecher.
-
-    Gelesen und nicht übergeben: Er gehört zum Korpus wie die Aufnahmen selbst,
-    und wer einen Lauf beauftragt, wählt ihn nicht mit aus. Er ist kein Teil
-    der Bestellung, sondern des Zustands, in dem bestellt wird.
-    """
-    return float(korpus.scalar(select(Sprecher.tempo)) or tempo.VORGABE)
-
-
 def beauftrage(
     datenverzeichnis: Path,
     korpus: Session,
@@ -180,12 +169,6 @@ def beauftrage(
             "augmentierung": auftrag.augmentierung,
             "dauer": auftrag.dauer,
             "basismodell": auftrag.basismodell,
-            # Die Geschwindigkeit, bei der dieser Lauf rechnet - eingefroren
-            # wie das Manifest den Korpus einfriert. Wer den Faktor umstellt,
-            # während ein Lauf wartet oder rechnet, ändert nichts an ihm: Was
-            # bestellt wurde, wird auch so gerechnet, und der Stand trägt die
-            # Angabe hinterher bei sich (`011_tempo.sql`).
-            "tempo": _tempo_des_sprechers(korpus),
             # Ob der Trainer diesen Faktor benutzt oder sich einen sucht. Der
             # eingefrorene Wert darüber bleibt trotzdem stehen: Er ist der
             # Ausgangspunkt, gegen den sich eine Suche messen lassen muss.

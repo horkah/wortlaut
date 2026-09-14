@@ -30,9 +30,9 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException
-from sqlalchemy import Engine, text
+from sqlalchemy import Engine
 from sqlalchemy.orm import Session
-from wortlaut import corpus, db, registry, storage, tempo
+from wortlaut import db, registry, storage, tempo
 from wortlaut import zugang as zugangsdienst
 from wortlaut.whisper import Transkriptor
 
@@ -149,29 +149,18 @@ def tempo_fuer(konfiguration: Einstellungen, sprecher_id: str) -> float:
     (`apps/lernen/training/bewerten.py`), also wird er dort gelesen und nicht
     geraten.
 
-    **Ohne Stand: der Faktor des Sprechers.** Dann rechnet ein unverändertes
-    Grundmodell, und für das gilt genau das, was die Auswertung in „hören"
-    gerade misst - sonst diktierte man unter anderen Bedingungen, als man
-    vergleicht.
+    **Ohne Stand: gar nicht.** Dann rechnet ein unverändertes Grundmodell, und
+    das ist genau das, was die Auswertung in „hören" als Baseline misst - dort
+    wird seit `012_ohne_profiltempo.sql` ebenfalls nicht mehr vorgespult.
 
-    Fehlt die Angabe irgendwo, ist es 1,0: gar nicht vorspulen, der Zustand
-    von immer.
+    Hier stand einmal ein Rückgriff auf einen Tempofaktor am Sprecherprofil.
+    Den gibt es nicht mehr: Was das Vorspulen bringt, sucht der Trainer selbst
+    und trägt es im Stand mit sich.
     """
     stand = modellstand(konfiguration, sprecher_id)
-    if stand is not None:
-        return float(stand[1].get("tempo", tempo.VORGABE))
-
-    pfad = corpus.datenbank_pfad(konfiguration.data_dir, sprecher_id)
-    if not pfad.is_file():
+    if stand is None:
         return tempo.VORGABE
-    # Nur lesend, und über eine eigene kurze Verbindung: Der Korpus gehört
-    # „hören" (Grundentscheidung 6), und diese App fasst ihn nicht an - sie
-    # sieht nach.
-    with Session(db.verbinde(pfad)) as sitzung:
-        gefunden = sitzung.execute(
-            text("SELECT tempo FROM speakers LIMIT 1")  # noqa: S608 - keine Eingabe darin
-        ).scalar()
-    return float(gefunden or tempo.VORGABE)
+    return float(stand[1].get("tempo", tempo.VORGABE))
 
 
 def modellpfad(konfiguration: Einstellungen, sprecher_id: str) -> Path | str:

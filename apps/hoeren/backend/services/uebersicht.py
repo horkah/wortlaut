@@ -63,9 +63,6 @@ class ProfilAntwort(BaseModel):
     sprache: str
     basismodell: str
     erstellt: str
-    # Um welchen Faktor die Aufnahmen vorgespult werden, bevor ein Modell sie
-    # hört (`wortlaut/tempo.py`). 1,0 heißt: gar nicht.
-    tempo: float = 1.0
     # Wann der geltende Zugang ausgegeben wurde; None heißt: keiner da. Der
     # Zugang selbst steht hier nie - er ist nur beim Ausgeben zu sehen.
     zugang_erneuert: str | None = None
@@ -84,7 +81,6 @@ def profilfelder(sprecher) -> dict:
         "sprache": sprecher.sprache,
         "basismodell": sprecher.basismodell,
         "erstellt": sprecher.erstellt,
-        "tempo": sprecher.tempo,
         "zugang_erneuert": sprecher.zugang_erneuert,
     }
 

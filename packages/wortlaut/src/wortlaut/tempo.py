@@ -45,11 +45,15 @@ FAKTOREN = (1.0, 2.0, 3.0)
 VORGABE = 1.0
 
 # Die Grenzen, innerhalb derer gesucht werden darf (siehe
-# `apps/lernen/training/tempowahl.py`). Unter 0,8 wird gedehnt statt
-# vorgespult - das kann helfen, wenn jemand sehr schnell spricht -, über 3,0
-# bleibt von einer kurzen Silbe zu wenig übrig, als dass ein Spektrogramm sie
-# noch zeigte.
-SPANNE = (0.8, 3.0)
+# `apps/lernen/training/tempowahl.py`). Unter 1,0 wird gedehnt statt
+# vorgespult - das kann helfen, wenn jemand sehr schnell spricht.
+#
+# Nach oben stand hier lange 3,0, und das war zu eng: An einem echten Korpus
+# fiel die Fehlerkurve bis zur obersten Stützstelle und hörte dort auf, weil
+# das Raster aufhörte. Ein Optimum am Rand ist keines - es ist die Aussage,
+# dass man zu kurz gesucht hat. Bei 4,0 ist Schluss, weil von einer kurzen
+# Silbe dann noch ein knappes Dutzend Spektrogrammrahmen übrig bleibt.
+SPANNE = (0.75, 4.0)
 
 # Was ein einzelner `atempo` verträgt. Darüber hinaus werden mehrere
 # hintereinandergehängt; das ist die von ffmpeg vorgesehene Art und keine

@@ -796,6 +796,22 @@ def _median(werte: list[float]) -> float | None:
     return da[mitte] if len(da) % 2 else (da[mitte - 1] + da[mitte]) / 2
 
 
+def _gewaehltes_tempo(gelernt: list[dict[str, Any]], auftrag: dict[str, Any]) -> float | None:
+    """Der Faktor, mit dem das Endmodell rechnet.
+
+    Bei `optimal` das Minimum der zusammengelegten Kurve; sonst der Median
+    dessen, was die Faltungen benutzt haben - und das ist bei jedem anderen
+    Verfahren ohnehin überall derselbe Wert.
+    """
+    faktoren = [float(k["tempo"]) for k in gelernt if k.get("tempo") is not None]
+    if not faktoren:
+        return None
+    if str(auftrag.get("tempowahl") or laeufe.TEMPO_WIE_EINGESTELLT) != laeufe.TEMPO_OPTIMAL:
+        return _median(faktoren)
+    bester, _punkte = tempowahl.zusammengelegt(gelernt)
+    return bester if bester is not None else _median(faktoren)
+
+
 def kreuzvalidiere(
     verzeichnis: Path, datenverzeichnis: Path, auftrag: dict[str, Any], bericht: Bericht
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -851,7 +867,7 @@ def kreuzvalidiere(
             # ändern kann, ist mehr wert als keine - solange dransteht, dass sie
             # es kann.
             bericht.merke(
-                tempo=_median([float(k["tempo"]) for k in gelernt]),
+                tempo=_gewaehltes_tempo(gelernt, auftrag),
                 tempo_endgueltig=False,
             )
         # Sofort und nicht am Ende: Die nächste Faltung braucht den Platz.
@@ -865,12 +881,14 @@ def kreuzvalidiere(
     mitgenommen = {
         "durchgaenge": _median([float(k["durchgaenge"]) for k in gelernt]),
         "alpha": _median([k["alpha"] for k in gelernt if k["alpha"] is not None]),
-        # Der Median der sechs gefundenen Geschwindigkeiten. Dass er zwischen
-        # zwei Stützstellen des Rasters liegen kann, ist kein Mangel: Was
-        # gesucht war, ist die Gegend, und der Median ist ihre ehrlichste
-        # Zusammenfassung - genau wie beim α, das auch nicht auf sein Raster
-        # zurückgerundet wird.
-        "tempo": _median([float(k["tempo"]) for k in gelernt]),
+        # Nicht der Median der sechs Sieger, sondern das Minimum der
+        # **zusammengelegten** Kurve (siehe `tempowahl.zusammengelegt`): Eine
+        # einzelne Faltung hört zu wenige Aufnahmen, als dass ihr Sieger mehr
+        # wäre als Zufall - übereinandergelegt sind dieselben Kurven glatt.
+        "tempo": _gewaehltes_tempo(gelernt, auftrag),
+        # Die gemittelte Kurve samt Standardfehler je Stützstelle. Ohne sie ist
+        # der Faktor darüber nicht zu beurteilen.
+        "tempokurve": tempowahl.zusammengelegt(gelernt)[1],
         "faltungen": gelernt,
     }
     bericht.sage(
