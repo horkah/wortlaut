@@ -35,6 +35,30 @@ export function tagUndZeit(zeitpunkt: string): string {
 }
 
 /**
+ * Tag und Uhrzeit deutsch, in der Zeitzone des Betrachters (`14.09.2026, 14:38`).
+ *
+ * **Die einzige Stelle, die einen Zeitstempel für Menschen schreibt.** Es
+ * waren drei: diese Datei, ein eigenes `zeit()` in der Trainingsliste und ein
+ * `strftime` im Server. Der letzte formatierte in UTC - der Server steht in
+ * Deutschland, und derselbe Augenblick stand in der Liste als 14:38 und im
+ * Steckbrief als 12:34 daneben.
+ *
+ * Der Server formatiert deshalb keine Zeitstempel mehr. Er schickt ISO-8601
+ * in UTC, so wie er sie ablegt, und hier wird gerechnet - `Date` kennt den
+ * Versatz des Betrachters, ein Server kennt ihn nicht. Das gilt auch, wenn er
+ * zufällig im selben Land steht: Wer die App aus Zürich oder Wien öffnet,
+ * bekäme sonst die Uhrzeit des Rechenzentrums.
+ */
+export function zeitpunkt(roh: string): string {
+  const wann = new Date(roh);
+  if (Number.isNaN(wann.getTime())) return roh;
+  return (
+    `${zwei(wann.getDate())}.${zwei(wann.getMonth() + 1)}.${wann.getFullYear()}, ` +
+    `${zwei(wann.getHours())}:${zwei(wann.getMinutes())}`
+  );
+}
+
+/**
  * Eine Zeitspanne in Sekunden, als Stunden, Minuten und Sekunden.
  *
  * **Warum keine Dezimalstunden.** Der Fortschritt stand hier lange als

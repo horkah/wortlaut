@@ -70,6 +70,14 @@ ist nicht, ob sich ein deutsches Wort bilden lässt - das lässt es sich immer -
 sondern ob es draußen jemand benutzt. Im September 2026 fiel „Grundlinie"
 deshalb an 82 Stellen zugunsten von „Baseline".
 
+**Zeitstempel formatiert nur der Browser.** Der Server legt sie als ISO-8601
+in UTC ab und schickt sie genauso hinaus; lesbar gemacht werden sie in
+`packages/ui/zeit.ts`. Er kennt die Zeitzone des Lesers nicht - auch dann
+nicht, wenn er zufällig im selben Land steht. Im September 2026 stand derselbe
+Augenblick in der Trainingsliste als 14:38 und im Steckbrief als 12:38, weil
+der eine Wert im Browser gerechnet und der andere im Server mit `strftime`
+geschrieben wurde. Über Mitternacht springt dabei sogar das Datum.
+
 **Keine Beschriftung, die eine Anzahl festschreibt.** „Beste der vier" stand
 über einer Spalte, weil es einmal vier Fassungen einer Aufnahme gab. Dann
 fielen zwei Abwandlungen weg, und die Überschrift log - ohne dass ein Test

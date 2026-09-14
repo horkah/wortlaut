@@ -26,6 +26,7 @@
    * nicht nur farbig da, sondern trägt ein Wort in ihrem `title` - Farbe
    * allein wäre für einen Teil der Leser keine Auskunft.
    */
+  import { zeitpunkt } from '$ui/zeit';
   import { onMount } from 'svelte';
   import {
     diktatmodell as ladeDiktatmodell,
@@ -411,7 +412,7 @@
                 {/if}
               </span>
               <span class="gedaempft klein">
-                {modell.herkunft}
+                {modell.herkunft}{#if modell.erstellt} · {zeitpunkt(modell.erstellt)}{/if}
                 <!-- Von hier aus in die Einzelansicht des Laufs: Steckbrief,
                      Lernkurven, Protokoll. Derselbe Ort und dasselbe Wort wie
                      unter „Training" - wer eine Zahl in dieser Tafel nicht

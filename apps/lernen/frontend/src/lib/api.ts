@@ -189,6 +189,8 @@ export type SteckbriefZeile = {
   wert: string;
   /** Was den Wert einordnet: Einheit, Herkunft, Vorbehalt. Leer, wo er für sich steht. */
   hinweis: string;
+  /** `zeit` heißt: `wert` ist ein ISO-Zeitstempel und wird hier formatiert. */
+  art: string;
 };
 
 export type Laufeinzeln = {

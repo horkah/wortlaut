@@ -317,17 +317,18 @@ def _tempo_befund(manifest: dict) -> str:
 
 
 def _stand_herkunft(manifest: dict) -> str:
-    """Die Nebenzeile: woher der Stand kommt und **wann** er entstand.
+    """Die Nebenzeile: woher der Stand kommt.
 
-    Die Uhrzeit und nicht nur das Datum. Wer an einem Nachmittag drei Läufe
-    rechnet, hat sonst drei Zeilen mit demselben Datum - und wenn zwei davon
-    dasselbe Rezept tragen, wieder nichts, woran man sie auseinanderhält.
+    **Ohne den Zeitstempel.** Er stand hier, abgeschnitten aus der
+    ISO-Zeichenkette - und damit in UTC. Ein Stand von 14:38 deutscher Zeit
+    las sich als 12:38. Die Zeit steht als `erstellt` in der Antwort und wird
+    von der Ansicht formatiert, die als einzige die Zeitzone des Lesers kennt
+    (`packages/ui/zeit.ts`).
     """
     grund = f"whisper-{lauf_layout.kurzname(str(manifest.get('basismodell', '?')))}"
-    wann = str(manifest.get("erstellt", "")).replace("T", " ")[:16]
     return " · ".join(
         teil
-        for teil in (f"aus {grund}", _abschluss_befund(manifest), _tempo_befund(manifest), wann)
+        for teil in (f"aus {grund}", _abschluss_befund(manifest), _tempo_befund(manifest))
         if teil.strip(" ·")
     )
 

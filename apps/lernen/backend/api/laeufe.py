@@ -527,20 +527,11 @@ class SteckbriefZeile(BaseModel):
     # Was den Wert einordnet - die Einheit, die Herkunft, der Vorbehalt. Leer,
     # wo der Wert für sich steht.
     hinweis: str = ""
-
-
-def _zeitpunkt(roh: str) -> str:
-    """`2026-09-14T08:52:23+00:00` → `14.09.2026, 08:52`.
-
-    Ohne Sekunden: Sie stehen im Auftrag und helfen niemandem beim Lesen.
-    Bleibt die Zeichenkette unverständlich, wird sie durchgereicht - eine
-    unlesbare Angabe ist immer noch eine Angabe, ein verschluckter Wert wäre
-    keine.
-    """
-    try:
-        return datetime.fromisoformat(roh).strftime("%d.%m.%Y, %H:%M")
-    except (TypeError, ValueError):
-        return roh
+    # `zeit` heißt: `wert` ist ein ISO-8601-Zeitstempel und wird von der
+    # Ansicht formatiert. Der Server tut es nicht - er kennt die Zeitzone des
+    # Lesers nicht, und derselbe Augenblick stand deshalb in der Liste als
+    # 14:38 und hier als 12:34 (`packages/ui/zeit.ts`).
+    art: str = ""
 
 
 def _dauer_lesbar(von: str, bis: str) -> str:
@@ -650,9 +641,11 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
     kv = dict(manifest.get("kreuzvalidierung") or {})
     zeilen: list[SteckbriefZeile] = []
 
-    def dazu(begriff: str, wert: object, hinweis: str = "") -> None:
+    def dazu(begriff: str, wert: object, hinweis: str = "", art: str = "") -> None:
         if wert not in (None, ""):
-            zeilen.append(SteckbriefZeile(begriff=begriff, wert=str(wert), hinweis=hinweis))
+            zeilen.append(
+                SteckbriefZeile(begriff=begriff, wert=str(wert), hinweis=hinweis, art=art)
+            )
 
     version = str(zustand.get("version") or "")
     if version:
@@ -766,11 +759,12 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
         spanne = _dauer_lesbar(begonnen, str(zustand.get("beendet", "")))
         dazu(
             "Gerechnet",
-            _zeitpunkt(begonnen),
+            begonnen,
             f"{spanne}, {lauf_layout.FALTUNGEN} Faltungen und das Endmodell" if spanne else "",
+            art="zeit",
         )
     else:
-        dazu("Beauftragt", _zeitpunkt(str(auftrag.get("erstellt", ""))))
+        dazu("Beauftragt", str(auftrag.get("erstellt", "")), art="zeit")
     return zeilen
 
 

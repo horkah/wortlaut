@@ -12,6 +12,8 @@ Whisper, denn geprüft wird die Verrechnung und nicht das Hören.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import json
 import time
 from collections.abc import Iterator
@@ -543,6 +545,23 @@ class TestSteckbrief:
         # Kein Etikett doppelt: Ein Hinweis trägt eine Angabe oder fehlt.
         hinweise = {z["begriff"]: z["hinweis"] for z in antwort["steckbrief"]}
         assert not hinweise["Grundmodell"]
+
+    def test_zeitstempel_gehen_roh_hinaus(self, klient: TestClient, fertiger_lauf) -> None:
+        """Der Server formatiert keine Uhrzeit - er kennt die Zeitzone nicht.
+
+        Er schrieb sie einmal mit `strftime` und damit in UTC. Derselbe
+        Augenblick stand in der Trainingsliste (im Browser gerechnet) als
+        14:38 und im Steckbrief als 12:38. Wer die App aus Zürich öffnet,
+        bekäme sonst die Uhrzeit des Rechenzentrums.
+        """
+        job_id, _version = fertiger_lauf
+        zeilen = klient.get(f"/lernen/api/laeufe/{job_id}").json()["steckbrief"]
+        zeiten = [z for z in zeilen if z["art"] == "zeit"]
+        assert zeiten, "Kein Zeitstempel im Steckbrief."
+        for zeile in zeiten:
+            # ISO-8601, wie der Server ihn ablegt - kein „14.09.2026, 12:38".
+            assert "T" in zeile["wert"], f"{zeile['begriff']} ist vorformatiert: {zeile['wert']}"
+            datetime.fromisoformat(zeile["wert"])
 
     def test_ein_lauf_von_vor_den_achsen_wird_rekonstruiert(
         self, klient: TestClient, aufnahmen: list[str], datenverzeichnis
