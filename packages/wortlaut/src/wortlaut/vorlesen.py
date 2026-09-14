@@ -34,6 +34,7 @@ Klang wird.
 
 from __future__ import annotations
 
+import unicodedata
 import wave
 from dataclasses import dataclass
 from pathlib import Path
@@ -98,6 +99,50 @@ class Motor(Protocol):
 # ── Piper ───────────────────────────────────────────────────────────────────
 
 
+def _zusammengesetzt(laute: list[str], karte: dict[str, int]) -> list[str]:
+    """Zerlegte Laute wieder zusammensetzen, wo das Modell nur die ganze Form kennt.
+
+    **Woran das hängt.** Piper geht in zwei Schritten vor: espeak-ng macht aus
+    dem Text Lautschrift, dann schlägt das Modell jedes Zeichen in seiner
+    eigenen Tabelle nach. Beide Seiten stammen aus verschiedenen Jahren, und
+    sie sind sich über das ç uneins. Das heutige espeak-ng liefert es zerlegt -
+    ein `c` und ein freistehendes Häkchen (U+0327) -, die älteren deutschen
+    Modelle führen in ihrer Tabelle aber nur das fertige `ç`. Was nicht in der
+    Tabelle steht, fällt weg, und übrig bleibt ein nacktes `c`.
+
+    **Warum das kein Schönheitsfehler ist.** Der so verlorene Laut ist der
+    ich-Laut. Er steckt in *ich*, *nicht*, *mich*, *möchte* - in einem
+    deutschen Satz vergeht kaum eine Zeile ohne ihn. Eine Stimme, die ihn
+    verschluckt, ist für diese App nicht schlechter, sondern unbrauchbar: Hier
+    hört jemand einen Satz und spricht ihn nach. Ist die Vorlage falsch, ist
+    die Aufnahme es auch, und sie geht so in den Korpus.
+
+    Deshalb wird hier zusammengesetzt, was zusammengehört: Fehlt ein Zeichen in
+    der Tabelle, wird geprüft, ob es mit dem davor eine Einheit bildet, die sie
+    kennt. Betroffen sind die deutschen Stimmen mit der kleinen Tabelle -
+    Kerstin, Pavoque, Ramona, Karlsson, Eva.
+
+    **Warum nur im Notfall und nicht immer.** Alles vorsorglich
+    zusammenzusetzen wäre einfacher, würde aber auch die Stimmen anfassen, die
+    das Häkchen einzeln führen und einzeln gelernt haben - Thorsten und mls.
+    Die bekämen dann eine andere Eingabe als im Training und klängen anders als
+    bisher. Ein Eingriff, der nur greift, wo sonst etwas verloren ginge, lässt
+    sie nachweislich unberührt.
+    """
+    fertig: list[str] = []
+    for laut in laute:
+        if laut not in karte and fertig:
+            verbunden = unicodedata.normalize("NFC", fertig[-1] + laut)
+            # Nur wenn wirklich ein einzelnes Zeichen daraus wird: Sonst wäre
+            # das Ergebnis zwei Zeichen lang und in der Tabelle erst recht
+            # nicht zu finden.
+            if len(verbunden) == 1 and verbunden in karte:
+                fertig[-1] = verbunden
+                continue
+        fertig.append(laut)
+    return fertig
+
+
 @dataclass
 class PiperMotor:
     """Piper: neuronale Sprachsynthese auf dem Prozessor.
@@ -127,10 +172,17 @@ class PiperMotor:
             "Thorsten",
             "Dasselbe eine Stufe kleiner - schneller gerechnet, etwas rauer.",
         ),
-        "de_DE-eva_k-x_low": ("Eva", "Eine weibliche Stimme, sehr genügsam."),
+        "de_DE-kerstin-low": (
+            "Kerstin",
+            "Eine weibliche Stimme, hell und nah am Mikrofon.",
+        ),
+        "de_DE-pavoque-low": (
+            "Pavoque",
+            "Eine männliche Stimme, ruhiger und tiefer als Thorsten.",
+        ),
         "de_DE-ramona-low": ("Ramona", "Eine weibliche Stimme."),
-        "de_DE-kerstin-low": ("Kerstin", "Eine weibliche Stimme."),
         "de_DE-karlsson-low": ("Karlsson", "Eine männliche Stimme."),
+        "de_DE-eva_k-x_low": ("Eva", "Eine weibliche Stimme, sehr genügsam."),
     }
 
     def stimmen(self) -> list[Stimme]:
@@ -176,6 +228,16 @@ class PiperMotor:
         entwurf = ziel.with_suffix(".wav.neu")
         try:
             sprecher = PiperVoice.load(str(modell))
+            # Zwischen Lautschrift und Modell, und zwar an der Stelle, an der
+            # Piper die Laute selbst holt: `synthesize_wav` ruft `phonemize`,
+            # und was hier zurückkommt, geht unverändert weiter durch Piper -
+            # samt Pausen zwischen den Sätzen und der Umrechnung in ganze
+            # Zahlen, die beide nicht nachgebaut werden sollen.
+            laute = sprecher.phonemize
+            karte = sprecher.config.phoneme_id_map
+            sprecher.phonemize = lambda text: [
+                _zusammengesetzt(satz, karte) for satz in laute(text)
+            ]
             with wave.open(str(entwurf), "wb") as datei:
                 # `synthesize_wav` und nicht `synthesize`: Letzteres gibt
                 # Blöcke zurück, die der Aufrufer selbst zusammensetzen müsste.

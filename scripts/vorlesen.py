@@ -21,9 +21,17 @@ Bekannte deutsche Stimmen (es gibt mehr, siehe die Sammlung auf Hugging Face):
 
     de_DE-thorsten-high      klar und ruhig, die kräftigste der freien
     de_DE-thorsten-medium    dasselbe eine Stufe kleiner
-    de_DE-eva_k-x_low        weiblich, sehr genügsam
+    de_DE-kerstin-low        weiblich, hell
+    de_DE-pavoque-low        männlich, ruhiger und tiefer als Thorsten
     de_DE-ramona-low         weiblich
     de_DE-karlsson-low       männlich
+    de_DE-eva_k-x_low        weiblich, sehr genügsam
+
+**Zur Auflösung.** `high` gibt es auf Deutsch nur bei Thorsten; alles andere
+endet bei `low`, und das heißt 16 kHz statt 22,05. Wer eine zweite Stimme
+holt, holt sie der Abwechslung wegen und nicht der Schärfe wegen - für den
+Zweck hier, einen Satz zu hören und ihn nachzusprechen, zählt ohnehin die
+Deutlichkeit und nicht die Bandbreite.
 """
 
 from __future__ import annotations

@@ -84,3 +84,45 @@ class TestOhneStimmen:
     def test_stimmen_schluckt_den_unbekannten_motor(self, tmp_path: Path) -> None:
         # Die Liste ist eine Auskunft und kein Weg, an dem etwas hängt.
         assert vorlesen.stimmen(tmp_path, "zauberei") == []
+
+
+class TestZerlegteLaute:
+    """Der ich-Laut, den die kleineren deutschen Stimmen sonst verlieren.
+
+    Die Tabelle steht hier für die echte: Sie führt das fertige `ç`, nicht das
+    freistehende Häkchen, das espeak-ng heute liefert (siehe
+    `vorlesen._zusammengesetzt`).
+    """
+
+    KARTE = {"ɪ": 1, "c": 2, "ç": 3, "t": 4, "n": 5, "ˈ": 6}
+    HAEKCHEN = "̧"
+
+    def test_der_zerlegte_laut_wird_wieder_einer(self) -> None:
+        laute = ["ɪ", "c", self.HAEKCHEN, "t"]
+        assert vorlesen._zusammengesetzt(laute, self.KARTE) == ["ɪ", "ç", "t"]
+
+    def test_danach_fehlt_nichts_mehr(self) -> None:
+        # Der Punkt der Sache: Was in der Tabelle steht, geht ins Modell; was
+        # nicht darin steht, fällt weg. Nach dem Zusammensetzen fällt nichts.
+        laute = ["n", "ˈ", "ɪ", "c", self.HAEKCHEN, "t"]
+        gesetzt = vorlesen._zusammengesetzt(laute, self.KARTE)
+        assert all(laut in self.KARTE for laut in gesetzt)
+
+    def test_wer_das_haekchen_selbst_kennt_bleibt_unberuehrt(self) -> None:
+        # Thorsten und mls führen es einzeln und haben es einzeln gelernt. Sie
+        # bekämen sonst eine andere Eingabe als im Training.
+        karte = {**self.KARTE, self.HAEKCHEN: 7}
+        laute = ["ɪ", "c", self.HAEKCHEN, "t"]
+        assert vorlesen._zusammengesetzt(laute, karte) == laute
+
+    def test_was_sich_nicht_zusammensetzen_laesst_bleibt_wie_es_war(self) -> None:
+        # Dann greift der alte Weg: Piper meldet es und lässt es weg. Besser
+        # ein gemeldeter Verlust als ein stillschweigend erfundener Laut.
+        laute = ["ɪ", "ʔ", "t"]
+        assert vorlesen._zusammengesetzt(laute, self.KARTE) == laute
+
+    def test_ein_haekchen_ganz_vorn_hat_nichts_zum_anlehnen(self) -> None:
+        assert vorlesen._zusammengesetzt([self.HAEKCHEN, "t"], self.KARTE) == [
+            self.HAEKCHEN,
+            "t",
+        ]
