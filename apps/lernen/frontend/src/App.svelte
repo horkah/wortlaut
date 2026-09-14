@@ -18,6 +18,8 @@
     GERAETE_PUNKTE,
     MEINE_DATEN_PFAD,
     MODELLE_PFAD,
+    ohneZugang,
+    uebergreifendePunkte,
     ZUGANGSDATEN_PFAD,
     type Menuepunkt,
   } from '$ui/apps';
@@ -43,7 +45,7 @@
   // einen Schritt wie in „hören" und „schreiben" (`$ui/KeinZugang.svelte`).
   // Ausgenommen bleibt die Ansicht der Zugangsdaten selbst: Dorthin führt der
   // Schritt, sie darf nicht hinter ihm liegen.
-  const ohneZugang = $derived(zustand.art === 'keiner' && zustand.route !== ZUGANGSDATEN_PFAD);
+  const keinZugang = $derived(ohneZugang(zustand.art, zustand.route));
   const jobId = $derived(laufAusRoute(zustand.route));
 
   // Welcher Reiter gilt, solange in der Adresse nichts steht: der, auf dem
@@ -74,10 +76,7 @@
   // „hören", und ein Menüpunkt daneben wäre ein zweiter Weg zu derselben
   // Seite. Das Menü führt, was keine Reiterreihe trägt; alles, was eine hat,
   // steht dort und nirgends sonst.
-  const uebergreifend = $derived([
-    ...(spricht ? [{ pfad: MEINE_DATEN_PFAD, text: 'Meine Daten', href: `/#${MEINE_DATEN_PFAD}` }] : []),
-    { pfad: ZUGANGSDATEN_PFAD, text: 'Zugangsdaten' },
-  ]);
+  const uebergreifend = $derived(uebergreifendePunkte(zustand.art, 'lernen'));
 
   // Die Reiter dieser App und ihre Ansichten. Eine Abbildung und keine Kette
   // von Vergleichen: Dieselbe Zuordnung beantwortet, was `zustand.route` zeigt
@@ -128,7 +127,7 @@
   sprecher={name}
   route={offen}
 >
-  {#if ohneZugang}
+  {#if keinZugang}
     <KeinZugang {gehZu} />
   {:else if jobId && spricht && zustand.route !== ZUGANGSDATEN_PFAD}
     <Lauf {jobId} />

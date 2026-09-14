@@ -80,6 +80,36 @@ nicht aus dem Satz.
 
 ---
 
+## Was allen drei Apps gemeinsam ist
+
+Die drei Oberflächen teilen sich `packages/ui/`. Dort liegt, was in allen
+dreien gleich aussehen und gleich heißen muss - und zwar als **eine**
+Definition und nicht als drei gleichlautende:
+
+* **Die übergreifenden Menüpunkte** (`uebergreifendePunkte` in `apps.ts`).
+  „Meine Daten" oder „Sprecher", je nachdem wer angemeldet ist, und immer die
+  „Zugangsdaten". Welche Adresse ein Punkt bekommt, rechnet die Funktion aus:
+  In „hören" sind es Hash-Routen, von außen volle Adressen, denn diese
+  Ansichten liegen in „hören".
+* **Die Regel für „kein Zugang"** (`ohneZugang`). Weist der Browser nichts
+  vor, steht überall derselbe eine Satz statt einer Ansicht, deren Anfragen
+  sämtlich abgewiesen würden - ausgenommen die Zugangsdaten selbst, denn
+  dorthin führt der Hinweis.
+
+**Warum das hier steht.** Bis September 2026 baute sich jede App diese Listen
+selbst, und sie waren verschieden: „hören" führte für die Aufsicht „Sprecher",
+die anderen beiden nichts; „Meine Daten" hatte in zweien ein `href` und im
+dritten nicht; und den Hinweis auf die Zugangsdaten kannten nur zwei - in
+„hören" landete man ohne Zugang auf der Verwaltung, deren Anfragen alle
+scheiterten.
+
+Keine dieser Abweichungen war je entschieden worden. Sie waren entstanden,
+weil dieselbe Überlegung dreimal angestellt wurde und zweimal etwas anders
+ausfiel. Das ist die Art Redundanz, die dieses Verzeichnis verhindern soll:
+nicht doppelter Code, sondern doppelte **Entscheidungen**.
+
+---
+
 ## Der Trainer
 
 Die Oberfläche von `lernen` teilt zu, beauftragt und zeigt - gerechnet wird

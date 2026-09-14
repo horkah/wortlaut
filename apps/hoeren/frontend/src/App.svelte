@@ -8,15 +8,18 @@
     AUSWERTUNG_PFAD,
     GERAETE_PUNKTE,
     MEINE_DATEN_PFAD,
+    ohneZugang,
     SPRECHER_PFAD,
+    uebergreifendePunkte,
     ZUGANGSDATEN_PFAD,
     type Menuepunkt,
   } from '$ui/apps';
+  import KeinZugang from '$ui/KeinZugang.svelte';
   import { merkeReiter, vorgabeReiter } from '$ui/reiter';
   import { zugang } from '$ui/zugang';
   import type { Servestimme } from '$ui/speak';
   import { servestimmen, stimmprobe } from './lib/api';
-  import { EINSICHT_ROUTE, ladeZugang, zustand } from './lib/zustand.svelte';
+  import { EINSICHT_ROUTE, gehZu, ladeZugang, zustand } from './lib/zustand.svelte';
   import Verwaltung from './routes/Verwaltung.svelte';
   import Einsicht from './routes/Einsicht.svelte';
   import MeineDaten from './routes/MeineDaten.svelte';
@@ -120,12 +123,17 @@
   // Seite. Das Menü führt, was keine Reiterreihe trägt; alles, was eine hat,
   // steht dort und nirgends sonst. Wer von hier aus hinüber will, klickt den
   // App-Reiter „lernen" in der oberen Reihe.
-  const uebergreifend = $derived([
-    ...(spricht
-      ? [{ pfad: MEINE_DATEN_PFAD, text: 'Meine Daten' }]
-      : [{ pfad: SPRECHER_PFAD, text: 'Sprecher' }]),
-    { pfad: ZUGANGSDATEN_PFAD, text: 'Zugangsdaten' },
-  ]);
+  const uebergreifend = $derived(uebergreifendePunkte(zustand.art, 'hoeren'));
+
+  // Wer gar nichts vorweist, sieht denselben einen Schritt wie in „lernen" und
+  // „schreiben" (`$ui/KeinZugang.svelte`).
+  //
+  // Das fehlte hier bis September 2026, und der Grund war ein alter: „hören"
+  // zeigt jedem, der kein Sprecher ist, die Verwaltung - und das stimmte,
+  // solange „kein Sprecher" nur Verwaltung oder Aufsicht heißen konnte. Wer
+  // ohne jeden Zugang ankam, landete damit auf einer Seite, deren Anfragen
+  // sämtlich abgewiesen wurden, und las statt eines Satzes eine Reihe Fehler.
+  const keinZugang = $derived(ohneZugang(zustand.art, zustand.route));
 
   // Was die Kopfleiste als offen markiert. Menüansichten markieren sich
   // selbst; alles andere fällt auf den Reiter zurück, der wirklich dasteht -
@@ -191,5 +199,9 @@
   servestimmen={stimmenVomServer}
   probeHolen={stimmprobe}
 >
-  <Ansicht />
+  {#if keinZugang}
+    <KeinZugang {gehZu} />
+  {:else}
+    <Ansicht />
+  {/if}
 </Rahmen>

@@ -183,6 +183,65 @@ export const GERAETE_PUNKTE: Menuepunkt[] = [
 export const SPRECHER_PFAD = '/sprecher';
 
 /**
+ * Die Menüpunkte, die in **jeder** App dieselben sind.
+ *
+ * Bis September 2026 baute sich jede der drei ihre eigene Liste, und sie waren
+ * verschieden: „hören" führte für die Aufsicht „Sprecher", die beiden anderen
+ * gar nichts; „Meine Daten" hatte in zweien ein `href` und im dritten nicht.
+ * Keine dieser Abweichungen war je entschieden worden - sie waren entstanden,
+ * weil dieselbe Überlegung dreimal neu angestellt wurde.
+ *
+ * Hier steht sie einmal. Wer einen übergreifenden Punkt hinzufügt, fügt ihn
+ * überall hinzu, und wer einen ändert, kann ihn nicht an zwei Stellen
+ * vergessen.
+ *
+ * **Warum `href` von der App abhängt und nicht vom Punkt.** „Meine Daten" und
+ * „Sprecher" sind Ansichten von „hören" - dort sind sie Hash-Routen, von
+ * außerhalb sind es Adressen, die eine ganze Seite laden. Das ist kein
+ * Sonderfall zweier Apps, sondern die Regel „eine Ansicht liegt in genau einer
+ * App", und deshalb rechnet sie diese Funktion aus, statt sie jedem Aufrufer
+ * zu überlassen.
+ */
+export function uebergreifendePunkte(art: string, app: AppSchluessel): Menuepunkt[] {
+  const inHoeren = app === 'hoeren';
+  // Von außen die volle Adresse, innerhalb von „hören" die Hash-Route.
+  const nachHoeren = (pfad: string) => (inHoeren ? {} : { href: `/#${pfad}` });
+
+  const punkte: Menuepunkt[] = [];
+  if (art === 'sprecher') {
+    punkte.push({ pfad: MEINE_DATEN_PFAD, text: 'Meine Daten', ...nachHoeren(MEINE_DATEN_PFAD) });
+  } else if (art === 'verwaltung' || art === 'aufsicht') {
+    // Wer verwaltet oder beaufsichtigt, hat keine eigenen Daten - für ihn ist
+    // die Sprecherliste das Gegenstück. Auch aus „lernen" und „schreiben"
+    // heraus: Dass sie dort bisher fehlte, war keine Entscheidung.
+    punkte.push({ pfad: SPRECHER_PFAD, text: 'Sprecher', ...nachHoeren(SPRECHER_PFAD) });
+  }
+  // Immer und in jeder App, auch und gerade ohne gültigen Zugang: Dann ist
+  // dieser Punkt der einzige Weg herein, und ein Menü, das ihn erst nach
+  // erfolgreicher Anmeldung zeigt, hätte die Tür hinter dem Schloss.
+  punkte.push({ pfad: ZUGANGSDATEN_PFAD, text: 'Zugangsdaten' });
+  return punkte;
+}
+
+/**
+ * Ob statt der Ansicht der Hinweis auf die Zugangsdaten stehen muss.
+ *
+ * Eine Regel für alle drei, denn es ist dieselbe Lage: Dieser Browser weist
+ * nichts vor, also gibt keine API etwas her, und eine Ansicht, die es trotzdem
+ * versucht, zeigt eine Reihe abgewiesener Anfragen statt des einen Satzes, der
+ * weiterhilft (`KeinZugang.svelte`).
+ *
+ * **Ausgenommen bleibt die Ansicht der Zugangsdaten selbst.** Dorthin führt
+ * der Hinweis; sie darf nicht hinter ihm liegen.
+ *
+ * „hören" tat das bis September 2026 nicht: Wer dort ohne Zugang ankam, sah
+ * die Verwaltung - eine Seite, deren Anfragen sämtlich abgewiesen wurden.
+ */
+export function ohneZugang(art: string, route: string): boolean {
+  return art === 'keiner' && route !== ZUGANGSDATEN_PFAD;
+}
+
+/**
  * Das Projekt selbst - Quelltext und Beschreibung.
  *
  * Ziel ist die Startseite des Bestands: GitHub zeigt die README dort unter der

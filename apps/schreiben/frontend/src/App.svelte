@@ -35,7 +35,12 @@
    */
   import Rahmen from '$ui/Rahmen.svelte';
   import KeinZugang from '$ui/KeinZugang.svelte';
-  import { MEINE_DATEN_PFAD, ZUGANGSDATEN_PFAD } from '$ui/apps';
+  import {
+    MEINE_DATEN_PFAD,
+    ohneZugang,
+    uebergreifendePunkte,
+    ZUGANGSDATEN_PFAD,
+  } from '$ui/apps';
   import {
     gehZu,
     ladeModellstand,
@@ -66,7 +71,7 @@
   // dann dieselbe eine Karte da wie in „hören" und „lernen"
   // (`$ui/KeinZugang.svelte`). Die Zugangsdaten selbst bleiben ausgenommen:
   // Dorthin führt sie, sie darf nicht hinter ihr liegen.
-  const ohneZugang = $derived(zustand.art === 'keiner' && zustand.route !== ZUGANGSDATEN_PFAD);
+  const keinZugang = $derived(ohneZugang(zustand.art, zustand.route));
 
   // Die Zugangsdaten stehen immer da - auch und gerade ohne gültigen Zugang:
   // Dann ist der Punkt der einzige Weg herein. „Meine Daten" kommt dazu,
@@ -79,12 +84,7 @@
   // Aufnahmeknopf (siehe `Aufnahme`). Wer sie liest, denkt gerade darüber nach,
   // ob ein anderes Modell besser zuhören würde; ein Menüpunkt erreichte
   // dagegen niemanden, der nicht ohnehin schon sucht.
-  const uebergreifend = $derived([
-    ...(zustand.art === 'sprecher'
-      ? [{ pfad: MEINE_DATEN_PFAD, text: 'Meine Daten', href: `/#${MEINE_DATEN_PFAD}` }]
-      : []),
-    { pfad: ZUGANGSDATEN_PFAD, text: 'Zugangsdaten' },
-  ]);
+  const uebergreifend = $derived(uebergreifendePunkte(zustand.art, 'schreiben'));
 
   // Für die Kopfzeile: der Name, den der Server zum vorgelegten Zugang nennt.
   // Solange die Auskunft aussteht, bleibt die Zeile unbestimmt und zeigt
@@ -97,7 +97,7 @@
 </script>
 
 <Rahmen app="schreiben" route={zustand.route} {uebergreifend} {sprecher}>
-  {#if ohneZugang}
+  {#if keinZugang}
     <KeinZugang {gehZu} />
   {:else}
     <Ansicht />
