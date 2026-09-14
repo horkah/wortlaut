@@ -423,6 +423,7 @@
           <tr class:frei={modell.freigegeben} class:fremdes-tempo={!modell.gilt}>
             <th scope="row" class="modellspalte">
               <span class="zeile">
+                {#if modell.kennung}<code class="kennung">{modell.kennung}</code>{/if}
                 <span class="name">{modell.name}</span>
                 {#if modell.art === 'trainiert'}
                   <span class="abzeichen leise">eigenes</span>
@@ -535,6 +536,17 @@ Vergleichs - benutzbar bleibt das Modell, es spult beim Diktieren selbst vor."
 {/if}
 
 <style>
+  /* Dieselbe Kennung wie in „Training" und „schreiben" - und deshalb auch
+     dieselbe Gestalt. */
+  .kennung {
+    font-size: 0.8em;
+    padding: 0.05em 0.35em;
+    border: 1px solid var(--rand);
+    border-radius: 3px;
+    color: var(--gedaempft);
+    white-space: nowrap;
+  }
+
   /* Ausgegraut, nicht ausgeblendet: Die Zahlen stimmen, sie stehen nur
      außerhalb des Vergleichs. Wer sie sehen will, sieht sie - wer die
      geltenden vergleicht, sieht auf einen Blick, welche dazugehören. */

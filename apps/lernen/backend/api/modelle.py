@@ -166,6 +166,10 @@ class ModellAntwort(BaseModel):
     daten: str | None
     erstellt: str | None
     version: str | None
+    # Der kurze Code dieses Standes (`K7M2Q`) - dieselbe Kennung in „lernen"
+    # und „schreiben", gerechnet aus der Version (`registry.kurzkennung`).
+    # `null` bei einem Grundmodell: Das heißt schon kurz.
+    kennung: str | None
     job_id: str | None
     freigegeben: bool
     # Bei welcher Geschwindigkeit die Zahlen dieser Zeile entstanden sind.
@@ -460,6 +464,11 @@ def uebersicht(
             daten=manifest.get("daten"),
             erstellt=manifest.get("erstellt"),
             version=str(manifest["id"]).split("/", 1)[-1] if manifest.get("id") else None,
+            kennung=(
+                registry.kurzkennung(str(manifest["id"]).split("/", 1)[-1])
+                if manifest.get("id")
+                else None
+            ),
             job_id=manifest.get("job_id"),
             freigegeben=ref == freigegeben,
             tempo=tempo_je_ref.get(ref, jetziges_tempo),

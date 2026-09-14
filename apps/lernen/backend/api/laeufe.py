@@ -345,6 +345,10 @@ class LaufAntwort(BaseModel):
     aufnahmen: int
     zeilen: dict[str, int]
     version: str | None
+    # Der kurze Code des Standes, der aus diesem Lauf entstand - dieselbe
+    # Kennung wie in der Modelltafel und in „schreiben"
+    # (`registry.kurzkennung`). `null`, solange kein Stand da ist.
+    kennung: str | None = None
     fehler: str | None
     # Der Modellstand, der aus diesem Lauf hervorging - `null`, solange keiner
     # entstanden ist. Er ginge beim Löschen mit.
@@ -485,6 +489,11 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         aufnahmen=int(lauf.auftrag.get("aufnahmen", 0)),
         zeilen=dict(lauf.auftrag.get("zeilen", {})),
         version=lauf.zustand.get("version"),
+        kennung=(
+            registry.kurzkennung(str(lauf.zustand["version"]))
+            if lauf.zustand.get("version")
+            else None
+        ),
         fehler=lauf.zustand.get("fehler"),
         stand=_stand_zu(lauf),
         loeschbar=lauf.status != lauf_layout.LAEUFT or lauf.haengt,

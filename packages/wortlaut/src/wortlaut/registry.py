@@ -28,6 +28,8 @@ einmal war. Geschrieben werden beide in einem Zug, gelesen wird die Freigabe.
 
 from __future__ import annotations
 
+import hashlib
+
 import json
 import shutil
 from pathlib import Path
@@ -41,6 +43,51 @@ FREIGABE = "freigabe.json"
 # Schrägstrich. Daran allein sind beide zu unterscheiden - und das ist der
 # Grund, warum beide in dasselbe Feld dürfen.
 TRENNER = "/"
+
+
+# Das Alphabet der Kurzkennung. Ohne `0`, `O`, `1`, `I` und `L`: Diese Kennung
+# wird vorgelesen, abgetippt und am Telefon durchgegeben, und dabei ist der
+# Unterschied zwischen Null und O keiner.
+_ZEICHEN = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+
+# Fünf Zeichen aus einunddreißig: knapp 29 Millionen Möglichkeiten. Bei den
+# paar Dutzend Ständen, die ein Mensch je bekommt, liegt die Wahrscheinlichkeit
+# einer Dopplung unter einem Millionstel - und die vollständige Version steht
+# ohnehin daneben, falls doch.
+_LAENGE = 5
+
+
+def kurzkennung(version: str) -> str:
+    """Ein kurzer Code für einen Modellstand: `K7M2Q`.
+
+    **Wozu.** Ein Stand heißt
+    `20260914T0852-medium-lora-augmentiert-voll-geduldig-2.25x`. Das ist
+    sprechend und richtig, aber es lässt sich nicht aussprechen, nicht
+    vergleichen und nicht über drei Bildschirme hinweg verfolgen. Die
+    Kurzkennung tritt **neben** den sprechenden Titel und nicht an seine
+    Stelle: Der Titel sagt, was dieser Stand ist, die Kennung sagt, welcher.
+
+    **Warum gerechnet und nicht vergeben.** Eine laufende Nummer müsste
+    irgendwo stehen, beim Löschen Lücken lassen und in drei Apps dieselbe sein.
+    Aus der Version gerechnet braucht sie keine Buchführung: Jeder, der die
+    Version kennt, kommt auf dieselbe Kennung - „lernen" in zwei Ansichten,
+    „schreiben" in seiner Kopfzeile, und jeder Stand von früher rückwirkend,
+    ohne dass eine Zeile Datenbank angefasst würde.
+
+    **Warum aus der Version und nicht aus der Kennung `<sprecher>/<version>`.**
+    Weil sie innerhalb eines Sprechers eindeutig sein soll und nicht darüber
+    hinaus. Zwei Menschen dürfen dieselbe Kennung tragen - sie sehen die Stände
+    des anderen nie, und eine Kennung, die den Sprecher mitverrechnet, wäre bei
+    gleichem Rezept zweimal verschieden, ohne dass es jemandem nützte.
+    """
+    # SHA-256 und nicht `hash()`: Der eingebaute ist je Prozess anders gesalzen,
+    # und eine Kennung, die sich beim Neustart ändert, ist keine.
+    roh = int.from_bytes(hashlib.sha256(version.encode("utf-8")).digest()[:8], "big")
+    zeichen = []
+    for _ in range(_LAENGE):
+        roh, rest = divmod(roh, len(_ZEICHEN))
+        zeichen.append(_ZEICHEN[rest])
+    return "".join(zeichen)
 
 
 def ist_stand(ref: str) -> bool:

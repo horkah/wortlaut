@@ -576,7 +576,14 @@
            geschieht - und das sagt schon das Wort daneben. -->
       <div class="karte lauf" class:offen={lauf.status === 'laeuft' && !lauf.haengt}>
         <div class="kopfzeile">
-          <p class="marke">{bezeichnung(lauf)}</p>
+          <p class="marke">
+            <!-- Der kurze Code vor dem sprechenden Titel, nicht statt seiner:
+                 Der Titel sagt, **was** dieser Stand ist, die Kennung sagt,
+                 **welcher** - und sie ist dieselbe in der Modelltafel und in
+                 „schreiben" (`registry.kurzkennung`). -->
+            {#if lauf.kennung}<code class="kennung">{lauf.kennung}</code>{/if}
+            {bezeichnung(lauf)}
+          </p>
           <span class="rechts">
             <!-- Ein hängender Lauf sagt im Zustand `laeuft`. Das hier ist die
                  einzige Stelle, an der die Ansicht ihm widerspricht - und sie
@@ -672,6 +679,18 @@
 {/if}
 
 <style>
+  /* Die Kurzkennung: klein, einfarbig, monospace - sie soll gefunden und
+     verglichen werden, nicht gelesen. */
+  .kennung {
+    font-size: 0.8em;
+    padding: 0.05em 0.35em;
+    border: 1px solid var(--rand);
+    border-radius: 3px;
+    color: var(--gedaempft);
+    margin-right: 0.35em;
+    white-space: nowrap;
+  }
+
   .bestellung {
     margin-bottom: 1.4rem;
   }
