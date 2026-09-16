@@ -203,18 +203,33 @@ export type Servestimme = {
 export const servestimmen = () => anfrage<Servestimme[]>('/vorlesen/stimmen');
 
 /**
+ * Vorgelesenes kann sich unter derselben Adresse ändern.
+ *
+ * Die Adresse nennt Vorlage und Stimme, nicht aber, wann gerechnet wurde. Wird
+ * eine Stimme neu gesprochen, bleibt sie dieselbe und der Inhalt ist ein
+ * anderer. Der Server sagt das mit `Cache-Control: no-cache`; für alles, was
+ * ein Browser **vorher** abgelegt hat, gilt aber noch die alte Regel - und die
+ * hat er sich selbst geraten. `cache: 'no-cache'` an der Anfrage räumt auch
+ * das ab: Nachgefragt wird in jedem Fall, übertragen nur, was neu ist.
+ *
+ * Ohne das spielte Safari auf dem iPhone eine alte Aufnahme weiter, über das
+ * Neuladen der Seite hinweg, und die Anfrage kam am Server gar nicht erst an.
+ */
+const FRISCH: RequestInit = { cache: 'no-cache' };
+
+/** Ein fester Satz in dieser Stimme - zum Vergleichen, bevor man wählt. */
+export const stimmprobe = (stimme: string) =>
+  blob(`/vorlesen/probe?stimme=${encodeURIComponent(stimme)}`, FRISCH);
+
+/**
  * Eine Vorlage in einer Servestimme - als Blob, wie jedes Audio hier.
  *
  * Der Server rechnet sie, falls sie noch nicht vorliegt; beim zweiten Mal
  * kommt sie aus der Ablage (`services/vorlesen.py`). Eine 404 heißt „nimm die
  * Browserstimme" und ist kein Fehler, den jemand lesen müsste.
  */
-/** Ein fester Satz in dieser Stimme - zum Vergleichen, bevor man wählt. */
-export const stimmprobe = (stimme: string) =>
-  blob(`/vorlesen/probe?stimme=${encodeURIComponent(stimme)}`);
-
 export const vorlageVorgelesen = (vorlage: string, stimme: string) =>
-  blob(`/prompts/${vorlage}/vorlesung?stimme=${encodeURIComponent(stimme)}`);
+  blob(`/prompts/${vorlage}/vorlesung?stimme=${encodeURIComponent(stimme)}`, FRISCH);
 
 // ── Fortschritt ─────────────────────────────────────────────────────────────
 
