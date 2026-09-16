@@ -256,17 +256,100 @@ def entrausche(text: str) -> str:
     irgendwo drei Zeichen am Stück.
 
     Die Grenze liegt deshalb bei drei und nicht höher, und sie zählt Ziffern
-    mit: `48h` wäre sonst weg, und `10/2024` auch. Der Preis ist, dass ein paar
-    Brocken durchkommen, die zufällig drei Zeichen lang sind (`Ben`, `cDT`).
+    mit: `48h` wäre sonst weg, und `10/2024` auch.
+
+    **Und mindestens die Hälfte der Brocken muss ein Wort sein.** Ein einzelnes
+    genügte anfangs, und damit blieb `k Be #2 I CFrAN` stehen - eine Zeile aus
+    fünf Bruchstücken, von denen eines zufällig fünf Zeichen lang war. Die
+    Mehrheitsregel nimmt sie und lässt alles stehen, was wirklich dasteht:
+    `Bio-Jojobaöl &` hat zwei Brocken und ein Wort, `ZERTIFIZIERT || VEGAN`
+    drei und zwei, `48h` einen und einen.
+
     Das ist die richtige Richtung: Was hier stehen bleibt, streicht ein Mensch
     im nächsten Schritt weg - was hier verschwindet, sieht er nie wieder.
+    Gegen Zeilen, die durchweg wie Wörter aussehen und trotzdem keine sind -
+    ein Unterstrich unter einer Überschrift -, hilft das nicht; dagegen steht
+    `MINDESTZUVERSICHT`.
 
     Angewandt wird das **nur auf Erkanntes**. Ein gelesener Text steht so da,
     wie ihn jemand geschrieben hat, und daran wird nicht gefiltert.
     """
-    zeilen = [z.rstrip() for z in text.splitlines()]
-    behalten = [z for z in zeilen if not z.strip() or _WORTHAFT.search(z)]
+    behalten = [z.rstrip() for z in text.splitlines() if not z.strip() or _traegt_text(z)]
     return re.sub(r"\n{3,}", "\n\n", "\n".join(behalten)).strip()
+
+
+def _traegt_text(zeile: str) -> bool:
+    """Ob in dieser Zeile mehrheitlich Wörter stehen und nicht Bruchstücke."""
+    brocken = zeile.split()
+    worthaft = sum(1 for brocken_stueck in brocken if _WORTHAFT.search(brocken_stueck))
+    return worthaft * 2 >= len(brocken)
+
+
+# Wie sicher Tesseract bei einer Zeile mindestens sein muss, damit sie bleibt.
+#
+# **Wogegen das hilft.** Ein Unterstrich unter einer Überschrift ist ein
+# Balken, kein Buchstabe - aber Tesseract muss etwas zurückgeben und liest ihn
+# als Wort. So entstand unter „Birchermüsli zum Frühstück?" die Zeile
+# „a nee heneibneeneschebeißsi": lang genug für den Längenfilter, Unsinn für
+# jeden Menschen. Was fehlt, ist nicht die Länge, sondern die Sicherheit - und
+# die sagt Tesseract selbst, wenn man sie erfragt.
+#
+# **Warum 15 und nicht mehr.** Gemessen an zwei Vorlagen:
+#
+#     Plakat, sauber      Rauschzeile  6,5  ·  echter Text ab 75
+#     Cremedeckel, schwer              ---  ·  echter Text ab 28
+#
+# Die Grenze muss unter das schwächste Echte und über das stärkste Rauschen.
+# 15 liegt in dieser Lücke, mit Abstand nach beiden Seiten: Auf dem schweren
+# Foto wäre `OKO-TEST` (28) und `BIO-JOJOBAÖL` (40) sonst mit weggefallen, und
+# das sind Wörter, die wirklich dastehen.
+MINDESTZUVERSICHT = 15.0
+
+
+def _gelesen(bild, lang: str, seitenart: int) -> str:
+    """Eine Fassung lesen - zeilenweise, und nur was sicher genug ist.
+
+    Gelesen wird über `image_to_data` statt `image_to_string`, weil nur das die
+    Zuversicht je Wort mitliefert. Es ist derselbe Durchgang, nur eine andere
+    Ausgabe; teurer wird es nicht.
+
+    Zusammengesetzt wird entlang der Struktur, die Tesseract selbst meldet:
+    Wörter zu Zeilen, Absätze durch Leerzeilen getrennt - denn genau daran
+    schneidet `text/chunker.py` später die Sprecheinheiten.
+    """
+    import pytesseract
+    from pytesseract import Output
+
+    daten = pytesseract.image_to_data(
+        bild, lang=lang, config=f"--psm {seitenart}", output_type=Output.DICT
+    )
+
+    zeilen: dict[tuple[int, int, int], list[tuple[str, float]]] = {}
+    for stelle, wort in enumerate(daten["text"]):
+        geputzt = wort.strip()
+        if not geputzt:
+            continue
+        konfidenz = float(daten["conf"][stelle])
+        if konfidenz < 0:  # -1 steht für „kein Wort", nicht für „unsicher"
+            continue
+        schluessel = (
+            daten["block_num"][stelle],
+            daten["par_num"][stelle],
+            daten["line_num"][stelle],
+        )
+        zeilen.setdefault(schluessel, []).append((geputzt, konfidenz))
+
+    ausgabe: list[str] = []
+    vorheriger_absatz: tuple[int, int] | None = None
+    for (block, absatz, _), woerter in zeilen.items():
+        mittel = sum(k for _, k in woerter) / len(woerter)
+        if mittel < MINDESTZUVERSICHT:
+            continue
+        if vorheriger_absatz is not None and (block, absatz) != vorheriger_absatz:
+            ausgabe.append("")
+        ausgabe.append(" ".join(wort for wort, _ in woerter))
+        vorheriger_absatz = (block, absatz)
+    return "\n".join(ausgabe)
 
 
 def _punkte(text: str) -> int:
@@ -289,12 +372,11 @@ def aus_bild(inhalt: bytes, sprache: str) -> str:
     """
     if not verfuegbar():
         raise OcrFehler("Auf diesem Server ist keine Zeichenerkennung eingerichtet.")
-    import pytesseract
 
     lang = kuerzel(sprache)
     try:
         versuche = [
-            pytesseract.image_to_string(fassung, lang=lang, config=f"--psm {art}")
+            _gelesen(fassung, lang, art)
             for fassung in _vorbereitet(_aufgerichtet(_oeffne(inhalt)))
             for art in SEITENARTEN
         ]
@@ -339,15 +421,12 @@ def aus_pdf(inhalt: bytes, sprache: str) -> str:
         import pypdfium2
     except ImportError as ursache:
         raise OcrFehler("Für gescannte PDFs fehlt pypdfium2.") from ursache
-    import pytesseract
 
     lang = kuerzel(sprache)
     try:
         dokument = pypdfium2.PdfDocument(inhalt)
         seiten = [
-            pytesseract.image_to_string(
-                dokument[nummer].render(scale=RASTER).to_pil(), lang=lang
-            )
+            _gelesen(dokument[nummer].render(scale=RASTER).to_pil(), lang, SEITENARTEN[0])
             for nummer in range(min(len(dokument), MAX_SEITEN))
         ]
     except Exception as ursache:

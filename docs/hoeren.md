@@ -577,14 +577,29 @@ einen **Bildschirm** abfotografiert: Dessen Bildpunktgitter legt sich als
 feines Muster über die Schrift (Moiré). Nachgemessen an einem nachgestellten
 Bildschirmfoto - **0 Punkte** im Rohbild, der volle Satz nach dem Filter.
 
-*Auf dem Text:* Zeilen ohne ein einziges Wort fallen weg. Eine
+*Auf dem Text:* Zwei Regeln, und sie fangen Verschiedenes.
+
+Zeilen, in denen **mehrheitlich Bruchstücke** stehen, fallen weg. Eine
 Zeichenerkennung findet auf einem Foto auch dort Schrift, wo Muster sind - der
 Wirbel auf einem Cremedeckel wird zu `| x`, `Ye`, `v,`, `ae`. Die Grenze liegt
 bei drei Zeichen am Stück und zählt Ziffern mit, damit `48h` und `10/2024`
-bleiben; der Preis ist, dass ein paar zufällig dreizeichige Brocken
-durchkommen. Das ist die richtige Richtung: Was stehen bleibt, streicht ein
-Mensch im nächsten Schritt - was verschwindet, sieht er nie wieder. Gefiltert
-wird **nur Erkanntes**, nie ein gelesener oder eingefügter Text.
+bleiben. Und mindestens die Hälfte der Brocken einer Zeile muss ein Wort
+sein: `k Be #2 I CFrAN` hat eines von fünfen und geht, `Bio-Jojobaöl &` eines
+von zweien und bleibt.
+
+Dagegen hilft keine Länge, wenn eine Zeile durchweg wie Wörter aussieht und
+trotzdem keine sind - ein **Unterstrich** unter einer Überschrift ist ein
+Balken, den Tesseract als Wort lesen muss. So entstand unter „Birchermüsli zum
+Frühstück?" die Zeile „a nee heneibneeneschebeißsi". Was fehlt, ist nicht die
+Länge, sondern die Sicherheit, und die sagt Tesseract selbst: Gelesen wird
+deshalb über `image_to_data`, und eine Zeile unter einer mittleren Zuversicht
+von 15 fällt weg. Gemessen an zwei Vorlagen - die Rauschzeile kam auf 6,5, der
+echte Text des Plakats ab 75, der des schweren Fotos ab 28. Die Grenze liegt in
+dieser Lücke, mit Abstand nach beiden Seiten.
+
+Das ist die richtige Richtung: Was stehen bleibt, streicht ein Mensch im
+nächsten Schritt - was verschwindet, sieht er nie wieder. Gefiltert wird **nur
+Erkanntes**, nie ein gelesener oder eingefügter Text.
 
 *Bei einem PDF nichts von alldem.* Ein Scan ist eine Seite Fließtext, flach
 ausgeleuchtet und ohne Moiré - genau der Fall, für den Tesseracts Vorgabe

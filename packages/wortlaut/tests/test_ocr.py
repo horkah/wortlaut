@@ -90,6 +90,41 @@ class TestEntrauschen:
         )
 
 
+class TestBruchstueckzeilen:
+    """Zeilen, die mehrheitlich aus Bruchstücken bestehen."""
+
+    def test_ein_langer_brocken_rettet_die_zeile_nicht(self) -> None:
+        # Vom Wirbel auf einem Cremedeckel: fünf Bruchstücke, davon eines
+        # zufällig fünf Zeichen lang. Ein einzelnes Wort genügte einmal, und
+        # damit blieb diese Zeile stehen.
+        assert ocr.entrausche("k Be #2 I CFrAN") == ""
+
+    def test_die_haelfte_genuegt(self) -> None:
+        # `Bio-Jojobaöl &` ist ein Wort auf zwei Brocken - und steht wirklich da.
+        assert ocr.entrausche("Bio-Jojobaöl &") == "Bio-Jojobaöl &"
+        assert ocr.entrausche("ZERTIFIZIERT || VEGAN") == "ZERTIFIZIERT || VEGAN"
+
+    def test_ein_satz_bleibt_ein_satz(self) -> None:
+        satz = "Dann unbedingt vor dem Zubettgehen beim NTH-"
+        assert ocr.entrausche(satz) == satz
+
+
+class TestZuversicht:
+    """Gegen Zeilen, die wie Wörter aussehen und keine sind."""
+
+    def test_die_grenze_liegt_in_der_gemessenen_luecke(self) -> None:
+        # Gemessen: Rauschen aus einem Unterstrich kam auf 6,5, das schwächste
+        # echte Wort auf dem schweren Foto auf 28. Dazwischen muss sie liegen,
+        # mit Abstand nach beiden Seiten (die Zahlen stehen in `ocr.py`).
+        assert 10 <= ocr.MINDESTZUVERSICHT <= 20
+
+    def test_laenge_allein_faengt_das_nicht(self) -> None:
+        # Der Unterstrich unter „Birchermüsli zum Frühstück?" wurde zu dieser
+        # Zeile. Sie besteht aus Wörtern - nur aus keiner Sprache. Dagegen hilft
+        # nur, Tesseract nach seiner Sicherheit zu fragen.
+        assert ocr.entrausche("a nee heneibneeneschebeißsi") != ""
+
+
 class TestMass:
     """Was je Format aufgewendet wird - die Zahlen stehen in `ocr.py`."""
 
