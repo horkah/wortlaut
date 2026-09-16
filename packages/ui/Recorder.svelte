@@ -3,7 +3,7 @@
    * Ein Knopf, eine Aufnahme.
    *
    * Gerätewahl, Verstärkung und Format stecken in `mikrofon.ts` - dieselbe
-   * Kette, die der Mikrofontest in den Einstellungen vorführt. Hier bleibt
+   * Kette, die der Mikrofontest unter „Audio" vorführt. Hier bleibt
    * nur, was den Knopf betrifft.
    */
   import { Aufnahmekette, MikrofonFehler, zeichneAuf } from './mikrofon';

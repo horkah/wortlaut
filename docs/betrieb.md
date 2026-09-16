@@ -316,7 +316,7 @@ und beide mit Wiederholung. Bricht etwas ab, holt ein erneuter Aufruf nur, was
 noch fehlt.
 
 Mehrere Stimmen nebeneinander sind erlaubt und gedacht: Wer sie vergleichen
-will, legt zwei ab und wählt unter „Einstellungen". Welche Stimme jemand gut
+will, legt zwei ab und wählt unter „Audio". Welche Stimme jemand gut
 nachsprechen kann, ist individuell.
 
 Nötig ist nichts davon. Ohne Stimme, ohne Piper im Abbild oder bei einem Fehler
@@ -888,13 +888,13 @@ uv run python scripts/purge_speaker.py spr_7f2a --ja-wirklich
 | `Textquelle nicht erreichbar` | Bei `openai`: `WORTLAUT_LLM_BASE_URL` zeigt ins Leere. Lokal prüfen mit `docker compose ps` (läuft „ollama"?) und `docker exec wortlaut-ollama-1 ollama list` (ist das Modell geladen?). |
 | `Textquelle antwortete mit 404` | Das Modell aus `WORTLAUT_LLM_MODEL` ist dort nicht geladen - `docker exec wortlaut-ollama-1 ollama pull <modell>` |
 | Aufnahmeknopf ohne Wirkung | `MediaRecorder` braucht HTTPS oder `localhost` |
-| Aufnahmen sind durchweg sehr leise (Hinweis „Sehr leise") | Erst unter „Einstellungen → Mikrofon" **Automatisch einmessen** laufen lassen; das hebt den Pegel im Browser an. Bleibt es leise, siehe „Leises Mikrofon unter Linux" unten. |
+| Aufnahmen sind durchweg sehr leise (Hinweis „Sehr leise") | Erst unter „Audio → Mikrofon" **Automatisch einmessen** laufen lassen; das hebt den Pegel im Browser an. Bleibt es leise, siehe „Leises Mikrofon unter Linux" unten. |
 | Der Pegelbalken im Mikrofontest bleibt auf „still" | Der Browser hat ein anderes Gerät geöffnet als erwartet - im Test das Mikrofon ausdrücklich auswählen. Steht dort nur „Mikrofon 1", war der Test noch nie an; die echten Namen gibt der Browser erst nach erteilter Erlaubnis heraus. |
 | „Vorlesen" ohne Stimme | Browser ohne deutsche Stimme für die Web Speech API |
 | Vorgelesene Stimme klingt blechern | Siehe „Bessere Vorlesestimme unter Linux" unten. Die Web Speech API nutzt die Stimmen des Betriebssystems; unter Linux ist das per Vorgabe espeak-ng. |
 | „schreiben": erstes Diktat hängt lange | faster-whisper lädt beim ersten Aufruf sein Modell herunter. Danach kommt es aus dem Cache. Ohne Netz schlägt es fehl - dann `WORTLAUT_ASR_MODELL` auf ein bereits geladenes Modell setzen. |
 | „schreiben": `ModuleNotFoundError: faster_whisper` | `uv sync --extra asr` vergessen (oder `WORTLAUT_ASR=remote` setzen) |
-| „schreiben": „Aus der Aufnahme wurde kein Wort verstanden" | Whisper hat nichts erkannt. Bei leiser Aufnahme oder starker Sprechstörung ist das auch mit `small` der Normalfall - erst Mikrofon einmessen (Menüknopf oben rechts → Einstellungen; die Werte gelten für beide Apps), dann ein größeres Modell versuchen. |
+| „schreiben": „Aus der Aufnahme wurde kein Wort verstanden" | Whisper hat nichts erkannt. Bei leiser Aufnahme oder starker Sprechstörung ist das auch mit `small` der Normalfall - erst Mikrofon einmessen (Menüknopf oben rechts → Audio; die Werte gelten für beide Apps), dann ein größeres Modell versuchen. |
 | „schreiben": Postausgang bleibt offen | `WORTLAUT_INTAKE_URL` fehlt oder zeigt ins Leere; oder der Zugang des Sprechers gilt bei „hören" nicht mehr (401), weil dort inzwischen ein neuer ausgegeben wurde. Nichts geht verloren: „Noch einmal senden" nach dem Richten genügt - nötigenfalls nach dem Öffnen des neuen Links. |
 | `localhost:5174` zeigt eine leere Seite | Der Pfad fehlt: `http://localhost:5174/schreiben/` aufrufen. |
 | Der Reiter „schreiben" landet wieder in „hören" | Im Betrieb: Der Proxy schneidet `/schreiben/` ab oder zeigt auf den falschen Port. Probe: `curl -I https://<domain>/schreiben/`. In der Entwicklung: „schreiben" läuft nicht mit - `make dev APP=schreiben`. |
@@ -935,7 +935,7 @@ pactl set-source-volume @DEFAULT_SOURCE@ 200%
 Das gilt für alle Programme, nicht nur für wortlaut, und wird bei einigen
 Treibern beim Neustart zurückgesetzt.
 
-2. Oder die **Verstärkung** unter „Einstellungen → Mikrofon" benutzen. Sie
+2. Oder die **Verstärkung** unter „Audio → Mikrofon" benutzen. Sie
    wirkt nur in dieser App, überlebt den Neustart und lässt sich mit
    „Automatisch einmessen" auf die eigene Stimme einstellen.
 
@@ -945,7 +945,7 @@ Verstärkung.
 
 ## Bessere Vorlesestimme unter Linux
 
-Die App wählt die Stimme nicht selbst, sie bietet unter „Einstellungen" nur an,
+Die App wählt die Stimme nicht selbst, sie bietet unter „Audio" nur an,
 was der Browser meldet. Unter Linux kommt das aus `speech-dispatcher`, der per
 Vorgabe `espeak-ng` benutzt - verständlich, aber deutlich blechern. Für Deutsch
 gibt es in den Paketquellen von Debian/Ubuntu/Mint keine RHVoice-Stimme; die

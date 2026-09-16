@@ -6,7 +6,7 @@
    * `Kopfleiste.svelte` und damit ohnehin nur an einer Stelle. Was bisher
    * fehlte, war der Rahmen darum: Jede App hängte Kopf- und Fußzeile selbst
    * auf und beantwortete die gerätebezogenen Menüpunkte selbst - dieselbe
-   * Kette aus `route === EINSTELLUNGEN_PFAD ? … : route === DARSTELLUNG_PFAD`
+   * Kette aus `route === AUDIO_PFAD ? … : route === DARSTELLUNG_PFAD`
    * in jeder `App.svelte`. Ein vierter solcher Punkt hätte jede App angefasst,
    * und wer einen vergisst, hat einen Menüeintrag, der ins Leere führt.
    *
@@ -22,12 +22,12 @@
   import type { Snippet } from 'svelte';
   import Kopfleiste from './Kopfleiste.svelte';
   import Fusszeile from './Fusszeile.svelte';
-  import Einstellungen from './Einstellungen.svelte';
+  import Audio from './Audio.svelte';
   import type { Servestimme } from './speak';
   import Darstellung from './Darstellung.svelte';
   import {
     DARSTELLUNG_PFAD,
-    EINSTELLUNGEN_PFAD,
+    AUDIO_PFAD,
     type AppSchluessel,
     type Menuepunkt,
   } from './apps';
@@ -55,7 +55,7 @@
      */
     sprecher?: string | null;
     /**
-     * Die Sprache seines Profils, für die Stimmwahl in den Einstellungen.
+     * Die Sprache seines Profils, für die Stimmwahl unter „Audio".
      * `null`, solange die Antwort des Servers aussteht oder ein Verwalter ruft
      * (`wer.ts`).
      */
@@ -76,15 +76,15 @@
   // Großgeschrieben, damit Svelte 5 den Wert als Komponente nimmt. `null`
   // heißt: keine gerätebezogene Ansicht offen, die App ist an der Reihe.
   const Geraet = $derived(
-    route === EINSTELLUNGEN_PFAD ? Einstellungen : route === DARSTELLUNG_PFAD ? Darstellung : null,
+    route === AUDIO_PFAD ? Audio : route === DARSTELLUNG_PFAD ? Darstellung : null,
   );
 </script>
 
 <Kopfleiste {app} {punkte} {uebergreifend} {sprecher} {route} />
 
 <main>
-  {#if Geraet === Einstellungen}
-    <Einstellungen {sprache} {servestimmen} {probeHolen} />
+  {#if Geraet === Audio}
+    <Audio {sprache} {servestimmen} {probeHolen} />
   {:else if Geraet}
     <Geraet />
   {:else}

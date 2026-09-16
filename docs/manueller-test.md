@@ -52,7 +52,7 @@ gemacht, und was dabei herauskommt, ist ein Link.
    dort. Die App zeigt die Ansicht „Textquelle“, in der Kopfzeile steht eine
    zweite Reihe (Textquelle, Aufnehmen, Fortschritt, Auswertung) mit „Textquelle“ hell
    hinterlegt, und vor dem Menüknopf steht der eingetragene Name. Weder
-   „Sprecher“ noch „Einstellungen“ stehen in der Reiterreihe - die
+   „Sprecher“ noch „Audio“ stehen in der Reiterreihe - die
    Einstellungen hängen hinter dem Menüknopf (☰) rechts oben, einen Punkt
    „Sprecher“ gibt es hier nicht mehr: Wer man ist, steht im Zugang. Der Punkt
    „Zugangsdaten“ steht auch hier im Menü; er zeigt dann nicht sofort ein
@@ -184,9 +184,9 @@ gemeinsamen Rahmen (`packages/ui/Rahmen.svelte`).
 
 ## 6. Vorlesen und Anzeige
 
-1. Weiter unten in denselben **Einstellungen**.
+1. Weiter unten unter demselben **Audio**.
 2. **Probe hören** drücken. Erwartet: der Probesatz wird vorgelesen. (Meldet
-   der Browser keine deutsche Stimme, steht statt der Auswahl ein Hinweis und
+   der Browser keine Stimme für die Sprache des Profils, steht statt der Auswahl ein Hinweis und
    der Knopf ist ausgegraut - siehe `docs/betrieb.md`.)
 3. **Sprechtempo** verschieben, erneut **Probe hören**. Erwartet: die Anzeige
    neben dem Regler ändert sich (z. B. „0,7×“) und die Probe wird hörbar
@@ -196,8 +196,8 @@ gemeinsamen Rahmen (`packages/ui/Rahmen.svelte`).
 5. **Schriftgröße der Vorlage** verschieben. Erwartet: der Beispieltext
    darunter wächst beziehungsweise schrumpft sofort mit.
 6. Zur **Aufnahme** wechseln. Erwartet: die Vorlage erscheint in der
-   eingestellten Größe, „▶ Vorsprechen lassen“ nutzt Stimme und Tempo aus den
-   Einstellungen.
+   eingestellten Größe, „▶ Vorsprechen lassen“ nutzt Stimme und Tempo aus
+   „Audio".
 7. Seite neu laden (F5). Erwartet: alle Werte sind erhalten, auch Mikrofon
    und Verstärkung (`localStorage`).
 8. **Auf Vorgaben zurücksetzen** drücken. Erwartet: Tempo 0,9×, Schriftgröße
