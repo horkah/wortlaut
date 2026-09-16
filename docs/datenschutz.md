@@ -32,6 +32,14 @@ Voreingestellt: nichts. Zwei Schalter können das ändern, beide bewusst:
   auf die eigene Instanz, verlässt nichts den Server; er kann aber auf einen
   fremden zeigen, und dann tut es das.
 
+**Die Zeichenerkennung gehört ausdrücklich nicht dazu.** Wer eine Vorlage
+fotografiert oder ein gescanntes PDF hochlädt, gibt womöglich das
+Persönlichste herein, was diese App je zu sehen bekommt - einen Brief, einen
+Befund, eine Karte. Gelesen wird deshalb mit Tesseract im eigenen Prozess
+(`wortlaut/text/ocr.py`), ohne Schalter, der daran etwas ändern könnte. Das
+Bild selbst wird nirgends abgelegt: Es geht durch den Arbeitsspeicher, der Text
+kommt zurück, und gespeichert wird erst, was ein Mensch danach übernimmt.
+
 ## Datensparsamkeit im Ablauf
 
 - Eine **verworfene** Aufnahme wird sofort gelöscht, nicht nur markiert. In der

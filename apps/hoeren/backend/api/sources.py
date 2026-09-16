@@ -1,4 +1,4 @@
-"""Textquellen: LLM-Thema oder hochgeladener Text.
+"""Textquellen: LLM-Thema, hochgeladener Text, fotografierte Vorlage.
 
 Beide Wege enden gleich: Text → `chunker.schneide()` → Vorlagen, die hinten an
 die Warteschlange angehängt werden. Herkunft und Erzeugungsparameter werden in
@@ -16,11 +16,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 from wortlaut import ids
-from wortlaut.text import chunker, llm, upload
+from wortlaut.text import chunker, llm, ocr, upload
 
 from ..config import einstellungen
 from ..db.models import Aufnahme, Textquelle, Vorlage, jetzt
-from ..deps import Datenbank, SprecherId
+from ..deps import Datenbank, Sprache, SprecherId
 from ..services.prompt_queue import naechste_position
 
 router = APIRouter(prefix="/api/sources", tags=["Textquellen"])
@@ -46,6 +46,27 @@ class QuellenAntwort(BaseModel):
 
 class AktivAenderung(BaseModel):
     aktiv: bool
+
+
+class ErkannterText(BaseModel):
+    """Was aus einer Datei herausgelesen wurde - noch nichts davon gespeichert."""
+
+    text: str
+    # `gelesen` = aus der Textebene des PDFs, `erkannt` = aus dem Bild geraten.
+    # Die Oberfläche sagt es dazu, denn es ändert, wie genau jemand hinsehen
+    # muss: Gelesenes stimmt, Erkanntes ist ein Vorschlag.
+    herkunft: str
+    seiten: int | None = None
+
+
+class EigenerText(BaseModel):
+    """Text, den ein Mensch gesehen und so gewollt hat."""
+
+    text: str = Field(min_length=1)
+    titel: str = Field(default="", max_length=200)
+    # Woher er ursprünglich kam - fürs Protokoll in `parameter`, nicht für eine
+    # Entscheidung.
+    herkunft: str = Field(default="eingefügt", max_length=40)
 
 
 def _als_antwort(quelle: Textquelle, einheiten: int) -> QuellenAntwort:
@@ -110,6 +131,102 @@ async def aus_upload(
         titel=datei.filename or "Hochgeladener Text",
         parameter={"dateiname": datei.filename, "bytes": len(inhalt)},
         text=text,
+    )
+
+
+@router.get("/erkennung", response_model=dict)
+def erkennung_moeglich() -> dict:
+    """Ob dieser Server Bilder lesen kann - damit die Oberfläche nichts verspricht.
+
+    Ohne Wächter und ohne Sprecher: Was der Server kann, ist keine Auskunft
+    über einen Menschen - dieselbe Überlegung wie bei `GET /api/sprachen`.
+    """
+    return {"moeglich": ocr.verfuegbar(), "formate": list(ocr.UNTERSTUETZT)}
+
+
+@router.post("/erkennen", response_model=ErkannterText)
+async def erkenne(
+    sprecher: SprecherId, sprache: Sprache, datei: UploadFile = File()
+) -> ErkannterText:
+    """Eine Datei lesen und den Text **zurückgeben**, ohne etwas zu speichern.
+
+    **Warum getrennt vom Anlegen.** Was hier herauskommt, ist bei einem Foto
+    geraten, nicht gelesen. Eine Zeichenerkennung verwechselt `rn` mit `m` und
+    erfindet an Knicken Zeichen, die nie dastanden. Ginge das unmittelbar in
+    den Korpus, wanderte der Fehler in die Vorlage, von dort in die Aufnahme -
+    denn der Mensch spricht nach, was dasteht - und von dort ins Training, wo
+    er als Abweichung des Sprechers gezählt würde. Der Umweg über die Anzeige
+    ist deshalb keine Bequemlichkeit, sondern die Stelle, an der ein Mensch
+    hinsieht, bevor es zählt.
+
+    **Der Weg einer Datei.** Ein PDF mit Textebene wird gelesen; eines ohne
+    gilt als Scan und wird erkannt. Ein Bild wird immer erkannt. Was dabei
+    herauskam, sagt `herkunft` - die Oberfläche warnt dann entsprechend
+    deutlich.
+    """
+    inhalt = await datei.read()
+    if len(inhalt) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Datei ist zu groß (Grenze: 10 MB).")
+
+    name = datei.filename or ""
+    endung = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
+
+    if upload.ist_pdf(name):
+        if upload.pdf_hat_text(inhalt):
+            return ErkannterText(text=upload.lies_text(inhalt, name), herkunft="gelesen")
+        text = _erkannt(lambda: ocr.aus_pdf(inhalt, sprache))
+        return ErkannterText(text=text, herkunft="erkannt")
+
+    if endung in ocr.UNTERSTUETZT:
+        return ErkannterText(text=_erkannt(lambda: ocr.aus_bild(inhalt, sprache)), herkunft="erkannt")
+
+    # Die übrigen Formate tragen ihren Text im Klartext; sie hier durchzulassen
+    # kostet nichts und erspart der Oberfläche eine zweite Fallunterscheidung.
+    try:
+        return ErkannterText(text=upload.lies_text(inhalt, name), herkunft="gelesen")
+    except upload.UploadFehler as fehler:
+        raise HTTPException(status_code=400, detail=str(fehler)) from fehler
+
+
+def _erkannt(arbeit) -> str:
+    """Die Zeichenerkennung aufrufen und ihre Fehler in Antworten übersetzen.
+
+    409 und nicht 500, wenn sie fehlt: Es ist kein Fehler dieses Servers,
+    sondern eine Möglichkeit, die er nicht hat - und die Oberfläche soll den
+    Satz zeigen können, statt „Fehler 500".
+    """
+    try:
+        text = arbeit()
+    except ocr.OcrFehler as fehler:
+        schluessel = 409 if not ocr.verfuegbar() else 400
+        raise HTTPException(status_code=schluessel, detail=str(fehler)) from fehler
+    if not text.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Auf dieser Vorlage war kein Text zu erkennen. Schärfer, gerader, heller?",
+        )
+    return text
+
+
+@router.post("/text", response_model=QuellenAntwort, status_code=201)
+def aus_text(sprecher: SprecherId, eingabe: EigenerText, db: Datenbank) -> QuellenAntwort:
+    """Text übernehmen, den ein Mensch vor sich gesehen hat.
+
+    Das Gegenstück zu `/erkennen` und zugleich der Weg für einen Schnipsel aus
+    der Zwischenablage: In beiden Fällen steht der Text in der Oberfläche,
+    bevor er hier ankommt. Was gespeichert wird, ist deshalb immer das, was
+    jemand gelesen und so gewollt hat - und nicht, was eine Maschine geraten
+    hat.
+    """
+    if not eingabe.text.strip():
+        raise HTTPException(status_code=400, detail="Der Text ist leer.")
+    return _lege_quelle_an(
+        db,
+        sprecher,
+        art="upload",
+        titel=eingabe.titel.strip() or "Eigener Text",
+        parameter={"herkunft": eingabe.herkunft, "zeichen": len(eingabe.text)},
+        text=eingabe.text,
     )
 
 

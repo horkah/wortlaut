@@ -527,6 +527,45 @@ sonst hinter einem Korpus, dessen Länge niemand vorhersagt. Nur das **Löschen*
 steht in der Einsicht bewusst dahinter und ganz unten: Dort ist der weite Weg
 der Schutz, und die langen Listen sind es, die ihn weit machen.
 
+#### Eine Vorlage darf auch ein Foto sein
+
+Nicht jeder Text liegt als Datei vor. Ein Zeitungsausschnitt, eine Buchseite,
+ein Brief - wer so etwas vorlesen will, fotografiert ihn, und genau das ist der
+Weg, der ohne Tastatur auskommt (Grundentscheidung 7). Dasselbe gilt für ein
+eingescanntes PDF: eines ohne Textebene ist ein Bild in einem PDF-Umschlag.
+
+Gelesen wird auf dieser Maschine, mit Tesseract (`wortlaut/text/ocr.py`), aus
+demselben Grund, aus dem auch Whisper hier läuft: Es verlässt nichts den Server
+([Datenschutz](datenschutz.md)). Ein fotografierter Brief ist womöglich das
+Persönlichste, was diese App je zu sehen bekommt.
+
+**Der Prüfschritt ist der Punkt.** Was aus einem Foto kommt, ist geraten und
+nicht gelesen - eine Zeichenerkennung verwechselt `rn` mit `m` und erfindet an
+Knicken Zeichen. Ginge das unmittelbar in den Korpus, wanderte der Fehler in
+die Vorlage, von dort in die Aufnahme (der Mensch spricht ja nach, was
+dasteht) und von dort ins Training, wo er als Abweichung des *Sprechers*
+gezählt würde. Deshalb gibt `POST /api/sources/erkennen` den Text nur zurück;
+angelegt wird er erst durch `POST /api/sources/text`, nachdem ein Mensch ihn
+gesehen und gebessert hat. Die Oberfläche sagt dazu, ob er `gelesen` oder
+`erkannt` wurde - Gelesenes stimmt, Erkanntes ist ein Vorschlag.
+
+PDFs nehmen denselben Umweg, auch wenn sie eine Textebene tragen: Kopfzeilen,
+Fußnoten und Seitenzahlen will niemand vorlesen, und wer sie sieht, streicht
+sie weg. `txt`, `md`, `epub` und `docx` gehen weiterhin unmittelbar durch -
+dort steht der Text schon so da, wie ihn jemand geschrieben hat.
+
+**Aus der Zwischenablage** geht beides: ein Bild, das dann erkannt wird, und
+ein Schnipsel Text, der gleich im Prüffeld landet. Über das `paste`-Ereignis
+und nicht über `navigator.clipboard.read()` - Letzteres fragt in Safari jedes
+Mal um Erlaubnis und gibt in Firefox keine Bilder heraus, während Einfügen
+überall dieselbe Handbewegung ist.
+
+**Ohne Tesseract fehlt der Weg, und die App sagt es.**
+`GET /api/sources/erkennung` beantwortet die Frage, bevor jemand ein Bild
+auswählt; das Auswahlfeld bietet die Bildformate dann gar nicht erst an.
+Dieselbe Regel wie beim Vorlesen: eine fehlende Möglichkeit ist kein Fehler,
+sondern ein Weg weniger.
+
 ##### Eine PIN davor
 
 Wer mag - die Person selbst oder die Aufsicht an ihrer Stelle - sichert
@@ -930,6 +969,9 @@ Daten - hinter dem Zugang eines Sprechers, der zugleich sagt, welcher:
 ```
 POST   /api/sources/llm                     { thema, altersspanne, umfang }
 POST   /api/sources/upload                  multipart: datei
+POST   /api/sources/erkennen                multipart: datei - liest, legt nichts an
+POST   /api/sources/text                    { text, titel, herkunft }
+GET    /api/sources/erkennung               ob Bilder gelesen werden können
 GET    /api/sources
 GET    /api/sources/{id}/text               Klartext, eine Einheit je Absatz
 PATCH  /api/sources/{id}                    { aktiv }  - abstellen/aufnehmen

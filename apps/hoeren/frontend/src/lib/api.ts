@@ -124,6 +124,35 @@ export function quelleAusDatei(datei: File) {
   return anfrage<Quelle>('/sources/upload', { method: 'POST', body: formular });
 }
 
+/** Was aus einer Datei herausgelesen wurde - noch nichts davon gespeichert. */
+export type ErkannterText = {
+  text: string;
+  /** `gelesen` steht so da; `erkannt` ist geraten und will nachgesehen werden. */
+  herkunft: 'gelesen' | 'erkannt';
+};
+
+/**
+ * Eine Datei lesen und den Text zurückbekommen, ohne ihn anzulegen.
+ *
+ * Der Umweg ist der Punkt: Was aus einem Foto kommt, ist geraten. Ginge es
+ * unmittelbar in den Korpus, wanderte ein Lesefehler in die Vorlage, von dort
+ * in die Aufnahme - der Mensch spricht ja nach, was dasteht - und von dort ins
+ * Training, wo er als Abweichung des Sprechers zählte.
+ */
+export function textErkennen(datei: File) {
+  const formular = new FormData();
+  formular.append('datei', datei);
+  return anfrage<ErkannterText>('/sources/erkennen', { method: 'POST', body: formular });
+}
+
+/** Ob dieser Server Bilder lesen kann - sonst gibt es den Weg gar nicht. */
+export const erkennungMoeglich = () =>
+  anfrage<{ moeglich: boolean; formate: string[] }>('/sources/erkennung');
+
+/** Text übernehmen, den ein Mensch vor sich gesehen hat. */
+export const quelleAusText = (eingabe: { text: string; titel: string; herkunft: string }) =>
+  anfrage<Quelle>('/sources/text', alsJson(eingabe));
+
 export const quelleLoeschen = (quelle: string) =>
   anfrage<void>(`/sources/${quelle}`, { method: 'DELETE' });
 

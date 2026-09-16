@@ -37,7 +37,7 @@ from typing import Annotated
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
-from wortlaut import corpus, db, storage
+from wortlaut import corpus, db, sprachen, storage
 from wortlaut import zugang as zugangsdienst
 
 from .config import einstellungen
@@ -221,7 +221,23 @@ def _ablage() -> storage.Ablage:
 
 
 # Kurzschreibweisen für die Signaturen der Endpunkte.
+def _sprache(
+    sprecher_id: Annotated[str, Depends(_sprecher_id)],
+    sitzung: Annotated[Session, Depends(_sprecher_sitzung)],
+) -> str:
+    """Die Sprache dieses Profils - aus der Sitzung, die ohnehin offen ist.
+
+    Gebraucht dort, wo etwas *für* diesen Menschen gelesen oder gesprochen
+    wird: die Zeichenerkennung einer fotografierten Vorlage (`api/sources.py`)
+    ebenso wie die Auswertung. Die eine Stelle, an der die Sprache steht, ist
+    das Profil (`wortlaut/sprachen.py`).
+    """
+    sprecher = sitzung.get(Sprecher, sprecher_id)
+    return sprecher.sprache if sprecher is not None else sprachen.VORGABE
+
+
 SprecherId = Annotated[str, Depends(_sprecher_id)]
+Sprache = Annotated[str, Depends(_sprache)]
 Datenbank = Annotated[Session, Depends(_sprecher_sitzung)]
 Ablage = Annotated[storage.Ablage, Depends(_ablage)]
 Wer = Annotated[Zugang, Depends(_wer_ruft)]

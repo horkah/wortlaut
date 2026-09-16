@@ -20,12 +20,39 @@ from xml.etree import ElementTree
 
 UNTERSTUETZT = (".txt", ".md", ".pdf", ".epub", ".docx")
 
+# Was so wenig hergibt, dass es keine Textebene sein kann. Ein gescanntes PDF
+# ist nicht immer vollständig leer: Viele Scanner legen eine Seitenzahl oder
+# einen Dateinamen als Text daneben, und `pypdf` findet dann drei Zeichen auf
+# zwanzig Seiten. Die Grenze fragt deshalb nicht „leer?", sondern „zu wenig,
+# um eine Vorlage zu sein?".
+MINDESTZEICHEN_PDF = 40
+
 _MARKDOWN = re.compile(r"^#{1,6}\s+|^[-*+]\s+|^>\s+|[*_`]{1,3}", re.MULTILINE)
 _MEHRFACHE_LEERZEILEN = re.compile(r"\n{3,}")
 
 
 class UploadFehler(ValueError):
     """Format nicht unterstützt oder Datei nicht lesbar."""
+
+
+def ist_pdf(dateiname: str) -> bool:
+    return PurePosixPath(dateiname).suffix.lower() == ".pdf"
+
+
+def pdf_hat_text(inhalt: bytes) -> bool:
+    """Ob dieses PDF eine Textebene trägt - sonst ist es ein Scan.
+
+    Die Unterscheidung entscheidet, welchen Weg eine Datei nimmt: Ein PDF mit
+    Text wird gelesen, eines ohne wird erkannt (`text/ocr.py`). Geraten wird
+    dabei nicht am Dateinamen und nicht am Erzeuger, sondern an dem, was
+    wirklich herauskommt.
+    """
+    try:
+        return len(_pdf(inhalt).strip()) >= MINDESTZEICHEN_PDF
+    except Exception:
+        # Ein PDF, das sich nicht lesen lässt, ist kein PDF mit Textebene. Ob
+        # sich daraus noch etwas erkennen lässt, entscheidet der Aufrufer.
+        return False
 
 
 def lies_text(inhalt: bytes, dateiname: str) -> str:
