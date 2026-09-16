@@ -15,6 +15,7 @@
   import SegmentList from '$ui/SegmentList.svelte';
   import { einstellungen } from '$ui/einstellungen.svelte';
   import { brichVorlesenAb, sprich, stimmeNachUri, stimmeVerfuegbar, stimmen } from '$ui/speak';
+  import { kannTeilen, teile } from '$ui/teilen';
   import { inDieZwischenablage } from '$ui/zwischenablage';
   import {
     abschnittAudioUrl,
@@ -38,6 +39,9 @@
   // der Knopf seine Beschriftung dauerhaft verliert.
   let kopiert = $state(false);
   let kopierUhr: ReturnType<typeof setTimeout> | undefined;
+  // Einmal beim Aufbau gefragt und nicht bei jedem Bild: Ob dieses Gerät ein
+  // Teilen-Blatt hat, ändert sich nicht, solange die Seite offen ist.
+  const teilbar = kannTeilen();
 
   const sitzung = $derived(zustand.sitzung!);
   const abschnitte = $derived(sitzung?.abschnitte ?? []);
@@ -158,6 +162,23 @@
     }
   }
 
+  /**
+   * Den Text an eine andere App weitergeben - der kurze Weg.
+   *
+   * Kopieren ist der halbe: Danach muss die Ziel-App noch geöffnet, das Feld
+   * gefunden und „Einfügen" getroffen werden. Das Teilen-Blatt macht daraus
+   * einen Schritt, und der Text steht schon im Nachrichtenfeld.
+   */
+  async function weitergeben() {
+    fehler = '';
+    const ergebnis = await teile(ganzerText);
+    if (ergebnis === 'ging-nicht') {
+      // Nicht geteilt heißt nicht verloren: Was das Blatt nicht nimmt, nimmt
+      // die Zwischenablage.
+      await kopiere();
+    }
+  }
+
   // Von selbst vorlesen, sobald der Text dasteht - genau dafür ist die
   // Ansicht da. Ohne Stimme im System bleibt es beim Lesen.
   if (stimmeVerfuegbar(zustand.sprache) && !bestaetigt) lies();
@@ -220,9 +241,12 @@
       </div>
     {/if}
   {/if}
+  {#if teilbar}
+    <button class="knopf weiter haupt" onclick={weitergeben}>Text weitergeben</button>
+  {/if}
   <div class="reihe">
-    <button class="knopf weiter" onclick={kopiere}>
-      {kopiert ? '✓ Kopiert' : 'Text kopieren'}
+    <button class="knopf" onclick={kopiere}>
+      {kopiert ? '✓ Kopiert' : 'Kopieren'}
     </button>
     <button class="knopf haupt" onclick={neuerText}>Neuer Text</button>
   </div>
@@ -233,7 +257,15 @@
     zurück und gehört zum Lernen, nicht zum Benutzen - deshalb darunter, in
     der Zeile mit „Weitersprechen".
   -->
-  <button class="knopf weiter" onclick={kopiere}>
+  <!--
+    Teilen steht vor Kopieren, wo es beides gibt: Es ist ein Schritt statt
+    dreier - antippen, App wählen, fertig. Kopieren bleibt daneben, denn nicht
+    jedes Ziel steht im Teilen-Blatt, und auf dem Rechner gibt es gar keines.
+  -->
+  {#if teilbar}
+    <button class="knopf weiter haupt" onclick={weitergeben}>Text weitergeben</button>
+  {/if}
+  <button class="knopf weiter" class:haupt={!teilbar} onclick={kopiere}>
     {kopiert ? '✓ In der Zwischenablage' : 'Text kopieren'}
   </button>
   <textarea class="ganz" readonly rows="3" value={ganzerText}></textarea>
