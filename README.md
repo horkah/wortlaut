@@ -150,6 +150,7 @@ Einzelheiten: [Entwicklung](docs/entwicklung.md) ·
 | [Betrieb](docs/betrieb.md) | Reverse Proxy, Sicherungen, Fehlersuche |
 | [Datenschutz](docs/datenschutz.md) | was gespeichert wird, wie lange, und wie es verschwindet |
 | [Manueller Test](docs/manueller-test.md) | der ganze Weg zum Selbst-Durchklicken |
+| [Andere Sprachen](docs/sprachen.md) | was zu tun ist, um wortlaut in einer anderen Sprache zu betreiben (englisch) |
 
 ---
 
