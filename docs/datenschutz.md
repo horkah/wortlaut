@@ -40,6 +40,20 @@ Befund, eine Karte. Gelesen wird deshalb mit Tesseract im eigenen Prozess
 Bild selbst wird nirgends abgelegt: Es geht durch den Arbeitsspeicher, der Text
 kommt zurück, und gespeichert wird erst, was ein Mensch danach übernimmt.
 
+**Beides ist nachgemessen und nicht nur beabsichtigt.** Im Erkennungsweg steht
+kein einziger Netzaufruf - weder in `text/ocr.py` noch in `text/upload.py`.
+Und auf der Platte bleibt nichts liegen, obwohl zwei Stellen dorthin schreiben:
+Starlette lagert einen Anhang über einem Megabyte in eine temporäre Datei aus,
+und pytesseract legt das Bild noch einmal ab, um es dem Programm `tesseract` zu
+übergeben. Während einer Erkennung tauchen so zwei Dutzend Dateien unter `/tmp`
+auf; nach der Antwort ist keine davon mehr da - geprüft mit einer Aufnahme
+unterhalb und einer oberhalb der Auslagerungsgrenze.
+
+Dieselbe Zusage steht in der Oberfläche über dem Auswahlfeld, und zwar dort,
+weil dort gezögert wird: Wer einen Brief abfotografiert hat, entscheidet in
+diesem Augenblick, ob er ihn hochlädt - und nicht beim Lesen einer
+Datenschutzerklärung.
+
 ## Datensparsamkeit im Ablauf
 
 - Eine **verworfene** Aufnahme wird sofort gelöscht, nicht nur markiert. In der
