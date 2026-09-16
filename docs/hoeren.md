@@ -654,6 +654,26 @@ eine Ecke fehlt, ohnehin scheitert.
 Der praktische Rat steht deshalb in der Oberfläche besser als jede Rechnung:
 möglichst parallel zur Vorlage halten. Bis drei Grad merkt man nichts.
 
+**Und für den Rest: das Gerät kann es besser.** Apples Texterkennung („Live
+Text") liest auch schräg fotografierte Folien, bei denen die Zeilen
+zusammenlaufen - genau der Fall, an dem Tesseract scheitert. Programmatisch
+kommt eine Webseite nicht heran: `TextDetector` aus der Shape-Detection-API ist
+ausdrücklich **nicht** standardisiert („not stable enough across computing
+platforms or character sets"), Safari liefert ihn nicht, und was dort an
+Shape Detection existiert, ist seit iOS 18 defekt.
+
+Der Mensch kommt aber heran. Safari bietet Live Text auf **jedem angezeigten
+Bild** an. Deshalb steht die Vorlage im Prüfschritt neben dem Text: Sie dient
+erstens dem Vergleich - wer Erkanntes bessern soll, braucht das Original
+daneben und nicht in einer anderen App - und zweitens als Angriffspunkt. Ein
+langer Druck aufs Bild, auswählen, kopieren, ins Feld darunter einfügen; der
+eingefügte Text geht dann als `eingefügt` durch und wird nicht gefiltert.
+
+Das ist kein Notbehelf, sondern die richtige Arbeitsteilung: Der Server liest,
+was er lesen kann, ohne dass ein Bild das Haus verlässt; wo er an seine Grenze
+kommt, steht das bessere Werkzeug schon in der Hand dessen, der fotografiert
+hat.
+
 **Ohne Tesseract fehlt der Weg, und die App sagt es.**
 `GET /api/sources/erkennung` beantwortet die Frage, bevor jemand ein Bild
 auswählt; das Auswahlfeld bietet die Bildformate dann gar nicht erst an.
