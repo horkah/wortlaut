@@ -15,6 +15,7 @@
   import SegmentList from '$ui/SegmentList.svelte';
   import { einstellungen } from '$ui/einstellungen.svelte';
   import { brichVorlesenAb, sprich, stimmeNachUri, stimmeVerfuegbar, stimmen } from '$ui/speak';
+  import { inDieZwischenablage } from '$ui/zwischenablage';
   import {
     abschnittAudioUrl,
     abschnittNeuSprechen,
@@ -33,6 +34,10 @@
   let stand = $state<'bereit' | 'verstehe' | 'sendet'>('bereit');
   let versand = $state<Versand | null>(null);
   let fehler = $state('');
+  // Wie lange „Kopiert" stehen bleibt. Lang genug, um es zu lesen, ohne dass
+  // der Knopf seine Beschriftung dauerhaft verliert.
+  let kopiert = $state(false);
+  let kopierUhr: ReturnType<typeof setTimeout> | undefined;
 
   const sitzung = $derived(zustand.sitzung!);
   const abschnitte = $derived(sitzung?.abschnitte ?? []);
@@ -127,6 +132,32 @@
     gehZu('/');
   }
 
+  // ── Weiterreichen ─────────────────────────────────────────────────────────
+
+  /**
+   * Den ganzen Text in die Zwischenablage - ohne ihn vorher auszuwählen.
+   *
+   * Das ist der Weg aus dieser App heraus. Diktiert wird, um das Gesagte
+   * anderswo zu benutzen: in einer Nachricht, in einer Mail, in einem
+   * Formular. Bis hierher endete er an einem schreibgeschützten Textfeld, aus
+   * dem man erst mit dem Finger auswählen musste - antippen, halten, die
+   * Griffe an den Rand ziehen. Genau diese Bewegung gelingt der Zielperson
+   * oft nicht (Grundentscheidung 7), und sie ist auch gar nicht nötig: Der
+   * ganze Text ist gemeint, jedes Mal.
+   */
+  async function kopiere() {
+    fehler = '';
+    if (await inDieZwischenablage(ganzerText)) {
+      kopiert = true;
+      clearTimeout(kopierUhr);
+      kopierUhr = setTimeout(() => (kopiert = false), 4000);
+    } else {
+      // Still zu scheitern wäre hier das Schlimmste: Er merkte es erst beim
+      // Einfügen, in einer anderen App, wo nichts mehr zu retten ist.
+      fehler = 'Das Kopieren hat nicht geklappt. Der Text steht unten und lässt sich auswählen.';
+    }
+  }
+
   // Von selbst vorlesen, sobald der Text dasteht - genau dafür ist die
   // Ansicht da. Ohne Stimme im System bleibt es beim Lesen.
   if (stimmeVerfuegbar(zustand.sprache) && !bestaetigt) lies();
@@ -190,9 +221,21 @@
     {/if}
   {/if}
   <div class="reihe">
+    <button class="knopf weiter" onclick={kopiere}>
+      {kopiert ? '✓ Kopiert' : 'Text kopieren'}
+    </button>
     <button class="knopf haupt" onclick={neuerText}>Neuer Text</button>
   </div>
 {:else}
+  <!--
+    Der Weg nach draußen steht über dem Textfeld und nicht darunter: Er ist
+    das, wofür diktiert wurde. „Fertig" schickt die Berichtigungen an „hören"
+    zurück und gehört zum Lernen, nicht zum Benutzen - deshalb darunter, in
+    der Zeile mit „Weitersprechen".
+  -->
+  <button class="knopf weiter" onclick={kopiere}>
+    {kopiert ? '✓ In der Zwischenablage' : 'Text kopieren'}
+  </button>
   <textarea class="ganz" readonly rows="3" value={ganzerText}></textarea>
   <div class="reihe">
     <button class="knopf" onclick={() => gehZu('/')}>Weitersprechen</button>
@@ -223,6 +266,17 @@
   }
   /* Der zusammenhängende Text - zum Kopieren, nicht zum Bearbeiten:
      geändert wird er, indem man ihn neu spricht. */
+  /*
+    Breit, hoch und allein in seiner Zeile: Dieser Knopf wird mit dem Daumen
+    getroffen, oft unterwegs, von jemandem, der schlecht zielt. Ein Knopf in
+    einer Reihe mit anderen wäre halb so groß.
+  */
+  .weiter {
+    width: 100%;
+    padding-block: 0.9rem;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+  }
   .ganz {
     width: 100%;
     max-width: none;
