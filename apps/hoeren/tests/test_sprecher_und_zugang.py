@@ -60,7 +60,7 @@ class TestVerwaltung:
 
     def test_gesundheit_ist_offen(self, klient_ohne_token: TestClient) -> None:
         # Proxy und Compose müssen den Dienst ohne Token prüfen können.
-        assert klient_ohne_token.get("/gesundheit").json() == {"status": "ok"}
+        assert klient_ohne_token.get("/gesundheit").json()["status"] == "ok"
 
     def test_sprecherzugang_verwaltet_nicht(self, klient: TestClient, sprecher: str) -> None:
         # Ein Sprecherzugang ist kein schwächerer Verwalter, sondern etwas

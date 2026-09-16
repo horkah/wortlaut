@@ -168,6 +168,22 @@ COPY --from=frontend-hoeren /bau/apps/hoeren/frontend/dist ./apps/hoeren/fronten
 COPY --from=frontend-lernen /bau/apps/lernen/frontend/dist ./apps/lernen/frontend/dist
 COPY --from=frontend-schreiben /bau/apps/schreiben/frontend/dist ./apps/schreiben/frontend/dist
 
+# Wann dieses Abbild entstanden ist.
+#
+# **Warum hier unten und nicht im Frontend.** Das Baudatum stand bisher allein
+# im JavaScript-Bündel (`packages/ui/bau.ts`, gesetzt über `define` in der
+# Vite-Konfiguration). Das ist genau so lange richtig, wie sich am Frontend
+# etwas ändert: Wird nur das Backend angefasst, sind die Frontend-Stufen
+# unverändert, BuildKit nimmt sie aus dem Zwischenspeicher - samt des Datums,
+# das beim letzten Frontend-Bau darin festgeschrieben wurde. Der Seitenfuß
+# zeigte dann tagelang dieselbe Uhrzeit, während dreimal ausgerollt wurde.
+#
+# Diese Zeile steht **unter** allen `COPY` dieser Stufe und erbt damit deren
+# Zwischenspeicher: Ändert sich irgendetwas am ausgelieferten Stand - Backend,
+# Skripte, Frontend -, entsteht sie neu. Ändert sich nichts, bleibt sie stehen,
+# und das ist ebenso richtig: Dann läuft auch nichts Neues.
+RUN date -u +%Y-%m-%dT%H:%M:%SZ > /srv/wortlaut/STAND
+
 # Die Grundmodelle landen in einem eigenen Ablagepfad und nicht im Abbild;
 # ohne diesen Pfad lädt sie jeder Neustart des Containers erneut herunter.
 # Getrennt vom Datenverzeichnis, weil sie das Gegenteil der Daten sind: von

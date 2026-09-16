@@ -139,7 +139,12 @@ class TestVerteilung:
 
     def test_gesundheit_beantwortet_hoeren(self, klient: TestClient) -> None:
         # Nur eine Wurzel, also nur ein Prüfpunkt - der von „hören".
-        assert klient.get("/gesundheit").json() == {"status": "ok"}
+        antwort = klient.get("/gesundheit").json()
+        assert antwort["status"] == "ok"
+        # Dazu der Stand des laufenden Abbilds - der Seitenfuß holt ihn hier
+        # und nicht aus dem JavaScript-Bündel, weil der dort bei reinen
+        # Backend-Änderungen veraltet (`Dockerfile`, `Fusszeile.svelte`).
+        assert antwort["stand"]
 
 
 class TestPfadgrenze:
