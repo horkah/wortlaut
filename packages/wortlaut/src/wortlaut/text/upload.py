@@ -35,10 +35,6 @@ class UploadFehler(ValueError):
     """Format nicht unterstützt oder Datei nicht lesbar."""
 
 
-def ist_pdf(dateiname: str) -> bool:
-    return PurePosixPath(dateiname).suffix.lower() == ".pdf"
-
-
 def pdf_hat_text(inhalt: bytes) -> bool:
     """Ob dieses PDF eine Textebene trägt - sonst ist es ein Scan.
 

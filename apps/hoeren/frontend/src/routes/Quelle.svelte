@@ -123,9 +123,20 @@
 
     const bild = Array.from(daten.items).find((teil) => teil.type.startsWith('image/'));
     if (bild) {
-      const datei = bild.getAsFile();
-      if (!datei) return;
+      const roh = bild.getAsFile();
+      if (!roh) return;
       ereignis.preventDefault();
+      // **Immer mit Namen weiterreichen.** Ein Bildschirmfoto kommt als
+      // `image.png` an, ein Foto aus der Mediathek des iPhones je nach Browser
+      // ohne Endung oder ganz ohne Namen - und ein Teil ohne Dateinamen ist für
+      // den Server kein Anhang, sondern ein Formularfeld. Die werden bei einem
+      // Megabyte abgeschnitten, und ein Foto ist größer. Genau daran scheiterte
+      // es, während Bildschirmfotos durchgingen.
+      const datei = roh.name
+        ? roh
+        : new File([roh], `einfügung.${(roh.type.split('/')[1] || 'png').split('+')[0]}`, {
+            type: roh.type,
+          });
       fuehreAus(async () => {
         const gelesen = await textErkennen(datei);
         entwurf = {

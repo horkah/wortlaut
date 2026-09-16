@@ -169,22 +169,45 @@ async def erkenne(
         raise HTTPException(status_code=413, detail="Datei ist zu groß (Grenze: 10 MB).")
 
     name = datei.filename or ""
-    endung = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
 
-    if upload.ist_pdf(name):
+    # **Entschieden wird am Inhalt, nicht am Namen.** Der Name war einmal das
+    # Kriterium, und daran ist das Einfügen aus der Zwischenablage gescheitert:
+    # Ein Bildschirmfoto kommt als `image.png` an - das ging -, ein Foto aus
+    # der Mediathek des iPhones je nach Browser als `image` ohne Endung. Beides
+    # ist dasselbe Bild, und der Server wies das zweite als „nicht
+    # unterstütztes Format" ab. Ein PDF nennt sich in seinen ersten Bytes
+    # selbst, und ob etwas ein Bild ist, weiß Pillow besser als eine Endung.
+    if inhalt[:5] == b"%PDF-":
         if upload.pdf_hat_text(inhalt):
-            return ErkannterText(text=upload.lies_text(inhalt, name), herkunft="gelesen")
-        text = _erkannt(lambda: ocr.aus_pdf(inhalt, sprache))
-        return ErkannterText(text=text, herkunft="erkannt")
+            return ErkannterText(text=upload.lies_text(inhalt, "x.pdf"), herkunft="gelesen")
+        return ErkannterText(text=_erkannt(lambda: ocr.aus_pdf(inhalt, sprache)), herkunft="erkannt")
 
-    if endung in ocr.UNTERSTUETZT:
-        return ErkannterText(text=_erkannt(lambda: ocr.aus_bild(inhalt, sprache)), herkunft="erkannt")
+    if ocr.ist_bild(inhalt):
+        return ErkannterText(
+            text=_erkannt(lambda: ocr.aus_bild(inhalt, sprache)), herkunft="erkannt"
+        )
 
-    # Die übrigen Formate tragen ihren Text im Klartext; sie hier durchzulassen
-    # kostet nichts und erspart der Oberfläche eine zweite Fallunterscheidung.
+    # Bleibt das, was seinen Text im Klartext trägt. Hier entscheidet die
+    # Endung weiterhin, und das ist richtig: Ob eine ZIP-Datei ein `docx` oder
+    # ein `epub` ist, steht nicht in ihren ersten Bytes, sondern in ihrem
+    # Aufbau - und der Name sagt es billiger.
     try:
         return ErkannterText(text=upload.lies_text(inhalt, name), herkunft="gelesen")
     except upload.UploadFehler as fehler:
+        if not ocr.verfuegbar():
+            # **Ohne Zeichenerkennung sagt der Server, was ihm fehlt.** Was hier
+            # ankommt und weder PDF noch Text ist, ist fast immer ein Bild -
+            # ohne Pillow kann er das aber nicht einmal feststellen
+            # (`ocr.ist_bild`). „Nicht unterstütztes Format: 'image'" wäre dann
+            # wahr und trotzdem irreführend: Es klänge nach der falschen Datei,
+            # wo in Wirklichkeit das Werkzeug fehlt.
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Auf diesem Server ist keine Zeichenerkennung eingerichtet - "
+                    "er liest txt, md, pdf, epub und docx."
+                ),
+            ) from fehler
         raise HTTPException(status_code=400, detail=str(fehler)) from fehler
 
 

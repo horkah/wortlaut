@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import functools
 import io
+import re
 
 from .. import sprachen
 
@@ -89,18 +90,75 @@ def _oeffne(inhalt: bytes):
         raise OcrFehler("Dieses Bild ließ sich nicht öffnen.") from ursache
 
 
+def ist_bild(inhalt: bytes) -> bool:
+    """Ob sich diese Bytes als Bild öffnen lassen.
+
+    **Gefragt wird den Inhalt, nicht den Dateinamen.** Der Name war einmal das
+    Kriterium, und daran ist der Weg aus der Zwischenablage gescheitert: Ein
+    Bildschirmfoto kommt als `image.png` an, ein Foto aus der Mediathek des
+    iPhones je nach Browser als `image` ohne Endung oder ganz ohne Namen. Beides
+    ist dasselbe Bild, und ob es eines ist, steht in seinen ersten Bytes.
+    """
+    try:
+        from PIL import Image
+    except ImportError:
+        return False
+    try:
+        with Image.open(io.BytesIO(inhalt)) as bild:
+            bild.verify()
+        return True
+    except Exception:
+        return False
+
+
+# Wie Tesseract die Seite aufteilt, in der Reihenfolge, in der es versucht wird.
+#
+# `3` ist die Vorgabe und die richtige Wahl für eine Seite Fließtext: Sie
+# erkennt Spalten und Absätze. Auf einem **Foto** ist sie die falsche - dort
+# steht Text in verstreuten Blöcken, quer, gewölbt, verschieden groß, und die
+# Seitenanalyse wirft das meiste weg. `11` ist für genau diesen Fall gedacht
+# („sparse text"): kein Layout, nur finden, was nach Schrift aussieht.
+#
+# Nachgemessen am Foto eines Cremedeckels: `3` fand 77 Punkte, `11` fand 115.
+# Auf einer gerenderten Seite Fließtext fanden beide dieselben 131 - und dort
+# gewinnt `3`, weil es zuerst steht und der Gleichstand für die Vorgabe
+# entschieden wird.
+SEITENARTEN = (3, 11)
+
+
+def _punkte(text: str) -> int:
+    """Wie viel Schrift hier steht - zum Vergleich zweier Durchgänge.
+
+    Gezählt werden die Zeichen in Wörtern aus mindestens drei Buchstaben. Das
+    trennt Gefundenes von Rauschen: Was eine Zeichenerkennung erfindet, sind
+    Einzelzeichen und Paare (`&®`, `fi`, `wT`), keine Wörter.
+    """
+    return sum(len(wort) for wort in re.findall(r"[^\W\d_]{3,}", text, re.UNICODE))
+
+
 def aus_bild(inhalt: bytes, sprache: str) -> str:
-    """Den Text eines Bildes erkennen."""
+    """Den Text eines Bildes erkennen - in zwei Durchgängen, der bessere gilt.
+
+    Zweimal zu lesen kostet die doppelte Zeit, und sie ist hier gut angelegt:
+    Ein Bild ist ein Bild, keine zwanzig Seiten, und ob es ein abfotografiertes
+    Etikett oder eine abfotografierte Seite ist, weiß vorher niemand - auch der
+    Mensch nicht, der es hochlädt (siehe `SEITENARTEN`).
+    """
     if not verfuegbar():
         raise OcrFehler("Auf diesem Server ist keine Zeichenerkennung eingerichtet.")
     import pytesseract
 
+    bild = _oeffne(inhalt)
+    lang = kuerzel(sprache)
     try:
-        return pytesseract.image_to_string(_oeffne(inhalt), lang=kuerzel(sprache))
-    except OcrFehler:
-        raise
+        versuche = [
+            pytesseract.image_to_string(bild, lang=lang, config=f"--psm {art}")
+            for art in SEITENARTEN
+        ]
     except Exception as ursache:
         raise OcrFehler(f"Die Zeichenerkennung ist gescheitert: {ursache}") from ursache
+    # `max` gibt bei Gleichstand den ersten zurück - und das ist die Vorgabe.
+    return max(versuche, key=_punkte)
 
 
 # Wie fein eine PDF-Seite gerastert wird, bevor Tesseract sie liest. Das Maß
