@@ -317,6 +317,18 @@
       erkannt und liegt euch vorher zum Bessern vor.
     {/if}
   </p>
+  <!--
+    Der Satz steht hier und nicht in der Datenschutzerklärung, weil hier
+    gezögert wird: Wer einen Brief oder einen Befund abfotografiert hat,
+    entscheidet in diesem Augenblick, ob er ihn hochlädt. Beide Zusagen sind
+    nachgemessen - im Erkennungsweg steht kein einziger Netzaufruf, und nach
+    der Verarbeitung bleibt nichts im Zwischenspeicher liegen (siehe
+    `docs/datenschutz.md`).
+  -->
+  <p class="gedaempft zusage">
+    Die Datei bleibt auf diesem Server und wird gleich nach dem Lesen wieder gelöscht.
+    Gespeichert wird allein der Text, den ihr danach übernehmt.
+  </p>
   <form onsubmit={ausDatei}>
     <input type="file" accept={annimmt} bind:files={datei} />
     <button class="knopf" type="submit" disabled={laeuft}>
@@ -401,6 +413,13 @@
 {/if}
 
 <style>
+  /* Eine Zusage, keine Fußnote: dieselbe Größe wie der Hinweis darüber, aber
+     abgesetzt, damit sie nicht mit den Formatangaben verschwimmt. */
+  .zusage {
+    border-left: 3px solid var(--akzent);
+    padding-left: 0.6rem;
+    margin-bottom: 1rem;
+  }
   /* Hoch genug, um Schrift darauf zu erkennen, und begrenzt, damit das
      Prüffeld nicht aus dem Bild rutscht. */
   .vorlage {
