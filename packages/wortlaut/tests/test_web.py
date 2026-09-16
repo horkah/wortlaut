@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from wortlaut import web
 from wortlaut.web import IMMER_NACHFRAGEN, UNVERAENDERLICH, FrontendDateien
 
 
@@ -49,3 +50,29 @@ class TestCacheRegeln:
         antwort = klient.get("/assets/index-Dw8ROtVv.js")
         assert antwort.status_code == 200
         assert antwort.headers["cache-control"] == UNVERAENDERLICH
+
+
+class TestStand:
+    """Wann das laufende Abbild gebaut wurde - die Auskunft im Seitenfuß."""
+
+    def test_ohne_abbild_heisst_es_entwicklung(self, monkeypatch, tmp_path) -> None:
+        # Außerhalb eines Abbilds gibt es die Datei nicht. „Entwicklung" ist
+        # dann die ehrlichste Auskunft - ein erfundenes Datum wäre schlechter
+        # als gar keines.
+        web.stand.cache_clear()
+        monkeypatch.setattr(web, "STAND_DATEI", tmp_path / "gibtsnicht")
+        assert web.stand() == "Entwicklung"
+
+    def test_der_zeitstempel_aus_dem_abbild_gilt(self, monkeypatch, tmp_path) -> None:
+        web.stand.cache_clear()
+        datei = tmp_path / "STAND"
+        datei.write_text("2026-09-16T15:12:00Z\n", encoding="utf-8")
+        monkeypatch.setattr(web, "STAND_DATEI", datei)
+        assert web.stand() == "2026-09-16T15:12:00Z"
+
+    def test_eine_leere_datei_ist_keine_auskunft(self, monkeypatch, tmp_path) -> None:
+        web.stand.cache_clear()
+        datei = tmp_path / "STAND"
+        datei.write_text("  \n", encoding="utf-8")
+        monkeypatch.setattr(web, "STAND_DATEI", datei)
+        assert web.stand() == "Entwicklung"

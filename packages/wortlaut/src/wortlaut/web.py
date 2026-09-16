@@ -20,6 +20,8 @@ Deshalb zwei Regeln statt keiner:
 
 from __future__ import annotations
 
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from starlette.responses import Response
@@ -29,6 +31,24 @@ from starlette.staticfiles import StaticFiles
 # beim Neuladen der Seite.
 UNVERAENDERLICH = "public, max-age=31536000, immutable"
 IMMER_NACHFRAGEN = "no-cache"
+
+# Wo das Abbild seinen Zeitstempel ablegt (siehe `Dockerfile`). Außerhalb eines
+# Abbilds gibt es die Datei nicht - dann läuft jemand aus dem Quelltext heraus,
+# und das ist die ehrlichste Auskunft, die sich geben lässt.
+STAND_DATEI = Path("/srv/wortlaut/STAND")
+
+
+@lru_cache(maxsize=1)
+def stand() -> str:
+    """Wann das laufende Abbild gebaut wurde - oder `Entwicklung`.
+
+    Einmal gelesen und dann behalten: Die Datei ändert sich zur Laufzeit nie,
+    und der Seitenfuß fragt bei jedem Seitenaufruf danach.
+    """
+    try:
+        return STAND_DATEI.read_text(encoding="utf-8").strip() or "Entwicklung"
+    except OSError:
+        return "Entwicklung"
 
 
 class FrontendDateien(StaticFiles):

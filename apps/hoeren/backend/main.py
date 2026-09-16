@@ -21,6 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI
+from wortlaut import web
 from wortlaut.web import FrontendDateien
 
 from .api import (
@@ -72,8 +73,15 @@ for router in (
 
 @app.get("/gesundheit", tags=["Betrieb"])
 def gesundheit() -> dict[str, str]:
-    """Ohne Token erreichbar, damit Proxy und Compose den Dienst prüfen können."""
-    return {"status": "ok"}
+    """Ohne Token erreichbar, damit Proxy und Compose den Dienst prüfen können.
+
+    `stand` sagt dazu, wann das laufende Abbild gebaut wurde. Er steht hier und
+    nicht im JavaScript-Bündel, weil er sonst nur bei Frontend-Änderungen neu
+    entsteht: Wird allein das Backend angefasst, kommen die Frontend-Stufen aus
+    dem Zwischenspeicher - samt des Datums darin (siehe `Dockerfile`). Diese
+    Auskunft kommt vom laufenden Prozess und kann deshalb nicht veralten.
+    """
+    return {"status": "ok", "stand": web.stand()}
 
 
 # Das gebaute Frontend, falls vorhanden. `html=True` liefert für unbekannte

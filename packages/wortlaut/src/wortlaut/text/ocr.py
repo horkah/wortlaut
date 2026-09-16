@@ -146,6 +146,76 @@ SEITENARTEN = (3, 11)
 MAX_KANTE = 2400
 
 
+# Wie groß die Lageprobe rechnet und wie deutlich sie sein muss.
+#
+# 1200 Pixel genügen, um die vier Lagen sicher zu trennen, und kosten zusammen
+# gut zwei Sekunden. Der Faktor sagt, wie viel besser eine Drehung sein muss,
+# damit gedreht wird: Bei einem Bild ohne Text stehen vier zufällige Zahlen
+# nebeneinander, und die soll keine das Bild verdrehen lassen. Gemessen am
+# Foto eines Cremedeckels lag die richtige Lage um das Vierfache vorn.
+PROBE_KANTE = 1200
+PROBE_VORSPRUNG = 1.5
+
+_LAGEN = (0, 90, 180, 270)
+
+
+def _zuversicht(bild) -> float:
+    """Wie sicher Tesseract ist, hier Wörter zu sehen - Zuversicht mal Wortlänge.
+
+    **Warum hier nicht `_punkte` zählt.** Um Seitenart und Entrauschen zu
+    wählen, genügt die Menge: Mehr gefundene Zeichen sind mehr gefundener Text.
+    Bei der Lage versagt das. Kopfüber gestellte Schrift sieht immer noch wie
+    Schrift aus - Tesseract findet dort ähnlich viele Zeichen, sie ergeben nur
+    keine Wörter. Nachgemessen: nach Länge lagen aufrecht und kopfüber bei 41
+    zu 42 Punkten, also Gleichstand; nach Zuversicht bei 8324 zu 2075.
+    """
+    import pytesseract
+    from pytesseract import Output
+
+    daten = pytesseract.image_to_data(
+        bild, lang="deu", config="--psm 11", output_type=Output.DICT
+    )
+    summe = 0.0
+    for wort, konfidenz in zip(daten["text"], daten["conf"], strict=False):
+        if len(wort.strip()) >= 3 and float(konfidenz) > 0:
+            summe += float(konfidenz) * len(wort.strip())
+    return summe
+
+
+def _aufgerichtet(bild):
+    """Das Bild so drehen, dass die Schrift oben ist.
+
+    **Zwei Wege, und der zweite wird gebraucht.** Ein Foto trägt seine Lage
+    gewöhnlich als EXIF-Marke bei sich, und `exif_transpose` richtet es danach
+    auf - das kostet nichts und ist immer richtig, wenn die Marke da ist.
+
+    Aus der **Zwischenablage** ist sie es oft nicht: Wer ein Foto in der
+    Mediathek des iPhones kopiert, bekommt die Bildpunkte in der Lage des
+    Sensors und die Marke bleibt unterwegs liegen. Das Bild sieht in der
+    Mediathek aufrecht aus und kommt hier quer an. Erkannt wurde daraus
+    „3 jgegolor-oig SWSIDYOS EUOYV" - Buchstabenformen ohne Sprache.
+
+    Tesseracts eigene Lageerkennung (OSD) hilft hier nicht: Sie braucht eine
+    Seite Text und scheitert an einem Etikett mit acht Wörtern - nachgemessen,
+    sie meldete auf allen vier Lagen einen Fehler. Also wird geprobt: viermal
+    klein lesen, und die Lage mit der größten Zuversicht gewinnt.
+    """
+    from PIL import Image, ImageOps
+
+    bild = ImageOps.exif_transpose(bild) or bild
+
+    klein = bild.copy()
+    klein.thumbnail((PROBE_KANTE, PROBE_KANTE), Image.LANCZOS)
+    werte = {lage: _zuversicht(klein.rotate(-lage, expand=True)) for lage in _LAGEN}
+
+    beste = max(_LAGEN, key=lambda lage: werte[lage])
+    if beste == 0 or werte[beste] < werte[0] * PROBE_VORSPRUNG:
+        # Kein deutlicher Vorsprung: stehen lassen. Ein Bild ohne Text liefert
+        # vier zufällige Zahlen, und die sollen es nicht verdrehen.
+        return bild
+    return bild.rotate(-beste, expand=True)
+
+
 def _vorbereitet(bild):
     """Auf ein vernünftiges Maß bringen - und eine entrauschte Fassung daneben.
 
@@ -225,7 +295,7 @@ def aus_bild(inhalt: bytes, sprache: str) -> str:
     try:
         versuche = [
             pytesseract.image_to_string(fassung, lang=lang, config=f"--psm {art}")
-            for fassung in _vorbereitet(_oeffne(inhalt))
+            for fassung in _vorbereitet(_aufgerichtet(_oeffne(inhalt)))
             for art in SEITENARTEN
         ]
     except OcrFehler:
