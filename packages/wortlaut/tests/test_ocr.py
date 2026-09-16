@@ -59,6 +59,51 @@ class TestOhneTesseract:
             ocr.aus_bild(b"x", "de")
 
 
+class TestEntrauschen:
+    """Vorsichtig, nicht gründlich - der Mensch sieht danach ohnehin hin."""
+
+    def test_zeilen_ohne_wort_fallen_weg(self) -> None:
+        # Der Wirbel auf einem Cremedeckel wird zu solchen Zeilen.
+        roh = "NATURKOSMETIK\n| x\nYe\nv,\nVEGAN"
+        assert ocr.entrausche(roh) == "NATURKOSMETIK\nVEGAN"
+
+    def test_ziffern_zaehlen_als_wort(self) -> None:
+        # `48h` und `10/2024` stehen wirklich auf der Vorlage - ein Filter, der
+        # nur Buchstaben zählte, hätte sie weggeworfen.
+        assert ocr.entrausche("48h") == "48h"
+        assert ocr.entrausche("Magazin 10/2024") == "Magazin 10/2024"
+
+    def test_drei_zeichen_genuegen(self) -> None:
+        # Die Grenze liegt bei drei und nicht höher: Lieber ein Brocken zu viel
+        # als ein echtes Wort zu wenig.
+        assert ocr.entrausche("ZER") == "ZER"
+        assert ocr.entrausche("Ye") == ""
+
+    def test_absaetze_bleiben_absaetze(self) -> None:
+        # Der Schnitt danach arbeitet an Leerzeilen (`text/chunker.py`).
+        assert ocr.entrausche("Erster Satz.\n\nZweiter Satz.") == "Erster Satz.\n\nZweiter Satz."
+
+    def test_leerzeilen_haeufen_sich_nicht(self) -> None:
+        # Nach dem Wegnehmen stünden sonst Lücken, wo Rauschen war.
+        assert ocr.entrausche("Erster Satz.\nYe\n| x\n\nZweiter Satz.") == (
+            "Erster Satz.\n\nZweiter Satz."
+        )
+
+
+class TestMass:
+    """Was je Format aufgewendet wird - die Zahlen stehen in `ocr.py`."""
+
+    def test_die_kante_bleibt_im_gemessenen_plateau(self) -> None:
+        # Unter 2000 fällt die Trefferquote, über 2600 fällt sie auch - und die
+        # Zeit läuft davon (die Messreihe steht bei `MAX_KANTE`).
+        assert 2000 <= ocr.MAX_KANTE <= 2600
+
+    def test_die_vorgabe_wird_zuerst_versucht(self) -> None:
+        # Bei Gleichstand gewinnt der erste - und das soll der zurückhaltendste
+        # Weg sein, nicht der findigste.
+        assert ocr.SEITENARTEN[0] == 3
+
+
 class TestFormate:
     def test_heic_ist_dabei(self) -> None:
         # iPhones fotografieren so, und Safari wandelt nicht immer um.
