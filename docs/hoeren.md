@@ -975,7 +975,7 @@ Mit jedem der drei erreichbar, weil er die Frage beantwortet, welcher
 vorliegt - und ohne alles:
 
 ```
-GET    /api/zugang                          { art, sprecher_id, name }
+GET    /api/zugang                          { art, sprecher_id, name, sprache }
 GET    /gesundheit                          ohne Zugang
 ```
 

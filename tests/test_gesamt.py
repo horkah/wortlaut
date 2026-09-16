@@ -83,15 +83,32 @@ class TestVerteilung:
         # Was hier entsteht, gehört einem Menschen und läuft auf seinem Modell.
         assert klient.post("/schreiben/api/sessions").status_code == 401
 
-    def test_ein_zugang_oeffnet_beide_apps(self, klient: TestClient, zugang: str) -> None:
-        # Der eigentliche Gewinn des gemeinsamen Zugangs: Wer seinen Link
-        # einmal geöffnet hat, ist in beiden Apps derselbe.
-        kopf = {"Authorization": f"Bearer {zugang}"}
-        hier = klient.get("/schreiben/api/zugang", headers=kopf).json()
-        drueben = klient.get("/api/zugang", headers=kopf).json()
+    def test_eine_auskunft_darueber_wer_ruft(self, klient: TestClient, zugang: str) -> None:
+        """Wer dieser Browser ist, beantwortet allein „hören" - für alle drei Apps.
 
-        assert hier["sprecher_id"] == drueben["sprecher_id"]
-        assert hier["name"] == drueben["name"] == "Testperson"
+        Dass derselbe Zugang überall gilt, prüfen die beiden Tests daneben an
+        den Wegen, die die Apps wirklich haben. Hier geht es um die *Auskunft*
+        darüber: Sie liegt unter `/api/zugang`, also auf der Wurzel der
+        gemeinsamen Domain, und ist damit aus jeder App erreichbar
+        (`packages/ui/wer.ts`).
+
+        „schreiben" hatte dafür einmal eine eigene. Sie war eine zweite
+        Wahrheit über denselben Menschen: Ihre API lässt mit gutem Grund nur
+        Sprecherzugänge durch, also wies sie einen gültigen Verwalter- oder
+        Aufsichtstoken ab, während dasselbe Feld in „hören" ihn annahm.
+        Deshalb steht hier beides nebeneinander - die eine Stelle kennt beide
+        Arten.
+        """
+        sprechend = klient.get(
+            "/api/zugang", headers={"Authorization": f"Bearer {zugang}"}
+        ).json()
+        assert sprechend["art"] == "sprecher"
+        assert sprechend["name"] == "Testperson"
+
+        verwaltend = klient.get(
+            "/api/zugang", headers={"Authorization": f"Bearer {TOKEN}"}
+        ).json()
+        assert verwaltend["art"] == "verwaltung"
 
     def test_unter_dem_pfad_antwortet_lernen(self, klient: TestClient, zugang: str) -> None:
         # Derselbe Zugang, dritte App. Die Aufteilung ist leer - es wurde noch

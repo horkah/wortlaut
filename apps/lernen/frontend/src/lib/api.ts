@@ -380,18 +380,8 @@ export const gibFrei = (ref: string, intervall = 'aus', vergleichMit = '') =>
     alsJson({ ref }),
   );
 
-// Ausdrücklich die API von „hören": Dort liegt der Korpus, dort wird der
-// Zugang geprüft, und dort steht der Name. Eine eigene Auskunft hätte eine
-// zweite Wahrheit über denselben Menschen ergeben. Ein zweiter Ort ist seit
-// `$ui/api` eine zweite Zeile und kein zweiter Anlauf - und nebenbei kommt der
-// Satz, mit dem der Server einen Zugang abweist, jetzt auch hier an statt
-// eines bloßen „Fehler 401".
-const hoeren = api('/api');
-
-export const werRuft = () => hoeren.anfrage<Wer>('/zugang');
-
 /**
- * Wie bei `werRuft` die API einer anderen App - hier die von „schreiben". Sie
+ * Die API einer anderen App - hier die von „schreiben". Sie
  * liegt unter derselben Domain, und der Zugang ist derselbe.
  */
 const schreiben = api('/schreiben/api');

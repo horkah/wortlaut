@@ -611,7 +611,7 @@ Mit jedem der drei erreichbar, weil er die Frage beantwortet, welchen man
 vorgelegt hat:
 
 ```
-GET    /api/zugang                                { art, sprecher_id, name }
+GET    /api/zugang                                { art, sprecher_id, name, sprache }
 GET    /gesundheit                                ohne alles
 ```
 

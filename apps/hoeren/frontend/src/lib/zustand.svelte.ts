@@ -9,7 +9,6 @@
 import { folgeHash, routeAusHash } from '$ui/route';
 import { OFFEN, ermittleZugang } from '$ui/wer';
 import { nimmZugangAusLink } from '$ui/zugang';
-import { werRuft } from './api';
 
 export { gehZu } from '$ui/route';
 
@@ -48,5 +47,5 @@ export async function ladeZugang(): Promise<void> {
   // Steckte einer im Link, liegt er jetzt im Browser und die Adresse ist
   // wieder sauber (siehe `$ui/zugang`).
   if (nimmZugangAusLink(routeAusHash())) zustand.route = '/';
-  Object.assign(zustand, await ermittleZugang(werRuft));
+  Object.assign(zustand, await ermittleZugang());
 }

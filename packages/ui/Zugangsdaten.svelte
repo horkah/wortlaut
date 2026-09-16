@@ -40,12 +40,13 @@
    */
   import type { Snippet } from 'svelte';
   import PinSchloss from './PinSchloss.svelte';
+  import { werRuft } from './wer';
   import { setzeZugang, zugang as gespeichert } from './zugang';
 
   let {
     art,
     name = null,
-    pruefe,
+    neuLaden,
     weiter,
   }: {
     /** Wer hier gerade ruft: `sprecher`, `verwaltung`, `aufsicht`, `keiner`, `unbekannt`. */
@@ -53,11 +54,16 @@
     /** Der Name des Sprechers, falls einer hier ist. */
     name?: string | null;
     /**
-     * Beim Server nachfragen, wer jetzt ruft - wirft, wenn der Zugang nicht
-     * gilt. Jede App reicht ihren eigenen Weg herein; die Antwort ist
-     * dieselbe.
+     * Den Zugangsstand dieser App neu einlesen, nachdem ein Token angenommen
+     * wurde: Wer die Seite gerade sieht, ist danach jemand anderes.
+     *
+     * Gefragt, **wer** ruft, wird nicht mehr von hier aus: Das tut `werRuft`
+     * für alle drei gleich (`wer.ts`). Diese Ansicht bekam die Frage einmal
+     * als Eigenschaft herein, und jede App reichte dieselben vier Zeilen
+     * hinein - bis auf „schreiben", das dabei seine eigene API fragte und
+     * einen gültigen Aufsichtstoken abwies.
      */
-    pruefe: () => Promise<{ art: string; name: string | null }>;
+    neuLaden: () => Promise<void>;
     /** Der nächste Schritt nach einem angenommenen Zugang. */
     weiter?: Snippet;
   } = $props();
@@ -75,7 +81,8 @@
     setzeZugang(eingabe);
     meldung = 'Wird geprüft …';
     try {
-      const wer = await pruefe();
+      const wer = await werRuft();
+      await neuLaden();
       meldung =
         wer.art === 'sprecher'
           ? `Angenommen - dieser Browser gehört jetzt zu „${wer.name}“.`

@@ -12,19 +12,11 @@
    */
   import Zugangsdaten from '$ui/Zugangsdaten.svelte';
   import { SPRECHER_PFAD } from '$ui/apps';
-  import { werRuft } from '../lib/api';
   import { gehZu, ladeZugang, zustand } from '../lib/zustand.svelte';
 
-  // Nach einem angenommenen Zugang gilt hier alles Weitere: Wer die Seite
-  // gerade sieht, ist danach jemand anderes.
-  async function pruefe() {
-    const wer = await werRuft();
-    await ladeZugang();
-    return wer;
-  }
 </script>
 
-<Zugangsdaten art={zustand.art} name={zustand.name} {pruefe}>
+<Zugangsdaten art={zustand.art} name={zustand.name} neuLaden={ladeZugang}>
   {#snippet weiter()}
     <!-- Wer wegen des Tokens hergeschickt wurde, will jetzt zu den Sprechern. -->
     <button class="knopf haupt" onclick={() => gehZu(SPRECHER_PFAD)}>

@@ -160,11 +160,22 @@ GET    /schreiben/api/segments/{id}/audio
 GET    /schreiben/api/model                 was geladen ist, und ob ausgesteuert wird
 GET    /schreiben/api/outbox
 POST   /schreiben/api/outbox/senden         noch einmal versuchen
-GET    /schreiben/api/zugang                wer ruft - für die Kopfzeile
 GET    /gesundheit                          ohne Zugang, auf der Wurzel
 ```
 
 Alles unter `/schreiben` - dem Ort dieser App unter der gemeinsamen Domain.
+
+Eine Auskunft fehlt hier bewusst: **wer gerade ruft.** Sie stand einmal als
+`GET /schreiben/api/zugang` da und war eine zweite Wahrheit über denselben
+Menschen. Diese API lässt mit gutem Grund nur Sprecherzugänge durch - sie
+spricht für einen Menschen und hat nichts zu verwalten -, also wies sie einen
+gültigen Verwalter- oder Aufsichtstoken ab, während dasselbe Eingabefeld in
+„hören" ihn annahm. Wer seinen Aufsichtstoken einsetzte, während „schreiben"
+offen war, bekam „Der Server weist diesen Zugang ab", obwohl der Token stimmte.
+
+Gefragt wird deshalb aus jeder App bei „hören" (`packages/ui/wer.ts`): Dort
+liegt der Korpus, dort steht der Name, und dort werden alle drei Arten von
+Zugang erkannt.
 Nur `/gesundheit` bleibt auf der Wurzel: Eine Überwachung spricht den Container
 unmittelbar an.
 

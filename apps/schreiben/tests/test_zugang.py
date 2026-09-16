@@ -53,18 +53,17 @@ class TestOhneZugang:
         assert antwort.status_code == 401
 
 
-class TestAuskunft:
-    def test_nennt_kennung_und_namen(self, klient: TestClient, sprecher: str) -> None:
-        # Dieselbe Auskunft wie in „hören", damit die Kopfzeile in beiden Apps
-        # denselben Namen zeigt.
-        antwort = klient.get("/schreiben/api/zugang").json()
-
-        assert antwort == {
-            "art": "sprecher",
-            "sprecher_id": sprecher,
-            "name": NAME,
-            "sprache": sprachen.VORGABE,
-        }
+# Die Auskunft „wer ruft hier?" gibt es in dieser App nicht mehr.
+#
+# Sie stand hier einmal als `GET /schreiben/api/zugang` und war eine zweite
+# Wahrheit über denselben Menschen: Diese API lässt mit gutem Grund nur einen
+# Sprecherzugang durch, also wies sie einen gültigen Aufsichtstoken ab -
+# während dasselbe Feld in „hören" ihn annahm. Gefragt wird jetzt aus jeder
+# App bei „hören" (`packages/ui/wer.ts`), wo alle drei Arten erkannt werden.
+#
+# Dass hier nur Sprecherzugänge durchkommen, gilt unverändert und wird von
+# `TestZugangNoetig` weiter oben geprüft - nur eben an den Wegen, um die es
+# dabei wirklich geht.
 
 
 class TestGetrennteAblage:

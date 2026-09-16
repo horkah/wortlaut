@@ -20,19 +20,11 @@
    * erst nach erfolgreicher Anmeldung zeigt, hätte die Tür hinter dem Schloss.
    */
   import Zugangsdaten from '$ui/Zugangsdaten.svelte';
-  import { werRuft } from '../lib/api';
   import { gehZu, ladeZugang, zustand } from '../lib/zustand.svelte';
 
-  // Nach einem angenommenen Zugang gilt hier alles Weitere: Wer die Seite
-  // gerade sieht, ist danach jemand anderes.
-  async function pruefe() {
-    const wer = await werRuft();
-    await ladeZugang();
-    return wer;
-  }
 </script>
 
-<Zugangsdaten art={zustand.art} name={zustand.name} {pruefe}>
+<Zugangsdaten art={zustand.art} name={zustand.name} neuLaden={ladeZugang}>
   {#snippet weiter()}
     <button class="knopf haupt" onclick={() => gehZu('/aufteilung')}>
       Weiter zur Aufteilung

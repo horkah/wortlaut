@@ -22,7 +22,7 @@
 import { folgeHash, routeAusHash } from '$ui/route';
 import { OFFEN, ermittleZugang } from '$ui/wer';
 import { nimmZugangAusLink } from '$ui/zugang';
-import { modell, sitzungHolen, werRuft, type Modell, type Sitzung } from './api';
+import { modell, sitzungHolen, type Modell, type Sitzung } from './api';
 
 export { gehZu } from '$ui/route';
 
@@ -40,7 +40,7 @@ folgeHash((route) => (zustand.route = route));
 /** Beim Server nachfragen, für wen dieser Browser eingestellt ist. */
 export async function ladeZugang(): Promise<void> {
   if (nimmZugangAusLink(routeAusHash())) zustand.route = '/';
-  Object.assign(zustand, await ermittleZugang(werRuft));
+  Object.assign(zustand, await ermittleZugang());
 }
 
 /** Ohne Auskunft bleibt der Modellstand leer - dann zeigen Kopfzeile und

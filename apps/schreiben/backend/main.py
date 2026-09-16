@@ -19,7 +19,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from wortlaut.web import FrontendDateien
 
-from .api import model, outbox, segments, sessions, zugang
+from .api import model, outbox, segments, sessions
 
 # Der Ort dieser App unter der gemeinsamen Domain. Alles hängt darunter, auch
 # die API: So genügt vor den Containern eine Regel, die den Pfad unverändert
@@ -33,7 +33,7 @@ BASIS = "/schreiben"
 
 app = FastAPI(title="wortlaut · schreiben", version="0.1.0")
 
-for router in (sessions.router, segments.router, model.router, outbox.router, zugang.router):
+for router in (sessions.router, segments.router, model.router, outbox.router):
     app.include_router(router, prefix=BASIS)
 
 
