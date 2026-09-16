@@ -576,8 +576,9 @@ Mal um Erlaubnis und gibt in Firefox keine Bilder heraus, während Einfügen
 **Zwei vorsichtige Filter, und beide sind gemessen.**
 
 *Auf dem Bild:* Die lange Seite wird auf 2400 Pixel begrenzt und eine
-entrauschte Fassung danebengestellt (3×3-Median). Beide gehen in zwei
-Seitenarten durch Tesseract, der beste der vier Durchgänge gilt - gewertet
+entrauschte Fassung danebengestellt (3×3-Median). Beide gehen in drei
+Seitenarten durch Tesseract - Seite, zusammenhängender Block, verstreuter
+Text -, der beste der sechs Durchgänge gilt - gewertet
 wird, wie viele Zeichen in Wörtern aus mindestens drei Zeichen stehen.
 
 Die Begrenzung ist keine Sparsamkeit, sondern eine Messung: Am Foto eines

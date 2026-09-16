@@ -162,7 +162,17 @@ def ist_bild(inhalt: bytes) -> bool:
 # Auf einer gerenderten Seite Fließtext fanden beide dieselben 131 - und dort
 # gewinnt `3`, weil es zuerst steht und der Gleichstand für die Vorgabe
 # entschieden wird.
-SEITENARTEN = (3, 11)
+#
+# `6` kam später dazu: „ein zusammenhängender Block Text" - die Lage bei einer
+# Karte oder einem Aufsteller, auf dem ein Absatz und eine Liste stehen und
+# sonst nichts. Für die Seitenanalyse von `3` ist das zu wenig Seite, für die
+# verstreute Suche von `11` zu viel Zusammenhang. Gemessen an vier Vorlagen
+# holt sie auf einer glänzenden Werbekarte eine Zeile mehr heraus und ändert
+# an den übrigen dreien nichts.
+#
+# Der Preis ist ein halber Durchgang mehr je Fassung, und der kostet fast
+# nichts: Die sechs laufen nebeneinander auf acht Kernen (siehe `EINFAEDIG`).
+SEITENARTEN = (3, 6, 11)
 
 
 # Wie groß ein Bild höchstens in die Erkennung geht - die lange Seite in Pixeln.
