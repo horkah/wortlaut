@@ -32,7 +32,7 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import corpus
+from . import corpus, sprachen
 
 TRENNER = "."
 PRAEFIX = "spr_"
@@ -75,10 +75,20 @@ def stimmt(geheimnis: str, gespeichert: str | None) -> bool:
 
 @dataclass(frozen=True)
 class Sprecherzugang:
-    """Wer ein vorgelegter Zugang ist: Kennung und Name aus dem Korpus."""
+    """Wer ein vorgelegter Zugang ist: Kennung, Name und Sprache aus dem Korpus.
+
+    **Warum die Sprache hier mitkommt.** Sie steht am Profil und gilt für
+    alles, was daran hängt (`wortlaut/sprachen.py`). Wer sie braucht - „lernen"
+    für den Trainingsauftrag, „schreiben" für das Diktat -, hat den Korpus des
+    Sprechers ohnehin gerade offen: Diese Prüfung liest die Zeile bereits. Sie
+    ein zweites Mal zu holen wäre eine zweite Abfrage für eine Auskunft, die
+    schon auf dem Tisch liegt - und eine zweite Stelle, an der jemand den
+    Rückfall auf Deutsch hinschreiben könnte.
+    """
 
     sprecher_id: str
     name: str
+    sprache: str
 
 
 def pruefe(datenverzeichnis: Path, vorgelegt: str) -> Sprecherzugang | None:
@@ -106,7 +116,8 @@ def pruefe(datenverzeichnis: Path, vorgelegt: str) -> Sprecherzugang | None:
     try:
         with sqlite3.connect(f"file:{pfad}?mode=ro", uri=True) as verbindung:
             zeile = verbindung.execute(
-                "SELECT name, zugang_hash FROM speakers WHERE id = ?", (sprecher_id,)
+                "SELECT name, zugang_hash, sprache FROM speakers WHERE id = ?",
+                (sprecher_id,),
             ).fetchone()
     except sqlite3.Error:
         # Eine Datenbank, die es noch nicht gibt oder gerade angelegt wird, ist
@@ -115,4 +126,11 @@ def pruefe(datenverzeichnis: Path, vorgelegt: str) -> Sprecherzugang | None:
 
     if zeile is None or not stimmt(geheimnis, zeile[1]):
         return None
-    return Sprecherzugang(sprecher_id=sprecher_id, name=zeile[0] or "")
+    # Die Spalte ist `NOT NULL DEFAULT 'de'` (001_init.sql), also steht dort
+    # immer etwas - der Rückfall gilt einer Datenbank, die älter ist als diese
+    # Zeile, und nicht dem Normalfall.
+    return Sprecherzugang(
+        sprecher_id=sprecher_id,
+        name=zeile[0] or "",
+        sprache=zeile[2] or sprachen.VORGABE,
+    )

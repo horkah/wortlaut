@@ -152,7 +152,6 @@ Browser vorlegt - derselbe wie bei `hören`.
 |---|---|---|
 | `WORTLAUT_MODELL_REF` | leer | ein fester Stand für alle, zum Erproben. Leer ist der Betriebsfall: Dann gilt die Freigabe je Sprecher. |
 | `WORTLAUT_ASR_MODELL` | `small` | das unveränderte Grundmodell, solange nichts freigegeben ist |
-| `WORTLAUT_SPRACHE` | `de` | Sprache der Diktate, an Whisper gereicht |
 | `WORTLAUT_ASR` | `local` | `local` = faster-whisper im eigenen Prozess, `remote` = fremder Endpunkt |
 | `WORTLAUT_ASR_ENDPOINT` | leer | nur bei `remote` |
 | `WORTLAUT_ASR_API_KEY` | leer | nur bei `remote` |

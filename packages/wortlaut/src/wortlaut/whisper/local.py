@@ -117,7 +117,7 @@ class LokalerTranskriptor:
         if self._geladen is None:
             self._geladen = self._lade()
 
-    def transkribiere(self, wav: Path, sprache: str = "de") -> Transkript:
+    def transkribiere(self, wav: Path, sprache: str) -> Transkript:
         self.lade()
 
         rohabschnitte, _info = self._geladen.transcribe(str(wav), language=sprache)

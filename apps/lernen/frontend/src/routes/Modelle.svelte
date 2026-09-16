@@ -26,6 +26,7 @@
    * nicht nur farbig da, sondern trägt ein Wort in ihrem `title` - Farbe
    * allein wäre für einen Teil der Leser keine Auskunft.
    */
+  import { ANZEIGE_GEBIET } from '$ui/sprache';
   import { zeitpunkt } from '$ui/zeit';
   import { onMount } from 'svelte';
   import {
@@ -98,13 +99,13 @@
 
   /** `0,003` statt `0.003` - und unterhalb der Auflösung ehrlich als „<".  */
   function pWert(p: number): string {
-    return p < 0.001 ? '< 0,001' : p.toLocaleString('de-DE', { maximumFractionDigits: 3 });
+    return p < 0.001 ? '< 0,001' : p.toLocaleString(ANZEIGE_GEBIET, { maximumFractionDigits: 3 });
   }
 
   /** Deutsche Schreibweise, feste Stellenzahl - sonst springen die Spalten. */
   function zahl(roh: number, mass: Mass): string {
     return (
-      roh.toLocaleString('de-DE', {
+      roh.toLocaleString(ANZEIGE_GEBIET, {
         minimumFractionDigits: mass.stellen,
         maximumFractionDigits: mass.stellen,
       }) + mass.einheit

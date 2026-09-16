@@ -195,6 +195,7 @@
   punkte={menue}
   {uebergreifend}
   sprecher={name}
+  sprache={zustand.sprache}
   route={offen}
   servestimmen={stimmenVomServer}
   probeHolen={stimmprobe}

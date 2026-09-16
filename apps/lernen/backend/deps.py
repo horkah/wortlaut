@@ -64,8 +64,10 @@ def vergiss_engines(sprecher_id: str = "") -> None:
             engine.dispose()
 
 
-def _sprecher_id(authorization: Annotated[str | None, Header()] = None) -> str:
-    """Die Kennung aus dem vorgelegten Zugang - die einzige Stelle, die das tut.
+def _zugang(
+    authorization: Annotated[str | None, Header()] = None,
+) -> zugangsdienst.Sprecherzugang:
+    """Der geprüfte Zugang - die einzige Stelle, die ihn hier auflöst.
 
     Nur der Sprecherzugang gilt. Verwaltung und Aufsicht kommen hier nicht
     durch, und das ist kein Versehen: Ein Modell gehört einem Menschen, und
@@ -80,6 +82,11 @@ def _sprecher_id(authorization: Annotated[str | None, Header()] = None) -> str:
     ORM-Modelle einer fremden App mit. Der Weg der Bibliothek öffnet den Korpus
     ausdrücklich lesend (`mode=ro`) - er ist damit auch der richtigere: Diese
     App schreibt nicht in den Korpus (Grundentscheidung 6).
+
+    Herausgereicht wird der ganze Zugang und nicht mehr nur die Kennung: Er
+    trägt seit `wortlaut/zugang.py` auch die Sprache des Profils, und die
+    braucht der Trainingsauftrag. Zweimal zu prüfen, um zwei Felder derselben
+    Zeile zu bekommen, wäre zweimal dieselbe Arbeit.
     """
     vorgelegt = (authorization or "").removeprefix("Bearer ")
     # Zwei Lagen, zwei Sätze: Was gar kein Sprecherzugang ist - ein Verwalter-
@@ -94,7 +101,22 @@ def _sprecher_id(authorization: Annotated[str | None, Header()] = None) -> str:
     wer = zugangsdienst.pruefe(einstellungen().data_dir, vorgelegt)
     if wer is None:
         raise HTTPException(status_code=401, detail="Dieser Zugang gilt nicht mehr.")
+    return wer
+
+
+def _sprecher_id(wer: Annotated[zugangsdienst.Sprecherzugang, Depends(_zugang)]) -> str:
     return wer.sprecher_id
+
+
+def _sprache(wer: Annotated[zugangsdienst.Sprecherzugang, Depends(_zugang)]) -> str:
+    """Die Sprache des Profils, für den Trainingsauftrag.
+
+    Sie kommt aus derselben Prüfung wie die Kennung und kostet keine zweite
+    Abfrage (`wortlaut/zugang.py`). Der Auftrag trägt sie danach selbst, damit
+    der Trainer sie nicht aus der Umgebung nehmen muss - und damit in
+    `auftrag.json` steht, wofür trainiert wurde.
+    """
+    return wer.sprache
 
 
 def _korpus(sprecher_id: Annotated[str, Depends(_sprecher_id)]) -> Iterator[Session]:
@@ -103,4 +125,5 @@ def _korpus(sprecher_id: Annotated[str, Depends(_sprecher_id)]) -> Iterator[Sess
 
 
 SprecherId = Annotated[str, Depends(_sprecher_id)]
+Sprache = Annotated[str, Depends(_sprache)]
 Korpus = Annotated[Session, Depends(_korpus)]

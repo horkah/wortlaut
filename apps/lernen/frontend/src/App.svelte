@@ -125,6 +125,7 @@
   punkte={spricht ? MENUE : []}
   {uebergreifend}
   sprecher={name}
+  sprache={zustand.sprache}
   route={offen}
 >
   {#if keinZugang}

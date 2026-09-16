@@ -219,6 +219,19 @@ def _sprecher_id(wer: Annotated[zugangsdienst.Sprecherzugang, Depends(_wer_ruft)
     return wer.sprecher_id
 
 
+def _sprache(wer: Annotated[zugangsdienst.Sprecherzugang, Depends(_wer_ruft)]) -> str:
+    """Die Sprache dieses Menschen - aus seinem Profil, nicht aus der Umgebung.
+
+    Hier stand einmal `WORTLAUT_SPRACHE`, eine serverweite Einstellung. Bei
+    einer Sprache je Profil (`wortlaut/sprachen.py`) ist das von Bauart falsch:
+    Sobald zwei Menschen mit verschiedenen Sprachen auf demselben Server
+    diktieren, bekommt einer von beiden die des anderen an Whisper gereicht -
+    und merkt es an einem Text, der aussieht, als hätte das Modell ihn nicht
+    verstanden.
+    """
+    return wer.sprache
+
+
 def _sitzung(sprecher_id: Annotated[str, Depends(_sprecher_id)]) -> Iterator[Session]:
     with Session(engine_fuer(sprecher_id)) as sitzung:
         yield sitzung
@@ -241,6 +254,7 @@ def _transkriptor(sprecher_id: Annotated[str, Depends(_sprecher_id)]) -> Transkr
 # Kurzschreibweisen für die Signaturen der Endpunkte.
 Wer = Annotated[zugangsdienst.Sprecherzugang, Depends(_wer_ruft)]
 SprecherId = Annotated[str, Depends(_sprecher_id)]
+Sprache = Annotated[str, Depends(_sprache)]
 Zugangstoken = Annotated[str, Depends(_vorgelegt)]
 Datenbank = Annotated[Session, Depends(_sitzung)]
 Ablage = Annotated[storage.Ablage, Depends(_ablage)]

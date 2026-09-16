@@ -57,9 +57,20 @@ path already; it is the surrounding machinery that assumes German.
 | Piper voice downloads parse any locale out of the voice name | `scripts/vorlesen.py:_pfadteile` |
 | Timestamps are stored in UTC and formatted client-side | `packages/ui/zeit.ts` |
 | The corpus layout is per speaker, so two profiles never collide | Grundentscheidung 6 |
+| **One place defines the languages**, their labels and the default | `wortlaut/sprachen.py` |
+| The checked access token carries the speaker's language, so every app has it without a second query | `wortlaut/zugang.py` → `Sprecherzugang.sprache` |
+| The profile-creation form offers the supported languages, served by the backend | `GET /api/sprachen`, `Verwaltung.svelte` |
+| The training job records its language in `auftrag.json`; trainer and evaluator read it | `services/auftraege.py` → `finetune.py`, `bewerten.py` |
+| Dictation uses the speaker's language, not a server-wide setting | `apps/schreiben/backend/deps.py:_sprache` |
+| The browser passes the profile language to the Web Speech API and to the voice list | `packages/ui/speak.ts`, `wer.ts`, `Einstellungen.svelte` |
 
 So the recogniser, the trainer and the storage layer are ready. The work is in
 the layers above and beside them.
+
+**Since the first version of this note, §1 to §3 below have been closed** and
+the hard-coded `"de"` has been removed from the code: the default now lives in
+`wortlaut/sprachen.py` and everything else reads the profile. What is left is
+listed unchanged, so the reasoning stays readable.
 
 ---
 
@@ -68,7 +79,12 @@ the layers above and beside them.
 Ordered roughly by effort. File references are the starting points, not an
 exhaustive diff.
 
-### 1. Let someone actually choose the language — trivial
+### 1. Let someone actually choose the language — **done**
+
+*Closed. `GET /api/sprachen` serves what `wortlaut/sprachen.py` supports, the
+creation form renders it, and `NeuerSprecher` validates and normalises the
+value (`de-DE` is stored as `de`). An unsupported code is a 422 rather than a
+silent German profile. The original finding follows.*
 
 The API accepts `sprache`; the UI never sends it. `sprecherAnlegen` takes
 `{ name, basismodell }` (`apps/hoeren/frontend/src/lib/api.ts:90`) and
@@ -81,7 +97,14 @@ Add the field to the form, the type and the call. Offer a short curated list,
 not all hundred codes: the languages this installation has prompts and a voice
 for.
 
-### 2. Carry the language into the training job — small, and load-bearing
+### 2. Carry the language into the training job — **done**
+
+*Closed. `Auftrag` now has a `sprache` field without a default, it is filled
+from the access token at job creation, and it is written into `auftrag.json` —
+adding the dataclass field alone was not enough, because the job file is
+serialised key by key, and a test now covers exactly that. The fallback in the
+trainer stayed, pointing at `sprachen.VORGABE`: jobs created before the field
+existed still have to run. The original finding follows.*
 
 `finetune.py:352` and `bewerten.py:246` both read `auftrag.get("sprache") or
 "de"`. Nothing ever writes that key. `auftraege.Auftrag`
@@ -99,7 +122,14 @@ and it flows to both the trainer and the evaluator, which already read it.
 This is a handful of lines and it is the single most important one in this
 list.
 
-### 3. Make „schreiben" ask the speaker, not the config — small
+### 3. Make „schreiben" ask the speaker, not the config — **done**
+
+*Closed, by the second route below but without the manifest: the access check
+already reads the speaker's corpus row, so `Sprecherzugang` carries the
+language and `deps._sprache` hands it to both dictation endpoints. No extra
+query, no corpus write, app boundary intact. `WORTLAUT_SPRACHE` is gone — a
+server-wide language is wrong by construction once a second one exists, so
+there is nothing left for it to fall back to. The original finding follows.*
 
 Dictation uses a server-wide setting: `Einstellungen.sprache = "de"`
 (`apps/schreiben/backend/config.py:71`), passed at `api/segments.py:54` and
@@ -177,12 +207,14 @@ Two traps:
   Czech, Vietnamese, anything with stacked diacritics. When adding a voice,
   synthesize a sentence that exercises the language's awkward sounds and check
   stderr for `Missing phoneme from id map`. Silence there is the test.
-* **Browser fallback defaults to German.** `packages/ui/speak.ts` defaults to
-  `'de'` in `stimmen()` and `stimmeVerfuegbar()`, and `sprich()` falls back to
-  `'de-DE'` (line 88). `Einstellungen.svelte:57` calls `stimmen()` with no
-  argument, so the device-voice list is always filtered to German. Thread the
-  profile language through. While you are there: server voices are currently
-  offered unfiltered, so a German voice shows up for a Spanish profile.
+* ~~**Browser fallback defaults to German.**~~ *Done.* `stimmen()` and
+  `stimmeVerfuegbar()` now require the language and treat `null` as "unknown,
+  do not filter" rather than as German; `sprich()` sets no language at all when
+  it has none, instead of inventing `de-DE`. Server voices are filtered by the
+  profile language too. One subtlety worth knowing if you touch this again: the
+  language arrives from `/api/zugang` *after* the first render, so the voice
+  list has to be `$derived` — a `$state` initialised once keeps the unfiltered
+  list forever, which is invisible while only one language exists.
 
 Both probe sentences are German and need a per-language equivalent:
 `PROBESATZ` (`apps/hoeren/backend/api/prompts.py:126`) and `PROBE`
@@ -199,7 +231,12 @@ beside them, and both are helpfully single-source:
 * `_zahl` (`apps/lernen/backend/api/laeufe.py:677`) — decimal comma. This one
   formats on the *server*, which is the wrong side for a locale decision; the
   same argument the project already made for timestamps applies. Send numbers
-  and format them in the browser.
+  and format them in the browser. (The browser-side `toLocaleString('de-DE')`
+  calls have since been collected into `ANZEIGE_GEBIET` in
+  `packages/ui/sprache.ts` — deliberately *not* the profile language: a Spanish
+  profile on a German-language server should be recognised and read aloud in
+  Spanish while the table next to it keeps German decimals. That constant is
+  where the interface locale becomes a per-viewer value once §7 happens.)
 
 The mechanical part — extract strings, add a catalogue, wire a store — is a
 known quantity. The part that will actually cost you is that this project's
@@ -266,19 +303,24 @@ capacity, not after.
 For a new language, in this order, because each step makes the next one
 testable:
 
-1. Add `sprache` to `Auftrag` and fill it at job creation *(§2)*. Without this
-   nothing downstream can be trusted.
-2. Add the language picker to profile creation *(§1)*.
+1. ~~Add `sprache` to `Auftrag` and fill it at job creation *(§2)*.~~ **Done** —
+   and with it the whole plumbing: add the new code to
+   `sprachen.UNTERSTUETZT`, and the profile form, the job, the evaluation and
+   the dictation follow on their own.
+2. ~~Add the language picker to profile creation *(§1)*.~~ **Done.**
 3. Download a Piper voice, add its label, verify no missing phonemes *(§6)*.
 4. Set the chunker constants for the language *(§4)*.
 5. Parametrise the LLM instruction; write or upload a first prompt text *(§5)*.
 6. Create a profile, record ten utterances, run the baseline evaluation. **Stop
    here and read the number.** This is the cheapest honest answer to whether
    the language is viable at all.
-7. Point „schreiben" at the profile's language *(§3)*.
+7. ~~Point „schreiben" at the profile's language *(§3)*.~~ **Done.**
 8. Translate the interface *(§7)*.
 
-Steps 1–6 are a few days. Step 8 is the project.
+With 1, 2, 3 and 7 closed, adding a language is now: one entry in
+`sprachen.UNTERSTUETZT`, a voice, chunker constants, a prompt text — then step
+6, the baseline measurement, before anything is promised to anyone. Step 8 is
+still the project.
 
 ---
 

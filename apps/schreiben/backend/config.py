@@ -68,7 +68,6 @@ class Einstellungen(Grundeinstellungen):
     asr: str = "local"
     asr_endpoint: str = ""
     asr_api_key: str = ""
-    sprache: str = "de"
 
     # Wohin die bestätigten Korrekturen gehen. Leer heißt: sie bleiben im
     # Postausgang liegen, statt verloren zu gehen.

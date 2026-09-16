@@ -21,10 +21,12 @@
   import {
     alleSprecher,
     sicherungGesamt,
+    sprachen as holeSprachen,
     sprecherAnlegen,
     sprecherListe,
     zugangAusgeben,
     zugangZurueckziehen,
+    type Sprachwahl,
     type Sprecher,
     type Uebersicht,
   } from '../lib/api';
@@ -36,6 +38,12 @@
   let packt = $state(false);
   let name = $state('');
   let basismodell = $state('openai/whisper-large-v3');
+
+  // Die Sprachen kommen vom Server (`api/sprachen.py`), nicht aus einer Liste
+  // hier: Ein Profil trägt seine Sprache ein Leben lang, und welche es zu
+  // wählen gibt, weiß die Bibliothek und nicht die Oberfläche.
+  let waehlbar = $state<Sprachwahl[]>([]);
+  let sprache = $state('');
 
   // Die Aufsicht sieht dieselbe Liste, holt sie aber über ihren eigenen Weg -
   // nur der bringt die Kennzahlen mit.
@@ -51,6 +59,11 @@
     fehler = '';
     if (zugangNoetig) return;
     try {
+      if (waehlbar.length === 0) {
+        waehlbar = await holeSprachen();
+        // Dieselbe Vorauswahl wie auf dem Server, statt einer eigenen hier.
+        sprache = (waehlbar.find((s) => s.vorgabe) ?? waehlbar[0])?.kuerzel ?? '';
+      }
       sprecher = beaufsichtigt ? await alleSprecher() : await sprecherListe();
     } catch (ursache) {
       if (ursache instanceof ApiFehler && ursache.status === 401) await ladeZugang();
@@ -62,7 +75,7 @@
     ereignis.preventDefault();
     fehler = '';
     try {
-      const neuer = await sprecherAnlegen({ name, basismodell });
+      const neuer = await sprecherAnlegen({ name, sprache, basismodell });
       name = '';
       await gib_aus(neuer.id);
     } catch (ursache) {
@@ -204,6 +217,14 @@
     <label>
       <span>Name</span>
       <input bind:value={name} required maxlength="200" />
+    </label>
+    <label>
+      <span>Sprache</span>
+      <select bind:value={sprache} required>
+        {#each waehlbar as wahl (wahl.kuerzel)}
+          <option value={wahl.kuerzel}>{wahl.name}</option>
+        {/each}
+      </select>
     </label>
     <label>
       <span>Basismodell</span>

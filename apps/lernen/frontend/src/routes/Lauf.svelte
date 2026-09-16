@@ -13,6 +13,7 @@
    * halbfertige. Solange oben eine Kurve wächst, gibt es unten nichts zu
    * sehen - und das ist besser, als eine Zahl zu zeigen, die sich noch ändert.
    */
+  import { ANZEIGE_GEBIET } from '$ui/sprache';
   import { zeitpunkt } from '$ui/zeit';
   import { onMount } from 'svelte';
   import { einstellungen } from '$ui/einstellungen.svelte';
@@ -87,7 +88,7 @@
 
   /** `0,003` statt `0.003` - und unterhalb der Auflösung ehrlich als „<". */
   function pWert(p: number): string {
-    return p < 0.001 ? '< 0,001' : p.toLocaleString('de-DE', { maximumFractionDigits: 3 });
+    return p < 0.001 ? '< 0,001' : p.toLocaleString(ANZEIGE_GEBIET, { maximumFractionDigits: 3 });
   }
 
   /** Um wie viel besser - in Prozentpunkten bei der Genauigkeit, sonst relativ. */

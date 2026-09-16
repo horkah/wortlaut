@@ -34,6 +34,11 @@ class WerAntwort(BaseModel):
     art: str  # sprecher | verwaltung | aufsicht
     sprecher_id: str | None = None
     name: str | None = None
+    # Die Sprache des Profils - die Oberfläche braucht sie für das Vorlesen
+    # (`packages/ui/speak.ts`) und holt sie hier, weil sie diese Frage ohnehin
+    # bei jedem Start stellt. Leer für Verwaltung und Aufsicht: Die sprechen
+    # für niemanden.
+    sprache: str | None = None
 
 
 class ZugangAntwort(BaseModel):
@@ -50,7 +55,10 @@ def wer_ruft(wer: Wer) -> WerAntwort:
     with Session(engine_fuer(wer.sprecher_id)) as sitzung:
         sprecher = sitzung.get(Sprecher, wer.sprecher_id)
         name = sprecher.name if sprecher is not None else None
-    return WerAntwort(art="sprecher", sprecher_id=wer.sprecher_id, name=name)
+        sprache = sprecher.sprache if sprecher is not None else None
+    return WerAntwort(
+        art="sprecher", sprecher_id=wer.sprecher_id, name=name, sprache=sprache
+    )
 
 
 @router.post(

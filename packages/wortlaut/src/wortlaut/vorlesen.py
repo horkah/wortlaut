@@ -40,6 +40,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+from . import sprachen
+
 # Womit dieses Projekt arbeitet - dieselbe Abtastrate wie überall sonst
 # (`audio.py`). Was ein Motor anders liefert, wird umgerechnet, bevor es
 # abgelegt wird: Eine Vorlesung ist eine WAV-Datei wie jede andere, sonst
@@ -70,7 +72,7 @@ class Stimme:
     schluessel: str
     name: str
     erklaerung: str
-    sprache: str = "de"
+    sprache: str = sprachen.VORGABE
 
     @property
     def motor(self) -> str:
@@ -203,7 +205,9 @@ class PiperMotor:
                     schluessel=f"{self.name}{TRENNER}{kennung}",
                     name=name,
                     erklaerung=erklaerung,
-                    sprache=kennung.split("_", 1)[0] if "_" in kennung else "de",
+                    sprache=(
+                        kennung.split("_", 1)[0] if "_" in kennung else sprachen.VORGABE
+                    ),
                 )
             )
         return gefunden

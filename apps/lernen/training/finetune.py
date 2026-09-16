@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from wortlaut import laeufe, tempo
+from wortlaut import laeufe, sprachen, tempo
 
 from . import abschluss as abschlussrechnung
 from . import tempowahl
@@ -349,7 +349,9 @@ def trainiere(
     # Die Sprache steht im Korpus; hier genügt, dass sie fest gesetzt ist:
     # Ein Modell, das die Sprache erst erkennen muss, verschenkt bei kurzen
     # Sätzen Genauigkeit an eine Frage, deren Antwort feststeht.
-    sprache = str(auftrag.get("sprache") or "de")
+    # Der Rückfall gilt Aufträgen, die älter sind als das Feld - seit
+    # `services/auftraege.py` schreibt jeder neue Lauf seine Sprache selbst.
+    sprache = str(auftrag.get("sprache") or sprachen.VORGABE)
     ausleser = WhisperFeatureExtractor.from_pretrained(basismodell)
     # Ausdrücklich der schnelle Zerteiler, und das ist keine
     # Geschwindigkeitsfrage: Nur er schreibt beim Sichern eine `tokenizer.json`,

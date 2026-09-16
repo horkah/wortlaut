@@ -41,7 +41,7 @@ class PlatzhalterErkenner:
         self.modell = modell
         self.antworten = antworten
 
-    def transkribiere(self, wav: Path, sprache: str = "de") -> Transkript:
+    def transkribiere(self, wav: Path, sprache: str) -> Transkript:
         antwort = self.antworten[self.modell]
         if isinstance(antwort, Exception):
             raise antwort

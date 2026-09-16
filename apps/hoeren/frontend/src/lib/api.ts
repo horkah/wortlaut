@@ -87,8 +87,26 @@ export const werRuft = () => anfrage<Wer>('/zugang');
 
 export const sprecherListe = () => anfrage<Sprecher[]>('/speakers');
 
-export const sprecherAnlegen = (eingabe: { name: string; basismodell: string }) =>
-  anfrage<Sprecher>('/speakers', alsJson(eingabe));
+export const sprecherAnlegen = (eingabe: {
+  name: string;
+  sprache: string;
+  basismodell: string;
+}) => anfrage<Sprecher>('/speakers', alsJson(eingabe));
+
+/** Eine Sprache, die dieses System führt (`wortlaut/sprachen.py`). */
+export type Sprachwahl = {
+  kuerzel: string;
+  name: string;
+  vorgabe: boolean;
+};
+
+/**
+ * Welche Sprachen zur Wahl stehen - vom Server und nicht aus einer Liste hier.
+ *
+ * Im Auswahlfeld stand einmal eine fest eingetragene Sprache. Wer eine zweite
+ * hinzufügt, sollte dafür die Bibliothek ändern und nicht drei Dateien.
+ */
+export const sprachen = () => anfrage<Sprachwahl[]>('/sprachen');
 
 
 /** Neuen Zugang ausgeben. Ein vorhandener gilt danach nicht mehr. */

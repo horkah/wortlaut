@@ -14,7 +14,11 @@ Die **Grundentscheidungen**, auf die hier verwiesen wird, stehen
 
 ## Ablauf
 
-1. **Sprecherprofil** anlegen: Name, Sprache, Basismodell. Sonst nichts. Dazu
+1. **Sprecherprofil** anlegen: Name, Sprache, Basismodell. Sonst nichts. Die
+   Sprache gilt danach für alles, was am Profil hängt - Vorlagen, Aufnahmen,
+   Feintuning, Bewertung, Diktat - und lässt sich nicht mehr wechseln; wer
+   wortlaut in zwei Sprachen braucht, bekommt zwei Profile
+   ([Andere Sprachen](sprachen.md)). Dazu
    einen Zugang ausgeben - daraus wird ein Link, und der ist alles, was die
    Person je braucht (siehe [Der Zugang ist die Kennung](#der-zugang-ist-die-kennung)).
 2. **Textquelle wählen.** Entweder ein Thema oder Stichwort plus Altersspanne, aus

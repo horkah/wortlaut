@@ -25,8 +25,13 @@ class WerAntwort(BaseModel):
     art: str  # hier immer „sprecher" - alles andere ist ein 401
     sprecher_id: str
     name: str
+    # Kommt aus dem geprüften Zugang und damit aus dem Korpus, ohne zweite
+    # Abfrage (`wortlaut/zugang.py`).
+    sprache: str
 
 
 @router.get("/api/zugang", response_model=WerAntwort)
 def wer_ruft(wer: Wer) -> WerAntwort:
-    return WerAntwort(art="sprecher", sprecher_id=wer.sprecher_id, name=wer.name)
+    return WerAntwort(
+        art="sprecher", sprecher_id=wer.sprecher_id, name=wer.name, sprache=wer.sprache
+    )

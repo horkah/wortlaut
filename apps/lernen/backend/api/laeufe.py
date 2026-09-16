@@ -33,7 +33,7 @@ from pydantic import BaseModel
 from wortlaut import laeufe as lauf_layout, registry, streuung
 
 from ..config import einstellungen
-from ..deps import Korpus, SprecherId
+from ..deps import Korpus, Sprache, SprecherId
 from ..services import aufteilung, auftraege, vergleich
 
 router = APIRouter(prefix="/lernen/api/laeufe", tags=["Läufe"])
@@ -944,7 +944,7 @@ def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
     dependencies=[Depends(_pruefe_trainerschluessel)],
 )
 def beauftrage(
-    bestellung: Bestellung, korpus: Korpus, sprecher: SprecherId
+    bestellung: Bestellung, korpus: Korpus, sprecher: SprecherId, sprache: Sprache
 ) -> LaufAntwort:
     """Einen Lauf beauftragen - der einzige Weg, der den Trainerschlüssel verlangt.
 
@@ -1014,6 +1014,10 @@ def beauftrage(
             dauer=bestellung.dauer,
             tempowahl=bestellung.tempowahl,
             basismodell=grundmodell,
+            # Aus dem Profil, nicht aus der Umgebung: Der Trainer setzt daraus
+            # die erzwungenen Marken von Whisper, und die Bewertung misst in
+            # derselben Sprache (`wortlaut/sprachen.py`).
+            sprache=sprache,
         ),
     )
     return _als_antwort(lauf)

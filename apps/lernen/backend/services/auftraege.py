@@ -61,6 +61,17 @@ class Auftrag:
     methode: str
     daten: str
     basismodell: str
+    # Die Sprache des Profils. Sie steht im Auftrag und nicht in der Umgebung,
+    # weil ein Lauf nachvollziehbar sein soll: In `auftrag.json` ist später zu
+    # lesen, wofür trainiert wurde, und der Trainer muss es nicht raten.
+    #
+    # Ohne Vorgabe, und das mit Absicht. `finetune.py` und `bewerten.py` lasen
+    # den Schlüssel schon immer - geschrieben hat ihn nie jemand, also griff
+    # dort stets der Rückfall auf Deutsch. Ein spanisches Profil hätte deutsche
+    # erzwungene Marken bekommen und wäre als Deutsch bewertet worden, ohne
+    # dass irgendwo ein Fehler gestanden hätte. Ein Feld ohne Vorgabe kann
+    # nicht wieder vergessen werden.
+    sprache: str
     # Was am Ende mit den Gewichten geschieht (`wortlaut/laeufe.py`). Mit
     # Vorgabe, und die ist das Verfahren von vorher: Ein Auftrag von einem
     # Aufrufer, der diese Achse nicht kennt, bleibt derselbe Auftrag.
@@ -169,6 +180,10 @@ def beauftrage(
             "augmentierung": auftrag.augmentierung,
             "dauer": auftrag.dauer,
             "basismodell": auftrag.basismodell,
+            # Die Sprache des Profils. Sie steht hier, weil `finetune.py` und
+            # `bewerten.py` sie genau hier lesen - und weil in `auftrag.json`
+            # nachvollziehbar sein soll, wofür trainiert wurde.
+            "sprache": auftrag.sprache,
             # Ob der Trainer diesen Faktor benutzt oder sich einen sucht. Der
             # eingefrorene Wert darüber bleibt trotzdem stehen: Er ist der
             # Ausgangspunkt, gegen den sich eine Suche messen lassen muss.

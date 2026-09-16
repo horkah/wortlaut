@@ -17,7 +17,7 @@ class EntfernterTranskriptor:
         self.api_schluessel = api_schluessel
         self.modell = modell
 
-    def transkribiere(self, wav: Path, sprache: str = "de") -> Transkript:
+    def transkribiere(self, wav: Path, sprache: str) -> Transkript:
         import httpx
 
         with wav.open("rb") as datei:

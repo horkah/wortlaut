@@ -47,24 +47,61 @@
    * drei Apps nicht haben. Ohne Eigenschaft bleibt alles, wie es war.
    */
   let {
+    sprache = null,
     servestimmen = [],
     probeHolen,
   }: {
+    /**
+     * Die Sprache des Profils, vom Server (`wer.ts`). `null`, solange die
+     * Antwort aussteht oder ein Verwalter ruft - dann wird nicht gefiltert,
+     * statt Deutsch anzunehmen (siehe `speak.ts`).
+     */
+    sprache?: string | null;
     servestimmen?: Servestimme[];
     probeHolen?: (schluessel: string) => Promise<Blob>;
   } = $props();
 
-  let liste = $state(stimmen());
   let fehler = $state('');
 
-  // Die Stimmenliste trifft auf manchen Systemen erst nach dem Laden ein.
-  $effect(() => beiStimmenAenderung(() => (liste = stimmen())));
+  /**
+   * Die Gerätestimmen dieser Sprache - neu geholt, wenn sich etwas ändert.
+   *
+   * **Zwei Dinge treffen verspätet ein, und beide müssen die Liste bewegen.**
+   * Die Stimmen selbst kommen auf manchen Systemen erst nach dem Laden der
+   * Seite; `voiceschanged` sagt Bescheid, und `getVoices()` ist von sich aus
+   * nicht reaktiv - daher der Zähler als Auslöser. Die Sprache kommt vom
+   * Server und steht beim ersten Bild noch auf `null` (`wer.ts`).
+   *
+   * Hier stand `$state(stimmen(sprache))`, und damit war die Liste die des
+   * ersten Augenblicks: ungefiltert, weil die Sprache noch fehlte, und
+   * ungefiltert bleibend, weil ein `$state` den späteren Wert nicht mehr
+   * sieht. Bei einer Sprache fiel das nicht auf - jede Stimme war die
+   * richtige.
+   */
+  let neuGeholt = $state(0);
+  $effect(() => beiStimmenAenderung(() => neuGeholt++));
+  const liste = $derived.by(() => {
+    neuGeholt; // gelesen, damit `voiceschanged` diese Ableitung erneuert
+    return stimmen(sprache);
+  });
+
+  /**
+   * Die Stimmen des Servers, die zu diesem Profil passen.
+   *
+   * Angeboten wurde bisher alles, was auf dem Server liegt. Solange nur
+   * Deutsch möglich war, war das dasselbe; bei zwei Sprachen stünde sonst eine
+   * deutsche Stimme zur Wahl, die einen spanischen Satz vorliest
+   * (`wortlaut/sprachen.py`).
+   */
+  const serveliste = $derived(
+    sprache ? servestimmen.filter((s) => s.sprache.startsWith(sprache)) : servestimmen,
+  );
 
   // Über `liste`, damit die Anzeige nachzieht, wenn die Stimmen spät eintreffen.
   const gewaehlt = $derived(stimmeNachUri(einstellungen.stimmeUri, liste));
   const serveGewaehlt = $derived(
     istServestimme(einstellungen.stimmeUri)
-      ? servestimmen.find((s) => SERVE_PRAEFIX + s.schluessel === einstellungen.stimmeUri)
+      ? serveliste.find((s) => SERVE_PRAEFIX + s.schluessel === einstellungen.stimmeUri)
       : undefined,
   );
   // Der Wert des Auswahlfelds: eine Servestimme trägt ihr Präfix, eine
@@ -108,18 +145,18 @@
 
 <h2>Vorlesen</h2>
 
-{#if liste.length === 0 && servestimmen.length === 0}
+{#if liste.length === 0 && serveliste.length === 0}
   <p class="gedaempft">
-    Dieser Browser meldet keine deutsche Stimme, und auf dem Server liegt keine. Das Vorsprechen
-    bleibt dann aus; siehe <code>docs/betrieb.md</code>.
+    Dieser Browser meldet keine Stimme für die Sprache dieses Profils, und auf dem Server liegt
+    keine. Das Vorsprechen bleibt dann aus; siehe <code>docs/betrieb.md</code>.
   </p>
 {:else}
   <label>
     <span>Stimme</span>
     <select value={wert} onchange={(ereignis) => setzeStimme(ereignis.currentTarget.value)}>
-      {#if servestimmen.length}
+      {#if serveliste.length}
         <optgroup label="Vom Server - überall gleich">
-          {#each servestimmen as stimme (stimme.schluessel)}
+          {#each serveliste as stimme (stimme.schluessel)}
             <option value={SERVE_PRAEFIX + stimme.schluessel}>{stimme.name}</option>
           {/each}
         </optgroup>
@@ -142,7 +179,7 @@
     <p class="gedaempft">
       Welche Gerätestimmen zur Wahl stehen und wie natürlich sie klingen, bestimmt das
       Betriebssystem, nicht diese App.
-      {#if servestimmen.length}
+      {#if serveliste.length}
         Die Stimmen vom Server klingen überall gleich.
       {/if}
     </p>
