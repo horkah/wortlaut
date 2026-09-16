@@ -610,6 +610,26 @@ von 15 fällt weg. Gemessen an zwei Vorlagen - die Rauschzeile kam auf 6,5, der
 echte Text des Plakats ab 75, der des schweren Fotos ab 28. Die Grenze liegt in
 dieser Lücke, mit Abstand nach beiden Seiten.
 
+**Für kurze Zeilen gilt eine zweite, viel strengere Grenze.** Ein Foto einer
+Stofffläche oder einer genarbten Kunststoffschale liefert
+Dreibuchstabenwörter am laufenden Band - `Res`, `RER`, `ber`, `Ser`, `ale`,
+`STE`. Sie sind lang genug für den Längenfilter und sicher genug für die 15;
+an einem Akku auf einer Hose kamen sie auf bis zu 43.
+
+Die eine Grenze anzuheben ging nicht: `OKO-TEST` steht wirklich auf dem
+Cremedeckel und kommt dort auf 28. Was beides trennt, ist die Sicherheit
+**zusammen mit der Länge** - wer acht Formen hintereinander zu einem Wort
+zusammensetzt, hat etwas gesehen, auch wenn er zögert; drei zufällig passende
+Formen findet man in jeder Struktur.
+
+| längstes Wort | Rauschen bis | Echtes ab | Grenze |
+|---|---|---|---|
+| bis 5 Zeichen | 43 | 74 | **60** |
+| ab 6 Zeichen | 6 | 2 | **15** |
+
+Von dem Akkufoto bleibt damit genau eine Zeile: `BOSCH`. Cremedeckel und
+Aushang bleiben unverändert.
+
 Das ist die richtige Richtung: Was stehen bleibt, streicht ein Mensch im
 nächsten Schritt - was verschwindet, sieht er nie wieder. Gefiltert wird **nur
 Erkanntes**, nie ein gelesener oder eingefügter Text.

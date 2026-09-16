@@ -353,6 +353,33 @@ def _traegt_text(zeile: str) -> bool:
 # das sind Wörter, die wirklich dastehen.
 MINDESTZUVERSICHT = 15.0
 
+# Dieselbe Frage noch einmal, für **kurze** Zeilen - und dort viel strenger.
+#
+# **Warum zwei Grenzen.** Ein Foto einer Stofffläche oder einer genarbten
+# Kunststoffschale liefert Dreibuchstabenwörter am laufenden Band: `Res`,
+# `RER`, `ber`, `Ser`, `ale`, `STE`. Sie sind lang genug für den Längenfilter
+# und sicher genug für die Grenze oben - gemessen an einem Akku auf einer
+# Hose kamen sie auf bis zu 43.
+#
+# Anheben ließ sich die eine Grenze aber nicht: `OKO-TEST` steht wirklich auf
+# dem Cremedeckel und kommt dort auf 28, `BIO-JOJOBAÖL` auf 40.
+#
+# Was beide trennt, ist nicht die Sicherheit allein, sondern sie **zusammen
+# mit der Länge**. Ein Klassifikator, der acht Formen hintereinander zu einem
+# Wort zusammensetzt, hat etwas gesehen, auch wenn er zögert; drei zufällig
+# passende Formen findet man in jeder Struktur. Gemessen an vier Vorlagen:
+#
+#     kurz (bis 5 Zeichen)   Rauschen bis 43   ·   echt ab 74
+#     lang (ab 6 Zeichen)    Rauschen bis  6   ·   echt ab  2
+#
+# Die 60 liegen in der Lücke der oberen Zeile. Echt und kurz waren `BOSCH`
+# (96), `ERT` (90) und `sehr gut 5` (74) - alle drei bleiben.
+MINDESTZUVERSICHT_KURZ = 60.0
+
+# Bis hierhin gilt eine Zeile als kurz - gemessen am längsten Wort darin, nicht
+# an der ganzen Zeile: `sehr gut 5` ist kurz, `OKO-TEST` ist lang.
+KURZE_ZEILE = 5
+
 
 def _gelesen(bild, lang: str, seitenart: int) -> str:
     """Eine Fassung lesen - zeilenweise, und nur was sicher genug ist.
@@ -391,7 +418,9 @@ def _gelesen(bild, lang: str, seitenart: int) -> str:
     vorheriger_absatz: tuple[int, int] | None = None
     for (block, absatz, _), woerter in zeilen.items():
         mittel = sum(k for _, k in woerter) / len(woerter)
-        if mittel < MINDESTZUVERSICHT:
+        laengstes = max(len(wort) for wort, _ in woerter)
+        grenze = MINDESTZUVERSICHT_KURZ if laengstes <= KURZE_ZEILE else MINDESTZUVERSICHT
+        if mittel < grenze:
             continue
         if vorheriger_absatz is not None and (block, absatz) != vorheriger_absatz:
             ausgabe.append("")
