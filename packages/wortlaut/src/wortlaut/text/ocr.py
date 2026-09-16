@@ -26,8 +26,24 @@ from __future__ import annotations
 import functools
 import io
 import re
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 from .. import sprachen
+
+# Ein Hüllskript, das Tesseract mit einem einzigen Rechenfaden startet (siehe
+# `Dockerfile`). Steht es da, werden die Durchgänge nebeneinander gerechnet;
+# fehlt es, nacheinander.
+#
+# **Beides ist nötig, und zwar zusammen.** Vier Durchgänge auf einem Foto
+# dauerten nacheinander 5,7 Sekunden. Nebeneinander, aber mit Tesseracts
+# eigener Parallelität, dauerten sie **8,3** - die vier Ausführungen nahmen
+# einander die Kerne weg. Nebeneinander mit je einem Faden: **1,6 Sekunden**,
+# bei Zeichen für Zeichen demselben Ergebnis.
+#
+# Ohne das Skript wird deshalb nicht parallelisiert: Es wäre langsamer, nicht
+# schneller.
+EINFAEDIG = Path("/usr/local/bin/tesseract-einfaedig")
 
 # Was an Bildern hereinkommen darf. `heic` steht dabei nicht aus Vollständigkeit
 # in der Liste, sondern weil iPhones so fotografieren: Safari wandelt beim
@@ -51,6 +67,29 @@ class OcrFehler(RuntimeError):
 def kuerzel(sprache: str) -> str:
     """`de` → `deu`. Unbekanntes bekommt Tesseracts Vorgabe."""
     return _KUERZEL.get(sprachen.normiere(sprache), _RUECKFALL)
+
+
+@functools.cache
+def _nebeneinander() -> bool:
+    """Ob mehrere Durchgänge zugleich gerechnet werden dürfen.
+
+    Nur mit dem Hüllskript: Sonst ist nebeneinander langsamer als nacheinander
+    (siehe `EINFAEDIG`). Wo es steht, wird es auch als Tesseract eingesetzt.
+    """
+    if not EINFAEDIG.is_file():
+        return False
+    import pytesseract
+
+    pytesseract.pytesseract.tesseract_cmd = str(EINFAEDIG)
+    return True
+
+
+def _alle(arbeiten: list) -> list:
+    """Eine Liste von Aufrufen abarbeiten - zugleich, wo es sich lohnt."""
+    if not _nebeneinander() or len(arbeiten) < 2:
+        return [tun() for tun in arbeiten]
+    with ThreadPoolExecutor(max_workers=len(arbeiten)) as gespann:
+        return list(gespann.map(lambda tun: tun(), arbeiten))
 
 
 @functools.cache
@@ -213,7 +252,9 @@ def _aufgerichtet(bild, lang: str):
 
     klein = bild.copy()
     klein.thumbnail((PROBE_KANTE, PROBE_KANTE), Image.LANCZOS)
-    werte = {lage: _zuversicht(klein.rotate(-lage, expand=True), lang) for lage in _LAGEN}
+    gedrehte = [klein.rotate(-lage, expand=True) for lage in _LAGEN]
+    gemessen = _alle([lambda g=g: _zuversicht(g, lang) for g in gedrehte])
+    werte = dict(zip(_LAGEN, gemessen, strict=True))
 
     beste = max(_LAGEN, key=lambda lage: werte[lage])
     if beste == 0 or werte[beste] < werte[0] * PROBE_VORSPRUNG:
@@ -382,11 +423,13 @@ def aus_bild(inhalt: bytes, sprache: str) -> str:
 
     lang = kuerzel(sprache)
     try:
-        versuche = [
-            _gelesen(fassung, lang, art)
-            for fassung in _vorbereitet(_aufgerichtet(_oeffne(inhalt), lang))
-            for art in SEITENARTEN
-        ]
+        versuche = _alle(
+            [
+                lambda f=fassung, a=art: _gelesen(f, lang, a)
+                for fassung in _vorbereitet(_aufgerichtet(_oeffne(inhalt), lang))
+                for art in SEITENARTEN
+            ]
+        )
     except OcrFehler:
         raise
     except Exception as ursache:
@@ -432,10 +475,13 @@ def aus_pdf(inhalt: bytes, sprache: str) -> str:
     lang = kuerzel(sprache)
     try:
         dokument = pypdfium2.PdfDocument(inhalt)
-        seiten = [
-            _gelesen(dokument[nummer].render(scale=RASTER).to_pil(), lang, SEITENARTEN[0])
+        # Auch die Seiten eines PDFs nebeneinander - hier zahlt es sich am
+        # meisten aus, denn es sind bis zu zwanzig.
+        bilder = [
+            dokument[nummer].render(scale=RASTER).to_pil()
             for nummer in range(min(len(dokument), MAX_SEITEN))
         ]
+        seiten = _alle([lambda b=b: _gelesen(b, lang, SEITENARTEN[0]) for b in bilder])
     except Exception as ursache:
         raise OcrFehler(f"Die Zeichenerkennung ist gescheitert: {ursache}") from ursache
     return entrausche("\n\n".join(seiten))
