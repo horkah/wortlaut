@@ -30,19 +30,33 @@ export type Sprechweise = {
   sprache?: string;
 };
 
-/** Ist überhaupt eine Stimme für diese Sprache da? */
-export function stimmeVerfuegbar(sprache = 'de'): boolean {
+/**
+ * Ist überhaupt eine Stimme für diese Sprache da?
+ *
+ * **`sprache` ohne Vorgabe, und das mit Absicht.** Hier stand `= 'de'`, und
+ * damit bekam jeder Aufrufer die deutsche Antwort - auch der, der die Sprache
+ * seines Profils gar nicht erst geholt hatte. Wer fragt, sagt jetzt, für wen
+ * (`wortlaut/sprachen.py`).
+ *
+ * **`null` heißt „weiß ich nicht" und nicht „Deutsch".** So lange steht die
+ * Antwort des Servers noch aus (`wer.ts`), und ein Verwalter hat gar keine
+ * Sprache. Dann wird nicht gefiltert, statt eine zu erfinden: Lieber alle
+ * Stimmen zeigen als die falschen.
+ */
+export function stimmeVerfuegbar(sprache: string | null): boolean {
   if (!('speechSynthesis' in window)) return false;
   const stimmen = window.speechSynthesis.getVoices();
   // Direkt nach dem Laden ist die Liste oft noch leer; dann lieber optimistisch
   // sein, als den Knopf grundlos auszublenden.
-  return stimmen.length === 0 || stimmen.some((s) => s.lang.startsWith(sprache));
+  if (stimmen.length === 0) return true;
+  return !sprache || stimmen.some((s) => s.lang.startsWith(sprache));
 }
 
 /** Stimmen für diese Sprache, die der Browser gerade kennt. */
-export function stimmen(sprache = 'de'): SpeechSynthesisVoice[] {
+export function stimmen(sprache: string | null): SpeechSynthesisVoice[] {
   if (!('speechSynthesis' in window)) return [];
-  return window.speechSynthesis.getVoices().filter((s) => s.lang.startsWith(sprache));
+  const alle = window.speechSynthesis.getVoices();
+  return sprache ? alle.filter((s) => s.lang.startsWith(sprache)) : alle;
 }
 
 /**
@@ -51,13 +65,14 @@ export function stimmen(sprache = 'de'): SpeechSynthesisVoice[] {
  * Gemerkt wird nur die `voiceURI`, weil ein `SpeechSynthesisVoice` sich nicht
  * speichern lässt. Fehlt die Stimme auf diesem Gerät, entscheidet der Browser.
  *
- * `aus` nimmt eine bereits geholte Liste entgegen - nötig für Ansichten, die
- * die Liste im Zustand halten, weil `getVoices()` selbst nichts meldet, wenn
- * sich etwas ändert.
+ * `aus` nimmt die Liste entgegen, aus der gewählt wird - nötig für Ansichten,
+ * die sie im Zustand halten, weil `getVoices()` selbst nichts meldet, wenn
+ * sich etwas ändert. Ohne Vorgabe, seit `stimmen()` die Sprache verlangt: Die
+ * bequeme Vorgabe wäre wieder die deutsche Liste gewesen.
  */
 export function stimmeNachUri(
   uri: string | null,
-  aus: SpeechSynthesisVoice[] = stimmen(),
+  aus: SpeechSynthesisVoice[],
 ): SpeechSynthesisVoice | null {
   return aus.find((s) => s.voiceURI === uri) ?? aus.find((s) => s.default) ?? aus[0] ?? null;
 }
@@ -85,7 +100,11 @@ export function sprich(text: string, wie: Sprechweise = {}): Promise<void> {
     window.speechSynthesis.cancel(); // eine Äußerung nach der anderen
 
     const aeusserung = new SpeechSynthesisUtterance(text);
-    aeusserung.lang = wie.stimme?.lang ?? wie.sprache ?? 'de-DE';
+    // Die Sprache der gewählten Stimme schlägt die angefragte: Wer eine Stimme
+    // nennt, hat sie ausgesucht. Ohne beides spricht der Browser in seiner
+    // eigenen Vorgabe - eine Sprache zu erfinden wäre schlechter als keine.
+    const lang = wie.stimme?.lang ?? wie.sprache;
+    if (lang) aeusserung.lang = lang;
     if (wie.stimme) aeusserung.voice = wie.stimme;
     aeusserung.rate = wie.tempo ?? TEMPO_VORGABE;
     aeusserung.onend = () => fertig();

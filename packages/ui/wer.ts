@@ -34,6 +34,13 @@ export interface Wer {
   art: Rufer;
   sprecher_id: string | null;
   name: string | null;
+  /**
+   * Die Sprache des Profils - `null` für Verwaltung und Aufsicht, die für
+   * niemanden sprechen. Sie kommt von hier und nicht aus einer Konstanten in
+   * der Oberfläche: Am Profil steht sie, und am Profil hängt sie
+   * (`wortlaut/sprachen.py`).
+   */
+  sprache: string | null;
 }
 
 /** Was davon im Zustand einer App steht. */
@@ -41,6 +48,7 @@ export interface Zugangsstand {
   art: Art;
   sprecher: string | null;
   name: string | null;
+  sprache: string | null;
 }
 
 /**
@@ -48,13 +56,18 @@ export interface Zugangsstand {
  * App gedacht (`{ ...OFFEN }`) und nicht zum Verweisen darauf: Drei Apps, die
  * sich ein Objekt teilen, teilen sich auch dessen Änderungen.
  */
-export const OFFEN: Zugangsstand = { art: 'unbekannt', sprecher: null, name: null };
+export const OFFEN: Zugangsstand = {
+  art: 'unbekannt',
+  sprecher: null,
+  name: null,
+  sprache: null,
+};
 
 /** Beim Server nachfragen, für wen dieser Browser eingestellt ist. */
 export async function ermittleZugang(werRuft: () => Promise<Wer>): Promise<Zugangsstand> {
   try {
     const wer = await werRuft();
-    return { art: wer.art, sprecher: wer.sprecher_id, name: wer.name };
+    return { art: wer.art, sprecher: wer.sprecher_id, name: wer.name, sprache: wer.sprache };
   } catch (ursache) {
     // Ein abgewiesener Zugang ist kein Fehler, sondern ein fehlender Schritt;
     // alles andere (Server weg) sieht die Ansicht ohnehin an ihren Anfragen.

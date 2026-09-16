@@ -70,7 +70,7 @@ class Testtranskriptor:
     # Modell genau die aufgenommene Datei zu hören bekommt.
     gehoerte_spitze: int = 0
 
-    def transkribiere(self, wav: Path, sprache: str = "de") -> Transkript:
+    def transkribiere(self, wav: Path, sprache: str) -> Transkript:
         self.aufrufe += 1
         self.gehoerte_spitze = _spitze(wav)
         return Transkript(

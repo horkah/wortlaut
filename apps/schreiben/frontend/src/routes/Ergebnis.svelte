@@ -14,7 +14,7 @@
   import Recorder from '$ui/Recorder.svelte';
   import SegmentList from '$ui/SegmentList.svelte';
   import { einstellungen } from '$ui/einstellungen.svelte';
-  import { brichVorlesenAb, sprich, stimmeNachUri, stimmeVerfuegbar } from '$ui/speak';
+  import { brichVorlesenAb, sprich, stimmeNachUri, stimmeVerfuegbar, stimmen } from '$ui/speak';
   import {
     abschnittAudioUrl,
     abschnittNeuSprechen,
@@ -51,7 +51,7 @@
         if (!liest) break; // in der Zwischenzeit angehalten
         gesprochen = abschnitt.id;
         await sprich(abschnitt.text, {
-          stimme: stimmeNachUri(einstellungen.stimmeUri),
+          stimme: stimmeNachUri(einstellungen.stimmeUri, stimmen(zustand.sprache)),
           tempo: einstellungen.tempo,
         });
       }
@@ -129,11 +129,11 @@
 
   // Von selbst vorlesen, sobald der Text dasteht - genau dafür ist die
   // Ansicht da. Ohne Stimme im System bleibt es beim Lesen.
-  if (stimmeVerfuegbar() && !bestaetigt) lies();
+  if (stimmeVerfuegbar(zustand.sprache) && !bestaetigt) lies();
 </script>
 
 <div class="reihe kopfzeile">
-  {#if stimmeVerfuegbar()}
+  {#if stimmeVerfuegbar(zustand.sprache)}
     <button class="knopf" onclick={lies}>{liest ? '■ Anhalten' : '▶ Vorlesen'}</button>
   {/if}
   <span class="gedaempft">{abschnitte.length} Abschnitte · zum Bessern anklicken</span>

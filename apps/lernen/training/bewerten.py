@@ -38,7 +38,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from wortlaut import corpus, laeufe, metriken, registry, streuung, tempo
+from wortlaut import corpus, laeufe, metriken, registry, sprachen, streuung, tempo
 
 from apps.lernen.backend.config import einstellungen
 
@@ -243,7 +243,9 @@ def bewerte_faltung(
     geraet, rechenart = einstellungen().rechenwerk()
     erkenner = LokalerTranskriptor(str(ct2), geraet=geraet, rechenart=rechenart)
     _hole_karte(erkenner, bericht)
-    sprache = str(auftrag.get("sprache") or "de")
+    # Der Rückfall gilt Aufträgen, die älter sind als das Feld - seit
+    # `services/auftraege.py` schreibt jeder neue Lauf seine Sprache selbst.
+    sprache = str(auftrag.get("sprache") or sprachen.VORGABE)
 
     ergebnis = []
     try:

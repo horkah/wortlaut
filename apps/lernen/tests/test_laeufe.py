@@ -14,7 +14,7 @@ import os
 import time
 
 from fastapi.testclient import TestClient
-from wortlaut import augmentierung, laeufe
+from wortlaut import augmentierung, laeufe, sprachen
 
 
 def _manifest(datenverzeichnis, job_id: str) -> list[dict]:
@@ -131,6 +131,11 @@ class TestBeauftragen:
         assert auftrag["methode"] == "full"
         assert auftrag["daten"] == "augmentiert"
         assert auftrag["basismodell"] == "openai/whisper-small"
+        # Aus dem Profil und nicht aus der Umgebung: Der Trainer setzt daraus
+        # die erzwungenen Marken von Whisper, und die Bewertung misst in
+        # derselben Sprache. Stand der Schlüssel nicht da, griff in beiden der
+        # stille Rückfall auf Deutsch (`services/auftraege.py`).
+        assert auftrag["sprache"] == sprachen.VORGABE
         # Die Zusage an die Löschung: `scripts/purge_speaker.py` findet den
         # Schnappschuss an dieser Datei, ohne das Manifest zu deuten.
         marke = (verzeichnis / laeufe.SPRECHER_MARKE).read_text(encoding="utf-8").strip()

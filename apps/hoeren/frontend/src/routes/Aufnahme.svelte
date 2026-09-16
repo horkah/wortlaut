@@ -18,6 +18,7 @@
     spieleVor,
     sprich,
     stimmeNachUri,
+    stimmen,
     stimmeVerfuegbar,
   } from '$ui/speak';
   import {
@@ -116,7 +117,7 @@
 
     try {
       await sprich(vorlage.text, {
-        stimme: stimmeNachUri(einstellungen.stimmeUri),
+        stimme: stimmeNachUri(einstellungen.stimmeUri, stimmen(zustand.sprache)),
         tempo: einstellungen.tempo,
       });
     } catch (ursache) {
@@ -191,7 +192,7 @@
     schriftRem={einstellungen.schriftRem}
   />
 
-  {#if stimmeVerfuegbar()}
+  {#if stimmeVerfuegbar(zustand.sprache)}
     <div class="reihe" style="justify-content:center">
       <button class="knopf" onclick={vorlesen} disabled={stand === 'sendet'}>
         ▶ Vorsprechen lassen

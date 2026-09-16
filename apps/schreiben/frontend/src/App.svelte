@@ -96,7 +96,13 @@
   stelleSitzungWiederHer();
 </script>
 
-<Rahmen app="schreiben" route={zustand.route} {uebergreifend} {sprecher}>
+<Rahmen
+  app="schreiben"
+  route={zustand.route}
+  {uebergreifend}
+  {sprecher}
+  sprache={zustand.sprache}
+>
   {#if keinZugang}
     <KeinZugang {gehZu} />
   {:else}

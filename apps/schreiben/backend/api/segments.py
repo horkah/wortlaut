@@ -19,7 +19,7 @@ from wortlaut import audio as klang
 
 from ..config import einstellungen
 from ..db.models import Abschnitt, jetzt
-from ..deps import Ablage, Datenbank, SprecherId, Whisper, tempo_fuer
+from ..deps import Ablage, Datenbank, Sprache, SprecherId, Whisper, tempo_fuer
 from ..services import segmenter
 from .sessions import SitzungAntwort, abschnitte_von, als_antwort, hole
 
@@ -36,6 +36,7 @@ async def sprich(
     ablage: Ablage,
     whisper: Whisper,
     sprecher: SprecherId,
+    sprache: Sprache,
     audio: UploadFile = File(),
 ) -> SitzungAntwort:
     """Eine Aufnahme diktieren; die Abschnitte hängen hinten an den Text an."""
@@ -51,7 +52,7 @@ async def sprich(
             inhalt,
             whisper,
             ablage,
-            konfiguration.sprache,
+            sprache,
             sprecher,
             tempo_fuer(konfiguration, sprecher),
         )
@@ -85,6 +86,7 @@ async def sprich_neu(
     ablage: Ablage,
     whisper: Whisper,
     sprecher: SprecherId,
+    sprache: Sprache,
     audio: UploadFile = File(),
 ) -> SitzungAntwort:
     """Genau diesen Abschnitt neu einsprechen - der übrige Text bleibt stehen."""
@@ -101,7 +103,7 @@ async def sprich_neu(
             inhalt,
             whisper,
             ablage,
-            konfiguration.sprache,
+            sprache,
             sprecher,
             abschnitt_id,
             tempo_fuer(konfiguration, sprecher),

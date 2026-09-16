@@ -37,6 +37,7 @@
     punkte = [],
     uebergreifend = [],
     sprecher,
+    sprache = null,
     route = '/',
     children,
     servestimmen = [],
@@ -53,6 +54,12 @@
      * „Verwaltung"/„Aufsicht". `undefined` heißt „führt keinen Sprecher".
      */
     sprecher?: string | null;
+    /**
+     * Die Sprache seines Profils, für die Stimmwahl in den Einstellungen.
+     * `null`, solange die Antwort des Servers aussteht oder ein Verwalter ruft
+     * (`wer.ts`).
+     */
+    sprache?: string | null;
     /** Die offene Hash-Route, ohne `#`. */
     route?: string;
     /** Die Ansicht, die diese App zur Route zeigt. */
@@ -77,7 +84,7 @@
 
 <main>
   {#if Geraet === Einstellungen}
-    <Einstellungen {servestimmen} {probeHolen} />
+    <Einstellungen {sprache} {servestimmen} {probeHolen} />
   {:else if Geraet}
     <Geraet />
   {:else}

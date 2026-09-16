@@ -32,7 +32,18 @@ class Transkript:
 
 
 class Transkriptor(Protocol):
-    def transkribiere(self, wav: Path, sprache: str = "de") -> Transkript: ...
+    """Was ein Erkenner können muss - eine Frage, und sie nennt die Sprache.
+
+    `sprache` hat bewusst **keine** Vorgabe. Hier stand einmal `= "de"`, und
+    das war die bequemste der achtzehn Stellen, an denen Deutsch im Quelltext
+    festsaß: Ein Aufrufer, der die Sprache nicht kennt, bekam stillschweigend
+    die richtige Antwort - solange alle Deutsch sprechen. Ohne Vorgabe muss
+    jeder Aufrufer sagen, für wen er hört, und ein Aufrufer, der es nicht
+    weiß, fällt beim Übersetzen auf und nicht erst im Ergebnis
+    (`wortlaut/sprachen.py`).
+    """
+
+    def transkribiere(self, wav: Path, sprache: str) -> Transkript: ...
 
 
 __all__ = ["Abschnitt", "Transkript", "Transkriptor"]

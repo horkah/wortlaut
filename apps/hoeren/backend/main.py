@@ -33,6 +33,7 @@ from .api import (
     recordings,
     sources,
     speakers,
+    sprachen,
     zugang,
 )
 from .deps import Verwaltung
@@ -51,6 +52,9 @@ app.include_router(admin.router)
 # Zugänge ausgeben und zurückziehen; die Auskunft „wer bin ich hier" darin
 # hat bewusst keinen Wächter (siehe `api/zugang.py`).
 app.include_router(zugang.router)
+
+# Welche Sprachen dieses System kennt - eine Auskunft ohne Wächter.
+app.include_router(sprachen.router)
 
 # Alles, was Daten berührt. Der Wächter steckt in `SprecherId`/`Datenbank`:
 # ohne Sprecherzugang gibt es keine Datenbank, die sich öffnen ließe.

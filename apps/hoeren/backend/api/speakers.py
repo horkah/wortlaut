@@ -12,9 +12,9 @@ niemanden erreichbar - der Zugang wird gesondert ausgegeben (`api/zugang.py`).
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
-from wortlaut import corpus, db, ids
+from wortlaut import corpus, db, ids, sprachen
 
 from ..config import einstellungen
 from ..db.models import Sprecher, jetzt
@@ -26,8 +26,26 @@ router = APIRouter(prefix="/api/speakers", tags=["Sprecher"])
 
 class NeuerSprecher(BaseModel):
     name: str = Field(min_length=1, max_length=200)
-    sprache: str = "de"
+    # Die Vorgabe steht in `wortlaut/sprachen.py` und nicht hier. Solange es
+    # eine Sprache gibt, kommt dasselbe heraus; der Unterschied zeigt sich bei
+    # der zweiten, und dann an genau einer Stelle.
+    sprache: str = sprachen.VORGABE
     basismodell: str = "openai/whisper-large-v3"
+
+    @field_validator("sprache")
+    @classmethod
+    def _bekannte_sprache(cls, wert: str) -> str:
+        """Abweisen, was dieses System nicht kann - und normiert ablegen.
+
+        Ein Profil trägt seine Sprache ein Leben lang: Sie entscheidet über
+        die Vorlagen, das Feintuning und die Bewertung, und keiner der drei
+        Wege prüft sie noch einmal nach. Was hier durchkommt, ist damit
+        gesetzt - deshalb wird es hier geprüft und nicht später.
+        """
+        try:
+            return sprachen.pruefe(wert)
+        except sprachen.UnbekannteSprache as fehler:
+            raise ValueError(str(fehler)) from fehler
 
 
 # Was ein Profil ist, steht an einer Stelle und nicht an zweien: in

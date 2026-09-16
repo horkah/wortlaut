@@ -33,7 +33,7 @@ class PlatzhalterErkenner:
     def __init__(self, antwort: str) -> None:
         self.antwort = antwort
 
-    def transkribiere(self, wav: Path, sprache: str = "de") -> Transkript:
+    def transkribiere(self, wav: Path, sprache: str) -> Transkript:
         return Transkript(text=self.antwort, abschnitte=[])
 
 

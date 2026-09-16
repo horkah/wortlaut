@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from wortlaut import corpus
+from wortlaut import corpus, sprachen
 
 from apps.hoeren.backend import deps
 from apps.hoeren.backend.config import einstellungen
@@ -108,7 +108,49 @@ class TestSprecher:
     def test_einzelabruf(self, verwalter: TestClient, sprecher: str) -> None:
         person = verwalter.get(f"/api/speakers/{sprecher}").json()
         assert person["basismodell"] == "openai/whisper-small"
-        assert person["sprache"] == "de"  # Voreinstellung
+        assert person["sprache"] == sprachen.VORGABE
+
+    def test_die_sprache_laesst_sich_waehlen(self, verwalter: TestClient) -> None:
+        # Die Spalte gab es immer; geschickt hat die Oberfläche sie nie, also
+        # war jedes Profil deutsch, ganz gleich was danebenstand.
+        antwort = verwalter.post(
+            "/api/speakers",
+            json={
+                "name": "Mit Sprache",
+                "sprache": sprachen.VORGABE,
+                "basismodell": "openai/whisper-small",
+            },
+        )
+        assert antwort.status_code == 201
+        assert antwort.json()["sprache"] == sprachen.VORGABE
+
+    def test_die_sprache_wird_normiert_abgelegt(self, verwalter: TestClient) -> None:
+        # Sonst stünden zwei Schreibweisen für dieselbe Sprache im Bestand,
+        # und der Vergleich mit der Stimme ginge einmal daneben.
+        antwort = verwalter.post(
+            "/api/speakers",
+            json={"name": "Mit Gebiet", "sprache": "de-DE", "basismodell": "openai/whisper-small"},
+        )
+        assert antwort.status_code == 201
+        assert antwort.json()["sprache"] == "de"
+
+    def test_eine_sprache_die_es_nicht_gibt_wird_abgewiesen(self, verwalter: TestClient) -> None:
+        # Ein Profil trägt seine Sprache ein Leben lang - Vorlagen, Feintuning
+        # und Bewertung hängen daran und prüfen sie nicht noch einmal nach.
+        antwort = verwalter.post(
+            "/api/speakers",
+            json={"name": "Klingonisch", "sprache": "kl", "basismodell": "openai/whisper-small"},
+        )
+        assert antwort.status_code == 422
+
+    def test_die_wahl_steht_im_endpunkt(self, klient: TestClient) -> None:
+        # Die Oberfläche baut ihr Auswahlfeld daraus und nicht aus einer
+        # eigenen Liste (`api/sprachen.py`).
+        wahl = klient.get("/api/sprachen").json()
+        assert {eintrag["kuerzel"] for eintrag in wahl} == set(sprachen.UNTERSTUETZT)
+        assert [eintrag["kuerzel"] for eintrag in wahl if eintrag["vorgabe"]] == [
+            sprachen.VORGABE
+        ]
 
     def test_frisches_profil_hat_noch_keinen_zugang(
         self, verwalter: TestClient, sprecher: str, zugang_ausgeben: Callable[[str], str]
@@ -197,7 +239,14 @@ class TestZugangAusgeben:
         # Damit die Oberfläche zeigen kann, wer eingestellt ist - und zwar das,
         # was der Server sieht, nicht das, was der Browser sich gemerkt hat.
         auskunft = klient.get("/api/zugang").json()
-        assert auskunft == {"art": "sprecher", "sprecher_id": sprecher, "name": "Testperson"}
+        assert auskunft == {
+            "art": "sprecher",
+            "sprecher_id": sprecher,
+            "name": "Testperson",
+            # Die Oberfläche braucht sie für die Stimmwahl und holt sie hier,
+            # statt Deutsch anzunehmen (`packages/ui/speak.ts`).
+            "sprache": sprachen.VORGABE,
+        }
 
     def test_auskunft_nennt_die_verwaltung(self, verwalter: TestClient) -> None:
         assert verwalter.get("/api/zugang").json()["art"] == "verwaltung"

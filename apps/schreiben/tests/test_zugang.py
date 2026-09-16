@@ -16,6 +16,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from wortlaut import sprachen
 
 from apps.schreiben.backend.main import app
 
@@ -58,7 +59,12 @@ class TestAuskunft:
         # denselben Namen zeigt.
         antwort = klient.get("/schreiben/api/zugang").json()
 
-        assert antwort == {"art": "sprecher", "sprecher_id": sprecher, "name": NAME}
+        assert antwort == {
+            "art": "sprecher",
+            "sprecher_id": sprecher,
+            "name": NAME,
+            "sprache": sprachen.VORGABE,
+        }
 
 
 class TestGetrennteAblage:
