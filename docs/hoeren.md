@@ -629,6 +629,31 @@ einer Sprache fällt das nicht auf, bei der zweiten wäre es ein Fehler gewesen,
 den niemand sieht: Die Probe misst, ob Tesseract *Wörter* erkennt, und was ein
 Wort ist, hängt am Wörterbuch. Ein Test hält das fest.
 
+**Wo die Grenze liegt: schräg fotografiert.** Gemessen an einem Aushang, der
+um verschiedene Winkel gedreht wurde - verglichen wird die Ähnlichkeit zum
+Ergebnis derselben Aufnahme, gerade gehalten:
+
+| Schräglage | 0° | 2° | 4° | 6° | 10° | 15° |
+|---|---|---|---|---|---|---|
+| Ähnlichkeit | 100 % | 87 % | 47 % | 35 % | 23 % | 17 % |
+
+Bis etwa zwei Grad trägt Tesseracts eigene Zeilenausrichtung, ab vier bricht es
+ein. **Eine Drehungsprobe wie bei den vier Lagen hilft hier nicht**, und das
+ist gemessen, nicht vermutet: Bei 90-Grad-Schritten liegt die richtige Lage um
+das Vierfache vorn, bei Winkeln zwischen vier und acht Grad liegen alle
+Kandidaten innerhalb von fünf Prozent - die Probe rät dann. Sie würde drei
+Sekunden je Bild kosten und im Alltagsfall beliebig drehen.
+
+Noch weniger hilft sie bei einem **schräg von der Seite** fotografierten
+Bildschirm oder Plakat. Dort laufen die Zeilen nicht nur schief, sondern
+zusammen: Das Rechteck ist im Bild ein Trapez, und keine Drehung macht daraus
+wieder ein Rechteck. Das ginge nur mit einer Entzerrung über die vier Ecken -
+ein eigenes Vorhaben mit einer neuen Abhängigkeit, das an einem Foto, auf dem
+eine Ecke fehlt, ohnehin scheitert.
+
+Der praktische Rat steht deshalb in der Oberfläche besser als jede Rechnung:
+möglichst parallel zur Vorlage halten. Bis drei Grad merkt man nichts.
+
 **Ohne Tesseract fehlt der Weg, und die App sagt es.**
 `GET /api/sources/erkennung` beantwortet die Frage, bevor jemand ein Bild
 auswählt; das Auswahlfeld bietet die Bildformate dann gar nicht erst an.
