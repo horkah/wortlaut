@@ -125,6 +125,25 @@ def verfuegbare_stimmen(sprecher: SprecherId) -> list[StimmeAntwort]:
 # damit Rechenzeit zu binden, ohne dass je eine Vorlage im Spiel wäre.
 PROBESATZ = "Am Montag gehe ich zum Markt und kaufe frisches Brot."
 
+# Was der Browser mit einer vorgelesenen Datei tun darf.
+#
+# **`no-cache` heißt nicht „nicht speichern", sondern „jedes Mal nachfragen".**
+# Genau das wird hier gebraucht: Die Adresse einer Vorlesung nennt die Vorlage
+# und die Stimme, nicht aber, wann sie gerechnet wurde. Wird eine Stimme neu
+# gesprochen - weil ein Modell dazukam oder ein Fehler behoben wurde -, bleibt
+# die Adresse dieselbe, und der Inhalt ist ein anderer.
+#
+# Ohne diese Zeile schickt `FileResponse` überhaupt keine Angabe, und dann
+# **rät** der Browser, wie lange die Datei frisch ist (Heuristik aus dem
+# Änderungsdatum, RFC 9111). Safari auf dem iPhone hat so tagelang eine alte
+# Aufnahme weitergespielt, über das Neuladen der Seite hinweg - der Server war
+# längst berichtigt, und die Anfrage kam gar nicht erst an.
+#
+# Teuer ist das nicht: `FileResponse` legt `ETag` und `Last-Modified` bei, die
+# Nachfrage ist ein 304 ohne Rumpf, und erst eine wirklich neue Datei wird
+# wirklich übertragen.
+NICHT_OHNE_NACHFRAGE = {"Cache-Control": "no-cache"}
+
 
 @router.get("/api/vorlesen/probe")
 def hoerprobe(stimme: str, sprecher: SprecherId, ablage: Ablage) -> FileResponse:
@@ -149,7 +168,9 @@ def hoerprobe(stimme: str, sprecher: SprecherId, ablage: Ablage) -> FileResponse
     )
     if blob is None:
         raise HTTPException(status_code=404, detail="Diese Stimme spricht gerade nicht.")
-    return FileResponse(ablage.pfad(blob), media_type="audio/wav")
+    return FileResponse(
+        ablage.pfad(blob), media_type="audio/wav", headers=NICHT_OHNE_NACHFRAGE
+    )
 
 
 @router.get("/api/prompts/{vorlage_id}/vorlesung")
@@ -187,4 +208,6 @@ def hoere_vorlage(
     )
     if blob is None:
         raise HTTPException(status_code=404, detail="Dieser Satz lässt sich nicht vorlesen.")
-    return FileResponse(ablage.pfad(blob), media_type="audio/wav")
+    return FileResponse(
+        ablage.pfad(blob), media_type="audio/wav", headers=NICHT_OHNE_NACHFRAGE
+    )
