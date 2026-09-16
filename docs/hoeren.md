@@ -554,6 +554,19 @@ Fußnoten und Seitenzahlen will niemand vorlesen, und wer sie sieht, streicht
 sie weg. `txt`, `md`, `epub` und `docx` gehen weiterhin unmittelbar durch -
 dort steht der Text schon so da, wie ihn jemand geschrieben hat.
 
+**Unmittelbar aus der Kamera** geht es über das Kamerasymbol neben
+„Hochladen": `capture` sagt dem Telefon, dass hier nicht aus der Mediathek
+gewählt, sondern aufgenommen werden soll, und Safari öffnet die Kamera-App.
+Aufgenommen wird sofort gelesen - wer den Auslöser gedrückt und das Bild
+bestätigt hat, hat zweimal ja gesagt; ein drittes „Hochladen" wäre ein Knopf
+ohne Frage dahinter.
+
+Kein eigener Sucher über `getUserMedia`: Der müsste Freigabe, Auslöser und das
+Abschalten der Kamera selbst mitbringen, und die Kamera-App des Telefons kann
+das alles längst besser - sie richtet scharf, hält ruhig, zeigt einen Rahmen,
+und die Zielperson kennt sie. Ein selbstgebauter Sucher wäre ein zweiter,
+schlechterer.
+
 **Aus der Zwischenablage** geht beides: ein Bild, das dann erkannt wird, und
 ein Schnipsel Text, der gleich im Prüffeld landet. Über das `paste`-Ereignis
 und nicht über `navigator.clipboard.read()` - Letzteres fragt in Safari jedes
