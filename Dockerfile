@@ -94,6 +94,28 @@ RUN apt-get update \
        ffmpeg tesseract-ocr tesseract-ocr-deu tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
+# Tesseract mit **einem** Rechenfaden - und warum das schneller ist.
+#
+# Ein Bild wird viermal gelesen (zwei Fassungen, zwei Seitenarten, siehe
+# `wortlaut/text/ocr.py`). Nacheinander dauert das auf diesem Wirt 5,7
+# Sekunden. Nebeneinander sollte es schneller sein, und es war langsamer:
+# **8,3 Sekunden**. Der Grund ist Tesseracts eigene Parallelität - jede der
+# vier Ausführungen greift über OpenMP nach allen Kernen, und sie nehmen sie
+# einander weg.
+#
+# Mit `OMP_THREAD_LIMIT=1` je Ausführung, vier davon nebeneinander: **1,6
+# Sekunden**, bei Zeichen für Zeichen demselben Ergebnis.
+#
+# Warum ein Hüllskript und keine Umgebungsvariable des Containers: Die Grenze
+# gilt für OpenMP überhaupt, und in diesem Abbild rechnet auch Whisper. Ob ihm
+# das schadet, ließ sich auf einem Wirt, der nebenher trainiert, nicht sauber
+# messen (14 bis 22 Sekunden für dieselbe Aufnahme). Eine Grenze, die man nicht
+# freisprechen kann, gehört nicht in die Umgebung aller, sondern an den einen
+# Aufruf, um den es geht.
+RUN printf '#!/bin/sh\n# Siehe Dockerfile: ein Faden je Aufruf, dafür mehrere Aufrufe zugleich.\nOMP_THREAD_LIMIT=1 exec /usr/bin/tesseract "$@"\n' \
+      > /usr/local/bin/tesseract-einfaedig \
+    && chmod +x /usr/local/bin/tesseract-einfaedig
+
 WORKDIR /srv/wortlaut
 
 # Erst das, was die Installation braucht, dann die Installation, dann der Rest.
