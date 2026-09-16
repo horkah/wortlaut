@@ -35,7 +35,28 @@
    * etwas darin steht, tritt es an die Stelle des Formulars - es ist der
    * nächste Schritt und keine zweite Möglichkeit daneben.
    */
-  let entwurf = $state<{ text: string; titel: string; herkunft: string } | null>(null);
+  let entwurf = $state<{
+    text: string;
+    titel: string;
+    herkunft: string;
+    /**
+     * Die Vorlage selbst, solange der Entwurf offen ist.
+     *
+     * **Zum Vergleichen** - wer erkannten Text bessern soll, muss das Original
+     * daneben sehen; hin- und herzuwechseln ist genau das, was der Zielperson
+     * schwerfällt (Grundentscheidung 7).
+     *
+     * **Und auf dem iPhone noch für etwas anderes.** Apples eigene
+     * Texterkennung („Live Text") ist dieser hier überlegen: Sie liest auch
+     * schräg fotografierte Folien, bei denen die Zeilen zusammenlaufen. An sie
+     * kommt eine Webseite nicht heran - `TextDetector` ist ausdrücklich nicht
+     * standardisiert, und Safari liefert ihn nicht. Der Mensch kommt aber
+     * heran: Safari bietet Live Text auf **jedem** angezeigten Bild an. Wer
+     * hier lange auf das Bild drückt, kann den Text auswählen, kopieren und
+     * ins Feld darunter einfügen - ohne die App zu verlassen.
+     */
+    bildUrl: string | null;
+  } | null>(null);
   let kannErkennen = $state(false);
 
   // Was das Auswahlfeld annimmt. Die Bildformate kommen vom Server, denn er
@@ -102,7 +123,7 @@
     if (ZUR_ANSICHT.test(gewaehlt.name)) {
       fuehreAus(async () => {
         const gelesen = await textErkennen(gewaehlt);
-        entwurf = { text: gelesen.text, titel: gewaehlt.name, herkunft: gelesen.herkunft };
+        oeffneEntwurf(gelesen.text, gewaehlt.name, gelesen.herkunft, gewaehlt);
       });
     } else {
       fuehreAus(() => quelleAusDatei(gewaehlt));
@@ -139,11 +160,7 @@
           });
       fuehreAus(async () => {
         const gelesen = await textErkennen(datei);
-        entwurf = {
-          text: gelesen.text,
-          titel: 'Aus der Zwischenablage',
-          herkunft: gelesen.herkunft,
-        };
+        oeffneEntwurf(gelesen.text, 'Aus der Zwischenablage', gelesen.herkunft, datei);
       });
       return;
     }
@@ -151,8 +168,30 @@
     const text = daten.getData('text/plain');
     if (text.trim()) {
       ereignis.preventDefault();
-      entwurf = { text, titel: 'Aus der Zwischenablage', herkunft: 'eingefügt' };
+      oeffneEntwurf(text, 'Aus der Zwischenablage', 'eingefügt', null);
     }
+  }
+
+  /**
+   * Einen Entwurf öffnen und das Bild dazu bereitstellen.
+   *
+   * Die Adresse zeigt auf den Arbeitsspeicher dieses Browsers; sie wird beim
+   * Schließen wieder freigegeben, sonst hielte jede Vorlage ihr Bild bis zum
+   * Neuladen fest.
+   */
+  function oeffneEntwurf(text: string, titel: string, herkunft: string, bild: File | null) {
+    schliesseEntwurf();
+    entwurf = {
+      text,
+      titel,
+      herkunft,
+      bildUrl: bild ? URL.createObjectURL(bild) : null,
+    };
+  }
+
+  function schliesseEntwurf() {
+    if (entwurf?.bildUrl) URL.revokeObjectURL(entwurf.bildUrl);
+    entwurf = null;
   }
 
   const uebernimm = (ereignis: SubmitEvent) => {
@@ -160,8 +199,8 @@
     const offen = entwurf;
     if (!offen?.text.trim()) return;
     fuehreAus(async () => {
-      await quelleAusText(offen);
-      entwurf = null;
+      await quelleAusText({ text: offen.text, titel: offen.titel, herkunft: offen.herkunft });
+      schliesseEntwurf();
       datei = null;
     });
   };
@@ -235,6 +274,24 @@
       wegfällt, wird gar nicht erst zur Vorlage.
     {/if}
   </p>
+  {#if entwurf.bildUrl}
+    <!--
+      Die Vorlage selbst, zum Vergleichen - und auf dem iPhone zu mehr: Safari
+      bietet Apples eigene Texterkennung („Live Text") auf jedem angezeigten
+      Bild an. Sie liest auch schräg fotografierte Folien, an denen diese hier
+      scheitert. Ein langer Druck aufs Bild, auswählen, kopieren, unten
+      einfügen - ohne die App zu verlassen.
+    -->
+    <figure class="vorlage">
+      <img src={entwurf.bildUrl} alt="Die hochgeladene Vorlage" />
+      <figcaption class="gedaempft">
+        Zum Vergleichen. Stimmt wenig davon - schräg fotografiert, Zeilen laufen zusammen? Auf
+        dem iPhone lange auf das Bild drücken: Dessen eigene Texterkennung ist besser und lässt
+        sich auswählen, kopieren und unten einfügen.
+      </figcaption>
+    </figure>
+  {/if}
+
   <form onsubmit={uebernimm}>
     <label>
       <span>Titel</span>
@@ -248,7 +305,7 @@
       <button class="knopf haupt" type="submit" disabled={laeuft || !entwurf.text.trim()}>
         {laeuft ? 'Wird übernommen …' : 'Übernehmen'}
       </button>
-      <button class="knopf" type="button" onclick={() => (entwurf = null)}>Verwerfen</button>
+      <button class="knopf" type="button" onclick={schliesseEntwurf}>Verwerfen</button>
       <span class="gedaempft">{entwurf.text.trim().length} Zeichen</span>
     </div>
   </form>
@@ -344,6 +401,22 @@
 {/if}
 
 <style>
+  /* Hoch genug, um Schrift darauf zu erkennen, und begrenzt, damit das
+     Prüffeld nicht aus dem Bild rutscht. */
+  .vorlage {
+    margin: 0 0 1rem;
+  }
+  .vorlage img {
+    display: block;
+    width: 100%;
+    max-height: 45vh;
+    object-fit: contain;
+    border-radius: 0.4rem;
+    background: var(--gedaempft);
+  }
+  .vorlage figcaption {
+    margin-top: 0.4rem;
+  }
   /* Der Entwurf ist zum Lesen da, nicht zum Überfliegen: volle Breite und
      Zeilen, die nicht kleben. */
   .entwurf {
