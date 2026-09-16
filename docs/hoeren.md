@@ -519,6 +519,14 @@ ein Versehen soll höchstens eine Aufnahme kosten.
 `schreiben` verlinkt auf dieselbe Seite, statt eine eigene Ansicht zu bauen:
 Die Daten liegen im Korpus, den nur `hören` schreibt (Grundentscheidung 6).
 
+**Kurzes zuerst, Langes ans Ende.** Beide Ansichten - diese und die Einsicht
+der Aufsicht - sind gleich sortiert: Name mit dem Knopf zum Umbenennen, die
+Kennzahlen, das Ausleiten, die PIN. Erst danach die Listen, die über Seiten
+laufen: Textquellen, Sitzungen, Aufnahmen. Was man einmal einstellt, stünde
+sonst hinter einem Korpus, dessen Länge niemand vorhersagt. Nur das **Löschen**
+steht in der Einsicht bewusst dahinter und ganz unten: Dort ist der weite Weg
+der Schutz, und die langen Listen sind es, die ihn weit machen.
+
 ##### Eine PIN davor
 
 Wer mag - die Person selbst oder die Aufsicht an ihrer Stelle - sichert
