@@ -66,6 +66,32 @@ class TestErkennen:
         assert antwort["moeglich"] == ocr.verfuegbar()
         assert ".png" in antwort["formate"]
 
+    def test_ein_bild_ohne_endung_wird_erkannt(self, klient: TestClient, sprecher: str) -> None:
+        """Der Fall aus der Zwischenablage - entschieden wird am Inhalt.
+
+        Ein Bildschirmfoto kommt als `image.png` an, ein Foto aus der Mediathek
+        des iPhones je nach Browser als `image` ohne Endung. Beides ist dasselbe
+        Bild. Entschied der Name, wies der Server das zweite ab - und genau so
+        war es: Bildschirmfotos gingen, Fotos nicht.
+
+        Geprüft wird hier die **Weiche**, nicht das Lesen: Ohne Tesseract endet
+        derselbe Weg in „keine Zeichenerkennung eingerichtet" statt in „nicht
+        unterstütztes Format". Beides heißt, dass die Datei als Bild erkannt
+        wurde.
+        """
+        # Ein winziges, gültiges PNG - ein Pixel genügt, um ein Bild zu sein.
+        punkt = bytes.fromhex(
+            "89504e470d0a1a0a0000000d494844520000000100000001080600000"
+            "01f15c4890000000a49444154789c6360000002000100ffff0300000600"
+            "05579bf7b40000000049454e44ae426082"
+        )
+        antwort = klient.post(
+            f"/api/sources/erkennen?sprecher={sprecher}",
+            files={"datei": ("image", punkt, "image/png")},
+        )
+        assert antwort.status_code in (200, 400, 409), antwort.text
+        assert "Nicht unterstütztes Format" not in antwort.text
+
     @pytest.mark.skipif(ocr.verfuegbar(), reason="Hier steht Tesseract zur Verfügung.")
     def test_ohne_tesseract_kommt_eine_klare_ansage(
         self, klient: TestClient, sprecher: str
