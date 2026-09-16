@@ -107,7 +107,6 @@ class TestSprecher:
 
     def test_einzelabruf(self, verwalter: TestClient, sprecher: str) -> None:
         person = verwalter.get(f"/api/speakers/{sprecher}").json()
-        assert person["basismodell"] == "openai/whisper-small"
         assert person["sprache"] == sprachen.VORGABE
 
     def test_die_sprache_laesst_sich_waehlen(self, verwalter: TestClient) -> None:
@@ -118,7 +117,6 @@ class TestSprecher:
             json={
                 "name": "Mit Sprache",
                 "sprache": sprachen.VORGABE,
-                "basismodell": "openai/whisper-small",
             },
         )
         assert antwort.status_code == 201
@@ -129,7 +127,7 @@ class TestSprecher:
         # und der Vergleich mit der Stimme ginge einmal daneben.
         antwort = verwalter.post(
             "/api/speakers",
-            json={"name": "Mit Gebiet", "sprache": "de-DE", "basismodell": "openai/whisper-small"},
+            json={"name": "Mit Gebiet", "sprache": "de-DE"},
         )
         assert antwort.status_code == 201
         assert antwort.json()["sprache"] == "de"
@@ -139,7 +137,7 @@ class TestSprecher:
         # und Bewertung hängen daran und prüfen sie nicht noch einmal nach.
         antwort = verwalter.post(
             "/api/speakers",
-            json={"name": "Klingonisch", "sprache": "kl", "basismodell": "openai/whisper-small"},
+            json={"name": "Klingonisch", "sprache": "kl"},
         )
         assert antwort.status_code == 422
 
@@ -165,7 +163,7 @@ class TestSprecher:
         assert verwalter.get("/api/speakers/spr_gibtsnicht").status_code == 404
 
     def test_name_darf_nicht_leer_sein(self, verwalter: TestClient) -> None:
-        antwort = verwalter.post("/api/speakers", json={"name": "", "basismodell": "x"})
+        antwort = verwalter.post("/api/speakers", json={"name": ""})
         assert antwort.status_code == 422
 
 
@@ -280,7 +278,7 @@ class TestZugangAusgeben:
 
 def _zweiter_sprecher(verwalter: TestClient) -> str:
     antwort = verwalter.post(
-        "/api/speakers", json={"name": "Andere", "basismodell": "openai/whisper-small"}
+        "/api/speakers", json={"name": "Andere"}
     )
     assert antwort.status_code == 201
     return antwort.json()["id"]

@@ -25,7 +25,6 @@ export type Sprecher = {
   id: string;
   name: string;
   sprache: string;
-  basismodell: string;
   erstellt: string;
   /** Wann der geltende Zugang ausgegeben wurde; null heißt: noch keiner da. */
   zugang_erneuert: string | null;
@@ -86,11 +85,8 @@ export { setzeZugang, zugang } from '$ui/zugang';
 
 export const sprecherListe = () => anfrage<Sprecher[]>('/speakers');
 
-export const sprecherAnlegen = (eingabe: {
-  name: string;
-  sprache: string;
-  basismodell: string;
-}) => anfrage<Sprecher>('/speakers', alsJson(eingabe));
+export const sprecherAnlegen = (eingabe: { name: string; sprache: string }) =>
+  anfrage<Sprecher>('/speakers', alsJson(eingabe));
 
 /** Eine Sprache, die dieses System führt (`wortlaut/sprachen.py`). */
 export type Sprachwahl = {

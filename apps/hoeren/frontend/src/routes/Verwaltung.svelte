@@ -38,7 +38,6 @@
   let meldung = $state('');
   let packt = $state(false);
   let name = $state('');
-  let basismodell = $state('openai/whisper-large-v3');
 
   // Die Sprachen kommen vom Server (`api/sprachen.py`), nicht aus einer Liste
   // hier: Ein Profil trägt seine Sprache ein Leben lang, und welche es zu
@@ -76,7 +75,7 @@
     ereignis.preventDefault();
     fehler = '';
     try {
-      const neuer = await sprecherAnlegen({ name, sprache, basismodell });
+      const neuer = await sprecherAnlegen({ name, sprache });
       name = '';
       await gib_aus(neuer.id);
     } catch (ursache) {
@@ -184,7 +183,7 @@
     <div class="karte reihe">
       <div style="flex:1">
         <strong>{person.name}</strong>
-        <div class="gedaempft">{person.basismodell} · {person.sprache} · {person.id}</div>
+        <div class="gedaempft">{person.sprache} · {person.id}</div>
         <div class="gedaempft">
           {person.zugang_erneuert
             ? `Zugang ausgegeben am ${person.zugang_erneuert.slice(0, 10)}`
@@ -228,13 +227,6 @@
         {#each waehlbar as wahl (wahl.kuerzel)}
           <option value={wahl.kuerzel}>{wahl.name}</option>
         {/each}
-      </select>
-    </label>
-    <label>
-      <span>Basismodell</span>
-      <select bind:value={basismodell}>
-        <option value="openai/whisper-large-v3">whisper-large-v3 (Betrieb)</option>
-        <option value="openai/whisper-small">whisper-small (Entwicklung ohne GPU)</option>
       </select>
     </label>
     <button class="knopf haupt" type="submit">Anlegen und Zugang ausgeben</button>

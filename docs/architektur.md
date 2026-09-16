@@ -426,7 +426,7 @@ auseinanderzuhalten.
 
 | Tabelle | Zweck |
 |---|---|
-| `speakers` | Profil, Sprache, Basismodell, Prüfwert des Zugangs - genau eine Zeile je Datenbank |
+| `speakers` | Profil, Sprache, Prüfwert des Zugangs - genau eine Zeile je Datenbank |
 | `text_sources` | LLM-Auftrag, hochgeladener Text oder Korrektur, mit Parametern |
 | `prompts` | eine Sprecheinheit, Herkunft, fortlaufende Position |
 | `sessions` | Aufnahmesitzung: begonnen, zuletzt aktiv |

@@ -74,7 +74,7 @@ def verwalter(_umgebung: None) -> Iterator[TestClient]:
 @pytest.fixture
 def sprecher(verwalter: TestClient) -> str:
     antwort = verwalter.post(
-        "/api/speakers", json={"name": "Testperson", "basismodell": "openai/whisper-small"}
+        "/api/speakers", json={"name": "Testperson"}
     )
     assert antwort.status_code == 201
     return antwort.json()["id"]

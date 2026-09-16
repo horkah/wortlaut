@@ -14,7 +14,7 @@ Die **Grundentscheidungen**, auf die hier verwiesen wird, stehen
 
 ## Ablauf
 
-1. **Sprecherprofil** anlegen: Name, Sprache, Basismodell. Sonst nichts. Die
+1. **Sprecherprofil** anlegen: Name und Sprache. Sonst nichts. Die
    Sprache gilt danach für alles, was am Profil hängt - Vorlagen, Aufnahmen,
    Feintuning, Bewertung, Diktat - und lässt sich nicht mehr wechseln; wer
    wortlaut in zwei Sprachen braucht, bekommt zwei Profile
@@ -910,7 +910,7 @@ beim Öffnen der Ansicht und nur mit den Teilen, die eingetragen sind
 Verwaltung - hinter `WORTLAUT_AUTH_TOKEN`; ohne ihn zu:
 
 ```
-POST   /api/speakers                        { name, sprache, basismodell }
+POST   /api/speakers                        { name, sprache }
 GET    /api/speakers
 GET    /api/speakers/{id}
 POST   /api/speakers/{id}/zugang            neuen Zugang ausgeben

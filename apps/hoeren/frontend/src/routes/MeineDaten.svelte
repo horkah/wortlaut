@@ -315,7 +315,7 @@
 
   <h2>{person.name}</h2>
   <p class="gedaempft">
-    {person.basismodell} · {person.sprache} · angelegt am {tag(person.erstellt)}
+    {person.sprache} · angelegt am {tag(person.erstellt)}
   </p>
 
   <div class="karte zahlen">

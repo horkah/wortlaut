@@ -60,7 +60,7 @@ def zugang(klient: TestClient) -> str:
     """Ein Sprecher, angelegt in „hören", mit frisch ausgegebenem Zugang."""
     kopf = {"Authorization": f"Bearer {TOKEN}"}
     sprecher = klient.post(
-        "/api/speakers", json={"name": "Testperson", "basismodell": "openai/whisper-small"},
+        "/api/speakers", json={"name": "Testperson"},
         headers=kopf,
     )
     assert sprecher.status_code == 201, sprecher.text

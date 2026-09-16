@@ -371,7 +371,7 @@ den Container neu starten:
 curl -X POST https://wortlaut.example.org/api/speakers \
   -H "Authorization: Bearer $WORTLAUT_AUTH_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"name":"Vorname","sprache":"de","basismodell":"openai/whisper-small"}'
+  -d '{"name":"Vorname","sprache":"de"}'
 # → {"id":"spr_…"}
 
 curl -X POST https://wortlaut.example.org/api/speakers/spr_…/zugang \
@@ -559,7 +559,7 @@ App „hören":
 Verwaltung - `Authorization: Bearer $WORTLAUT_AUTH_TOKEN`:
 
 ```
-POST   /api/speakers                              { name, sprache, basismodell }
+POST   /api/speakers                              { name, sprache }
 GET    /api/speakers
 GET    /api/speakers/{id}
 POST   /api/speakers/{id}/zugang                  neuen Zugang ausgeben

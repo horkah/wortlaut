@@ -28,7 +28,6 @@ class Sprecher(Basis):
     id: Mapped[str] = mapped_column(primary_key=True)
     name: Mapped[str]
     sprache: Mapped[str]
-    basismodell: Mapped[str]
     erstellt: Mapped[str]
     # Um welchen Faktor die Aufnahmen dieses Sprechers vorgespult werden,
     # bevor irgendein Modell sie hört (siehe `011_tempo.sql` und

@@ -61,7 +61,6 @@ class ProfilAntwort(BaseModel):
     id: str
     name: str
     sprache: str
-    basismodell: str
     erstellt: str
     # Wann der geltende Zugang ausgegeben wurde; None heißt: keiner da. Der
     # Zugang selbst steht hier nie - er ist nur beim Ausgeben zu sehen.
@@ -79,7 +78,6 @@ def profilfelder(sprecher) -> dict:
         "id": sprecher.id,
         "name": sprecher.name,
         "sprache": sprecher.sprache,
-        "basismodell": sprecher.basismodell,
         "erstellt": sprecher.erstellt,
         "zugang_erneuert": sprecher.zugang_erneuert,
     }

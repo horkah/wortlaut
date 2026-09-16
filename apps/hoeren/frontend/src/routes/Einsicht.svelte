@@ -253,7 +253,7 @@
 
   <h2>{person.name}</h2>
   <p class="gedaempft">
-    {person.id} · {person.basismodell} · {person.sprache} · angelegt am {tag(person.erstellt)}
+    {person.id} · {person.sprache} · angelegt am {tag(person.erstellt)}
     {#if person.zugang_erneuert}
       · Zugang vom {tag(person.zugang_erneuert)}
     {:else}

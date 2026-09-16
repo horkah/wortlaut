@@ -142,8 +142,8 @@ def lege_sprecher_an(datenverzeichnis: Path, sprecher_id: str = SPRECHER) -> str
     neuer, hash_ = zugangsdienst.erzeuge(sprecher_id)
     with sqlite3.connect(pfad) as verbindung:
         verbindung.execute(
-            "INSERT INTO speakers (id, name, sprache, basismodell, erstellt, zugang_hash)"
-            " VALUES (?, ?, 'de', 'openai/whisper-small', '2026-01-01T00:00:00+00:00', ?)",
+            "INSERT INTO speakers (id, name, sprache, erstellt, zugang_hash)"
+            " VALUES (?, ?, 'de', '2026-01-01T00:00:00+00:00', ?)",
             (sprecher_id, NAME, hash_),
         )
     return neuer
