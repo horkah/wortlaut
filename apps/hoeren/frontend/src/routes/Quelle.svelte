@@ -116,6 +116,37 @@
    */
   const ZUR_ANSICHT = /\.(pdf|png|jpe?g|webp|gif|bmp|tiff?|heic|heif)$/i;
 
+  /**
+   * Aufnehmen statt hochladen - die Kamera springt unmittelbar auf.
+   *
+   * `capture` sagt dem Telefon, dass hier nicht aus der Mediathek gewählt,
+   * sondern aufgenommen werden soll; Safari und Chrome öffnen dann die
+   * Kamera-App und übergeben das fertige Bild. Es wird trotzdem eine Datei
+   * daraus - nur sieht der Mensch keine Dateiauswahl, und das ist der Punkt.
+   *
+   * **Warum nicht `getUserMedia` mit eigenem Sucher.** Das gäbe eine Vorschau
+   * in dieser Seite, und man müsste dafür einen Auslöser, eine Freigabe und
+   * das Abschalten der Kamera selbst bauen. Die Kamera-App des Telefons kann
+   * das alles längst besser: Sie richtet scharf, hält ruhig, zeigt einen
+   * Rahmen - und die Zielperson kennt sie. Ein selbstgebauter Sucher wäre ein
+   * zweiter, schlechterer.
+   *
+   * Aufgenommen wird sofort gelesen: Wer den Auslöser gedrückt und das Bild
+   * bestätigt hat, hat damit schon zweimal ja gesagt. Ein drittes „Hochladen"
+   * wäre ein Knopf ohne Frage dahinter.
+   */
+  let kamerabild = $state<FileList | null>(null);
+
+  function ausKamera() {
+    const aufgenommen = kamerabild?.[0];
+    if (!aufgenommen) return;
+    fuehreAus(async () => {
+      const gelesen = await textErkennen(aufgenommen);
+      oeffneEntwurf(gelesen.text, 'Aufnahme', gelesen.herkunft, aufgenommen);
+      kamerabild = null;
+    });
+  }
+
   const ausDatei = (ereignis: SubmitEvent) => {
     ereignis.preventDefault();
     const gewaehlt = datei?.[0];
@@ -314,7 +345,8 @@
     txt, md, pdf, epub oder docx.
     {#if kannErkennen}
       Auch ein <strong>Foto</strong> einer Seite oder ein eingescanntes PDF - der Text wird dann
-      erkannt und liegt euch vorher zum Bessern vor.
+      erkannt und liegt euch vorher zum Bessern vor. Über das Kamerasymbol geht es unmittelbar
+      aus der Kamera, ohne Umweg über die Mediathek.
     {/if}
   </p>
   <!--
@@ -334,6 +366,36 @@
     <button class="knopf" type="submit" disabled={laeuft}>
       {laeuft ? 'Wird gelesen …' : 'Hochladen'}
     </button>
+    {#if kannErkennen}
+      <!--
+        Klein und ohne Beschriftung, weil das Sinnbild eindeutig ist und die
+        Zeile sonst zwei gleich große Knöpfe hätte - der eine für den
+        gewöhnlichen Weg, der andere für den kurzen. Der Name steht trotzdem
+        da, nur für Vorleseprogramme und den Mauszeiger.
+      -->
+      <label class="kamera" title="Mit der Kamera aufnehmen">
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          bind:files={kamerabild}
+          onchange={ausKamera}
+          disabled={laeuft}
+        />
+        <span class="fuervorleser">Mit der Kamera aufnehmen</span>
+        <!-- Ein Kameragehäuse mit Sucherhöcker und Linse. -->
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M4 7h3l1.6-2h6.8L17 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
+          />
+          <circle cx="12" cy="13" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6" />
+        </svg>
+      </label>
+    {/if}
   </form>
 
   <!--
@@ -413,6 +475,50 @@
 {/if}
 
 <style>
+  /* Ein Knopf in Knopfgröße, nur eben quadratisch: Er wird mit demselben
+     Daumen getroffen wie der daneben, nicht mit einer Zeigefingerspitze. Das
+     Dateifeld darin bleibt unsichtbar, aber anklickbar - ein `display: none`
+     nähme ihm auch die Tastaturbedienung. */
+  .kamera {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.9rem;
+    height: 2.9rem;
+    margin: 0;
+    border: 1px solid var(--akzent);
+    border-radius: 0.4rem;
+    color: var(--akzent);
+    background: #fff;
+    cursor: pointer;
+    vertical-align: middle;
+  }
+  .kamera:focus-within {
+    outline: 2px solid var(--akzent);
+    outline-offset: 2px;
+  }
+  .kamera input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .kamera svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+  /* Nur für Vorleseprogramme - sichtbar wäre es die Beschriftung, die dieser
+     Knopf gerade nicht haben soll. */
+  .fuervorleser {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
   /* Eine Zusage, keine Fußnote: dieselbe Größe wie der Hinweis darüber, aber
      abgesetzt, damit sie nicht mit den Formatangaben verschwimmt. */
   .zusage {
