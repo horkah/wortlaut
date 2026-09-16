@@ -11,7 +11,6 @@
 import { folgeHash, routeAusHash } from '$ui/route';
 import { OFFEN, ermittleZugang } from '$ui/wer';
 import { nimmZugangAusLink } from '$ui/zugang';
-import { werRuft } from './api';
 
 export { gehZu } from '$ui/route';
 
@@ -38,5 +37,5 @@ export function laufAusRoute(route: string): string {
 /** Beim Server nachfragen, für wen dieser Browser eingestellt ist. */
 export async function ladeZugang(): Promise<void> {
   if (nimmZugangAusLink(routeAusHash())) zustand.route = '/';
-  Object.assign(zustand, await ermittleZugang(werRuft));
+  Object.assign(zustand, await ermittleZugang());
 }

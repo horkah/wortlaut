@@ -101,7 +101,6 @@ export const postausgangSenden = () =>
 // ── Kopfzeile ───────────────────────────────────────────────────────────────
 
 /** Für wen dieser Browser eingestellt ist - die Antwort kommt vom Server. */
-export const werRuft = () => anfrage<Wer>('/zugang');
 
 /**
  * Welches Modell hier arbeitet - freigegeben wird es in der Modellübersicht

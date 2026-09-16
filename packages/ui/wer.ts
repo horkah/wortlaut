@@ -7,17 +7,34 @@
  * Korpus zeigen - genau der Fehlgriff, den das ausschließt. Aufbewahrt wird
  * allein der Zugang (`zugang.ts`).
  *
- * Die Auswertung der Antwort stand dreimal da und war dreimal dieselbe, bis
- * auf eine Stelle: „schreiben" setzte `sprecher` fest, statt zu übernehmen,
- * was der Server geantwortet hatte. Es kam dasselbe heraus - sein `/api/zugang`
- * kennt keine andere Art -, aber es war eine zweite Regel für dieselbe Frage.
+ * **Gefragt wird immer „hören", aus jeder App.** Der Zugang liegt einmal im
+ * Browser (`zugang.ts`), also hat die Frage „wer ist das?" auch nur eine
+ * Antwort - und geben kann sie nur „hören": Dort liegt der Korpus, dort steht
+ * der Name, und dort werden alle drei Arten von Zugang erkannt.
  *
- * Welchen Weg die Frage nimmt, bleibt Sache der App: „hören" fragt seine
- * eigene API, „lernen" ausdrücklich die von „hören" (dort liegt der Korpus).
- * Deshalb kommt `werRuft` als Argument herein und nicht als Import.
+ * Das war einmal Sache jeder App, und genau daran ist es zerbrochen.
+ * „schreiben" fragte seine eigene API, und die lässt mit gutem Grund nur einen
+ * **Sprecherzugang** durch - sie spricht für einen Menschen und hat nichts zu
+ * verwalten. Wer dort seinen Aufsichtstoken eintrug, bekam ihn abgewiesen,
+ * obwohl er stimmte; in „hören" nahm ihn dasselbe Feld an. Zwei Wahrheiten
+ * über denselben Token, je nachdem, welche Seite gerade offen war.
+ *
+ * „lernen" hatte das längst richtig und schrieb den Grund sogar dazu: „Eine
+ * eigene Auskunft hätte eine zweite Wahrheit über denselben Menschen
+ * ergeben." Jetzt steht der Weg einmal hier, und keine App wählt ihn mehr
+ * selbst.
  */
 
-import { ApiFehler } from './api';
+import { ApiFehler, api } from './api';
+
+/**
+ * Die API von „hören" - sie liegt auf der Wurzel der gemeinsamen Domain
+ * (`APPS` in `apps.ts`), also ist dieser Weg aus jeder App derselbe.
+ */
+const hoeren = api('/api');
+
+/** Beim Server nachfragen, wer dieser Browser ist. */
+export const werRuft = () => hoeren.anfrage<Wer>('/zugang');
 
 /** Die drei, die der Server durchlässt; alles andere wird ein 401. */
 export type Rufer = 'sprecher' | 'verwaltung' | 'aufsicht';
@@ -64,7 +81,7 @@ export const OFFEN: Zugangsstand = {
 };
 
 /** Beim Server nachfragen, für wen dieser Browser eingestellt ist. */
-export async function ermittleZugang(werRuft: () => Promise<Wer>): Promise<Zugangsstand> {
+export async function ermittleZugang(): Promise<Zugangsstand> {
   try {
     const wer = await werRuft();
     return { art: wer.art, sprecher: wer.sprecher_id, name: wer.name, sprache: wer.sprache };

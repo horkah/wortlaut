@@ -81,7 +81,6 @@ export { setzeZugang, zugang } from '$ui/zugang';
 // ── Wer ruft ────────────────────────────────────────────────────────────────
 
 /** Für wen dieser Browser eingestellt ist - die Antwort kommt vom Server. */
-export const werRuft = () => anfrage<Wer>('/zugang');
 
 // ── Verwaltung ──────────────────────────────────────────────────────────────
 

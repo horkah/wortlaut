@@ -3,23 +3,30 @@
    * Der Zugang dieses Browsers - die Ansicht dazu ist geteilt
    * (`$ui/Zugangsdaten.svelte`).
    *
-   * Hier gibt es nichts zu verwalten: Diese App kennt nur Sprecherzugänge,
-   * einen Verwalter- oder Aufsichtstoken weist ihr Server ab (backend/deps.py).
-   * Der Punkt steht trotzdem im Menü, und gerade dann, wenn noch kein Zugang
-   * da ist - er sagt, woran es fehlt, statt die Seite an lauter abgewiesenen
-   * Anfragen scheitern zu lassen.
+   * Hier gibt es nichts zu verwalten: Zum Diktieren braucht es den Zugang
+   * eines Sprechers, und die eigene API dieser App weist einen Verwalter- oder
+   * Aufsichtstoken entsprechend ab (backend/deps.py). Der Punkt steht trotzdem
+   * im Menü, und gerade dann, wenn noch kein Zugang da ist - er sagt, woran es
+   * fehlt, statt die Seite an lauter abgewiesenen Anfragen scheitern zu
+   * lassen.
+   *
+   * **Das Feld nimmt trotzdem alle drei Arten an.** Es geht hier nicht ums
+   * Diktieren, sondern darum, diesen Browser jemandem zu übergeben: Wer seinen
+   * Aufsichtstoken einträgt, während „schreiben" offen ist, hat ihn danach in
+   * allen drei Apps. Geprüft wird deshalb bei „hören" und nicht hier
+   * (`$ui/wer.ts`) - dort werden alle drei Arten erkannt. Diese Ansicht fragte
+   * einmal die eigene API und wies dabei einen gültigen Aufsichtstoken ab.
    */
   import Zugangsdaten from '$ui/Zugangsdaten.svelte';
-  import { werRuft } from '../lib/api';
   import { gehZu, ladeModellstand, ladeZugang, zustand } from '../lib/zustand.svelte';
 
   // Mit dem Zugang wechselt auch das Modell: Jeder Sprecher läuft auf seinem
-  // eigenen Stand, und die Kopfzeile soll ihn sofort richtig nennen.
-  async function pruefe() {
-    const wer = await werRuft();
+  // eigenen Stand, und die Kopfzeile soll ihn sofort richtig nennen. Das ist
+  // der Grund, warum es diese Eigenschaft überhaupt gibt - die anderen beiden
+  // Apps haben hier nur `ladeZugang`.
+  async function neuLaden() {
     await ladeZugang();
     await ladeModellstand();
-    return wer;
   }
 </script>
 
@@ -33,7 +40,7 @@
   </p>
 {/if}
 
-<Zugangsdaten art={zustand.art} name={zustand.name} {pruefe}>
+<Zugangsdaten art={zustand.art} name={zustand.name} {neuLaden}>
   {#snippet weiter()}
     <button class="knopf haupt" onclick={() => gehZu('/')}>Weiter zum Diktat</button>
   {/snippet}
