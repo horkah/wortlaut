@@ -313,7 +313,20 @@
   {@const person = daten.sprecher}
   {@const zahlen = person.kennzahlen}
 
-  <h2>{person.name}</h2>
+  <!--
+    Der Knopf steht beim Namen, denn der Name ist, was er ändert. Er stand
+    einmal in der Karte darunter, zwischen „Sicherung" und „Datensatz" - unter
+    der Überschrift „Ausleiten", die von zwei Dateien zum Herunterladen
+    handelt. Umbenennen lädt nichts herunter; es war dort nur die dritte
+    Handlung, die sonst nirgends hinpasste. Der erklärende Absatz derselben
+    Karte nennt ihn bis heute nicht, und das war der Hinweis.
+  -->
+  <div class="reihe titel">
+    <h2>{person.name}</h2>
+    <button class="knopf" disabled={laeuft === 'umbenennen'} onclick={benenneUm}>
+      Umbenennen
+    </button>
+  </div>
   <p class="gedaempft">
     {person.sprache} · angelegt am {tag(person.erstellt)}
   </p>
@@ -346,9 +359,6 @@
           tue('datensatz', () => meinDatensatz(meinePin), 'Datensatz heruntergeladen.')}
       >
         {laeuft === 'datensatz' ? 'Wird gepackt …' : 'Datensatz (.zip)'}
-      </button>
-      <button class="knopf" disabled={laeuft === 'umbenennen'} onclick={benenneUm}>
-        Umbenennen
       </button>
     </div>
     <p class="gedaempft">
@@ -446,6 +456,17 @@
 {/if}
 
 <style>
+  /* Überschrift und Knopf in einer Zeile, ohne dass der Knopf die Grundlinie
+     der Überschrift verschiebt. Der eigene Abstand oben ersetzt den, den `h2`
+     global mitbringt und hier verliert. */
+  .titel {
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 2rem;
+  }
+  .titel h2 {
+    margin: 0;
+  }
   /* Die Kennzahlen als Reihe kleiner Blöcke: Sie werden überflogen, nicht
      gelesen - die Zahl groß, ihre Bedeutung klein darunter. */
   .zahlen {

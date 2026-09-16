@@ -226,7 +226,7 @@ abgeschaltet, und das ist Absicht. Nach dem Setzen das Backend neu starten.
    darunter Textquellen, Sitzungen und die Aufnahmen - jede mit ihrem Text.
    Bei einer Aufnahme **▶ Hören**: der Abspieler klappt auf und spielt genau
    das, was aufgenommen wurde.
-4. **Umbenennen**, einen neuen Namen eingeben. Erwartet: Der Name ändert sich,
+4. **Umbenennen** (der Knopf steht neben dem Namen), einen neuen Namen eingeben. Erwartet: Der Name ändert sich,
    die Kennung `spr_…` bleibt. Wer parallel in einem zweiten Browser mit dem
    Sprecherzugang angemeldet ist, sieht nach dem Neuladen den neuen Namen in
    der Kopfzeile - der Zugang gilt unverändert weiter.
