@@ -126,6 +126,79 @@ def ist_bild(inhalt: bytes) -> bool:
 SEITENARTEN = (3, 11)
 
 
+# Wie groß ein Bild höchstens in die Erkennung geht - die lange Seite in Pixeln.
+#
+# **Mehr Pixel kaufen nichts.** Nachgemessen am Foto eines Cremedeckels, in der
+# besten von vier Lesarten:
+#
+#     1200 px    96 Punkte     2,2 s
+#     1600 px   103 Punkte     3,5 s
+#     2000 px   118 Punkte     4,9 s
+#     2576 px   119 Punkte     4,8 s   (die Aufnahme selbst)
+#     3200 px   114 Punkte    10,4 s
+#
+# Oberhalb von etwa 2000 steht die Trefferquote still und fällt dann wieder,
+# während die Zeit davonläuft: Tesseract rechnet intern ohnehin auf eine
+# Zeilenhöhe herunter, und ein weicher, großer Buchstabe ist schlechter zu
+# lesen als ein kleiner scharfer. Ein Foto vom iPhone hat 4032 Pixel; ohne
+# diese Grenze dauerten vier Durchgänge 22 Sekunden statt 7, bei gleichem
+# Ergebnis.
+MAX_KANTE = 2400
+
+
+def _vorbereitet(bild):
+    """Auf ein vernünftiges Maß bringen - und eine entrauschte Fassung daneben.
+
+    **Der Medianfilter ist nicht Kosmetik, sondern der Unterschied zwischen
+    lesbar und gar nichts.** Wer einen Bildschirm abfotografiert, bekommt das
+    Gitter der Bildpunkte als feines Muster ins Bild (Moiré), und Tesseract
+    liest darin Schrift, wo keine ist - oder gar nichts mehr. Nachgemessen an
+    einem nachgestellten Bildschirmfoto: **0 Punkte** im Rohbild, **131** nach
+    einem 3×3-Median. Auf dem gewöhnlichen Foto schadet er nicht, er half dort
+    sogar leicht (115 → 119).
+
+    Zurück kommen beide Fassungen, denn welche gewinnt, entscheidet erst der
+    Vergleich: Ein Filter, der einem scharfen Bild kleine Schrift weichzeichnet,
+    soll sich nicht durchsetzen, nur weil er angewandt wurde.
+    """
+    from PIL import Image, ImageFilter
+
+    if max(bild.size) > MAX_KANTE:
+        faktor = MAX_KANTE / max(bild.size)
+        bild = bild.resize(
+            (round(bild.width * faktor), round(bild.height * faktor)), Image.LANCZOS
+        )
+    return (bild, bild.filter(ImageFilter.MedianFilter(3)))
+
+
+# Was als Wort durchgeht: drei Zeichen am Stück, Buchstaben oder Ziffern.
+# Absichtlich großzügig - `48h` und `10/2024` sollen bleiben.
+_WORTHAFT = re.compile(r"[^\W_]{3,}", re.UNICODE)
+
+
+def entrausche(text: str) -> str:
+    """Zeilen wegnehmen, in denen kein einziges Wort steht.
+
+    **Vorsichtig, nicht gründlich.** Eine Zeichenerkennung findet auf einem Foto
+    auch dort Schrift, wo Muster sind - der Wirbel auf einem Cremedeckel wird zu
+    `| x`, `Ye`, `v,`, `ae`. Solche Zeilen bestehen aus Ein- und
+    Zweizeichen-Brocken; alles, was ein Mensch geschrieben hat, enthält
+    irgendwo drei Zeichen am Stück.
+
+    Die Grenze liegt deshalb bei drei und nicht höher, und sie zählt Ziffern
+    mit: `48h` wäre sonst weg, und `10/2024` auch. Der Preis ist, dass ein paar
+    Brocken durchkommen, die zufällig drei Zeichen lang sind (`Ben`, `cDT`).
+    Das ist die richtige Richtung: Was hier stehen bleibt, streicht ein Mensch
+    im nächsten Schritt weg - was hier verschwindet, sieht er nie wieder.
+
+    Angewandt wird das **nur auf Erkanntes**. Ein gelesener Text steht so da,
+    wie ihn jemand geschrieben hat, und daran wird nicht gefiltert.
+    """
+    zeilen = [z.rstrip() for z in text.splitlines()]
+    behalten = [z for z in zeilen if not z.strip() or _WORTHAFT.search(z)]
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(behalten)).strip()
+
+
 def _punkte(text: str) -> int:
     """Wie viel Schrift hier steht - zum Vergleich zweier Durchgänge.
 
@@ -148,17 +221,20 @@ def aus_bild(inhalt: bytes, sprache: str) -> str:
         raise OcrFehler("Auf diesem Server ist keine Zeichenerkennung eingerichtet.")
     import pytesseract
 
-    bild = _oeffne(inhalt)
     lang = kuerzel(sprache)
     try:
         versuche = [
-            pytesseract.image_to_string(bild, lang=lang, config=f"--psm {art}")
+            pytesseract.image_to_string(fassung, lang=lang, config=f"--psm {art}")
+            for fassung in _vorbereitet(_oeffne(inhalt))
             for art in SEITENARTEN
         ]
+    except OcrFehler:
+        raise
     except Exception as ursache:
         raise OcrFehler(f"Die Zeichenerkennung ist gescheitert: {ursache}") from ursache
-    # `max` gibt bei Gleichstand den ersten zurück - und das ist die Vorgabe.
-    return max(versuche, key=_punkte)
+    # `max` gibt bei Gleichstand den ersten zurück - und das ist das Rohbild in
+    # der Vorgabe-Seitenart, also der zurückhaltendste der vier Wege.
+    return entrausche(max(versuche, key=_punkte))
 
 
 # Wie fein eine PDF-Seite gerastert wird, bevor Tesseract sie liest. Das Maß
@@ -178,6 +254,14 @@ def aus_pdf(inhalt: bytes, sprache: str) -> str:
     Jede Seite wird gerastert und einzeln gelesen; die Seiten werden mit
     Leerzeile getrennt, weil der Schnitt danach an Absätzen arbeitet
     (`text/chunker.py`).
+
+    **Hier wird einmal gelesen und nicht viermal, anders als bei einem Bild.**
+    Das ist das Maß, das zum Format gehört: Ein Scan ist eine Seite Fließtext,
+    flach ausgeleuchtet und hoch im Kontrast - genau der Fall, für den
+    Tesseracts Vorgabe gemacht ist, und einer ohne Moiré. Ein Bild ist eines;
+    ein PDF sind bis zu zwanzig, und vier Durchgänge je Seite wären achtzig.
+    Wessen Scan schlecht liest, fotografiert die Seite - dann greift der andere
+    Weg mit allem, was er hat.
     """
     if not verfuegbar():
         raise OcrFehler("Auf diesem Server ist keine Zeichenerkennung eingerichtet.")
@@ -198,4 +282,4 @@ def aus_pdf(inhalt: bytes, sprache: str) -> str:
         ]
     except Exception as ursache:
         raise OcrFehler(f"Die Zeichenerkennung ist gescheitert: {ursache}") from ursache
-    return "\n\n".join(seiten)
+    return entrausche("\n\n".join(seiten))

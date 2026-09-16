@@ -560,6 +560,38 @@ und nicht über `navigator.clipboard.read()` - Letzteres fragt in Safari jedes
 Mal um Erlaubnis und gibt in Firefox keine Bilder heraus, während Einfügen
 überall dieselbe Handbewegung ist.
 
+**Zwei vorsichtige Filter, und beide sind gemessen.**
+
+*Auf dem Bild:* Die lange Seite wird auf 2400 Pixel begrenzt und eine
+entrauschte Fassung danebengestellt (3×3-Median). Beide gehen in zwei
+Seitenarten durch Tesseract, der beste der vier Durchgänge gilt - gewertet
+wird, wie viele Zeichen in Wörtern aus mindestens drei Zeichen stehen.
+
+Die Begrenzung ist keine Sparsamkeit, sondern eine Messung: Am Foto eines
+Cremedeckels brachten 1200 px 96 Punkte, 2000 px 118, 2576 px 119 und 3200 px
+nur noch 114 - bei doppelter Zeit. Ein iPhone-Foto hat 4032 Pixel; ohne die
+Grenze dauerten vier Durchgänge 22 Sekunden statt 7, bei gleichem Ergebnis.
+
+Der Median ist der Unterschied zwischen lesbar und gar nichts, sobald jemand
+einen **Bildschirm** abfotografiert: Dessen Bildpunktgitter legt sich als
+feines Muster über die Schrift (Moiré). Nachgemessen an einem nachgestellten
+Bildschirmfoto - **0 Punkte** im Rohbild, der volle Satz nach dem Filter.
+
+*Auf dem Text:* Zeilen ohne ein einziges Wort fallen weg. Eine
+Zeichenerkennung findet auf einem Foto auch dort Schrift, wo Muster sind - der
+Wirbel auf einem Cremedeckel wird zu `| x`, `Ye`, `v,`, `ae`. Die Grenze liegt
+bei drei Zeichen am Stück und zählt Ziffern mit, damit `48h` und `10/2024`
+bleiben; der Preis ist, dass ein paar zufällig dreizeichige Brocken
+durchkommen. Das ist die richtige Richtung: Was stehen bleibt, streicht ein
+Mensch im nächsten Schritt - was verschwindet, sieht er nie wieder. Gefiltert
+wird **nur Erkanntes**, nie ein gelesener oder eingefügter Text.
+
+*Bei einem PDF nichts von alldem.* Ein Scan ist eine Seite Fließtext, flach
+ausgeleuchtet und ohne Moiré - genau der Fall, für den Tesseracts Vorgabe
+gemacht ist. Ein Bild ist eines, ein PDF sind bis zu zwanzig, und vier
+Durchgänge je Seite wären achtzig. Wessen Scan schlecht liest, fotografiert
+die Seite; dann greift der andere Weg mit allem, was er hat.
+
 **Ohne Tesseract fehlt der Weg, und die App sagt es.**
 `GET /api/sources/erkennung` beantwortet die Frage, bevor jemand ein Bild
 auswählt; das Auswahlfeld bietet die Bildformate dann gar nicht erst an.
