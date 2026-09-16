@@ -18,6 +18,7 @@
   import { dauer } from '$ui/zeit';
   import KeinZugang from '$ui/KeinZugang.svelte';
   import { ApiFehler } from '$ui/api';
+  import { inDieZwischenablage } from '$ui/zwischenablage';
   import {
     alleSprecher,
     sicherungGesamt,
@@ -116,8 +117,11 @@
 
   async function kopiere() {
     if (!frisch) return;
-    await navigator.clipboard.writeText(frisch.link);
-    kopiert = true;
+    // Über den gemeinsamen Weg, seit „schreiben" denselben Knopf hat: Ein
+    // nacktes `navigator.clipboard` gibt es nicht überall, und ein `await`
+    // darauf warf hier einen Fehler, den niemand sah (`$ui/zwischenablage`).
+    kopiert = await inDieZwischenablage(frisch.link);
+    if (!kopiert) fehler = 'Das Kopieren hat nicht geklappt - der Link steht oben zum Auswählen.';
   }
 
   async function sichereAlles() {
