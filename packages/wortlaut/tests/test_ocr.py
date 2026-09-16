@@ -14,6 +14,8 @@ PDF-Seite.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from wortlaut import sprachen
 from wortlaut.text import ocr
@@ -35,6 +37,26 @@ class TestSprachkuerzel:
         # Nichts wird geraten: `eng` ist die einzige Sprachdatei, die überall
         # mitgeliefert wird.
         assert ocr.kuerzel("kl") == "eng"
+
+
+class TestSpracheKommtAn:
+    """Die Sprache des Profils muss **jeden** Aufruf erreichen, nicht fast jeden."""
+
+    def test_keine_feste_sprache_im_quelltext(self) -> None:
+        # Die Lageprobe lief einmal fest auf `deu`, während die eigentliche
+        # Lesung der Profilsprache folgte. Das fiel bei einer Sprache nicht auf
+        # und wäre bei der zweiten ein Fehler gewesen, den niemand sieht: Die
+        # Probe misst, ob Tesseract *Wörter* erkennt - und was ein Wort ist,
+        # hängt am Wörterbuch.
+        quelle = Path(ocr.__file__).read_text(encoding="utf-8")
+        assert 'lang="deu"' not in quelle
+        assert 'lang="eng"' not in quelle
+
+    def test_beide_leser_nehmen_die_sprache_entgegen(self) -> None:
+        import inspect
+
+        for funktion in (ocr._gelesen, ocr._zuversicht, ocr._aufgerichtet):
+            assert "lang" in inspect.signature(funktion).parameters, funktion.__name__
 
 
 class TestOhneTesseract:
