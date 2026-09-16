@@ -1,9 +1,83 @@
-"""Textquellen: Upload, LLM-Schalter, Reihenfolge der entstehenden Vorlagen."""
+"""Textquellen: Upload, Erkennen, LLM-Schalter, Reihenfolge der Vorlagen."""
 
 from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
+from wortlaut.text import ocr
+
+
+class TestEigenerText:
+    """Der Weg für alles, was ein Mensch vorher gesehen hat.
+
+    Dahinter steckt der Prüfschritt: Was aus einem Foto kommt, ist geraten, und
+    ein Lesefehler in der Vorlage wanderte über die Aufnahme ins Training. Er
+    ist zugleich der Weg für einen Schnipsel aus der Zwischenablage - in beiden
+    Fällen stand der Text in der Oberfläche, bevor er hier ankam.
+    """
+
+    def test_legt_eine_quelle_an(self, klient: TestClient, sprecher: str) -> None:
+        antwort = klient.post(
+            f"/api/sources/text?sprecher={sprecher}",
+            json={
+                "text": "Am Montag gehe ich zum Markt. Dort kaufe ich frisches Brot.",
+                "titel": "Aus der Zwischenablage",
+                "herkunft": "eingefügt",
+            },
+        )
+        assert antwort.status_code == 201, antwort.text
+        assert antwort.json()["einheiten"] >= 1
+        assert antwort.json()["titel"] == "Aus der Zwischenablage"
+
+    def test_ohne_titel_bekommt_die_quelle_einen(self, klient: TestClient, sprecher: str) -> None:
+        antwort = klient.post(
+            f"/api/sources/text?sprecher={sprecher}",
+            json={"text": "Ein Satz, der für sich steht und lang genug ist."},
+        )
+        assert antwort.status_code == 201
+        assert antwort.json()["titel"]
+
+    def test_leerer_text_wird_abgewiesen(self, klient: TestClient, sprecher: str) -> None:
+        antwort = klient.post(
+            f"/api/sources/text?sprecher={sprecher}", json={"text": "   \n  "}
+        )
+        assert antwort.status_code == 400
+
+
+class TestErkennen:
+    def test_liest_eine_textdatei_ohne_sie_anzulegen(
+        self, klient: TestClient, sprecher: str
+    ) -> None:
+        # Der Prüfschritt legt nichts an - das ist seine ganze Aufgabe.
+        vorher = len(klient.get(f"/api/sources?sprecher={sprecher}").json())
+        antwort = klient.post(
+            f"/api/sources/erkennen?sprecher={sprecher}",
+            files={"datei": ("notiz.txt", "Ein Satz zum Ansehen.".encode(), "text/plain")},
+        )
+        assert antwort.status_code == 200, antwort.text
+        assert antwort.json()["herkunft"] == "gelesen"
+        assert "Ansehen" in antwort.json()["text"]
+        assert len(klient.get(f"/api/sources?sprecher={sprecher}").json()) == vorher
+
+    def test_die_auskunft_sagt_ob_erkannt_werden_kann(self, klient: TestClient) -> None:
+        # Die Oberfläche bietet Bilder nur an, wo der Server sie lesen kann -
+        # ein Versprechen, das das Abbild nicht hält, ist schlechter als keines.
+        antwort = klient.get("/api/sources/erkennung").json()
+        assert antwort["moeglich"] == ocr.verfuegbar()
+        assert ".png" in antwort["formate"]
+
+    @pytest.mark.skipif(ocr.verfuegbar(), reason="Hier steht Tesseract zur Verfügung.")
+    def test_ohne_tesseract_kommt_eine_klare_ansage(
+        self, klient: TestClient, sprecher: str
+    ) -> None:
+        # 409 und nicht 500: Es ist kein Fehler dieses Servers, sondern eine
+        # Möglichkeit, die er nicht hat.
+        antwort = klient.post(
+            f"/api/sources/erkennen?sprecher={sprecher}",
+            files={"datei": ("seite.png", b"\x89PNG\r\n\x1a\n", "image/png")},
+        )
+        assert antwort.status_code == 409
+        assert "Zeichenerkennung" in antwort.json()["detail"]
 
 
 class TestUpload:

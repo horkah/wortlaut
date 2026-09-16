@@ -5,12 +5,15 @@
    * hinten an die Warteschlange gehängt.
    */
   import {
+    erkennungMoeglich,
     quelleAusDatei,
     quelleAusLLM,
+    quelleAusText,
     quelleLoeschen,
     quelleText,
     quelleUmstellen,
     quellen,
+    textErkennen,
     type Quelle,
   } from '../lib/api';
   import { gehZu } from '../lib/zustand.svelte';
@@ -24,9 +27,41 @@
   let umfang = $state(300);
   let datei = $state<FileList | null>(null);
 
+  /**
+   * Der Prüfschritt: Was gelesen oder erkannt wurde, steht hier, bis jemand
+   * es übernimmt.
+   *
+   * `null` heißt: kein Entwurf offen, die Ansicht sieht aus wie immer. Sobald
+   * etwas darin steht, tritt es an die Stelle des Formulars - es ist der
+   * nächste Schritt und keine zweite Möglichkeit daneben.
+   */
+  let entwurf = $state<{ text: string; titel: string; herkunft: string } | null>(null);
+  let kannErkennen = $state(false);
+
+  // Was das Auswahlfeld annimmt. Die Bildformate kommen vom Server, denn er
+  // entscheidet, was er lesen kann - und ohne Zeichenerkennung bietet die
+  // Oberfläche sie gar nicht erst an.
+  const TEXTFORMATE = '.txt,.md,.pdf,.epub,.docx';
+  let bildformate = $state('');
+  const annimmt = $derived(TEXTFORMATE + bildformate);
+
   async function lade() {
     liste = await quellen();
   }
+
+  // Einmal beim Aufbau: Ob der Server Bilder lesen kann, ändert sich nicht,
+  // solange die Seite offen ist.
+  $effect(() => {
+    erkennungMoeglich()
+      .then((antwort) => {
+        kannErkennen = antwort.moeglich;
+        bildformate = antwort.moeglich ? ',' + antwort.formate.join(',') : '';
+      })
+      .catch(() => {
+        // Eine Auskunft, die nicht kommt, ist keine Fehlermeldung wert: Dann
+        // bleibt es beim Hochladen von Text, so wie vorher.
+      });
+  });
 
   async function fuehreAus(arbeit: () => Promise<unknown>) {
     fehler = '';
@@ -46,10 +81,78 @@
     fuehreAus(() => quelleAusLLM({ thema, altersspanne, umfang }));
   };
 
+  /**
+   * Welche Dateien vor dem Anlegen zur Ansicht kommen.
+   *
+   * Bilder immer - sie sind geraten. PDFs auch, und das ist eine Entscheidung
+   * über den bisherigen Stand hinaus: Ein PDF trägt Kopfzeilen, Fußnoten und
+   * Seitenzahlen, die niemand vorlesen will, und ob überhaupt eine Textebene
+   * darin steckt, weiß man vorher nicht. Wer es sieht, streicht es weg.
+   *
+   * `txt`, `md`, `epub` und `docx` gehen weiterhin unmittelbar: Dort steht der
+   * Text schon so da, wie ihn jemand geschrieben hat, und ein Prüfschritt wäre
+   * ein Klick ohne Anlass.
+   */
+  const ZUR_ANSICHT = /\.(pdf|png|jpe?g|webp|gif|bmp|tiff?|heic|heif)$/i;
+
   const ausDatei = (ereignis: SubmitEvent) => {
     ereignis.preventDefault();
     const gewaehlt = datei?.[0];
-    if (gewaehlt) fuehreAus(() => quelleAusDatei(gewaehlt));
+    if (!gewaehlt) return;
+    if (ZUR_ANSICHT.test(gewaehlt.name)) {
+      fuehreAus(async () => {
+        const gelesen = await textErkennen(gewaehlt);
+        entwurf = { text: gelesen.text, titel: gewaehlt.name, herkunft: gelesen.herkunft };
+      });
+    } else {
+      fuehreAus(() => quelleAusDatei(gewaehlt));
+    }
+  };
+
+  /**
+   * Was aus der Zwischenablage kommt - ein Bild oder ein Schnipsel Text.
+   *
+   * Über das `paste`-Ereignis und nicht über `navigator.clipboard.read()`:
+   * Letzteres fragt in Safari jedes Mal um Erlaubnis und gibt in Firefox
+   * überhaupt keine Bilder heraus. Einfügen dagegen kann jeder Browser, es ist
+   * eine Handlung des Menschen und braucht deshalb keine Rückfrage.
+   */
+  async function ausZwischenablage(ereignis: ClipboardEvent) {
+    const daten = ereignis.clipboardData;
+    if (!daten) return;
+
+    const bild = Array.from(daten.items).find((teil) => teil.type.startsWith('image/'));
+    if (bild) {
+      const datei = bild.getAsFile();
+      if (!datei) return;
+      ereignis.preventDefault();
+      fuehreAus(async () => {
+        const gelesen = await textErkennen(datei);
+        entwurf = {
+          text: gelesen.text,
+          titel: 'Aus der Zwischenablage',
+          herkunft: gelesen.herkunft,
+        };
+      });
+      return;
+    }
+
+    const text = daten.getData('text/plain');
+    if (text.trim()) {
+      ereignis.preventDefault();
+      entwurf = { text, titel: 'Aus der Zwischenablage', herkunft: 'eingefügt' };
+    }
+  }
+
+  const uebernimm = (ereignis: SubmitEvent) => {
+    ereignis.preventDefault();
+    const offen = entwurf;
+    if (!offen?.text.trim()) return;
+    fuehreAus(async () => {
+      await quelleAusText(offen);
+      entwurf = null;
+      datei = null;
+    });
   };
 
   const stelleUm = (quelle: Quelle) =>
@@ -104,11 +207,73 @@
 </form>
 
 <h2>Eigener Text</h2>
-<p class="gedaempft">txt, md, pdf, epub oder docx.</p>
-<form onsubmit={ausDatei}>
-  <input type="file" accept=".txt,.md,.pdf,.epub,.docx" bind:files={datei} />
-  <button class="knopf" type="submit" disabled={laeuft}>Hochladen</button>
-</form>
+
+{#if entwurf}
+  <!--
+    Der Prüfschritt. Er tritt an die Stelle des Formulars und steht nicht
+    daneben: Er ist der nächste Schritt und keine zweite Möglichkeit.
+  -->
+  <p class="gedaempft">
+    {#if entwurf.herkunft === 'erkannt'}
+      <strong>Erkannt, nicht gelesen.</strong> Was hier steht, hat eine Maschine aus dem Bild
+      geraten - sie verwechselt <code>rn</code> mit <code>m</code> und erfindet an Knicken
+      Zeichen. Bitte durchsehen und bessern: Was hier stehen bleibt, wird nachher vorgesprochen
+      und nachgesprochen.
+    {:else}
+      Bitte durchsehen. Kopfzeilen, Seitenzahlen und Fußnoten will niemand vorlesen - was hier
+      wegfällt, wird gar nicht erst zur Vorlage.
+    {/if}
+  </p>
+  <form onsubmit={uebernimm}>
+    <label>
+      <span>Titel</span>
+      <input bind:value={entwurf.titel} maxlength="200" />
+    </label>
+    <label>
+      <span>Text - eine Leerzeile trennt Absätze</span>
+      <textarea class="entwurf" bind:value={entwurf.text} rows="14"></textarea>
+    </label>
+    <div class="reihe">
+      <button class="knopf haupt" type="submit" disabled={laeuft || !entwurf.text.trim()}>
+        {laeuft ? 'Wird übernommen …' : 'Übernehmen'}
+      </button>
+      <button class="knopf" type="button" onclick={() => (entwurf = null)}>Verwerfen</button>
+      <span class="gedaempft">{entwurf.text.trim().length} Zeichen</span>
+    </div>
+  </form>
+{:else}
+  <p class="gedaempft">
+    txt, md, pdf, epub oder docx.
+    {#if kannErkennen}
+      Auch ein <strong>Foto</strong> einer Seite oder ein eingescanntes PDF - der Text wird dann
+      erkannt und liegt euch vorher zum Bessern vor.
+    {/if}
+  </p>
+  <form onsubmit={ausDatei}>
+    <input type="file" accept={annimmt} bind:files={datei} />
+    <button class="knopf" type="submit" disabled={laeuft}>
+      {laeuft ? 'Wird gelesen …' : 'Hochladen'}
+    </button>
+  </form>
+
+  <!--
+    Einfügen statt Hochladen. Ein `textarea`, weil ein Feld, in das man tippen
+    kann, auch das Feld ist, in das jeder Browser einfügt - ohne Erlaubnis,
+    ohne Knopf, mit derselben Handbewegung wie überall sonst.
+  -->
+  <label class="einfuegen">
+    <span>
+      … oder hier einfügen{kannErkennen ? ' - Text oder ein Bild aus der Zwischenablage' : ''}
+    </span>
+    <textarea
+      rows="2"
+      placeholder={kannErkennen
+        ? 'Hier hineintippen und einfügen (⌘V / Strg+V)'
+        : 'Hier hineintippen und Text einfügen (⌘V / Strg+V)'}
+      onpaste={ausZwischenablage}
+    ></textarea>
+  </label>
+{/if}
 
 {#if fehler}
   <p class="fehler">{fehler}</p>
@@ -168,6 +333,18 @@
 {/if}
 
 <style>
+  /* Der Entwurf ist zum Lesen da, nicht zum Überfliegen: volle Breite und
+     Zeilen, die nicht kleben. */
+  .entwurf {
+    width: 100%;
+    max-width: none;
+    line-height: 1.45;
+  }
+  /* Die Einfügefläche bleibt klein - sie ist ein Ziel, kein Schreibfeld. */
+  .einfuegen textarea {
+    width: 100%;
+    max-width: none;
+  }
   /* Schalter - Titel - Löschen. Die Mitte nimmt den Platz, die beiden Felder
      behalten ihre Größe, auch wenn der Titel lang ist. */
   .zeile {

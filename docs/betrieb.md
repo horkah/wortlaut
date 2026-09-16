@@ -5,10 +5,25 @@
 - Python 3.12 mit [uv](https://docs.astral.sh/uv/)
 - Node 20 oder neuer (nur für das Frontend)
 - **ffmpeg** im Pfad - ohne das schlägt jeder Aufnahme-Upload fehl
+- **tesseract** im Pfad, wenn Vorlagen fotografiert werden sollen - ohne das
+  fehlt nur dieser Weg, alles andere läuft (`wortlaut/text/ocr.py`)
 
 ```bash
-ffmpeg -version    # muss etwas ausgeben
+ffmpeg -version          # muss etwas ausgeben
+tesseract --list-langs   # freiwillig; „deu" sollte dabeistehen
 ```
+
+Im Abbild dieses Projekts stehen beide drin. Von Hand, auf Debian oder Ubuntu:
+
+```bash
+sudo apt install ffmpeg tesseract-ocr tesseract-ocr-deu
+uv sync --extra ocr      # pytesseract, pillow, pypdfium2, pillow-heif
+```
+
+Die Sprachdateien werden einzeln installiert und nicht als `tesseract-ocr-all`:
+Zwei wiegen wenige Megabyte, alle zusammen über ein Gigabyte. Wer eine dritte
+Sprache führt, trägt sie hier und im `Dockerfile` nach - dieselbe Liste wie in
+`sprachen.UNTERSTUETZT`.
 
 ## Entwicklung
 
@@ -572,6 +587,9 @@ im Zugang und in keinem Parameter:
 ```
 POST   /api/sources/llm                           { thema, altersspanne, umfang }
 POST   /api/sources/upload                        multipart: datei
+POST   /api/sources/erkennen                      multipart: datei - liest, legt nichts an
+POST   /api/sources/text                          { text, titel, herkunft }
+GET    /api/sources/erkennung                     ob Bilder gelesen werden können
 GET    /api/sources
 GET    /api/sources/{id}/text                     Klartext, eine Einheit je Absatz
 PATCH  /api/sources/{id}                          { aktiv }  - abstellen/aufnehmen

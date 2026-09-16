@@ -1,3 +1,4 @@
-"""Textquellen: erzeugen (`llm`), einlesen (`upload`), schneiden (`chunker`)."""
+"""Textquellen: erzeugen (`llm`), einlesen (`upload`), erkennen (`ocr`),
+schneiden (`chunker`)."""
 
-__all__ = ["chunker", "llm", "upload"]
+__all__ = ["chunker", "llm", "ocr", "upload"]

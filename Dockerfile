@@ -75,9 +75,23 @@ RUN cd apps/schreiben/frontend && npm run build
 
 # ── Stufe 2: Python und Auslieferung ────────────────────────────────────────
 FROM python:3.12-slim
-# ffmpeg ist die einzige Systemabhängigkeit: Browser liefern kein WAV.
+# Zwei Systemabhängigkeiten, und beide aus demselben Grund: Was der Mensch
+# hereingibt, ist kein Text.
+#
+# `ffmpeg`, weil Browser kein WAV liefern.
+#
+# `tesseract-ocr`, weil eine Vorlage auch ein Foto sein darf - ein
+# Zeitungsausschnitt, eine Buchseite, ein Brief (`wortlaut/text/ocr.py`). Das
+# ist der Weg, der ohne Tastatur auskommt, und er läuft hier und nicht bei
+# einem Dienst: Ein fotografierter Brief ist womöglich das Persönlichste, was
+# diese App je zu sehen bekommt (`docs/datenschutz.md`).
+#
+# Die Sprachdateien einzeln, nicht `tesseract-ocr-all`: Zwei wiegen wenige
+# Megabyte, alle zusammen über ein Gigabyte. Wer eine dritte Sprache führt,
+# trägt sie hier nach - dieselbe Liste wie in `sprachen.UNTERSTUETZT`.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg \
+    && apt-get install -y --no-install-recommends \
+       ffmpeg tesseract-ocr tesseract-ocr-deu tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /srv/wortlaut
@@ -103,8 +117,8 @@ COPY pyproject.toml README.md LICENSE ./
 RUN mkdir -p packages/wortlaut/src/wortlaut \
     && touch packages/wortlaut/src/wortlaut/__init__.py
 
-# `.[asr,gpu,vorlesen]` ist das Projekt samt faster-whisper, den
-# CUDA-Bibliotheken und Piper (siehe pyproject.toml). Die ersten beiden sind in
+# `.[asr,gpu,vorlesen,ocr]` ist das Projekt samt faster-whisper, den
+# CUDA-Bibliotheken, Piper und der Zeichenerkennung (siehe pyproject.toml). Die ersten beiden sind in
 # diesem Abbild Pflicht: „schreiben" läuft hier mit, und die Auswertung von
 # „hören" ebenso.
 #
@@ -124,7 +138,7 @@ RUN mkdir -p packages/wortlaut/src/wortlaut \
 # 0.37). Die Zeile nachzutragen hieße, bei jedem Bau ein Frontend-Abbild aus
 # dem Netz zu holen - ein Grund, sie gerade nicht zu setzen.
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install ".[asr,gpu,vorlesen]"
+    pip install ".[asr,gpu,vorlesen,ocr]"
 
 # Und jetzt die Bibliothek selbst über den Platzhalter. `--no-deps`, weil oben
 # schon alles steht; `--force-reinstall`, weil die Fassung dieselbe ist (0.1.0)
