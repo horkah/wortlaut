@@ -147,6 +147,30 @@ class TestZuversicht:
         assert ocr.entrausche("a nee heneibneeneschebeißsi") != ""
 
 
+class TestZweiGrenzen:
+    """Kurze Zeilen müssen sicherer sein als lange - beide Zahlen sind gemessen."""
+
+    def test_kurz_verlangt_mehr_als_lang(self) -> None:
+        assert ocr.MINDESTZUVERSICHT_KURZ > ocr.MINDESTZUVERSICHT
+
+    def test_die_strenge_grenze_liegt_in_der_gemessenen_luecke(self) -> None:
+        # Kurzes Rauschen kam auf einem Foto vom Stoff bis 43 („STE", „vers"),
+        # kurzes Echtes lag ab 74 („sehr gut 5", „ERT" 90, „BOSCH" 96).
+        assert 43 < ocr.MINDESTZUVERSICHT_KURZ < 74
+
+    def test_die_milde_grenze_bleibt_unter_dem_schwaechsten_langen(self) -> None:
+        # `OKO-TEST` steht wirklich auf dem Cremedeckel und kommt auf 28 -
+        # anheben ließe sich diese Grenze also nicht, deshalb die zweite.
+        assert ocr.MINDESTZUVERSICHT < 28
+
+    def test_kurz_misst_das_laengste_wort_der_zeile(self) -> None:
+        # `sehr gut 5` ist kurz (längstes Wort vier Zeichen), `OKO-TEST` lang.
+        # Zählte die ganze Zeile, wäre `sehr gut 5` lang und käme mit der
+        # milden Grenze durch - genau die Sorte Zeile, die zu prüfen ist.
+        assert ocr.KURZE_ZEILE < len("OKO-TEST")
+        assert ocr.KURZE_ZEILE >= len("sehr")
+
+
 class TestMass:
     """Was je Format aufgewendet wird - die Zahlen stehen in `ocr.py`."""
 
