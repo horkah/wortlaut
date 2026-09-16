@@ -31,6 +31,7 @@
     setzeMikrofon,
     setzeStimme,
     setzeTempo,
+    setzeVonSelbst,
     setzeVerstaerkung,
     setzeZurueck,
     TEMPO_SPANNE,
@@ -200,6 +201,20 @@
 </label>
 <p class="gedaempft">Langsamer ist leichter nachzusprechen, aber ermüdet über eine lange Sitzung.</p>
 
+<label class="kasten">
+  <input
+    type="checkbox"
+    checked={einstellungen.liestVonSelbst}
+    onchange={(ereignis) => setzeVonSelbst(ereignis.currentTarget.checked)}
+  />
+  <span class="dazu">In „schreiben" den fertigen Text von selbst vorlesen</span>
+</label>
+<p class="gedaempft">
+  Wer den Text nicht sicher lesen kann, hört so den Fehler, statt ihn zu suchen. Unterwegs ist ein
+  Telefon, das von selbst zu sprechen anfängt, manchmal das Gegenteil - dann hier abschalten und im
+  Text auf „▶ Vorlesen" drücken, wenn es passt.
+</p>
+
 <div class="reihe">
   <button class="knopf" onclick={probe} disabled={liste.length === 0}>▶ Probe hören</button>
 </div>
@@ -209,10 +224,30 @@
 {/if}
 
 <h2>Zurücksetzen</h2>
-<p class="gedaempft">Setzt Mikrofon, Stimme und Tempo auf die Vorgaben zurück.</p>
+<p class="gedaempft">Setzt Mikrofon, Stimme, Tempo und das Vorlesen auf die Vorgaben zurück.</p>
 <button class="knopf" onclick={setzeZurueck}>Auf Vorgaben zurücksetzen</button>
 
 <style>
+  .kasten {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+  }
+  /* Ein Kontrollkästchen soll nicht mitwachsen, seine Beschriftung schon. */
+  .kasten input {
+    width: auto;
+    margin: 0;
+  }
+  /* `label > span` ist global klein und gedämpft - das ist die Beschriftung
+     über einem Feld. Neben einem Haken steht sie in der Zeile und soll wie
+     Fließtext aussehen. */
+  .kasten .dazu {
+    display: inline;
+    font-size: 1rem;
+    color: inherit;
+    margin: 0;
+  }
   /* Die globale Regel für `input` gibt Rahmen und Polster - beides steht
      einem Schieberegler schlecht. */
   .schieber {

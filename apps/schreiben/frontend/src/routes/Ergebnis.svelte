@@ -179,9 +179,15 @@
     }
   }
 
-  // Von selbst vorlesen, sobald der Text dasteht - genau dafür ist die
-  // Ansicht da. Ohne Stimme im System bleibt es beim Lesen.
-  if (stimmeVerfuegbar(zustand.sprache) && !bestaetigt) lies();
+  // Von selbst vorlesen, sobald der Text dasteht - genau dafür ist die Ansicht
+  // da: Wer nicht sicher liest, hört den Fehler, statt ihn zu suchen.
+  //
+  // Abschaltbar unter „Audio", und zwar dort und nicht hier: Ob überhaupt von
+  // selbst vorgelesen wird, entscheidet man einmal - unterwegs, neben anderen
+  // Leuten, ist ein Telefon, das von selbst zu sprechen anfängt, der Grund,
+  // es wegzulegen. Der Knopf „▶ Vorlesen" oben bleibt davon unberührt; er ist
+  // die Handlung, das hier ist die Gewohnheit dahinter.
+  if (einstellungen.liestVonSelbst && stimmeVerfuegbar(zustand.sprache) && !bestaetigt) lies();
 </script>
 
 <div class="reihe kopfzeile">

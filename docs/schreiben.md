@@ -91,14 +91,21 @@ und liegt danach im Browser, hier wie in `hören`.
 - **Nichts zu tippen, auch nicht zum Anmelden.** Der Zugang kommt über den
   persönlichen Link und liegt danach im Browser - derselbe Eintrag, den `hören`
   liest, denn beide Apps liegen unter derselben Adresse.
-- **Einstellungen nur im Menü.** Mikrofon, Stimme, Tempo und Schriftgröße
+- **Was man einmal einstellt, steht im Menü.** Mikrofon, Stimme, Tempo und Schriftgröße
   gelten für alle drei Apps und stehen eingeklappt hinter dem Menüknopf, damit
   die Oberfläche ein großer Knopf bleibt. Dort liegt auch der eine Verweis,
   der aus dieser App herausführt: **Meine Daten** nach `hören`. Zu den Modellen
   geht es nicht über das Menü, sondern über die Modellzeile unter dem
   Aufnahmeknopf - wer sie liest, denkt gerade darüber nach.
-- **Bearbeitet wird durch Sprechen.** Der fertige Text ist zum Kopieren da,
-  nicht zum Tippen.
+- **Bearbeitet wird durch Sprechen.** Der fertige Text ist zum Weitergeben da,
+  nicht zum Tippen - und auch nicht zum Auswählen: „Text weitergeben" öffnet
+  das Teilen-Blatt des Geräts, „Text kopieren" nimmt ihn ganz. Beides ohne
+  einen Finger auf dem Text.
+- **Handlung vor Ort, Gewohnheit ins Menü.** „▶ Vorlesen" steht über dem Text,
+  weil man es von Fall zu Fall tut. *Ob* von selbst vorgelesen wird, steht
+  unter „Audio", weil man es einmal entscheidet - unterwegs, neben anderen
+  Leuten, ist ein Telefon, das von selbst zu sprechen anfängt, der Grund, es
+  wegzulegen.
 
 ## Ohne Freigabe fängt es mit `small` an
 
