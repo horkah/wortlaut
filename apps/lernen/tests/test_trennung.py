@@ -19,7 +19,7 @@ from apps.lernen.backend.main import app as lernen_app
 @pytest.fixture
 def zweiter_zugang(verwalter: TestClient) -> str:
     antwort = verwalter.post(
-        "/api/speakers", json={"name": "Zweite", "basismodell": "openai/whisper-small"}
+        "/api/speakers", json={"name": "Zweite"}
     )
     assert antwort.status_code == 201
     zweite = antwort.json()["id"]

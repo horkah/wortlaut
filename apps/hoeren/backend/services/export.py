@@ -144,7 +144,6 @@ def _liesmich(sprecher: Sprecher, anzahl: int) -> str:
 
 Sprecher     {sprecher.name} ({sprecher.id})
 Sprache      {sprecher.sprache}
-Basismodell  {sprecher.basismodell}
 Aufnahmen    {anzahl}
 
 Aufbau

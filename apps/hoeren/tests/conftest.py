@@ -79,7 +79,7 @@ def klient_ohne_token(_umgebung: None) -> Iterator[TestClient]:
 def sprecher(verwalter: TestClient) -> str:
     """Ein angelegtes Sprecherprofil; gibt dessen Kennung zurück."""
     antwort = verwalter.post(
-        "/api/speakers", json={"name": "Testperson", "basismodell": "openai/whisper-small"}
+        "/api/speakers", json={"name": "Testperson"}
     )
     assert antwort.status_code == 201
     return antwort.json()["id"]

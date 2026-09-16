@@ -249,7 +249,7 @@ will decide differently.
 
 Two smaller notes while translating: several error messages name German
 concepts that only make sense with the German UI, and the API itself uses
-German nouns on the wire (`sprache`, `basismodell`, `vorlage`) and in its route
+German nouns on the wire (`sprache`, `vorlage`, `aufnahme`) and in its route
 names. **Leave the wire format alone.** It is the project's internal vocabulary,
 it is consistent, and renaming it would touch every file for no user-visible
 gain.

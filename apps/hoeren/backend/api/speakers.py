@@ -1,7 +1,13 @@
-"""Sprecherprofile: Name, Sprache, Basismodell. Sonst nichts.
+"""Sprecherprofile: Name und Sprache. Sonst nichts.
 
 Ein Profil anzulegen heißt, ein Korpusverzeichnis mit eigener Datenbank
 anzulegen. Alle anderen Endpunkte setzen ein bestehendes Profil voraus.
+
+**Ein Basismodell stand hier einmal daneben.** Es hat nie etwas entschieden:
+Welches Grundmodell trainiert wird, steht in der Bestellung des Laufs, und
+welches diktiert, entscheidet die Freigabe in „lernen". Das Feld wurde
+gelesen, um angezeigt zu werden, und sonst nirgends - die Auswahl beim Anlegen
+versprach etwas, das sie nicht hielt (`013_ohne_profilbasismodell.sql`).
 
 Diese Wege gehören der Verwaltung (`WORTLAUT_AUTH_TOKEN`, siehe `deps.py`).
 Ein frisch angelegtes Profil hat noch keinen Zugang und ist damit für
@@ -30,7 +36,6 @@ class NeuerSprecher(BaseModel):
     # eine Sprache gibt, kommt dasselbe heraus; der Unterschied zeigt sich bei
     # der zweiten, und dann an genau einer Stelle.
     sprache: str = sprachen.VORGABE
-    basismodell: str = "openai/whisper-large-v3"
 
     @field_validator("sprache")
     @classmethod
@@ -67,7 +72,6 @@ def lege_an(eingabe: NeuerSprecher) -> SprecherAntwort:
         id=sprecher_id,
         name=eingabe.name.strip(),
         sprache=eingabe.sprache,
-        basismodell=eingabe.basismodell,
         erstellt=jetzt(),
     )
     with Session(engine_fuer(sprecher_id)) as sitzung:

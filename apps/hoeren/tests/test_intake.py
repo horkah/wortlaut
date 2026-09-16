@@ -102,7 +102,7 @@ class TestFalschKonfiguriert:
         audio_datei: dict,
     ) -> None:
         fremd = verwalter.post(
-            "/api/speakers", json={"name": "Andere", "basismodell": "openai/whisper-small"}
+            "/api/speakers", json={"name": "Andere"}
         ).json()["id"]
 
         antwort = klient.post(

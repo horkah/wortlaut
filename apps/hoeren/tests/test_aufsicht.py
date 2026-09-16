@@ -115,7 +115,7 @@ class TestEinsicht:
         self, aufsicht: TestClient, bespielt: str, verwalter: TestClient
     ) -> None:
         zweiter = verwalter.post(
-            "/api/speakers", json={"name": "Andere", "basismodell": "openai/whisper-small"}
+            "/api/speakers", json={"name": "Andere"}
         ).json()["id"]
 
         liste = aufsicht.get("/api/admin/speakers").json()
@@ -280,7 +280,7 @@ class TestSicherung:
         self, aufsicht: TestClient, bespielt: str, verwalter: TestClient
     ) -> None:
         zweiter = verwalter.post(
-            "/api/speakers", json={"name": "Andere", "basismodell": "openai/whisper-small"}
+            "/api/speakers", json={"name": "Andere"}
         ).json()["id"]
 
         inhalt = aufsicht.get("/api/admin/sicherung").content
@@ -450,7 +450,7 @@ class TestNiemalsAlle:
         self, aufsicht: TestClient, bespielt: str, verwalter: TestClient, tmp_path: Path
     ) -> None:
         zweiter = verwalter.post(
-            "/api/speakers", json={"name": "Andere", "basismodell": "openai/whisper-small"}
+            "/api/speakers", json={"name": "Andere"}
         ).json()["id"]
 
         aufsicht.delete(f"/api/admin/speakers/{bespielt}?bestaetigung={bespielt}")

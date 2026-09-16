@@ -63,7 +63,7 @@ class TestEigeneDaten:
         assert antwort.status_code == 201
 
         zweiter = verwalter.post(
-            "/api/speakers", json={"name": "Andere", "basismodell": "openai/whisper-small"}
+            "/api/speakers", json={"name": "Andere"}
         ).json()["id"]
         with klient_fuer(zweiter) as andere:
             seite = andere.get("/api/konto/recordings").json()

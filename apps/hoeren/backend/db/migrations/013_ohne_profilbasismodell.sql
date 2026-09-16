@@ -1,0 +1,31 @@
+-- Das Basismodell am Sprecherprofil fällt. Es hat nie etwas entschieden.
+--
+-- Gedacht war es als Vorentscheidung: `006_ohne_tiny.sql` schreibt es noch
+-- ausdrücklich hin - „Das Feld sagt, worauf ‚lernen' später feintunen soll".
+-- Nur gab es „lernen" damals noch nicht, und als es kam, nahm es das
+-- Grundmodell von woanders: aus der Bestellung des Laufs, mit
+-- `WORTLAUT_LERNEN_BASISMODELL` als Vorgabe (`api/laeufe.py`). Das ist auch
+-- richtig so - welches Modell sich lohnt, zeigt die Modelltabelle an
+-- gemessenen Zahlen, und das ist eine Entscheidung je Lauf und nicht eine, die
+-- man beim Anlegen eines Menschen trifft.
+--
+-- Übrig blieb ein Feld, das gelesen wurde, um angezeigt zu werden, und sonst
+-- nirgends. Zwei Stellen gaben es aus - das Profil in der API und das
+-- Datenblatt der Ausleitung -, und die Verwaltung bot beim Anlegen eine
+-- Auswahl an, die nichts bewirkte. Das ist schlimmer als überflüssig: Wer
+-- „whisper-large-v3" einstellt, glaubt danach, dieses Profil werde darauf
+-- trainiert und gemessen. Es wird es nicht.
+--
+-- **Anders als beim Tempofaktor wird die Spalte wirklich entfernt.**
+-- `012_ohne_profiltempo.sql` hat ihre stehen lassen, mit guter Begründung: Sie
+-- steht auf ihrem Vorgabewert, kostet nichts und sagt dem, der später in die
+-- Datenbank sieht, dass hier einmal etwas war. Hier geht das nicht.
+-- `basismodell` ist `NOT NULL` **ohne** Vorgabe (`001_init.sql`) - stehen zu
+-- lassen hieße, dass jedes Anlegen eines Profils weiterhin einen Wert
+-- hineinschreiben muss, den niemand liest. Ein Pflichtfeld ohne Bedeutung ist
+-- keine Auskunft über die Vergangenheit, sondern eine Behauptung über die
+-- Gegenwart.
+--
+-- SQLite kann das seit 3.35 unmittelbar: Die Spalte trägt keinen Index, keine
+-- Sicht und keinen Auslöser, und kein Fremdschlüssel zeigt auf sie.
+ALTER TABLE speakers DROP COLUMN basismodell;

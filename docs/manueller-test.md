@@ -37,11 +37,10 @@ gemacht, und was dabei herauskommt, ist ein Link.
    Sprecherprofil vorhanden.“ - der Leerzustand, keine kaputte Seite. Derselbe
    Punkt steht auch im Menü (☰) rechts oben, und zwar immer - auch ohne
    gültigen Zugang, denn genau dann braucht man ihn.
-2. Unter „Neues Profil“: Namen eintragen, Basismodell auf
-   `whisper-small (Entwicklung ohne GPU)` stellen, **Anlegen und Zugang
-   ausgeben**. Für den Testablauf hier ohne Belang: `hören` selbst ruft
-   Whisper nirgends auf - das Feld ist reine Metadaten für das spätere
-   Training in `lernen`.
+2. Unter „Neues Profil“: Namen eintragen, Sprache stehen lassen, **Anlegen
+   und Zugang ausgeben**. Ein Basismodell wird hier nicht mehr gewählt: Das
+   Feld gab es einmal, es entschied nie etwas, und welches Grundmodell
+   trainiert wird, steht in der Bestellung des Laufs in `lernen`.
 3. Erwartet: Oben erscheint der Kasten „Zugang ausgegeben“ mit einem Link der
    Form `http://localhost:5173/#/zugang/spr_….…`, darunter das Profil in der
    Liste mit „Zugang ausgegeben am …“. **Link kopieren**.
