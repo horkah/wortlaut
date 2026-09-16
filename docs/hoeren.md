@@ -607,6 +607,28 @@ gemacht ist. Ein Bild ist eines, ein PDF sind bis zu zwanzig, und vier
 Durchgänge je Seite wären achtzig. Wessen Scan schlecht liest, fotografiert
 die Seite; dann greift der andere Weg mit allem, was er hat.
 
+**Erkannt wird in der Sprache des Profils**, und das ist kein Beiwerk. Am
+zweisprachigen Aushang gemessen, derselbe Aufnahme, nur ein anderes Wörterbuch:
+
+| Profilsprache | deutsche Zeilen | englische Zeilen | Umlaute/ß |
+|---|---|---|---|
+| `de` → `deu` | 6 von 6 | 6 von 6 | 8 |
+| `en` → `eng` | 3 von 6 | 5 von 6 | **0** |
+
+Mit dem englischen Wörterbuch wird aus „Birchermüsli zum Frühstück?" ein
+„Birchermiisli zum Frihstiick?" und aus „Möchtest du eins?" ein „Mdchtest du
+eins?": Die Umlaute fallen nicht falsch aus, sie kommen gar nicht vor - das
+Modell kennt sie nicht. Bemerkenswert ist die Gegenrichtung: Das **deutsche**
+Modell liest den englischen Teil des Aushangs fehlerfrei mit, das englische den
+deutschen nicht. Wer also nur eine Sprache wählen kann, wählt die mit den
+Sonderzeichen.
+
+Die Sprache erreicht dabei **jeden** Aufruf, auch die Lageprobe. Die lief
+einmal fest auf `deu`, während die eigentliche Lesung dem Profil folgte - bei
+einer Sprache fällt das nicht auf, bei der zweiten wäre es ein Fehler gewesen,
+den niemand sieht: Die Probe misst, ob Tesseract *Wörter* erkennt, und was ein
+Wort ist, hängt am Wörterbuch. Ein Test hält das fest.
+
 **Ohne Tesseract fehlt der Weg, und die App sagt es.**
 `GET /api/sources/erkennung` beantwortet die Frage, bevor jemand ein Bild
 auswählt; das Auswahlfeld bietet die Bildformate dann gar nicht erst an.

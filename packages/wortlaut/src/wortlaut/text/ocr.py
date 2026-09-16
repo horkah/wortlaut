@@ -159,7 +159,7 @@ PROBE_VORSPRUNG = 1.5
 _LAGEN = (0, 90, 180, 270)
 
 
-def _zuversicht(bild) -> float:
+def _zuversicht(bild, lang: str) -> float:
     """Wie sicher Tesseract ist, hier Wörter zu sehen - Zuversicht mal Wortlänge.
 
     **Warum hier nicht `_punkte` zählt.** Um Seitenart und Entrauschen zu
@@ -173,7 +173,7 @@ def _zuversicht(bild) -> float:
     from pytesseract import Output
 
     daten = pytesseract.image_to_data(
-        bild, lang="deu", config="--psm 11", output_type=Output.DICT
+        bild, lang=lang, config="--psm 11", output_type=Output.DICT
     )
     summe = 0.0
     for wort, konfidenz in zip(daten["text"], daten["conf"], strict=False):
@@ -182,7 +182,7 @@ def _zuversicht(bild) -> float:
     return summe
 
 
-def _aufgerichtet(bild):
+def _aufgerichtet(bild, lang: str):
     """Das Bild so drehen, dass die Schrift oben ist.
 
     **Zwei Wege, und der zweite wird gebraucht.** Ein Foto trägt seine Lage
@@ -199,6 +199,13 @@ def _aufgerichtet(bild):
     Seite Text und scheitert an einem Etikett mit acht Wörtern - nachgemessen,
     sie meldete auf allen vier Lagen einen Fehler. Also wird geprobt: viermal
     klein lesen, und die Lage mit der größten Zuversicht gewinnt.
+
+    **Auch die Probe spricht die Sprache des Profils.** Hier stand einmal ein
+    festes `deu`, und das war dieselbe Hartkodierung, die aus dem übrigen
+    Quelltext längst verschwunden ist: Die Zuversicht misst, ob Tesseract hier
+    *Wörter* sieht - und was ein Wort ist, hängt an der Sprache. Mit dem
+    falschen Wörterbuch wären alle vier Lagen gleich unsicher, und die Probe
+    entschiede nach Zufall.
     """
     from PIL import Image, ImageOps
 
@@ -206,7 +213,7 @@ def _aufgerichtet(bild):
 
     klein = bild.copy()
     klein.thumbnail((PROBE_KANTE, PROBE_KANTE), Image.LANCZOS)
-    werte = {lage: _zuversicht(klein.rotate(-lage, expand=True)) for lage in _LAGEN}
+    werte = {lage: _zuversicht(klein.rotate(-lage, expand=True), lang) for lage in _LAGEN}
 
     beste = max(_LAGEN, key=lambda lage: werte[lage])
     if beste == 0 or werte[beste] < werte[0] * PROBE_VORSPRUNG:
@@ -377,7 +384,7 @@ def aus_bild(inhalt: bytes, sprache: str) -> str:
     try:
         versuche = [
             _gelesen(fassung, lang, art)
-            for fassung in _vorbereitet(_aufgerichtet(_oeffne(inhalt)))
+            for fassung in _vorbereitet(_aufgerichtet(_oeffne(inhalt), lang))
             for art in SEITENARTEN
         ]
     except OcrFehler:
