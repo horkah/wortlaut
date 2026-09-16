@@ -165,7 +165,7 @@ Namens, damit die fehlende Reiterreihe nicht wie ein Fehler aussieht.
 
 ---
 
-## Einstellungen
+## Audio
 
 Unter `#/einstellungen` liegen Mikrofon, Stimme, Sprechtempo und Schriftgröße der
 Vorlage, je mit Probe. Sie hängen am Gerät und nicht am Sprecherprofil - welche
@@ -214,7 +214,7 @@ Daten, für die dieses Projekt existiert.
 ### Darstellung - und was in der Leiste überhaupt dasteht
 
 Unter `#/darstellung` liegen Farben, Schriftart und die beiden Schriftgrößen,
-je mit Probe - ein eigener Menüpunkt neben den Einstellungen, weil es ein
+je mit Probe - ein eigener Menüpunkt neben „Audio", weil es ein
 anderes Publikum ist: Mikrofon und Stimme misst man einmal ein, an Kontrast
 und Schriftgröße darf jeder, der zu wenig sieht, sofort drehen.
 
@@ -647,7 +647,7 @@ will, soll ihn hören und keine Fehlermeldung lesen.
 worden; es steht nicht in der Sicherung und geht mit dem Sprecher
 (`services/vorlesen.py`).
 
-Unter „Einstellungen" stehen beide Arten nebeneinander zur Wahl - „Vom Server"
+Unter „Audio" stehen beide Arten nebeneinander zur Wahl - „Vom Server"
 und „Von diesem Gerät" -, mit einer Hörprobe an demselben festen Satz. Der
 Probesatz steht auf dem Server und nicht im Browser: Sonst wäre die Hörprobe
 ein Weg, beliebigen Text sprechen zu lassen.

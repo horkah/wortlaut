@@ -11,7 +11,7 @@
  * Mikrofon in „hören" einmisst, hat es damit auch in „schreiben" eingemessen.
  *
  * Weil die Werte geteilt sind, ist es auch die Ansicht dazu - sie steht einmal
- * in `Einstellungen.svelte` (Mikrofon, Vorlesen) und einmal in
+ * in `Audio.svelte` (Mikrofon, Vorlesen) und einmal in
  * `Darstellung.svelte` (Farben, Schrift).
  */
 import {

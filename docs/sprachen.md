@@ -62,7 +62,7 @@ path already; it is the surrounding machinery that assumes German.
 | The profile-creation form offers the supported languages, served by the backend | `GET /api/sprachen`, `Verwaltung.svelte` |
 | The training job records its language in `auftrag.json`; trainer and evaluator read it | `services/auftraege.py` → `finetune.py`, `bewerten.py` |
 | Dictation uses the speaker's language, not a server-wide setting | `apps/schreiben/backend/deps.py:_sprache` |
-| The browser passes the profile language to the Web Speech API and to the voice list | `packages/ui/speak.ts`, `wer.ts`, `Einstellungen.svelte` |
+| The browser passes the profile language to the Web Speech API and to the voice list | `packages/ui/speak.ts`, `wer.ts`, `Audio.svelte` |
 
 So the recogniser, the trainer and the storage layer are ready. The work is in
 the layers above and beside them.
@@ -218,7 +218,7 @@ Two traps:
 
 Both probe sentences are German and need a per-language equivalent:
 `PROBESATZ` (`apps/hoeren/backend/api/prompts.py:126`) and `PROBE`
-(`packages/ui/Einstellungen.svelte:39`).
+(`packages/ui/Audio.svelte:39`).
 
 ### 7. Translate the interface — the big one
 

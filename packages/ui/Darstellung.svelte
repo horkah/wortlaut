@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * Farben, Schriftart und Schriftgrößen - eine eigene Ansicht neben
-   * `Einstellungen.svelte`.
+   * `Audio.svelte`.
    *
    * Warum getrennt: siehe `DARSTELLUNG_PFAD` in `apps.ts`. Die Werte selbst,
    * ihre Vorgaben und wie sie auf die App wirken, stehen in

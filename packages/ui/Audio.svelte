@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Die Einstellungen aller Apps - eine Ansicht, nicht drei.
+   * Mikrofon und Stimme - eine Ansicht für alle drei Apps, nicht drei.
    *
    * Die Werte selbst und warum sie geteilt sind: `einstellungen.svelte.ts`.
    * Hier steht nur die Bedienung dazu, mit Probe - ob ein Tempo passt und ob

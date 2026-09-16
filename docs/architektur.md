@@ -215,7 +215,7 @@ wortlaut/
 │       ├── Rahmen.svelte          # Kopf, Inhalt, Fuß - der Rahmen jeder App
 │       ├── Kopfleiste.svelte      # Marke, App-Reiter, Sprecher, Menüknopf
 │       ├── Fusszeile.svelte       # eine Zeile: welcher Stand hier läuft
-│       ├── Einstellungen.svelte   # Mikrofon, Stimme, Tempo - für alle Apps
+│       ├── Audio.svelte           # Mikrofon, Stimme, Tempo - für alle Apps
 │       ├── Darstellung.svelte     # Farben, Schrift, was in der Leiste steht
 │       ├── Zugangsdaten.svelte    # der Zugang dieses Browsers, in jeder App
 │       ├── KeinZugang.svelte      # was dasteht, wenn keiner da ist - dreimal dasselbe

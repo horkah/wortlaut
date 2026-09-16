@@ -62,23 +62,36 @@ export interface Menuepunkt {
 }
 
 /**
- * Wo die Einstellungen liegen - in jeder App dieselbe Hash-Route.
+ * Wo Mikrofon und Stimme eingestellt werden - in jeder App dieselbe Hash-Route.
  *
  * Sie gehören zum Gerät und nicht zu einer App (Mikrofon, Stimme, Schrift
  * teilen sich alle drei über den `localStorage`), stehen deshalb in keiner
  * Reiterreihe, sondern hinter dem Menüknopf der Kopfleiste. Eine Konstante,
  * damit Kopfleiste und Apps nicht getrennt voneinander raten.
+ *
+ * **Der Punkt hieß „Einstellungen", und das war der falsche Name.** Hinter dem
+ * Menüknopf sind fast alle Punkte Einstellungen - die Darstellung ist eine,
+ * der Zugang ist eine. Einen davon „Einstellungen" zu nennen sagt nicht, was
+ * darin steht, sondern nur, dass er zu den anderen gehört. Darin stehen
+ * Mikrofon und Stimme, also heißt er „Audio".
+ *
+ * **Die Route bleibt `/einstellungen`, und das ist kein Versehen.** Aus ihr
+ * wird der Schlüssel, unter dem im Browser steht, ob dieser Punkt im Menü
+ * sichtbar ist (`menueSchluessel`). Eine neue Route hieße: Jeder, der den
+ * Punkt einmal ausgeblendet hat, sieht ihn ohne Ankündigung wieder - und ein
+ * Lesezeichen liefe ins Leere. Ein Name, den nur der Quelltext sieht, ist das
+ * nicht wert.
  */
-export const EINSTELLUNGEN_PFAD = '/einstellungen';
+export const AUDIO_PFAD = '/einstellungen';
 
 /**
  * Wo Farben, Schriftart und Schriftgrößen eingestellt werden.
  *
- * Eine eigene Ansicht und kein Abschnitt in `Einstellungen.svelte`: Dort
+ * Eine eigene Ansicht und kein Abschnitt in `Audio.svelte`: Dort
  * stehen Mikrofon und Stimme - etwas, das man einmal einmisst und dann in
  * Ruhe lässt. Die Darstellung dagegen darf jeder anfassen, der die Schrift zu
  * klein oder den Kontrast zu schwach findet, ohne durch Technisches zu
- * blättern. Aus demselben Grund wie `EINSTELLUNGEN_PFAD` gerätebezogen und
+ * blättern. Aus demselben Grund wie `AUDIO_PFAD` gerätebezogen und
  * über den `localStorage` geteilt (siehe `einstellungen.svelte.ts`), deshalb
  * ebenfalls im Menü der Kopfleiste und nicht in einer Reiterreihe.
  */
@@ -155,23 +168,6 @@ export const MODELLE_PFAD = '/modelle';
 export const MODELLE_URL = `/lernen/#${MODELLE_PFAD}`;
 
 /**
- * Die Menüpunkte, die zum Gerät gehören - in jeder App dieselben.
- *
- * Sie stehen hier als Daten und nicht als feste Zeilen in der Kopfleiste,
- * weil zwei Stellen sie brauchen: die Kopfleiste, um sie ins Menü zu
- * schreiben, und der Rahmen, um ihre Ansichten zu zeigen (`Rahmen.svelte`).
- * Ein vierter gerätebezogener Punkt ist damit ein Eintrag in dieser Liste
- * und eine Zeile im Rahmen - und keine Änderung in jeder App.
- */
-export const GERAETE_PUNKTE: Menuepunkt[] = [
-  { pfad: EINSTELLUNGEN_PFAD, text: 'Einstellungen' },
-  // Unter den Einstellungen: wer nach Mikrofon und Stimme sucht, hat die
-  // zuerst gesehen; wer nach Farbe und Schrift sucht, findet sie gleich
-  // darunter.
-  { pfad: DARSTELLUNG_PFAD, text: 'Darstellung' },
-];
-
-/**
  * Wo der Sprecher gewählt und angelegt wird.
  *
  * Auch das gehört nicht in die Reiterreihe einer App: Der Sprecher ist die
@@ -181,6 +177,47 @@ export const GERAETE_PUNKTE: Menuepunkt[] = [
  * dann womit.
  */
 export const SPRECHER_PFAD = '/sprecher';
+
+/**
+ * Wie die Punkte hinter dem Menüknopf heißen - einmal, für beide Listen.
+ *
+ * Der Text stand zweimal da: in `GERAETE_PUNKTE` beziehungsweise
+ * `uebergreifendePunkte`, wo er ins Menü geschrieben wird, und in
+ * `SCHALTBARE_MENUEPUNKTE`, wo er unter „Darstellung" neben dem Haken steht.
+ * Zwei Listen, dieselbe Beschriftung, nichts, das sie zusammenhält - und wer
+ * einen Punkt umbenennt, benennt ihn erfahrungsgemäß einmal um. Dann heißt
+ * derselbe Punkt im Menü anders als in der Liste, die ihn ein- und ausblendet.
+ *
+ * **Knapp und richtig, in dieser Reihenfolge.** Ein Menüpunkt hat ein Wort
+ * Platz, und dieses Wort soll sagen, was dahinter steht - nicht, zu welcher
+ * Gattung es gehört. „Einstellungen" tat Letzteres: Hinter dem Menüknopf sind
+ * fast alle Punkte Einstellungen.
+ */
+export const MENUE_TEXT: Record<string, string> = {
+  [SPRECHER_PFAD]: 'Sprecher',
+  [MEINE_DATEN_PFAD]: 'Meine Daten',
+  [ZUGANGSDATEN_PFAD]: 'Zugangsdaten',
+  [AUDIO_PFAD]: 'Audio',
+  [DARSTELLUNG_PFAD]: 'Darstellung',
+};
+
+/**
+ * Die Menüpunkte, die zum Gerät gehören - in jeder App dieselben.
+ *
+ * Sie stehen hier als Daten und nicht als feste Zeilen in der Kopfleiste,
+ * weil zwei Stellen sie brauchen: die Kopfleiste, um sie ins Menü zu
+ * schreiben, und der Rahmen, um ihre Ansichten zu zeigen (`Rahmen.svelte`).
+ * Ein vierter gerätebezogener Punkt ist damit ein Eintrag in dieser Liste
+ * und eine Zeile im Rahmen - und keine Änderung in jeder App.
+ */
+export const GERAETE_PUNKTE: Menuepunkt[] = [
+  { pfad: AUDIO_PFAD, text: MENUE_TEXT[AUDIO_PFAD] },
+  // Unter den Einstellungen: wer nach Mikrofon und Stimme sucht, hat die
+  // zuerst gesehen; wer nach Farbe und Schrift sucht, findet sie gleich
+  // darunter.
+  { pfad: DARSTELLUNG_PFAD, text: MENUE_TEXT[DARSTELLUNG_PFAD] },
+];
+
 
 /**
  * Die Menüpunkte, die in **jeder** App dieselben sind.
@@ -209,17 +246,25 @@ export function uebergreifendePunkte(art: string, app: AppSchluessel): Menuepunk
 
   const punkte: Menuepunkt[] = [];
   if (art === 'sprecher') {
-    punkte.push({ pfad: MEINE_DATEN_PFAD, text: 'Meine Daten', ...nachHoeren(MEINE_DATEN_PFAD) });
+    punkte.push({
+      pfad: MEINE_DATEN_PFAD,
+      text: MENUE_TEXT[MEINE_DATEN_PFAD],
+      ...nachHoeren(MEINE_DATEN_PFAD),
+    });
   } else if (art === 'verwaltung' || art === 'aufsicht') {
     // Wer verwaltet oder beaufsichtigt, hat keine eigenen Daten - für ihn ist
     // die Sprecherliste das Gegenstück. Auch aus „lernen" und „schreiben"
     // heraus: Dass sie dort bisher fehlte, war keine Entscheidung.
-    punkte.push({ pfad: SPRECHER_PFAD, text: 'Sprecher', ...nachHoeren(SPRECHER_PFAD) });
+    punkte.push({
+      pfad: SPRECHER_PFAD,
+      text: MENUE_TEXT[SPRECHER_PFAD],
+      ...nachHoeren(SPRECHER_PFAD),
+    });
   }
   // Immer und in jeder App, auch und gerade ohne gültigen Zugang: Dann ist
   // dieser Punkt der einzige Weg herein, und ein Menü, das ihn erst nach
   // erfolgreicher Anmeldung zeigt, hätte die Tür hinter dem Schloss.
-  punkte.push({ pfad: ZUGANGSDATEN_PFAD, text: 'Zugangsdaten' });
+  punkte.push({ pfad: ZUGANGSDATEN_PFAD, text: MENUE_TEXT[ZUGANGSDATEN_PFAD] });
   return punkte;
 }
 
@@ -333,18 +378,18 @@ export const SCHALTBARE_APPS: Schaltbar[] = APPS.map((eintrag) => ({
  * eine Einstellung ohne Wirkung, aber keine falsche.
  */
 export const SCHALTBARE_MENUEPUNKTE: Schaltbar[] = [
-  { schluessel: menueSchluessel(SPRECHER_PFAD), text: 'Sprecher' },
+  { schluessel: menueSchluessel(SPRECHER_PFAD), text: MENUE_TEXT[SPRECHER_PFAD] },
   {
     schluessel: menueSchluessel(MEINE_DATEN_PFAD),
-    text: 'Meine Daten',
+    text: MENUE_TEXT[MEINE_DATEN_PFAD],
     fest: true,
     grund: 'Hier wird die PIN vergeben, die vor dieser Seite steht.',
   },
-  { schluessel: menueSchluessel(ZUGANGSDATEN_PFAD), text: 'Zugangsdaten' },
-  { schluessel: menueSchluessel(EINSTELLUNGEN_PFAD), text: 'Einstellungen' },
+  { schluessel: menueSchluessel(ZUGANGSDATEN_PFAD), text: MENUE_TEXT[ZUGANGSDATEN_PFAD] },
+  { schluessel: menueSchluessel(AUDIO_PFAD), text: MENUE_TEXT[AUDIO_PFAD] },
   {
     schluessel: menueSchluessel(DARSTELLUNG_PFAD),
-    text: 'Darstellung',
+    text: MENUE_TEXT[DARSTELLUNG_PFAD],
     fest: true,
     grund: 'Diese Seite selbst - ohne sie käme kein Schalter zurück.',
   },
