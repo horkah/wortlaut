@@ -28,6 +28,7 @@ const VERSTAERKUNG_SCHLUESSEL = 'wortlaut.verstaerkung';
 const AUTOPEGEL_SCHLUESSEL = 'wortlaut.autopegel';
 const STIMME_SCHLUESSEL = 'wortlaut.stimme';
 const TEMPO_SCHLUESSEL = 'wortlaut.tempo';
+const VONSELBST_SCHLUESSEL = 'wortlaut.vorlesen.vonselbst';
 const SCHRIFT_SCHLUESSEL = 'wortlaut.schrift';
 const SCHRIFTART_SCHLUESSEL = 'wortlaut.schriftart';
 const GRUNDSCHRIFT_SCHLUESSEL = 'wortlaut.grundschrift';
@@ -43,6 +44,29 @@ export const GRUNDSCHRIFT_VORGABE = 18;
 
 /** Die Pegelregelung des Browsers ist an, solange nichts anderes dasteht. */
 export const AUTOPEGEL_VORGABE = true;
+
+/**
+ * Ob „schreiben" den fertigen Text von selbst vorliest.
+ *
+ * **Warum das eine Einstellung ist und kein Knopf vor Ort.** Vorgelesen wird,
+ * weil die Zielperson den Text nicht sicher lesen kann - gehört wird der
+ * Fehler, nicht gesehen. Für die Person, die dafür am Tisch sitzt, ist das
+ * richtig, und es war bis hierher die einzige Möglichkeit.
+ *
+ * Diese App wird aber im Alltag benutzt, und dort steht der Mensch im Laden,
+ * im Bus, neben anderen Leuten. Ein Telefon, das nach jedem Diktat laut zu
+ * sprechen anfängt, ist dann kein Vorteil, sondern der Grund, es wegzulegen.
+ *
+ * Es ist trotzdem kein Schalter neben dem Text: Was man einmal entscheidet und
+ * dann in Ruhe lässt, gehört ins Menü (hier unter „Audio"), und was man von
+ * Fall zu Fall tut, gehört an die Stelle, wo man es tut. „▶ Vorlesen" und
+ * „■ Anhalten" bleiben deshalb, wo sie sind - das ist die Handlung. Ob es
+ * **von selbst** losgeht, ist die Gewohnheit dahinter.
+ *
+ * Vorgabe bleibt `true`: das Verhalten von vorher, und das richtige für den,
+ * der nicht lesen kann und nichts eingestellt hat.
+ */
+export const VONSELBST_VORGABE = true;
 
 /**
  * Die Farbtöne, die die App tatsächlich benutzt (siehe `app.css`), mit dem
@@ -124,6 +148,8 @@ export const einstellungen = $state({
   autoPegel: (localStorage.getItem(AUTOPEGEL_SCHLUESSEL) ?? String(AUTOPEGEL_VORGABE)) === 'true',
   stimmeUri: localStorage.getItem(STIMME_SCHLUESSEL),
   tempo: zahl(TEMPO_SCHLUESSEL, TEMPO_VORGABE, TEMPO_SPANNE),
+  liestVonSelbst:
+    (localStorage.getItem(VONSELBST_SCHLUESSEL) ?? String(VONSELBST_VORGABE)) === 'true',
   schriftRem: zahl(SCHRIFT_SCHLUESSEL, SCHRIFT_VORGABE, SCHRIFT_SPANNE),
   schriftart: localStorage.getItem(SCHRIFTART_SCHLUESSEL) ?? SCHRIFTART_VORGABE,
   grundschriftPx: zahl(GRUNDSCHRIFT_SCHLUESSEL, GRUNDSCHRIFT_VORGABE, GRUNDSCHRIFT_SPANNE),
@@ -166,6 +192,11 @@ export function setzeStimme(uri: string | null): void {
   einstellungen.stimmeUri = uri;
   if (uri) localStorage.setItem(STIMME_SCHLUESSEL, uri);
   else localStorage.removeItem(STIMME_SCHLUESSEL);
+}
+
+export function setzeVonSelbst(an: boolean): void {
+  einstellungen.liestVonSelbst = an;
+  localStorage.setItem(VONSELBST_SCHLUESSEL, String(an));
 }
 
 export function setzeTempo(wert: number): void {
@@ -243,6 +274,7 @@ export function setzeZurueck(): void {
   setzeMikrofon(null);
   setzeVerstaerkung(VERSTAERKUNG_VORGABE);
   setzeAutoPegel(AUTOPEGEL_VORGABE);
+  setzeVonSelbst(VONSELBST_VORGABE);
   setzeStimme(null);
   setzeTempo(TEMPO_VORGABE);
 }
