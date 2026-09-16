@@ -179,6 +179,12 @@ class TestMass:
         # Zeit läuft davon (die Messreihe steht bei `MAX_KANTE`).
         assert 2000 <= ocr.MAX_KANTE <= 2600
 
+    def test_der_zusammenhaengende_block_wird_mitversucht(self) -> None:
+        # Eine Karte oder ein Aufsteller: ein Absatz, eine Liste, sonst nichts.
+        # Für die Seitenanalyse von `3` zu wenig Seite, für die verstreute
+        # Suche von `11` zu viel Zusammenhang.
+        assert 6 in ocr.SEITENARTEN
+
     def test_die_vorgabe_wird_zuerst_versucht(self) -> None:
         # Bei Gleichstand gewinnt der erste - und das soll der zurückhaltendste
         # Weg sein, nicht der findigste.
