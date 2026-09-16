@@ -369,6 +369,45 @@
     </p>
   </div>
 
+  <!--
+    Kurzes zuerst, Langes ans Ende. Textquellen, Sitzungen und Aufnahmen sind
+    Listen, die über Seiten laufen; alles, was man einmal einstellt, stünde
+    dahinter außer Sicht. Die PIN stand dort - hinter allen drei Listen, am
+    Ende einer Seite, die je nach Korpus sehr lang ist.
+
+    Die Einsicht der Aufsicht hatte es schon richtig herum; jetzt sind beide
+    Ansichten desselben Profils auch in der Reihenfolge dieselben.
+  -->
+  <h2>PIN</h2>
+  <div class="karte">
+    <p class="gedaempft">
+      Eine PIN sichert diese Seite zusätzlich zum Zugang - gedacht gegen den Klick aus Versehen,
+      nicht als zweites Passwort.
+    </p>
+    <p class="gedaempft">Geben Sie eine vierstellige PIN ein (4 Ziffern).</p>
+    <form class="reihe" onsubmit={pinAendern}>
+      <input
+        bind:value={neuePin}
+        type="text"
+        inputmode="numeric"
+        pattern={'[0-9]{4}'}
+        maxlength="4"
+        placeholder="z.B. 1234"
+        title="Genau 4 Ziffern (0–9)"
+        autocomplete="off"
+        required
+      />
+      <button class="knopf haupt" type="submit" disabled={laeuft === 'pin'}>
+        {meinePin ? 'PIN ändern' : 'PIN einrichten'}
+      </button>
+      {#if meinePin}
+        <button class="knopf" type="button" disabled={laeuft === 'pin'} onclick={pinWegnehmen}>
+          PIN entfernen
+        </button>
+      {/if}
+    </form>
+  </div>
+
   <h2>Textquellen</h2>
   {#each daten.quellen as quelle (quelle.id)}
     <div class="karte">
@@ -423,36 +462,6 @@
     <p class="gedaempft">Keine Aufnahme.</p>
   {/each}
   <Pager seite={aufnahmenSeite} gesamtSeiten={aufnahmenSeiten} aendere={wechsleAufnahmenSeite} />
-
-  <h2>PIN</h2>
-  <div class="karte">
-    <p class="gedaempft">
-      Eine PIN sichert diese Seite zusätzlich zum Zugang - gedacht gegen den Klick aus Versehen,
-      nicht als zweites Passwort.
-    </p>
-    <p class="gedaempft">Geben Sie eine vierstellige PIN ein (4 Ziffern).</p>
-    <form class="reihe" onsubmit={pinAendern}>
-      <input
-        bind:value={neuePin}
-        type="text"
-        inputmode="numeric"
-        pattern={'[0-9]{4}'}
-        maxlength="4"
-        placeholder="z.B. 1234"
-        title="Genau 4 Ziffern (0–9)"
-        autocomplete="off"
-        required
-      />
-      <button class="knopf haupt" type="submit" disabled={laeuft === 'pin'}>
-        {meinePin ? 'PIN ändern' : 'PIN einrichten'}
-      </button>
-      {#if meinePin}
-        <button class="knopf" type="button" disabled={laeuft === 'pin'} onclick={pinWegnehmen}>
-          PIN entfernen
-        </button>
-      {/if}
-    </form>
-  </div>
 {/if}
 
 <style>
