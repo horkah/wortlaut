@@ -514,6 +514,13 @@ export type Punkt = {
 
 export type Auswertung = {
   modelle: string[];
+  /**
+   * Wie ein Modell heißen soll - `small` bleibt `small`, ein trainierter
+   * Stand wird zu `Stand K7M2Q`. Der Schlüssel bleibt überall die rohe
+   * Kennung: Sie steht so in der Datenbank, und zwei Stände desselben Laufs
+   * unterscheiden sich nur darin.
+   */
+  beschriftungen: Record<string, string>;
   varianten: Variante[];
   metriken: Metrik[];
   stand: Laufstand;

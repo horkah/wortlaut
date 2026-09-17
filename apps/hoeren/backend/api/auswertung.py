@@ -23,7 +23,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
-from wortlaut import rechenwerk
+from wortlaut import rechenwerk, registry
 
 from ..config import einstellungen
 from ..db.models import Aufnahme, Erkennung, Sprecher, Vorlage
@@ -171,6 +171,9 @@ class PunktAntwort(BaseModel):
 
 class AuswertungAntwort(BaseModel):
     modelle: list[str]
+    # Wie jedes davon in der Ansicht heißen soll - ein Stand trägt eine
+    # Kennung, keinen Whisper-Namen.
+    beschriftungen: dict[str, str] = {}
     varianten: list[VarianteAntwort]
     metriken: list[MetrikAntwort]
     stand: StandAntwort
@@ -199,8 +202,24 @@ class VergleichAntwort(BaseModel):
     erkennungen: list[ErkennungAntwort]
 
 
-def _namen() -> list[str]:
-    return auswertung.modelle(einstellungen().auswertung_modelle)
+def _namen(sprecher: str) -> list[str]:
+    """Wogegen hier gemessen wird: die Grundmodelle **und** die eigenen Stände.
+
+    Die Stände kommen je Sprecher dazu, denn ein Modell gehört einem Menschen
+    (Grundentscheidung 3). Für sie wird nur gerechnet, was ihre Faltungen nicht
+    schon abdecken (`services/auswertung.py`).
+    """
+    konfiguration = einstellungen()
+    return auswertung.messbare_modelle(
+        konfiguration.data_dir, sprecher, konfiguration.auswertung_modelle
+    )
+
+
+def _beschriftungen(namen: list[str]) -> dict[str, str]:
+    """Wie ein Modell in der Ansicht heißt - `small` bleibt `small`, ein Stand
+    wird zu `Stand K7M2Q`. Die Kennung ist dieselbe, die in „lernen" daneben
+    steht (`wortlaut/registry.py`)."""
+    return {name: registry.beschriftung(name) for name in namen}
 
 
 def _werk() -> str:
@@ -214,7 +233,7 @@ def _werk() -> str:
 
 
 def _stand(db: Datenbank, sprecher: str) -> StandAntwort:
-    roh = auswertung.stand(db, _namen(), _werk())
+    roh = auswertung.stand(db, _namen(sprecher), _werk())
     laeuft_fuer = auswertung.laeuft_fuer()
     return StandAntwort(
         laeuft=roh.laeuft and laeuft_fuer == sprecher,
@@ -245,7 +264,7 @@ def _nummeriert(db: Datenbank) -> list[tuple[int, Aufnahme, Vorlage]]:
 @router.get("", response_model=AuswertungAntwort)
 def uebersicht(db: Datenbank, sprecher: SprecherId) -> AuswertungAntwort:
     """Die Kurve und der Stand des Laufs - die Auskunft, die die Seite abfragt."""
-    namen = _namen()
+    namen = _namen(sprecher)
     nach_aufnahme: dict[str, dict[str, dict[str, dict[str, float]]]] = {}
     for erkennung in db.scalars(
         select(Erkennung).where(
@@ -265,6 +284,7 @@ def uebersicht(db: Datenbank, sprecher: SprecherId) -> AuswertungAntwort:
 
     return AuswertungAntwort(
         modelle=namen,
+        beschriftungen=_beschriftungen(namen),
         varianten=VARIANTEN,
         metriken=METRIKEN,
         stand=_stand(db, sprecher),
@@ -305,7 +325,8 @@ async def start(db: Datenbank, sprecher: SprecherId, ablage: Ablage) -> StandAnt
         sprecher_id=sprecher,
         engine=engine_fuer(sprecher),
         ablage=ablage,
-        namen=_namen(),
+        namen=_namen(sprecher),
+        datenverzeichnis=konfiguration.data_dir,
         sprache=person.sprache,
         geraet=konfiguration.geraet,
         rechenart=konfiguration.rechenart,
@@ -328,7 +349,7 @@ async def stopp(db: Datenbank, sprecher: SprecherId) -> StandAntwort:
 @router.get("/{aufnahme_id}", response_model=VergleichAntwort)
 def vergleich(aufnahme_id: str, db: Datenbank, sprecher: SprecherId) -> VergleichAntwort:
     """Was dastand und was jedes Modell daraus machte - der Klick auf einen Balken."""
-    namen = _namen()
+    namen = _namen(sprecher)
     for nummer, aufnahme, vorlage in _nummeriert(db):
         if aufnahme.id != aufnahme_id:
             continue

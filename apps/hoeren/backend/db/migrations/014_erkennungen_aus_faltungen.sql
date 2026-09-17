@@ -1,0 +1,34 @@
+-- Woher eine Messung stammt - und warum das eine eigene Spalte braucht.
+--
+-- Bisher entstand jede Zeile in `erkennungen` hier: Die Auswertung lud ein
+-- Grundmodell und ließ es über die Aufnahmen laufen. Ein trainierter Stand
+-- lässt sich so nicht messen, jedenfalls nicht ehrlich - er hat die meisten
+-- dieser Aufnahmen im Training gehört, und ein Modell an dem zu messen, was es
+-- auswendig kann, ergibt eine Zahl über sein Gedächtnis.
+--
+-- Für genau diese Aufnahmen liegt die ehrliche Messung aber längst vor: Die
+-- sechs Faltungen eines Laufs haben jede Aufnahme einmal von einem Modell
+-- hören lassen, das sie **nicht** kannte (`apps/lernen/training/bewerten.py`).
+-- Diese Zeilen werden hier übernommen statt neu gerechnet.
+--
+-- Was danach noch fehlt, sind die Aufnahmen, die es beim Training noch nicht
+-- gab. Die bekommt der fertige, ausgelieferte Stand desselben Laufs - er hat
+-- sie nie gehört, also ist auch das ehrlich. Eine Modellzeile besteht damit
+-- aus zwei Herkünften, und das ist Absicht: Es ist die beste Messung, die ohne
+-- ein zweites Training zu haben ist.
+--
+-- **Warum eine Spalte und kein Rückschluss aus dem Namen.** Weil an der
+-- Herkunft zwei Regeln hängen, die sonst nirgends abzulesen wären:
+--
+-- 1. Eine übernommene Faltungsmessung wird **nie** neu gerechnet. Sie kann es
+--    nicht: Die sechs Faltungsmodelle sind nach dem Lauf gelöscht, es gibt nur
+--    noch den siebten. Die übliche Regel „was auf einem anderen Rechenwerk
+--    entstand, gilt als offen" (`008_rechenwerk.sql`) muss für sie ausgesetzt
+--    werden, sonst rechnete jeder Wechsel der Karte sie in etwas um, das sie
+--    nicht sind.
+-- 2. Ihre Rechenzeit stammt von einer anderen Maschine und aus einem anderen
+--    Zusammenhang. Sie steht weiterhin da, aber die Ansicht weiß jetzt, dass
+--    sie sie nicht neben die übrigen stellen darf.
+--
+-- `gemessen` ist die Vorgabe und beschreibt jede Zeile, die es bisher gibt.
+ALTER TABLE erkennungen ADD COLUMN herkunft TEXT NOT NULL DEFAULT 'gemessen';

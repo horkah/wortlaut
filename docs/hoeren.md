@@ -813,6 +813,54 @@ deutlich hinter der Vorlage, ist genau das das Argument für ein eigenes
 Feintuning; trifft es, war der Weg nicht nötig. Wer wenig Maschine hat, kürzt
 die Liste - gerechnet wird nur, was darin steht.
 
+### Die eigenen Stände treten mit an
+
+Seit September 2026 steht neben den Grundmodellen jeder trainierte Stand
+dieses Sprechers, dessen Gewichte dastehen (`ct2/`). Das Feld ist damit
+dasselbe wie in [lernen](lernen.md#modelle) - nur über den ganzen Korpus statt
+über einen einzelnen Lauf, und in derselben Kurve, derselben Balkengruppe,
+derselben Liste je Aufnahme.
+
+**Ein Stand wird nicht durchweg gerechnet, und das ist der Punkt.** Die
+Aufnahmen, die es zur Zeit seines Trainings schon gab, hat er gehört. Ihn
+darauf loszulassen ergäbe eine Zahl über sein Gedächtnis. Für genau sie liegt
+aber schon eine ehrliche Messung vor: In der Kreuzvalidierung war jede dieser
+Aufnahmen einmal in der Prüffalte, gehört von einem Modell, das sie nicht
+kannte. Diese Zeilen werden aus `bewertung.jsonl` übernommen, statt sie neu zu
+rechnen.
+
+| woher eine Zeile kommt | für welche Aufnahmen | `herkunft` |
+| --- | --- | --- |
+| aus den sechs Faltungen des Trainingslaufs | die zur Trainingszeit vorlagen | `faltung` |
+| vom ausgelieferten Stand, hier gerechnet | die später dazukamen | `gemessen` |
+
+Dass eine Reihe damit aus zwei Quellen stammt, ist eine Eigenschaft und kein
+Bruch: Beide Male steht dieselbe Frage dahinter - wie gut hört dieser Stand
+etwas, das er nie gelernt hat. Der saubere Gegenentwurf wäre, das Training
+über den ganzen heutigen Korpus zu wiederholen; das ergäbe aber einen **neuen**
+Stand und nicht eine bessere Zahl für den alten.
+
+Die fehlenden späteren Aufnahmen zählen dabei genau wie bei einem Grundmodell
+mit: Sie stehen in derselben Summe offener Posten, und derselbe Knopf rechnet
+sie. Wer also nach einem Training weiter aufnimmt, sieht die Zahl offener
+Posten steigen und holt sie mit einem Lauf wieder ein.
+
+Drei Feinheiten, die in der Umsetzung stecken:
+
+* **Ohne Gewichte tritt ein Stand nicht an.** Seine Faltungen brächte er mit,
+  aber eine neuere Aufnahme könnte er nicht hören - eine Reihe, die nach dem
+  halben Korpus aufhört, ließe sich neben die übrigen nicht stellen.
+* **Ein gelöschter Lauf lässt nichts zurück.** Verschwindet ein Stand aus der
+  Ablage, räumt der nächste Lauf seine Zeilen aus `erkennungen`
+  (`vergiss_verschwundene_staende`).
+* **Übernommene Zeilen gelten nie als offen.** Ihre `rechenzeit_s` stammt von
+  der Trainingsmaschine, ihr `rechenwerk` also von woanders - sonst würde der
+  nächste Lauf sie neu rechnen wollen und dürfte es gerade nicht.
+
+Angezeigt wird ein Stand als **„Stand K7M2Q"** und nicht als
+`spr_7f2a/20260912T1420-lora-original` (`registry.beschriftung`, dieselbe
+Kurzkennung wie in „lernen").
+
 ### Vorlesen: vom Server, sonst vom Browser
 
 Wer nicht flüssig liest, lässt sich den Satz vorlesen und spricht ihn nach. Das
@@ -1006,7 +1054,9 @@ sechs Messungen je Aufnahme. Vier Eigenschaften sind Absicht:
   was fehlt - nach einem Neustart, nach neuen Aufnahmen, nach einem
   hinzugefügten Modell und nach einer hinzugefügten Fassung. Nichts wird
   doppelt gerechnet, nichts geht verloren, wenn der Lauf mitten darin
-  abbricht.
+  abbricht. Was aus einer Faltung übernommen wurde
+  (`014_erkennungen_aus_faltungen.sql`), gilt dabei immer als fertig - es
+  stammt von einer anderen Maschine und ließe sich hier nicht wiederholen.
 * **Auf der Karte, wenn eine da ist.** Dieselbe Einstellung wie beim
   Diktieren und beim Trainer (`WORTLAUT_GERAET`, siehe
   [Konfiguration](konfiguration.md#rechenwerk---worauf-erkannt-wird)). Das ist

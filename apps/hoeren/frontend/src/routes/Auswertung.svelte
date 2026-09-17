@@ -174,6 +174,12 @@
   const metriken = $derived(daten?.metriken ?? []);
   const aktuelleMetrik = $derived(metriken.find((m) => m.schluessel === metrik) ?? metriken[0]);
   const modelle = $derived(daten?.modelle ?? []);
+  /**
+   * Der Name, der dasteht. Ein Grundmodell heißt, wie es heißt; ein
+   * trainierter Stand trägt seine Kennung statt einer Kennung samt Sprecher
+   * und Zeitmarke, die keine Achse der Welt trägt.
+   */
+  const benannt = $derived((modell: string) => daten?.beschriftungen?.[modell] ?? modell);
   const varianten = $derived(daten?.varianten ?? []);
 
   /**
@@ -704,7 +710,7 @@
           onchange={(ereignis) => (gewaehlterBalken = ereignis.currentTarget.value)}
         >
           {#each modelle as modell (modell)}
-            <option value={modell}>{modell}</option>
+            <option value={modell}>{benannt(modell)}</option>
           {/each}
         </select>
       </label>
@@ -754,7 +760,7 @@
                     style="background: {reihenfarbe(gruppe.modell, gruppe.nummer, 'var(--akzent)')}"
                     aria-hidden="true"
                   ></span>
-                  {gruppe.modell}
+                  {benannt(gruppe.modell)}
                 </th>
               {/if}
               <th scope="row" class="fassung">{zeile.name}</th>
@@ -849,7 +855,7 @@
   {#each gelesen as erkennung (erkennung.modell)}
     <div class="karte">
       <p class="marke">
-        {erkennung.modell}
+        {benannt(erkennung.modell)}
         <span class="gedaempft">
           · Genauigkeit {erkennung.genauigkeit.toFixed(1)} % · WER {erkennung.wer.toFixed(2)} ·
           {erkennung.rechenzeit_s.toFixed(1)} s

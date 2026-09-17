@@ -95,6 +95,27 @@ def ist_stand(ref: str) -> bool:
     return TRENNER in ref
 
 
+# Wie ein Stand in einer Modellliste heißt. Kurz, weil er in einer Legende
+# neben `small` und `large-v3` steht - und mit der Kennung, weil das die Zahl
+# ist, die in „lernen" daneben steht und die man am Telefon durchgibt.
+def beschriftung(ref: str) -> str:
+    """`spr_7f2a/20260912T1420-lora` → `Stand K7M2Q`; ein Grundmodell bleibt es selbst."""
+    if not ist_stand(ref):
+        return ref
+    return f"Stand {kurzkennung(ref.split(TRENNER, 1)[1])}"
+
+
+def ct2_verzeichnis(datenverzeichnis: Path, ref: str) -> Path:
+    """Wo die Gewichte eines Standes liegen, die faster-whisper laden kann.
+
+    Dieselbe Stelle, an die „schreiben" beim Diktieren greift
+    (`apps/schreiben/backend/deps.py`) - ein Stand hat genau ein
+    ausgeliefertes Modell, und das ist dieses.
+    """
+    sprecher_id, version = ref.split(TRENNER, 1)
+    return stand_verzeichnis(datenverzeichnis, sprecher_id, version) / "ct2"
+
+
 def stand_verzeichnis(datenverzeichnis: Path, sprecher_id: str, version: str) -> Path:
     return datenverzeichnis / MODELLE / sprecher_id / version
 

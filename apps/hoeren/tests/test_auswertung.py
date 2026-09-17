@@ -16,12 +16,16 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from wortlaut import augmentierung
+from wortlaut import augmentierung, laeufe, registry
 from wortlaut.whisper import Transkript
 
+from apps.hoeren.backend.config import einstellungen
 from apps.hoeren.backend.services import auswertung
 
 MODELLE = "small,medium"
+# Was eine übernommene Faltungszeile sagt - daran ist sie von einer hier
+# gerechneten zu unterscheiden.
+AUS_DER_FALTUNG = "aus der Faltung"
 # Zwei Modelle mal alle Fassungen: So viele Zeilen entstehen je Aufnahme. Die
 # Zahl der Fassungen steht in `augmentierung` und nicht hier - sie hat sich
 # schon einmal geändert (September 2026, `pegel` und `lauter` verworfen), und
@@ -62,7 +66,11 @@ def _erkenner(
     monkeypatch.setattr(
         auswertung,
         "transkriptor_fuer",
-        lambda modell, geraet, rechenart: PlatzhalterErkenner(modell, antworten),
+        # Seit die Auswertung auch trainierte Stände misst, bekommt sie das
+        # Datenverzeichnis dazu - dort liegen deren Gewichte.
+        lambda modell, geraet, rechenart, datenverzeichnis=None: PlatzhalterErkenner(
+            modell, antworten
+        ),
     )
     auswertung.vergiss_lauf()
     yield
@@ -84,6 +92,14 @@ def sprich(klient: TestClient, audio_datei: dict) -> Callable[[], str]:
         return naechste["text"]
 
     return einmal
+
+
+def _aufnahmen(klient: TestClient) -> list[str]:
+    """Die Kennungen der eigenen Aufnahmen, älteste zuerst."""
+    return [
+        eintrag["id"]
+        for eintrag in klient.get("/api/konto/recordings").json()["aufnahmen"]
+    ]
 
 
 def _laufe_bis_fertig(klient: TestClient, hoechstens: float = 10.0) -> dict:
@@ -483,3 +499,152 @@ class TestNichtsZuTun:
         angestossen = klient.post("/api/auswertung/start").json()
         assert angestossen["laeuft"] is False
         assert angestossen["gesamt"] == 0
+
+
+class TestTrainierteStaende:
+    """Ein trainierter Stand tritt hier neben die Grundmodelle.
+
+    **Und er wird nicht neu gerechnet, wo es schon eine ehrliche Zahl gibt.**
+    Die meisten Aufnahmen dieses Korpus hat er im Training gehört; ihn darauf
+    loszulassen ergäbe eine Zahl über sein Gedächtnis. Für genau sie liegt die
+    Messung der Kreuzvalidierung vor, und die wird übernommen
+    (`014_erkennungen_aus_faltungen.sql`).
+    """
+
+    @pytest.fixture
+    def lege_stand_an(self, klient: TestClient) -> Callable[..., str]:
+        """Einen Stand samt Lauf hinlegen, mit Faltungsmessungen zu diesen Aufnahmen."""
+
+        def hin(*aufnahmen: str, mit_gewichten: bool = True) -> str:
+            daten = einstellungen().data_dir
+            job = "job_probe"
+            sprecher = klient.get("/api/zugang").json()["sprecher_id"]
+            ref = f"{sprecher}/20260912T1420-lora-original"
+            verzeichnis = laeufe.lauf_verzeichnis(daten, job)
+            verzeichnis.mkdir(parents=True, exist_ok=True)
+            for aufnahme_id in aufnahmen:
+                for fassung in augmentierung.VARIANTEN:
+                    laeufe.haenge_an(
+                        verzeichnis / laeufe.BEWERTUNG,
+                        {
+                            "recording_id": aufnahme_id,
+                            "variante": fassung,
+                            "text": AUS_DER_FALTUNG,
+                            "wer": 0.25,
+                            "cer": 0.1,
+                            "mer": 0.25,
+                            "wil": 0.3,
+                            "genauigkeit": 70.0,
+                            "rechenzeit_s": 9.0,
+                            # Ein anderes Rechenwerk als dieses hier - genau
+                            # der Fall, in dem eine gerechnete Zeile als offen
+                            # gälte und eine übernommene nicht.
+                            "rechenwerk": "cuda/float16",
+                        },
+                    )
+            registry.schreibe_stand(
+                daten, {"id": ref, "job_id": job, "methode": "lora", "daten": "original"}
+            )
+            if mit_gewichten:
+                registry.ct2_verzeichnis(daten, ref).mkdir(parents=True, exist_ok=True)
+            return ref
+
+        return hin
+
+    def test_der_stand_steht_in_der_modellliste(
+        self, klient: TestClient, quelle: str, sprich, lege_stand_an
+    ) -> None:
+        sprich()
+        ref = lege_stand_an()
+        assert ref in klient.get("/api/auswertung").json()["modelle"]
+
+    def test_ohne_gewichte_tritt_er_nicht_an(
+        self, klient: TestClient, quelle: str, sprich, lege_stand_an
+    ) -> None:
+        # Er brächte seine Faltungen mit, könnte aber keine neuere Aufnahme
+        # hören - und eine Zeile, die nach dem halben Korpus aufhört, lässt
+        # sich neben die übrigen nicht stellen.
+        sprich()
+        ref = lege_stand_an(mit_gewichten=False)
+        assert ref not in klient.get("/api/auswertung").json()["modelle"]
+
+    def test_er_bekommt_eine_lesbare_beschriftung(
+        self, klient: TestClient, quelle: str, sprich, lege_stand_an
+    ) -> None:
+        # `spr_…/20260912T1420-lora-original` trägt keine Achse der Welt.
+        sprich()
+        ref = lege_stand_an()
+        beschriftungen = klient.get("/api/auswertung").json()["beschriftungen"]
+        assert beschriftungen["small"] == "small"
+        assert beschriftungen[ref].startswith("Stand ")
+
+    def test_faltungen_werden_uebernommen_statt_gerechnet(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an
+    ) -> None:
+        sprich()
+        antworten.update({"small": "egal", "medium": "egal"})
+        aufnahme = _aufnahmen(klient)[0]
+        ref = lege_stand_an(aufnahme)
+
+        _laufe_bis_fertig(klient)
+
+        vom_stand = [
+            zeile
+            for zeile in klient.get(f"/api/auswertung/{aufnahme}").json()["erkennungen"]
+            if zeile["modell"] == ref
+        ]
+        assert len(vom_stand) == FASSUNGEN
+        # Aus der Faltung und nicht vom Platzhalter-Erkenner - für den steht in
+        # `antworten` unter dieser Kennung nichts, er würde also scheitern.
+        assert {zeile["text"] for zeile in vom_stand} == {AUS_DER_FALTUNG}
+
+    def test_spaetere_aufnahmen_rechnet_der_stand_selbst(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an
+    ) -> None:
+        """Der eigentliche Punkt: Die Lücke schließt der ausgelieferte Stand.
+
+        Die zweite Aufnahme kam nach dem Training - er hat sie nie gehört, also
+        ist sie für ihn dasselbe Prüfstück wie für ein Grundmodell.
+        """
+        sprich()
+        sprich()
+        antworten.update({"small": "egal", "medium": "egal"})
+        alt, spaeter = _aufnahmen(klient)[:2]
+        ref = lege_stand_an(alt)
+        antworten[ref] = "frisch gehört"
+
+        _laufe_bis_fertig(klient)
+
+        def texte(aufnahme: str) -> set[str]:
+            return {
+                zeile["text"]
+                for zeile in klient.get(f"/api/auswertung/{aufnahme}").json()["erkennungen"]
+                if zeile["modell"] == ref
+            }
+
+        assert texte(alt) == {AUS_DER_FALTUNG}
+        assert texte(spaeter) == {"frisch gehört"}
+
+    def test_ein_geloeschter_stand_laesst_nichts_zurueck(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an
+    ) -> None:
+        # Wer einen Lauf löscht, löscht alles, was aus ihm hervorging. Seine
+        # Messungen stehen aber in der Tabelle von „hören".
+        sprich()
+        antworten.update({"small": "egal", "medium": "egal"})
+        aufnahme = _aufnahmen(klient)[0]
+        ref = lege_stand_an(aufnahme)
+        _laufe_bis_fertig(klient)
+        assert any(
+            zeile["modell"] == ref
+            for zeile in klient.get(f"/api/auswertung/{aufnahme}").json()["erkennungen"]
+        )
+
+        sprecher, version = ref.split("/", 1)
+        registry.loesche_stand(einstellungen().data_dir, sprecher, version)
+        _laufe_bis_fertig(klient)
+
+        assert not any(
+            zeile["modell"] == ref
+            for zeile in klient.get(f"/api/auswertung/{aufnahme}").json()["erkennungen"]
+        )

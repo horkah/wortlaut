@@ -220,6 +220,13 @@ nützlich und in einer Sicherung nur schwer - drei Viertel des Audios im Archiv
 wären dann nie gesprochen worden. Was das für den Wiederanlauf heißt, steht
 unter [Sichern und Wiederherstellen](#sichern-und-wiederherstellen).
 
+Das greift ineinander: In `erkennungen` stehen seit September 2026 auch die
+Messwerte der Kreuzvalidierung zu jedem trainierten Stand
+(`014_erkennungen_aus_faltungen.sql`). Sie fallen mit der Tabelle weg - aber
+ebenso fallen die Laufverzeichnisse und die Stände selbst weg, aus denen sie
+stammen. Ein wiederhergestellter Korpus hat also keine Stände, zu denen eine
+Zahl fehlen könnte, und der nächste Auswertungslauf misst die Grundmodelle neu.
+
 Im Container bleiben sie deshalb genau dort, wo der Quelltext sie sucht -
 `data/modelle/` und `data/snapshots/` unter `WORTLAUT_DATA_DIR`; keine Zeile
 Python weiß von dieser Änderung. Auf dem Wirt kommen sie aus
