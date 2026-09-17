@@ -71,3 +71,45 @@ class TestVorbehalt:
         assert satz.startswith("Bei der Freigabe geprüft und durchgefallen")
         # Beide Zahlen darin, sonst ist der Satz eine Behauptung.
         assert "1.10" in satz and "0.23" in satz
+
+
+class TestPlanZurueckgelesen:
+    """Der Plan der Faltungen steht nicht im Manifest - aber im Fortschritt.
+
+    Ein Stand von vor September 2026 trägt unter `kreuzvalidierung` nur die
+    Durchgangszahl. Den Horizont, über den die Lernrate lief, hat aber jede
+    Faltung beim Start gemeldet. Ohne ihn ließe sich ein altes Endmodell nicht
+    mit dem heutigen Verfahren nachziehen.
+    """
+
+    def _lauf(self, tmp_path, *zeilen: dict):
+        from wortlaut import laeufe
+
+        for zeile in zeilen:
+            laeufe.haenge_an(tmp_path / laeufe.FORTSCHRITT, zeile)
+        return tmp_path
+
+    def test_die_erste_startmeldung_zaehlt(self, tmp_path) -> None:
+        from apps.lernen.training.nachziehen import plan_aus_dem_lauf
+
+        # Alle sechs Faltungen planen gleich; sie hören nur verschieden früh auf.
+        lauf = self._lauf(
+            tmp_path,
+            {"art": "stufe", "name": "vorbereiten"},
+            {"art": "start", "epochen": 8.0, "schritte_gesamt": 300},
+            {"art": "schritt", "epoche": 1.0},
+            {"art": "start", "epochen": 8.0, "schritte_gesamt": 300},
+        )
+        assert plan_aus_dem_lauf(lauf) == 8.0
+
+    def test_ohne_startmeldung_wird_nichts_behauptet(self, tmp_path) -> None:
+        from apps.lernen.training.nachziehen import plan_aus_dem_lauf
+
+        # Null heißt „nicht zu ermitteln" - dann bleibt es beim alten
+        # Verhalten, und das ist ehrlicher als ein geratener Horizont.
+        assert plan_aus_dem_lauf(self._lauf(tmp_path, {"art": "schritt"})) == 0.0
+
+    def test_ein_fehlender_lauf_ist_kein_fehler(self, tmp_path) -> None:
+        from apps.lernen.training.nachziehen import plan_aus_dem_lauf
+
+        assert plan_aus_dem_lauf(tmp_path / "gibtesnicht") == 0.0

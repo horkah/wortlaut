@@ -160,7 +160,7 @@ class Stapler:
 
 
 def zeilen_fuer_faltung(
-    verzeichnis: Path, faltung: int | None, daten: str
+    verzeichnis: Path, faltung: int | None, daten: str, korpus: Path | None = None
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Was in dieser Faltung gelernt und was daran gemessen wird.
 
@@ -183,6 +183,15 @@ def zeilen_fuer_faltung(
     lern: list[dict[str, Any]] = []
     mess: list[dict[str, Any]] = []
     for zeile in laeufe.manifestzeilen(verzeichnis):
+        # **Was nicht mehr dasteht, wird nicht gelernt.** Ein Manifest ist der
+        # Schnappschuss eines Korpus zu einer Stunde; wer danach eine Aufnahme
+        # verwirft, löscht ihr Audio (`apps/hoeren/backend/api/recordings.py`).
+        # Für einen frischen Lauf ändert das nichts - sein Manifest ist eben
+        # geschrieben worden. Für einen, der ein altes Manifest noch einmal
+        # aufnimmt (`nachziehen.py`), ist es der Unterschied zwischen laufen
+        # und an einer fehlenden Datei scheitern.
+        if korpus is not None and not (korpus / str(zeile["audio"])).is_file():
+            continue
         eigene = faltung is not None and int(zeile.get("faltung", -1)) == faltung
         if eigene:
             mess.append(zeile)

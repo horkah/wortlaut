@@ -85,8 +85,14 @@ class Bericht:
     raten muss, was gerade läuft.
     """
 
-    def __init__(self, verzeichnis: Path) -> None:
+    def __init__(self, verzeichnis: Path, spuren: bool = True) -> None:
         self.verzeichnis = verzeichnis
+        # **Ohne Spuren redet dieser Bericht nur.** Ein Lauf, der nachgezogen
+        # wird (`nachziehen.py`), rührt den alten Lauf nicht an: Der ist fertig
+        # und bleibt es, seine Kurven gehören zu den Faltungen von damals, und
+        # ein zweites Training darübergeschrieben wäre eine Kurve, die zwei
+        # Läufe zeigt und keinen erklärt.
+        self.spuren = spuren
         self.zustand: dict[str, Any] = {
             "status": laeufe.LAEUFT,
             "stufe": "vorbereiten",
@@ -95,7 +101,8 @@ class Bericht:
         self._schreibe()
 
     def _schreibe(self) -> None:
-        laeufe.schreibe_json(self.verzeichnis / laeufe.ZUSTAND, self.zustand)
+        if self.spuren:
+            laeufe.schreibe_json(self.verzeichnis / laeufe.ZUSTAND, self.zustand)
 
     def sage(self, text: str) -> None:
         """Ins Protokoll - und auf die Standardausgabe, wo der Läufer mitliest."""
@@ -109,6 +116,8 @@ class Bericht:
         self.sage(f"— {name}")
 
     def ereignis(self, **felder: Any) -> None:
+        if not self.spuren:
+            return
         laeufe.haenge_an(
             self.verzeichnis / laeufe.FORTSCHRITT, {"zeit": laeufe.jetzt(), **felder}
         )
@@ -466,7 +475,7 @@ def trainiere(
         keim=KEIM + (faltung or 0),
     )
     lernzeilen, messzeilen = zeilen_fuer_faltung(
-        verzeichnis, faltung, str(auftrag.get("daten") or laeufe.NUR_ORIGINAL)
+        verzeichnis, faltung, str(auftrag.get("daten") or laeufe.NUR_ORIGINAL), korpuswurzel
     )
     # Der Tempofaktor steht im Auftrag und nicht im Rezept: Er ist kein
     # Verfahrensparameter, sondern der Zustand, in dem der Korpus betrachtet
