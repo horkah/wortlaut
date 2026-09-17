@@ -568,15 +568,35 @@ class TestTrainierteStaende:
         ref = lege_stand_an(mit_gewichten=False)
         assert ref not in klient.get("/api/auswertung").json()["modelle"]
 
-    def test_er_bekommt_eine_lesbare_beschriftung(
+    def test_er_bekommt_seine_kurzkennung_als_beschriftung(
         self, klient: TestClient, quelle: str, sprich, lege_stand_an
     ) -> None:
-        # `spr_…/20260912T1420-lora-original` trägt keine Achse der Welt.
+        # `spr_…/20260912T1420-lora-original` trägt keine Achse der Welt, und
+        # ein vorangestelltes Wort stünde in jeder Zeile dasselbe da.
         sprich()
         ref = lege_stand_an()
         beschriftungen = klient.get("/api/auswertung").json()["beschriftungen"]
         assert beschriftungen["small"] == "small"
-        assert beschriftungen[ref].startswith("Stand ")
+        assert beschriftungen[ref] == registry.kurzkennung(ref.split("/", 1)[1])
+
+    def test_die_faltungen_stehen_da_bevor_jemand_rechnen_laesst(
+        self, klient: TestClient, quelle: str, sprich, lege_stand_an
+    ) -> None:
+        """Gemessen ist gemessen - dafür muss niemand einen Knopf drücken.
+
+        Sonst zeigte die Ansicht bis zum ersten Lauf zu wenige fertige und zu
+        viele offene Posten und verlangte eine Rechnung für etwas, das längst
+        dasteht.
+        """
+        sprich()
+        aufnahme = _aufnahmen(klient)[0]
+        ref = lege_stand_an(aufnahme)
+
+        uebersicht = klient.get("/api/auswertung").json()
+        assert uebersicht["punkte"][0]["werte"][ref] != {}
+        # Die Faltungen zählen als erledigt; offen sind nur die Grundmodelle.
+        assert uebersicht["stand"]["erledigt"] == FASSUNGEN
+        assert uebersicht["stand"]["gesamt"] == FASSUNGEN * 3
 
     def test_faltungen_werden_uebernommen_statt_gerechnet(
         self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an

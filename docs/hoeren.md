@@ -840,6 +840,13 @@ etwas, das er nie gelernt hat. Der saubere Gegenentwurf wäre, das Training
 über den ganzen heutigen Korpus zu wiederholen; das ergäbe aber einen **neuen**
 Stand und nicht eine bessere Zahl für den alten.
 
+**Übernommen wird beim Aufschlagen der Seite, nicht beim Druck auf den Knopf.**
+Die Faltungen sind gemessen, lange bevor hier jemand etwas anstößt; sie
+einzulesen kostet ein paar Zeilen aus einer Datei und keine Rechenzeit
+(`auswertung.gleiche_ab`). Wer die Ansicht öffnet, sieht deshalb sofort den
+Vergleich, den es schon gibt - und als offen nur, was wirklich noch zu rechnen
+ist.
+
 Die fehlenden späteren Aufnahmen zählen dabei genau wie bei einem Grundmodell
 mit: Sie stehen in derselben Summe offener Posten, und derselbe Knopf rechnet
 sie. Wer also nach einem Training weiter aufnimmt, sieht die Zahl offener
@@ -857,9 +864,12 @@ Drei Feinheiten, die in der Umsetzung stecken:
   der Trainingsmaschine, ihr `rechenwerk` also von woanders - sonst würde der
   nächste Lauf sie neu rechnen wollen und dürfte es gerade nicht.
 
-Angezeigt wird ein Stand als **„Stand K7M2Q"** und nicht als
-`spr_7f2a/20260912T1420-lora-original` (`registry.beschriftung`, dieselbe
-Kurzkennung wie in „lernen").
+Angezeigt wird ein Stand als **`K7M2Q`** und nicht als
+`spr_7f2a/20260912T1420-lora-original` - in der Legende der Kurve wie in der
+Tabelle darunter. Die Kennung steht dort, wo sonst `small` und `large-v3`
+stehen, und ein vorangestelltes Wort wäre in jeder dieser Zeilen dasselbe
+(`registry.beschriftung`, dieselbe Kurzkennung wie in „lernen" und in der
+Kopfzeile von „schreiben").
 
 ### Vorlesen: vom Server, sonst vom Browser
 
