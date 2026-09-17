@@ -657,6 +657,25 @@ Modell liest den englischen Teil des Aushangs fehlerfrei mit, das englische den
 deutschen nicht. Wer also nur eine Sprache wählen kann, wählt die mit den
 Sonderzeichen.
 
+**Zwei Wörterbücher zugleich wären möglich und sind es nicht.** Tesseract
+nimmt `deu+eng` in einem Durchgang. Nachgemessen an fünf Vorlagen bringt das
+einmal etwas und kostet einmal etwas: Auf einem abfotografierten
+Cookie-Banner findet es `cts` statt `ets` (4 von 4 statt 3 von 4), auf dem
+Cremedeckel verliert es eine Zeile (4 von 5 statt 5 von 5).
+
+Das wäre zu verschmerzen, wenn sich beide Fassungen nebeneinanderstellen und
+die bessere wählen ließe - so wie es bei Seitenart und Entrauschen geschieht.
+Es geht aber nicht: **Beide Maße wählen falsch.** Nach Punkten steht es beim
+Banner unentschieden (42 zu 42, also gewinnt die Vorgabe und damit die
+schlechtere Fassung), und auf dem Cremedeckel gewinnt `deu+eng` mit 107 zu
+104 - die Fassung mit der fehlenden Zeile. Nach Zuversicht dasselbe Bild:
+10775 zu 8756 für die schlechtere.
+
+Ein zweites Wörterbuch ist also kein freier Gewinn, sondern ein Münzwurf, und
+es fehlt der Richter, der ihn entscheiden könnte. Wer regelmäßig englisches
+Material aufnimmt, legt dafür ein zweites Profil an - dafür ist die Sprache am
+Profil da ([Andere Sprachen](sprachen.md)).
+
 Die Sprache erreicht dabei **jeden** Aufruf, auch die Lageprobe. Die lief
 einmal fest auf `deu`, während die eigentliche Lesung dem Profil folgte - bei
 einer Sprache fällt das nicht auf, bei der zweiten wäre es ein Fehler gewesen,
