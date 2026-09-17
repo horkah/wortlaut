@@ -268,6 +268,38 @@ def _name_fuer(faltung: int | None) -> str:
     return "endmodell" if faltung is None else f"faltung-{faltung}"
 
 
+def _halt_nach(ziel: float, bericht):
+    """Ein Rückruf, der nach `ziel` Durchgängen Schluss macht - Plan unberührt.
+
+    Das Gegenstück zum frühen Abbruch der Faltungen, nur ohne Kriterium: Das
+    Endmodell hat nichts zurückgehalten, woran „wird nicht mehr besser" zu
+    erkennen wäre. Es weiß aber aus den sechs Läufen davor, **wann** es so weit
+    war, und hört genau dort auf - auf derselben Rampe, an derselben Stelle.
+
+    Ein kleineres `num_train_epochs` täte es nicht: Es verschöbe den ganzen
+    Lernratenverlauf (siehe `trainiere`). Innen definiert wie `_rueckmeldung`,
+    und aus demselben Grund.
+    """
+    from transformers import TrainerCallback
+
+    class Haltestelle(TrainerCallback):
+        def __init__(self) -> None:
+            self.gesagt = False
+
+        def on_epoch_end(self, args, zustand, steuerung, **weiteres):
+            if float(zustand.epoch or 0.0) >= ziel - 1e-6:
+                steuerung.should_training_stop = True
+                if not self.gesagt:
+                    bericht.sage(
+                        f"Schluss nach {zustand.epoch:.1f} Durchgängen - "
+                        "so weit reichten die Faltungen."
+                    )
+                    self.gesagt = True
+            return steuerung
+
+    return Haltestelle()
+
+
 def _bester_durchgang(trainer, obergrenze: float, hat_pruefung: bool) -> float:
     """Bei welchem Durchgang dieser Lauf am besten stand.
 
@@ -502,18 +534,39 @@ def trainiere(
             "Geduldig nicht möglich: Ohne Validierungsproben gibt es kein "
             "Kriterium. Es gilt die feste Zahl Durchgänge."
         )
+    # Der **Plan** ist der Horizont, über den die Lernrate läuft; `halt` ist,
+    # wo aufgehört wird. Für eine Faltung fallen beide zusammen: Sie plant über
+    # ihre Obergrenze und hört auf, wenn die Geduld aufgebraucht ist.
+    plan = float(
+        rezept.get("epochen_hoechstens", rezept["epochen"]) if geduldig else rezept["epochen"]
+    )
+    halt: float | None = None
     if vorgaben and vorgaben.get("durchgaenge"):
-        # Das Endmodell nimmt die Zahl aus den Faltungen mit und sucht nicht
-        # selbst - suchen könnte es ohnehin nicht, es hat nichts zurückgehalten.
-        durchgaenge = float(vorgaben["durchgaenge"])
+        # **Das Endmodell übernimmt beides, nicht nur die Zahl.**
+        #
+        # Es nahm bisher allein die Durchgangszahl mit (den Median des besten
+        # Durchgangs der sechs Faltungen) und baute seinen Lernratenplan in
+        # genau diesen Horizont neu. Gemessen an einem Lauf vom 13. September:
+        # Eine Faltung plante über acht Durchgänge, wärmte 50 Schritte lang an,
+        # erreichte ihre Spitze bei Durchgang 2,1 und fiel danach flach ab -
+        # ihr bester Stand lag bei Durchgang 2, also gerade am Ende des
+        # Warmlaufs. Das Endmodell bekam „2,0 Durchgänge", hatte damit 68
+        # Schritte, kürzte den Warmlauf auf 14, war bei Durchgang 0,6 auf der
+        # Spitze und bei 1,8 schon wieder bei einem Fünftel davon.
+        #
+        # Gleiche Epochenzahl, anderer Lauf - und das Ergebnis war ein Stand,
+        # der ausfranst: Er erkennt den ersten Satz und redet dann weiter
+        # (`docs/lernen.md`). Deshalb erbt das Endmodell jetzt den Horizont der
+        # Faltungen und hört an der Stelle auf, an der sie am besten standen.
+        # Dieselbe Rampe, dieselbe Neigung, derselbe Punkt darauf.
+        plan = float(vorgaben.get("plan") or vorgaben["durchgaenge"])
+        halt = float(vorgaben["durchgaenge"])
         geduldig = False
-        bericht.sage(f"Durchgänge aus den Faltungen übernommen: {durchgaenge:.1f}")
-    else:
-        durchgaenge = float(
-            rezept.get("epochen_hoechstens", rezept["epochen"])
-            if geduldig
-            else rezept["epochen"]
+        bericht.sage(
+            f"Aus den Faltungen übernommen: Plan über {plan:.1f} Durchgänge, "
+            f"Schluss nach {halt:.1f} - derselbe Lernratenverlauf wie dort."
         )
+    durchgaenge = plan
 
     # Der Warmlauf, gedeckelt auf einen Anteil des Laufs.
     #
@@ -621,7 +674,9 @@ def trainiere(
         seed=KEIM,
     )
 
-    rueckrufe = [_rueckmeldung(bericht)]
+    rueckrufe: list[Any] = [_rueckmeldung(bericht)]
+    if halt is not None:
+        rueckrufe.append(_halt_nach(halt, bericht))
     if geduldig:
         from transformers import EarlyStoppingCallback
 
@@ -710,6 +765,10 @@ def trainiere(
     # welchem Durchgang sie am besten stand und welches α gewonnen hat.
     kennzahlen: dict[str, Any] = {
         "durchgaenge": _bester_durchgang(trainer, durchgaenge, hat_pruefung),
+        # Der Horizont, über den die Lernrate lief. Das Endmodell erbt ihn -
+        # ohne ihn wäre „zwei Durchgänge" eine Zahl ohne den Lauf, aus dem sie
+        # stammt (siehe oben).
+        "plan_durchgaenge": plan,
         "alpha": ergebnis.alpha,
         "tempo": faktor,
         "tempowahl": tempoergebnis.als_dict() if tempoergebnis is not None else None,
@@ -902,6 +961,9 @@ def kreuzvalidiere(
 
     mitgenommen = {
         "durchgaenge": _median([float(k["durchgaenge"]) for k in gelernt]),
+        # Der Horizont der Faltungen, damit das Endmodell auf derselben Rampe
+        # läuft und nicht auf einer, die in seine Epochenzahl gestaucht wurde.
+        "plan": _median([float(k["plan_durchgaenge"]) for k in gelernt]),
         "alpha": _median([k["alpha"] for k in gelernt if k["alpha"] is not None]),
         # Nicht der Median der sechs Sieger, sondern das Minimum der
         # **zusammengelegten** Kurve (siehe `tempowahl.zusammengelegt`): Eine

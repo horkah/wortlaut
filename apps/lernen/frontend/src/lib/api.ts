@@ -247,6 +247,8 @@ export type Modell = {
   version: string | null;
   /** Der kurze Code dieses Standes (`K7M2Q`); null bei einem Grundmodell. */
   kennung: string | null;
+  /** Ein Satz, wenn mit diesem Stand etwas nicht stimmt - sonst leer. */
+  vorbehalt: string;
   job_id: string | null;
   freigegeben: boolean;
   /** Worauf gemessen wurde: `cuda/int8_float16`, `cpu/int8`, leer = unbekannt oder gemischt. */
