@@ -405,6 +405,20 @@ def gueltige_aufnahmen(db: Session) -> list[tuple[Aufnahme, Vorlage]]:
     )
 
 
+def _geltende():
+    """Die Kennungen der brauchbaren Aufnahmen - als Unterabfrage.
+
+    **Wozu die Einschränkung an jeder Zählung.** Eine verworfene Aufnahme
+    zählt in `gesamt` nicht mehr mit; ihre Messzeilen zählten in `erledigt`
+    aber weiter, und der Balken stand über 100 %. Das Verwerfen räumt sie
+    inzwischen weg (`api/recordings.py`, `015_erkennungen_verworfener_…`) -
+    hier steht es trotzdem, weil es hier eine Rechnung richtig macht und dort
+    nur Daten aufräumt: Was gezählt wird, soll nicht davon abhängen, dass ein
+    anderer Weg sauber gearbeitet hat.
+    """
+    return select(Aufnahme.id).where(Aufnahme.status == GUELTIG)
+
+
 def _fertig(db: Session, werk: str) -> set[tuple[str, str, str]]:
     """Was schon gemessen ist - **auf dem Rechenwerk, das gerade gilt**.
 
@@ -429,7 +443,8 @@ def _fertig(db: Session, werk: str) -> set[tuple[str, str, str]]:
         (zeile.recording_id, zeile.modell, zeile.variante)
         for zeile in db.execute(
             select(Erkennung.recording_id, Erkennung.modell, Erkennung.variante).where(
-                (Erkennung.rechenwerk == werk) | (Erkennung.herkunft == FALTUNG)
+                Erkennung.recording_id.in_(_geltende()),
+                (Erkennung.rechenwerk == werk) | (Erkennung.herkunft == FALTUNG),
             )
         ).all()
     }
@@ -487,6 +502,10 @@ def zaehle(db: Session, namen: list[str], werk: str) -> tuple[int, int]:
             .where(
                 Erkennung.modell.in_(namen),
                 Erkennung.variante.in_(augmentierung.VARIANTEN),
+                # Verworfene Aufnahmen zählen in `gesamt` nicht mehr mit;
+                # zählten ihre Zeilen hier weiter, stünde der Balken über
+                # 100 % (siehe `_geltende`).
+                Erkennung.recording_id.in_(_geltende()),
                 # Dieselbe Einschränkung wie in `_fertig`, samt derselben
                 # Ausnahme: Was auf einem anderen Rechenwerk entstand, ist
                 # offen und nicht erledigt - sonst stünde der Balken bei 100 %,

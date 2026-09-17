@@ -20,7 +20,12 @@ from fastapi.testclient import TestClient
 from wortlaut import augmentierung, laeufe, registry
 from wortlaut.whisper import Transkript
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
 from apps.hoeren.backend.config import einstellungen
+from apps.hoeren.backend.db.models import Erkennung
+from apps.hoeren.backend.deps import engine_fuer
 from apps.hoeren.backend.services import auswertung
 
 MODELLE = "small,medium"
@@ -93,6 +98,10 @@ def sprich(klient: TestClient, audio_datei: dict) -> Callable[[], str]:
         return naechste["text"]
 
     return einmal
+
+
+def _sprecher(klient: TestClient) -> str:
+    return klient.get("/api/zugang").json()["sprecher_id"]
 
 
 def _aufnahmen(klient: TestClient) -> list[str]:
@@ -276,6 +285,40 @@ class TestLauf:
         stand = _laufe_bis_fertig(klient)
         assert stand["gesamt"] == 0
         assert klient.get("/api/auswertung").json()["punkte"] == []
+
+    def test_verwerfen_nach_dem_rechnen_laesst_nichts_ueber_hundert_prozent(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict
+    ) -> None:
+        """Gemessen bleibt gemessen - gezählt wird trotzdem nur, was gilt.
+
+        Sonst zählte `gesamt` die verworfene Aufnahme nicht mehr, `erledigt`
+        ihre Zeilen aber weiter, und der Balken stünde über 100 %.
+        """
+        sprich()
+        sprich()
+        antworten.update({"small": "etwas", "medium": "etwas"})
+        assert _laufe_bis_fertig(klient)["erledigt"] == 2 * JE_AUFNAHME
+
+        assert klient.delete(f"/api/recordings/{_erste(klient)}").status_code == 204
+
+        stand = klient.get("/api/auswertung").json()["stand"]
+        assert (stand["erledigt"], stand["gesamt"]) == (JE_AUFNAHME, JE_AUFNAHME)
+
+    def test_verwerfen_raeumt_die_erkannten_texte_weg(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict
+    ) -> None:
+        # Der erkannte Text ist dieselbe Äußerung, nur in Schrift. Ihn stehen
+        # zu lassen, während das Audio gelöscht wird, wäre die halbe Bewegung.
+        sprich()
+        antworten.update({"small": "etwas", "medium": "etwas"})
+        _laufe_bis_fertig(klient)
+        aufnahme = _erste(klient)
+        assert klient.get(f"/api/auswertung/{aufnahme}").json()["erkennungen"]
+
+        assert klient.delete(f"/api/recordings/{aufnahme}").status_code == 204
+
+        with Session(engine_fuer(_sprecher(klient))) as db:
+            assert db.scalars(select(Erkennung)).all() == []
 
     def test_ein_scheiterndes_modell_haelt_den_lauf_nicht_auf(
         self, klient: TestClient, quelle: str, sprich, antworten: dict
@@ -519,7 +562,7 @@ class TestTrainierteStaende:
         def hin(*aufnahmen: str, mit_gewichten: bool = True) -> str:
             daten = einstellungen().data_dir
             job = "job_probe"
-            sprecher = klient.get("/api/zugang").json()["sprecher_id"]
+            sprecher = _sprecher(klient)
             ref = f"{sprecher}/20260912T1420-lora-original"
             verzeichnis = laeufe.lauf_verzeichnis(daten, job)
             verzeichnis.mkdir(parents=True, exist_ok=True)
