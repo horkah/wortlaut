@@ -396,7 +396,13 @@ def pruefe_endmodell(
     alle = [
         zeile
         for zeile in laeufe.manifestzeilen(verzeichnis)
+        # Dieselbe Einschränkung wie beim Lernen (`daten.zeilen_fuer_faltung`):
+        # Was seit dem Lauf verworfen wurde, liegt nicht mehr da. Für einen
+        # frischen Lauf ändert das nichts; einen nachgezogenen brächte es an
+        # einer fehlenden Datei zu Fall - kurz vor dem Ziel und nach einer
+        # Stunde Rechenzeit.
         if str(zeile.get("variante")) == augmentierung.ORIGINAL
+        and (korpuswurzel / str(zeile["audio"])).is_file()
     ]
     if not alle:
         return {}
