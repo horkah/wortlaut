@@ -154,7 +154,9 @@ class PiperMotor:
     verzeichnis: Path
     name: str = "piper"
 
-    # Was die mitgelieferten deutschen Stimmen sind - für die Beschriftung.
+    # Wie die bekannten Stimmen heißen - für die Beschriftung. Die Namen sind
+    # deutsch geschrieben, weil die Oberfläche es ist; die Stimme selbst
+    # spricht die Sprache, die in ihrem Schlüssel steht.
     # Fehlt ein Name hier, steht der Dateiname da; das ist hässlich, aber
     # richtig, und es hält niemanden davon ab, eine eigene Stimme abzulegen.
     BESCHREIBUNG = {  # noqa: RUF012 - Beschriftung, keine Zustandsdaten
@@ -177,6 +179,15 @@ class PiperMotor:
         "de_DE-ramona-low": ("Ramona", "Eine weibliche Stimme."),
         "de_DE-karlsson-low": ("Karlsson", "Eine männliche Stimme."),
         "de_DE-eva_k-x_low": ("Eva", "Eine weibliche Stimme, sehr genügsam."),
+        "en_US-lessac-high": (
+            "Lessac, hohe Auflösung",
+            "Eine weibliche Stimme, amerikanisch. Aus einem Studiokorpus.",
+        ),
+        "en_US-ryan-high": (
+            "Ryan, hohe Auflösung",
+            "Eine männliche Stimme, amerikanisch.",
+        ),
+        "en_GB-cori-high": ("Cori, hohe Auflösung", "Eine weibliche Stimme, britisch."),
     }
 
     def stimmen(self) -> list[Stimme]:

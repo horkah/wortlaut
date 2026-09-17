@@ -12,13 +12,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-SYSTEMANWEISUNG = (
-    "Du schreibst deutsche Vorlesetexte für Sprachaufnahmen. "
-    "Antworte ausschließlich mit dem Text selbst: Fließtext in ganzen Sätzen, "
-    "keine Überschriften, keine Aufzählungen, keine Formatierung, keine Anrede "
-    "und keine Erklärung deiner Antwort. Verwende geläufige Wörter und Sätze von "
-    "höchstens etwa zwanzig Wörtern, damit der Text gut sprechbar ist."
-)
+from .. import sprachen
+
+# Die Anweisung selbst bleibt deutsch - sie richtet sich an das Sprachmodell,
+# nicht an den Menschen. Was sich ändert, ist die Sprache, in der es schreiben
+# soll: Ein englisches Profil bekommt englische Vorlagen, sonst liest jemand
+# Sätze vor, die nicht seine sind (`wortlaut/sprachen.py`).
+def systemanweisung(sprache: str) -> str:
+    return (
+        f"Du schreibst Vorlesetexte für Sprachaufnahmen in dieser Sprache: "
+        f"{sprachen.name(sprache)}. Schreibe ausschließlich in dieser Sprache. "
+        "Antworte ausschließlich mit dem Text selbst: Fließtext in ganzen Sätzen, "
+        "keine Überschriften, keine Aufzählungen, keine Formatierung, keine Anrede "
+        "und keine Erklärung deiner Antwort. Verwende geläufige Wörter und Sätze von "
+        "höchstens etwa zwanzig Wörtern, damit der Text gut sprechbar ist."
+    )
 
 
 @dataclass(frozen=True)
@@ -28,6 +36,8 @@ class Auftrag:
     thema: str
     altersspanne: str  # z. B. „8-12" oder „Erwachsene"
     umfang: int  # ungefähre Wortzahl
+    # In welcher Sprache geschrieben werden soll - die des Profils.
+    sprache: str = sprachen.VORGABE
 
 
 def erzeuge_text(
@@ -77,7 +87,7 @@ def _openai(auftrag: Auftrag, *, api_schluessel: str, modell: str, basis_url: st
             json={
                 "model": modell,
                 "messages": [
-                    {"role": "system", "content": SYSTEMANWEISUNG},
+                    {"role": "system", "content": systemanweisung(auftrag.sprache)},
                     {"role": "user", "content": _nutzeranweisung(auftrag)},
                 ],
                 # Ollama deckelt sonst früh; großzügig am Umfang bemessen.
@@ -115,7 +125,7 @@ def _anthropic(auftrag: Auftrag, *, api_schluessel: str, modell: str, basis_url:
         # Großzügig bemessen: bei aktuellen Modellen zählt auch das Nachdenken
         # gegen dieses Budget, und ein abgeschnittener Text wäre unbrauchbar.
         max_tokens=8000,
-        system=SYSTEMANWEISUNG,
+        system=systemanweisung(auftrag.sprache),
         # Niedriger Aufwand genügt: Text schreiben ist keine Denksportaufgabe,
         # und die Antwort soll schnell da sein.
         output_config={"effort": "low"},

@@ -37,8 +37,11 @@ DEUTSCH = "de"
 # Sprache. Die Beschriftung steht hier und nicht in der Oberfläche, weil sie
 # zur Sprache gehört und nicht zur Ansicht: Wer eine zweite hinzufügt, soll
 # nicht daran denken müssen, sie an einer zweiten Stelle zu benennen.
+ENGLISCH = "en"
+
 UNTERSTUETZT: dict[str, str] = {
     DEUTSCH: "Deutsch",
+    ENGLISCH: "English",
 }
 
 # Womit ein Profil angelegt wird, wenn niemand etwas sagt. Solange es eine

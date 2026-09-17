@@ -11,11 +11,11 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from wortlaut import ids, web
+from wortlaut import ids, sprachen, web
 
 from ..config import einstellungen
 from ..db.models import Sitzung, Vorlage, jetzt
-from ..deps import Ablage, Datenbank, SprecherId
+from ..deps import Ablage, Datenbank, Sprache, SprecherId
 from ..services import prompt_queue, vorlesen
 
 router = APIRouter(tags=["Vorlagen"])
@@ -123,7 +123,20 @@ def verfuegbare_stimmen(sprecher: SprecherId) -> list[StimmeAntwort]:
 # Der Satz, an dem man eine Stimme vergleicht. Er steht **hier** und nicht im
 # Browser: Sonst wäre dies ein Weg, beliebigen Text sprechen zu lassen - und
 # damit Rechenzeit zu binden, ohne dass je eine Vorlage im Spiel wäre.
-PROBESATZ = "Am Montag gehe ich zum Markt und kaufe frisches Brot."
+# Der feste Satz, an dem man Stimmen vergleicht - je Sprache einer.
+#
+# Er soll alltäglich klingen, geläufige Laute enthalten und kurz genug sein,
+# dass man ihn zweimal hintereinander anhört, ohne die Geduld zu verlieren.
+# Der englische ist bewusst dieselbe Szene: Wer beide hört, vergleicht Stimmen
+# und nicht Texte.
+PROBESAETZE = {
+    sprachen.DEUTSCH: "Am Montag gehe ich zum Markt und kaufe frisches Brot.",
+    sprachen.ENGLISCH: "On Monday I go to the market and buy fresh bread.",
+}
+
+
+def probesatz(sprache: str) -> str:
+    return PROBESAETZE.get(sprachen.normiere(sprache), PROBESAETZE[sprachen.VORGABE])
 
 # Was der Browser mit einer vorgelesenen Datei tun darf.
 #
@@ -142,7 +155,9 @@ NICHT_OHNE_NACHFRAGE = {"Cache-Control": web.IMMER_NACHFRAGEN}
 
 
 @router.get("/api/vorlesen/probe")
-def hoerprobe(stimme: str, sprecher: SprecherId, ablage: Ablage) -> FileResponse:
+def hoerprobe(
+    stimme: str, sprecher: SprecherId, sprache: Sprache, ablage: Ablage
+) -> FileResponse:
     """Einen festen Satz in dieser Stimme - zum Vergleichen, bevor man wählt.
 
     Abgelegt wird das Ergebnis wie eine Vorlesung, nur unter der Kennung
@@ -159,7 +174,7 @@ def hoerprobe(stimme: str, sprecher: SprecherId, ablage: Ablage) -> FileResponse
         raise HTTPException(status_code=404, detail="Diese Stimme steht hier nicht zur Wahl.")
 
     blob = vorlesen.stelle_probe_her(
-        ablage, sprecher, PROBESATZ, stimme, konfiguration.stimmen_dir,
+        ablage, sprecher, probesatz(sprache), stimme, konfiguration.stimmen_dir,
         konfiguration.vorlesen_motor,
     )
     if blob is None:

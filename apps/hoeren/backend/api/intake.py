@@ -25,7 +25,7 @@ from wortlaut import corpus, ids
 from wortlaut.text import chunker
 
 from ..db.models import Aufnahme, Textquelle, Vorlage, jetzt
-from ..deps import Ablage, Datenbank, SprecherId
+from ..deps import Ablage, Datenbank, Sprache, SprecherId
 from ..services import augmentierung
 from ..services.prompt_queue import naechste_position
 
@@ -43,6 +43,7 @@ class IntakeAntwort(BaseModel):
 @router.post("/intake", response_model=IntakeAntwort, status_code=201)
 async def nimm_korrektur_an(
     sprecher: SprecherId,
+    sprache: Sprache,
     db: Datenbank,
     ablage: Ablage,
     audio: UploadFile = File(),
@@ -76,7 +77,7 @@ async def nimm_korrektur_an(
         speaker_id=sprecher,
         position=naechste_position(db, sprecher),
         text=text,
-        dauer_geschaetzt_s=chunker.dauer(text),
+        dauer_geschaetzt_s=chunker.dauer(text, sprache),
         erstellt=jetzt(),
     )
     # Erst die Vorlage schreiben: die Aufnahme verweist per Fremdschlüssel auf sie.

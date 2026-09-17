@@ -65,3 +65,14 @@ class TestName:
         # in `vorlesen.py`: lieber ein Kürzel zeigen als einen Bestand
         # verschweigen.
         assert sprachen.name("kl") == "kl"
+
+
+class TestEnglisch:
+    """Die zweite Sprache - und was mit ihr zusammenhängen muss."""
+
+    def test_englisch_steht_zur_wahl(self) -> None:
+        assert sprachen.ENGLISCH in sprachen.UNTERSTUETZT
+
+    def test_das_gebiet_faellt_auch_hier_weg(self) -> None:
+        # `en-GB` und `en-US` sind für Whisper dieselbe Sprache.
+        assert sprachen.pruefe("en-GB") == sprachen.ENGLISCH
