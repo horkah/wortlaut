@@ -217,8 +217,8 @@ def _namen(sprecher: str) -> list[str]:
 
 def _beschriftungen(namen: list[str]) -> dict[str, str]:
     """Wie ein Modell in der Ansicht heißt - `small` bleibt `small`, ein Stand
-    wird zu `Stand K7M2Q`. Die Kennung ist dieselbe, die in „lernen" daneben
-    steht (`wortlaut/registry.py`)."""
+    wird zu `K7M2Q`. Die Kennung ist dieselbe, die in „lernen" daneben steht
+    (`wortlaut/registry.py`)."""
     return {name: registry.beschriftung(name) for name in namen}
 
 
@@ -263,7 +263,14 @@ def _nummeriert(db: Datenbank) -> list[tuple[int, Aufnahme, Vorlage]]:
 
 @router.get("", response_model=AuswertungAntwort)
 def uebersicht(db: Datenbank, sprecher: SprecherId) -> AuswertungAntwort:
-    """Die Kurve und der Stand des Laufs - die Auskunft, die die Seite abfragt."""
+    """Die Kurve und der Stand des Laufs - die Auskunft, die die Seite abfragt.
+
+    Zuerst der Abgleich mit den Ständen auf der Platte: Deren Faltungen sind
+    gemessen, bevor hier jemand einen Knopf drückt, und sie gehören in den
+    Vergleich und in die Zählung, nicht hinter einen Startknopf
+    (`auswertung.gleiche_ab`).
+    """
+    auswertung.gleiche_ab(db, einstellungen().data_dir, sprecher)
     namen = _namen(sprecher)
     nach_aufnahme: dict[str, dict[str, dict[str, dict[str, float]]]] = {}
     for erkennung in db.scalars(

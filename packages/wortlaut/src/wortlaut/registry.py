@@ -99,10 +99,19 @@ def ist_stand(ref: str) -> bool:
 # neben `small` und `large-v3` steht - und mit der Kennung, weil das die Zahl
 # ist, die in „lernen" daneben steht und die man am Telefon durchgibt.
 def beschriftung(ref: str) -> str:
-    """`spr_7f2a/20260912T1420-lora` → `Stand K7M2Q`; ein Grundmodell bleibt es selbst."""
+    """`spr_7f2a/20260912T1420-lora` → `K7M2Q`; ein Grundmodell bleibt es selbst.
+
+    Die Kennung steht für sich, ohne das Wort davor. Sie steht dort, wo
+    `small` und `large-v3` stehen - in einer Legende, in einer Achse, in einer
+    engen Tabellenspalte -, und ein vorangestelltes „Stand" wäre in jeder
+    dieser Zeilen dasselbe Wort und nähme den Platz, an dem die Kennung selbst
+    zu lesen sein soll. Fünf Zeichen sind schon die ganze Auskunft: Wer sie
+    kennt, findet den Stand in „lernen" und in der Kopfzeile von „schreiben"
+    wieder.
+    """
     if not ist_stand(ref):
         return ref
-    return f"Stand {kurzkennung(ref.split(TRENNER, 1)[1])}"
+    return kurzkennung(ref.split(TRENNER, 1)[1])
 
 
 def ct2_verzeichnis(datenverzeichnis: Path, ref: str) -> Path:

@@ -378,7 +378,10 @@
       if (modell === balkenmodell) {
         return {
           id: modell,
-          name: modell,
+          // `id` bleibt die Kennung des Modells, `name` ist, was in der
+          // Legende steht - bei einem Stand die Kurzkennung statt seines
+          // ganzen Pfades.
+          name: benannt(modell),
           type: 'bar' as const,
           data: werte,
           itemStyle: {
@@ -402,7 +405,7 @@
       }
       return {
         id: modell,
-        name: modell,
+        name: benannt(modell),
         type: 'scatter' as const,
         data: werte,
         symbol: PUNKTFORMEN[nummer % PUNKTFORMEN.length],

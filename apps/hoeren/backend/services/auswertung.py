@@ -628,6 +628,21 @@ async def _arbeite(
             db.commit()
 
 
+def gleiche_ab(db: Session, datenverzeichnis: Path, sprecher_id: str) -> None:
+    """Die Tabelle mit dem in Einklang bringen, was an Ständen dasteht.
+
+    **Nicht erst beim Anstoßen eines Laufs.** Die Messungen der
+    Kreuzvalidierung liegen fertig da; sie zu übernehmen kostet keine
+    Rechenzeit, sondern ein paar Zeilen aus einer Datei. Erst danach stimmt,
+    was die Ansicht zeigt: der Vergleich, den es schon gibt, und die Zahl
+    dessen, was wirklich noch zu rechnen ist. Wer das an den Startknopf
+    hängte, zeigte bis zum ersten Druck zu wenige fertige und zu viele offene
+    Posten - und verlangte eine Rechnung für etwas, das längst gemessen ist.
+    """
+    vergiss_verschwundene_staende(db, datenverzeichnis, sprecher_id)
+    uebernimm_faltungen(db, datenverzeichnis, sprecher_id)
+
+
 def stand(db: Session, namen: list[str], werk: str) -> Stand:
     """Der Stand für die Oberfläche - auch dann, wenn gerade kein Lauf läuft."""
     erledigt, gesamt = zaehle(db, namen, werk)
@@ -682,8 +697,7 @@ def starte(
 
     werk = rechenwerk.marke(*rechenwerk.waehle(geraet, rechenart))
     with Session(engine) as db:
-        vergiss_verschwundene_staende(db, datenverzeichnis, sprecher_id)
-        uebernimm_faltungen(db, datenverzeichnis, sprecher_id)
+        gleiche_ab(db, datenverzeichnis, sprecher_id)
         if not offene_posten(db, namen, werk):
             erledigt, gesamt = zaehle(db, namen, werk)
             return Stand(
