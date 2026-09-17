@@ -10,6 +10,7 @@ Modell zu laden kostete je Test Minuten.
 
 from __future__ import annotations
 
+import shutil
 import time
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -644,6 +645,37 @@ class TestTrainierteStaende:
 
         assert texte(alt) == {AUS_DER_FALTUNG}
         assert texte(spaeter) == {"frisch gehört"}
+
+    def test_wer_mitten_im_lauf_verschwindet_tritt_nicht_weiter_an(
+        self, klient: TestClient, quelle: str, sprich, lege_stand_an
+    ) -> None:
+        """Ein Lauf hält nicht an einer Liste fest, die beim Anstoßen stimmte.
+
+        Sonst liefe er je Aufnahme und Fassung in denselben Fehler - einige
+        hundert Mal, und am Ende stünde eine große Zahl „übersprungen".
+        """
+        sprich()
+        daten = einstellungen().data_dir
+        ref = lege_stand_an()
+        assert auswertung.noch_da(daten, ["small", ref]) == ["small", ref]
+
+        shutil.rmtree(registry.ct2_verzeichnis(daten, ref))
+        assert auswertung.noch_da(daten, ["small", ref]) == ["small"]
+
+    def test_fehlende_gewichte_sagen_das_mit_der_kennung(
+        self, klient: TestClient, quelle: str, sprich, lege_stand_an
+    ) -> None:
+        # Sonst käme die Meldung von faster-whisper - über einen Hub, der hier
+        # nichts zu suchen hat - und nennte den ganzen Pfad.
+        sprich()
+        daten = einstellungen().data_dir
+        ref = lege_stand_an()
+        shutil.rmtree(registry.ct2_verzeichnis(daten, ref))
+
+        with pytest.raises(FileNotFoundError) as fehler:
+            auswertung.gewichte(daten, ref)
+        assert registry.kurzkennung(ref.split("/", 1)[1]) in str(fehler.value)
+        assert "/" not in str(fehler.value)
 
     def test_ein_geloeschter_stand_laesst_nichts_zurueck(
         self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an

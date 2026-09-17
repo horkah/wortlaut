@@ -859,7 +859,13 @@ Drei Feinheiten, die in der Umsetzung stecken:
   halben Korpus aufhört, ließe sich neben die übrigen nicht stellen.
 * **Ein gelöschter Lauf lässt nichts zurück.** Verschwindet ein Stand aus der
   Ablage, räumt der nächste Lauf seine Zeilen aus `erkennungen`
-  (`vergiss_verschwundene_staende`).
+  (`vergiss_verschwundene_staende`). Verschwindet er **während** eines Laufs -
+  jemand löscht ihn in „lernen", oder ein Training gibt denselben Lauf unter
+  einem anderen Namen frei -, fällt er im nächsten Durchgang aus der Rechnung
+  und aus der Summe (`noch_da`). Vorher hielt der Lauf an der Liste fest, mit
+  der er angestoßen wurde, und lief je Aufnahme und Fassung in denselben
+  Fehler; am Ende stand eine dreistellige Zahl „übersprungen" ohne einen
+  Grund, den jemand lesen kann.
 * **Übernommene Zeilen gelten nie als offen.** Ihre `rechenzeit_s` stammt von
   der Trainingsmaschine, ihr `rechenwerk` also von woanders - sonst würde der
   nächste Lauf sie neu rechnen wollen und dürfte es gerade nicht.

@@ -154,6 +154,28 @@ def staende(datenverzeichnis: Path, sprecher_id: str) -> list[str]:
     ]
 
 
+def noch_da(datenverzeichnis: Path, namen: list[str]) -> list[str]:
+    """Von einer Modellreihe das, was in diesem Augenblick zu rechnen ist.
+
+    Ein Lauf dauert Minuten bis Stunden, und in dieser Zeit kann ein Stand
+    verschwinden: Jemand löscht ihn in „lernen", oder ein Training gibt
+    denselben Lauf unter einem anderen Namen frei. Der Lauf hielte sonst an
+    einer Liste fest, die beim Anstoßen stimmte, und liefe je Aufnahme und
+    Fassung in denselben Fehler - bei einem mittleren Korpus einige hundert
+    Mal, und am Ende stünde eine große Zahl „übersprungen" ohne einen Grund,
+    den jemand lesen kann.
+
+    Ein Grundmodell bleibt immer drin: Es liegt im Modellspeicher und wird
+    notfalls geladen.
+    """
+    return [
+        name
+        for name in namen
+        if not registry.ist_stand(name)
+        or registry.ct2_verzeichnis(datenverzeichnis, name).is_dir()
+    ]
+
+
 def messbare_modelle(datenverzeichnis: Path, sprecher_id: str, liste: str) -> list[str]:
     """Alles, was in dieser Auswertung gegeneinander antritt.
 
@@ -188,6 +210,23 @@ def tempo_fuer(datenverzeichnis: Path, modell: str) -> float:
     return float(manifest.get("tempo", tempo.VORGABE))
 
 
+def gewichte(datenverzeichnis: Path, modell: str) -> Path:
+    """Das Verzeichnis, aus dem faster-whisper einen Stand lädt.
+
+    Fehlt es, sagt es das hier. Sonst hielte faster-whisper den Pfad für einen
+    Namen auf dem Hugging-Face-Hub und meldete „Repo id must be in the form
+    'namespace/repo_name'" - eine Auskunft über eine Bibliothek, die mit dem
+    Fall nichts zu tun hat, samt einem Pfad, den auf dieser Seite niemand
+    lesen will.
+    """
+    verzeichnis = registry.ct2_verzeichnis(datenverzeichnis, modell)
+    if not verzeichnis.is_dir():
+        raise FileNotFoundError(
+            f"Die Gewichte von {registry.beschriftung(modell)} liegen nicht mehr da."
+        )
+    return verzeichnis
+
+
 def transkriptor_fuer(
     modell: str, geraet: str, rechenart: str, datenverzeichnis: Path | None = None
 ) -> Transkriptor:
@@ -203,7 +242,7 @@ def transkriptor_fuer(
 
         quelle: str | Path = modell
         if registry.ist_stand(modell) and datenverzeichnis is not None:
-            quelle = registry.ct2_verzeichnis(datenverzeichnis, modell)
+            quelle = gewichte(datenverzeichnis, modell)
         _transkriptoren[modell] = LokalerTranskriptor(
             quelle, geraet=geraet, rechenart=rechenart
         )
@@ -551,20 +590,24 @@ async def _arbeite(
     werk = rechenwerk.marke(*rechenwerk.waehle(geraet, rechenart))
 
     while True:
+        # Je Durchgang neu: Ein Stand, der mitten im Lauf verschwindet, fällt
+        # damit aus der Rechnung und aus der Summe, statt sie zu verstopfen
+        # (`noch_da`).
+        antretende = noch_da(datenverzeichnis, namen)
         with Session(engine) as db:
             offen = [
                 posten
-                for posten in offene_posten(db, namen, werk)
+                for posten in offene_posten(db, antretende, werk)
                 if posten.marke not in uebersprungen
             ]
-            zustand.erledigt, zustand.gesamt = zaehle(db, namen, werk)
+            zustand.erledigt, zustand.gesamt = zaehle(db, antretende, werk)
             zustand.uebersprungen = len(uebersprungen)
 
         if not offen:
             return
 
         posten = offen[0]
-        zustand.aktuell = f"{posten.modell} · {posten.variante}"
+        zustand.aktuell = f"{registry.beschriftung(posten.modell)} · {posten.variante}"
 
         if not ablage.pfad(posten.blob).is_file():
             # Kein Grund, den ganzen Lauf hinzuwerfen: Die übrigen Aufnahmen
@@ -606,7 +649,9 @@ async def _arbeite(
             raise
         except Exception as ursache:  # noqa: BLE001 - was immer das Modell wirft
             uebersprungen.add(posten.marke)
-            zustand.fehler = f"{posten.modell} · {posten.variante}: {ursache}"
+            zustand.fehler = (
+                f"{registry.beschriftung(posten.modell)} · {posten.variante}: {ursache}"
+            )
             continue
 
         with Session(engine) as db:
