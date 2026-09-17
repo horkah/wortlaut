@@ -244,12 +244,31 @@ def grundmodelle(korpus: Session, namen: list[str], aufnahmen: set[str]) -> dict
     return reihen
 
 
-def stand(lauf: laeufe.Lauf, aufnahmen: set[str]) -> Messreihe:
+def stand(
+    lauf: laeufe.Lauf,
+    aufnahmen: set[str],
+    korpus: Session | None = None,
+    ref: str = "",
+) -> Messreihe:
     """Was ein trainierter Stand auf denselben Aufnahmen erreicht hat.
 
-    Aus der `bewertung.jsonl` seines Laufs. Aufnahmen, die dort stehen,
-    inzwischen aber nicht mehr im Testteil liegen - gelöscht etwa -, fallen
-    heraus: Der gemeinsame Boden ist der Korpus von heute.
+    **Aus zwei Quellen, und das ist Absicht.**
+
+    Die `bewertung.jsonl` seines Laufs deckt jede Aufnahme ab, die es beim
+    Training gab: Jede wurde von der Faltung gemessen, die sie zurückgehalten
+    hatte. Aufnahmen, die dort stehen, inzwischen aber nicht mehr im Korpus
+    liegen - gelöscht etwa -, fallen heraus; der gemeinsame Boden ist der
+    Korpus von heute.
+
+    Was seither dazukam, kennt diese Datei nicht. Dafür steht in „hören"
+    inzwischen, was der **ausgelieferte** Stand desselben Laufs auf den
+    neueren Aufnahmen erreicht - gerechnet in der Auswertung, wie ein
+    Grundmodell und aus demselben Grund: Er hat sie nie gehört
+    (`014_erkennungen_aus_faltungen.sql`).
+
+    Die zweite Quelle wird über die erste gelegt und nicht umgekehrt. Beide
+    reden nur dort über dieselbe Aufnahme, wo die Auswertung eine
+    Faltungsmessung übernommen hat - und dann steht in beiden dasselbe.
     """
     reihe = Messreihe()
     for zeile in laeufe.lies_zeilen(lauf.verzeichnis / laeufe.BEWERTUNG):
@@ -261,6 +280,19 @@ def stand(lauf: laeufe.Lauf, aufnahmen: set[str]) -> Messreihe:
             mass: float(zeile[mass]) for mass in MASSE if zeile.get(mass) is not None
         }
         reihe.werke.add(str(zeile.get("rechenwerk", "")))
+
+    if korpus is not None and ref:
+        for zeile in korpus.scalars(
+            select(Erkennung).where(
+                Erkennung.modell == ref,
+                Erkennung.recording_id.in_(aufnahmen or {""}),
+                Erkennung.variante.in_(augmentierung.VARIANTEN),
+            )
+        ):
+            reihe.werte[(zeile.recording_id, zeile.variante)] = {
+                mass: float(getattr(zeile, mass)) for mass in MASSE
+            }
+            reihe.werke.add(zeile.rechenwerk)
     return reihe
 
 

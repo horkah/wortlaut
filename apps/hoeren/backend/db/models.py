@@ -131,4 +131,12 @@ class Erkennung(Basis):
     # Schlüssels wie `rechenwerk`: Eine Zahl aus vorgespulter Sprache ist mit
     # einer aus ungespulter nicht zu vergleichen (siehe `011_tempo.sql`).
     tempo: Mapped[float] = mapped_column(default=1.0)
+    # Woher diese Messung stammt (siehe `014_erkennungen_aus_faltungen.sql`):
+    #
+    # * `gemessen` - hier gerechnet, von einem Modell, das die Aufnahme nie
+    #   gehört hatte. Der Normalfall und die Vorgabe.
+    # * `faltung`  - aus der Kreuzvalidierung eines Trainingslaufs übernommen.
+    #   Ebenfalls von einem Modell, das die Aufnahme nicht kannte - nur ist es
+    #   inzwischen gelöscht, also lässt sich diese Zeile nie neu rechnen.
+    herkunft: Mapped[str] = mapped_column(default="gemessen")
     erstellt: Mapped[str]

@@ -45,7 +45,11 @@ def _baseline_modell(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setattr(
         auswertung,
         "transkriptor_fuer",
-        lambda modell, geraet, rechenart: PlatzhalterErkenner("völlig daneben gehört"),
+        # Seit die Auswertung auch trainierte Stände misst, bekommt sie das
+        # Datenverzeichnis dazu - dort liegen deren Gewichte.
+        lambda modell, geraet, rechenart, datenverzeichnis=None: PlatzhalterErkenner(
+            "völlig daneben gehört"
+        ),
     )
     auswertung.vergiss_lauf()
     yield

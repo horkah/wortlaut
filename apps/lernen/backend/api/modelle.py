@@ -380,8 +380,15 @@ def uebersicht(
             if manifest.get("job_id")
             else None
         )
-        reihen[str(manifest.get("id", ""))] = (
-            messwerte.stand(lauf, aufnahmen) if lauf is not None else messwerte.Messreihe()
+        ref = str(manifest.get("id", ""))
+        # Der Korpus kommt dazu, seit die Auswertung in „hören" auch
+        # trainierte Stände misst: Was nach dem Training aufgenommen wurde,
+        # steht dort und nicht in der `bewertung.jsonl` des Laufs
+        # (`services/messwerte.py`).
+        reihen[ref] = (
+            messwerte.stand(lauf, aufnahmen, korpus, ref)
+            if lauf is not None
+            else messwerte.Messreihe()
         )
 
     # **Die Geschwindigkeit trennt hier nichts mehr.**

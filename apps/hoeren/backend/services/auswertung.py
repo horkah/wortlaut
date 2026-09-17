@@ -46,18 +46,40 @@ nur, was fehlt: nach einem Neustart, nach neuen Aufnahmen, nach einem
 hinzugefügten Modell - und nach einer hinzugefügten Fassung. Nichts wird
 doppelt gerechnet, und nichts geht verloren, wenn der Lauf mitten darin
 abbricht.
+
+**Wer antritt.** Die Grundmodelle aus der Konfiguration - und seit September
+2026 jeder trainierte Stand dieses Sprechers, dessen Gewichte dastehen. Damit
+steht in dieser Ansicht dasselbe Feld wie in „lernen", nur über den ganzen
+Korpus statt über einen Lauf.
+
+Ein Stand wird dabei nicht durchweg gerechnet. Die Aufnahmen, die es zur Zeit
+seines Trainings schon gab, hat er gehört; ihn darauf loszulassen ergäbe eine
+Zahl über sein Gedächtnis und keine über sein Können. Für genau sie liegt die
+Messung der Kreuzvalidierung vor - dort war jede Aufnahme einmal in der
+Prüffalte, also von einem Modell gehört, das sie nicht kannte. Diese Zeilen
+werden übernommen (`uebernimm_faltungen`, `herkunft = 'faltung'`, siehe
+`014_erkennungen_aus_faltungen.sql`). Was danach dazugekommen ist, rechnet der
+ausgelieferte Stand selbst - für ihn ist eine neue Aufnahme dasselbe
+unbekannte Prüfstück wie für ein Grundmodell.
+
+Dass eine Zeile eines Standes damit aus zwei Quellen stammen kann, ist die
+Absicht und nicht die Unsauberkeit: Beide Male misst sie denselben Satz, wie
+gut dieser Stand etwas hört, das er nie gelernt hat. Der Preis ist, dass
+`rechenzeit_s` einer übernommenen Zeile von der Trainingsmaschine kommt; die
+Auswertung behandelt sie deshalb nie als offen (siehe `_fertig`).
 """
 
 from __future__ import annotations
 
 import asyncio
+import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from sqlalchemy import Engine, delete, func, select
 from sqlalchemy.orm import Session
-from wortlaut import ids, metriken, rechenwerk, storage
+from wortlaut import ids, laeufe, metriken, rechenwerk, registry, storage, tempo
 from wortlaut.whisper import Transkriptor
 
 from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
@@ -106,17 +128,84 @@ _lauf: _Lauf | None = None
 _transkriptoren: dict[str, Transkriptor] = {}
 
 
+# Woher eine Zeile stammt (siehe `014_erkennungen_aus_faltungen.sql`).
+GEMESSEN = "gemessen"
+FALTUNG = "faltung"
+
+
 def modelle(liste: str) -> list[str]:
     """Die konfigurierte Modellreihe als Liste, leere Einträge weggelassen."""
     return [name.strip() for name in liste.split(",") if name.strip()]
 
 
-def transkriptor_fuer(modell: str, geraet: str, rechenart: str) -> Transkriptor:
+def staende(datenverzeichnis: Path, sprecher_id: str) -> list[str]:
+    """Die trainierten Stände dieses Sprechers, jüngster zuletzt.
+
+    Nur die, deren Gewichte wirklich dastehen: Ein Stand ohne `ct2` ließe sich
+    zwar aus seinen Faltungen übernehmen, aber nicht auf neuere Aufnahmen
+    anwenden - und eine Zeile, die nach dem halben Korpus aufhört, ist keine
+    Zeile, die man neben die übrigen stellen kann.
+    """
+    return [
+        ref
+        for manifest in registry.alle_staende(datenverzeichnis, sprecher_id)
+        if (ref := str(manifest.get("id", "")))
+        and registry.ct2_verzeichnis(datenverzeichnis, ref).is_dir()
+    ]
+
+
+def messbare_modelle(datenverzeichnis: Path, sprecher_id: str, liste: str) -> list[str]:
+    """Alles, was in dieser Auswertung gegeneinander antritt.
+
+    Die Grundmodelle aus der Konfiguration **und** die trainierten Stände
+    dieses Menschen. Dass beide in derselben Spalte stehen, war von Anfang an
+    vorgesehen (`005_auswertung.sql`); erst seit den Faltungen ist es auch
+    ehrlich möglich.
+    """
+    return modelle(liste) + staende(datenverzeichnis, sprecher_id)
+
+
+def tempo_fuer(datenverzeichnis: Path, modell: str) -> float:
+    """Mit welchem Faktor vorgespult wird, bevor dieses Modell zuhört.
+
+    **Für ein Grundmodell nie.** Die Auswertung ist die Baseline und misst den
+    Ausgangszustand (`012_ohne_profiltempo.sql`).
+
+    **Für einen Stand der Faktor, auf dem er gelernt hat.** Er steht in seinem
+    Manifest, „schreiben" spult beim Diktieren genauso vor
+    (`apps/schreiben/backend/deps.py`), und seine Faltungen wurden ebenso
+    gemessen (`apps/lernen/training/bewerten.py`). Ein Modell für schnelle
+    Sprache an langsamer zu messen, ergäbe eine Zahl über eine Lage, die es
+    nie gibt.
+    """
+    if not registry.ist_stand(modell):
+        return tempo.VORGABE
+    sprecher_id, version = modell.split(registry.TRENNER, 1)
+    try:
+        manifest = registry.lies_stand(datenverzeichnis, sprecher_id, version)
+    except (OSError, ValueError):
+        return tempo.VORGABE
+    return float(manifest.get("tempo", tempo.VORGABE))
+
+
+def transkriptor_fuer(
+    modell: str, geraet: str, rechenart: str, datenverzeichnis: Path | None = None
+) -> Transkriptor:
+    """Der Erkenner zu einem Namen - oder zu einem Stand.
+
+    Ein Grundmodell lädt faster-whisper über seinen Namen, einen Stand über
+    das Verzeichnis seiner Gewichte. Denselben Unterschied macht „schreiben"
+    an derselben Stelle; hier steht er, weil die Auswertung seit den
+    Faltungen beide misst.
+    """
     if modell not in _transkriptoren:
         from wortlaut.whisper.local import LokalerTranskriptor
 
+        quelle: str | Path = modell
+        if registry.ist_stand(modell) and datenverzeichnis is not None:
+            quelle = registry.ct2_verzeichnis(datenverzeichnis, modell)
         _transkriptoren[modell] = LokalerTranskriptor(
-            modell, geraet=geraet, rechenart=rechenart
+            quelle, geraet=geraet, rechenart=rechenart
         )
     return _transkriptoren[modell]
 
@@ -141,6 +230,123 @@ class Posten:
     def marke(self) -> tuple[str, str, str]:
         """Was diesen Posten eindeutig macht - der Schlüssel für „schon gerechnet"."""
         return (self.aufnahme_id, self.modell, self.variante)
+
+
+# Die Maße, die eine übernommene Faltungszeile mitbringen muss. Fehlt eines,
+# ist die Zeile unbrauchbar - eine halbe Messung ist keine.
+_MASSE = ("wer", "cer", "mer", "wil", "genauigkeit")
+
+
+def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -> int:
+    """Die Kreuzvalidierung jedes Standes in `erkennungen` übernehmen.
+
+    **Warum übernehmen und nicht rechnen.** Ein trainierter Stand hat die
+    meisten Aufnahmen dieses Korpus im Training gehört. Ihn darauf loszulassen
+    ergäbe eine Zahl über sein Gedächtnis und nicht über sein Hörvermögen. Für
+    genau diese Aufnahmen liegt die ehrliche Messung längst vor: Jede von ihnen
+    wurde in einer der sechs Faltungen von einem Modell gehört, das sie
+    zurückgehalten bekommen hatte (`apps/lernen/training/bewerten.py`).
+
+    **Warum hier und nicht am Ende des Trainings.** Weil es dann einmal
+    geschähe und für die Läufe von gestern nie. So geschieht es vor jedem
+    Auswertungslauf, ist in sich wiederholbar - was schon steht, wird nicht
+    noch einmal geschrieben - und holt alte Läufe von selbst nach.
+
+    Gibt zurück, wie viele Zeilen neu dazukamen.
+    """
+    vorhanden = {
+        (zeile.recording_id, zeile.modell, zeile.variante)
+        for zeile in db.execute(
+            select(Erkennung.recording_id, Erkennung.modell, Erkennung.variante).where(
+                Erkennung.herkunft == FALTUNG
+            )
+        ).all()
+    }
+    gueltig = {aufnahme.id for aufnahme, _ in gueltige_aufnahmen(db)}
+
+    neu = 0
+    for manifest in registry.alle_staende(datenverzeichnis, sprecher_id):
+        ref = str(manifest.get("id", ""))
+        job = str(manifest.get("job_id", ""))
+        if not ref or not job:
+            continue
+        verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, job)
+        faktor = float(manifest.get("tempo", tempo.VORGABE))
+        for zeile in laeufe.lies_zeilen(verzeichnis / laeufe.BEWERTUNG):
+            kennung = str(zeile.get("recording_id") or "")
+            fassung = str(zeile.get("variante") or augmentierung.ORIGINAL)
+            # Eine Aufnahme, die es nicht mehr gibt oder die verworfen wurde,
+            # ist kein Prüfstück mehr - der gemeinsame Boden ist der Korpus von
+            # heute und nicht der von damals.
+            if not kennung or kennung not in gueltig:
+                continue
+            if (kennung, ref, fassung) in vorhanden:
+                continue
+            if any(zeile.get(mass) is None for mass in _MASSE):
+                continue
+            db.add(
+                Erkennung(
+                    id=ids.neue_id("erk"),
+                    recording_id=kennung,
+                    modell=ref,
+                    variante=fassung,
+                    text=str(zeile.get("text") or ""),
+                    **{mass: float(zeile[mass]) for mass in _MASSE},
+                    rechenzeit_s=float(zeile.get("rechenzeit_s") or 0.0),
+                    # Das Rechenwerk des Trainers, nicht das dieser Maschine.
+                    # Es steht da, damit die Ansicht die Rechenzeit **nicht**
+                    # neben die übrigen stellt (siehe `zeit_vergleichbar` in
+                    # `apps/lernen/backend/api/modelle.py`).
+                    rechenwerk=str(zeile.get("rechenwerk") or ""),
+                    tempo=faktor,
+                    herkunft=FALTUNG,
+                    erstellt=jetzt(),
+                )
+            )
+            vorhanden.add((kennung, ref, fassung))
+            neu += 1
+    if neu:
+        db.commit()
+    return neu
+
+
+def vergiss_verschwundene_staende(db: Session, datenverzeichnis: Path, sprecher_id: str) -> int:
+    """Zeilen von Ständen wegräumen, die es nicht mehr gibt.
+
+    Wer einen Lauf löscht, löscht alles, was aus ihm hervorging
+    (`apps/lernen/backend/services/auftraege.py`). Seine Messungen stehen aber
+    hier, in der Tabelle von „hören" - und bis September 2026 gab es in dieser
+    Tabelle nichts, was ein Lauf hinterlassen konnte.
+
+    Aufgeräumt wird hier und nicht dort, weil diese Tabelle hierher gehört: Ein
+    Löschvorgang in „lernen", der in den Korpus greift, wäre ein zweiter
+    Schreiber darauf (Grundentscheidung 6).
+
+    Gemessen wird am **Manifest** und nicht an den Gewichten: Ein Stand, dessen
+    `ct2` fehlt, kann keine neue Aufnahme mehr hören, aber seine Faltungen
+    beschreiben nach wie vor, was er konnte. Sie wegzuwerfen hieße, eine
+    Messung zu verlieren, die niemand wiederherstellen kann.
+    """
+    vorhanden = {
+        str(manifest.get("id", ""))
+        for manifest in registry.alle_staende(datenverzeichnis, sprecher_id)
+    }
+    verwaist = [
+        modell
+        for modell in db.scalars(select(Erkennung.modell).distinct())
+        if registry.ist_stand(modell) and modell not in vorhanden
+    ]
+    if not verwaist:
+        return 0
+    anzahl = (
+        db.scalar(
+            select(func.count()).select_from(Erkennung).where(Erkennung.modell.in_(verwaist))
+        )
+        or 0
+    )
+    db.execute(delete(Erkennung).where(Erkennung.modell.in_(verwaist)))
+    db.commit()
+    return anzahl
 
 
 def gueltige_aufnahmen(db: Session) -> list[tuple[Aufnahme, Vorlage]]:
@@ -173,12 +379,18 @@ def _fertig(db: Session, werk: str) -> set[tuple[str, str, str]]:
     aus keinem bekannten (die Zeilen von vor `008_rechenwerk.sql`). Das kostet
     einmal einen vollen Lauf - auf der Karte sind das Minuten statt Stunden.
 
+    **Ausgenommen sind die übernommenen Faltungszeilen.** Sie lassen sich nicht
+    neu rechnen: Die sechs Modelle, die sie gemessen haben, sind nach ihrem
+    Lauf gelöscht, und der siebte kennt diese Aufnahmen auswendig. Sie bei
+    einem Wechsel der Karte für offen zu erklären hieße, sie durch eine
+    Messung zu ersetzen, die schlechter ist - oder die Zeile ganz zu verlieren
+    (siehe `014_erkennungen_aus_faltungen.sql`).
     """
     return {
         (zeile.recording_id, zeile.modell, zeile.variante)
         for zeile in db.execute(
             select(Erkennung.recording_id, Erkennung.modell, Erkennung.variante).where(
-                Erkennung.rechenwerk == werk
+                (Erkennung.rechenwerk == werk) | (Erkennung.herkunft == FALTUNG)
             )
         ).all()
     }
@@ -236,11 +448,13 @@ def zaehle(db: Session, namen: list[str], werk: str) -> tuple[int, int]:
             .where(
                 Erkennung.modell.in_(namen),
                 Erkennung.variante.in_(augmentierung.VARIANTEN),
-                # Dieselbe Einschränkung wie in `_fertig`: Was auf einem
-                # anderen Rechenwerk entstand, ist offen und nicht erledigt -
-                # sonst stünde der Balken bei 100 %, während der Lauf noch
-                # rechnet.
-                Erkennung.rechenwerk == werk,
+                # Dieselbe Einschränkung wie in `_fertig`, samt derselben
+                # Ausnahme: Was auf einem anderen Rechenwerk entstand, ist
+                # offen und nicht erledigt - sonst stünde der Balken bei 100 %,
+                # während der Lauf noch rechnet. Eine übernommene
+                # Faltungsmessung zählt dagegen immer als erledigt, denn sie
+                # kann gar nicht neu entstehen.
+                (Erkennung.rechenwerk == werk) | (Erkennung.herkunft == FALTUNG),
             )
         )
         or 0
@@ -254,18 +468,29 @@ def _rechne(
     sprache: str,
     transkriptor: Transkriptor,
     werk: str,
+    faktor: float = tempo.VORGABE,
 ) -> Erkennung:
     """Erkennen und messen - der Teil, der rechnet und keine Datenbank anfasst.
 
-    **Immer bei einfacher Geschwindigkeit.** Hier stand einmal ein Vorspulen
-    nach dem Profilfaktor des Sprechers; er ist im September 2026 gefallen
-    (`012_ohne_profiltempo.sql`). Was das Vorspulen bringt, sucht seither der
-    Trainer selbst und trägt es im Modellstand mit sich - die Auswertung ist
-    die Baseline und misst deshalb den Ausgangszustand.
+    **Ein Grundmodell hört bei einfacher Geschwindigkeit.** Hier stand einmal
+    ein Vorspulen nach dem Profilfaktor des Sprechers; er ist im September 2026
+    gefallen (`012_ohne_profiltempo.sql`). Die Auswertung ist die Baseline und
+    misst den Ausgangszustand.
+
+    **Ein trainierter Stand hört so, wie er gelernt hat.** Sein Faktor steht in
+    seinem Manifest; die Faltungen desselben Laufs wurden damit gemessen, und
+    „schreiben" spult beim Diktieren ebenso vor. Ein Modell für schnelle
+    Sprache an langsamer zu messen, ergäbe eine Zahl über eine Lage, die es
+    nie gibt (`tempo_fuer`).
     """
-    begonnen = time.monotonic()
-    transkript = transkriptor.transkribiere(wav, sprache=sprache)
-    dauer = time.monotonic() - begonnen
+    with tempfile.TemporaryDirectory() as zwischen:
+        if tempo.vorspulen_noetig(faktor):
+            schnell = Path(zwischen) / "vorgespult.wav"
+            tempo.spule_vor(wav, schnell, faktor)
+            wav = schnell
+        begonnen = time.monotonic()
+        transkript = transkriptor.transkribiere(wav, sprache=sprache)
+        dauer = time.monotonic() - begonnen
     # **Nach** dem Erkennen gefragt und nicht davor: Ob die Karte den Platz
     # hergab, zeigt sich beim Laden. Wich der Transkriptor auf den Prozessor
     # aus, steht das hier - und die Zeile daneben ist als das lesbar, was sie
@@ -291,6 +516,8 @@ def _rechne(
         genauigkeit=guete.genauigkeit,
         rechenzeit_s=dauer,
         rechenwerk=werk,
+        tempo=faktor,
+        herkunft=GEMESSEN,
         erstellt=jetzt(),
     )
 
@@ -304,6 +531,7 @@ async def _arbeite(
     rechenart: str,
     zustand: Stand,
     uebersprungen: set[tuple[str, str, str]],
+    datenverzeichnis: Path,
 ) -> None:
     """Der Lauf selbst: einen Posten nach dem anderen, bis nichts mehr offen ist.
 
@@ -370,8 +598,9 @@ async def _arbeite(
                 posten,
                 ablage.pfad(posten.variante_blob),
                 sprache,
-                transkriptor_fuer(posten.modell, geraet, rechenart),
+                transkriptor_fuer(posten.modell, geraet, rechenart, datenverzeichnis),
                 werk,
+                tempo_fuer(datenverzeichnis, posten.modell),
             )
         except asyncio.CancelledError:
             raise
@@ -423,10 +652,16 @@ def starte(
     ablage: storage.Ablage,
     namen: list[str],
     sprache: str,
+    datenverzeichnis: Path,
     geraet: str = rechenwerk.AUTO,
     rechenart: str = rechenwerk.AUTO,
 ) -> Stand:
     """Einen Lauf anstoßen. Läuft schon einer, bleibt es bei ihm.
+
+    **Zuerst werden die Faltungen übernommen.** Erst danach steht fest, was
+    wirklich offen ist: Ein trainierter Stand bringt für die meisten Aufnahmen
+    schon eine Messung mit, und nur die Aufnahmen, die es beim Training noch
+    nicht gab, muss er selbst hören (`uebernimm_faltungen`).
 
     **Ist nichts offen, läuft auch nichts.** Der Lauf rechnet, was fehlt, und
     nichts sonst - steht schon alles, wäre er fertig, bevor er anfängt. Eine
@@ -447,6 +682,8 @@ def starte(
 
     werk = rechenwerk.marke(*rechenwerk.waehle(geraet, rechenart))
     with Session(engine) as db:
+        vergiss_verschwundene_staende(db, datenverzeichnis, sprecher_id)
+        uebernimm_faltungen(db, datenverzeichnis, sprecher_id)
         if not offene_posten(db, namen, werk):
             erledigt, gesamt = zaehle(db, namen, werk)
             return Stand(
@@ -457,7 +694,15 @@ def starte(
     uebersprungen: set[tuple[str, str, str]] = set()
     aufgabe = asyncio.create_task(
         _arbeite(
-            engine, ablage, namen, sprache, geraet, rechenart, stand_neu, uebersprungen
+            engine,
+            ablage,
+            namen,
+            sprache,
+            geraet,
+            rechenart,
+            stand_neu,
+            uebersprungen,
+            datenverzeichnis,
         )
     )
     _lauf = _Lauf(

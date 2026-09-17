@@ -373,22 +373,30 @@ Aufnahme. Der beste Wert jeder Spalte ist hervorgehoben, und ein Klick auf eine
 Spaltenüberschrift sortiert danach - bei den Fehlerraten von selbst andersherum,
 denn dort ist klein besser.
 
-Gemessen wird über **alle Aufnahmen**. Bei den trainierten Ständen kommt jede
-Zahl aus der Faltung, die diese Aufnahme zurückgehalten hat - kein Modell hat
-je die Aufnahme gehört, an der es gemessen wird. Die Grundmodelle haben
-ohnehin nie etwas gelernt. Beide Seiten stehen damit auf demselben, größeren
-Boden.
+Gemessen wird über **alle Aufnahmen**. Kein Modell wird dabei an etwas
+gemessen, das es kennt: Die Grundmodelle haben ohnehin nie etwas gelernt, und
+bei einem trainierten Stand kommt jede Zahl aus der Faltung, die diese Aufnahme
+zurückgehalten hat.
 
-**Gemessen wird dabei nichts neu.** Zwei Rechnungen liegen längst vor, und
-beide stammen aus derselben Datei (`wortlaut/metriken.py`):
+**Gemessen wird dabei nichts neu.** Die Rechnungen liegen längst vor, und alle
+stammen aus derselben Datei (`wortlaut/metriken.py`):
 
 * für die Grundmodelle die **Auswertung** aus `hören` - jede Aufnahme durch
   `small`, `medium` und `large-v3`, in allen Fassungen;
 * für jeden eigenen Stand die **Bewertung** seines Laufs - dieselben
   Aufnahmen, dieselben Fassungen, dieselben Maße, jede aus der Faltung, die sie
-  nicht kannte.
+  nicht kannte;
+* und seit September 2026 für einen Stand zusätzlich die Aufnahmen, die es zur
+  Zeit seines Trainings **noch nicht gab**. Sie stehen in keiner Faltung, weil
+  sie in keinem Lauf waren; die Auswertung in `hören` lässt sie deshalb vom
+  ausgelieferten Stand hören und legt sie zu den übrigen
+  (siehe [hören](hoeren.md#die-eigenen-stände-treten-mit-an)). Für ihn sind
+  sie dasselbe unbekannte Prüfstück wie für ein Grundmodell.
 
-Ein drittes Mal zu messen wäre eine dritte Gelegenheit, es anders zu machen:
+Der Boden wächst damit mit dem Korpus statt beim Trainingstag stehenzubleiben -
+und er bleibt für alle Zeilen derselbe.
+
+Ein weiteres Mal zu messen wäre eine weitere Gelegenheit, es anders zu machen:
 anderes Gerät, andere Quantisierung, andere Textangleichung.
 
 **Die Rechenzeit ist eine Eigenschaft der Maschine, nicht des Modells.** Sie
@@ -416,7 +424,7 @@ ist -, sagt die Seite das und rechnet jede Zeile auf dem, was sie hat. Eine
 leere Tabelle wäre die schlechtere Auskunft: Sie verschwiege, dass überhaupt
 gemessen wurde.
 
-Eine Auswahlliste wechselt die **Fassung**. Vorgabe sind alle vier zusammen -
+Eine Auswahlliste wechselt die **Fassung**. Vorgabe sind alle zusammen -
 die Zahl, die ein Modell in einem Satz beschreibt. Wer wissen will, ob ein
 Stand den Sprecher verstanden hat oder bloß seine Aufnahmesituation, schaltet
 auf **Original** oder **Rauschen** um; das ist dieselbe Frage wie beim
