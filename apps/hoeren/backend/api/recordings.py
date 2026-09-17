@@ -15,10 +15,11 @@ from pathlib import Path
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from sqlalchemy import delete
 from wortlaut import audio as klang
 from wortlaut import corpus, ids
 
-from ..db.models import Aufnahme, Vorlage, jetzt
+from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
 from ..deps import Ablage, Datenbank, SprecherId
 from ..services import augmentierung, quality
 
@@ -160,6 +161,18 @@ def verwirf(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablag
     Aufnahmen mit Status `ok`). Das Audio selbst wird wirklich gelöscht -
     verworfene Stimmaufnahmen werden nicht gebraucht, und weniger
     Gesundheitsdaten sind besser als mehr.
+
+    **Und mit dem Audio geht, was Modelle daraus gemacht haben.** Der erkannte
+    Text ist dieselbe Äußerung, nur in Schrift; ihn stehen zu lassen, während
+    der Ton gelöscht wird, wäre die halbe Bewegung. Gemessen wird ohnehin nur
+    an brauchbaren Aufnahmen - eine verworfene ist kein Prüfstück, sondern ein
+    Fehlversuch (`services/auswertung.py`).
+
+    Übernommene Faltungsmessungen gehen dabei mit, und sie kommen nicht
+    wieder: Was der Korpus nicht mehr führt, holt die Auswertung auch nicht
+    zurück. **Das trainierte Modell bleibt davon unberührt** - es hat gelernt,
+    was es gelernt hat; nur seine Zahlen stehen von nun an auf dem Korpus von
+    heute (`014_erkennungen_aus_faltungen.sql`).
     """
     aufnahme = db.get(Aufnahme, aufnahme_id)
     if aufnahme is None or aufnahme.speaker_id != sprecher:
@@ -171,5 +184,6 @@ def verwirf(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablag
         # verrauscht - und damit derselbe Gesundheitsdatensatz. Wer eine
         # Aufnahme wegwirft, hat nicht drei Kopien davon gemeint.
         augmentierung.loesche(ablage, aufnahme)
+        db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme_id))
         aufnahme.status = "verworfen"
         db.commit()

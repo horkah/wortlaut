@@ -1073,6 +1073,17 @@ sechs Messungen je Aufnahme. Vier Eigenschaften sind Absicht:
   abbricht. Was aus einer Faltung übernommen wurde
   (`014_erkennungen_aus_faltungen.sql`), gilt dabei immer als fertig - es
   stammt von einer anderen Maschine und ließe sich hier nicht wiederholen.
+* **Gezählt wird nur, was gilt.** Eine verworfene Aufnahme zählt in `gesamt`
+  nicht mehr mit - ihre Messzeilen dürfen also auch in `erledigt` nicht mehr
+  mitzählen, sonst steht der Balken über 100 %. Das Verwerfen räumt sie
+  inzwischen selbst weg: Der erkannte Text ist dieselbe Äußerung wie das
+  Audio, nur in Schrift, und wer den Ton löscht, hat die Schrift mitgemeint
+  (`015_erkennungen_verworfener_aufnahmen.sql` für den Rückstand). Beide
+  Zählungen schränken trotzdem auf die brauchbaren Aufnahmen ein: Was gezählt
+  wird, soll nicht davon abhängen, dass ein anderer Weg sauber gearbeitet hat.
+  Übernommene Faltungsmessungen gehen dabei mit und kommen nicht wieder - das
+  trainierte Modell bleibt unberührt, nur seine Zahlen stehen von da an auf
+  dem Korpus von heute.
 * **Auf der Karte, wenn eine da ist.** Dieselbe Einstellung wie beim
   Diktieren und beim Trainer (`WORTLAUT_GERAET`, siehe
   [Konfiguration](konfiguration.md#rechenwerk---worauf-erkannt-wird)). Das ist
