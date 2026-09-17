@@ -37,7 +37,6 @@
     TEMPO_SPANNE,
   } from './einstellungen.svelte';
 
-  const PROBE = 'Am Montag gehe ich zum Markt und kaufe frisches Brot.';
 
   /**
    * Stimmen, die der **Server** sprechen kann - von der App hereingereicht.
@@ -61,6 +60,17 @@
     servestimmen?: Servestimme[];
     probeHolen?: (schluessel: string) => Promise<Blob>;
   } = $props();
+
+  /**
+   * Der Probesatz für die Browserstimme - je Sprache einer, wie beim Server
+   * (`api/prompts.py`). Dieselbe Szene in beiden Sprachen: Wer vergleicht,
+   * soll Stimmen vergleichen und nicht Texte.
+   */
+  const PROBESAETZE: Record<string, string> = {
+    de: 'Am Montag gehe ich zum Markt und kaufe frisches Brot.',
+    en: 'On Monday I go to the market and buy fresh bread.',
+  };
+  const PROBE = $derived(PROBESAETZE[sprache ?? 'de'] ?? PROBESAETZE.de);
 
   let fehler = $state('');
 

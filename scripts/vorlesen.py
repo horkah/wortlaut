@@ -27,11 +27,23 @@ Bekannte deutsche Stimmen (es gibt mehr, siehe die Sammlung auf Hugging Face):
     de_DE-karlsson-low       männlich
     de_DE-eva_k-x_low        weiblich, sehr genügsam
 
+Englische Stimmen (dort gibt es `high` reichlich):
+
+    en_US-lessac-high        weiblich, amerikanisch, aus einem Studiokorpus
+    en_US-ryan-high          männlich, amerikanisch
+    en_GB-cori-high          weiblich, britisch
+
 **Zur Auflösung.** `high` gibt es auf Deutsch nur bei Thorsten; alles andere
-endet bei `low`, und das heißt 16 kHz statt 22,05. Wer eine zweite Stimme
-holt, holt sie der Abwechslung wegen und nicht der Schärfe wegen - für den
-Zweck hier, einen Satz zu hören und ihn nachzusprechen, zählt ohnehin die
-Deutlichkeit und nicht die Bandbreite.
+endet dort bei `low`, und das heißt 16 kHz statt 22,05. Wer eine zweite
+deutsche Stimme holt, holt sie der Abwechslung wegen und nicht der Schärfe
+wegen - für den Zweck hier, einen Satz zu hören und ihn nachzusprechen, zählt
+ohnehin die Deutlichkeit und nicht die Bandbreite. Im Englischen stellt sich
+die Frage nicht.
+
+**Zur Sprache.** Eine Stimme trägt sie in ihrem Namen (`de_DE-…`, `en_US-…`),
+und die Oberfläche bietet einem Profil nur die seiner eigenen an. Wer eine
+Sprache hinzufügt, legt eine Stimme dafür ab - sonst liest der Browser vor,
+und das kann er in jeder Sprache verschieden gut.
 """
 
 from __future__ import annotations

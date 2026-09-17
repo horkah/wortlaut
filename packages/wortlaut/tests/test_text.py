@@ -11,6 +11,7 @@ import io
 import zipfile
 
 import pytest
+from wortlaut import sprachen
 from wortlaut.text import chunker, upload
 
 LANGER_SATZ = (
@@ -52,6 +53,37 @@ class TestChunker:
 
     def test_dauer_waechst_mit_der_laenge(self) -> None:
         assert chunker.dauer("kurz") < chunker.dauer("deutlich länger als kurz")
+
+
+class TestSchnittJeSprache:
+    """Was am Schneiden von der Sprache abhängt - und was nicht."""
+
+    def test_englisch_laeuft_schneller_durch_dieselbe_sekunde(self) -> None:
+        # Seine Wörter sind kürzer, also stehen hinter einer Sekunde mehr
+        # Zeichen. Dieselbe Zeichenzahl dauert englisch gesprochen weniger lang.
+        satz = "a" * 150
+        assert chunker.dauer(satz, "en") < chunker.dauer(satz, "de")
+
+    def test_eine_unbekannte_sprache_bekommt_das_mass_der_vorgabe(self) -> None:
+        # Eine Näherung, die daneben liegt, ist besser als ein Schnitt, der
+        # gar nicht stattfindet.
+        assert chunker.mass("kl") is chunker.mass(sprachen.VORGABE)
+
+    def test_das_gebiet_stoert_nicht(self) -> None:
+        assert chunker.mass("en-GB") is chunker.mass("en")
+
+    def test_englische_abkuerzungen_trennen_keinen_satz(self) -> None:
+        # „Dr." beendet keinen Satz - sonst zerfiele die Vorlage mitten im Namen.
+        einheiten = chunker.schneide(
+            "Dr. Smith went to the market today. He bought some very fresh bread.", "en"
+        )
+        assert any("Dr. Smith" in e.text for e in einheiten)
+
+    def test_deutsche_abkuerzungen_wirken_weiterhin(self) -> None:
+        einheiten = chunker.schneide(
+            "Am Montag kaufte Dr. Meier frisches Brot ein. Danach ging er nach Hause.", "de"
+        )
+        assert any("Dr. Meier" in e.text for e in einheiten)
 
 
 class TestUpload:

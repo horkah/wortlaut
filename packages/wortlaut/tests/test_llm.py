@@ -13,6 +13,7 @@ from typing import Any
 
 import httpx
 import pytest
+from wortlaut import sprachen
 from wortlaut.text import llm
 
 AUFTRAG = llm.Auftrag(thema="Ein Tag am Meer", altersspanne="Erwachsene", umfang=60)
@@ -65,6 +66,20 @@ class TestAnbieterwahl:
             llm.erzeuge_text(AUFTRAG, anbieter="openai", api_schluessel="", modell="m")
 
 
+class TestSprache:
+    """Ein englisches Profil bekommt englische Vorlagen."""
+
+    def test_die_anweisung_nennt_die_sprache(self) -> None:
+        # Sonst schriebe das Modell deutsch, und jemand läse Sätze vor, die
+        # nicht seine sind.
+        assert sprachen.name("en") in llm.systemanweisung("en")
+        assert sprachen.name("de") in llm.systemanweisung("de")
+
+    def test_ohne_angabe_gilt_die_vorgabe(self) -> None:
+        auftrag = llm.Auftrag(thema="Meer", altersspanne="Erwachsene", umfang=60)
+        assert auftrag.sprache == sprachen.VORGABE
+
+
 class TestOpenAiAdapter:
     def test_schickt_auftrag_und_systemanweisung(self, monkeypatch: pytest.MonkeyPatch) -> None:
         gesehen: dict[str, Any] = {}
@@ -88,7 +103,7 @@ class TestOpenAiAdapter:
         rumpf = gesehen["json"]
         assert rumpf["model"] == "gemma2:9b"
         assert rumpf["messages"][0]["role"] == "system"
-        assert rumpf["messages"][0]["content"] == llm.SYSTEMANWEISUNG
+        assert rumpf["messages"][0]["content"] == llm.systemanweisung(sprachen.VORGABE)
         # Thema, Zielgruppe und Umfang müssen beim Modell ankommen.
         nutzer = rumpf["messages"][1]["content"]
         assert "Ein Tag am Meer" in nutzer

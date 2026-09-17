@@ -69,8 +69,14 @@ the layers above and beside them.
 
 **Since the first version of this note, §1 to §3 below have been closed** and
 the hard-coded `"de"` has been removed from the code: the default now lives in
-`wortlaut/sprachen.py` and everything else reads the profile. What is left is
-listed unchanged, so the reasoning stays readable.
+`wortlaut/sprachen.py` and everything else reads the profile.
+
+**English has since been switched on**, and doing so exercised the rest of this
+list: §4 (the chunker now carries a per-language measure - characters per
+second and the abbreviations whose full stop is not a sentence end), §5 (the
+LLM instruction names the language it must write in) and the probe sentences.
+Two `high`-quality English voices are installed. What remains open is §7, the
+interface itself - it is German, in both languages.
 
 ---
 

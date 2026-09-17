@@ -82,11 +82,13 @@ def _als_antwort(quelle: Textquelle, einheiten: int) -> QuellenAntwort:
 
 
 @router.post("/llm", response_model=QuellenAntwort, status_code=201)
-def aus_llm(sprecher: SprecherId, auftrag: LLMAuftrag, db: Datenbank) -> QuellenAntwort:
+def aus_llm(
+    sprecher: SprecherId, sprache: Sprache, auftrag: LLMAuftrag, db: Datenbank
+) -> QuellenAntwort:
     konfiguration = einstellungen()
     try:
         text = llm.erzeuge_text(
-            llm.Auftrag(auftrag.thema, auftrag.altersspanne, auftrag.umfang),
+            llm.Auftrag(auftrag.thema, auftrag.altersspanne, auftrag.umfang, sprache),
             anbieter=konfiguration.llm_provider,
             api_schluessel=konfiguration.llm_api_key,
             modell=konfiguration.llm_model,
@@ -106,12 +108,13 @@ def aus_llm(sprecher: SprecherId, auftrag: LLMAuftrag, db: Datenbank) -> Quellen
             "modell": konfiguration.llm_model,
         },
         text=text,
+        sprache=sprache,
     )
 
 
 @router.post("/upload", response_model=QuellenAntwort, status_code=201)
 async def aus_upload(
-    sprecher: SprecherId, db: Datenbank, datei: UploadFile = File()
+    sprecher: SprecherId, sprache: Sprache, db: Datenbank, datei: UploadFile = File()
 ) -> QuellenAntwort:
     inhalt = await datei.read()
     if len(inhalt) > MAX_UPLOAD_BYTES:
@@ -131,6 +134,7 @@ async def aus_upload(
         titel=datei.filename or "Hochgeladener Text",
         parameter={"dateiname": datei.filename, "bytes": len(inhalt)},
         text=text,
+        sprache=sprache,
     )
 
 
@@ -232,7 +236,9 @@ def _erkannt(arbeit) -> str:
 
 
 @router.post("/text", response_model=QuellenAntwort, status_code=201)
-def aus_text(sprecher: SprecherId, eingabe: EigenerText, db: Datenbank) -> QuellenAntwort:
+def aus_text(
+    sprecher: SprecherId, sprache: Sprache, eingabe: EigenerText, db: Datenbank
+) -> QuellenAntwort:
     """Text übernehmen, den ein Mensch vor sich gesehen hat.
 
     Das Gegenstück zu `/erkennen` und zugleich der Weg für einen Schnipsel aus
@@ -250,6 +256,7 @@ def aus_text(sprecher: SprecherId, eingabe: EigenerText, db: Datenbank) -> Quell
         titel=eingabe.titel.strip() or "Eigener Text",
         parameter={"herkunft": eingabe.herkunft, "zeichen": len(eingabe.text)},
         text=eingabe.text,
+        sprache=sprache,
     )
 
 
@@ -342,10 +349,21 @@ def loesche(sprecher: SprecherId, quelle_id: str, db: Datenbank) -> None:
 
 
 def _lege_quelle_an(
-    db: Session, sprecher_id: str, *, art: str, titel: str, parameter: dict, text: str
+    db: Session,
+    sprecher_id: str,
+    *,
+    art: str,
+    titel: str,
+    parameter: dict,
+    text: str,
+    sprache: str,
 ) -> QuellenAntwort:
-    """Quelle speichern, Text schneiden, Vorlagen hinten anhängen."""
-    einheiten = chunker.schneide(text)
+    """Quelle speichern, Text schneiden, Vorlagen hinten anhängen.
+
+    `sprache` steuert den Schnitt: Wie viele Zeichen in eine Sekunde passen und
+    welche Punkte kein Satzende sind, hängt an ihr (`text/chunker.py`).
+    """
+    einheiten = chunker.schneide(text, sprache)
     if not einheiten:
         raise HTTPException(status_code=400, detail="Aus dem Text ließ sich keine Einheit bilden.")
 
