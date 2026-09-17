@@ -441,6 +441,12 @@
               <span class="gedaempft klein">
                 {modell.herkunft}{#if modell.erstellt} · {zeitpunkt(modell.erstellt)}{/if}
               </span>
+              <!-- Steht hier und nicht in einer eigenen Spalte: Es betrifft die
+                   ganze Zeile, und wer die Zahlen rechts liest, soll den Satz
+                   vorher gelesen haben. -->
+              {#if modell.vorbehalt}
+                <span class="vorbehalt klein">{modell.vorbehalt}</span>
+              {/if}
             </th>
 
             {#each masse as mass (mass.schluessel)}
@@ -543,6 +549,12 @@
 
   /* Dieselbe Kennung wie in „Training" und „schreiben" - und deshalb auch
      dieselbe Gestalt. */
+  .vorbehalt {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--warnung, #8a4b08);
+  }
+
   .kennung {
     font-size: 0.8em;
     padding: 0.05em 0.35em;

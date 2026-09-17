@@ -98,9 +98,10 @@ alle Aufnahmen, die er kennt, und trägt sein Manifest bei sich.
 
 Nach den sechs Messläufen wird ein siebtes Mal trainiert - auf **allen**
 Aufnahmen, mit den Einstellungen, die sich in den Faltungen bewährt haben: der
-Median der Durchgangszahl und der Median des α (siehe
-[Die dritte Achse](#die-dritte-achse-was-am-ende-zählt)). Dieser Stand wird
-gespeichert und steht in „Modelle" zur Freigabe für „schreiben".
+Median des α (siehe
+[Die dritte Achse](#die-dritte-achse-was-am-ende-zählt)) und der Lauf der
+Faltungen, samt der Stelle darauf, an der sie am besten standen. Dieser Stand
+wird gespeichert und steht in „Modelle" zur Freigabe für „schreiben".
 
 Er hat mehr gesehen als jedes der sechs Messmodelle und ist deshalb sehr
 wahrscheinlich besser als sie - und genau deshalb lässt er sich nicht mehr
@@ -108,6 +109,55 @@ ehrlich messen: Er kennt jede Aufnahme, an der man ihn prüfen könnte. **Die
 Zahl neben ihm ist die vorsichtige aus der Kreuzvalidierung, nicht seine
 eigene.** Das ist der Preis dafür, dass das ausgelieferte Modell alles gesehen
 hat, was da war - und bei kleinen Korpora ist das der Preis wert.
+
+#### Derselbe Lauf, nicht bloß dieselbe Zahl
+
+Bis September 2026 nahm das Endmodell aus den Faltungen nur die
+**Durchgangszahl** mit und baute seinen Lernratenverlauf in genau diesen
+Horizont neu. Das klingt nach demselben Training und ist keines. Gemessen an
+einem Lauf vom 13. September:
+
+| | eine Faltung | Endmodell (vorher) |
+|---|---|---|
+| Plan | 8 Durchgänge, ~300 Schritte | 2,0 Durchgänge, 68 Schritte |
+| Warmlauf | 50 Schritte | auf 14 gekürzt |
+| Spitze der Lernrate | bei Durchgang 2,1 | bei Durchgang 0,6 |
+| Lernrate am Schluss | 0,00092 (Durchgang 6,8) | 0,0002 (Durchgang 1,8) |
+| ausgelieferter Stand | der **beste** (Durchgang 2) | der **letzte** |
+
+Der beste Faltungsstand lag bei Durchgang 2 - gerade am Ende des Warmlaufs,
+mitten in einem langen, flach abfallenden Plan. Das Endmodell durchlief
+stattdessen einen vollständigen, auf 68 Schritte gestauchten Zyklus aus
+Warmlauf und Abfall. Gleiche Epochenzahl, anderes Training.
+
+Das Ergebnis war ein Stand, der ausfranst: Er erkennt den ersten Satz und redet
+dann weiter. Nachgeprüft an `9QEU3` - einem Stand, dessen sechs Faltungen bei
+WER 0,23 standen, dessen freigegebenes Modell aber auch auf Aufnahmen faselt,
+die es selbst gelernt hat.
+
+Seit September 2026 erbt das Endmodell deshalb **beides**: den Horizont der
+Faltungen als Plan und ihre beste Stelle als Haltepunkt (`_halt_nach` in
+`training/finetune.py`). Dieselbe Rampe, dieselbe Neigung, derselbe Punkt
+darauf. Eine kleinere Epochenzahl täte es nicht - sie verschöbe den ganzen
+Verlauf.
+
+#### Eine Prüfung ist keine Bewertung
+
+Bewerten lässt sich das Endmodell nicht, aber ansehen. Vor dem Eintragen hört
+es eine Stichprobe von zwölf Aufnahmen, gleichmäßig über den Korpus verteilt
+(`pruefe_endmodell`). Es kennt sie alle, die Zahl ist also keine Note und steht
+in keiner Tabelle.
+
+Sie beantwortet eine andere Frage: **Hört dieser Stand überhaupt noch zu?** Er
+hat den leichteren Teil - Bekanntes gegen das Ungehörte der Faltungen - und muss
+dort mindestens gleichauf liegen. Tut er es nicht, liegt es am Stand und nicht
+an den Daten. Ein Stand, der ausfranst, franst auch auf Bekanntem aus.
+
+Der Befund wandert ins Manifest und steht in „Modelle" als ein Satz neben dem
+Modell. Die Freigabe blockiert er nicht: Wer die Zahlen sieht, entscheidet
+selbst - und ein Lauf, der nach Stunden nichts hinterlässt, wäre die
+schlechtere Antwort. Bei Ständen von vor September 2026 steht dort nichts; sie
+sind nie geprüft worden.
 
 ## Vier Läufe, und warum nicht mehr
 

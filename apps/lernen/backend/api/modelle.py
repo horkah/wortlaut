@@ -150,6 +150,26 @@ FASSUNGEN = [
 ]
 
 
+def _vorbehalt(manifest: dict) -> str:
+    """Was gegen diesen Stand spricht - in einem Satz, sonst leer.
+
+    Die Prüfung bei der Freigabe lässt das Endmodell Aufnahmen hören, die es
+    **gelernt** hat. Kommt es dort nicht einmal an das heran, was seine
+    Faltungen auf Ungehörtem erreicht haben, taugt der Stand nicht - und die
+    guten Zahlen in seiner Zeile sagen darüber nichts, denn sie stammen von den
+    Faltungen (`training/bewerten.py`).
+    """
+    pruefung = manifest.get("pruefung") or {}
+    if not pruefung.get("auffaellig"):
+        return ""
+    return (
+        f"Bei der Freigabe geprüft und durchgefallen: WER {pruefung['wer_median']:.2f} "
+        f"auf Aufnahmen, die dieser Stand gelernt hat - seine Faltungen standen auf "
+        f"Ungehörtem bei {pruefung['faltungen_wer_median']:.2f}. Die Zahlen rechts "
+        "stammen von den Faltungen und sagen über diesen Stand nichts."
+    )
+
+
 class ModellAntwort(BaseModel):
     """Eine Zeile der Tabelle - ein Grundmodell oder ein trainierter Stand."""
 
@@ -168,6 +188,12 @@ class ModellAntwort(BaseModel):
     # und „schreiben", gerechnet aus der Version (`registry.kurzkennung`).
     # `null` bei einem Grundmodell: Das heißt schon kurz.
     kennung: str | None
+    # Ein Satz, wenn mit diesem Stand etwas nicht stimmt - sonst leer. Heute
+    # gibt es genau einen Grund dafür: Der Stand hat die Plausibilitätsprüfung
+    # bei seiner Freigabe nicht bestanden (`training/bewerten.py`). Der Satz
+    # kommt vom Server, weil die Schwelle dahinter dort steht; eine zweite im
+    # Browser wäre eine, die jemand nachzupflegen vergisst.
+    vorbehalt: str
     job_id: str | None
     freigegeben: bool
     # Worauf die Zahlen dieser Zeile gemessen wurden - `cuda/int8_float16`,
@@ -448,6 +474,7 @@ def uebersicht(
                 if manifest.get("id")
                 else None
             ),
+            vorbehalt=_vorbehalt(manifest),
             job_id=manifest.get("job_id"),
             freigegeben=ref == freigegeben,
             werte=reihe.mittel(boden),

@@ -33,16 +33,25 @@ Fassungen, unabhängig davon, womit trainiert wurde.
 
 from __future__ import annotations
 
+import statistics
 import tempfile
 import time
 from pathlib import Path
 from typing import Any
 
-from wortlaut import corpus, laeufe, metriken, registry, sprachen, streuung, tempo
+from wortlaut import (
+    augmentierung,
+    corpus,
+    laeufe,
+    metriken,
+    registry,
+    sprachen,
+    streuung,
+    tempo,
+)
 
 from apps.lernen.backend.config import einstellungen
 
-from .daten import zeilen_fuer_faltung
 
 # Das Grundmodell, das nicht im Namen eines Standes auftaucht - es war lange
 # das einzige, und jeder Stand von früher heißt ohne es.
@@ -220,6 +229,11 @@ def bewerte_faltung(
     """
     from wortlaut.whisper.local import LokalerTranskriptor
 
+    # Erst hier geholt: `daten` zieht numpy und torch nach, und wer diese Datei
+    # nur nach ihrem Urteil fragt (`befund_ueber`), soll das nicht bezahlen -
+    # dieselbe Überlegung wie bei `wandle_um` weiter unten.
+    from .daten import zeilen_fuer_faltung
+
     sprecher_id = str(auftrag["sprecher_id"])
     korpuswurzel = datenverzeichnis / corpus.sprecher_relpfad(sprecher_id)
     _lern, zeilen = zeilen_fuer_faltung(
@@ -262,6 +276,165 @@ def bewerte_faltung(
     return ergebnis
 
 
+def _eine_zeile(
+    erkenner, zeile: dict[str, Any], korpuswurzel: Path, sprache: str, faktor: float
+) -> dict[str, Any]:
+    """Eine Manifestzeile erkennen und bewerten - ohne sie irgendwo abzulegen.
+
+    Gemessen wird auf demselben Klang, auf dem gelernt wurde. Ein Modell, das
+    nur vorgespulte Sprache gehört hat, an ungespulter zu messen, ergäbe eine
+    Zahl über eine Lage, die es nie gibt: Beim Diktieren bekommt es ebenfalls
+    Vorgespultes (`apps/schreiben/.../segmenter.py`).
+    """
+    with tempfile.TemporaryDirectory() as ablage_tmp:
+        wav = korpuswurzel / str(zeile["audio"])
+        if tempo.vorspulen_noetig(faktor):
+            schnell = Path(ablage_tmp) / "vorgespult.wav"
+            tempo.spule_vor(wav, schnell, faktor)
+            wav = schnell
+        begonnen = time.monotonic()
+        transkript = erkenner.transkribiere(wav, sprache=sprache)
+        dauer = time.monotonic() - begonnen
+    guete = metriken.bewerte(str(zeile["text"]), transkript.text)
+    return {
+        "recording_id": zeile.get("recording_id"),
+        "variante": zeile.get("variante"),
+        "text": transkript.text,
+        "wer": guete.wer,
+        "cer": guete.cer,
+        "mer": guete.mer,
+        "wil": guete.wil,
+        "genauigkeit": guete.genauigkeit,
+        "rechenzeit_s": dauer,
+        # Worauf gemessen wurde - dieselbe Angabe, die „hören" neben jede
+        # seiner Zeilen schreibt (`008_rechenwerk.sql`). Ohne sie ist die
+        # Rechenzeit daneben keine Auskunft, sondern eine Zahl.
+        "rechenwerk": erkenner.marke,
+    }
+
+
+# Wie viele Aufnahmen die Plausibilitätsprüfung des Endmodells hört. Gleichmäßig
+# über den Korpus verteilt, nicht die ersten zwölf: Ein Stand, der nur am Ende
+# ausfranst, fiele sonst nicht auf. Zwölf, weil es um „funktioniert überhaupt"
+# geht und nicht um eine Nachkommastelle - auf der Karte sind das Sekunden.
+STICHPROBE = 12
+
+# Ab wann die Prüfung Alarm schlägt: Das Endmodell hört Material, das es
+# **gelernt** hat, und muss dort mindestens so gut sein wie die Faltungen auf
+# Ungehörtem. Ist es deutlich schlechter, stimmt etwas nicht mit dem Stand -
+# nicht mit den Daten.
+PRUEF_SPIELRAUM = 1.5
+
+
+def befund_ueber(
+    gemessen: list[dict[str, Any]], faltungszeilen: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Das Urteil über eine Prüfstichprobe - die Rechnung ohne das Rechnen.
+
+    Verglichen werden zwei Mediane: was das Endmodell auf **Bekanntem**
+    erreicht und was seine Faltungen auf **Ungehörtem** erreicht haben. Das ist
+    kein fairer Vergleich, und genau deshalb taugt er: Das Endmodell hat den
+    leichteren Teil, es muss also mindestens gleichauf liegen. Tut es das
+    nicht, liegt es am Stand.
+
+    Nur Originalfassungen auf beiden Seiten - die verrauschten sind schwerer,
+    und eine Seite mit ihnen gegen eine ohne wäre kein Vergleich.
+    """
+    eigen = statistics.median(float(z["wer"]) for z in gemessen) if gemessen else 0.0
+    ungehoert = [
+        float(z["wer"])
+        for z in faltungszeilen
+        if str(z.get("variante")) == augmentierung.ORIGINAL
+    ]
+    faltungen = statistics.median(ungehoert) if ungehoert else 0.0
+    return {
+        "stichprobe": len(gemessen),
+        "wer_median": round(eigen, 4),
+        "faltungen_wer_median": round(faltungen, 4),
+        # Wie oft die Ausgabe länger geriet als alles Gesagte - das Kennzeichen
+        # eines Standes, der den Schluss verloren hat und weiterredet.
+        "ausgefranst": sum(1 for z in gemessen if float(z["wer"]) > 1.0),
+        "auffaellig": bool(
+            gemessen and faltungen and eigen > max(0.1, faltungen * PRUEF_SPIELRAUM)
+        ),
+    }
+
+
+def pruefe_endmodell(
+    verzeichnis: Path,
+    datenverzeichnis: Path,
+    ct2: Path,
+    auftrag: dict[str, Any],
+    bericht,
+    faltungszeilen: list[dict[str, Any]],
+    faktor: float,
+) -> dict[str, Any]:
+    """Hört der Stand, der ausgeliefert wird, überhaupt noch zu?
+
+    **Keine Note, ein Lebenszeichen.** Das Endmodell kennt den ganzen Korpus;
+    was es darauf erreicht, ist eine Zahl über sein Gedächtnis und gehört
+    deshalb in keine Tabelle. Gemessen wird trotzdem, weil bis September 2026
+    niemand hinsah: Ein Lauf vom 13. September gab einen Stand frei, der den
+    ersten Satz erkennt und dann weiterredet - auf Aufnahmen, die er selbst
+    gelernt hatte. Seine sechs Faltungen standen tadellos bei WER 0,23, und
+    niemand widersprach, denn gemessen wurden nur sie.
+
+    Genau das fängt diese Prüfung: Ein Stand, der ausfranst, franst auch auf
+    Bekanntem aus. Er muss hier also mindestens so gut sein wie seine Faltungen
+    auf Ungehörtem - schafft er das nicht, ist das ein Befund über den Stand
+    und nicht über die Daten.
+
+    Der Befund wandert ins Manifest und steht in „lernen" neben dem Modell. Die
+    Freigabe blockiert er nicht: Wer die Zahlen sieht, entscheidet selbst - und
+    ein Lauf, der nach Stunden nichts hinterlässt, wäre die schlechtere Antwort.
+    """
+    from wortlaut.whisper.local import LokalerTranskriptor
+
+    sprecher_id = str(auftrag["sprecher_id"])
+    korpuswurzel = datenverzeichnis / corpus.sprecher_relpfad(sprecher_id)
+    sprache = str(auftrag.get("sprache") or sprachen.VORGABE)
+    alle = [
+        zeile
+        for zeile in laeufe.manifestzeilen(verzeichnis)
+        if str(zeile.get("variante")) == augmentierung.ORIGINAL
+    ]
+    if not alle:
+        return {}
+    schritt = max(1, len(alle) // STICHPROBE)
+    stichprobe = alle[::schritt][:STICHPROBE]
+
+    bericht.stufe("bewerten", test_zeilen=len(stichprobe))
+    bericht.sage(f"Endmodell: Plausibilitätsprüfung an {len(stichprobe)} Aufnahmen")
+
+    geraet, rechenart = einstellungen().rechenwerk()
+    erkenner = LokalerTranskriptor(str(ct2), geraet=geraet, rechenart=rechenart)
+    gemessen: list[dict[str, Any]] = []
+    try:
+        _hole_karte(erkenner, bericht)
+        for zeile in stichprobe:
+            gemessen.append(_eine_zeile(erkenner, zeile, korpuswurzel, sprache, faktor))
+    finally:
+        erkenner.entlade()
+
+    befund = befund_ueber(gemessen, faltungszeilen)
+    eigen = befund["wer_median"]
+    faltungen = befund["faltungen_wer_median"]
+    ausgefranst = befund["ausgefranst"]
+    if befund["auffaellig"]:
+        bericht.sage(
+            f"ACHTUNG: Das Endmodell kommt auf WER {eigen:.2f} - auf Aufnahmen, die es "
+            f"gelernt hat. Seine Faltungen standen auf Ungehörtem bei {faltungen:.2f}. "
+            f"{ausgefranst} von {len(gemessen)} Ausgaben franst aus. Dieser Stand taugt "
+            "nicht zum Diktieren; die Zahlen der Faltungen sagen darüber nichts."
+        )
+    else:
+        bericht.sage(
+            f"Endmodell geprüft: WER {eigen:.2f} auf Bekanntem, Faltungen {faltungen:.2f} "
+            "auf Ungehörtem - unauffällig."
+        )
+    return befund
+
+
 def _miss(
     erkenner,
     zeilen: list[dict[str, Any]],
@@ -275,37 +448,11 @@ def _miss(
     """Zeile für Zeile erkennen und bewerten - der Rumpf von `bewerte_faltung`."""
     ergebnis = []
     for nummer, zeile in enumerate(zeilen, start=1):
-        # Gemessen wird auf demselben Klang, auf dem gelernt wurde. Ein Modell,
-        # das nur vorgespulte Sprache gehört hat, an ungespulter zu messen,
-        # ergäbe eine Zahl über eine Lage, die es nie gibt: Beim Diktieren
-        # bekommt es ebenfalls Vorgespultes (`apps/schreiben/.../segmenter.py`).
-        with tempfile.TemporaryDirectory() as ablage_tmp:
-            wav = korpuswurzel / str(zeile["audio"])
-            if tempo.vorspulen_noetig(faktor):
-                schnell = Path(ablage_tmp) / "vorgespult.wav"
-                tempo.spule_vor(wav, schnell, faktor)
-                wav = schnell
-            begonnen = time.monotonic()
-            transkript = erkenner.transkribiere(wav, sprache=sprache)
-            dauer = time.monotonic() - begonnen
-        guete = metriken.bewerte(str(zeile["text"]), transkript.text)
         eintrag = {
-            "recording_id": zeile.get("recording_id"),
-            "variante": zeile.get("variante"),
+            **_eine_zeile(erkenner, zeile, korpuswurzel, sprache, faktor),
             # Welche Faltung diese Zeile gemessen hat - und damit, welches der
             # sechs Modelle sie gehört hat, ohne sie zu kennen.
             "faltung": faltung,
-            "text": transkript.text,
-            "wer": guete.wer,
-            "cer": guete.cer,
-            "mer": guete.mer,
-            "wil": guete.wil,
-            "genauigkeit": guete.genauigkeit,
-            "rechenzeit_s": dauer,
-            # Worauf gemessen wurde - dieselbe Angabe, die „hören" neben jede
-            # seiner Zeilen schreibt (`008_rechenwerk.sql`). Ohne sie ist die
-            # Rechenzeit daneben keine Auskunft, sondern eine Zahl.
-            "rechenwerk": erkenner.marke,
         }
         laeufe.haenge_an(verzeichnis / laeufe.BEWERTUNG, eintrag)
         ergebnis.append(eintrag)
@@ -400,12 +547,17 @@ def gib_frei(
     zeilen: list[dict[str, Any]] | None = None,
     mitgenommen: dict[str, Any] | None = None,
 ) -> str:
-    """Das Endmodell umwandeln und eintragen. Gibt die Version zurück.
+    """Das Endmodell umwandeln, prüfen und eintragen. Gibt die Version zurück.
 
-    **Gemessen wird hier nichts mehr.** Die Zahlen dieses Standes sind die der
+    **Bewertet wird hier nichts mehr.** Die Zahlen dieses Standes sind die der
     sechs Faltungen (`zeilen`) - jede Aufnahme einmal, von einem Modell, das
     sie nicht kannte. Das Endmodell selbst kennt den ganzen Korpus; es an ihm
     zu messen ergäbe eine schöne Zahl ohne Aussage.
+
+    **Geprüft wird trotzdem**, und das ist etwas anderes als bewerten: ob der
+    Stand überhaupt zuhört (`pruefe_endmodell`). Bis September 2026 geschah das
+    nicht, und ein Stand, der ausfranste, wurde freigegeben, ohne dass eine
+    Zahl widersprochen hätte - die Faltungen daneben standen tadellos.
 
     Eingetragen wird mit `status: fertig` und nicht `active`: Ein durchgelaufenes
     Training ist noch kein Modell, das jemand benutzen soll. Zwischen „hat
@@ -422,6 +574,9 @@ def gib_frei(
 
     wandle_um(gewichte, ct2, bericht)
     gemessen = _zusammengefasst(zeilen or [])
+    pruefung = pruefe_endmodell(
+        verzeichnis, datenverzeichnis, ct2, auftrag, bericht, zeilen or [], faktor
+    )
 
     registry.schreibe_stand(
         datenverzeichnis,
@@ -453,6 +608,10 @@ def gib_frei(
             # die sechs Faltungen. Ohne diese Zeile wäre nicht mehr zu sagen,
             # wie lange dieser Stand trainiert hat.
             "kreuzvalidierung": mitgenommen or {},
+            # Ob der Stand, der hier freigegeben wird, überhaupt noch zuhört -
+            # keine Note, ein Lebenszeichen (`pruefe_endmodell`). Leer bei
+            # Ständen von vor September 2026: Sie sind nie geprüft worden.
+            "pruefung": pruefung,
             "job_id": auftrag.get("job_id"),
             "erstellt": laeufe.jetzt(),
             "daten_umfang": auftrag.get("zeilen", {}),
