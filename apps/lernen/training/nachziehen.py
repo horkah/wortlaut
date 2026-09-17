@@ -114,6 +114,20 @@ def ziehe_nach(datenverzeichnis: Path, ref: str) -> str:
         mitgenommen["plan"] = plan
     zeilen = list(laeufe.lies_zeilen(verzeichnis / laeufe.BEWERTUNG))
 
+    # Ein Bericht ohne Spuren: Der alte Lauf ist fertig und bleibt es. Gesagt
+    # wird trotzdem alles - der Läufer hört hier nicht mit, dafür ein Mensch.
+    bericht = Bericht(verzeichnis, spuren=False)
+
+    # **Erst den alten Stand ansehen, dann rechnen** - und zwar hier, solange
+    # seine Gewichte noch an ihrem Platz liegen. Das neue Verfahren ist nicht
+    # in jedem Fall das bessere: Wo die Faltungen sehr früh am besten standen,
+    # hält der geerbte Plan das Endmodell auf der Spitze der Lernrate an - eine
+    # heikle Stelle, und ohne Validierung fängt sie niemand auf. Gemessen an
+    # `G9YH3`: der alte Stand bei WER 0,06, der nachgezogene bei 1,00. Wer hier
+    # bloß ersetzt, tauscht manchmal ein gutes Modell gegen ein schlechtes.
+    # Also wird verglichen und das bessere behalten.
+    vorher = pruefe_nur(datenverzeichnis, ref, bericht)
+
     # **Die alten Gewichte gehen zur Seite, nicht weg.** Was hier entsteht,
     # ersetzt ein Modell, mit dem vielleicht gerade diktiert wird. Erst wenn
     # der neue Stand die Prüfung bei seiner Freigabe besteht, fällt der alte;
@@ -124,10 +138,12 @@ def ziehe_nach(datenverzeichnis: Path, ref: str) -> str:
     shutil.rmtree(beiseite, ignore_errors=True)
     if gewichte_alt.is_dir():
         gewichte_alt.rename(beiseite)
+    # Das Manifest geht mit zur Seite. Es beschreibt **diese** Gewichte - kommen
+    # sie zurück, muss auch ihr Steckbrief zurück, sonst stünde neben einem
+    # Modell der Befund über ein anderes.
+    steckbrief = gewichte_alt.parent / registry.MANIFEST
+    steckbrief_alt = steckbrief.read_bytes() if steckbrief.is_file() else b""
 
-    # Ein Bericht ohne Spuren: Der alte Lauf ist fertig und bleibt es. Gesagt
-    # wird trotzdem alles - der Läufer hört hier nicht mit, dafür ein Mensch.
-    bericht = Bericht(verzeichnis, spuren=False)
     bericht.sage(
         f"── {registry.beschriftung(ref)}: Endmodell neu, Plan über "
         f"{mitgenommen.get('plan', mitgenommen['durchgaenge']):.1f} Durchgänge, "
@@ -147,20 +163,74 @@ def ziehe_nach(datenverzeichnis: Path, ref: str) -> str:
         mitgenommen=mitgenommen,
     )
     pruefung = (registry.lies_stand(datenverzeichnis, sprecher_id, version).get("pruefung")) or {}
-    if pruefung.get("auffaellig") and beiseite.is_dir():
+    schlechter = bool(
+        vorher.get("stichprobe")
+        and pruefung.get("stichprobe")
+        and float(pruefung["wer_median"]) > float(vorher["wer_median"])
+    )
+    if schlechter:
+        bericht.sage(
+            f"{registry.beschriftung(ref)}: neu {pruefung['wer_median']:.2f} gegen alt "
+            f"{vorher['wer_median']:.2f} - der alte Stand war besser."
+        )
+    if (pruefung.get("auffaellig") or schlechter) and beiseite.is_dir():
         shutil.rmtree(gewichte_alt, ignore_errors=True)
         beiseite.rename(gewichte_alt)
+        if steckbrief_alt:
+            steckbrief.write_bytes(steckbrief_alt)
         bericht.sage(
-            f"{registry.beschriftung(ref)}: Der neue Stand ist durchgefallen - die alten "
-            "Gewichte stehen wieder da. Das Manifest trägt den Befund."
+            f"{registry.beschriftung(ref)}: Der neue Stand ist weg, die alten Gewichte "
+            "stehen wieder da - samt ihrem Steckbrief."
         )
         return neu
+
+    bericht.sage(
+        f"{registry.beschriftung(ref)}: neu {pruefung.get('wer_median', float('nan')):.2f} "
+        f"gegen alt {vorher.get('wer_median', float('nan')):.2f} - der neue Stand bleibt."
+    )
 
     shutil.rmtree(beiseite, ignore_errors=True)
     weg = _vergiss_eigene_messungen(datenverzeichnis, ref)
     if weg:
         bericht.sage(f"{weg} Messzeilen des alten Endmodells weggeräumt - sie messen es nicht mehr.")
     return neu
+
+
+def pruefe_nur(datenverzeichnis: Path, ref: str, bericht=None) -> dict[str, Any]:
+    """Den Stand ansehen, der dasteht - ohne ihn anzufassen.
+
+    Stände von vor September 2026 sind nie geprüft worden; ob ihr
+    ausgeliefertes Modell zuhört oder faselt, weiß niemand. Der Befund wandert
+    ins Manifest und steht danach in „Modelle" neben dem Modell.
+    """
+    from .bewerten import pruefe_endmodell
+    from .finetune import Bericht
+
+    sprecher_id, version = ref.split(registry.TRENNER, 1)
+    manifest = registry.lies_stand(datenverzeichnis, sprecher_id, version)
+    verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, str(manifest.get("job_id") or ""))
+    if not (verzeichnis / laeufe.MANIFEST).is_file():
+        raise SystemExit(f"{ref}: Der Schnappschuss liegt nicht mehr da.")
+
+    auftrag = json.loads((verzeichnis / laeufe.AUFTRAG).read_text(encoding="utf-8"))
+    # Ohne eigenen Bericht steht diese Prüfung für sich und hält ihren Befund
+    # fest. Mit einem gereichten ist sie der erste Schritt eines Nachzugs - dann
+    # gehört der Befund dem Stand, der am Ende dasteht, und nicht diesem hier.
+    allein = bericht is None
+    bericht = bericht or Bericht(verzeichnis, spuren=False)
+    bericht.sage(f"── {registry.beschriftung(ref)}: {'nur prüfen' if allein else 'erst ansehen'}")
+    befund = pruefe_endmodell(
+        verzeichnis,
+        datenverzeichnis,
+        registry.ct2_verzeichnis(datenverzeichnis, ref),
+        auftrag,
+        bericht,
+        list(laeufe.lies_zeilen(verzeichnis / laeufe.BEWERTUNG)),
+        float(manifest.get("tempo") or 1.0),
+    )
+    if allein:
+        registry.schreibe_stand(datenverzeichnis, {**manifest, "pruefung": befund})
+    return befund
 
 
 def _staende(datenverzeichnis: Path) -> list[str]:
@@ -180,10 +250,17 @@ def main(argv: list[str] | None = None) -> int:
     zerleger.add_argument("stand", nargs="*", help="<sprecher>/<version>")
     zerleger.add_argument("--alle", action="store_true", help="jeden Stand, der dasteht")
     zerleger.add_argument("--liste", action="store_true", help="nur zeigen, was da ist")
+    zerleger.add_argument(
+        "--pruefen", action="store_true", help="nur ansehen, was dasteht - nichts rechnen"
+    )
     argumente = zerleger.parse_args(argv)
 
     datenverzeichnis = einstellungen().data_dir
-    refs = _staende(datenverzeichnis) if (argumente.alle or argumente.liste) else argumente.stand
+    refs = (
+        _staende(datenverzeichnis)
+        if (argumente.alle or argumente.liste) or (argumente.pruefen and not argumente.stand)
+        else argumente.stand
+    )
     if not refs:
         zerleger.error("Kein Stand genannt - `--liste` zeigt, was dasteht.")
 
@@ -204,7 +281,10 @@ def main(argv: list[str] | None = None) -> int:
 
     for ref in refs:
         try:
-            ziehe_nach(datenverzeichnis, ref)
+            if argumente.pruefen:
+                pruefe_nur(datenverzeichnis, ref)
+            else:
+                ziehe_nach(datenverzeichnis, ref)
         except SystemExit as grund:
             print(grund, file=sys.stderr)
         except Exception as ursache:  # noqa: BLE001 - ein Stand soll die übrigen nicht aufhalten
