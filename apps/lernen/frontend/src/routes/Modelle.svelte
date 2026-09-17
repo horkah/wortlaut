@@ -79,6 +79,18 @@
   /** Gegen welches Modell gepaart verglichen wird; leer heißt: gegen keines. */
   let gegen = $state('');
 
+  /**
+   * Wie ein Modell in einer Auswahl heißt.
+   *
+   * Ein Stand trägt hier seine Kurzkennung und nicht seinen sprechenden
+   * Titel: In der Tabelle steht der Titel neben Herkunft und Datum und ist
+   * dort die Auskunft, in einer Zeile zur Wahl stünde er zweimal fast gleich
+   * - „Feintuning (LoRA) · Mit Abwandlungen" sagt nicht, welcher von dreien
+   * gemeint ist. Fünf Zeichen sagen es. Ein Grundmodell heißt ohnehin kurz
+   * und hat keine Kennung.
+   */
+  const kurz = (eintrag: Modell) => eintrag.kennung ?? eintrag.name;
+
   const masse = $derived(uebersicht?.masse ?? []);
 
   const fassungen = $derived(uebersicht?.fassungen ?? []);
@@ -335,7 +347,7 @@
         <select bind:value={gegen} onchange={hole}>
           <option value="">keines</option>
           {#each uebersicht.modelle as eintrag (eintrag.ref)}
-            <option value={eintrag.ref}>{eintrag.name}</option>
+            <option value={eintrag.ref}>{kurz(eintrag)}</option>
           {/each}
         </select>
       </label>
@@ -354,9 +366,12 @@
         ? 'Die Fassungen einer Aufnahme sind nicht unabhängig - deshalb diese Blockart.'
         : 'Üblich in der Literatur, hier zu schmal: Die Fassungen einer Aufnahme sind nicht unabhängig.'}
       {#if uebersicht.vergleich_mit}
-        Statt des Bereichs der gepaarte Abstand zu „{uebersicht.modelle.find(
+        {@const verglichen = uebersicht.modelle.find(
           (m) => m.ref === uebersicht!.vergleich_mit,
-        )?.name ?? uebersicht.vergleich_mit}" - schärfer, weil auf denselben Aufnahmen.
+        )}
+        Statt des Bereichs der gepaarte Abstand zu „{verglichen
+          ? kurz(verglichen)
+          : uebersicht.vergleich_mit}" - schärfer, weil auf denselben Aufnahmen.
       {/if}
     </p>
   {/if}
