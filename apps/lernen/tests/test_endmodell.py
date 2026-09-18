@@ -45,10 +45,39 @@ class TestBefund:
         schwer = [{"wer": 0.55, "variante": "original"}] * 10
         assert befund_ueber(_stichprobe(0.5), schwer)["auffaellig"] is False
 
-    def test_ohne_faltungen_wird_nicht_geurteilt(self) -> None:
-        # Kein Vergleichsmaßstab, kein Urteil - eine Warnung ohne Grundlage
-        # wäre schlimmer als keine.
-        assert befund_ueber(_stichprobe(2.0), [])["auffaellig"] is False
+    def test_ausfransen_faellt_auch_ohne_vergleich_auf(self) -> None:
+        """Der Fall, den der Vergleich allein nicht fängt.
+
+        Stehen die Faltungen selbst nahe 1,0 - kleiner oder schwerer Korpus -,
+        ist die anderthalbfache Schwelle unerreichbar, und jeder Stand käme
+        durch. Genau so sind Femkes vier Stände durchgerutscht, die Sätze
+        wiederholen. Mehr Fehler als Wörter ist aber nie in Ordnung.
+        """
+        aussichtslos = [{"wer": 0.95, "variante": "original"}] * 10
+        gemischt = [*_stichprobe(0.2, 8), *_stichprobe(1.4, 4)]
+        befund = befund_ueber(gemischt, aussichtslos)
+        assert befund["grund"] == "ausgefranst"
+        # Der Median bleibt niedrig - daran allein wäre nichts zu sehen.
+        assert befund["wer_median"] < 1.0
+
+    def test_eine_einzelne_missratene_aufnahme_reicht_nicht(self) -> None:
+        # Ein Viertel ist die Schwelle: Platz für einen Ausreißer, nicht für
+        # ein Muster.
+        gemischt = [*_stichprobe(0.2, 11), *_stichprobe(1.4, 1)]
+        assert befund_ueber(gemischt, FALTUNGEN)["auffaellig"] is False
+
+    def test_der_grund_steht_dabei(self) -> None:
+        # Die beiden Gründe verlangen verschiedene Antworten - der eine mehr
+        # Daten, der andere ein anderes Training.
+        assert befund_ueber(_stichprobe(0.2), FALTUNGEN)["grund"] == ""
+        assert befund_ueber(_stichprobe(0.6), FALTUNGEN)["grund"] == "schlechter"
+
+    def test_ohne_faltungen_wird_nur_das_ausfransen_geurteilt(self) -> None:
+        # Ohne Vergleichsmaßstab gibt es kein „schlechter als" - eine Warnung
+        # ohne Grundlage wäre schlimmer als keine. Das absolute Maß steht
+        # trotzdem: Mehr Fehler als Wörter braucht keinen Vergleich.
+        assert befund_ueber(_stichprobe(0.6), [])["auffaellig"] is False
+        assert befund_ueber(_stichprobe(2.0), [])["grund"] == "ausgefranst"
 
     def test_verrauschte_fassungen_zaehlen_auf_keiner_seite(self) -> None:
         # Sie sind schwerer. Eine Seite mit ihnen gegen eine ohne wäre kein
@@ -67,10 +96,19 @@ class TestVorbehalt:
         assert _vorbehalt({"pruefung": befund_ueber(_stichprobe(0.2), FALTUNGEN)}) == ""
 
     def test_ein_auffaelliger_stand_sagt_es_in_einem_satz(self) -> None:
-        satz = _vorbehalt({"pruefung": befund_ueber(_stichprobe(1.1), FALTUNGEN)})
-        assert satz.startswith("Bei der Freigabe geprüft und durchgefallen")
+        satz = _vorbehalt({"pruefung": befund_ueber(_stichprobe(0.6), FALTUNGEN)})
+        assert satz.startswith("Geprüft und durchgefallen")
         # Beide Zahlen darin, sonst ist der Satz eine Behauptung.
-        assert "1.10" in satz and "0.23" in satz
+        assert "0.60" in satz and "0.23" in satz
+
+    def test_ausfransen_bekommt_seinen_eigenen_satz(self) -> None:
+        # „Durchgefallen gegen die Faltungen" wäre hier falsch: Gegen sie hat
+        # der Stand bestanden. Er redet nur weiter.
+        aussichtslos = [{"wer": 0.95, "variante": "original"}] * 10
+        gemischt = [*_stichprobe(0.2, 8), *_stichprobe(1.4, 4)]
+        satz = _vorbehalt({"pruefung": befund_ueber(gemischt, aussichtslos)})
+        assert "länger als alles Gesagte" in satz
+        assert "4 von 12" in satz
 
 
 class TestPlanZurueckgelesen:
