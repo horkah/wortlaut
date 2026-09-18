@@ -153,6 +153,21 @@ hat den leichteren Teil - Bekanntes gegen das Ungehörte der Faltungen - und mus
 dort mindestens gleichauf liegen. Tut er es nicht, liegt es am Stand und nicht
 an den Daten. Ein Stand, der ausfranst, franst auch auf Bekanntem aus.
 
+Geprüft wird auf zwei Arten, und die zweite gibt es, weil die erste eine
+Blindstelle hat:
+
+| Maß | wann es anschlägt | wogegen es hilft |
+| --- | --- | --- |
+| **schlechter** | schlechter als das Anderthalbfache dessen, was die Faltungen auf Ungehörtem erreichten | ein Stand, der aus der Art schlägt |
+| **ausgefranst** | ein Viertel der Stichprobe oder mehr hat mehr Fehler als Wörter | ein Stand, der wiederholt oder weiterredet |
+
+Der Vergleich hängt daran, dass die Faltungen etwas taugen. Bei einem kleinen
+oder schweren Korpus stehen sie selbst nahe 1,0 - dann ist die anderthalbfache
+Schwelle unerreichbar und die Prüfung winkt alles durch. Genau so sind vier
+Stände von Femke durchgerutscht, die Sätze wiederholen. Mehr Fehler als Wörter
+ist dagegen nie in Ordnung, und erst recht nicht auf Material, das der Stand
+gelernt hat.
+
 Der Befund wandert ins Manifest und steht in „Modelle" als ein Satz neben dem
 Modell. Die Freigabe blockiert er nicht: Wer die Zahlen sieht, entscheidet
 selbst - und ein Lauf, der nach Stunden nichts hinterlässt, wäre die

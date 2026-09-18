@@ -162,11 +162,17 @@ def _vorbehalt(manifest: dict) -> str:
     pruefung = manifest.get("pruefung") or {}
     if not pruefung.get("auffaellig"):
         return ""
+    if pruefung.get("grund") == "ausgefranst":
+        return (
+            f"Geprüft: {pruefung['ausgefranst']} von {pruefung['stichprobe']} Ausgaben sind "
+            "länger als alles Gesagte - dieser Stand wiederholt oder erfindet weiter, und "
+            "zwar auf Aufnahmen, die er gelernt hat. Meist hilft dagegen nur mehr Material."
+        )
     return (
-        f"Bei der Freigabe geprüft und durchgefallen: WER {pruefung['wer_median']:.2f} "
-        f"auf Aufnahmen, die dieser Stand gelernt hat - seine Faltungen standen auf "
-        f"Ungehörtem bei {pruefung['faltungen_wer_median']:.2f}. Die Zahlen rechts "
-        "stammen von den Faltungen und sagen über diesen Stand nichts."
+        f"Geprüft und durchgefallen: WER {pruefung['wer_median']:.2f} auf Aufnahmen, die "
+        f"dieser Stand gelernt hat - seine Faltungen standen auf Ungehörtem bei "
+        f"{pruefung['faltungen_wer_median']:.2f}. Die Zahlen rechts stammen von den "
+        "Faltungen und sagen über diesen Stand nichts."
     )
 
 

@@ -325,6 +325,21 @@ STICHPROBE = 12
 # nicht mit den Daten.
 PRUEF_SPIELRAUM = 1.5
 
+# Und ein Maß, das ohne Vergleich auskommt: Wie viel der Stichprobe länger
+# geraten darf als alles Gesagte.
+#
+# **Warum es beides braucht.** Der Vergleich oben hängt daran, dass die
+# Faltungen etwas taugen. Bei einem kleinen oder schweren Korpus stehen sie
+# selbst nahe 1,0 - dann ist die anderthalbfache Schwelle unerreichbar, und die
+# Prüfung winkt jeden Stand durch. Gemessen an Femke: vier Stände, deren
+# Faltungen bei 0,85 bis 1,00 lagen, und alle vier wiederholten Sätze oder
+# erfanden weiter, ohne dass etwas angeschlagen hätte.
+#
+# Mehr Fehler als Wörter ist dagegen nie in Ordnung - erst recht nicht auf
+# Material, das der Stand gelernt hat. Ein Viertel ist reichlich Spielraum für
+# eine einzelne missratene Aufnahme.
+AUSGEFRANST_ANTEIL = 0.25
+
 
 def befund_ueber(
     gemessen: list[dict[str, Any]], faltungszeilen: list[dict[str, Any]]
@@ -347,16 +362,25 @@ def befund_ueber(
         if str(z.get("variante")) == augmentierung.ORIGINAL
     ]
     faltungen = statistics.median(ungehoert) if ungehoert else 0.0
+    # Wie oft die Ausgabe länger geriet als alles Gesagte - das Kennzeichen
+    # eines Standes, der den Schluss verloren hat und weiterredet.
+    ausgefranst = sum(1 for z in gemessen if float(z["wer"]) > 1.0)
+
+    grund = ""
+    if gemessen and ausgefranst >= max(1, round(AUSGEFRANST_ANTEIL * len(gemessen))):
+        grund = "ausgefranst"
+    elif gemessen and faltungen and eigen > max(0.1, faltungen * PRUEF_SPIELRAUM):
+        grund = "schlechter"
     return {
         "stichprobe": len(gemessen),
         "wer_median": round(eigen, 4),
         "faltungen_wer_median": round(faltungen, 4),
-        # Wie oft die Ausgabe länger geriet als alles Gesagte - das Kennzeichen
-        # eines Standes, der den Schluss verloren hat und weiterredet.
-        "ausgefranst": sum(1 for z in gemessen if float(z["wer"]) > 1.0),
-        "auffaellig": bool(
-            gemessen and faltungen and eigen > max(0.1, faltungen * PRUEF_SPIELRAUM)
-        ),
+        "ausgefranst": ausgefranst,
+        # Woran es liegt, nicht nur dass es liegt: Die beiden Gründe verlangen
+        # verschiedene Antworten - der eine mehr Daten, der andere ein anderes
+        # Training.
+        "grund": grund,
+        "auffaellig": bool(grund),
     }
 
 
@@ -426,12 +450,18 @@ def pruefe_endmodell(
     eigen = befund["wer_median"]
     faltungen = befund["faltungen_wer_median"]
     ausgefranst = befund["ausgefranst"]
-    if befund["auffaellig"]:
+    if befund["grund"] == "ausgefranst":
+        bericht.sage(
+            f"ACHTUNG: {ausgefranst} von {len(gemessen)} Ausgaben sind länger als alles "
+            f"Gesagte - der Stand wiederholt oder erfindet weiter, und zwar auf Aufnahmen, "
+            f"die er gelernt hat (WER {eigen:.2f})."
+        )
+    elif befund["auffaellig"]:
         bericht.sage(
             f"ACHTUNG: Das Endmodell kommt auf WER {eigen:.2f} - auf Aufnahmen, die es "
             f"gelernt hat. Seine Faltungen standen auf Ungehörtem bei {faltungen:.2f}. "
-            f"{ausgefranst} von {len(gemessen)} Ausgaben franst aus. Dieser Stand taugt "
-            "nicht zum Diktieren; die Zahlen der Faltungen sagen darüber nichts."
+            "Dieser Stand taugt nicht zum Diktieren; die Zahlen der Faltungen sagen "
+            "darüber nichts."
         )
     else:
         bericht.sage(
