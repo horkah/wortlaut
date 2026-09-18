@@ -132,3 +132,22 @@ class TestVorbereitung:
 
     def test_aus_einem_neuen_manifest_kommt_beides(self) -> None:
         assert vorbereitung.aus_manifest({"tempo": 2.0, "stille": True}) == (2.0, True)
+
+
+class TestMarke:
+    """Wer Vorbereitetes aufhebt, muss es je Zustand getrennt aufheben.
+
+    Bei `tempowahl = optimal` sucht sich **jede Faltung** ihren eigenen Faktor.
+    Teilten sich alle sechs ein Fach, fände die zweite die Datei der ersten vor
+    und lernte auf deren Faktor - während im Protokoll ihr eigener steht.
+    """
+
+    def test_zwei_faktoren_sind_zwei_marken(self) -> None:
+        assert vorbereitung.marke(2.0, False) != vorbereitung.marke(3.0, False)
+
+    def test_geschnitten_ist_eine_andere_marke(self) -> None:
+        assert vorbereitung.marke(1.0, True) != vorbereitung.marke(1.0, False)
+
+    def test_derselbe_zustand_ist_dieselbe_marke(self) -> None:
+        # Sonst rechnete jede Faltung alles noch einmal.
+        assert vorbereitung.marke(2.0, True) == vorbereitung.marke(2.0, True)

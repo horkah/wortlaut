@@ -556,7 +556,9 @@ def _rechne(
     die es nie gibt (`gehoer_fuer`).
     """
     with tempfile.TemporaryDirectory() as zwischen:
-        wav = vorbereitung.bereite_vor(
+        # Ohne den Versatz: Gemessen wird ein Text gegen die Vorlage, und
+        # keine Zeitmarke zeigt zurück auf die Aufnahme.
+        wav, _versatz = vorbereitung.bereite_vor(
             wav, Path(zwischen), faktor=faktor, schneiden=schneiden
         )
         begonnen = time.monotonic()

@@ -42,6 +42,17 @@ def aus_manifest(manifest: dict | None) -> tuple[float, bool]:
     return float(manifest.get("tempo", tempo.VORGABE)), stille.gilt(manifest.get("stille"))
 
 
+def marke(faktor: float, schneiden: bool) -> str:
+    """Wie ein vorbereiteter Ausschnitt heißt: `2x`, `1x-geschnitten`.
+
+    Damit legt ein Aufrufer, der Ergebnisse aufhebt, sie je Zustand getrennt
+    ab. Ohne das fände ein Lauf, der bei jeder Faltung neu über die
+    Geschwindigkeit entscheidet, die Datei der Faltung davor vor - und lernte
+    auf einem Faktor, der in keinem Protokoll steht (`training/finetune.py`).
+    """
+    return tempo.marke(faktor) + ("-geschnitten" if stille.gilt(schneiden) else "")
+
+
 def noetig(faktor: float, schneiden: bool) -> bool:
     """Ob überhaupt eine zweite Datei entstehen kann.
 

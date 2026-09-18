@@ -295,7 +295,8 @@ def _eine_zeile(
     bekommt es dasselbe (`wortlaut/vorbereitung.py`).
     """
     with tempfile.TemporaryDirectory() as ablage_tmp:
-        wav = vorbereitung.bereite_vor(
+        # Ohne den Versatz: Verglichen werden zwei Texte, keine Zeitmarken.
+        wav, _versatz = vorbereitung.bereite_vor(
             korpuswurzel / str(zeile["audio"]),
             Path(ablage_tmp),
             faktor=faktor,

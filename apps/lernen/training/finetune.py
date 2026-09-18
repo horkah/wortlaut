@@ -517,8 +517,16 @@ def trainiere(
     # Ob die Ränder fallen. Fehlt der Schlüssel, ist es ein Auftrag von vor
     # dieser Achse, und dann fällt nichts (`wortlaut/stille.py`).
     schneiden = stille.gilt(auftrag.get("stille"))
+    # **Je Zustand ein eigenes Fach.** Der Zwischenspeicher liegt beim Lauf und
+    # nicht bei der Faltung, denn zwei Faltungen mit demselben Faktor sollen
+    # dieselbe Datei benutzen. Bei `optimal` sucht sich aber **jede Faltung
+    # ihren eigenen** Faktor - und fand dann die vorgespulte Datei der Faltung
+    # davor vor, die zu einem anderen Faktor gehörte. Sie lernte auf 2,0,
+    # während im Protokoll 3,0 stand: der unauffälligste denkbare Fehler.
     zwischenlager = (
-        verzeichnis / laeufe.VORGESPULT if vorbereitung.noetig(faktor, schneiden) else None
+        verzeichnis / laeufe.VORGESPULT / vorbereitung.marke(faktor, schneiden)
+        if vorbereitung.noetig(faktor, schneiden)
+        else None
     )
     if tempo.vorspulen_noetig(faktor):
         bericht.sage(f"Vorgespult: Faktor {faktor:g} - Tonhöhe bleibt")

@@ -52,6 +52,13 @@ class PlatzhalterErkenner:
         self.antworten = antworten
 
     def transkribiere(self, wav: Path, sprache: str) -> Transkript:
+        # **Der Platzhalter hört nicht, aber er sieht hin.** Ein Erkenner, der
+        # sein Argument gar nicht anfasst, nimmt alles entgegen - auch ein
+        # Tupel statt eines Pfades, wie es entstand, als `bereite_vor` seine
+        # Auskunft um den Versatz erweiterte. Der echte Erkenner wäre daran
+        # gescheitert; dieser lief durch, und der Fehler fiel erst im
+        # Trainingscontainer auf.
+        assert isinstance(wav, Path) and wav.is_file(), f"Keine Audiodatei: {wav!r}"
         antwort = self.antworten[self.modell]
         if isinstance(antwort, Exception):
             raise antwort

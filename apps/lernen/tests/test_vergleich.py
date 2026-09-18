@@ -34,6 +34,8 @@ class PlatzhalterErkenner:
         self.antwort = antwort
 
     def transkribiere(self, wav: Path, sprache: str) -> Transkript:
+        # Sieht hin, auch wenn er nicht hört - siehe `hoeren/tests/test_auswertung.py`.
+        assert isinstance(wav, Path) and wav.is_file(), f"Keine Audiodatei: {wav!r}"
         return Transkript(text=self.antwort, abschnitte=[])
 
 

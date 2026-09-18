@@ -103,7 +103,9 @@ class Proben(torch.utils.data.Dataset):
 
         ziel = self.zwischenlager / relpfad
         if not ziel.is_file():
-            fertig = vorbereitung.bereite_vor(
+            # Der Versatz interessiert hier nicht: Gelernt wird ein Paar aus
+            # Klang und Text, und keine Zeitmarke zeigt zurück auf das Original.
+            fertig, _versatz = vorbereitung.bereite_vor(
                 quelle, ziel.parent, faktor=self.faktor, schneiden=self.schneiden
             )
             if fertig == quelle:

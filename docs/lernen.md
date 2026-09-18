@@ -325,6 +325,14 @@ kommen, entscheidet ebenfalls eine Stelle (`wortlaut/vorbereitung.py`) und nicht
 jeder der vier Aufrufer für sich. Der Unterschied wäre klein und genau deshalb
 gefährlich.
 
+**Was aufgehoben wird, wird je Zustand aufgehoben.** Der Trainer legt jeden
+vorbereiteten Ausschnitt ab, statt ihn in jedem Durchgang neu zu rechnen - und
+zwar unter `vorgespult/<marke>/`, wobei die Marke Faktor und Schnitt nennt
+(`vorbereitung.marke`). Bis September 2026 gab es nur ein Fach, und bei
+`optimal` fiel das auf: Dort sucht **jede Faltung ihren eigenen** Faktor, fand
+die vorgespulte Datei der Faltung davor vor und lernte auf deren Faktor,
+während im Protokoll ihr eigener stand.
+
 **Und die Zeitmarken wandern mit.** „schreiben" schneidet ein Diktat an den
 Grenzen, die Whisper meldet, und die zählen ab dem Anfang dessen, was Whisper
 gehört hat. Fällt vorn Stille weg, ist das nicht mehr der Anfang der Aufnahme;
