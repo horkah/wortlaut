@@ -11,6 +11,7 @@ darüber nichts zu meinen, weil „hören" schon beim Aufnehmen umwandelt
 from __future__ import annotations
 
 import array
+import tempfile
 import wave
 from dataclasses import dataclass
 from pathlib import Path
@@ -102,19 +103,34 @@ class Proben(torch.utils.data.Dataset):
             return quelle
 
         ziel = self.zwischenlager / relpfad
-        if not ziel.is_file():
+        if ziel.is_file():
+            return ziel
+
+        # **Jeder Aufruf arbeitet für sich.** `bereite_vor` legt seine
+        # Zwischenstände unter festen Namen ab - `geschnitten.wav`,
+        # `vorgespult.wav` -, und torch lädt mit mehreren Fäden zugleich
+        # (`dataloader_num_workers`). Zwei Fäden im selben Verzeichnis
+        # schrieben dieselbe Datei und nahmen sie einander unter den Händen
+        # weg. Ein eigenes Arbeitsverzeichnis je Aufruf kostet ein `mkdir` und
+        # macht die Frage gegenstandslos.
+        ziel.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=ziel.parent) as arbeit:
             # Der Versatz interessiert hier nicht: Gelernt wird ein Paar aus
             # Klang und Text, und keine Zeitmarke zeigt zurück auf das Original.
             fertig, _versatz = vorbereitung.bereite_vor(
-                quelle, ziel.parent, faktor=self.faktor, schneiden=self.schneiden
+                quelle, Path(arbeit), faktor=self.faktor, schneiden=self.schneiden
             )
             if fertig == quelle:
-                # Nichts zu holen gewesen - dann ist die Quelle das Ergebnis,
-                # und ein zweiter Versuch je Durchgang wäre verschenkt.
-                ziel.parent.mkdir(parents=True, exist_ok=True)
-                ziel.write_bytes(quelle.read_bytes())
-            elif fertig != ziel:
-                fertig.replace(ziel)
+                # Nichts zu holen gewesen. Trotzdem abgelegt, denn sonst
+                # würde die Datei in jedem Durchgang aufs Neue vermessen -
+                # und Messen heißt, sie ganz zu lesen (`stille.grenzen`).
+                fertig = Path(arbeit) / "unveraendert.wav"
+                fertig.write_bytes(quelle.read_bytes())
+            # Erst fertig, dann sichtbar: `replace` ist ein Umbenennen im
+            # selben Dateisystem und damit unteilbar. Ein Faden, der `ziel`
+            # währenddessen prüft, sieht es entweder ganz oder gar nicht -
+            # nie halb geschrieben.
+            fertig.replace(ziel)
         return ziel
 
     def __getitem__(self, stelle: int) -> Probe:

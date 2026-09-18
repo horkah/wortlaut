@@ -83,6 +83,13 @@ def bereite_vor(
     `ablage` ist ein Verzeichnis und keine Datei: Zwischen den beiden Griffen
     kann ein Zwischenstand liegen, und wo der hingehört, entscheidet nicht der
     Aufrufer.
+
+    **Und `ablage` gehört diesem Aufruf allein.** Die Namen darin sind fest -
+    `geschnitten.wav`, `vorgespult.wav` -, denn ein Verzeichnis für eine
+    Aufnahme braucht keine eindeutigen Namen. Wer dasselbe Verzeichnis für
+    mehrere Aufnahmen hergibt und nebenläufig arbeitet, sieht seine Dateien
+    einander unter den Händen wegnehmen (so geschehen im Trainer, der mit
+    mehreren Fäden lädt - siehe `training/daten.py`).
     """
     ergebnis, versatz_s = quelle, 0.0
     if stille.gilt(schneiden):
