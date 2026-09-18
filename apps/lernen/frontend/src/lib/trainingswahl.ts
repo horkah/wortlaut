@@ -29,6 +29,8 @@ export type Trainingswahl = {
   augmentierung: string;
   dauer: string;
   tempowahl: string;
+  /** Ob die Ränder vor dem Training fallen. */
+  stille: boolean;
 };
 
 /**
@@ -43,6 +45,9 @@ export const VORGABE: Trainingswahl = {
   augmentierung: 'keine',
   dauer: 'fest',
   tempowahl: 'aus',
+  // Anders als die Achsen darüber ist die Vorgabe hier nicht das Verfahren
+  // von vorher, sondern das bessere: Die Ränder tragen nichts bei.
+  stille: true,
 };
 
 export function trainingswahl(): Trainingswahl {
@@ -61,6 +66,7 @@ export function trainingswahl(): Trainingswahl {
       augmentierung: gelesen.augmentierung ?? VORGABE.augmentierung,
       dauer: gelesen.dauer ?? VORGABE.dauer,
       tempowahl: gelesen.tempowahl ?? VORGABE.tempowahl,
+      stille: gelesen.stille ?? VORGABE.stille,
     };
   } catch {
     // Gesperrter Speicher oder kaputtes JSON - beides kein Fehlerfall.

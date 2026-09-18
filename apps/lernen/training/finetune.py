@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from wortlaut import laeufe, sprachen, tempo
+from wortlaut import laeufe, sprachen, stille, tempo, vorbereitung
 
 from . import abschluss as abschlussrechnung
 from . import tempowahl
@@ -514,12 +514,25 @@ def trainiere(
             if tempoergebnis.hinweis:
                 bericht.sage(f"  {tempoergebnis.hinweis}")
 
-    zwischenlager = verzeichnis / laeufe.VORGESPULT if tempo.vorspulen_noetig(faktor) else None
-    if zwischenlager is not None:
+    # Ob die Ränder fallen. Fehlt der Schlüssel, ist es ein Auftrag von vor
+    # dieser Achse, und dann fällt nichts (`wortlaut/stille.py`).
+    schneiden = stille.gilt(auftrag.get("stille"))
+    zwischenlager = (
+        verzeichnis / laeufe.VORGESPULT if vorbereitung.noetig(faktor, schneiden) else None
+    )
+    if tempo.vorspulen_noetig(faktor):
         bericht.sage(f"Vorgespult: Faktor {faktor:g} - Tonhöhe bleibt")
+    if schneiden:
+        bericht.sage(
+            f"Ränder geschnitten: Stille vorn und hinten weg, {stille.RAND_S:g} s bleiben stehen"
+        )
 
-    lern = Proben(lernzeilen, korpuswurzel, ausleser, zerteiler, wandler, faktor, zwischenlager)
-    pruef = Proben(messzeilen, korpuswurzel, ausleser, zerteiler, None, faktor, zwischenlager)
+    lern = Proben(
+        lernzeilen, korpuswurzel, ausleser, zerteiler, wandler, faktor, zwischenlager, schneiden
+    )
+    pruef = Proben(
+        messzeilen, korpuswurzel, ausleser, zerteiler, None, faktor, zwischenlager, schneiden
+    )
     bericht.sage(f"Proben: {len(lern)} zum Lernen, {len(pruef)} zum Steuern")
     if wandler.taetig:
         bericht.sage(f"Augmentierung: {abwandlung} (nur auf den Lernproben)")

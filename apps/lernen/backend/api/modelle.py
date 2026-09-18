@@ -430,7 +430,7 @@ def uebersicht(
     # seien mit den übrigen nicht zu halten. Die Sorge war unbegründet, und
     # zwar aus einem Grund, der erst beim Nachsehen klar wurde: Ein Stand
     # **bringt sein Tempo mit**. „schreiben" liest es aus seinem Manifest und
-    # spult beim Diktieren genauso vor (`schreiben/deps.tempo_fuer`, geprüft).
+    # spult beim Diktieren genauso vor (`schreiben/deps.gehoer_fuer`, geprüft).
     #
     # Damit ist das Vorspulen kein Teil der Prüfbedingungen, sondern ein Teil
     # des Modells. Jede Zeile dieser Tafel beantwortet dieselbe Frage - was

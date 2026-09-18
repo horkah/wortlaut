@@ -46,8 +46,10 @@ from wortlaut import (
     metriken,
     registry,
     sprachen,
+    stille,
     streuung,
     tempo,
+    vorbereitung,
 )
 
 from apps.lernen.backend.config import einstellungen
@@ -266,6 +268,7 @@ def bewerte_faltung(
         ergebnis = _miss(
             erkenner, zeilen, korpuswurzel, sprache, faltung, verzeichnis, bericht,
             float(auftrag.get("tempo", tempo.VORGABE)) if faktor is None else faktor,
+            stille.gilt(auftrag.get("stille")),
         )
     finally:
         # Auch wenn das Messen scheitert: Die Karte gehört danach der nächsten
@@ -277,21 +280,27 @@ def bewerte_faltung(
 
 
 def _eine_zeile(
-    erkenner, zeile: dict[str, Any], korpuswurzel: Path, sprache: str, faktor: float
+    erkenner,
+    zeile: dict[str, Any],
+    korpuswurzel: Path,
+    sprache: str,
+    faktor: float,
+    schneiden: bool = False,
 ) -> dict[str, Any]:
     """Eine Manifestzeile erkennen und bewerten - ohne sie irgendwo abzulegen.
 
     Gemessen wird auf demselben Klang, auf dem gelernt wurde. Ein Modell, das
-    nur vorgespulte Sprache gehört hat, an ungespulter zu messen, ergäbe eine
-    Zahl über eine Lage, die es nie gibt: Beim Diktieren bekommt es ebenfalls
-    Vorgespultes (`apps/schreiben/.../segmenter.py`).
+    nur vorgespulte oder nur geschnittene Ausschnitte gehört hat, an anderen zu
+    messen, ergäbe eine Zahl über eine Lage, die es nie gibt: Beim Diktieren
+    bekommt es dasselbe (`wortlaut/vorbereitung.py`).
     """
     with tempfile.TemporaryDirectory() as ablage_tmp:
-        wav = korpuswurzel / str(zeile["audio"])
-        if tempo.vorspulen_noetig(faktor):
-            schnell = Path(ablage_tmp) / "vorgespult.wav"
-            tempo.spule_vor(wav, schnell, faktor)
-            wav = schnell
+        wav = vorbereitung.bereite_vor(
+            korpuswurzel / str(zeile["audio"]),
+            Path(ablage_tmp),
+            faktor=faktor,
+            schneiden=schneiden,
+        )
         begonnen = time.monotonic()
         transkript = erkenner.transkribiere(wav, sprache=sprache)
         dauer = time.monotonic() - begonnen
@@ -442,7 +451,12 @@ def pruefe_endmodell(
     try:
         _hole_karte(erkenner, bericht)
         for zeile in stichprobe:
-            gemessen.append(_eine_zeile(erkenner, zeile, korpuswurzel, sprache, faktor))
+            gemessen.append(
+                _eine_zeile(
+                    erkenner, zeile, korpuswurzel, sprache, faktor,
+                    stille.gilt(auftrag.get("stille")),
+                )
+            )
     finally:
         erkenner.entlade()
 
@@ -480,12 +494,13 @@ def _miss(
     verzeichnis: Path,
     bericht,
     faktor: float = tempo.VORGABE,
+    schneiden: bool = False,
 ) -> list[dict[str, Any]]:
     """Zeile für Zeile erkennen und bewerten - der Rumpf von `bewerte_faltung`."""
     ergebnis = []
     for nummer, zeile in enumerate(zeilen, start=1):
         eintrag = {
-            **_eine_zeile(erkenner, zeile, korpuswurzel, sprache, faktor),
+            **_eine_zeile(erkenner, zeile, korpuswurzel, sprache, faktor, schneiden),
             # Welche Faltung diese Zeile gemessen hat - und damit, welches der
             # sechs Modelle sie gehört hat, ohne sie zu kennen.
             "faltung": faltung,
@@ -633,6 +648,10 @@ def gib_frei(
             # ohne die Angabe träfe ein Modell für schnelle Sprache auf einen
             # langsamen Sprecher (`wortlaut/tempo.py`).
             "tempo": faktor,
+            # Ob die Ränder geschnitten wurden, bevor dieser Stand sie hörte.
+            # „hören" und „schreiben" lesen es und tun dasselbe; fehlt die
+            # Angabe, wurde nicht geschnitten (`wortlaut/stille.py`).
+            "stille": stille.gilt(auftrag.get("stille")),
             # Die Zahlen, mit denen wirklich gerechnet wurde. Sie standen
             # bisher nur im Rezept - und ein Rezept ist eine Datei, die sich
             # ändert. Wer in einem halben Jahr wissen will, mit welcher

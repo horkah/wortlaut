@@ -31,6 +31,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from wortlaut import laeufe as lauf_layout, registry, streuung
+from wortlaut import stille as stille_layout
 
 from ..config import einstellungen
 from ..deps import Korpus, Sprache, SprecherId
@@ -299,6 +300,12 @@ class Bestellung(BaseModel):
     dauer: str = lauf_layout.DAUER_FEST
     # Die sechste, und die einzige, die etwas sucht statt etwas zu setzen.
     tempowahl: str = lauf_layout.TEMPO_AUS
+    # Ob die Ränder abgeschnitten werden (`wortlaut/stille.py`). Vorgabe an -
+    # anders als bei den Achsen darüber ist die Vorgabe hier **nicht** das
+    # Verfahren von vorher: Ein Aufrufer, der die Frage nicht kennt, bekommt
+    # das bessere Verfahren und nicht das alte. Was ein alter **Lauf** getan
+    # hat, sagt sein Auftrag, und dort fehlt der Schlüssel.
+    stille: bool = stille_layout.VORGABE
     # Worauf trainiert wird. Leer heißt: die Vorgabe des Servers - ein Auftrag
     # von einem Aufrufer, der diese Achse nicht kennt, bleibt derselbe Auftrag.
     grundmodell: str = ""
@@ -332,6 +339,9 @@ class LaufAntwort(BaseModel):
     dauer: str
     # Ob die Geschwindigkeit gesucht wurde oder die des Profils galt.
     tempowahl: str = lauf_layout.TEMPO_AUS
+    # Ob die Ränder geschnitten wurden. Ein Lauf von vor dieser Achse heißt
+    # hier `false` - genau das, was damals gerechnet wurde.
+    stille: bool = False
     # Die Geschwindigkeit, mit der dieser Lauf wirklich gerechnet hat. Bei
     # `optimal` der gefundene Median über die Faltungen, sonst der Wert aus dem
     # Profil, wie er beim Beauftragen dastand. `null`, solange die Suche noch
@@ -580,6 +590,7 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         augmentierung=str(lauf.auftrag.get("augmentierung") or lauf_layout.AUG_KEINE),
         dauer=str(lauf.auftrag.get("dauer") or lauf_layout.DAUER_FEST),
         tempowahl=lauf_layout.tempowahl_aus(lauf.auftrag),
+        stille=stille_layout.gilt(lauf.auftrag.get("stille")),
         tempo=_tempo_des_laufs(lauf),
         tempo_endgueltig=bool(lauf.zustand.get("tempo_endgueltig", True)),
         basismodell=str(lauf.auftrag.get("basismodell", "")),
@@ -1013,6 +1024,7 @@ def beauftrage(
             augmentierung=bestellung.augmentierung,
             dauer=bestellung.dauer,
             tempowahl=bestellung.tempowahl,
+            stille=bestellung.stille,
             basismodell=grundmodell,
             # Aus dem Profil, nicht aus der Umgebung: Der Trainer setzt daraus
             # die erzwungenen Marken von Whisper, und die Bewertung misst in

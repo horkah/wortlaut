@@ -58,6 +58,7 @@
   let augmentierung = $state(gemerkt.augmentierung);
   let dauer = $state(gemerkt.dauer);
   let tempowahl = $state(gemerkt.tempowahl);
+  let stille = $state(gemerkt.stille);
 
   $effect(() => {
     setzeTrainingswahl({
@@ -68,6 +69,7 @@
       augmentierung,
       dauer,
       tempowahl,
+      stille,
     });
   });
 
@@ -162,6 +164,7 @@
       augmentierung,
       dauer,
       tempowahl,
+      String(stille),
     ].join('/'),
   );
 
@@ -296,6 +299,7 @@
           augmentierung,
           dauer,
           tempowahl,
+          stille,
           grundmodell,
         },
         schluessel,
@@ -515,6 +519,24 @@
             </span>
           </label>
         {/each}
+      </fieldset>
+
+      <!-- Kein Radioknopfpaar, sondern ein Haken: Es gibt einen richtigen Wert
+           und einen Grund, davon abzuweichen - nämlich einen Vergleich mit
+           einem älteren Stand, der ohne gerechnet wurde. -->
+      <fieldset>
+        <legend>Was das Modell zu hören bekommt</legend>
+        <label class="option">
+          <input type="checkbox" bind:checked={stille} />
+          <span>
+            <strong>Ränder abschneiden</strong>
+            <span class="gedaempft">
+              Stille vor und nach der Äußerung fällt weg, ein Viertel einer
+              Sekunde bleibt stehen. Was dabei gelernt wird, gilt später auch
+              beim Messen und beim Diktieren.
+            </span>
+          </span>
+        </label>
       </fieldset>
 
       <!-- Die dritte Achse. Sie fasst das Training nicht an: Sie entscheidet

@@ -268,6 +268,71 @@ Mit welcher Geschwindigkeit ein Stand gelernt hat, steht in seinem Namen
 
 ---
 
+## Die Ränder abschneiden
+
+Eine Aufnahme beginnt, wenn jemand den Knopf drückt, und endet, wenn er ihn
+wieder drückt. Dazwischen liegt die Äußerung - und davor und dahinter liegt,
+wie lange jemand gebraucht hat. Bei Femke sind das im Schnitt 25 Sekunden für
+einen Satz, der gesprochen sieben dauert; vier ihrer zwanzig Aufnahmen sprengen
+sogar Whispers Fenster von 30 Sekunden. In dieser Leere erfindet Whisper Text -
+nicht aus Bosheit, sondern weil es auf Sprache trainiert ist und in Stille nach
+Sprache sucht.
+
+Seit September 2026 gibt es deshalb im Training den Haken **„Ränder
+abschneiden"**, und er ist für neue Läufe gesetzt.
+
+**Gemessen wird nicht zweimal.** `audio.untersuche` misst die Randstille jeder
+Aufnahme längst, mit einer Schwelle relativ zur Spitze **dieser** Aufnahme:
+35 dB darunter, nach unten begrenzt bei −60 dBFS. Das ist genau die Robustheit,
+die hier gebraucht wird - ein Lüfter, eine Straße, ein Brummen liegen darunter
+und zählen als Stille, eine leise Stimme liegt darüber. `wortlaut/stille.py`
+stellt nur die Vorbehalte davor.
+
+**Lieber zu wenig als zu viel**, denn der Schaden ist einseitig: Ein bisschen
+Stille zu viel kostet Rechenzeit, ein abgeschnittener Laut kostet die Aufnahme
+und macht die Vorlage daneben falsch. Also drei Vorbehalte, alle in dieselbe
+Richtung:
+
+| | |
+| --- | --- |
+| ein **Rand** bleibt stehen | 0,25 s je Seite |
+| geschnitten wird nur, wenn es sich **lohnt** | ab 0,3 s Gewinn |
+| was übrig bleibt, hat eine **Untergrenze** | 0,5 s, sonst bleibt alles |
+
+Ein Geräusch, das lauter ist als die Schwelle - eine zuschlagende Tür, ein
+Husten -, gilt als Sprache und bleibt stehen. Das ist keine Nachlässigkeit,
+sondern dieselbe Richtung. Und geschnitten werden die **Ränder**, nicht die
+Pausen: Wer mitten im Satz Luft holt, behält sie.
+
+### Wer schneidet, muss überall schneiden
+
+Ein Modell, das auf geschnittenen Ausschnitten gelernt hat, muss auch
+geschnittene zu hören bekommen - beim Messen der Faltungen, in der Auswertung
+von „hören" und beim Diktieren in „schreiben". Sonst träfe es auf etwas, das es
+nie gehört hat, und zwar lautlos: Ein Text kommt ja heraus.
+
+Die Antwort steht im Manifest des Standes, neben dem Tempo. Gelesen wird sie an
+**einer** Stelle (`vorbereitung.aus_manifest`), und dort gilt die eine Regel:
+
+> **Fehlt die Angabe, wird nicht geschnitten.**
+
+Jeder Stand von vor September 2026 hat ungeschnittene Ausschnitte gelernt und
+bekommt ungeschnittene vorgelegt - ohne dass irgendwo eine Ausnahme stünde. Ein
+Vorgabewert `an` an dieser Stelle hätte genau das kaputtgemacht.
+
+Dass die beiden Griffe - schneiden und vorspulen - in **dieser** Reihenfolge
+kommen, entscheidet ebenfalls eine Stelle (`wortlaut/vorbereitung.py`) und nicht
+jeder der vier Aufrufer für sich. Der Unterschied wäre klein und genau deshalb
+gefährlich.
+
+**Und die Zeitmarken wandern mit.** „schreiben" schneidet ein Diktat an den
+Grenzen, die Whisper meldet, und die zählen ab dem Anfang dessen, was Whisper
+gehört hat. Fällt vorn Stille weg, ist das nicht mehr der Anfang der Aufnahme;
+`bereite_vor` gibt den Versatz deshalb mit zurück. Ohne ihn läge jeder
+Abschnitt um die weggeschnittene Stille daneben - und der Text stimmte trotzdem.
+
+---
+
 ## Wie schnell gehört wird
 
 Dysarthrische Sprache ist oft stark verlangsamt, und Whisper versteht sie

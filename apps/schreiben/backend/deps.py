@@ -32,7 +32,7 @@ from typing import Annotated
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
-from wortlaut import db, registry, storage, tempo
+from wortlaut import db, registry, storage, vorbereitung
 from wortlaut import zugang as zugangsdienst
 from wortlaut.whisper import Transkriptor
 
@@ -138,29 +138,26 @@ def modellstand(
         return ref, {}
 
 
-def tempo_fuer(konfiguration: Einstellungen, sprecher_id: str) -> float:
-    """Mit welchem Faktor vorgespult wird, bevor das Modell zuhört.
+def gehoer_fuer(konfiguration: Einstellungen, sprecher_id: str) -> tuple[float, bool]:
+    """Wie das Modell zuhören will: `(vorspulen, Ränder schneiden)`.
 
-    **Mit einem Stand: der Faktor, auf dem er gelernt hat.** Ein Modell, das
-    nur vorgespulte Sprache gehört hat, muss sie auch hier bekommen. Bekäme es
-    ungespulte, träfe ein Modell für schnelle Sprache auf einen langsamen
-    Sprecher - und das Ergebnis wäre schlechter als ganz ohne Training, ohne
-    dass irgendwo ein Fehler stünde. Der Faktor steht im Manifest des Standes
-    (`apps/lernen/training/bewerten.py`), also wird er dort gelesen und nicht
-    geraten.
+    **Mit einem Stand: was er gelernt hat.** Ein Modell, das nur vorgespulte
+    Sprache oder nur geschnittene Ausschnitte gehört hat, muss sie auch hier
+    bekommen. Bekäme es andere, träfe ein Modell für schnelle Sprache auf einen
+    langsamen Sprecher - und das Ergebnis wäre schlechter als ganz ohne
+    Training, ohne dass irgendwo ein Fehler stünde. Beides steht im Manifest
+    des Standes (`apps/lernen/training/bewerten.py`), also wird es dort gelesen
+    und nicht geraten.
 
-    **Ohne Stand: gar nicht.** Dann rechnet ein unverändertes Grundmodell, und
-    das ist genau das, was die Auswertung in „hören" als Baseline misst - dort
-    wird seit `012_ohne_profiltempo.sql` ebenfalls nicht mehr vorgespult.
+    **Ohne Stand: gar nichts.** Dann rechnet ein unverändertes Grundmodell, und
+    das ist genau das, was die Auswertung in „hören" als Baseline misst.
 
     Hier stand einmal ein Rückgriff auf einen Tempofaktor am Sprecherprofil.
     Den gibt es nicht mehr: Was das Vorspulen bringt, sucht der Trainer selbst
     und trägt es im Stand mit sich.
     """
     stand = modellstand(konfiguration, sprecher_id)
-    if stand is None:
-        return tempo.VORGABE
-    return float(stand[1].get("tempo", tempo.VORGABE))
+    return vorbereitung.aus_manifest(stand[1] if stand is not None else None)
 
 
 def modellpfad(konfiguration: Einstellungen, sprecher_id: str) -> Path | str:

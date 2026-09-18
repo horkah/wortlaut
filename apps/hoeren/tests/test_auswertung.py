@@ -720,6 +720,28 @@ class TestTrainierteStaende:
         assert registry.kurzkennung(ref.split("/", 1)[1]) in str(fehler.value)
         assert "/" not in str(fehler.value)
 
+    def test_ein_stand_hoert_so_wie_er_gelernt_hat(
+        self, klient: TestClient, quelle: str, sprich, lege_stand_an
+    ) -> None:
+        """Was im Manifest steht, gilt beim Messen - und was fehlt, gilt nicht.
+
+        Ein Stand von vor September 2026 hat ungeschnittene Ausschnitte
+        gelernt. Bekäme er hier geschnittene, wäre die Zahl daneben eine über
+        eine Lage, die es nie gibt - und niemand sähe es, denn ein Text kommt
+        ja heraus.
+        """
+        sprich()
+        daten = einstellungen().data_dir
+        ref = lege_stand_an()
+
+        assert auswertung.gehoer_fuer(daten, "small") == (1.0, False)
+        assert auswertung.gehoer_fuer(daten, ref) == (1.0, False)
+
+        sprecher, version = ref.split("/", 1)
+        manifest = registry.lies_stand(daten, sprecher, version)
+        registry.schreibe_stand(daten, {**manifest, "tempo": 2.0, "stille": True})
+        assert auswertung.gehoer_fuer(daten, ref) == (2.0, True)
+
     def test_ein_geloeschter_stand_laesst_nichts_zurueck(
         self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an
     ) -> None:

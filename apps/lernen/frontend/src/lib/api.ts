@@ -71,6 +71,8 @@ export type Lauf = {
   dauer: string;
   /** Ob die Geschwindigkeit gesucht wurde oder die des Profils galt. */
   tempowahl: string;
+  /** Ob die Ränder abgeschnitten wurden, bevor ein Ausschnitt ins Training ging. */
+  stille: boolean;
   /**
    * Die Geschwindigkeit, mit der dieser Lauf wirklich gerechnet hat.
    * `null` heißt bei `optimal`: wird noch gesucht.
@@ -335,6 +337,8 @@ export type Bestellung = {
   augmentierung: string;
   dauer: string;
   tempowahl: string;
+  /** Ob die Ränder abgeschnitten wurden, bevor ein Ausschnitt ins Training ging. */
+  stille: boolean;
   grundmodell: string;
 };
 

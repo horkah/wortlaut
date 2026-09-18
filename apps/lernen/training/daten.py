@@ -18,7 +18,7 @@ from typing import Any
 
 import numpy as np
 import torch
-from wortlaut import laeufe, tempo
+from wortlaut import laeufe, tempo, vorbereitung
 from wortlaut.augmentierung import ORIGINAL
 
 from .klangwandel import RAHMENSCHRITT, Wandler
@@ -61,11 +61,13 @@ class Proben(torch.utils.data.Dataset):
         wandler: Wandler | None = None,
         faktor: float = tempo.VORGABE,
         zwischenlager: Path | None = None,
+        schneiden: bool = False,
     ) -> None:
         self.zeilen = zeilen
         self.korpus = korpus
         self.faktor = faktor
         self.zwischenlager = zwischenlager
+        self.schneiden = schneiden
         self.ausleser = ausleser
         self.zerteiler = zerteiler
         # Ohne Wandler bleibt jede Probe, was sie war - das ist die Vorgabe und
@@ -78,26 +80,39 @@ class Proben(torch.utils.data.Dataset):
         return len(self.zeilen)
 
     def _pfad(self, relpfad: str) -> Path:
-        """Die Datei, aus der diese Probe gelesen wird - vorgespult, falls verlangt.
+        """Die Datei, aus der diese Probe gelesen wird - vorbereitet, falls nötig.
 
         **Einmal gerechnet und nicht je Durchgang.** Vorspulen kostet gemessen
-        80 ms - das ist neben einer Erkennung nichts, aber neben einem
-        Trainingsschritt alles: Die Merkmalsextraktion braucht 9 ms, und bei
-        sechzig Durchgängen über zweihundert Proben wären es anderthalb
-        Stunden allein fürs Vorspulen. Die vorgespulte Fassung ist zudem jedes
-        Mal dieselbe - anders als die gewürfelte Abwandlung nebenan, die genau
-        deshalb **nicht** abgelegt wird (`klangwandel.py`).
+        80 ms und Schneiden liest die Datei einmal ganz - das ist neben einer
+        Erkennung nichts, aber neben einem Trainingsschritt alles: Die
+        Merkmalsextraktion braucht 9 ms, und bei sechzig Durchgängen über
+        zweihundert Proben wären es Stunden allein dafür. Das Ergebnis ist
+        zudem jedes Mal dasselbe - anders als die gewürfelte Abwandlung
+        nebenan, die genau deshalb **nicht** abgelegt wird (`klangwandel.py`).
 
         Abgelegt wird im Lauf und nicht im Korpus: Diese Dateien gehören zu
         diesem Lauf, gehen mit ihm und haben im Korpus nichts zu suchen.
+
+        **Was geschieht und in welcher Reihenfolge, steht nicht hier**, sondern
+        in `wortlaut/vorbereitung.py` - derselben Stelle, die auch die
+        Auswertung und das Diktat fragen.
         """
         quelle = self.korpus / relpfad
-        if not tempo.vorspulen_noetig(self.faktor) or self.zwischenlager is None:
+        if self.zwischenlager is None or not vorbereitung.noetig(self.faktor, self.schneiden):
             return quelle
 
         ziel = self.zwischenlager / relpfad
         if not ziel.is_file():
-            tempo.spule_vor(quelle, ziel, self.faktor)
+            fertig = vorbereitung.bereite_vor(
+                quelle, ziel.parent, faktor=self.faktor, schneiden=self.schneiden
+            )
+            if fertig == quelle:
+                # Nichts zu holen gewesen - dann ist die Quelle das Ergebnis,
+                # und ein zweiter Versuch je Durchgang wäre verschenkt.
+                ziel.parent.mkdir(parents=True, exist_ok=True)
+                ziel.write_bytes(quelle.read_bytes())
+            elif fertig != ziel:
+                fertig.replace(ziel)
         return ziel
 
     def __getitem__(self, stelle: int) -> Probe:

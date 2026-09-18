@@ -486,6 +486,53 @@ class TestTempowahl:
         # Ohne Suche gilt schlicht 1,0 - gar nicht vorspulen.
         assert klient.get("/lernen/api/laeufe").json()["laeufe"][0]["tempo"] == 1.0
 
+    def test_die_raender_fallen_von_selbst(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        """Die Vorgabe ist an - und sie muss in `auftrag.json` ankommen.
+
+        Der Auftrag wird Schlüssel für Schlüssel geschrieben; ein Feld an der
+        Datenklasse allein reicht nicht. Genau so ist einmal die Sprache nie in
+        der Datei gelandet, und der Trainer griff still auf Deutsch zurück.
+        """
+        sprich(6)
+        lauf = _beauftrage(klient)
+        auftrag = laeufe.lies_json(
+            laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]) / laeufe.AUFTRAG
+        )
+        assert auftrag["stille"] is True
+        assert klient.get("/lernen/api/laeufe").json()["laeufe"][0]["stille"] is True
+
+    def test_wer_die_raender_behalten_will_sagt_es(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        # Der Grund dafür ist der Vergleich mit einem älteren Stand, der ohne
+        # gerechnet wurde.
+        sprich(6)
+        antwort = klient.post(
+            "/lernen/api/laeufe",
+            json={"methode": "lora", "daten": "original", "stille": False},
+        )
+        assert antwort.status_code == 201, antwort.text
+        auftrag = laeufe.lies_json(
+            laeufe.lauf_verzeichnis(datenverzeichnis, antwort.json()["job_id"]) / laeufe.AUFTRAG
+        )
+        assert auftrag["stille"] is False
+
+    def test_ein_lauf_von_vor_dieser_achse_schneidet_nicht(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        # Nachgestellt, indem der Schlüssel wieder aus dem Auftrag fällt - für
+        # den Server ist das derselbe Fall wie ein Lauf von vor der Achse.
+        sprich(6)
+        lauf = _beauftrage(klient)
+        pfad = laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]) / laeufe.AUFTRAG
+        auftrag = laeufe.lies_json(pfad)
+        del auftrag["stille"]
+        laeufe.schreibe_json(pfad, auftrag)
+
+        assert klient.get("/lernen/api/laeufe").json()["laeufe"][0]["stille"] is False
+
     def test_optimal_wird_eingetragen_und_noch_nicht_beantwortet(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis
     ) -> None:

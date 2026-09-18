@@ -79,7 +79,16 @@ from pathlib import Path
 
 from sqlalchemy import Engine, delete, func, select
 from sqlalchemy.orm import Session
-from wortlaut import ids, laeufe, metriken, rechenwerk, registry, storage, tempo
+from wortlaut import (
+    ids,
+    laeufe,
+    metriken,
+    rechenwerk,
+    registry,
+    storage,
+    tempo,
+    vorbereitung,
+)
 from wortlaut.whisper import Transkriptor
 
 from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
@@ -187,27 +196,31 @@ def messbare_modelle(datenverzeichnis: Path, sprecher_id: str, liste: str) -> li
     return modelle(liste) + staende(datenverzeichnis, sprecher_id)
 
 
-def tempo_fuer(datenverzeichnis: Path, modell: str) -> float:
-    """Mit welchem Faktor vorgespult wird, bevor dieses Modell zuhört.
+def gehoer_fuer(datenverzeichnis: Path, modell: str) -> tuple[float, bool]:
+    """Wie dieses Modell zuhören will: `(vorspulen, Ränder schneiden)`.
 
-    **Für ein Grundmodell nie.** Die Auswertung ist die Baseline und misst den
-    Ausgangszustand (`012_ohne_profiltempo.sql`).
+    **Ein Grundmodell will gar nichts.** Die Auswertung ist die Baseline und
+    misst den Ausgangszustand (`012_ohne_profiltempo.sql`).
 
-    **Für einen Stand der Faktor, auf dem er gelernt hat.** Er steht in seinem
-    Manifest, „schreiben" spult beim Diktieren genauso vor
-    (`apps/schreiben/backend/deps.py`), und seine Faltungen wurden ebenso
-    gemessen (`apps/lernen/training/bewerten.py`). Ein Modell für schnelle
-    Sprache an langsamer zu messen, ergäbe eine Zahl über eine Lage, die es
-    nie gibt.
+    **Ein Stand will, was er gelernt hat.** Beides steht in seinem Manifest,
+    „schreiben" tut beim Diktieren dasselbe (`apps/schreiben/backend/deps.py`),
+    und seine Faltungen wurden ebenso gemessen
+    (`apps/lernen/training/bewerten.py`). Ein Modell für schnelle Sprache an
+    langsamer zu messen oder eines für geschnittene Ausschnitte an
+    ungeschnittenen ergäbe eine Zahl über eine Lage, die es nie gibt.
+
+    Gelesen wird das Manifest **einmal** und die Antwort daraus an einer Stelle
+    gebildet (`wortlaut/vorbereitung.aus_manifest`) - zwei Abfragen wären zwei
+    Gelegenheiten, die Regel „fehlt heißt aus" verschieden auszulegen.
     """
     if not registry.ist_stand(modell):
-        return tempo.VORGABE
+        return vorbereitung.aus_manifest(None)
     sprecher_id, version = modell.split(registry.TRENNER, 1)
     try:
         manifest = registry.lies_stand(datenverzeichnis, sprecher_id, version)
     except (OSError, ValueError):
-        return tempo.VORGABE
-    return float(manifest.get("tempo", tempo.VORGABE))
+        return vorbereitung.aus_manifest(None)
+    return vorbereitung.aus_manifest(manifest)
 
 
 def gewichte(datenverzeichnis: Path, modell: str) -> Path:
@@ -527,6 +540,7 @@ def _rechne(
     transkriptor: Transkriptor,
     werk: str,
     faktor: float = tempo.VORGABE,
+    schneiden: bool = False,
 ) -> Erkennung:
     """Erkennen und messen - der Teil, der rechnet und keine Datenbank anfasst.
 
@@ -535,17 +549,16 @@ def _rechne(
     gefallen (`012_ohne_profiltempo.sql`). Die Auswertung ist die Baseline und
     misst den Ausgangszustand.
 
-    **Ein trainierter Stand hört so, wie er gelernt hat.** Sein Faktor steht in
-    seinem Manifest; die Faltungen desselben Laufs wurden damit gemessen, und
-    „schreiben" spult beim Diktieren ebenso vor. Ein Modell für schnelle
-    Sprache an langsamer zu messen, ergäbe eine Zahl über eine Lage, die es
-    nie gibt (`tempo_fuer`).
+    **Ein trainierter Stand hört so, wie er gelernt hat.** Vorspulen und
+    Schneiden stehen in seinem Manifest; die Faltungen desselben Laufs wurden
+    damit gemessen, und „schreiben" tut beim Diktieren dasselbe. Ein Modell für
+    schnelle Sprache an langsamer zu messen, ergäbe eine Zahl über eine Lage,
+    die es nie gibt (`gehoer_fuer`).
     """
     with tempfile.TemporaryDirectory() as zwischen:
-        if tempo.vorspulen_noetig(faktor):
-            schnell = Path(zwischen) / "vorgespult.wav"
-            tempo.spule_vor(wav, schnell, faktor)
-            wav = schnell
+        wav = vorbereitung.bereite_vor(
+            wav, Path(zwischen), faktor=faktor, schneiden=schneiden
+        )
         begonnen = time.monotonic()
         transkript = transkriptor.transkribiere(wav, sprache=sprache)
         dauer = time.monotonic() - begonnen
@@ -662,7 +675,7 @@ async def _arbeite(
                 sprache,
                 transkriptor_fuer(posten.modell, geraet, rechenart, datenverzeichnis),
                 werk,
-                tempo_fuer(datenverzeichnis, posten.modell),
+                *gehoer_fuer(datenverzeichnis, posten.modell),
             )
         except asyncio.CancelledError:
             raise
