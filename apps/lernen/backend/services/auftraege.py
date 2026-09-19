@@ -72,13 +72,6 @@ class Auftrag:
     # dass irgendwo ein Fehler gestanden hätte. Ein Feld ohne Vorgabe kann
     # nicht wieder vergessen werden.
     sprache: str
-    # Ob die Ränder abgeschnitten werden, bevor ein Ausschnitt ins Training
-    # geht (`wortlaut/stille.py`). Wie `sprache` **ohne** Vorgabe, und aus
-    # demselben Grund: Die Vorgabe für neue Läufe ist `an`, das Verfahren von
-    # vorher aber `aus`, und ein Feld, das beides bedeuten könnte, bedeutet
-    # nichts. Wer beauftragt, sagt es; wer einen alten Auftrag liest, findet
-    # den Schlüssel nicht und schneidet nicht (`stille.gilt`).
-    stille: bool
     # Was am Ende mit den Gewichten geschieht (`wortlaut/laeufe.py`). Mit
     # Vorgabe, und die ist das Verfahren von vorher: Ein Auftrag von einem
     # Aufrufer, der diese Achse nicht kennt, bleibt derselbe Auftrag.
@@ -195,10 +188,6 @@ def beauftrage(
             # eingefrorene Wert darüber bleibt trotzdem stehen: Er ist der
             # Ausgangspunkt, gegen den sich eine Suche messen lassen muss.
             "tempowahl": auftrag.tempowahl,
-            # Ob die Ränder geschnitten wurden. Steht hier, weil der Trainer es
-            # hier liest - und weil ein Stand später genauso hören muss, wie er
-            # gelernt hat (`wortlaut/vorbereitung.py`).
-            "stille": auftrag.stille,
             "erstellt": laeufe.jetzt(),
             "zeilen": gezaehlt,
             "aufnahmen": len(proben),

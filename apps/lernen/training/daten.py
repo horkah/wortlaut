@@ -11,7 +11,6 @@ darüber nichts zu meinen, weil „hören" schon beim Aufnehmen umwandelt
 from __future__ import annotations
 
 import array
-import tempfile
 import wave
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,7 +18,7 @@ from typing import Any
 
 import numpy as np
 import torch
-from wortlaut import laeufe, tempo, vorbereitung
+from wortlaut import laeufe, tempo
 from wortlaut.augmentierung import ORIGINAL
 
 from .klangwandel import RAHMENSCHRITT, Wandler
@@ -62,13 +61,11 @@ class Proben(torch.utils.data.Dataset):
         wandler: Wandler | None = None,
         faktor: float = tempo.VORGABE,
         zwischenlager: Path | None = None,
-        schneiden: bool = False,
     ) -> None:
         self.zeilen = zeilen
         self.korpus = korpus
         self.faktor = faktor
         self.zwischenlager = zwischenlager
-        self.schneiden = schneiden
         self.ausleser = ausleser
         self.zerteiler = zerteiler
         # Ohne Wandler bleibt jede Probe, was sie war - das ist die Vorgabe und
@@ -81,56 +78,26 @@ class Proben(torch.utils.data.Dataset):
         return len(self.zeilen)
 
     def _pfad(self, relpfad: str) -> Path:
-        """Die Datei, aus der diese Probe gelesen wird - vorbereitet, falls nötig.
+        """Die Datei, aus der diese Probe gelesen wird - vorgespult, falls verlangt.
 
         **Einmal gerechnet und nicht je Durchgang.** Vorspulen kostet gemessen
-        80 ms und Schneiden liest die Datei einmal ganz - das ist neben einer
-        Erkennung nichts, aber neben einem Trainingsschritt alles: Die
-        Merkmalsextraktion braucht 9 ms, und bei sechzig Durchgängen über
-        zweihundert Proben wären es Stunden allein dafür. Das Ergebnis ist
-        zudem jedes Mal dasselbe - anders als die gewürfelte Abwandlung
-        nebenan, die genau deshalb **nicht** abgelegt wird (`klangwandel.py`).
+        80 ms - das ist neben einer Erkennung nichts, aber neben einem
+        Trainingsschritt alles: Die Merkmalsextraktion braucht 9 ms, und bei
+        sechzig Durchgängen über zweihundert Proben wären es anderthalb
+        Stunden allein fürs Vorspulen. Die vorgespulte Fassung ist zudem jedes
+        Mal dieselbe - anders als die gewürfelte Abwandlung nebenan, die genau
+        deshalb **nicht** abgelegt wird (`klangwandel.py`).
 
         Abgelegt wird im Lauf und nicht im Korpus: Diese Dateien gehören zu
         diesem Lauf, gehen mit ihm und haben im Korpus nichts zu suchen.
-
-        **Was geschieht und in welcher Reihenfolge, steht nicht hier**, sondern
-        in `wortlaut/vorbereitung.py` - derselben Stelle, die auch die
-        Auswertung und das Diktat fragen.
         """
         quelle = self.korpus / relpfad
-        if self.zwischenlager is None or not vorbereitung.noetig(self.faktor, self.schneiden):
+        if not tempo.vorspulen_noetig(self.faktor) or self.zwischenlager is None:
             return quelle
 
         ziel = self.zwischenlager / relpfad
-        if ziel.is_file():
-            return ziel
-
-        # **Jeder Aufruf arbeitet für sich.** `bereite_vor` legt seine
-        # Zwischenstände unter festen Namen ab - `geschnitten.wav`,
-        # `vorgespult.wav` -, und torch lädt mit mehreren Fäden zugleich
-        # (`dataloader_num_workers`). Zwei Fäden im selben Verzeichnis
-        # schrieben dieselbe Datei und nahmen sie einander unter den Händen
-        # weg. Ein eigenes Arbeitsverzeichnis je Aufruf kostet ein `mkdir` und
-        # macht die Frage gegenstandslos.
-        ziel.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.TemporaryDirectory(dir=ziel.parent) as arbeit:
-            # Der Versatz interessiert hier nicht: Gelernt wird ein Paar aus
-            # Klang und Text, und keine Zeitmarke zeigt zurück auf das Original.
-            fertig, _versatz = vorbereitung.bereite_vor(
-                quelle, Path(arbeit), faktor=self.faktor, schneiden=self.schneiden
-            )
-            if fertig == quelle:
-                # Nichts zu holen gewesen. Trotzdem abgelegt, denn sonst
-                # würde die Datei in jedem Durchgang aufs Neue vermessen -
-                # und Messen heißt, sie ganz zu lesen (`stille.grenzen`).
-                fertig = Path(arbeit) / "unveraendert.wav"
-                fertig.write_bytes(quelle.read_bytes())
-            # Erst fertig, dann sichtbar: `replace` ist ein Umbenennen im
-            # selben Dateisystem und damit unteilbar. Ein Faden, der `ziel`
-            # währenddessen prüft, sieht es entweder ganz oder gar nicht -
-            # nie halb geschrieben.
-            fertig.replace(ziel)
+        if not ziel.is_file():
+            tempo.spule_vor(quelle, ziel, self.faktor)
         return ziel
 
     def __getitem__(self, stelle: int) -> Probe:

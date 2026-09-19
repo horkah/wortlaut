@@ -242,40 +242,13 @@ class TestGeschwindigkeit:
     def test_der_faktor_des_standes_gilt(
         self, klient: TestClient, datenverzeichnis, sprecher: str
     ) -> None:
-        from apps.schreiben.backend.deps import gehoer_fuer, zwischenspeicher_leeren
+        from apps.schreiben.backend.deps import tempo_fuer, zwischenspeicher_leeren
 
         for faktor in (1.0, 2.0, 2.25, 3.0):
             self._stand_mit(datenverzeichnis, sprecher, faktor)
             einstellungen.cache_clear()
             zwischenspeicher_leeren()
-            assert gehoer_fuer(einstellungen(), sprecher)[0] == faktor
-
-    def test_ohne_angabe_im_manifest_wird_nicht_geschnitten(
-        self, klient: TestClient, datenverzeichnis, sprecher: str
-    ) -> None:
-        """Die Regel, an der alles hängt: Fehlt die Angabe, wird nicht geschnitten.
-
-        Jeder Stand von vor September 2026 hat ungeschnittene Ausschnitte
-        gelernt. Bekäme er beim Diktieren geschnittene, träfe ein Modell auf
-        etwas, das es nie gehört hat - lautlos, denn ein Text kommt ja heraus.
-        """
-        from apps.schreiben.backend.deps import gehoer_fuer, zwischenspeicher_leeren
-
-        self._stand_mit(datenverzeichnis, sprecher, 1.0)
-        einstellungen.cache_clear()
-        zwischenspeicher_leeren()
-        assert gehoer_fuer(einstellungen(), sprecher)[1] is False
-
-    def test_ein_stand_der_geschnitten_hat_schneidet_auch_hier(
-        self, klient: TestClient, datenverzeichnis, sprecher: str
-    ) -> None:
-        from apps.schreiben.backend.deps import gehoer_fuer, zwischenspeicher_leeren
-
-        manifest = {**self._stand_mit(datenverzeichnis, sprecher, 1.0), "stille": True}
-        registry.schreibe_stand(datenverzeichnis, manifest)
-        einstellungen.cache_clear()
-        zwischenspeicher_leeren()
-        assert gehoer_fuer(einstellungen(), sprecher)[1] is True
+            assert tempo_fuer(einstellungen(), sprecher) == faktor
 
     def test_ein_stand_mit_fremdem_tempo_bleibt_waehlbar(
         self, klient: TestClient, datenverzeichnis, sprecher: str
@@ -299,8 +272,8 @@ class TestGeschwindigkeit:
         # Ohne Stand rechnet ein unverändertes Grundmodell, und für das gilt,
         # was die Auswertung in „hören" gerade misst - sonst diktierte man
         # unter anderen Bedingungen, als man vergleicht.
-        from apps.schreiben.backend.deps import gehoer_fuer, zwischenspeicher_leeren
+        from apps.schreiben.backend.deps import tempo_fuer, zwischenspeicher_leeren
 
         einstellungen.cache_clear()
         zwischenspeicher_leeren()
-        assert gehoer_fuer(einstellungen(), sprecher) == (1.0, False)
+        assert tempo_fuer(einstellungen(), sprecher) == 1.0
