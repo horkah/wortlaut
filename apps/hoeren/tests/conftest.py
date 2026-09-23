@@ -42,6 +42,9 @@ def _umgebung(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, wav_schreiben) ->
     monkeypatch.setenv("WORTLAUT_AUTH_TOKEN", TOKEN)
     monkeypatch.setenv("WORTLAUT_ADMIN_TOKEN", ADMIN_TOKEN)
     monkeypatch.setenv("WORTLAUT_LLM_PROVIDER", "")  # Textquelle „LLM" aus
+    # Zuschnitt aus, bis ein Test ihn anschaltet - sonst entschiede die `.env`
+    # des Entwicklers, ob `test_ohne_gesetzten_schluessel_…` gelingt.
+    monkeypatch.setenv("WORTLAUT_EDITOR_KEY", "")
     einstellungen.cache_clear()
     deps._engines.clear()
 

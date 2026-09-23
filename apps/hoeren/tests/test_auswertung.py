@@ -743,3 +743,99 @@ class TestTrainierteStaende:
             zeile["modell"] == ref
             for zeile in klient.get(f"/api/auswertung/{aufnahme}").json()["erkennungen"]
         )
+
+    @pytest.fixture
+    def schneide(self, klient: TestClient, monkeypatch: pytest.MonkeyPatch) -> Callable[..., None]:
+        """Eine Aufnahme zuschneiden, über denselben Weg wie die Ansicht."""
+        monkeypatch.setenv("WORTLAUT_EDITOR_KEY", "test-zuschnitt")
+        einstellungen.cache_clear()
+
+        def schnitt(aufnahme: str, weg: str = "schreiben") -> None:
+            antwort = klient.post(
+                f"/api/zuschnitt/{weg}",
+                headers={"X-Editor-Key": "test-zuschnitt"},
+                json={"grenzen": [{"id": aufnahme, "start_s": 1.0, "ende_s": 2.0}]},
+            )
+            assert antwort.json()["geschrieben"] == 1, antwort.text
+
+        return schnitt
+
+    def test_nach_dem_zuschnitt_kommt_die_faltung_nicht_wieder(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an, schneide
+    ) -> None:
+        """Die Faltung maß den ungeschnittenen Ton - sie gehört nicht neben den neuen.
+
+        Und der Stand misst die Aufnahme auch nicht selbst nach: Er hatte sie im
+        Training, geschnitten oder nicht. Die Stelle bleibt leer, bis ein neuer
+        Lauf sie auf dem neuen Ton gemessen hat.
+        """
+        sprich()
+        aufnahme = _aufnahmen(klient)[0]
+        ref = lege_stand_an(aufnahme)
+        assert klient.get("/api/auswertung").json()["punkte"][0]["werte"][ref] != {}
+
+        schneide(aufnahme)
+        uebersicht = klient.get("/api/auswertung").json()
+        assert uebersicht["punkte"][0]["werte"].get(ref, {}) == {}
+        # Die leere Stelle zählt weder als erledigt noch als offen.
+        assert uebersicht["stand"]["gesamt"] == JE_AUFNAHME
+
+        antworten.update({"small": "egal", "medium": "egal", ref: "aus dem Gedächtnis"})
+        stand = _laufe_bis_fertig(klient)
+        assert stand["erledigt"] == stand["gesamt"] == JE_AUFNAHME
+        assert not any(
+            zeile["modell"] == ref
+            for zeile in klient.get(f"/api/auswertung/{aufnahme}").json()["erkennungen"]
+        )
+
+    def test_zuruecknehmen_bringt_die_faltung_zurueck(
+        self, klient: TestClient, quelle: str, sprich, lege_stand_an, schneide
+    ) -> None:
+        # Sie war nie falsch, sie gehörte nur zu einem anderen Ton.
+        sprich()
+        aufnahme = _aufnahmen(klient)[0]
+        ref = lege_stand_an(aufnahme)
+        schneide(aufnahme)
+        schneide(aufnahme, "zuruecknehmen")
+        assert klient.get("/api/auswertung").json()["punkte"][0]["werte"][ref] != {}
+
+    def test_schon_stehende_faltungen_am_alten_ton_werden_weggeraeumt(
+        self, klient: TestClient, quelle: str, sprich, lege_stand_an
+    ) -> None:
+        """Der Bestand von vor dieser Regel: Zuschnitt da, Faltung trotzdem da."""
+        sprich()
+        aufnahme = _aufnahmen(klient)[0]
+        ref = lege_stand_an(aufnahme)
+        klient.get("/api/auswertung")
+
+        from apps.hoeren.backend.db.models import Aufnahme
+        from apps.hoeren.backend.deps import _ablage as ablage_fuer
+        from apps.hoeren.backend.services import zuschnitt
+
+        with Session(engine_fuer(_sprecher(klient))) as db:
+            zuschnitt.schneide(ablage_fuer(), db.get(Aufnahme, aufnahme), 1.0, 2.0)
+            db.commit()
+            assert db.scalars(select(Erkennung).where(Erkennung.modell == ref)).all()
+
+        assert klient.get("/api/auswertung").json()["punkte"][0]["werte"].get(ref, {}) == {}
+        with Session(engine_fuer(_sprecher(klient))) as db:
+            assert not db.scalars(select(Erkennung).where(Erkennung.modell == ref)).all()
+
+    def test_ein_manifest_mit_dem_geltenden_ton_behaelt_die_faltung(
+        self, klient: TestClient, quelle: str, sprich, lege_stand_an, schneide
+    ) -> None:
+        """Wer nach dem Schnitt trainiert hat, hat den neuen Ton gehört."""
+        sprich()
+        aufnahme = _aufnahmen(klient)[0]
+        schneide(aufnahme)
+        ref = lege_stand_an(aufnahme)
+        laeufe.haenge_an(
+            laeufe.lauf_verzeichnis(einstellungen().data_dir, "job_probe") / laeufe.MANIFEST,
+            {
+                "recording_id": aufnahme,
+                "variante": augmentierung.ORIGINAL,
+                "audio": f"audio/zuschnitt/{aufnahme}.wav",
+                "dauer_s": 1.0,
+            },
+        )
+        assert klient.get("/api/auswertung").json()["punkte"][0]["werte"][ref] != {}
