@@ -233,7 +233,7 @@ def _werk() -> str:
 
 
 def _stand(db: Datenbank, sprecher: str) -> StandAntwort:
-    roh = auswertung.stand(db, _namen(sprecher), _werk())
+    roh = auswertung.stand(db, _namen(sprecher), _werk(), einstellungen().data_dir)
     laeuft_fuer = auswertung.laeuft_fuer()
     return StandAntwort(
         laeuft=roh.laeuft and laeuft_fuer == sprecher,

@@ -79,11 +79,11 @@ from pathlib import Path
 
 from sqlalchemy import Engine, delete, func, select
 from sqlalchemy.orm import Session
-from wortlaut import ids, laeufe, metriken, rechenwerk, registry, storage, tempo
+from wortlaut import corpus, ids, laeufe, metriken, rechenwerk, registry, storage, tempo
 from wortlaut.whisper import Transkriptor
 
 from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
-from . import augmentierung
+from . import augmentierung, zuschnitt
 
 # Nur brauchbare Aufnahmen: Was verworfen wurde, ist kein Prüfstück, sondern
 # ein Fehlversuch - und ginge als schlechte Note eines Modells durch, obwohl
@@ -254,7 +254,9 @@ class Posten:
     """Eine offene Rechenaufgabe: diese Fassung dieser Aufnahme durch dieses Modell."""
 
     aufnahme_id: str
-    # Das Original, so wie es in der Zeile steht.
+    # Die Arbeitsdatei (`services/zuschnitt.py`) - aus ihr entstehen fehlende
+    # Abwandlungen. Aus dem Blob der Zeile hörte ein zugeschnittener Satz mit
+    # Rauschen wieder die Stille an seinen Rändern.
     blob: str
     # Die Datei, die dieses Mal durch das Modell geht - beim Original dieselbe,
     # sonst die abgewandelte Fassung daneben. Hier ausgerechnet und nicht im
@@ -274,6 +276,137 @@ class Posten:
 # Die Maße, die eine übernommene Faltungszeile mitbringen muss. Fehlt eines,
 # ist die Zeile unbrauchbar - eine halbe Messung ist keine.
 _MASSE = ("wer", "cer", "mer", "wil", "genauigkeit")
+
+# Was ein Lauf über eine Aufnahme weiß: den Ton, auf dem er gelernt und
+# gemessen hat - Pfad im Korpus des Sprechers und Dauer, wie sie im Manifest
+# stehen. `None` heißt, das Manifest sagt es nicht (ein Lauf ohne Manifest);
+# dann war es das Original, denn Zuschnitte gab es vor den Manifesten nicht.
+Ton = tuple[str, float] | None
+
+# Je Laufverzeichnis das Gelesene, samt dem Stand der Dateien, aus dem es
+# stammt. Die Auswertung fragt bei jedem Posten und jeder Abfrage des
+# Fortschritts - ein Manifest über den ganzen Korpus jedes Mal neu zu lesen,
+# wäre die teuerste Zeile des Laufs.
+_gehoert_zwischen: dict[Path, tuple[tuple[float, float], dict[str, Ton]]] = {}
+
+
+def _mtime(pfad: Path) -> float:
+    try:
+        return pfad.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def _gehoert_im_lauf(verzeichnis: Path) -> dict[str, Ton]:
+    """Welche Aufnahmen ein Lauf kannte - und auf welchem Ton.
+
+    Gekannt hat er, was in seinem Manifest steht, und was seine Faltungen
+    gemessen haben (jede Aufnahme war in genau einer davon die Prüfaufgabe und
+    in den übrigen fünf Lernstoff). Das Zweite steht hier mit, weil ein Lauf
+    sein Manifest verlieren kann, seine Bewertung aber nicht - sie ist das,
+    was übernommen wird.
+    """
+    manifest, bewertung = verzeichnis / laeufe.MANIFEST, verzeichnis / laeufe.BEWERTUNG
+    stempel = (_mtime(manifest), _mtime(bewertung))
+    zwischen = _gehoert_zwischen.get(verzeichnis)
+    if zwischen is not None and zwischen[0] == stempel:
+        return zwischen[1]
+
+    gehoert: dict[str, Ton] = {}
+    for zeile in laeufe.lies_zeilen(bewertung):
+        if kennung := str(zeile.get("recording_id") or ""):
+            gehoert.setdefault(kennung, None)
+    for zeile in laeufe.manifestzeilen(verzeichnis):
+        kennung = str(zeile.get("recording_id") or "")
+        if not kennung or zeile.get("variante", augmentierung.ORIGINAL) != augmentierung.ORIGINAL:
+            continue
+        gehoert[kennung] = (str(zeile.get("audio") or ""), float(zeile.get("dauer_s") or 0.0))
+    _gehoert_zwischen[verzeichnis] = (stempel, gehoert)
+    return gehoert
+
+
+def gehoert(datenverzeichnis: Path, namen: list[str]) -> dict[str, dict[str, Ton]]:
+    """Je trainiertem Stand unter `namen` die Aufnahmen, die er im Training hatte.
+
+    Auf genau sie wird ein Stand **nie** selbst angesetzt: Eine Zahl darüber
+    wäre eine über sein Gedächtnis, nicht über sein Hören. Für sie gilt die
+    Messung seiner Faltungen - oder keine (`derselbe_ton`).
+    """
+    ergebnis: dict[str, dict[str, Ton]] = {}
+    for name in namen:
+        if not registry.ist_stand(name):
+            continue
+        sprecher_id, version = name.split(registry.TRENNER, 1)
+        try:
+            job = str(registry.lies_stand(datenverzeichnis, sprecher_id, version).get("job_id", ""))
+        except (OSError, ValueError):
+            continue
+        if job:
+            ergebnis[name] = _gehoert_im_lauf(laeufe.lauf_verzeichnis(datenverzeichnis, job))
+    return ergebnis
+
+
+def derselbe_ton(aufnahme: Aufnahme, damals: Ton) -> bool:
+    """Ob ein Lauf diese Aufnahme so kannte, wie sie heute gilt.
+
+    Seit es Zuschnitte gibt, ist das nicht mehr selbstverständlich. Eine
+    Faltungsmessung am ungeschnittenen Ton beschreibt eine Datei, mit der
+    niemand mehr arbeitet - sie stehen zu lassen oder nach dem Schnitt wieder
+    zu übernehmen, hieße, eine Zahl über den alten Ton in den Vergleich über
+    den neuen zu stellen. Gefragt wird nach Pfad **und** Dauer: Ein zweiter
+    Schnitt liegt unter demselben Pfad wie der erste.
+
+    Nimmt jemand den Zuschnitt zurück, stimmt es wieder, und die Faltung kommt
+    zurück - sie war nie falsch, sie gehörte nur zu einem anderen Ton.
+    """
+    if damals is None:
+        return not zuschnitt.hat_zuschnitt(aufnahme)
+    audio, dauer = damals
+    heute = zuschnitt.arbeitsblob(aufnahme).removeprefix(
+        f"{corpus.sprecher_relpfad(aufnahme.speaker_id)}/"
+    )
+    return audio == heute and abs(dauer - zuschnitt.arbeitsdauer(aufnahme)) < 1e-3
+
+
+def vergiss_ueberholte_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -> int:
+    """Die Zeilen eines Standes wegräumen, die nicht mehr den geltenden Ton messen.
+
+    Der Zuschnitt löscht beim Schreiben alle Messungen einer Aufnahme
+    (`api/zuschnitt.py`). Das genügt für die Grundmodelle - die rechnen neu.
+    Für einen Stand genügt es nicht: Seine Faltungen standen bis zum nächsten
+    Abgleich wieder da, übernommen aus einem Lauf, der den alten Ton gehört
+    hatte. Hier werden sie deshalb nicht nur nicht übernommen
+    (`uebernimm_faltungen`), sondern auch weggeräumt, wo sie schon stehen -
+    der Bestand von vor dieser Regel eingeschlossen.
+
+    Mit ihnen geht jede gerechnete Zeile eines Standes über eine Aufnahme, die
+    er im Training hatte. Die gibt es nach dieser Regel nicht mehr
+    (`offene_posten`); was davon noch dasteht, ist eine Zahl über sein
+    Gedächtnis.
+    """
+    namen = [
+        str(manifest.get("id", ""))
+        for manifest in registry.alle_staende(datenverzeichnis, sprecher_id)
+    ]
+    bekannt = gehoert(datenverzeichnis, namen)
+    if not bekannt:
+        return 0
+    aufnahmen = {aufnahme.id: aufnahme for aufnahme, _ in gueltige_aufnahmen(db)}
+    weg = [
+        zeile.id
+        for zeile in db.scalars(select(Erkennung).where(Erkennung.modell.in_(list(bekannt))))
+        if zeile.recording_id in bekannt[zeile.modell]
+        and (
+            zeile.herkunft != FALTUNG
+            or (aufnahme := aufnahmen.get(zeile.recording_id)) is None
+            or not derselbe_ton(aufnahme, bekannt[zeile.modell][zeile.recording_id])
+        )
+    ]
+    if not weg:
+        return 0
+    db.execute(delete(Erkennung).where(Erkennung.id.in_(weg)))
+    db.commit()
+    return len(weg)
 
 
 def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -> int:
@@ -301,7 +434,7 @@ def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -
             )
         ).all()
     }
-    gueltig = {aufnahme.id for aufnahme, _ in gueltige_aufnahmen(db)}
+    gueltig = {aufnahme.id: aufnahme for aufnahme, _ in gueltige_aufnahmen(db)}
 
     neu = 0
     for manifest in registry.alle_staende(datenverzeichnis, sprecher_id):
@@ -311,6 +444,7 @@ def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -
             continue
         verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, job)
         faktor = float(manifest.get("tempo", tempo.VORGABE))
+        damals = _gehoert_im_lauf(verzeichnis)
         for zeile in laeufe.lies_zeilen(verzeichnis / laeufe.BEWERTUNG):
             kennung = str(zeile.get("recording_id") or "")
             fassung = str(zeile.get("variante") or augmentierung.ORIGINAL)
@@ -318,6 +452,11 @@ def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -
             # ist kein Prüfstück mehr - der gemeinsame Boden ist der Korpus von
             # heute und nicht der von damals.
             if not kennung or kennung not in gueltig:
+                continue
+            # Gemessen am Ton von damals. Ist die Aufnahme seither
+            # zugeschnitten worden, misst die Zeile eine Datei, mit der niemand
+            # mehr arbeitet (`derselbe_ton`).
+            if not derselbe_ton(gueltig[kennung], damals.get(kennung)):
                 continue
             if (kennung, ref, fassung) in vorhanden:
                 continue
@@ -450,24 +589,37 @@ def _fertig(db: Session, werk: str) -> set[tuple[str, str, str]]:
     }
 
 
-def offene_posten(db: Session, namen: list[str], werk: str) -> list[Posten]:
+def offene_posten(
+    db: Session,
+    namen: list[str],
+    werk: str,
+    bekannt: dict[str, dict[str, Ton]] | None = None,
+) -> list[Posten]:
     """Was noch zu rechnen ist, in der Reihenfolge, in der gerechnet wird.
 
     Die Schachtelung ist die Reihenfolge des Laufs: Aufnahme, dann Modell,
     dann Fassung. Die vier Fassungen eines Modells liegen damit nebeneinander,
     und genau nebeneinander werden sie später gelesen - eine halb gerechnete
     Aufnahme zeigt lieber ein vollständiges Modell als vier angefangene.
+
+    **Kein Stand über eine Aufnahme, die er im Training hatte** (`bekannt`,
+    aus `gehoert`). Für sie gilt seine Faltung; fehlt die - weil die Aufnahme
+    seither zugeschnitten wurde -, bleibt die Stelle leer, bis ein neuer Lauf
+    sie auf dem neuen Ton gemessen hat. Ihn selbst darauf anzusetzen, ergäbe
+    eine Zahl über sein Gedächtnis.
     """
     erledigt = _fertig(db, werk)
+    bekannt = bekannt or {}
     return [
         posten
         for aufnahme, vorlage in gueltige_aufnahmen(db)
         for modell in namen
+        if aufnahme.id not in bekannt.get(modell, {})
         for variante in augmentierung.VARIANTEN
         if (
             posten := Posten(
                 aufnahme_id=aufnahme.id,
-                blob=aufnahme.blob,
+                blob=zuschnitt.arbeitsblob(aufnahme),
                 variante_blob=augmentierung.relpfad(aufnahme, variante),
                 referenz=vorlage.text,
                 modell=modell,
@@ -478,19 +630,24 @@ def offene_posten(db: Session, namen: list[str], werk: str) -> list[Posten]:
     ]
 
 
-def zaehle(db: Session, namen: list[str], werk: str) -> tuple[int, int]:
+def zaehle(
+    db: Session,
+    namen: list[str],
+    werk: str,
+    bekannt: dict[str, dict[str, Ton]] | None = None,
+) -> tuple[int, int]:
     """(erledigt, gesamt) - beides aus der Datenbank, nie aus einem Zähler.
 
     Ein mitlaufender Zähler wäre nach jedem Neustart falsch, und genau ein
     Neustart mitten im Lauf ist der Fall, für den diese Auswertung
     wiederaufnehmbar gebaut ist.
+
+    `gesamt` ist, was erledigt ist, und was noch offen ist - und nicht mehr
+    Aufnahmen mal Modelle mal Fassungen. Seit ein Stand Aufnahmen aus seinem
+    Training nicht selbst misst (`offene_posten`), gibt es Stellen, die weder
+    das eine noch das andere sind; mitgezählt, stünde der Balken für immer
+    unter 100 %.
     """
-    aufnahmen = (
-        db.scalar(
-            select(func.count()).select_from(Aufnahme).where(Aufnahme.status == GUELTIG)
-        )
-        or 0
-    )
     # Gezählt wird nur, was zu den derzeit konfigurierten Modellen und
     # Fassungen gehört: Wer ein Modell aus der Liste nimmt, soll nicht
     # plötzlich über 100 % stehen - und die Zeilen einer abgeschafften Fassung
@@ -517,7 +674,7 @@ def zaehle(db: Session, namen: list[str], werk: str) -> tuple[int, int]:
         )
         or 0
     )
-    return erledigt, aufnahmen * len(namen) * len(augmentierung.VARIANTEN)
+    return erledigt, erledigt + len(offene_posten(db, namen, werk, bekannt))
 
 
 def _rechne(
@@ -614,12 +771,13 @@ async def _arbeite(
         # (`noch_da`).
         antretende = noch_da(datenverzeichnis, namen)
         with Session(engine) as db:
+            bekannt = gehoert(datenverzeichnis, antretende)
             offen = [
                 posten
-                for posten in offene_posten(db, antretende, werk)
+                for posten in offene_posten(db, antretende, werk, bekannt)
                 if posten.marke not in uebersprungen
             ]
-            zustand.erledigt, zustand.gesamt = zaehle(db, antretende, werk)
+            zustand.erledigt, zustand.gesamt = zaehle(db, antretende, werk, bekannt)
             zustand.uebersprungen = len(uebersprungen)
 
         if not offen:
@@ -704,12 +862,14 @@ def gleiche_ab(db: Session, datenverzeichnis: Path, sprecher_id: str) -> None:
     Posten - und verlangte eine Rechnung für etwas, das längst gemessen ist.
     """
     vergiss_verschwundene_staende(db, datenverzeichnis, sprecher_id)
+    vergiss_ueberholte_faltungen(db, datenverzeichnis, sprecher_id)
     uebernimm_faltungen(db, datenverzeichnis, sprecher_id)
 
 
-def stand(db: Session, namen: list[str], werk: str) -> Stand:
+def stand(db: Session, namen: list[str], werk: str, datenverzeichnis: Path | None = None) -> Stand:
     """Der Stand für die Oberfläche - auch dann, wenn gerade kein Lauf läuft."""
-    erledigt, gesamt = zaehle(db, namen, werk)
+    bekannt = gehoert(datenverzeichnis, namen) if datenverzeichnis is not None else None
+    erledigt, gesamt = zaehle(db, namen, werk, bekannt)
     if _lauf is None:
         return Stand(laeuft=False, erledigt=erledigt, gesamt=gesamt)
 
@@ -762,8 +922,9 @@ def starte(
     werk = rechenwerk.marke(*rechenwerk.waehle(geraet, rechenart))
     with Session(engine) as db:
         gleiche_ab(db, datenverzeichnis, sprecher_id)
-        if not offene_posten(db, namen, werk):
-            erledigt, gesamt = zaehle(db, namen, werk)
+        bekannt = gehoert(datenverzeichnis, namen)
+        if not offene_posten(db, namen, werk, bekannt):
+            erledigt, gesamt = zaehle(db, namen, werk, bekannt)
             return Stand(
                 laeuft=False, sprecher_id=sprecher_id, erledigt=erledigt, gesamt=gesamt
             )
