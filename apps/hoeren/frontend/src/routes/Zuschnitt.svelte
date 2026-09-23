@@ -36,6 +36,7 @@
   import { tag } from '$ui/zeit';
   import {
     zuschnittAufnahmen,
+    zuschnittLoeschen,
     zuschnittOriginal,
     zuschnittSchreiben,
     zuschnittStand,
@@ -271,10 +272,36 @@
     await tue('zurueck', () => zuschnittZuruecknehmen(schluessel, auswahl));
   }
 
+  /**
+   * Löschen - ganz, nicht verwerfen.
+   *
+   * Gedacht vor allem für das Original nach dem Schneiden: Es steht dann
+   * neben seinen beiden Teilen und hat dort nichts mehr zu suchen. Die
+   * Rückfrage sagt deshalb ausdrücklich, was anders ist als beim Verwerfen in
+   * „Meine Daten" - dort wird der Satz wieder offen, hier geht er mit.
+   */
+  async function loesche() {
+    const auswahl = gewaehlt();
+    if (!auswahl.length) return;
+    if (
+      !confirm(
+        `${auswahl.length} Aufnahme(n) endgültig löschen?\n\n` +
+          'Gelöscht werden die Aufnahme, ihre Dateien (auch Zuschnitt und Abwandlungen) ' +
+          'und alle Messwerte. Hängt an ihrer Vorlage keine andere Aufnahme, geht auch ' +
+          'die Vorlage - der Satz kommt nicht wieder in die Warteschlange.\n\n' +
+          'Das lässt sich nicht rückgängig machen. Wer den Satz neu sprechen will, ' +
+          'verwirft die Aufnahme stattdessen in „Meine Daten".',
+      )
+    )
+      return;
+    await tue('loeschen', () => zuschnittLoeschen(schluessel, auswahl), 'gelöscht');
+  }
+
   /** Ein Knopf, der arbeitet - und danach die Seite neu holt, damit sie stimmt. */
   async function tue(
     name: string,
     arbeit: () => Promise<{ geschrieben: number; fehler: Record<string, string> }>,
+    was = 'geschrieben',
   ) {
     fehler = '';
     meldung = '';
@@ -282,7 +309,7 @@
     try {
       const ergebnis = await arbeit();
       const offen = Object.entries(ergebnis.fehler);
-      meldung = `${ergebnis.geschrieben} Aufnahme(n) geschrieben.`;
+      meldung = `${ergebnis.geschrieben} Aufnahme(n) ${was}.`;
       if (offen.length) {
         fehler = offen.map(([kennung, satz]) => `${kennung}: ${satz}`).join(' · ');
       }
@@ -506,6 +533,13 @@
       <button class="knopf" disabled={!anzahlMarkiert || laeuft !== ''} onclick={nimmZurueck}>
         {laeuft === 'zurueck' ? 'Wird zurückgenommen …' : 'Zuschnitt zurücknehmen'}
       </button>
+      <button
+        class="knopf gefahr"
+        disabled={!anzahlMarkiert || laeuft !== ''}
+        onclick={loesche}
+      >
+        {laeuft === 'loeschen' ? 'Wird gelöscht …' : `Löschen (${anzahlMarkiert})`}
+      </button>
     </div>
     <p class="gedaempft">
       Geschrieben wird eine zweite Datei neben dem Original; das Original bleibt unverändert
@@ -591,5 +625,11 @@
 
   .abschluss {
     margin-top: 1.5rem;
+  }
+
+  /* Wie „Löschen" in der Einsicht der Aufsicht: derselbe Knopf, nur mit rotem
+     Rand - er soll nicht lauter sein als „Zuschnitt schreiben", nur anders. */
+  .gefahr {
+    border-color: var(--fehler);
   }
 </style>

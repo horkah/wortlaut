@@ -651,3 +651,14 @@ export const zuschnittTeilen = (schluessel: string, teilung: Zuschnittteilung) =
     ...alsJson(teilung),
     headers: { 'Content-Type': 'application/json', 'X-Editor-Key': schluessel },
   });
+
+/**
+ * Aufnahmen ganz aus dem Bestand nehmen - Zeile, Dateien, Messwerte, und die
+ * Vorlage, wenn an ihr nichts mehr hängt. Anders als das Verwerfen: danach
+ * steht der Satz nicht wieder in der Warteschlange.
+ */
+export const zuschnittLoeschen = (schluessel: string, grenzen: Zuschnittgrenze[]) =>
+  anfrage<Zuschnittergebnis>('/zuschnitt/loeschen', {
+    ...alsJson({ grenzen }),
+    headers: { 'Content-Type': 'application/json', 'X-Editor-Key': schluessel },
+  });

@@ -567,3 +567,49 @@ def teilen(
 
     return Teile(ids=kennungen)
 
+
+@router.post("/loeschen", response_model=Ergebnis, dependencies=[Schluessel])
+def loeschen(auftrag: Auftrag, sprecher: SprecherId, db: Datenbank, ablage: Ablage) -> Ergebnis:
+    """Aufnahmen ganz aus dem Bestand nehmen - Zeile, Dateien, Messwerte.
+
+    Anders als das Verwerfen in „Meine Daten" (`api/recordings.py`). Dort
+    bleibt die Zeile als `verworfen` stehen, und die Vorlage wird wieder offen:
+    Verwerfen heißt „noch einmal sprechen". Hier ist gemeint, dass es diese
+    Aufnahme nicht gegeben haben soll - typisch nach dem Teilen, wenn das
+    Original neben seinen beiden Teilen nichts mehr zu suchen hat.
+
+    **Die Vorlage geht mit, wenn an ihr nichts mehr hängt.** Bliebe sie, stünde
+    ihr Text wieder in der Warteschlange, und nach einem Teilen hieße das, den
+    ganzen Satz noch einmal zu sprechen, der längst in zwei Teilen daliegt.
+    Hängt noch eine andere Aufnahme an ihr - auch eine verworfene -, bleibt sie.
+
+    Mit dem Ton gehen Abwandlungen, Zuschnitt und alle Messungen, auch die
+    übernommenen Faltungen; wie beim Verwerfen, und aus demselben Grund.
+
+    `grenzen` trägt nur Kennungen, wie beim Zurücknehmen.
+    """
+    geloescht = 0
+    fehler: dict[str, str] = {}
+
+    for grenze in auftrag.grenzen:
+        aufnahme = db.get(Aufnahme, grenze.id)
+        if aufnahme is None or aufnahme.speaker_id != sprecher:
+            fehler[grenze.id] = "Unbekannte Aufnahme."
+            continue
+
+        ablage.loesche(aufnahme.blob)
+        augmentierung.loesche(ablage, aufnahme)
+        zuschnitt.loesche(ablage, aufnahme)
+        db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme.id))
+        vorlage_id = aufnahme.prompt_id
+        db.delete(aufnahme)
+        db.flush()
+        uebrig = db.scalar(
+            select(func.count()).select_from(Aufnahme).where(Aufnahme.prompt_id == vorlage_id)
+        )
+        if not uebrig and (vorlage := db.get(Vorlage, vorlage_id)) is not None:
+            db.delete(vorlage)
+        db.commit()
+        geloescht += 1
+
+    return Ergebnis(geschrieben=geloescht, fehler=fehler)
