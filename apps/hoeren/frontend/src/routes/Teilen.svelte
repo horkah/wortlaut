@@ -320,7 +320,7 @@
             title="Hier teilen"
             aria-label="Vor „{wort}“ teilen"
             aria-pressed={nummer === wortgrenze}
-            onclick={() => setzeText(nummer)}>{nummer === wortgrenze ? '|' : ' '}</button
+            onclick={() => setzeText(nummer)}>{nummer === wortgrenze ? '|' : '\u00a0'}</button
           >
         {/if}<span class:hinten={nummer >= wortgrenze}>{wort}</span>
       {/each}
@@ -394,11 +394,22 @@
 
   /* Die Lücke zwischen zwei Wörtern ist der Knopf: breit genug für einen
      Finger, und doch nicht breiter als ein Leerzeichen, solange dort nicht
-     geteilt wird. */
+     geteilt wird.
+
+     Feste Maße und ein geschütztes Leerzeichen als Inhalt: Ein gewöhnliches
+     Leerzeichen wirft der Browser in einem Inline-Block weg, und der Knopf
+     war dann null Pixel hoch - anklickbar nur die eine Lücke, in der schon
+     der Strich stand. */
   .luecke {
+    display: inline-block;
+    min-width: 0.9rem;
+    height: 1.6em;
+    vertical-align: middle;
+    line-height: 1.6em;
+    text-align: center;
     border: none;
     background: none;
-    padding: 0 0.3rem;
+    padding: 0 0.2rem;
     margin: 0;
     font: inherit;
     color: var(--warnung);
