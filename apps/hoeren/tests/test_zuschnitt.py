@@ -514,14 +514,40 @@ class TestTeilen:
             assert sitzung.get(Aufnahme, vorn).sortierschluessel == f"{erste}.1"
             assert sitzung.get(Aufnahme, hinten).sortierschluessel == f"{erste}.2"
 
-    def test_text_muss_zusammen_die_vorlage_ergeben(
+    def test_der_text_darf_berichtigt_werden(
+        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
+    ) -> None:
+        """Gesprochen wird nicht immer, was dasteht - die Teile tragen, was gesagt wurde."""
+        kennung = nimm_auf(schneider, sprecher, audio_datei)
+        antwort = _teile(schneider, sprecher, kennung, text_hinten="etwas ganz  anderes")
+        assert antwort.status_code == 200, antwort.text
+        liste = schneider.get(f"/api/zuschnitt/aufnahmen?sprecher={sprecher}").json()["aufnahmen"]
+        assert liste[2]["text"] == "etwas ganz anderes"
+
+    def test_ein_teil_ohne_text_wird_abgewiesen(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
     ) -> None:
         kennung = nimm_auf(schneider, sprecher, audio_datei)
-        antwort = _teile(schneider, sprecher, kennung, text_hinten="etwas ganz anderes")
-        assert antwort.status_code == 400
-        antwort = _teile(schneider, sprecher, kennung, text_vorn="")
-        assert antwort.status_code == 400
+        assert _teile(schneider, sprecher, kennung, text_vorn=" ").status_code == 400
+
+    def test_teilung_auf_dem_anfang_speichert_nur_teil_zwei(
+        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
+    ) -> None:
+        """Eine Kopie des Ausschnitts mit eigenem Text - der leere Teil braucht keinen."""
+        kennung = nimm_auf(schneider, sprecher, audio_datei)
+        antwort = _teile(
+            schneider, sprecher, kennung, teilung_s=0.5, text_vorn="", text_hinten="berichtigt"
+        )
+        assert antwort.status_code == 200, antwort.text
+        (kopie,) = antwort.json()["ids"]
+        # Ein zweites Mal hängt hinten an, statt denselben Schlüssel zu tragen.
+        (zweite,) = _teile(
+            schneider, sprecher, kennung, teilung_s=3.5, text_hinten=""
+        ).json()["ids"]
+        with Session(deps.engine_fuer(sprecher)) as sitzung:
+            assert sitzung.get(Aufnahme, kopie).sortierschluessel == f"{kennung}.1"
+            assert sitzung.get(Aufnahme, zweite).sortierschluessel == f"{kennung}.2"
+            assert sitzung.get(Aufnahme, kopie).dauer_s == pytest.approx(3.0, abs=0.01)
 
     def test_teilung_muss_zwischen_den_grenzen_liegen(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict

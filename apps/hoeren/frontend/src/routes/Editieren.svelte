@@ -1,19 +1,26 @@
 <script lang="ts">
   /**
-   * Schneiden: eine Aufnahme in zwei neue zerlegen - im Ton und im Text.
+   * Editieren: eine Aufnahme in zwei neue zerlegen, oder eine Kopie mit
+   * berichtigtem Text anlegen - im Ton und im Text.
    *
-   * Erreichbar aus dem Zuschnitt, über den Knopf „Schneiden …" an einer Karte,
+   * Erreichbar aus dem Zuschnitt, über den Knopf „Editieren …" an einer Karte,
    * und nur von dort. Gezeigt wird genau diese eine Aufnahme: dieselbe Kurve
    * wie in der Liste, aber mit drei Linien statt zwei - Anfang, Teilung, Ende.
-   * Darunter die Vorlage, Wort für Wort, und zwischen je zwei Wörtern eine
-   * Stelle, an der sich der Text teilen lässt.
+   * Darunter die Vorlage, Wort für Wort, mit einer anklickbaren Lücke vor dem
+   * ersten, zwischen je zwei und nach dem letzten Wort, und darunter die
+   * beiden Texte als Eingabefelder.
    *
    * **Die Textteilung folgt der Linie, bis jemand sie selbst setzt.** Anfangs
    * steht sie an der Wortgrenze, die zum Anteil der Zeit am besten passt; wer
-   * die Linie verschiebt, schiebt sie mit. Erst ein Klick zwischen zwei Wörter
-   * löst sie davon - dann ist es eine Entscheidung und kein Vorschlag mehr.
+   * die Linie verschiebt, schiebt sie mit. Ein Klick auf eine Lücke löst sie
+   * davon, und wer in einem der Felder schreibt, löst die Felder ganz von der
+   * Vorlage - gesprochen wird nicht immer, was dasteht. „Text zurücksetzen"
+   * holt beides zurück.
    *
-   * **Geschrieben wird erst nach der Rückfrage**, und dann entstehen zwei neue
+   * **Liegt die Teilung auf Anfang oder Ende**, hat ein Teil keine Länge. Sein
+   * Feld wird grau, und gespeichert wird nur der andere, als Kopie.
+   *
+   * **Geschrieben wird erst nach der Rückfrage**, und dann entstehen neue
    * Aufnahmen neben dem Original (`api/zuschnitt.py`, `teilen`). Das Original
    * bleibt; wer es nicht mehr will, löscht es danach in der Liste. Abgespielt
    * wird bis dahin wie im Zuschnitt aus der geladenen Datei (`$ui/ausschnitt`),
@@ -22,7 +29,7 @@
   import Pegelverlauf from '$ui/Pegelverlauf.svelte';
   import { spiele, stoppe, vergiss } from '$ui/ausschnitt';
   import { tag } from '$ui/zeit';
-  import { TEILEN_ROUTE, ZUSCHNITT_PFAD } from '$ui/apps';
+  import { EDITIEREN_ROUTE, ZUSCHNITT_PFAD } from '$ui/apps';
   import {
     zuschnittEine,
     zuschnittOriginal,
@@ -33,15 +40,23 @@
   import { gehZu, zustand } from '../lib/zustand.svelte';
 
   const schluessel = bearbeitungsschluessel();
-  const kennung = $derived(zustand.route.slice(TEILEN_ROUTE.length));
+  const kennung = $derived(zustand.route.slice(EDITIEREN_ROUTE.length));
 
   let aufnahme = $state<Zuschnittaufnahme | null>(null);
   let start = $state(0);
   let ende = $state(0);
   let teilung = $state(0);
-  // Vor dem wievielten Wort der zweite Teil beginnt.
+  // Wo die Linien beim Laden standen - dorthin setzt „Linien zurücksetzen".
+  let anfangs = { start: 0, ende: 0, teilung: 0 };
+  // Vor dem wievielten Wort der zweite Teil beginnt: 0 heißt alles in Teil 2,
+  // die Zahl der Wörter alles in Teil 1.
   let wortgrenze = $state(1);
   let vonHand = $state(false);
+  // Die beiden Texte. Solange niemand darin schreibt, kommen sie aus der
+  // Vorlage und der Wortgrenze; danach gehören sie dem, der schreibt.
+  let textVorn = $state('');
+  let textHinten = $state('');
+  let bearbeitet = $state(false);
 
   let fehler = $state('');
   let spielt = $state<'' | 'ganz' | 'vorn' | 'hinten'>('');
@@ -49,8 +64,19 @@
   let datei: Blob | null = null;
 
   const woerter = $derived(aufnahme ? aufnahme.text.split(/\s+/).filter(Boolean) : []);
-  const textVorn = $derived(woerter.slice(0, wortgrenze).join(' '));
-  const textHinten = $derived(woerter.slice(wortgrenze).join(' '));
+  // Ein Teil ohne Länge: Die Teilung liegt auf Anfang oder Ende.
+  const leerVorn = $derived(teilung <= start);
+  const leerHinten = $derived(teilung >= ende);
+  const bereit = $derived(
+    (leerVorn || textVorn.trim() !== '') && (leerHinten || textHinten.trim() !== ''),
+  );
+  const knopftext = $derived(
+    leerVorn
+      ? 'Teil 2 als Kopie speichern'
+      : leerHinten
+        ? 'Teil 1 als Kopie speichern'
+        : 'In zwei Aufnahmen teilen',
+  );
 
   /**
    * Wo die Teilung anfangs steht: in der Mitte der längsten Pause zwischen
@@ -81,12 +107,12 @@
 
   /** Die Wortgrenze, deren Anteil am Text dem Anteil der Zeit am nächsten kommt. */
   function passendeGrenze(): number {
-    if (woerter.length < 2 || ende <= start) return 1;
+    if (ende <= start) return 0;
     const anteil = (teilung - start) / (ende - start);
-    const gesamt = woerter.join(' ').length;
-    let beste = 1;
+    const gesamt = Math.max(woerter.join(' ').length, 1);
+    let beste = 0;
     let abstand = Infinity;
-    for (let grenze = 1; grenze < woerter.length; grenze++) {
+    for (let grenze = 0; grenze <= woerter.length; grenze++) {
       const vorn = woerter.slice(0, grenze).join(' ').length;
       const neu = Math.abs(vorn / gesamt - anteil);
       if (neu < abstand) {
@@ -102,6 +128,13 @@
     if (!vonHand && aufnahme) wortgrenze = passendeGrenze();
   });
 
+  $effect(() => {
+    // Und die Felder folgen der Textteilung, solange niemand darin schreibt.
+    if (bearbeitet) return;
+    textVorn = woerter.slice(0, wortgrenze).join(' ');
+    textHinten = woerter.slice(wortgrenze).join(' ');
+  });
+
   async function lade(id: string) {
     fehler = '';
     stoppe();
@@ -109,7 +142,7 @@
     datei = null;
     aufnahme = null;
     if (!schluessel) {
-      fehler = 'Zum Schneiden braucht es den Bearbeitungsschlüssel - bitte im Zuschnitt eingeben.';
+      fehler = 'Zum Editieren braucht es den Bearbeitungsschlüssel - bitte im Zuschnitt eingeben.';
       return;
     }
     try {
@@ -117,20 +150,35 @@
       start = eine.zuschnitt_start_s ?? eine.vorschlag_start_s;
       ende = eine.zuschnitt_ende_s ?? eine.vorschlag_ende_s;
       teilung = pausenmitte(eine, start, ende);
+      anfangs = { start, ende, teilung };
       vonHand = false;
+      bearbeitet = false;
       aufnahme = eine;
     } catch (ursache) {
       fehler = ursache instanceof Error ? ursache.message : String(ursache);
     }
   }
 
+  /** Eine Lücke angeklickt: Die Felder kommen wieder aus der Vorlage, an dieser Stelle geteilt. */
   function setzeText(grenze: number) {
     wortgrenze = grenze;
     vonHand = true;
+    bearbeitet = false;
   }
 
-  function textFolgtLinie() {
+  /** Die Vorlage zurück in die Felder, und die Teilung folgt wieder der Linie. */
+  function textZuruecksetzen() {
     vonHand = false;
+    bearbeitet = false;
+  }
+
+  function linienZuruecksetzen() {
+    ({ start, ende, teilung } = anfangs);
+  }
+
+  function allesZuruecksetzen() {
+    linienZuruecksetzen();
+    textZuruecksetzen();
   }
 
   /** Abspielen - das Ganze oder einen der beiden Teile. Ein zweiter Druck hält an. */
@@ -160,13 +208,19 @@
   }
 
   async function speichere() {
-    if (!aufnahme || !textVorn || !textHinten) return;
+    if (!aufnahme || !bereit) return;
+    const zeilen = [
+      ...(leerVorn ? [] : [`Teil 1 (${(teilung - start).toFixed(2)} s): ${textVorn.trim()}`]),
+      ...(leerHinten ? [] : [`Teil 2 (${(ende - teilung).toFixed(2)} s): ${textHinten.trim()}`]),
+    ];
+    const frage =
+      zeilen.length === 2
+        ? 'Diese Aufnahme in zwei neue Aufnahmen teilen?'
+        : `${knopftext.replace(' speichern', '')} speichern?`;
     if (
       !confirm(
-        'Diese Aufnahme in zwei neue Aufnahmen teilen?\n\n' +
-          `Teil 1 (${(teilung - start).toFixed(2)} s): ${textVorn}\n` +
-          `Teil 2 (${(ende - teilung).toFixed(2)} s): ${textHinten}\n\n` +
-          'Beide tragen das Datum des Originals und stehen in der Liste direkt darunter. ' +
+        `${frage}\n\n${zeilen.join('\n')}\n\n` +
+          'Neue Aufnahmen tragen das Datum des Originals und stehen in der Liste direkt darunter. ' +
           'Das Original bleibt erhalten - wer es nicht mehr braucht, löscht es danach im Zuschnitt.',
       )
     )
@@ -179,8 +233,8 @@
         start_s: start,
         teilung_s: teilung,
         ende_s: ende,
-        text_vorn: textVorn,
-        text_hinten: textHinten,
+        text_vorn: leerVorn ? '' : textVorn,
+        text_hinten: leerHinten ? '' : textHinten,
       });
       gehZu(ZUSCHNITT_PFAD);
     } catch (ursache) {
@@ -201,7 +255,7 @@
 </script>
 
 <div class="reihe titel">
-  <h2>Schneiden</h2>
+  <h2>Editieren</h2>
   <button class="knopf" onclick={() => gehZu(ZUSCHNITT_PFAD)}>Zurück zum Zuschnitt</button>
 </div>
 
@@ -213,8 +267,10 @@
   <div class="karte">
     <p class="gedaempft">
       Die gestrichelte Linie teilt die Aufnahme in zwei; die beiden äußeren sagen, was von jedem
-      Teil an den Rändern bleibt. Im Text darunter wird zwischen zwei Wörtern geteilt - ein Klick
-      auf die Lücke setzt die Stelle.
+      Teil an den Rändern bleibt. Im Text darunter setzt ein Klick auf eine Lücke die Stelle, an der
+      der Text geteilt wird - auch vor dem ersten oder nach dem letzten Wort. Die beiden Felder lassen
+      sich berichtigen, wenn etwas anderes gesprochen wurde, als dasteht. Liegt die gestrichelte
+      Linie auf Anfang oder Ende, wird nur der andere Teil als Kopie gespeichert.
     </p>
   </div>
 
@@ -248,6 +304,7 @@
         class="knopf zeichen"
         title="Teil 1 anhören"
         aria-label="Teil 1 anhören"
+        disabled={leerVorn}
         onclick={() => hoere('vorn')}
       >
         <svg viewBox="0 0 16 16" aria-hidden="true"
@@ -275,6 +332,7 @@
         class="knopf zeichen"
         title="Teil 2 anhören"
         aria-label="Teil 2 anhören"
+        disabled={leerHinten}
         onclick={() => hoere('hinten')}
       >
         <svg viewBox="0 0 16 16" aria-hidden="true"
@@ -311,50 +369,78 @@
       beschriftung="Schnitt"
     />
 
-    <p class="vorlage" aria-label="Vorlage, zwischen zwei Wörtern teilbar">
-      {#each woerter as wort, nummer (nummer)}
-        {#if nummer > 0}
-          <button
-            class="luecke"
-            class:gesetzt={nummer === wortgrenze}
-            title="Hier teilen"
-            aria-label="Vor „{wort}“ teilen"
-            aria-pressed={nummer === wortgrenze}
-            onclick={() => setzeText(nummer)}>{nummer === wortgrenze ? '|' : '\u00a0'}</button
-          >
-        {/if}<span class:hinten={nummer >= wortgrenze}>{wort}</span>
+    <p class="vorlage" class:bearbeitet aria-label="Vorlage, an jeder Wortgrenze teilbar">
+      {#each Array.from({ length: woerter.length + 1 }, (_, n) => n) as grenze (grenze)}
+        <button
+          class="luecke"
+          class:gesetzt={grenze === wortgrenze}
+          title="Hier teilen"
+          aria-label={grenze === 0
+            ? 'Vor dem ersten Wort teilen - alles in Teil 2'
+            : grenze === woerter.length
+              ? 'Nach dem letzten Wort teilen - alles in Teil 1'
+              : `Vor „${woerter[grenze]}“ teilen`}
+          aria-pressed={grenze === wortgrenze}
+          onclick={() => setzeText(grenze)}>{grenze === wortgrenze ? '|' : '\u00a0'}</button
+        >{#if grenze < woerter.length}<span class:hinten={grenze >= wortgrenze}
+            >{woerter[grenze]}</span
+          >{/if}
       {/each}
     </p>
+    {#if bearbeitet}
+      <p class="gedaempft klein">
+        Die Texte unten sind von Hand geändert. Ein Klick auf eine Lücke teilt wieder die Vorlage.
+      </p>
+    {/if}
 
-    <dl class="teile">
-      <dt>Teil 1</dt>
-      <dd>{textVorn}</dd>
-      <dt>Teil 2</dt>
-      <dd>{textHinten}</dd>
-    </dl>
-    {#if vonHand}
-      <button class="knopf klein" onclick={textFolgtLinie}>Text wieder der Linie folgen lassen</button>
-    {/if}
-    {#if woerter.length < 2}
-      <p class="fehler">Die Vorlage hat nur ein Wort - daran lässt sich nichts teilen.</p>
-    {/if}
+    <div class="felder">
+      <label class:leer={leerVorn}>
+        <span>Teil 1{leerVorn ? ' - ohne Länge, entsteht nicht' : ''}</span>
+        <textarea
+          rows="2"
+          bind:value={textVorn}
+          disabled={leerVorn}
+          oninput={() => (bearbeitet = true)}
+        ></textarea>
+      </label>
+      <label class:leer={leerHinten}>
+        <span>Teil 2{leerHinten ? ' - ohne Länge, entsteht nicht' : ''}</span>
+        <textarea
+          rows="2"
+          bind:value={textHinten}
+          disabled={leerHinten}
+          oninput={() => (bearbeitet = true)}
+        ></textarea>
+      </label>
+    </div>
+
+    <div class="reihe schmal">
+      <button
+        class="knopf klein"
+        disabled={!vonHand && !bearbeitet}
+        title="Die Vorlage zurück in die Felder; die Teilung im Text folgt wieder der Linie"
+        onclick={textZuruecksetzen}>Text zurücksetzen</button
+      >
+      <button
+        class="knopf klein"
+        title="Anfang, Teilung und Ende dorthin, wo sie beim Öffnen standen"
+        onclick={linienZuruecksetzen}>Linien zurücksetzen</button
+      >
+      <button class="knopf klein" onclick={allesZuruecksetzen}>Alles zurücksetzen</button>
+    </div>
   </div>
 
   <div class="karte abschluss">
     <div class="reihe">
-      <button
-        class="knopf haupt"
-        disabled={laeuft || woerter.length < 2}
-        onclick={speichere}
-      >
-        {laeuft ? 'Wird geteilt …' : 'In zwei Aufnahmen teilen'}
+      <button class="knopf haupt" disabled={laeuft || !bereit} onclick={speichere}>
+        {laeuft ? 'Wird gespeichert …' : knopftext}
       </button>
       <button class="knopf" onclick={() => gehZu(ZUSCHNITT_PFAD)}>Abbrechen</button>
     </div>
     <p class="gedaempft">
-      Es entstehen zwei neue Aufnahmen mit eigenen Dateien und eigenem Text, verlustfrei aus dem
-      Original geschnitten. Das Original bleibt unverändert; gemessen werden die Teile beim
-      nächsten Auswertungslauf.
+      Es entstehen neue Aufnahmen mit eigenen Dateien und eigenem Text, verlustfrei aus dem
+      Original geschnitten. Das Original bleibt unverändert; gemessen werden die neuen Aufnahmen
+      beim nächsten Auswertungslauf.
     </p>
   </div>
 {:else if !fehler}
@@ -424,17 +510,40 @@
     font-weight: bold;
   }
 
-  .teile {
-    display: grid;
-    grid-template-columns: max-content 1fr;
-    gap: 0.25rem 0.75rem;
-    margin: 0.5rem 0;
+  /* Nach Handarbeit an den Feldern ist die Wortreihe nur noch Vorlage zum
+     Neuanfangen - blasser, damit klar ist, dass die Felder gelten. */
+  .vorlage.bearbeitet {
+    opacity: 0.6;
   }
-  .teile dt {
+
+  .klein {
+    font-size: 0.85rem;
+  }
+
+  .felder {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin: 0.5rem 0 0.75rem;
+  }
+  @media (max-width: 600px) {
+    .felder {
+      grid-template-columns: 1fr;
+    }
+  }
+  .felder textarea {
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+  }
+  /* Ein Teil ohne Länge: grau und nicht bearbeitbar - er entsteht nicht. */
+  .felder .leer textarea {
+    background: var(--rand);
     color: var(--gedaempft);
   }
-  .teile dd {
-    margin: 0;
+
+  .schmal {
+    gap: 0.4rem;
   }
 
   .knopf.zeichen {
