@@ -6,6 +6,13 @@ diesem einen misst. Sechs Trainings später ist jede Aufnahme genau einmal von
 einem Modell gehört worden, das sie nie gesehen hat - und das ist die Zahl, die
 in der Modelltabelle steht.
 
+**Eine Verwandtschaft ist eine Aufnahme.** Teile und Kopien aus „Editieren"
+sind neue Aufnahmen, aber derselbe Ton (`zuschnitt.stamm`). Sie stehen direkt
+unter ihrem Original, und nach der Reihe gezählt landeten sie in der nächsten
+Faltung - dann lernte das Modell der einen Faltung den Ton, an dem es in der
+anderen gemessen wird, und die Zahl stiege, ohne dass es besser hörte. Gezählt
+wird deshalb je Stamm: Original, Teile und Kopien teilen sich eine Faltung.
+
 **Warum hier nichts mehr gespeichert wird.** Bis September 2026 stand in einer
 Tabelle, welche Aufnahme lernt, steuert und prüft; einmal vergeben und nie
 wieder angefasst. Das musste so sein, solange es ein Testdrittel gab: Eine
@@ -35,6 +42,7 @@ from sqlalchemy.orm import Session
 from wortlaut import laeufe
 
 from apps.hoeren.backend.db.models import Aufnahme, Vorlage
+from apps.hoeren.backend.services import zuschnitt
 from apps.hoeren.backend.services.auswertung import gueltige_aufnahmen
 
 
@@ -52,17 +60,22 @@ def proben(korpus: Session) -> list[Probe]:
     """Alle brauchbaren Aufnahmen mit ihrer Faltung, älteste zuerst.
 
     Die Reihenfolge ist die des Korpus und damit die des Aufnehmens. Sie ist
-    zugleich die Zuteilung: Die `nummer`-te Aufnahme trägt die `nummer % 6`-te
-    Faltung. Nichts daran ist gespeichert, und nichts muss es sein.
+    zugleich die Zuteilung: Der `n`-te Stamm trägt die `n % 6`-te Faltung, und
+    mit ihm alle seine Teile und Kopien (siehe oben). Nichts daran ist
+    gespeichert, und nichts muss es sein.
     """
+    reihe = gueltige_aufnahmen(korpus)
+    staemme: dict[str, int] = {}
+    for aufnahme, _ in reihe:
+        staemme.setdefault(zuschnitt.stamm(aufnahme), len(staemme))
     return [
         Probe(
             aufnahme=aufnahme,
             vorlage=vorlage,
-            faltung=laeufe.faltung_fuer(nummer),
+            faltung=laeufe.faltung_fuer(staemme[zuschnitt.stamm(aufnahme)]),
             nummer=nummer,
         )
-        for nummer, (aufnahme, vorlage) in enumerate(gueltige_aufnahmen(korpus))
+        for nummer, (aufnahme, vorlage) in enumerate(reihe)
     ]
 
 

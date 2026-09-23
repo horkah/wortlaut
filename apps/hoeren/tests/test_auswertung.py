@@ -839,3 +839,123 @@ class TestTrainierteStaende:
             },
         )
         assert klient.get("/api/auswertung").json()["punkte"][0]["werte"][ref] != {}
+
+    @pytest.fixture
+    def editiere(
+        self, klient: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> Callable[..., list[str]]:
+        """Aus einer Aufnahme Teile schneiden, über denselben Weg wie „Editieren"."""
+        monkeypatch.setenv("WORTLAUT_EDITOR_KEY", "test-zuschnitt")
+        einstellungen.cache_clear()
+
+        def teile(aufnahme: str, teilung_s: float = 2.0) -> list[str]:
+            antwort = klient.post(
+                "/api/zuschnitt/teilen",
+                headers={"X-Editor-Key": "test-zuschnitt"},
+                json={
+                    "id": aufnahme,
+                    "start_s": 0.5,
+                    "teilung_s": teilung_s,
+                    "ende_s": 3.5,
+                    "text_vorn": "vorn",
+                    "text_hinten": "hinten",
+                },
+            )
+            assert antwort.status_code == 200, antwort.text
+            return antwort.json()["ids"]
+
+        return teile
+
+    def _vom_stand(self, klient: TestClient, aufnahme: str, ref: str) -> list[dict]:
+        return [
+            zeile
+            for zeile in klient.get(f"/api/auswertung/{aufnahme}").json()["erkennungen"]
+            if zeile["modell"] == ref
+        ]
+
+    def test_teile_einer_gehoerten_aufnahme_misst_er_nicht(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an, editiere
+    ) -> None:
+        """Ein Teil ist derselbe Ton wie das Original - keine unabhängige Prüfung.
+
+        Die Grundmodelle messen ihn wie jede neue Aufnahme; der Stand, der das
+        Original im Training hatte, nicht. Die Stelle zählt weder als erledigt
+        noch als offen.
+        """
+        sprich()
+        original = _aufnahmen(klient)[0]
+        ref = lege_stand_an(original)
+        teile = editiere(original)
+        assert len(teile) == 2
+
+        antworten.update({"small": "egal", "medium": "egal", ref: "aus dem Gedächtnis"})
+        stand = _laufe_bis_fertig(klient)
+        # Original und zwei Teile für die Grundmodelle, die Faltung des
+        # Originals für den Stand - und nichts sonst.
+        assert stand["erledigt"] == stand["gesamt"] == 3 * JE_AUFNAHME + FASSUNGEN
+        for teil in teile:
+            assert self._vom_stand(klient, teil, ref) == []
+            assert len(klient.get(f"/api/auswertung/{teil}").json()["erkennungen"]) == JE_AUFNAHME
+
+    def test_eine_kopie_ebenso(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an, editiere
+    ) -> None:
+        # Teilung auf dem Anfang: eine einzige neue Aufnahme, der Ausschnitt
+        # mit berichtigtem Text. Neuer Text, alter Ton.
+        sprich()
+        original = _aufnahmen(klient)[0]
+        ref = lege_stand_an(original)
+        (kopie,) = editiere(original, teilung_s=0.5)
+
+        antworten.update({"small": "egal", "medium": "egal", ref: "aus dem Gedächtnis"})
+        _laufe_bis_fertig(klient)
+        assert self._vom_stand(klient, kopie, ref) == []
+
+    def test_wer_einen_teil_hatte_kennt_auch_das_original(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an, editiere
+    ) -> None:
+        # Umgekehrt dasselbe: Das Original enthält den Ton des Teils - und das
+        # Geschwister ebenso, beide stammen aus demselben Satz.
+        sprich()
+        original = _aufnahmen(klient)[0]
+        vorn, hinten = editiere(original)
+        ref = lege_stand_an(vorn)
+
+        antworten.update({"small": "egal", "medium": "egal", ref: "aus dem Gedächtnis"})
+        _laufe_bis_fertig(klient)
+        assert self._vom_stand(klient, original, ref) == []
+        assert self._vom_stand(klient, hinten, ref) == []
+        assert {z["text"] for z in self._vom_stand(klient, vorn, ref)} == {AUS_DER_FALTUNG}
+
+    def test_ein_gerechneter_teil_von_vorher_wird_weggeraeumt(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an, editiere
+    ) -> None:
+        """Der Bestand von vor dieser Regel: Der Stand hat einen Teil schon gemessen."""
+        sprich()
+        original = _aufnahmen(klient)[0]
+        ref = lege_stand_an(original)
+        vorn, _ = editiere(original)
+        with Session(engine_fuer(_sprecher(klient))) as db:
+            db.add(
+                Erkennung(
+                    id="erk_alt",
+                    recording_id=vorn,
+                    modell=ref,
+                    variante=augmentierung.ORIGINAL,
+                    text="aus dem Gedächtnis",
+                    wer=0.0,
+                    cer=0.0,
+                    mer=0.0,
+                    wil=0.0,
+                    genauigkeit=100.0,
+                    rechenzeit_s=1.0,
+                    rechenwerk="cpu/int8",
+                    tempo=1.0,
+                    herkunft=auswertung.GEMESSEN,
+                    erstellt="2026-09-24T00:00:00+00:00",
+                )
+            )
+            db.commit()
+
+        klient.get("/api/auswertung")
+        assert self._vom_stand(klient, vorn, ref) == []

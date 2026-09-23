@@ -166,6 +166,32 @@ class TestManifest:
         assert je_aufnahme
         assert all(len(faltungen) == 1 for faltungen in je_aufnahme.values())
 
+    def test_teile_und_kopien_teilen_die_faltung_ihres_originals(
+        self, klient: TestClient, quelle: str, sprich, sprecher: str, datenverzeichnis
+    ) -> None:
+        # Derselbe Ton in zwei Faltungen hieße: Das Modell der einen lernt,
+        # woran es in der anderen gemessen wird. Die Teile stehen direkt unter
+        # dem Original - der Reihe nach gezählt, landeten sie genau so.
+        from sqlalchemy.orm import Session
+
+        from apps.hoeren.backend.db.models import Aufnahme
+        from apps.hoeren.backend.deps import engine_fuer
+
+        original, vorn, hinten, *_ = sprich(12)
+        with Session(engine_fuer(sprecher)) as db:
+            erstellt = db.get(Aufnahme, original).erstellt
+            for nummer, kennung in enumerate((vorn, hinten), start=1):
+                teil = db.get(Aufnahme, kennung)
+                teil.sortierschluessel = f"{original}.{nummer}"
+                teil.erstellt = erstellt
+            db.commit()
+
+        zeilen = _manifest(datenverzeichnis, _beauftrage(klient, "lora", "original")["job_id"])
+        faltung = {z["recording_id"]: z["faltung"] for z in zeilen}
+        assert faltung[original] == faltung[vorn] == faltung[hinten]
+        # Und die übrigen rücken nach, statt eine Faltung leer zu lassen.
+        assert sorted(set(faltung.values())) == list(range(laeufe.FALTUNGEN))
+
     def test_die_faltungen_folgen_der_reihenfolge(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis
     ) -> None:

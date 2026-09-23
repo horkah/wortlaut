@@ -1054,6 +1054,12 @@ Drei Feinheiten, die in der Umsetzung stecken:
   wenn seine Faltung dafür fehlt. Die Stelle bleibt leer, bis ein neuer Lauf
   sie auf dem geltenden Ton gemessen hat, und zählt weder als erledigt noch als
   offen.
+* **Teile und Kopien gehören zu ihrem Original.** Was „Editieren" schneidet,
+  ist eine neue Aufnahme, aber derselbe Ton (`zuschnitt.stamm`, abgelesen am
+  Sortierschlüssel). Hatte ein Stand das Original im Training, misst er keinen
+  Teil und keine Kopie davon - und hatte er einen Teil, weder das Original noch
+  das Geschwister (`verwandte`). Die Grundmodelle messen sie wie jede neue
+  Aufnahme.
 
 Angezeigt wird ein Stand als **`K7M2Q`** und nicht als
 `spr_7f2a/20260912T1420-lora-original` - in der Legende der Kurve wie in der
