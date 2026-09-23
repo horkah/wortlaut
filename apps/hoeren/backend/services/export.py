@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session
 from wortlaut import storage
 
 from ..db.models import Aufnahme, Sprecher, Textquelle, Vorlage
+from . import zuschnitt
 
 # Die Spalten der `metadaten.csv`. `file_name` und `transcription` stehen
 # vorn und heißen englisch, weil genau diese beiden Namen das
@@ -79,7 +80,10 @@ def datensatz_zip(
     zeilen = [
         (zeile, aufnahme, pfad)
         for zeile, aufnahme in _zeilen(sitzung, sprecher.id)
-        if (pfad := ablage.pfad(aufnahme.blob)).is_file()
+        # Die Arbeitsdatei, nicht der Blob aus der Zeile: Wer den Datensatz
+        # mitnimmt, soll denselben Ton bekommen, auf dem hier trainiert und
+        # gemessen wird (`services/zuschnitt.py`).
+        if (pfad := ablage.pfad(zuschnitt.arbeitsblob(aufnahme))).is_file()
     ]
     tabelle = [zeile for zeile, _, _ in zeilen]
 
@@ -113,7 +117,7 @@ def _zeilen(sitzung: Session, sprecher_id: str) -> list[tuple[dict[str, object],
                 "file_name": f"{AUDIO}/{aufnahme.id}.wav",
                 "transcription": vorlage.text,
                 "aufnahme_id": aufnahme.id,
-                "dauer_s": round(aufnahme.dauer_s, 3),
+                "dauer_s": round(zuschnitt.arbeitsdauer(aufnahme), 3),
                 "modus": aufnahme.modus,
                 "quelle": quelle.art,
                 "quelle_titel": quelle.titel,

@@ -56,6 +56,20 @@ def abgeleitet(sprecher_ids: Iterable[str]) -> sicherung.Abgeleitetes:
       Modell aus welcher Fassung gemacht hat. Daraus entstehen die Kurven; ein
       zweiter Lauf rechnet ohnehin nur, was fehlt (`services/auswertung.py`).
 
+    **Die Zuschnitte (`korpus/…/audio/zuschnitt/`) bleiben dagegen drin**,
+    obwohl auch sie sich aus dem Original und zwei Zahlen neu schneiden ließen.
+    Der Unterschied zu den beiden oben ist nicht die Rechenzeit, sondern wer
+    nachrechnen dürfte: Eine fehlende Abwandlung holt sich die Auswertung
+    selbst, und die läuft in „hören", dem Schreiber des Korpus. Der Zuschnitt
+    ist die Arbeitsdatei auch für „lernen" - und „lernen" liest den Korpus, es
+    schreibt ihn nicht (Grundentscheidung 6). Ein Trainingslauf, der über einer
+    zurückgespielten Sicherung eine fehlende Datei nachschneiden müsste, wäre
+    genau der Sonderfall, den diese Regel ausschließt.
+
+    Teuer ist es nicht: Ein Zuschnitt ist **kürzer** als sein Original - das
+    ist sein ganzer Zweck -, und es gibt höchstens einen je Aufnahme, während
+    es drei Abwandlungen sind.
+
     Die Modellstände und die Schnappschüsse sind ohnehin draußen: Sie stehen
     gar nicht erst in `loeschung.datenverzeichnisse()`.
 

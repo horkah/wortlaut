@@ -46,6 +46,7 @@ ist jederzeit neu zu laden und gehört deshalb nicht ins Volume der Daten
 |---|---|---|
 | `WORTLAUT_AUTH_TOKEN` | leer | **Verwaltung**: Profile anlegen, Zugänge ausgeben. Leer heißt abgeschaltet, auch in der Entwicklung. Öffnet selbst keinen Korpus. |
 | `WORTLAUT_ADMIN_TOKEN` | leer | **Aufsicht**: in jeden Korpus sehen, umbenennen, sichern, löschen. Leer heißt abgeschaltet, nicht offen. |
+| `WORTLAUT_EDITOR_KEY` | leer | **Zuschnitt**: als Kopfzeile `X-Editor-Key` vor den Wegen unter `/api/zuschnitt/…`. Leer heißt abgeschaltet, nicht offen - dann steht der Punkt in „Meine Daten" gar nicht erst da. |
 | `WORTLAUT_LLM_PROVIDER` | leer | Textquelle „LLM": leer = aus, `openai` = jede OpenAI-kompatible Schnittstelle (lokales Ollama, Groq, Gemini, Mistral), `anthropic` = Claude |
 | `WORTLAUT_LLM_API_KEY` | leer | bei lokalem Ollama leer |
 | `WORTLAUT_LLM_MODEL` | `gemma2:9b` | für ein paar Vorlesesätze genügt ein kleines Modell |
@@ -54,6 +55,15 @@ ist jederzeit neu zu laden und gehört deshalb nicht ins Volume der Daten
 
 Die beiden Token sind kein Zugang zu den Aufnahmen: Dorthin führt allein der
 persönliche Zugang eines Sprechers (siehe [hören](hoeren.md)).
+
+Der **Bearbeitungsschlüssel** ist etwas Drittes und steht **neben** dem Zugang,
+nicht an seiner Stelle: Wer zuschneidet, legt beides vor. Er beantwortet
+dieselbe Art von Frage wie der Trainerschlüssel in `lernen` - der Zugang sagt,
+wessen Aufnahmen das sind, der Schlüssel, ob jemand in den Bestand greifen
+darf. Und das tut ein Zuschnitt: Ab dem Schnitt arbeiten alle Apps mit der
+geschnittenen Fassung, und die bisherigen Messwerte der betroffenen Aufnahmen
+werden verworfen. Die Originale bleiben liegen, der Schnitt lässt sich
+zurücknehmen.
 
 Zur Auswertungsliste: `medium` braucht auf einer CPU je Aufnahme etwa das Drei-
 bis Zehnfache ihrer Dauer, `large-v3` noch einmal ein Mehrfaches davon und gut

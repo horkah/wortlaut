@@ -126,6 +126,22 @@ export const ZUGANGSDATEN_PFAD = '/zugangsdaten';
 export const MEINE_DATEN_PFAD = '/meine-daten';
 
 /**
+ * Wo die Stille an den Rändern der eigenen Aufnahmen weggeschnitten wird.
+ *
+ * Eine Ansicht von „hören", und zwar **weder Reiter noch Menüpunkt**: Hierher
+ * führt ein Knopf aus „Meine Daten", zurück derselbe Weg. Dieselbe Stellung
+ * wie die Einsicht der Aufsicht (`EINSICHT_ROUTE` in `zustand.svelte.ts`) und
+ * aus demselben Grund - es ist eine Werkbank, keine Station auf dem täglichen
+ * Weg. In der Reiterreihe stünde sie neben „Aufnehmen" und „Fortschritt" und
+ * wäre damit genauso oft ein Fehlgriff wie eine Hilfe (Grundentscheidung 7).
+ *
+ * Der Pfad steht trotzdem hier und nicht in „hören": Ein Ort, den eine App
+ * auflöst, gehört in dieselbe Liste wie die anderen - sonst sucht ihn beim
+ * nächsten Mal jemand in zwei Dateien.
+ */
+export const ZUSCHNITT_PFAD = '/zuschnitt';
+
+/**
  * Wo die Grundmodelle über den eigenen Korpus laufen - die Auswertung.
  *
  * Nur „hören" führt sie, und zwar als **Reiter**: Dort liegt der Korpus, dort

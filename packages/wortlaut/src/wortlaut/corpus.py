@@ -3,8 +3,10 @@
     data/korpus/<sprecher_id>/
     ├── audio/
     │   ├── <aufnahme_id>.wav                    16 kHz mono, PCM 16 bit
-    │   └── varianten/
-    │       └── <aufnahme_id>.<variante>.wav     abgewandelte Fassungen
+    │   ├── varianten/
+    │   │   └── <aufnahme_id>.<variante>.wav     abgewandelte Fassungen
+    │   └── zuschnitt/
+    │       └── <aufnahme_id>.wav                beschnitten, wenn jemand schnitt
     └── hoeren.sqlite                            Vorlagen, Aufnahmen, Sitzungen
 
 Je Sprecher eine Datenbank: „lernen" liest damit genau eine Datei, und die
@@ -62,6 +64,42 @@ def variante_relpfad(sprecher_id: str, aufnahme_id: str, variante: str) -> str:
     irgendwann eine Zeile, zu der keine Datei mehr gehört.
     """
     return f"{KORPUS}/{sprecher_id}/{VARIANTENORDNER}/{aufnahme_id}.{variante}.wav"
+
+
+ZUSCHNITTORDNER = "audio/zuschnitt"
+
+
+def zuschnitte_relpfad(sprecher_id: str) -> str:
+    """Wo alle zugeschnittenen Fassungen eines Sprechers liegen.
+
+    Ein eigener Name für das Verzeichnis als Ganzes, wie bei den Varianten:
+    Es wird am Stück angesprochen - beim Löschen eines Sprechers und beim
+    Nachsehen, was an Zuschnitten dasteht.
+    """
+    return f"{KORPUS}/{sprecher_id}/{ZUSCHNITTORDNER}"
+
+
+def zuschnitt_relpfad(sprecher_id: str, aufnahme_id: str) -> str:
+    """Wo die zugeschnittene Fassung einer Aufnahme liegt.
+
+    Ein Stockwerk tiefer als `audio/`, aus demselben Grund wie die Varianten:
+    In `audio/` liegt genau das, was `recordings.blob` nennt - der Ton, wie er
+    gesprochen wurde. Ein Zuschnitt ist daraus geschnitten, und zwar
+    verlustfrei: Bei 16 kHz mono PCM ist ein Schnitt das Kopieren eines
+    Byte-Bereichs, also steht in dieser Datei Abtastwert für Abtastwert
+    dasselbe wie im Original - nur ohne die Stille an den Rändern.
+
+    Aus Kennung allein zu berechnen und nicht in einer Spalte, ebenfalls wie
+    bei den Varianten. Was in der Zeile steht, sind die **Grenzen**
+    (`zuschnitt_start_s`, `zuschnitt_ende_s`); der Pfad folgt daraus. Stünde er
+    daneben, gäbe es zwei Wahrheiten darüber, wo die Datei liegt.
+
+    Ein Zuschnitt je Aufnahme, nicht mehr: Ein zweiter Schnitt ersetzt den
+    ersten. Eine Kette von Fassungen wäre eine Versionsgeschichte, und die
+    gehört nicht in ein Verzeichnis, das jede andere App als „die Arbeitsdatei"
+    liest.
+    """
+    return f"{KORPUS}/{sprecher_id}/{ZUSCHNITTORDNER}/{aufnahme_id}.wav"
 
 
 VORLESENORDNER = "vorlesen"

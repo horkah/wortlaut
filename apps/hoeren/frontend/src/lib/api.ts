@@ -556,3 +556,75 @@ export const auswertungStarten = () =>
 
 export const auswertungStoppen = () =>
   anfrage<Laufstand>('/auswertung/stopp', { method: 'POST' });
+
+// ── Zuschnitt ───────────────────────────────────────────────────────────────
+//
+// Die Stille an den Rändern der eigenen Aufnahmen wegschneiden
+// (`backend/api/zuschnitt.py`). Diese Wege verlangen über den Zugang hinaus
+// den Bearbeitungsschlüssel als `X-Editor-Key` - dasselbe Muster wie der
+// Trainerschlüssel in „lernen", und aus demselben Grund: Der Zugang sagt,
+// wessen Aufnahmen das sind, nicht, wer in den Bestand greifen darf.
+//
+// `zuschnittStand` bleibt ausdrücklich ohne Schlüssel: Er beantwortet die
+// Frage, ob überhaupt nach einem gefragt werden soll.
+
+export type ZuschnittStand = { bereit: boolean; hinweis: string };
+
+export type Zuschnittaufnahme = {
+  id: string;
+  text: string;
+  erstellt: string;
+  /** Die Dauer des **Originals** - die Breite der Kurve, auch nach einem Schnitt. */
+  dauer_s: number;
+  /** Ein Pegelwert je Fenster, bezogen auf Vollausschlag. */
+  verlauf: number[];
+  fenster_s: number;
+  schwelle: number;
+  /** Wo die Stimme nach dem Pegel liegt - ein Vorschlag, keine Festlegung. */
+  vorschlag_start_s: number;
+  vorschlag_ende_s: number;
+  /** Was in der Zeile steht; `null`, solange niemand geschnitten hat. */
+  zuschnitt_start_s: number | null;
+  zuschnitt_ende_s: number | null;
+};
+
+export type Zuschnittseite = { gesamt: number; ab: number; aufnahmen: Zuschnittaufnahme[] };
+
+export type Zuschnittgrenze = { id: string; start_s: number; ende_s: number };
+
+export type Zuschnittergebnis = { geschrieben: number; fehler: Record<string, string> };
+
+function mitSchluessel(schluessel: string, weitere: HeadersInit = {}): RequestInit {
+  return { headers: { ...weitere, 'X-Editor-Key': schluessel } };
+}
+
+export const zuschnittStand = () => anfrage<ZuschnittStand>('/zuschnitt/stand');
+
+export const zuschnittAufnahmen = (schluessel: string, ab = 0, anzahl = 10) =>
+  anfrage<Zuschnittseite>(
+    `/zuschnitt/aufnahmen?ab=${ab}&anzahl=${anzahl}`,
+    mitSchluessel(schluessel),
+  );
+
+/**
+ * Das ungeschnittene Original - die eine Stelle, die es ausdrücklich liefert.
+ *
+ * Überall sonst kommt über `meineAufnahmeAudio` die Arbeitsdatei, also der
+ * Zuschnitt, sobald es einen gibt. Hier braucht es das Original: Geschnitten
+ * wird immer aus ihm, und eine Kurve so breit wie das letzte Ergebnis ließe
+ * einen zu engen Schnitt nie wieder aufmachen.
+ */
+export const zuschnittOriginal = (schluessel: string, aufnahme: string) =>
+  blob(`/zuschnitt/aufnahmen/${aufnahme}/original`, mitSchluessel(schluessel));
+
+export const zuschnittSchreiben = (schluessel: string, grenzen: Zuschnittgrenze[]) =>
+  anfrage<Zuschnittergebnis>('/zuschnitt/schreiben', {
+    ...alsJson({ grenzen }),
+    headers: { 'Content-Type': 'application/json', 'X-Editor-Key': schluessel },
+  });
+
+export const zuschnittZuruecknehmen = (schluessel: string, grenzen: Zuschnittgrenze[]) =>
+  anfrage<Zuschnittergebnis>('/zuschnitt/zuruecknehmen', {
+    ...alsJson({ grenzen }),
+    headers: { 'Content-Type': 'application/json', 'X-Editor-Key': schluessel },
+  });

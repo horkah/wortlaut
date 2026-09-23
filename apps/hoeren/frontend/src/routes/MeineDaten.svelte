@@ -10,6 +10,7 @@
    */
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Pager from '$ui/Pager.svelte';
+  import { ZUSCHNITT_PFAD } from '$ui/apps';
   import { merkePin, schloss, vergissPin } from '$ui/pin.svelte';
   import { dauer, tag, tagUndZeit } from '$ui/zeit';
   import {
@@ -23,11 +24,12 @@
     michUmbenennen,
     pinSetzen,
     pinStand,
+    zuschnittStand,
     type AufsichtAufnahme,
     type AufsichtSitzung,
     type Konto,
   } from '../lib/api';
-  import { zustand } from '../lib/zustand.svelte';
+  import { gehZu, zustand } from '../lib/zustand.svelte';
 
   const PRO_SEITE = 10;
 
@@ -270,8 +272,24 @@
 
   const megabyte = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
+  // Ob dieser Server überhaupt zuschneiden lässt. Ist kein
+  // Bearbeitungsschlüssel hinterlegt, steht der Knopf gar nicht erst da -
+  // dasselbe Verfahren wie beim Trainingsknopf in „lernen": Eine Tür zeigen,
+  // die 401 antwortet, ist keine Auskunft, sondern eine Sackgasse.
+  let zuschneidbar = $state(false);
+
   $effect(() => {
     if (zustand.art === 'sprecher') starte();
+  });
+
+  $effect(() => {
+    if (zustand.art !== 'sprecher') return;
+    // Scheitert die Abfrage, bleibt der Knopf weg. Der Zuschnitt ist eine
+    // Werkbank und keine Bedingung; ein Fehler darüber gehört nicht auf diese
+    // Seite.
+    zuschnittStand()
+      .then((auskunft) => (zuschneidbar = auskunft.bereit))
+      .catch(() => (zuschneidbar = false));
   });
 </script>
 
@@ -432,6 +450,26 @@
   <Pager seite={sitzungenSeite} gesamtSeiten={sitzungenSeiten} aendere={wechsleSitzungenSeite} />
 
   <h2>Aufnahmen</h2>
+  <!--
+    Der Weg in den Zuschnitt steht über der Liste und nicht bei „Ausleiten":
+    Er handelt von genau diesen Aufnahmen, und wer sie gerade durchsieht, ist
+    der, dem auffällt, dass vorn und hinten Stille steht. Ein eigener
+    Menüpunkt wäre er nicht - die Ansicht dahinter ist eine Werkbank, keine
+    Station auf dem täglichen Weg (siehe `ZUSCHNITT_PFAD` in `$ui/apps`).
+  -->
+  {#if zuschneidbar}
+    <div class="karte">
+      <div class="reihe">
+        <button class="knopf" onclick={() => gehZu(ZUSCHNITT_PFAD)}>Zuschnitt öffnen</button>
+      </div>
+      <p class="gedaempft">
+        Zwischen dem Druck auf den Aufnahmeknopf und dem ersten Laut liegt meist eine Sekunde,
+        hinten oft mehr. Im Zuschnitt sehen Sie zu jeder Aufnahme den Lautstärkeverlauf und
+        schneiden weg, was davor und dahinter steht. Die Originale bleiben erhalten. Dafür braucht
+        es zusätzlich den Bearbeitungsschlüssel dieses Servers.
+      </p>
+    </div>
+  {/if}
   {#each aufnahmen as aufnahme (aufnahme.id)}
     <div class="karte">
       <div class="reihe">

@@ -49,6 +49,7 @@ from wortlaut import augmentierung as klangwandel
 from wortlaut import corpus, storage
 
 from ..db.models import Aufnahme
+from . import zuschnitt
 
 # Durchgereicht, damit der Rest der App eine Adresse für diese Begriffe hat und
 # nicht zwei Pakete tief greifen muss.
@@ -60,12 +61,19 @@ ABWANDLUNGEN = klangwandel.ABWANDLUNGEN
 def relpfad(aufnahme: Aufnahme, variante: str) -> str:
     """Der Blob zu einer Fassung dieser Aufnahme.
 
-    Das Original ist der Blob, der in der Zeile steht - und nicht ein zweites
-    Mal berechnet: Eine Aufnahme, die über „schreiben" hereinkam, liegt dort,
-    wo ihre Zeile es sagt, und nirgendwo sonst.
+    Die Fassung `original` ist die **Arbeitsdatei** und nicht ein zweites Mal
+    berechnet: der Zuschnitt, wenn es einen gibt, sonst der Blob aus der Zeile
+    (`services/zuschnitt.py`). Eine Aufnahme, die über „schreiben" hereinkam,
+    liegt dort, wo ihre Zeile es sagt, und nirgendwo sonst.
+
+    Dass die Regel hier greift und nicht bei jedem Aufrufer einzeln, ist der
+    Grund, warum Auswertung, Anhören und Abwandlung dieselbe Datei meinen: Alle
+    drei fragen über diese Zeile. Der Name `original` bleibt trotzdem, was er
+    war - er unterscheidet die ungewandelte Fassung von den verrauschten, und
+    das tut er weiterhin.
     """
     if variante == ORIGINAL:
-        return aufnahme.blob
+        return zuschnitt.arbeitsblob(aufnahme)
     return corpus.variante_relpfad(aufnahme.speaker_id, aufnahme.id, variante)
 
 
@@ -106,7 +114,10 @@ def stelle_alle_her(ablage: storage.Ablage, aufnahme: Aufnahme) -> list[str]:
         for abwandlung in ABWANDLUNGEN
         if stelle_her(
             ablage,
-            quelle_blob=aufnahme.blob,
+            # Abgewandelt wird die Arbeitsdatei, nicht das Original: Sonst
+            # hörte ein Training dieselbe Äußerung in zwei Längen - einmal
+            # zugeschnitten und dreimal nicht.
+            quelle_blob=zuschnitt.arbeitsblob(aufnahme),
             ziel_blob=relpfad(aufnahme, abwandlung.name),
             variante=abwandlung.name,
             keim=aufnahme.id,

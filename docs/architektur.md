@@ -98,6 +98,16 @@ Kopfzeile `X-Trainer-Key`) - und **nur** dort. Zusehen, zurücknehmen, löschen
 und freigeben kosten nichts und bleiben beim Sprecher. Leer heißt abgeschaltet,
 nicht offen, wie bei Verwaltung und Aufsicht.
 
+Dieselbe Trennung, anderer Anlass, steht vor dem **Zuschnitt** in `hören`
+(`WORTLAUT_EDITOR_KEY`, Kopfzeile `X-Editor-Key`). Dort kostet nicht die
+Rechenzeit, sondern der Eingriff: Ein Zuschnitt entscheidet für jede folgende
+Messung und jedes folgende Training, welcher Ton gilt, und verwirft die
+vorhandenen Messwerte. Der Zugang ist an jeden ausgegeben, der aufnimmt, und
+liegt auf einem Telefon; er beantwortet „wessen Aufnahmen?", nicht „wer darf in
+den Bestand greifen?". Anders als beim Training hängt der Schlüssel hier vor
+**allen** Wegen, auch den lesenden: Beim Training ist Zusehen das, was jeder
+darf; beim Zuschnitt ist auch das Ansehen schon die Werkbank.
+
 ---
 
 ## Projektstruktur
@@ -127,11 +137,13 @@ wortlaut/
 │   │   │   │   ├── sources.py     # LLM-Themen, Textupload
 │   │   │   │   ├── prompts.py     # nächste Sprecheinheit, Sitzungen
 │   │   │   │   ├── recordings.py  # Upload, Prüfung, Verwerfen
+│   │   │   │   ├── zuschnitt.py   # Stille an den Rändern wegschneiden
 │   │   │   │   ├── progress.py    # gesammelte Minuten, Marken
 │   │   │   │   └── intake.py      # Korrekturen von „schreiben"
 │   │   │   ├── services/
 │   │   │   │   ├── prompt_queue.py    # Reihenfolge, Wiederaufnahme
 │   │   │   │   ├── quality.py         # Pegel, Clipping, Dauerplausibilität
+│   │   │   │   ├── zuschnitt.py       # welche Datei gilt - die eine Regel
 │   │   │   │   ├── export.py          # Datensatz als .zip (Text-Audio-Paare)
 │   │   │   │   └── loeschung.py       # was zu einem Sprecher gehört
 │   │   │   └── db/
@@ -233,6 +245,8 @@ wortlaut/
 │       ├── app.css                # das gemeinsame Aussehen aller Apps
 │       ├── Recorder.svelte
 │       ├── AudioPlayer.svelte
+│       ├── Pegelverlauf.svelte    # Lautstärkekurve mit zwei Grenzen zum Ziehen
+│       ├── ausschnitt.ts          # einen Bereich abspielen, ohne ihn zu schneiden
 │       ├── PromptView.svelte      # eine Einheit groß, Kontext blass („hören")
 │       ├── SegmentList.svelte     # anklickbare Abschnitte („schreiben")
 │       ├── Mikrofontest.svelte    # Gerät wählen, Pegel sehen, Probe hören
@@ -262,8 +276,10 @@ Beide laufen auf demselben Server, SQLite im WAL-Modus erlaubt gleichzeitige Les
 data/korpus/<sprecher_id>/
 ├── audio/
 │   ├── <aufnahme_id>.wav                    # 16 kHz mono, PCM 16 bit
-│   └── varianten/
-│       └── <aufnahme_id>.<fassung>.wav      # abgewandelt, gerechnet
+│   ├── varianten/
+│   │   └── <aufnahme_id>.<fassung>.wav      # abgewandelt, gerechnet
+│   └── zuschnitt/
+│       └── <aufnahme_id>.wav                # beschnitten, wenn jemand schnitt
 └── hoeren.sqlite                            # Vorlagen, Aufnahmen, Sitzungen
 ```
 
@@ -276,6 +292,40 @@ Ein Werkzeug, das über `audio/` läuft, muss den Unterschied nicht am
 Dateinamen erraten. Der Name trägt trotzdem beides, erst die Aufnahme, dann
 die Fassung: Ein sortiertes Verzeichnis liegt damit nach Aufnahmen geordnet
 da, und Aufnahmekennungen enthalten keinen Punkt.
+
+Unter `zuschnitt/` liegt, was von einer Aufnahme übrig bleibt, wenn jemand die
+Stille an ihren Rändern weggeschnitten hat. Daran hängt **eine Regel, und zwar
+genau eine**: Gibt es zu einer Aufnahme einen Zuschnitt, arbeitet jede App mit
+ihm - die Auswertung in `hören`, das Manifest eines Trainingslaufs in `lernen`,
+der Datensatz zum Mitnehmen, das Anhören. Gibt es keinen, bleibt es beim
+Original. Die Regel steht an einer Stelle
+(`apps/hoeren/backend/services/zuschnitt.py`, `arbeitsblob`) und wird überall
+sonst nur befragt; ein Schalter „Zuschnitt benutzen" daneben wäre eine zweite
+Frage zu derselben Sache, und irgendwann trainierte jemand auf einer Datei, die
+er in der Ansicht nicht hört.
+
+Das Original wird dabei nie überschrieben. `recordings.blob` zeigt weiter
+darauf, und ein Zuschnitt lässt sich zurücknehmen, ohne dass jemand noch einmal
+sprechen muss - eine Aufnahme ist, was ein Mensch gesprochen hat, ein Zuschnitt
+ist eine Entscheidung darüber. Geschnitten wird deshalb auch beim zweiten Mal
+aus dem Original und nie aus dem vorigen Ergebnis; sonst wanderte die Grenze mit
+jedem Durchgang nach innen.
+
+Verlustfrei ist der Schnitt, ohne dass es dafür ffmpeg bräuchte: Bei 16 kHz mono
+PCM ist ein Rahmen zwei Byte und zugleich der kleinste Block, an dem sich
+schneiden lässt - ein Schnitt ist das Kopieren eines Byte-Bereichs, Abtastwert
+für Abtastwert. Gerundet wird nach außen, Anfang abwärts und Ende aufwärts: Ein
+Rahmen zu viel sind 62 Mikrosekunden Stille, ein Rahmen zu wenig wäre ein
+angeschnittener Abtastwert.
+
+**Warum der Zuschnitt in der Sicherung steckt und die Varianten nicht.** Beide
+ließen sich neu rechnen. Der Unterschied ist nicht die Rechenzeit, sondern wer
+nachrechnen dürfte: Eine fehlende Abwandlung holt sich die Auswertung selbst,
+und die läuft in `hören` - dem Schreiber des Korpus. Der Zuschnitt ist die
+Arbeitsdatei auch für `lernen`, und `lernen` liest den Korpus, es schreibt ihn
+nicht (Grundentscheidung 6). Ein Trainingslauf über einer zurückgespielten
+Sicherung müsste sonst eine fehlende Datei nachschneiden, und das wäre genau der
+Sonderfall, den diese Regel ausschließt.
 
 Die Datenbank liegt **innerhalb** des Sprecherverzeichnisses, also eine je
 Sprecher. Das hat drei Folgen: `lernen` liest genau eine Datei statt einer
@@ -478,6 +528,12 @@ Zwei Spalten tragen mehr Bedeutung, als ihr Name verrät:
 - `recordings.externe_id` ist die Abschnittskennung aus `schreiben` und
   eindeutig. Die dortige Outbox darf damit beliebig oft wiederholen, ohne dass
   dieselbe Korrektur zweimal im Korpus landet.
+- `recordings.zuschnitt_start_s` und `…_ende_s` sind die Grenzen des Zuschnitts,
+  NULL heißt „nicht zugeschnitten". Der **Pfad** der Datei steht nicht daneben -
+  er folgt aus der Kennung, wie bei den abgewandelten Fassungen; zwei Wahrheiten
+  darüber, wo eine Datei liegt, sind eine zu viel. Und `dauer_s` bleibt die
+  Dauer des Originals: Sie ist ein Messwert und soll einer bleiben, die des
+  Zuschnitts ist `ende - start` und wird gerechnet.
 
 ---
 
