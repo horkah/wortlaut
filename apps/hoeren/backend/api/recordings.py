@@ -21,7 +21,7 @@ from wortlaut import corpus, ids
 
 from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
 from ..deps import Ablage, Datenbank, SprecherId
-from ..services import augmentierung, quality
+from ..services import augmentierung, quality, zuschnitt
 
 router = APIRouter(prefix="/api/recordings", tags=["Aufnahmen"])
 
@@ -182,8 +182,10 @@ def verwirf(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablag
         ablage.loesche(aufnahme.blob)
         # Eine abgewandelte Fassung ist dieselbe Stimme, nur
         # verrauscht - und damit derselbe Gesundheitsdatensatz. Wer eine
-        # Aufnahme wegwirft, hat nicht drei Kopien davon gemeint.
+        # Aufnahme wegwirft, hat nicht drei Kopien davon gemeint. Für den
+        # Zuschnitt gilt dasselbe: dieselbe Stimme, nur kürzer.
         augmentierung.loesche(ablage, aufnahme)
+        zuschnitt.loesche(ablage, aufnahme)
         db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme_id))
         aufnahme.status = "verworfen"
         db.commit()

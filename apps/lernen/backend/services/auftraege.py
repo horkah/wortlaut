@@ -45,6 +45,7 @@ from sqlalchemy.orm import Session
 from wortlaut import augmentierung, corpus, ids, laeufe, registry
 
 from apps.hoeren.backend.db.models import Textquelle
+from apps.hoeren.backend.services import zuschnitt
 from apps.lernen.backend.services.aufteilung import Probe
 
 # Womit eine Probe zählt. Korrekturen stammen aus „schreiben": Ihr Text ist
@@ -100,8 +101,13 @@ def _manifestzeile(
     # Ein Schnappschuss soll sich auf eine andere Maschine kopieren lassen,
     # ohne dass jemand Pfade darin ersetzt.
     innerhalb = corpus.sprecher_relpfad(sprecher_id)
+    # Die Arbeitsdatei und nicht der Blob aus der Zeile: Hat jemand die Stille
+    # an den Rändern weggeschnitten, ist der Zuschnitt das, was gilt - hier
+    # wie in der Auswertung und beim Anhören (`hoeren/services/zuschnitt.py`).
+    # Die Regel steht dort und wird hier nur befragt; „lernen" liest den Korpus
+    # und deutet ihn nicht (Grundentscheidung 6).
     voll = (
-        probe.aufnahme.blob
+        zuschnitt.arbeitsblob(probe.aufnahme)
         if variante == augmentierung.ORIGINAL
         else corpus.variante_relpfad(sprecher_id, probe.aufnahme.id, variante)
     )
@@ -111,7 +117,7 @@ def _manifestzeile(
         "quelle": quelle,
         "modus": probe.aufnahme.modus,
         "variante": variante,
-        "dauer_s": probe.aufnahme.dauer_s,
+        "dauer_s": zuschnitt.arbeitsdauer(probe.aufnahme),
         "gewicht": GEWICHTE.get(quelle, 1.0),
         # In welcher der sechs Faltungen diese Aufnahme gemessen wird - und
         # damit in welchen fünf sie gelernt wird.

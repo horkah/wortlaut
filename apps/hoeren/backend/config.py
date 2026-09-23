@@ -38,6 +38,25 @@ class Einstellungen(Grundeinstellungen):
     # versehentlich offenstehen.
     admin_token: str = ""
 
+    # Der Zuschnitt: die Stille an den Rändern der eigenen Aufnahmen
+    # wegschneiden (siehe `api/zuschnitt.py`). Das zweite Geheimnis dieser App
+    # neben Verwaltung und Aufsicht - und wie der Trainerschlüssel in „lernen"
+    # beantwortet es eine **andere** Frage als der Zugang.
+    #
+    # Der Zugang eines Sprechers sagt, wessen Aufnahmen das sind. Er ist an
+    # jeden ausgegeben, der aufnimmt, und er gehört auf ein Telefon, das bei
+    # einem Menschen liegt, der schlecht liest. Der Zuschnitt dagegen greift in
+    # den Bestand: Er entscheidet für jede folgende Messung und jedes folgende
+    # Training, welcher Ton gilt, und er wirft die vorhandenen Messwerte weg.
+    # Das ist keine Handlung, die man versehentlich tut, und der Zugang allein
+    # trägt sie nicht.
+    #
+    # Leer heißt **abgeschaltet**, nicht offen - wie bei Verwaltung, Aufsicht
+    # und dem Trainerschlüssel und aus demselben Grund: Keine Installation
+    # weiß, ob sie eine Entwicklungsinstallation ist. Die Oberfläche fragt den
+    # Stand vorher ab und zeigt den Punkt dann gar nicht erst.
+    editor_key: str = ""
+
     # Die Auswertung: welche Erkenner gegeneinander antreten (siehe
     # `services/auswertung.py`). Namen, die faster-whisper versteht, durch
     # Komma getrennt - später darf hier auch der Pfad eines eigenen Standes

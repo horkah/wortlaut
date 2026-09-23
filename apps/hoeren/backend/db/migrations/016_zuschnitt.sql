@@ -1,0 +1,28 @@
+-- Zuschnitt: die Stille an den Rändern einer Aufnahme wegschneiden.
+--
+-- **Was hier steht und was nicht.** In der Zeile stehen die **Grenzen**, nicht
+-- der Pfad. Wo die zugeschnittene Datei liegt, folgt aus der Kennung
+-- (`corpus.zuschnitt_relpfad`) - dieselbe Regel wie bei den abgewandelten
+-- Fassungen und aus demselben Grund: Zwei Wahrheiten darüber, wo eine Datei
+-- liegt, sind eine zu viel, und irgendwann steht eine Zeile da, zu der keine
+-- Datei mehr gehört.
+--
+-- NULL heißt „nicht zugeschnitten", und das ist der Zustand jeder Aufnahme,
+-- die vor dieser Spalte entstanden ist. Daran hängt die eine Regel, der jede
+-- App folgt (`services/zuschnitt.py`): Gibt es einen Zuschnitt, wird mit ihm
+-- gearbeitet - beim Messen, beim Trainieren, beim Ausleiten, beim Anhören.
+-- Gibt es keinen, bleibt es beim Original. Ein Schalter „Zuschnitt benutzen"
+-- wäre eine zweite Frage zu derselben Sache, und irgendwann trainierte jemand
+-- auf einer Datei, die er in der Ansicht nicht hört.
+--
+-- **Das Original bleibt, was es war.** `blob` zeigt weiter auf die Datei, die
+-- ein Mensch gesprochen hat; sie wird nicht überschrieben und nicht gelöscht.
+-- Ein Zuschnitt ist eine Entscheidung, und Entscheidungen soll man
+-- zurücknehmen können, ohne dass jemand noch einmal sprechen muss.
+--
+-- **Und `dauer_s` bleibt ebenfalls, was es war** - die Dauer des Originals.
+-- Die des Zuschnitts ist `ende - start` und wird gerechnet, nicht gespeichert
+-- (`zuschnitt.arbeitsdauer`). Eine dritte Spalte daneben wäre eine Zahl, die
+-- mit den beiden hier auseinanderlaufen kann.
+ALTER TABLE recordings ADD COLUMN zuschnitt_start_s REAL;
+ALTER TABLE recordings ADD COLUMN zuschnitt_ende_s REAL;

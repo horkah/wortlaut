@@ -36,6 +36,7 @@ from .api import (
     speakers,
     sprachen,
     zugang,
+    zuschnitt,
 )
 from .deps import Verwaltung
 
@@ -67,6 +68,10 @@ for router in (
     intake.router,
     konto.router,
     auswertung.router,
+    # Der Zuschnitt trägt über den Sprecherzugang hinaus einen eigenen
+    # Wächter (`WORTLAUT_EDITOR_KEY`) und ist ohne gesetzten Schlüssel
+    # vollständig zu - wie das Training in „lernen" und aus demselben Grund.
+    zuschnitt.router,
 ):
     app.include_router(router)
 

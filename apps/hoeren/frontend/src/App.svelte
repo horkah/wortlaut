@@ -12,6 +12,7 @@
     SPRECHER_PFAD,
     uebergreifendePunkte,
     ZUGANGSDATEN_PFAD,
+    ZUSCHNITT_PFAD,
     type Menuepunkt,
   } from '$ui/apps';
   import KeinZugang from '$ui/KeinZugang.svelte';
@@ -28,6 +29,7 @@
   import Aufnahme from './routes/Aufnahme.svelte';
   import Fortschritt from './routes/Fortschritt.svelte';
   import Zugangsdaten from './routes/Zugangsdaten.svelte';
+  import Zuschnitt from './routes/Zuschnitt.svelte';
 
   // Die Reihenfolge ist der Weg durch die Arbeit an einem Sprecher: Text
   // holen, aufnehmen, nachsehen, was zusammengekommen ist - und am Ende
@@ -95,7 +97,13 @@
           // `MeineDaten.svelte`).
           zustand.route === MEINE_DATEN_PFAD
           ? MeineDaten
-          : !spricht
+          : // Der Zuschnitt, erreichbar aus „Meine Daten" und nur von dort.
+            // Er steht in keiner Reiterreihe und in keinem Menü (siehe
+            // `ZUSCHNITT_PFAD` in `$ui/apps`), braucht aber denselben
+            // Sprecher wie sie - es sind dessen eigene Aufnahmen.
+            spricht && zustand.route === ZUSCHNITT_PFAD
+            ? Zuschnitt
+            : !spricht
             ? Verwaltung
             : // Die Reiter dieser App. Die Auswertung steht mit darin: Sie
               // misst den eigenen Korpus und braucht darum einen Sprecher,

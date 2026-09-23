@@ -95,6 +95,13 @@ class Aufnahme(Basis):
     status: Mapped[str]  # ok | verworfen
     hinweise: Mapped[str]  # JSON-Liste
     externe_id: Mapped[str | None]
+    # Wo der Zuschnitt dieser Aufnahme anfängt und aufhört, in Sekunden vom
+    # Anfang des Originals (siehe `016_zuschnitt.sql`). NULL heißt: nicht
+    # zugeschnitten, es gilt die ganze Datei. Der Pfad der zugeschnittenen
+    # Fassung steht nicht daneben - er folgt aus der Kennung
+    # (`corpus.zuschnitt_relpfad`), wie bei den abgewandelten Fassungen.
+    zuschnitt_start_s: Mapped[float | None] = mapped_column(default=None)
+    zuschnitt_ende_s: Mapped[float | None] = mapped_column(default=None)
     erstellt: Mapped[str]
 
 

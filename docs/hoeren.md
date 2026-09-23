@@ -772,6 +772,115 @@ gesetzt ist.
 
 ---
 
+## Zuschnitt - die Stille an den Rändern
+
+Aufgenommen wird äußerungsweise, mit einem Knopf davor und einem danach.
+Zwischen dem Druck und dem ersten Laut liegt regelmäßig eine Sekunde, hinten
+oft mehr - und bei jemandem, der langsam spricht und den Knopf schlecht trifft,
+deutlich mehr. Über anderthalb Stunden Korpus summiert sich das auf eine halbe
+Stunde, die mittrainiert und mitgemessen wird, obwohl sie niemand gesprochen
+hat.
+
+Erreichbar ist der Zuschnitt über **Meine Daten → Zuschnitt öffnen**. Er steht
+in keiner Reiterreihe und in keinem Menü: Es ist eine Werkbank, zu der ein Weg
+führt und derselbe zurück - dieselbe Stellung wie die Einsicht der Aufsicht.
+
+### Was dasteht
+
+Je Aufnahme eine Karte, älteste zuerst (anders als in „Meine Daten", wo die
+neueste oben steht: Hier wird eine Liste abgearbeitet, nicht nachgesehen). Auf
+ihr der Lautstärkeverlauf, zwei orange Linien darin, die Vorlage darunter und
+zwei Knöpfe zum Hören - die ganze Aufnahme, oder nur das, was nach dem Schnitt
+bliebe.
+
+Die Linien stehen anfangs dort, wo der Server die Stimme vermutet, mit etwa
+einem Zehntel Sekunde Luft an beiden Enden. Verschoben werden sie mit Finger,
+Maus oder den Pfeiltasten (mit Umschalt zehn Fenster auf einmal). Zehn, zwanzig
+oder fünfzig Aufnahmen je Seite; ein Haken oben markiert alle einer Seite.
+
+### Wie der Vorschlag entsteht
+
+Aus dem Pegel, in 20-ms-Fenstern, mit einer Schwelle relativ zur Spitze
+(`wortlaut/audio.py`, `stimmgrenzen`) - genau der Rechnung, mit der jede
+Aufnahme beim Hochladen ohnehin auf Randstille vermessen wird. Die Kurve, die
+dasteht, sind dieselben Zahlen; zwei getrennte Rechnungen hießen, dass die
+gezeichnete Kurve und die eingezeichnete Grenze auseinanderliegen.
+
+**Kein VAD.** Ein Sprachmodell wie Silero erkennt Sprache und nicht bloß
+Lautstärke, und bei einer Tonaufnahme mit Nebengeräuschen wäre es der bessere
+Weg. Hier ist die Lage eine andere: ein Raum, ein Mikrofon vor dem Mund, eine
+Äußerung - was zwischen Anfang und Ende laut wird, ist diese Person. Dafür
+einen halben Gigabyte Torch in den Web-Prozess zu holen, wäre der Preis für
+eine Unterscheidung, die nicht ansteht. Und der zweite Grund wiegt schwerer:
+Diese App ist für Menschen gebaut, deren Aussprache von der Norm abweicht. Ein
+Modell, das auf durchschnittlicher Sprache gelernt hat, zu fragen, wo hier
+Sprache anfängt, hieße dieselbe Annahme noch einmal zu treffen, an der die
+Diktierfunktion des Telefons bereits scheitert. Ein Pegel ist ein Pegel - und
+über ihm sitzt ohnehin ein Mensch, der die Linie verschiebt.
+
+### Was beim Schreiben passiert
+
+Bis zum Knopf **Zuschnitt schreiben** und der Rückfrage davor ist nichts
+geschrieben. Auch der Ausschnitt-Knopf spielt nur einen Bereich der geladenen
+Datei ab; es gibt keine vorläufigen Dateien auf dem Server. Eine angefangene
+Bearbeitung, die jemand wegklickt, hinterlässt nichts - und keine
+Stimmaufnahme mit ungeklärter Lebensdauer.
+
+Dann, je markierter Aufnahme und jede für sich:
+
+1. Die zugeschnittene Datei entsteht aus dem **Original**, verlustfrei.
+2. Die Grenzen kommen in die Zeile - ab hier gilt der Zuschnitt überall.
+3. Die abgewandelten Fassungen werden verworfen und aus der neuen Arbeitsdatei
+   neu gerechnet.
+4. Die Messwerte dieser Aufnahme werden gelöscht: Sie entstanden am
+   ungeschnittenen Ton. Der nächste Auswertungslauf rechnet sie neu - er
+   rechnet ohnehin nur, was fehlt.
+
+Punkt 4 ist derselbe Griff wie beim Verwerfen einer Aufnahme: Wer den Ton
+ändert, wirft weg, was Modelle aus dem alten gemacht haben. Übernommene
+Faltungsmessungen gehen mit und kommen nicht wieder.
+
+Scheitert eine Aufnahme, nimmt sie die anderen nicht mit - sie steht in der
+Rückmeldung und ist unverändert geblieben.
+
+### Was bleibt
+
+Das Original. Es wird nie überschrieben, es liegt weiter unter `audio/`, und
+**Zuschnitt zurücknehmen** stellt den alten Zustand her. Geschnitten wird auch
+beim zweiten Mal aus dem Original und nie aus dem vorigen Ergebnis; sonst
+wanderte die Grenze mit jedem Durchgang nach innen, und nach dem dritten Mal
+wäre der erste Laut weg.
+
+Verlustfrei heißt hier wirklich verlustfrei: Der Korpus liegt in 16 kHz mono
+PCM, ein Rahmen ist zwei Byte und zugleich der kleinste Block, an dem sich
+schneiden lässt. Es braucht dafür weder ffmpeg noch `-c copy` - bei PCM gibt es
+keine Blöcke, die größer wären als ein Abtastwert. Gerundet wird trotzdem, und
+zwar nach außen: Anfang abwärts, Ende aufwärts. Ein Rahmen zu viel sind 62
+Mikrosekunden Stille, ein Rahmen zu wenig wäre ein angeschnittener Abtastwert.
+Eine Ein- und Ausblendung gegen Knackser gibt es aus demselben Grund nicht -
+sie würde Abtastwerte verändern, und geschnitten wird ohnehin in der Stille.
+
+### Der Schlüssel
+
+Vor allen Wegen des Zuschnitts steht `WORTLAUT_EDITOR_KEY` (Kopfzeile
+`X-Editor-Key`), zusätzlich zum Zugang des Sprechers. Warum: Der Zugang ist an
+jeden ausgegeben, der aufnimmt, und liegt auf einem Telefon; er sagt, wessen
+Aufnahmen das sind. Der Zuschnitt greift in den Bestand - er entscheidet für
+jede folgende Messung und jedes folgende Training, welcher Ton gilt, und
+verwirft die vorhandenen Messwerte. Dieselbe Trennung wie beim
+Trainerschlüssel in „lernen".
+
+Anders als dort hängt der Schlüssel hier auch vor den **lesenden** Wegen. Beim
+Training ist Zusehen das, was jeder darf, und nur das Rechnenlassen kostet;
+hier ist auch das Ansehen schon die Werkbank - eine Liste mit Kurven, Reglern
+und einem Knopf „Schreiben" darunter. Sie jemandem zu zeigen, der sie nicht
+bedienen darf, wäre keine Offenheit, sondern eine Einladung zum Fehlgriff.
+
+Leer heißt abgeschaltet, nicht offen. Dann steht der Punkt in „Meine Daten" gar
+nicht erst da.
+
+---
+
 ## Auswertung - wie gut hört welches Modell?
 
 Der Korpus weiß, was gesprochen wurde, und er weiß, was gesprochen werden
@@ -1237,6 +1346,17 @@ POST   /api/auswertung/stopp                abbrechen; Gerechnetes bleibt
 GET    /api/konto/pin                       { gesetzt }  - ungeschützt
 GET    /api/konto/pin/pruefung              204, wenn die vorgelegte PIN stimmt
 PATCH  /api/konto/pin                       { pin }  - vier Ziffern oder null
+```
+
+Zuschnitt - hinter dem Zugang eines Sprechers **und** `WORTLAUT_EDITOR_KEY`,
+als Kopfzeile `X-Editor-Key`. Ohne gesetzten Schlüssel ist alles davon zu:
+
+```
+GET    /api/zuschnitt/stand                 { bereit, hinweis }  - ohne Schlüssel
+GET    /api/zuschnitt/aufnahmen?ab=&anzahl= Kurve, Vorschlag, bisheriger Schnitt
+GET    /api/zuschnitt/aufnahmen/{id}/original   das ungeschnittene Audio
+POST   /api/zuschnitt/schreiben             { grenzen: [{ id, start_s, ende_s }] }
+POST   /api/zuschnitt/zuruecknehmen         { grenzen: [{ id, … }] }  - nur die Kennungen zählen
 ```
 
 Die drei ersten `/api/konto/…`-Wege verlangen zusätzlich die Kopfzeile
