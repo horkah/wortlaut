@@ -838,7 +838,12 @@ Dann, je markierter Aufnahme und jede für sich:
 
 Punkt 4 ist derselbe Griff wie beim Verwerfen einer Aufnahme: Wer den Ton
 ändert, wirft weg, was Modelle aus dem alten gemacht haben. Übernommene
-Faltungsmessungen gehen mit und kommen nicht wieder.
+Faltungsmessungen gehen mit und kommen nicht wieder - jedenfalls nicht, solange
+der Zuschnitt gilt. Bis September 2026 kamen sie doch: Der Abgleich beim
+Öffnen der Auswertung übernahm sie erneut aus dem Trainingslauf, gemessen am
+ungeschnittenen Ton. Seitdem gilt eine Faltung nur, wenn der Lauf die Aufnahme
+auf dem Ton kannte, der heute gilt (siehe
+[Die eigenen Stände](#die-eigenen-stände-treten-mit-an)).
 
 Scheitert eine Aufnahme, nimmt sie die anderen nicht mit - sie steht in der
 Rückmeldung und ist unverändert geblieben.
@@ -978,6 +983,16 @@ Drei Feinheiten, die in der Umsetzung stecken:
 * **Übernommene Zeilen gelten nie als offen.** Ihre `rechenzeit_s` stammt von
   der Trainingsmaschine, ihr `rechenwerk` also von woanders - sonst würde der
   nächste Lauf sie neu rechnen wollen und dürfte es gerade nicht.
+* **Eine Faltung gilt nur für den Ton, auf dem sie gemessen wurde.** Das
+  Manifest eines Laufs sagt je Aufnahme, welche Datei in welcher Dauer gelernt
+  und gemessen wurde. Ist die Aufnahme seither zugeschnitten worden (oder
+  anders als damals), wird die Faltung nicht übernommen, und wo sie schon
+  steht, räumt der Abgleich sie weg (`vergiss_ueberholte_faltungen`). Wird der
+  Zuschnitt zurückgenommen, kommt sie wieder.
+* **Was ein Stand im Training hatte, misst er nie selbst** - auch dann nicht,
+  wenn seine Faltung dafür fehlt. Die Stelle bleibt leer, bis ein neuer Lauf
+  sie auf dem geltenden Ton gemessen hat, und zählt weder als erledigt noch als
+  offen.
 
 Angezeigt wird ein Stand als **`K7M2Q`** und nicht als
 `spr_7f2a/20260912T1420-lora-original` - in der Legende der Kurve wie in der
