@@ -243,3 +243,27 @@ def teile(
         ablage.lege_ab(ziel_vorn, vorn)
         ablage.lege_ab(ziel_hinten, hinten)
     return befunde
+
+
+def kopiere(
+    ablage: storage.Ablage, aufnahme: Aufnahme, start_s: float, ende_s: float, ziel: str
+) -> klang.Befund:
+    """Einen Ausschnitt des Originals als eigene Datei ablegen - ein Teil allein.
+
+    Für „Editieren", wenn die Teilung auf Anfang oder Ende liegt: Dann gibt
+    es nur einen Teil, und der ist der Ausschnitt. Nach außen gerundet wie
+    jeder Zuschnitt.
+    """
+    quelle = ablage.pfad(aufnahme.blob)
+    if not quelle.is_file():
+        raise klang.AudioFehler(f"Audio fehlt: {aufnahme.blob}")
+    if not ende_s > start_s:
+        raise klang.AudioFehler(
+            f"Das Ende muss hinter dem Anfang liegen ({start_s:.2f} bis {ende_s:.2f} s)."
+        )
+    with tempfile.TemporaryDirectory() as verzeichnis:
+        entwurf = Path(verzeichnis) / "kopie.wav"
+        klang.schneide_ausschnitt(quelle, entwurf, start_s, ende_s, nach_aussen=True)
+        befund = klang.untersuche(entwurf)
+        ablage.lege_ab(ziel, entwurf)
+    return befund

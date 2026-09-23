@@ -629,7 +629,7 @@ export const zuschnittZuruecknehmen = (schluessel: string, grenzen: Zuschnittgre
     headers: { 'Content-Type': 'application/json', 'X-Editor-Key': schluessel },
   });
 
-/** Eine einzelne Aufnahme, wie die Liste sie zeigt - für „Schneiden". */
+/** Eine einzelne Aufnahme, wie die Liste sie zeigt - für „Editieren". */
 export const zuschnittEine = (schluessel: string, aufnahme: string) =>
   anfrage<Zuschnittaufnahme>(`/zuschnitt/aufnahmen/${aufnahme}`, mitSchluessel(schluessel));
 

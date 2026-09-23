@@ -865,36 +865,48 @@ Mikrosekunden Stille, ein Rahmen zu wenig wäre ein angeschnittener Abtastwert.
 Eine Ein- und Ausblendung gegen Knackser gibt es aus demselben Grund nicht -
 sie würde Abtastwerte verändern, und geschnitten wird ohnehin in der Stille.
 
-### Schneiden - eine Aufnahme in zwei
+### Editieren - eine Aufnahme teilen oder berichtigen
 
 Manche Aufnahme trägt zwei Äußerungen: eine Vorlage, die sich beim Sprechen
-als zwei Sätze erwies, oder eine, die für eine Trainingsprobe zu lang ist. Der
-Knopf **Schneiden …** an jeder Karte führt in eine eigene Ansicht
-(`#/zuschnitt/teilen/<id>`) mit nur dieser Aufnahme:
+als zwei Sätze erwies, oder eine, die für eine Trainingsprobe zu lang ist. Und
+manchmal wurde etwas anderes gesprochen, als dasteht. Der Knopf **Editieren …**
+an jeder Karte führt in eine eigene Ansicht (`#/zuschnitt/editieren/<id>`) mit
+nur dieser Aufnahme:
 
 * **Drei Linien in der Kurve.** Anfang und Ende wie im Zuschnitt, dazwischen
   gestrichelt die Teilung. Sie steht anfangs in der Mitte der längsten Pause
   zwischen den beiden Grenzen - dort, wo zwei Sätze aneinanderstoßen - und
   lässt sich wie die anderen mit Finger, Maus oder Pfeiltasten verschieben.
-* **Der Text, Wort für Wort.** Zwischen je zwei Wörtern eine Lücke zum
-  Anklicken; der zweite Teil steht in der Akzentfarbe. Solange niemand klickt,
-  folgt die Textteilung der Linie - an der Wortgrenze, deren Anteil am Text dem
-  Anteil der Zeit am nächsten kommt.
+  Sie darf auf Anfang oder Ende liegen und rastet dort ein.
+* **Der Text, Wort für Wort.** Vor dem ersten, zwischen je zwei und nach dem
+  letzten Wort eine Lücke zum Anklicken; der zweite Teil steht in der
+  Akzentfarbe. Solange niemand klickt, folgt die Textteilung der Linie - an der
+  Wortgrenze, deren Anteil am Text dem Anteil der Zeit am nächsten kommt.
+* **Zwei Eingabefelder** mit den Texten der beiden Teile. Sie lassen sich
+  berichtigen; ein Klick auf eine Lücke füllt sie wieder aus der Vorlage.
+  „Text zurücksetzen", „Linien zurücksetzen" und „Alles zurücksetzen" holen
+  den Stand beim Öffnen zurück.
 * **Drei Knöpfe zum Hören**: die ganze Aufnahme, Teil 1 (feste Grenze links,
   gestrichelte rechts) und Teil 2 (umgekehrt).
 
 Nach der Rückfrage entstehen **zwei neue Aufnahmen**, jede mit eigener Datei
 und eigener Vorlage in derselben Textquelle wie das Original. Geschnitten wird
 verlustfrei aus dem Original; die Teilung liegt auf genau einem Rahmen,
-aneinandergelegt sind die Teile Byte für Byte der Bereich des Originals. Die
-Texte müssen zusammen die Vorlage ergeben - geteilt wird an einer Wortgrenze
-und sonst nichts, sonst wäre das ein versteckter Weg, Vorlagen zu bearbeiten.
+aneinandergelegt sind die Teile Byte für Byte der Bereich des Originals.
+
+**Liegt die Teilung auf Anfang oder Ende**, hat ein Teil keine Länge: Sein
+Feld wird grau, und der Knopf heißt „Teil 1 als Kopie speichern" bzw. „Teil 2
+als Kopie speichern". Es entsteht dann eine einzige neue Aufnahme - der
+Ausschnitt zwischen Anfang und Ende, mit dem Text aus dem Feld. So wird aus
+derselben Ansicht auch eine Aufnahme mit berichtigtem Text, ohne dass das
+Original angefasst wird.
 
 Das **Original bleibt**, bis jemand es löscht. Die Teile tragen sein Datum,
 denn gesprochen wurden sie damals - und damit sie in jeder Liste direkt unter
 ihm stehen, bekommen sie einen Sortierschlüssel (`recordings.sortierschluessel`,
 `017_teilen.sql`): leer bei gewöhnlichen Aufnahmen, `<id des Originals>.1` und
-`.2` bei den Teilen. Sortiert wird weiter nach dem Datum, der Schlüssel
+`.2` bei den Teilen; wer dasselbe Original noch einmal editiert, bekommt die
+nächsten freien Nummern. Sortiert wird weiter nach dem Datum, der Schlüssel
 entscheidet nur bei Gleichstand (`zuschnitt.reihenfolge`). Gemessen werden die
 Teile beim nächsten Auswertungslauf; ihre Pegel und Hinweise kommen aus den
 eigenen Dateien.
@@ -903,7 +915,7 @@ eigenen Dateien.
 
 Unten neben „Zuschnitt schreiben" und „Zuschnitt zurücknehmen" steht
 **Löschen**, für alles, was markiert ist, nach einer Rückfrage. Gedacht vor
-allem für das Original nach dem Schneiden, das neben seinen beiden Teilen
+allem für das Original nach dem Editieren, das neben seinen beiden Teilen
 nichts mehr zu suchen hat.
 
 Löschen ist nicht Verwerfen. Beim Verwerfen in „Meine Daten" geht das Audio,
@@ -1421,8 +1433,8 @@ GET    /api/zuschnitt/aufnahmen?ab=&anzahl= Kurve, Vorschlag, bisheriger Schnitt
 GET    /api/zuschnitt/aufnahmen/{id}/original   das ungeschnittene Audio
 POST   /api/zuschnitt/schreiben             { grenzen: [{ id, start_s, ende_s }] }
 POST   /api/zuschnitt/zuruecknehmen         { grenzen: [{ id, … }] }  - nur die Kennungen zählen
-GET    /api/zuschnitt/aufnahmen/{id}        eine Aufnahme wie in der Liste - für „Schneiden"
-POST   /api/zuschnitt/teilen                { id, start_s, teilung_s, ende_s, text_vorn, text_hinten } → { ids }
+GET    /api/zuschnitt/aufnahmen/{id}        eine Aufnahme wie in der Liste - für „Editieren"
+POST   /api/zuschnitt/teilen                { id, start_s, teilung_s, ende_s, text_vorn, text_hinten } → { ids }  - eine oder zwei
 POST   /api/zuschnitt/loeschen              { grenzen: [{ id, … }] }  - ganz löschen, samt verwaister Vorlage
 ```
 

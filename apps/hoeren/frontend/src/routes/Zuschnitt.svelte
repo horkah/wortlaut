@@ -1,6 +1,6 @@
 <script lang="ts" module>
   // Welche Seite gerade offen ist - über die Ansicht hinaus gemerkt. Wer aus
-  // „Schneiden" zurückkommt, soll dort weiterarbeiten, wo er die Karte
+  // „Editieren" zurückkommt, soll dort weiterarbeiten, wo er die Karte
   // verlassen hat, und nicht auf Seite 1 von vorn suchen. Nur für diesen
   // Reiter und diese Sitzung: Ein Neuladen fängt vorn an, wie bisher.
   const gemerkt = { seite: 1, proSeite: 0 };
@@ -45,7 +45,7 @@
   } from '../lib/api';
   import { bearbeitungsschluessel, setzeBearbeitungsschluessel } from '../lib/bearbeitungsschluessel';
   import { gehZu, zustand } from '../lib/zustand.svelte';
-  import { MEINE_DATEN_PFAD, TEILEN_ROUTE } from '$ui/apps';
+  import { MEINE_DATEN_PFAD, EDITIEREN_ROUTE } from '$ui/apps';
 
   // Wie viele Aufnahmen auf eine Seite gehen. Zehn ist die Vorgabe; mehr darf
   // wählen, wer einen großen Bildschirm und einen kurzen Korpus hat. Je Zeile
@@ -275,7 +275,7 @@
   /**
    * Löschen - ganz, nicht verwerfen.
    *
-   * Gedacht vor allem für das Original nach dem Schneiden: Es steht dann
+   * Gedacht vor allem für das Original nach dem Teilen in „Editieren": Es steht dann
    * neben seinen beiden Teilen und hat dort nichts mehr zu suchen. Die
    * Rückfrage sagt deshalb ausdrücklich, was anders ist als beim Verwerfen in
    * „Meine Daten" - dort wird der Satz wieder offen, hier geht er mit.
@@ -507,8 +507,8 @@
         <!-- In eine eigene Ansicht, nicht in die Karte: Dort braucht es eine
              dritte Linie und einen teilbaren Text, und beides passte nicht
              neben neun andere Karten. -->
-        <button class="knopf klein" onclick={() => gehZu(`${TEILEN_ROUTE}${aufnahme.id}`)}
-          >Schneiden …</button
+        <button class="knopf klein" onclick={() => gehZu(`${EDITIEREN_ROUTE}${aufnahme.id}`)}
+          >Editieren …</button
         >
       </div>
     </div>

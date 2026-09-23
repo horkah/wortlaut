@@ -181,10 +181,10 @@ class Teilung(BaseModel):
     start_s: float
     teilung_s: float
     ende_s: float
-    # Die Vorlage, an einer Wortgrenze in zwei geteilt. Zusammen müssen die
-    # beiden die Vorlage ergeben (`_pruefe_text`).
-    text_vorn: str
-    text_hinten: str
+    # Die Texte der beiden Teile - aus der Vorlage geteilt und womöglich von
+    # Hand berichtigt. Leer darf nur der Text eines Teils ohne Länge sein.
+    text_vorn: str = ""
+    text_hinten: str = ""
 
 
 class Teile(BaseModel):
@@ -452,29 +452,63 @@ def _woerter(text: str) -> list[str]:
     return text.split()
 
 
-def _pruefe_text(vorlage: str, vorn: str, hinten: str) -> None:
-    """Die beiden Hälften müssen zusammen die Vorlage ergeben, Wort für Wort.
+def _stuecke(teilung: Teilung) -> list[tuple[int, str]]:
+    """Welche Teile entstehen: `(nummer, text)`, 1 für vorn, 2 für hinten.
 
-    Geteilt wird an einer Wortgrenze, und sonst nichts. Wer dabei den Text
-    ändern könnte, hätte einen zweiten, versteckten Weg, Vorlagen zu
-    bearbeiten - und die Vorlage ist das, wogegen jede Messung rechnet.
-    Verglichen wird ohne Rücksicht auf Leerraum: Ob zwischen zwei Wörtern ein
-    Zeilenumbruch stand, ist keine Frage des Teilens.
+    Liegt die Teilung auf dem Anfang, hat Teil 1 keine Länge, und es entsteht
+    nur Teil 2 - eine Kopie des Ausschnitts, mit eigenem Text. Auf dem Ende
+    ebenso umgekehrt. So wird aus derselben Ansicht auch „diese Aufnahme mit
+    berichtigtem Text", ohne dass das Original angefasst wird.
+
+    **Der Text darf abweichen.** Gesprochen wird nicht immer, was dasteht, und
+    die Vorlage ist das, wogegen jede Messung rechnet - eine Aufnahme mit dem
+    falschen Prüftext misst das Modell an etwas, das niemand gesagt hat.
+    Geändert wird dabei nur die Vorlage der **neuen** Aufnahme; die des
+    Originals bleibt, wie sie war.
     """
-    if not _woerter(vorn) or not _woerter(hinten):
-        raise HTTPException(status_code=400, detail="Beide Teile brauchen Text.")
-    if _woerter(vorn) + _woerter(hinten) != _woerter(vorlage):
+    if not teilung.start_s <= teilung.teilung_s <= teilung.ende_s:
         raise HTTPException(
-            status_code=400,
-            detail="Die beiden Texte ergeben zusammen nicht die Vorlage.",
+            status_code=400, detail="Die Teilung muss zwischen Anfang und Ende liegen."
         )
+    leer_vorn = teilung.teilung_s <= teilung.start_s
+    leer_hinten = teilung.teilung_s >= teilung.ende_s
+    if leer_vorn and leer_hinten:
+        raise HTTPException(status_code=400, detail="Der Ausschnitt hat keine Länge.")
+    stuecke = [
+        (nummer, " ".join(_woerter(text)))
+        for nummer, text, leer in (
+            (1, teilung.text_vorn, leer_vorn),
+            (2, teilung.text_hinten, leer_hinten),
+        )
+        if not leer
+    ]
+    if any(not text for _, text in stuecke):
+        raise HTTPException(status_code=400, detail="Jeder Teil, der entsteht, braucht Text.")
+    return stuecke
+
+
+def _naechste_nummer(db: Datenbank, stamm: str) -> int:
+    """Die erste freie Nummer unter einem Original - ein zweites Teilen hängt hinten an.
+
+    Sonst trügen die Teile eines zweiten Durchgangs dieselben Schlüssel wie
+    die des ersten, und wer von beiden oben steht, entschiede der Zufall.
+    """
+    vorhanden = db.scalars(
+        select(Aufnahme.sortierschluessel).where(Aufnahme.sortierschluessel.like(f"{stamm}.%"))
+    ).all()
+    nummern = [
+        int(rest)
+        for schluessel in vorhanden
+        if schluessel and (rest := schluessel[len(stamm) + 1 :]).isdigit()
+    ]
+    return max(nummern, default=0) + 1
 
 
 @router.post("/teilen", response_model=Teile, dependencies=[Schluessel])
 def teilen(
     teilung: Teilung, sprecher: SprecherId, sprache: Sprache, db: Datenbank, ablage: Ablage
 ) -> Teile:
-    """Eine Aufnahme in zwei neue zerlegen - Ton und Text.
+    """Eine Aufnahme in zwei neue zerlegen - Ton und Text. Oder in eine.
 
     Gedacht für die Aufnahme, in der zwei Sätze stecken: zu lang für eine
     Trainingsprobe, oder eine Vorlage, die sich beim Sprechen als zwei
@@ -492,6 +526,9 @@ def teilen(
     Original gesprochen wurde. Und damit sie in jeder Liste direkt darunter
     stehen, bekommen sie einen Sortierschlüssel (`017_teilen.sql`).
 
+    **Oder nur ein Teil.** Liegt die Teilung auf Anfang oder Ende, entsteht
+    nur der andere Teil, als Kopie mit eigenem Text (`_stuecke`).
+
     **Gemessen wird neu.** Die Teile sind neue Aufnahmen ohne Messwerte; die
     nächste Auswertung rechnet sie. Die Pegelwerte und Hinweise kommen aus
     ihren eigenen Dateien, nicht vom Original.
@@ -500,32 +537,36 @@ def teilen(
     vorlage = db.get(Vorlage, original.prompt_id)
     if vorlage is None:
         raise HTTPException(status_code=404, detail="Zu dieser Aufnahme fehlt die Vorlage.")
-    _pruefe_text(vorlage.text, teilung.text_vorn, teilung.text_hinten)
+    stuecke = _stuecke(teilung)
 
-    kennungen = [ids.neue_id("rec"), ids.neue_id("rec")]
+    kennungen = [ids.neue_id("rec") for _ in stuecke]
     ziele = [corpus.audio_relpfad(sprecher, kennung) for kennung in kennungen]
     try:
-        befunde = zuschnitt.teile(
-            ablage, original, teilung.start_s, teilung.teilung_s, teilung.ende_s, *ziele
-        )
+        if len(stuecke) == 2:
+            befunde = zuschnitt.teile(
+                ablage, original, teilung.start_s, teilung.teilung_s, teilung.ende_s, *ziele
+            )
+        else:
+            befunde = (
+                zuschnitt.kopiere(ablage, original, teilung.start_s, teilung.ende_s, ziele[0]),
+            )
     except klang.AudioFehler as fehler:
         for ziel in ziele:
             ablage.loesche(ziel)
         raise HTTPException(status_code=400, detail=str(fehler)) from fehler
 
     stamm = original.sortierschluessel or original.id
+    erste = _naechste_nummer(db, stamm)
     position = naechste_position(db, sprecher)
     teile: list[Aufnahme] = []
-    for nummer, (kennung, ziel, befund, text) in enumerate(
-        zip(kennungen, ziele, befunde, (teilung.text_vorn, teilung.text_hinten), strict=True),
-        start=1,
+    for nummer, (kennung, ziel, befund, (_, text)) in enumerate(
+        zip(kennungen, ziele, befunde, stuecke, strict=True), start=erste
     ):
-        text = " ".join(_woerter(text))
         neue_vorlage = Vorlage(
             id=ids.neue_id("prm"),
             source_id=vorlage.source_id,
             speaker_id=sprecher,
-            position=position + nummer - 1,
+            position=position + nummer - erste,
             text=text,
             dauer_geschaetzt_s=chunker.dauer(text, sprache),
             erstellt=jetzt(),

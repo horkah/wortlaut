@@ -32,7 +32,7 @@
    *
    * **Die dritte Linie.** Wird `teilung` gebunden, steht zwischen den beiden
    * Grenzen eine weitere, gestrichelte: die Stelle, an der die Ansicht
-   * „Schneiden" eine Aufnahme in zwei zerlegt. Ohne sie bleibt alles, wie es
+   * „Editieren" eine Aufnahme in zwei zerlegt. Ohne sie bleibt alles, wie es
    * war - der Zuschnitt kennt nur zwei.
    */
 
@@ -82,13 +82,16 @@
   type Welche = 'start' | 'teilung' | 'ende';
   let zieht = $state<Welche | null>(null);
 
+  // Die Teilung zuletzt, also obenauf: Liegt sie auf Anfang oder Ende, greift
+  // der Zeiger sie und nicht die Linie darunter - sonst ließe sie sich von
+  // dort nie wieder wegziehen.
   const griffe = $derived(
     [
       { welche: 'start' as Welche, wert: start, name: 'Anfang' },
+      { welche: 'ende' as Welche, wert: ende, name: 'Ende' },
       ...(teilung === undefined
         ? []
         : [{ welche: 'teilung' as Welche, wert: teilung, name: 'Teilung' }]),
-      { welche: 'ende' as Welche, wert: ende, name: 'Ende' },
     ],
   );
 
@@ -143,14 +146,34 @@
    * schiebt sie bis dicht davor und merkt an der Kurve, dass es nicht weiter
    * geht. Mit einer Teilung dazwischen stößt jede äußere Linie an sie und
    * nicht an die gegenüberliegende.
+   *
+   * **Die Teilung darf auf Anfang oder Ende liegen** - dann hat einer der
+   * beiden Teile keine Länge, und „Editieren" speichert nur den anderen. In
+   * der Nähe rastet sie ein (ein Hundertstel der Breite): Mit der Maus genau
+   * auf dieselbe Stelle zu treffen, gelänge sonst nie. Liegt sie auf einer
+   * äußeren Linie, geht sie mit ihr mit.
    */
   function setze(welche: Welche, sekunden: number) {
     const luft = fensterS;
-    const links = teilung ?? ende;
-    const rechts = teilung ?? start;
-    if (welche === 'start') start = Math.min(Math.max(sekunden, 0), links - luft);
-    else if (welche === 'ende') ende = Math.max(Math.min(sekunden, dauerS), rechts + luft);
-    else teilung = Math.min(Math.max(sekunden, start + luft), ende - luft);
+    if (welche === 'teilung') {
+      const fang = dauerS * 0.01;
+      let wert = Math.min(Math.max(sekunden, start), ende);
+      if (wert - start < fang) wert = start;
+      else if (ende - wert < fang) wert = ende;
+      teilung = wert;
+      return;
+    }
+    const aufStart = teilung !== undefined && teilung === start;
+    const aufEnde = teilung !== undefined && teilung === ende;
+    if (welche === 'start') {
+      const anschlag = teilung !== undefined && !aufStart ? teilung : ende - luft;
+      start = Math.min(Math.max(sekunden, 0), anschlag, ende - luft);
+      if (aufStart) teilung = start;
+    } else {
+      const anschlag = teilung !== undefined && !aufEnde ? teilung : start + luft;
+      ende = Math.max(Math.min(sekunden, dauerS), anschlag, start + luft);
+      if (aufEnde) teilung = ende;
+    }
   }
 
   function greife(ereignis: PointerEvent, welche: Welche) {
