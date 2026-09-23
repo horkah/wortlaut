@@ -628,3 +628,26 @@ export const zuschnittZuruecknehmen = (schluessel: string, grenzen: Zuschnittgre
     ...alsJson({ grenzen }),
     headers: { 'Content-Type': 'application/json', 'X-Editor-Key': schluessel },
   });
+
+/** Eine einzelne Aufnahme, wie die Liste sie zeigt - für „Schneiden". */
+export const zuschnittEine = (schluessel: string, aufnahme: string) =>
+  anfrage<Zuschnittaufnahme>(`/zuschnitt/aufnahmen/${aufnahme}`, mitSchluessel(schluessel));
+
+export type Zuschnittteilung = {
+  id: string;
+  start_s: number;
+  teilung_s: number;
+  ende_s: number;
+  text_vorn: string;
+  text_hinten: string;
+};
+
+/**
+ * Eine Aufnahme in zwei neue zerlegen. Das Original bleibt; die Teile tragen
+ * sein Datum und stehen in der Liste direkt darunter.
+ */
+export const zuschnittTeilen = (schluessel: string, teilung: Zuschnittteilung) =>
+  anfrage<{ ids: string[] }>('/zuschnitt/teilen', {
+    ...alsJson(teilung),
+    headers: { 'Content-Type': 'application/json', 'X-Editor-Key': schluessel },
+  });

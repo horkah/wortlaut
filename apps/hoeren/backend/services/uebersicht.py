@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from wortlaut import storage
 
 from ..db.models import Aufnahme, Sitzung, Sprecher, Textquelle, Vorlage
+from . import zuschnitt
 
 # Ein Auszug ohne Grenze wäre bei zehntausend Aufnahmen eine Antwort, die
 # niemand liest und kein Browser gern darstellt.
@@ -259,7 +260,7 @@ def aufnahmen_seite(
         select(Aufnahme, Vorlage, Textquelle)
         .join(Vorlage, Vorlage.id == Aufnahme.prompt_id)
         .join(Textquelle, Textquelle.id == Vorlage.source_id)
-        .order_by(Aufnahme.erstellt.desc())
+        .order_by(*(merkmal.desc() for merkmal in zuschnitt.reihenfolge()))
         .offset(max(ab, 0))
         .limit(min(max(anzahl, 1), SEITE))
     ).all()
