@@ -539,7 +539,7 @@ def gueltige_aufnahmen(db: Session) -> list[tuple[Aufnahme, Vorlage]]:
             select(Aufnahme, Vorlage)
             .join(Vorlage, Vorlage.id == Aufnahme.prompt_id)
             .where(Aufnahme.status == GUELTIG)
-            .order_by(Aufnahme.erstellt, Aufnahme.id)
+            .order_by(*zuschnitt.reihenfolge())
         ).all()
     )
 

@@ -52,8 +52,10 @@ wo nichts knackst.
 from __future__ import annotations
 
 import tempfile
+import wave
 from pathlib import Path
 
+from sqlalchemy import func
 from wortlaut import audio as klang
 from wortlaut import corpus, storage
 
@@ -177,3 +179,67 @@ def loesche(ablage: storage.Ablage, aufnahme: Aufnahme) -> None:
     und damit derselbe Gesundheitsdatensatz wie das Original.
     """
     ablage.loesche(zuschnitt_blob(aufnahme))
+
+
+def reihenfolge() -> tuple:
+    """Wie Aufnahmen der Reihe nach stehen: nach Datum, und bei gleichem Datum
+    das Original vor seinen Teilen (`017_teilen.sql`).
+
+    Für `order_by(*zuschnitt.reihenfolge())`. Absteigend - wie in „Meine
+    Daten" - kehrt sich beides um, und die Teile stehen dann vor dem Original;
+    beieinander bleiben sie trotzdem.
+    """
+    return (Aufnahme.erstellt, func.coalesce(Aufnahme.sortierschluessel, Aufnahme.id))
+
+
+def teile(
+    ablage: storage.Ablage,
+    aufnahme: Aufnahme,
+    start_s: float,
+    teilung_s: float,
+    ende_s: float,
+    ziel_vorn: str,
+    ziel_hinten: str,
+) -> tuple[klang.Befund, klang.Befund]:
+    """Aus dem Original zwei Dateien schneiden: [start, teilung) und [teilung, ende).
+
+    Aus dem **Original** wie jeder Schnitt hier - die Ansicht zeigt dessen
+    Kurve, und in ihr stehen die drei Linien. Ein Zuschnitt, der auf der
+    Aufnahme liegt, geht die Teile nichts an: Ihre Ränder sind die beiden
+    äußeren Linien.
+
+    **Die Teilung sitzt auf genau einem Rahmen.** Außen wird nach außen
+    gerundet, wie beim Zuschneiden. Innen darf das nicht sein: Der eine Teil
+    endete einen Rahmen später, als der andere beginnt, und ein Abtastwert
+    stünde in beiden. Die Teilung wird deshalb zuerst auf einen Rahmen gelegt
+    und dann so übergeben, dass beide Rundungen auf ihm landen - der vordere
+    Teil schneidet dort ab, der hintere rundet dorthin ab. Aneinandergelegt
+    sind die beiden Byte für Byte der Bereich des Originals.
+
+    Gibt die Befunde beider Teile zurück; abgelegt ist danach beides.
+    """
+    quelle = ablage.pfad(aufnahme.blob)
+    if not quelle.is_file():
+        raise klang.AudioFehler(f"Audio fehlt: {aufnahme.blob}")
+    if not start_s < teilung_s < ende_s:
+        raise klang.AudioFehler(
+            "Die Teilung muss zwischen Anfang und Ende liegen "
+            f"({start_s:.2f} < {teilung_s:.2f} < {ende_s:.2f} s)."
+        )
+    with wave.open(str(quelle), "rb") as datei:
+        rate = datei.getframerate()
+    # Ein Viertelrahmen hinter der Rahmengrenze: `int` schneidet ihn für den
+    # vorderen Teil ab, `floor` rundet ihn für den hinteren ebenfalls ab -
+    # beide landen auf demselben Rahmen, und keine Gleitkommazahl kann einen
+    # der beiden auf den Nachbarn kippen lassen.
+    innen = (round(teilung_s * rate) + 0.25) / rate
+
+    with tempfile.TemporaryDirectory() as verzeichnis:
+        vorn = Path(verzeichnis) / "vorn.wav"
+        hinten = Path(verzeichnis) / "hinten.wav"
+        klang.schneide_ausschnitt(quelle, vorn, start_s, innen)
+        klang.schneide_ausschnitt(quelle, hinten, innen, ende_s, nach_aussen=True)
+        befunde = (klang.untersuche(vorn), klang.untersuche(hinten))
+        ablage.lege_ab(ziel_vorn, vorn)
+        ablage.lege_ab(ziel_hinten, hinten)
+    return befunde

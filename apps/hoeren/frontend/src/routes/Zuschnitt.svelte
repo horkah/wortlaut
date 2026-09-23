@@ -1,3 +1,11 @@
+<script lang="ts" module>
+  // Welche Seite gerade offen ist - über die Ansicht hinaus gemerkt. Wer aus
+  // „Schneiden" zurückkommt, soll dort weiterarbeiten, wo er die Karte
+  // verlassen hat, und nicht auf Seite 1 von vorn suchen. Nur für diesen
+  // Reiter und diese Sitzung: Ein Neuladen fängt vorn an, wie bisher.
+  const gemerkt = { seite: 1, proSeite: 0 };
+</script>
+
 <script lang="ts">
   /**
    * Zuschnitt: die Stille an den Rändern der eigenen Aufnahmen wegschneiden.
@@ -36,7 +44,7 @@
   } from '../lib/api';
   import { bearbeitungsschluessel, setzeBearbeitungsschluessel } from '../lib/bearbeitungsschluessel';
   import { gehZu, zustand } from '../lib/zustand.svelte';
-  import { MEINE_DATEN_PFAD } from '$ui/apps';
+  import { MEINE_DATEN_PFAD, TEILEN_ROUTE } from '$ui/apps';
 
   // Wie viele Aufnahmen auf eine Seite gehen. Zehn ist die Vorgabe; mehr darf
   // wählen, wer einen großen Bildschirm und einen kurzen Korpus hat. Je Zeile
@@ -51,8 +59,8 @@
 
   let aufnahmen = $state<Zuschnittaufnahme[]>([]);
   let gesamt = $state(0);
-  let seite = $state(1);
-  let proSeite = $state(SEITENGROESSEN[0]);
+  let seite = $state(gemerkt.seite);
+  let proSeite = $state(gemerkt.proSeite || SEITENGROESSEN[0]);
   const seiten = $derived(Math.max(1, Math.ceil(gesamt / proSeite)));
 
   /**
@@ -102,6 +110,8 @@
     vergiss();
     dateien = new Map();
     spielt = '';
+    gemerkt.seite = seite;
+    gemerkt.proSeite = proSeite;
     try {
       const antwort = await zuschnittAufnahmen(schluessel, (seite - 1) * proSeite, proSeite);
       aufnahmen = antwort.aufnahmen;
@@ -467,6 +477,12 @@
       <div class="reihe schmal">
         <button class="knopf klein" onclick={() => aufVorschlag(aufnahme)}>Vorschlag</button>
         <button class="knopf klein" onclick={() => ganzeAufnahme(aufnahme)}>Ganze Aufnahme</button>
+        <!-- In eine eigene Ansicht, nicht in die Karte: Dort braucht es eine
+             dritte Linie und einen teilbaren Text, und beides passte nicht
+             neben neun andere Karten. -->
+        <button class="knopf klein" onclick={() => gehZu(`${TEILEN_ROUTE}${aufnahme.id}`)}
+          >Schneiden …</button
+        >
       </div>
     </div>
     {/if}

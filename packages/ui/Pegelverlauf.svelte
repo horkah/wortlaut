@@ -29,6 +29,11 @@
    * echte Elemente - fokussierbar, mit `aria`-Werten, von der Tastatur aus
    * bedienbar. Das ist hier kein Zusatz: Die Ansicht richtet sich an jemanden,
    * der eine Zeile Text nur mit Mühe liest.
+   *
+   * **Die dritte Linie.** Wird `teilung` gebunden, steht zwischen den beiden
+   * Grenzen eine weitere, gestrichelte: die Stelle, an der die Ansicht
+   * „Schneiden" eine Aufnahme in zwei zerlegt. Ohne sie bleibt alles, wie es
+   * war - der Zuschnitt kennt nur zwei.
    */
 
   let {
@@ -38,6 +43,7 @@
     dauerS,
     start = $bindable(0),
     ende = $bindable(0),
+    teilung = $bindable(undefined),
     hoehe = 72,
     beschriftung = 'Ausschnitt',
   }: {
@@ -53,6 +59,8 @@
     start?: number;
     /** Ende des Ausschnitts in Sekunden - wandert beim Ziehen mit. */
     ende?: number;
+    /** Wo geteilt wird, in Sekunden; ohne Wert keine dritte Linie. */
+    teilung?: number;
     hoehe?: number;
     /** Wofür die beiden Griffe stehen, für Vorlesegeräte. */
     beschriftung?: string;
@@ -71,7 +79,18 @@
   const SCHRITT = $derived(fensterS);
 
   let bild = $state<SVGSVGElement | null>(null);
-  let zieht = $state<'start' | 'ende' | null>(null);
+  type Welche = 'start' | 'teilung' | 'ende';
+  let zieht = $state<Welche | null>(null);
+
+  const griffe = $derived(
+    [
+      { welche: 'start' as Welche, wert: start, name: 'Anfang' },
+      ...(teilung === undefined
+        ? []
+        : [{ welche: 'teilung' as Welche, wert: teilung, name: 'Teilung' }]),
+      { welche: 'ende' as Welche, wert: ende, name: 'Ende' },
+    ],
+  );
 
   const xVon = (sekunden: number) => (dauerS > 0 ? (sekunden / dauerS) * BREITE : 0);
 
@@ -116,21 +135,25 @@
   }
 
   /**
-   * Die beiden Grenzen können sich nicht überholen.
+   * Die Grenzen können sich nicht überholen - auch die Teilung nicht.
    *
    * Ein Ausschnitt mit dem Ende vor dem Anfang wäre keine Auswahl, sondern
    * eine Fehlermeldung, die erst der Server schreibt. Statt dessen bleibt ein
    * Fenster dazwischen stehen: Wer die eine Linie über die andere schiebt,
    * schiebt sie bis dicht davor und merkt an der Kurve, dass es nicht weiter
-   * geht.
+   * geht. Mit einer Teilung dazwischen stößt jede äußere Linie an sie und
+   * nicht an die gegenüberliegende.
    */
-  function setze(welche: 'start' | 'ende', sekunden: number) {
+  function setze(welche: Welche, sekunden: number) {
     const luft = fensterS;
-    if (welche === 'start') start = Math.min(Math.max(sekunden, 0), ende - luft);
-    else ende = Math.max(Math.min(sekunden, dauerS), start + luft);
+    const links = teilung ?? ende;
+    const rechts = teilung ?? start;
+    if (welche === 'start') start = Math.min(Math.max(sekunden, 0), links - luft);
+    else if (welche === 'ende') ende = Math.max(Math.min(sekunden, dauerS), rechts + luft);
+    else teilung = Math.min(Math.max(sekunden, start + luft), ende - luft);
   }
 
-  function greife(ereignis: PointerEvent, welche: 'start' | 'ende') {
+  function greife(ereignis: PointerEvent, welche: Welche) {
     // Zeiger festhalten: Wer mit dem Finger über den Rand des Bildes fährt,
     // soll die Linie nicht verlieren. Ohne das endet jeder Zug, sobald der
     // Finger den Griff verlässt - und auf einem Telefon ist er dafür breiter
@@ -152,13 +175,15 @@
     zieht = null;
   }
 
-  function tasten(ereignis: KeyboardEvent, welche: 'start' | 'ende') {
+  function tasten(ereignis: KeyboardEvent, welche: Welche) {
     const weite = ereignis.shiftKey ? SCHRITT * 10 : SCHRITT;
-    const jetzt = welche === 'start' ? start : ende;
+    const jetzt = welche === 'start' ? start : welche === 'ende' ? ende : (teilung ?? 0);
     if (ereignis.key === 'ArrowLeft') setze(welche, jetzt - weite);
     else if (ereignis.key === 'ArrowRight') setze(welche, jetzt + weite);
-    else if (ereignis.key === 'Home') setze(welche, welche === 'start' ? 0 : start);
-    else if (ereignis.key === 'End') setze(welche, welche === 'start' ? ende : dauerS);
+    // Pos1 und Ende schieben so weit, wie es geht - `setze` hält an der
+    // Nachbarlinie an.
+    else if (ereignis.key === 'Home') setze(welche, 0);
+    else if (ereignis.key === 'End') setze(welche, dauerS);
     else return;
     ereignis.preventDefault();
   }
@@ -196,10 +221,11 @@
     <line x1="0" x2={BREITE} y1={MITTE + schwelleY} y2={MITTE + schwelleY} class="schwelle" />
   {/if}
 
-  {#each [{ welche: 'start', wert: start, name: 'Anfang' }, { welche: 'ende', wert: ende, name: 'Ende' }] as griff (griff.welche)}
+  {#each griffe as griff (griff.welche)}
     <g
       class="griff"
       class:aktiv={zieht === griff.welche}
+      class:teilung={griff.welche === 'teilung'}
       role="slider"
       tabindex="0"
       aria-label="{beschriftung}: {griff.name}"
@@ -207,8 +233,8 @@
       aria-valuemax={dauerS}
       aria-valuenow={griff.wert}
       aria-valuetext={zahl(griff.wert)}
-      onpointerdown={(e) => greife(e, griff.welche as 'start' | 'ende')}
-      onkeydown={(e) => tasten(e, griff.welche as 'start' | 'ende')}
+      onpointerdown={(e) => greife(e, griff.welche)}
+      onkeydown={(e) => tasten(e, griff.welche)}
     >
       <!-- Der breite, unsichtbare Streifen ist die Fläche zum Anfassen. Eine
            zwei Pixel breite Linie trifft niemand mit dem Finger; getroffen
@@ -225,7 +251,13 @@
 
 <div class="marken gedaempft">
   <span>{zahl(start)}</span>
-  <span>{zahl(ende - start)} bleiben</span>
+  {#if teilung === undefined}
+    <span>{zahl(ende - start)} bleiben</span>
+  {:else}
+    <span>1: {zahl(teilung - start)}</span>
+    <span>{zahl(teilung)}</span>
+    <span>2: {zahl(ende - teilung)}</span>
+  {/if}
   <span>{zahl(ende)}</span>
 </div>
 
@@ -276,6 +308,12 @@
   .kappe {
     fill: var(--warnung);
     rx: 2;
+  }
+
+  /* Die Teilung gestrichelt: Sie begrenzt nichts, was wegfällt, sondern
+     trennt zwei Teile, die beide bleiben. */
+  .griff.teilung .linie {
+    stroke-dasharray: 6 4;
   }
 
   .griff.aktiv .linie,

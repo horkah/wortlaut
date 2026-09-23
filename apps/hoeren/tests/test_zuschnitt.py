@@ -445,3 +445,101 @@ class TestNachholen:
 
         # Byte für Byte dieselbe Datei: derselbe Schnitt aus derselben Quelle.
         assert geschnitten.read_bytes() == vorher
+
+
+def _teile(schneider: TestClient, sprecher: str, kennung: str, **abweichend) -> dict:
+    """Eine Aufnahme an der ersten Wortgrenze teilen - im Ton bei 2,0 s."""
+    with Session(deps.engine_fuer(sprecher)) as sitzung:
+        from apps.hoeren.backend.db.models import Vorlage
+
+        text = sitzung.get(Vorlage, sitzung.get(Aufnahme, kennung).prompt_id).text
+    vorn, hinten = text.split(" ", 1)
+    auftrag = {
+        "id": kennung,
+        "start_s": 0.5,
+        "teilung_s": 2.0,
+        "ende_s": 3.5,
+        "text_vorn": vorn,
+        "text_hinten": hinten,
+        **abweichend,
+    }
+    return schneider.post(f"/api/zuschnitt/teilen?sprecher={sprecher}", json=auftrag)
+
+
+class TestTeilen:
+    """Eine Aufnahme in zwei neue zerlegen - Ton und Text."""
+
+    def test_eine_aufnahme_einzeln(
+        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
+    ) -> None:
+        kennung = nimm_auf(schneider, sprecher, audio_datei)
+        antwort = schneider.get(f"/api/zuschnitt/aufnahmen/{kennung}?sprecher={sprecher}")
+        assert antwort.status_code == 200
+        assert antwort.json()["id"] == kennung
+        assert schneider.get(f"/api/zuschnitt/aufnahmen/rec_gibtsnicht").status_code == 404
+
+    def test_die_teile_liegen_lueckenlos_aneinander(
+        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict, tmp_path: Path
+    ) -> None:
+        """Byte für Byte der Bereich des Originals - kein Rahmen doppelt, keiner fehlt."""
+        kennung = nimm_auf(schneider, sprecher, audio_datei)
+        original = tmp_path / "data" / corpus.audio_relpfad(sprecher, kennung)
+
+        antwort = _teile(schneider, sprecher, kennung)
+        assert antwort.status_code == 200, antwort.text
+        vorn, hinten = antwort.json()["ids"]
+
+        rate, breite = 16_000, 2
+        erwartet = rahmen(original)[int(0.5 * rate) * breite : int(3.5 * rate) * breite]
+        dateien = [tmp_path / "data" / corpus.audio_relpfad(sprecher, k) for k in (vorn, hinten)]
+        assert len(rahmen(dateien[0])) == int(1.5 * rate) * breite
+        assert rahmen(dateien[0]) + rahmen(dateien[1]) == erwartet
+        # Das Original bleibt, wie es war.
+        assert original.is_file()
+
+    def test_texte_datum_und_reihenfolge(
+        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
+    ) -> None:
+        """Die Teile stehen direkt unter dem Original und tragen sein Datum."""
+        erste = nimm_auf(schneider, sprecher, audio_datei)
+        zweite = nimm_auf(schneider, sprecher, audio_datei)
+        vorn, hinten = _teile(schneider, sprecher, erste).json()["ids"]
+
+        liste = schneider.get(f"/api/zuschnitt/aufnahmen?sprecher={sprecher}").json()["aufnahmen"]
+        assert [eine["id"] for eine in liste] == [erste, vorn, hinten, zweite]
+        assert liste[1]["erstellt"] == liste[0]["erstellt"] == liste[2]["erstellt"]
+        assert f'{liste[1]["text"]} {liste[2]["text"]}' == liste[0]["text"]
+
+        with Session(deps.engine_fuer(sprecher)) as sitzung:
+            assert sitzung.get(Aufnahme, vorn).sortierschluessel == f"{erste}.1"
+            assert sitzung.get(Aufnahme, hinten).sortierschluessel == f"{erste}.2"
+
+    def test_text_muss_zusammen_die_vorlage_ergeben(
+        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
+    ) -> None:
+        kennung = nimm_auf(schneider, sprecher, audio_datei)
+        antwort = _teile(schneider, sprecher, kennung, text_hinten="etwas ganz anderes")
+        assert antwort.status_code == 400
+        antwort = _teile(schneider, sprecher, kennung, text_vorn="")
+        assert antwort.status_code == 400
+
+    def test_teilung_muss_zwischen_den_grenzen_liegen(
+        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
+    ) -> None:
+        kennung = nimm_auf(schneider, sprecher, audio_datei)
+        assert _teile(schneider, sprecher, kennung, teilung_s=3.8).status_code == 400
+        # Nichts angelegt.
+        assert len(
+            schneider.get(f"/api/zuschnitt/aufnahmen?sprecher={sprecher}").json()["aufnahmen"]
+        ) == 1
+
+    def test_die_vorlage_bleibt_erledigt(
+        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
+    ) -> None:
+        """Die neuen Vorlagen haben ihre Aufnahme - in der Warteschlange stehen sie nicht."""
+        kennung = nimm_auf(schneider, sprecher, audio_datei)
+        vorher = schneider.get("/api/prompts/next").json()
+        _teile(schneider, sprecher, kennung)
+        nachher = schneider.get("/api/prompts/next").json()
+        assert nachher["aktuell"]["id"] == vorher["aktuell"]["id"]
+

@@ -12,6 +12,7 @@
     SPRECHER_PFAD,
     uebergreifendePunkte,
     ZUGANGSDATEN_PFAD,
+    TEILEN_ROUTE,
     ZUSCHNITT_PFAD,
     type Menuepunkt,
   } from '$ui/apps';
@@ -30,6 +31,7 @@
   import Fortschritt from './routes/Fortschritt.svelte';
   import Zugangsdaten from './routes/Zugangsdaten.svelte';
   import Zuschnitt from './routes/Zuschnitt.svelte';
+  import Teilen from './routes/Teilen.svelte';
 
   // Die Reihenfolge ist der Weg durch die Arbeit an einem Sprecher: Text
   // holen, aufnehmen, nachsehen, was zusammengekommen ist - und am Ende
@@ -103,6 +105,9 @@
             // Sprecher wie sie - es sind dessen eigene Aufnahmen.
             spricht && zustand.route === ZUSCHNITT_PFAD
             ? Zuschnitt
+            : // „Schneiden" - eine Aufnahme aus dem Zuschnitt, in zwei geteilt.
+              spricht && zustand.route.startsWith(TEILEN_ROUTE)
+              ? Teilen
             : !spricht
             ? Verwaltung
             : // Die Reiter dieser App. Die Auswertung steht mit darin: Sie

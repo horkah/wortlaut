@@ -142,6 +142,16 @@ export const MEINE_DATEN_PFAD = '/meine-daten';
 export const ZUSCHNITT_PFAD = '/zuschnitt';
 
 /**
+ * „Schneiden": eine einzelne Aufnahme in zwei zerlegen - `#/zuschnitt/teilen/<id>`.
+ *
+ * Eine Stufe unter dem Zuschnitt und nur von dort erreichbar, über den Knopf
+ * an jeder Karte. Die Kennung steht in der Adresse, damit der Zurück-Knopf
+ * des Browsers dorthin führt, woher man kam, und ein Neuladen dieselbe
+ * Aufnahme wieder zeigt.
+ */
+export const TEILEN_ROUTE = `${ZUSCHNITT_PFAD}/teilen/`;
+
+/**
  * Wo die Grundmodelle über den eigenen Korpus laufen - die Auswertung.
  *
  * Nur „hören" führt sie, und zwar als **Reiter**: Dort liegt der Korpus, dort

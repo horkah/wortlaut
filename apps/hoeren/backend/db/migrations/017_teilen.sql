@@ -1,0 +1,22 @@
+-- Teilen: eine Aufnahme in zwei zerlegen, und wo die Teile stehen.
+--
+-- Eine Aufnahme, in der zwei Sätze stecken, lässt sich in der
+-- Zuschnittansicht an einer Stelle teilen (`api/zuschnitt.py`). Daraus
+-- entstehen zwei neue Aufnahmen mit je eigener Datei und eigener Vorlage; das
+-- Original bleibt, bis jemand es löscht.
+--
+-- **Die Teile tragen das Datum des Originals.** Gesprochen wurden sie dann und
+-- nicht beim Teilen - und `erstellt` ist die Sortierung jeder Liste, die den
+-- Korpus der Reihe nach zeigt. Nur ist `erstellt` sekundengenau, und damit
+-- stehen Original und Teile gleichauf; die Kennung als zweites Merkmal hilft
+-- nicht, denn Kennungen aus derselben Millisekunde stehen zufällig zueinander
+-- (`wortlaut/ids.py`).
+--
+-- Dafür diese Spalte. Leer bei jeder gewöhnlichen Aufnahme, bei einem Teil
+-- der Schlüssel des Originals mit angehängter Nummer: `rec_A.1`, `rec_A.2`,
+-- und wird `rec_A.1` noch einmal geteilt, `rec_A.1.1`. Sortiert wird nach
+-- `erstellt` und danach nach `COALESCE(sortierschluessel, id)`
+-- (`zuschnitt.reihenfolge`) - als Text verglichen steht damit das Original
+-- vor seinen Teilen und jeder Teil vor den Teilen des nächsten. Das Datum
+-- bleibt das erste Merkmal; die Spalte entscheidet nur, wo es gleich ist.
+ALTER TABLE recordings ADD COLUMN sortierschluessel TEXT;

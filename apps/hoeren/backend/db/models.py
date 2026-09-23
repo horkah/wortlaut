@@ -102,6 +102,10 @@ class Aufnahme(Basis):
     # (`corpus.zuschnitt_relpfad`), wie bei den abgewandelten Fassungen.
     zuschnitt_start_s: Mapped[float | None] = mapped_column(default=None)
     zuschnitt_ende_s: Mapped[float | None] = mapped_column(default=None)
+    # Wo ein Teil unter gleichzeitigen Aufnahmen steht (siehe
+    # `017_teilen.sql`): leer bei gewöhnlichen Aufnahmen, bei einem Teil der
+    # Schlüssel des Originals mit angehängter Nummer.
+    sortierschluessel: Mapped[str | None] = mapped_column(default=None)
     erstellt: Mapped[str]
 
 

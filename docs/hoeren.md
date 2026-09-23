@@ -865,6 +865,40 @@ Mikrosekunden Stille, ein Rahmen zu wenig wäre ein angeschnittener Abtastwert.
 Eine Ein- und Ausblendung gegen Knackser gibt es aus demselben Grund nicht -
 sie würde Abtastwerte verändern, und geschnitten wird ohnehin in der Stille.
 
+### Schneiden - eine Aufnahme in zwei
+
+Manche Aufnahme trägt zwei Äußerungen: eine Vorlage, die sich beim Sprechen
+als zwei Sätze erwies, oder eine, die für eine Trainingsprobe zu lang ist. Der
+Knopf **Schneiden …** an jeder Karte führt in eine eigene Ansicht
+(`#/zuschnitt/teilen/<id>`) mit nur dieser Aufnahme:
+
+* **Drei Linien in der Kurve.** Anfang und Ende wie im Zuschnitt, dazwischen
+  gestrichelt die Teilung. Sie steht anfangs in der Mitte der längsten Pause
+  zwischen den beiden Grenzen - dort, wo zwei Sätze aneinanderstoßen - und
+  lässt sich wie die anderen mit Finger, Maus oder Pfeiltasten verschieben.
+* **Der Text, Wort für Wort.** Zwischen je zwei Wörtern eine Lücke zum
+  Anklicken; der zweite Teil steht in der Akzentfarbe. Solange niemand klickt,
+  folgt die Textteilung der Linie - an der Wortgrenze, deren Anteil am Text dem
+  Anteil der Zeit am nächsten kommt.
+* **Drei Knöpfe zum Hören**: die ganze Aufnahme, Teil 1 (feste Grenze links,
+  gestrichelte rechts) und Teil 2 (umgekehrt).
+
+Nach der Rückfrage entstehen **zwei neue Aufnahmen**, jede mit eigener Datei
+und eigener Vorlage in derselben Textquelle wie das Original. Geschnitten wird
+verlustfrei aus dem Original; die Teilung liegt auf genau einem Rahmen,
+aneinandergelegt sind die Teile Byte für Byte der Bereich des Originals. Die
+Texte müssen zusammen die Vorlage ergeben - geteilt wird an einer Wortgrenze
+und sonst nichts, sonst wäre das ein versteckter Weg, Vorlagen zu bearbeiten.
+
+Das **Original bleibt**, bis jemand es löscht. Die Teile tragen sein Datum,
+denn gesprochen wurden sie damals - und damit sie in jeder Liste direkt unter
+ihm stehen, bekommen sie einen Sortierschlüssel (`recordings.sortierschluessel`,
+`017_teilen.sql`): leer bei gewöhnlichen Aufnahmen, `<id des Originals>.1` und
+`.2` bei den Teilen. Sortiert wird weiter nach dem Datum, der Schlüssel
+entscheidet nur bei Gleichstand (`zuschnitt.reihenfolge`). Gemessen werden die
+Teile beim nächsten Auswertungslauf; ihre Pegel und Hinweise kommen aus den
+eigenen Dateien.
+
 ### Der Schlüssel
 
 Vor allen Wegen des Zuschnitts steht `WORTLAUT_EDITOR_KEY` (Kopfzeile
@@ -1372,6 +1406,8 @@ GET    /api/zuschnitt/aufnahmen?ab=&anzahl= Kurve, Vorschlag, bisheriger Schnitt
 GET    /api/zuschnitt/aufnahmen/{id}/original   das ungeschnittene Audio
 POST   /api/zuschnitt/schreiben             { grenzen: [{ id, start_s, ende_s }] }
 POST   /api/zuschnitt/zuruecknehmen         { grenzen: [{ id, … }] }  - nur die Kennungen zählen
+GET    /api/zuschnitt/aufnahmen/{id}        eine Aufnahme wie in der Liste - für „Schneiden"
+POST   /api/zuschnitt/teilen                { id, start_s, teilung_s, ende_s, text_vorn, text_hinten } → { ids }
 ```
 
 Die drei ersten `/api/konto/…`-Wege verlangen zusätzlich die Kopfzeile

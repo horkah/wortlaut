@@ -534,6 +534,10 @@ Zwei Spalten tragen mehr Bedeutung, als ihr Name verrät:
   darüber, wo eine Datei liegt, sind eine zu viel. Und `dauer_s` bleibt die
   Dauer des Originals: Sie ist ein Messwert und soll einer bleiben, die des
   Zuschnitts ist `ende - start` und wird gerechnet.
+- `recordings.sortierschluessel` ist leer, außer bei den Teilen einer
+  geteilten Aufnahme: `<id des Originals>.1`, `.2`. Die Teile tragen das Datum
+  des Originals, und sortiert wird nach `erstellt`, dann nach
+  `COALESCE(sortierschluessel, id)` - so steht ein Original vor seinen Teilen.
 
 ---
 

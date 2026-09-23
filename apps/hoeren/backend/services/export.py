@@ -108,7 +108,7 @@ def _zeilen(sitzung: Session, sprecher_id: str) -> list[tuple[dict[str, object],
         .join(Vorlage, Vorlage.id == Aufnahme.prompt_id)
         .join(Textquelle, Textquelle.id == Vorlage.source_id)
         .where(Aufnahme.speaker_id == sprecher_id, Aufnahme.status == "ok")
-        .order_by(Aufnahme.erstellt)
+        .order_by(*zuschnitt.reihenfolge())
     ).all()
 
     return [
