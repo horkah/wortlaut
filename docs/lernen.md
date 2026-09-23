@@ -45,7 +45,9 @@ dieselbe Überlegung wie beim Lauf der Auswertung in `hören`.
 ## Sechsfache Kreuzvalidierung über alles
 
 Jede Aufnahme bekommt der Reihe nach eine Faltung - die erste in Faltung 1, die
-zweite in Faltung 2, nach der sechsten geht es wieder von vorn los. Ein
+zweite in Faltung 2, nach der sechsten geht es wieder von vorn los. Teile und
+Kopien aus „Editieren" zählen nicht eigens mit: Sie sind derselbe Ton wie ihr
+Original und kommen in dessen Faltung. Ein
 Trainingslauf rechnet dann **sieben** Trainings:
 
 | | Lernt auf | Gemessen an |

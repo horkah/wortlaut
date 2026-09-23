@@ -346,6 +346,34 @@ def gehoert(datenverzeichnis: Path, namen: list[str]) -> dict[str, dict[str, Ton
     return ergebnis
 
 
+def verwandte(db: Session, bekannt: dict[str, dict[str, Ton]]) -> dict[str, set[str]]:
+    """Je Stand alle Aufnahmen, die er kennt - die gehörten **und** ihre Verwandten.
+
+    Ein Teil oder eine Kopie aus „Editieren" ist eine neue Aufnahme, aber
+    derselbe Ton (`zuschnitt.stamm`). Hatte ein Stand das Original im
+    Training, kennt er den Teil, auch wenn dessen Kennung nie in seinem
+    Manifest stand; hatte er einen Teil, kennt er das Original zur Hälfte.
+    Eine Messung daran wäre keine unabhängige Prüfung, sondern wieder eine
+    über sein Gedächtnis.
+
+    Anders als eine gehörte Aufnahme bringt ein Verwandter keine Faltung mit:
+    Seine Kennung gab es im Lauf nicht. Die Stelle bleibt leer, bis ein neuer
+    Lauf ihn in seiner Kreuzvalidierung gemessen hat.
+    """
+    if not bekannt:
+        return {}
+    staemme = {aufnahme.id: zuschnitt.stamm(aufnahme) for aufnahme in db.scalars(select(Aufnahme))}
+    ergebnis: dict[str, set[str]] = {}
+    for modell, gehoerte in bekannt.items():
+        # Eine gehörte Aufnahme, die es nicht mehr gibt, ist ihr eigener Stamm -
+        # ihre Teile verweisen mit dem Sortierschlüssel weiter auf sie.
+        gehoerte_staemme = {staemme.get(kennung, kennung) for kennung in gehoerte}
+        ergebnis[modell] = set(gehoerte) | {
+            kennung for kennung, stamm in staemme.items() if stamm in gehoerte_staemme
+        }
+    return ergebnis
+
+
 def derselbe_ton(aufnahme: Aufnahme, damals: Ton) -> bool:
     """Ob ein Lauf diese Aufnahme so kannte, wie sie heute gilt.
 
@@ -380,9 +408,9 @@ def vergiss_ueberholte_faltungen(db: Session, datenverzeichnis: Path, sprecher_i
     der Bestand von vor dieser Regel eingeschlossen.
 
     Mit ihnen geht jede gerechnete Zeile eines Standes über eine Aufnahme, die
-    er im Training hatte. Die gibt es nach dieser Regel nicht mehr
-    (`offene_posten`); was davon noch dasteht, ist eine Zahl über sein
-    Gedächtnis.
+    er im Training hatte - oder über einen Teil oder eine Kopie davon
+    (`verwandte`). Die gibt es nach dieser Regel nicht mehr (`offene_posten`);
+    was davon noch dasteht, ist eine Zahl über sein Gedächtnis.
     """
     namen = [
         str(manifest.get("id", ""))
@@ -392,12 +420,14 @@ def vergiss_ueberholte_faltungen(db: Session, datenverzeichnis: Path, sprecher_i
     if not bekannt:
         return 0
     aufnahmen = {aufnahme.id: aufnahme for aufnahme, _ in gueltige_aufnahmen(db)}
+    gesperrt = verwandte(db, bekannt)
     weg = [
         zeile.id
         for zeile in db.scalars(select(Erkennung).where(Erkennung.modell.in_(list(bekannt))))
-        if zeile.recording_id in bekannt[zeile.modell]
+        if zeile.recording_id in gesperrt[zeile.modell]
         and (
-            zeile.herkunft != FALTUNG
+            zeile.recording_id not in bekannt[zeile.modell]
+            or zeile.herkunft != FALTUNG
             or (aufnahme := aufnahmen.get(zeile.recording_id)) is None
             or not derselbe_ton(aufnahme, bekannt[zeile.modell][zeile.recording_id])
         )
@@ -603,18 +633,19 @@ def offene_posten(
     Aufnahme zeigt lieber ein vollständiges Modell als vier angefangene.
 
     **Kein Stand über eine Aufnahme, die er im Training hatte** (`bekannt`,
-    aus `gehoert`). Für sie gilt seine Faltung; fehlt die - weil die Aufnahme
-    seither zugeschnitten wurde -, bleibt die Stelle leer, bis ein neuer Lauf
-    sie auf dem neuen Ton gemessen hat. Ihn selbst darauf anzusetzen, ergäbe
-    eine Zahl über sein Gedächtnis.
+    aus `gehoert`), und über keinen Teil und keine Kopie davon (`verwandte`).
+    Für sie gilt seine Faltung; fehlt die - weil die Aufnahme seither
+    zugeschnitten oder aus ihr etwas Neues geschnitten wurde -, bleibt die
+    Stelle leer, bis ein neuer Lauf sie auf dem neuen Ton gemessen hat. Ihn
+    selbst darauf anzusetzen, ergäbe eine Zahl über sein Gedächtnis.
     """
     erledigt = _fertig(db, werk)
-    bekannt = bekannt or {}
+    gesperrt = verwandte(db, bekannt or {})
     return [
         posten
         for aufnahme, vorlage in gueltige_aufnahmen(db)
         for modell in namen
-        if aufnahme.id not in bekannt.get(modell, {})
+        if aufnahme.id not in gesperrt.get(modell, ())
         for variante in augmentierung.VARIANTEN
         if (
             posten := Posten(

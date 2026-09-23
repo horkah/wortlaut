@@ -387,6 +387,9 @@ Faltungen teilen und k Läufe rechnen; der Test bleibt unangetastet.
 **Was daraus geworden ist - und es ist mehr.** Das Testdrittel ist ganz
 weggefallen. Kreuzvalidiert wird über **alle** Aufnahmen, sechsfach, und die
 Faltung folgt schlicht der Reihenfolge des Korpus: 1, 2, 3, 4, 5, 6, 1, 2, …
+Gezählt wird dabei je Stamm: Teile und Kopien aus „Editieren" sind derselbe
+Ton wie ihr Original und teilen sich dessen Faltung - sonst lernte ein Modell,
+woran es gemessen wird.
 
 Der Anlass war ein Korpus von neun Aufnahmen. Darin bestand der Test aus
 dreien, die Validierung aus **einer**. Eine Fehlerrate über drei Aufnahmen ist

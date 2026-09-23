@@ -192,6 +192,23 @@ def reihenfolge() -> tuple:
     return (Aufnahme.erstellt, func.coalesce(Aufnahme.sortierschluessel, Aufnahme.id))
 
 
+def stamm(aufnahme: Aufnahme) -> str:
+    """Die Aufnahme, aus der diese hervorging - bei einer gewöhnlichen sie selbst.
+
+    Ein Teil und eine Kopie aus „Editieren" sind neue Aufnahmen mit eigener
+    Kennung, aber kein neues Gesprochenes: Es ist derselbe Ton, ganz oder in
+    Stücken. Wer das Original gehört hat, hat auch sie gehört - und
+    umgekehrt. Wo es um unabhängige Prüfstücke geht (die Faltungen in
+    „lernen", die Auswertung eines trainierten Standes), zählt deshalb die
+    ganze Verwandtschaft als eine.
+
+    Abzulesen am Sortierschlüssel (`017_teilen.sql`): `rec_A.1.2` stammt aus
+    `rec_A`. Kennungen selbst tragen keinen Punkt (`wortlaut/ids.py`). Die
+    Angabe hält auch dann, wenn das Original längst gelöscht ist.
+    """
+    return (aufnahme.sortierschluessel or aufnahme.id).split(".", 1)[0]
+
+
 def teile(
     ablage: storage.Ablage,
     aufnahme: Aufnahme,
