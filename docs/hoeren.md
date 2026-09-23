@@ -899,6 +899,21 @@ entscheidet nur bei Gleichstand (`zuschnitt.reihenfolge`). Gemessen werden die
 Teile beim nächsten Auswertungslauf; ihre Pegel und Hinweise kommen aus den
 eigenen Dateien.
 
+### Löschen
+
+Unten neben „Zuschnitt schreiben" und „Zuschnitt zurücknehmen" steht
+**Löschen**, für alles, was markiert ist, nach einer Rückfrage. Gedacht vor
+allem für das Original nach dem Schneiden, das neben seinen beiden Teilen
+nichts mehr zu suchen hat.
+
+Löschen ist nicht Verwerfen. Beim Verwerfen in „Meine Daten" geht das Audio,
+die Zeile bleibt als `verworfen` stehen, und die Vorlage wird wieder offen -
+Verwerfen heißt „noch einmal sprechen". Löschen nimmt die Aufnahme ganz aus
+dem Bestand: Zeile, Original, Zuschnitt, Abwandlungen, Messwerte (auch
+übernommene Faltungen) - und die **Vorlage**, wenn keine andere Aufnahme mehr
+an ihr hängt. Sonst stünde nach dem Teilen der ganze Satz wieder in der
+Warteschlange, obwohl er längst in zwei Teilen daliegt.
+
 ### Der Schlüssel
 
 Vor allen Wegen des Zuschnitts steht `WORTLAUT_EDITOR_KEY` (Kopfzeile
@@ -1408,6 +1423,7 @@ POST   /api/zuschnitt/schreiben             { grenzen: [{ id, start_s, ende_s }]
 POST   /api/zuschnitt/zuruecknehmen         { grenzen: [{ id, … }] }  - nur die Kennungen zählen
 GET    /api/zuschnitt/aufnahmen/{id}        eine Aufnahme wie in der Liste - für „Schneiden"
 POST   /api/zuschnitt/teilen                { id, start_s, teilung_s, ende_s, text_vorn, text_hinten } → { ids }
+POST   /api/zuschnitt/loeschen              { grenzen: [{ id, … }] }  - ganz löschen, samt verwaister Vorlage
 ```
 
 Die drei ersten `/api/konto/…`-Wege verlangen zusätzlich die Kopfzeile

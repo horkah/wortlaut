@@ -543,3 +543,58 @@ class TestTeilen:
         nachher = schneider.get("/api/prompts/next").json()
         assert nachher["aktuell"]["id"] == vorher["aktuell"]["id"]
 
+
+class TestLoeschen:
+    def test_loescht_zeile_dateien_und_messwerte(
+        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict, tmp_path: Path
+    ) -> None:
+        kennung = nimm_auf(schneider, sprecher, audio_datei)
+        schneider.post(
+            f"/api/zuschnitt/schreiben?sprecher={sprecher}",
+            json={"grenzen": [{"id": kennung, "start_s": 1.0, "ende_s": 2.0}]},
+        )
+        with Session(deps.engine_fuer(sprecher)) as sitzung:
+            vorlage_id = sitzung.get(Aufnahme, kennung).prompt_id
+        dateien = [
+            tmp_path / "data" / corpus.audio_relpfad(sprecher, kennung),
+            tmp_path / "data" / corpus.zuschnitt_relpfad(sprecher, kennung),
+        ] + [
+            tmp_path / "data" / corpus.variante_relpfad(sprecher, kennung, abwandlung.name)
+            for abwandlung in augmentierung.ABWANDLUNGEN
+        ]
+        assert all(datei.is_file() for datei in dateien)
+
+        antwort = schneider.post(
+            f"/api/zuschnitt/loeschen?sprecher={sprecher}",
+            json={"grenzen": [{"id": kennung, "start_s": 0, "ende_s": 0}]},
+        )
+        assert antwort.json() == {"geschrieben": 1, "fehler": {}}
+        assert not any(datei.exists() for datei in dateien)
+
+        from apps.hoeren.backend.db.models import Vorlage
+
+        with Session(deps.engine_fuer(sprecher)) as sitzung:
+            assert sitzung.get(Aufnahme, kennung) is None
+            # Die Vorlage geht mit - sonst stünde der Satz wieder in der Warteschlange.
+            assert sitzung.get(Vorlage, vorlage_id) is None
+
+    def test_original_loeschen_laesst_die_teile(
+        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
+    ) -> None:
+        kennung = nimm_auf(schneider, sprecher, audio_datei)
+        vorn, hinten = _teile(schneider, sprecher, kennung).json()["ids"]
+        schneider.post(
+            f"/api/zuschnitt/loeschen?sprecher={sprecher}",
+            json={"grenzen": [{"id": kennung, "start_s": 0, "ende_s": 0}]},
+        )
+        liste = schneider.get(f"/api/zuschnitt/aufnahmen?sprecher={sprecher}").json()["aufnahmen"]
+        assert [eine["id"] for eine in liste] == [vorn, hinten]
+
+    def test_fremde_aufnahme_bleibt(
+        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
+    ) -> None:
+        antwort = schneider.post(
+            f"/api/zuschnitt/loeschen?sprecher={sprecher}",
+            json={"grenzen": [{"id": "rec_gibtsnicht", "start_s": 0, "ende_s": 0}]},
+        )
+        assert antwort.json()["fehler"] == {"rec_gibtsnicht": "Unbekannte Aufnahme."}
