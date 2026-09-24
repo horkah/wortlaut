@@ -282,6 +282,65 @@ DAUER_GEDULDIG = "geduldig"
 DAUERN = (DAUER_FEST, DAUER_GEDULDIG)
 
 
+# ── Der Optionscode ─────────────────────────────────────────────────────────
+#
+# Alle sieben Achsen eines Auftrags in einer Zeichenkette, etwa `ML-A-SRP-Ts-C`.
+# Er ist der Titel eines Laufs und eines Standes - in „Training", in der
+# Modelltafel und in der Einzelansicht, und überall aus `optionscode`.
+#
+# Vorn stehen immer Grundmodell und Methode, denn sie haben keinen Nullwert.
+# Dahinter je gewählter Achse ein Glied, in der Reihenfolge der Wahlfelder;
+# eine Achse auf ihrer Vorgabe fehlt. Die Buchstaben der Glieder sind
+# untereinander verschieden, damit sich jedes für sich lesen lässt.
+CODE_METHODE = {VOLL: "V", LORA: "L"}
+CODE_DATENSATZ = {NUR_ORIGINAL: "", MIT_VARIANTEN: "A"}
+CODE_DAUER = {DAUER_FEST: "", DAUER_GEDULDIG: "E"}
+# Kumulativ: S = SpecAugment, R = Raum + Rauschen, P = Tempo-Perturbation.
+CODE_AUGMENTIERUNG = {AUG_KEINE: "", AUG_MASKEN: "S", AUG_UMGEBUNG: "SR", AUG_VOLL: "SRP"}
+CODE_TEMPO = {TEMPO_AUS: "", TEMPO_GESCHAETZT: "Tg", TEMPO_OPTIMAL: "Ts"}
+# C = Checkpoint-Mittel, I = Interpolation mit dem Grundmodell (WiSE-FT).
+CODE_ABSCHLUSS = {
+    ABSCHLUSS_BESTER: "",
+    ABSCHLUSS_MITTEL: "C",
+    ABSCHLUSS_INTERPOLIERT: "I",
+    ABSCHLUSS_BEIDES: "CI",
+}
+
+
+def grundmodellcode(basismodell: str) -> str:
+    """`openai/whisper-medium` → `M`, `…-large-v3` → `L3`, `…-large-v3-turbo` → `L3T`."""
+    teile = [teil for teil in kurzname(basismodell).split("-") if teil]
+    if not teile:
+        return "?"
+    code = teile[0][0].upper()
+    for teil in teile[1:]:
+        code += teil[1:] if teil[0] == "v" and teil[1:].isdigit() else teil[0].upper()
+    return code
+
+
+def optionscode(auftrag: dict[str, Any]) -> str:
+    """Der Optionscode eines Auftrags oder Manifests - die einzige Stelle, die ihn bildet.
+
+    Ein Feld, das fehlt, ist eine Achse, die es damals noch nicht gab: Es
+    zählt als Vorgabe. Ein unbekannter Wert wird `?`, statt still zu fehlen.
+    """
+
+    def glied(tafel: dict[str, str], wert: object, vorgabe: str) -> str:
+        return tafel.get(str(wert or vorgabe), "?")
+
+    kopf = grundmodellcode(str(auftrag.get("basismodell") or "")) + glied(
+        CODE_METHODE, auftrag.get("methode"), "?"
+    )
+    glieder = (
+        glied(CODE_DATENSATZ, auftrag.get("daten"), NUR_ORIGINAL),
+        glied(CODE_DAUER, auftrag.get("dauer"), DAUER_FEST),
+        glied(CODE_AUGMENTIERUNG, auftrag.get("augmentierung"), AUG_KEINE),
+        CODE_TEMPO[tempowahl_aus(auftrag)],
+        glied(CODE_ABSCHLUSS, auftrag.get("abschluss"), ABSCHLUSS_BESTER),
+    )
+    return "-".join([kopf, *(teil for teil in glieder if teil)])
+
+
 # Der Zustand eines Laufs, wie ihn `zustand.json` nennt.
 WARTET = "wartet"
 LAEUFT = "laeuft"

@@ -182,8 +182,8 @@ Zwei Fragen, die sich nicht vermischen lassen, also zwei Achsen:
 
 | | Nur Originale | Mit Abwandlungen |
 |---|---|---|
-| **Volles Training** | alle Gewichte, eine Probe je Aufnahme | alle Gewichte, vier Proben je Aufnahme |
-| **Feintuning (LoRA)** | kleiner Zusatz, eine Probe je Aufnahme | kleiner Zusatz, vier Proben je Aufnahme |
+| **Volles Feintuning** | alle Gewichte, eine Probe je Aufnahme | alle Gewichte, vier Proben je Aufnahme |
+| **LoRA** | kleiner Zusatz, eine Probe je Aufnahme | kleiner Zusatz, vier Proben je Aufnahme |
 
 Erst der Vergleich der vier sagt, ob das Mehr an Daten oder das Mehr an
 Freiheit geholfen hat.
@@ -224,6 +224,33 @@ Platzes: 2,3 GB statt 9,3 GB. Der Stapel darf deshalb wieder auf acht stehen
 wie bei `small` - und es wurde dabei nicht langsamer, sondern schneller
 (68 statt 125 ms je Probe), weil ein Vorrat, der an die Decke stößt, mehr
 kostet als die zweite Rechnung.
+
+### Der Optionscode
+
+Ein Lauf und der Stand, der aus ihm entsteht, heißen nach ihren Optionen - in
+„Training", in der Modelltafel und in der Einzelansicht mit demselben Code,
+gebildet an einer Stelle (`wortlaut/laeufe.optionscode`). Beispiel:
+`ML-A-SRP-Ts-C` ist whisper-medium mit LoRA, mit Abwandlungen, voller
+Augmentierung, gesuchtem Tempo und Checkpoint-Mittel.
+
+Vorn stehen immer Grundmodell und Methode. Dahinter folgt je Achse ein Glied,
+wenn sie nicht auf ihrer Vorgabe steht, in dieser Reihenfolge:
+
+| Achse | Wert | Glied |
+|---|---|---|
+| Grundmodell | whisper-small, whisper-medium, whisper-large-v3 | `S`, `M`, `L3` |
+| Methode | Volles Feintuning, LoRA | `V`, `L` |
+| Datensatz | Nur Originale, Mit Abwandlungen | –, `A` |
+| Epochen | Feste Epochenzahl, Early Stopping | –, `E` |
+| Augmentierung | keine, SpecAugment, + Raum + Rauschen, + Tempo-Perturbation | –, `S`, `SR`, `SRP` |
+| Tempo | aus, geschätzt, gesucht | –, `Tg`, `Ts` |
+| Abschluss | bester Checkpoint, Checkpoint-Mittel, WiSE-FT, beides | –, `C`, `I`, `CI` |
+
+Zwei Läufe mit denselben Optionen tragen denselben Code; auseinander hält sie
+die Kennung (`registry.kurzkennung`). Ergebnisse wie das gefundene Tempo oder
+das gewählte α gehören nicht zum Code - sie stehen in der Nebenzeile und im
+Steckbrief. Ein Stand von vor September 2026 kennt die Tempowahl im Manifest
+nicht; sein Code kommt deshalb aus dem Auftrag des Laufs.
 
 ## Warum sich Zahlen ändern, wenn ein Modell verschwindet
 

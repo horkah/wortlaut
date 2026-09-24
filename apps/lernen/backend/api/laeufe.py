@@ -87,29 +87,30 @@ def _pruefe_trainerschluessel(
 
 
 class WahlAntwort(BaseModel):
-    """Eine Wahlmöglichkeit beim Beauftragen - Schlüssel, Name, Begründung."""
+    """Eine Wahlmöglichkeit beim Beauftragen - Schlüssel, Name, Kurzbeschreibung.
+
+    `code` ist ihr Glied im Optionscode (`lauf_layout.optionscode`), leer bei
+    der Vorgabe einer Achse.
+    """
 
     schluessel: str
     name: str
     erklaerung: str
+    code: str = ""
 
 
 METHODEN = [
     WahlAntwort(
         schluessel=lauf_layout.VOLL,
-        name="Volles Training",
-        erklaerung=(
-            "Alle Gewichte werden angepasst. Holt am meisten aus wenigen Stunden "
-            "Sprache heraus und vergisst am ehesten, was das Modell vorher konnte."
-        ),
+        name="Volles Feintuning",
+        erklaerung="Alle Gewichte trainierbar.",
+        code=lauf_layout.CODE_METHODE[lauf_layout.VOLL],
     ),
     WahlAntwort(
         schluessel=lauf_layout.LORA,
-        name="Feintuning (LoRA)",
-        erklaerung=(
-            "Nur ein kleiner Zusatz wird gelernt, das Grundmodell bleibt stehen. "
-            "Schneller, genügsamer im Speicher und schwerer zu verderben."
-        ),
+        name="LoRA",
+        erklaerung="Low-Rank-Adapter auf q_proj/v_proj, Grundmodell eingefroren.",
+        code=lauf_layout.CODE_METHODE[lauf_layout.LORA],
     ),
 ]
 
@@ -117,15 +118,14 @@ DATENSAETZE = [
     WahlAntwort(
         schluessel=lauf_layout.NUR_ORIGINAL,
         name="Nur Originale",
-        erklaerung="Jede Aufnahme einmal, so wie sie gesprochen wurde.",
+        erklaerung="Eine Probe je Aufnahme.",
+        code=lauf_layout.CODE_DATENSATZ[lauf_layout.NUR_ORIGINAL],
     ),
     WahlAntwort(
         schluessel=lauf_layout.MIT_VARIANTEN,
         name="Mit Abwandlungen",
-        erklaerung=(
-            "Dazu jede abgewandelte Fassung als eigene Probe - härter gegen "
-            "Aufnahmebedingungen, die der Korpus so nicht enthält."
-        ),
+        erklaerung="Dazu jede abgelegte Abwandlung als eigene Probe.",
+        code=lauf_layout.CODE_DATENSATZ[lauf_layout.MIT_VARIANTEN],
     ),
 ]
 
@@ -133,32 +133,27 @@ DATENSAETZE = [
 ABSCHLUESSE = [
     WahlAntwort(
         schluessel=lauf_layout.ABSCHLUSS_BESTER,
-        name="Bester Durchgang",
-        erklaerung=(
-            "Ausgeliefert wird der Zwischenstand mit dem besten Validierungsverlust - "
-            "das Verfahren, nach dem alle bisherigen Stände entstanden sind."
-        ),
+        name="Bester Checkpoint",
+        erklaerung="Geringster Validierungsverlust.",
+        code=lauf_layout.CODE_ABSCHLUSS[lauf_layout.ABSCHLUSS_BESTER],
     ),
     WahlAntwort(
         schluessel=lauf_layout.ABSCHLUSS_MITTEL,
-        name="Beste Durchgänge gemittelt",
-        erklaerung=(
-            "Die besten drei Zwischenstände werden Gewicht für Gewicht gemittelt. "
-            "Kostet keine Rechenzeit, nur Platz auf der Platte."
-        ),
+        name="Checkpoint-Mittel",
+        erklaerung="Die besten Checkpoints elementweise gemittelt (Model Soup).",
+        code=lauf_layout.CODE_ABSCHLUSS[lauf_layout.ABSCHLUSS_MITTEL],
     ),
     WahlAntwort(
         schluessel=lauf_layout.ABSCHLUSS_INTERPOLIERT,
-        name="Mit dem Grundmodell verrechnet",
-        erklaerung=(
-            "Anteilig mit dem Grundmodell gemischt, gegen das Vergessen. Der "
-            "Anteil α wird auf der Validierung gewählt."
-        ),
+        name="WiSE-FT",
+        erklaerung="α·θ_Grund + (1−α)·θ_fein, α auf der Validierung gewählt.",
+        code=lauf_layout.CODE_ABSCHLUSS[lauf_layout.ABSCHLUSS_INTERPOLIERT],
     ),
     WahlAntwort(
         schluessel=lauf_layout.ABSCHLUSS_BEIDES,
-        name="Beides",
-        erklaerung="Erst mitteln, dann mit dem Grundmodell verrechnen.",
+        name="Checkpoint-Mittel + WiSE-FT",
+        erklaerung="",
+        code=lauf_layout.CODE_ABSCHLUSS[lauf_layout.ABSCHLUSS_BEIDES],
     ),
 ]
 
@@ -167,34 +162,26 @@ AUGMENTIERUNGEN = [
     WahlAntwort(
         schluessel=lauf_layout.AUG_KEINE,
         name="Keine",
-        erklaerung=(
-            "Jede Probe so, wie sie im Schnappschuss steht - das Verfahren, "
-            "nach dem alle bisherigen Stände entstanden sind."
-        ),
+        erklaerung="",
+        code=lauf_layout.CODE_AUGMENTIERUNG[lauf_layout.AUG_KEINE],
     ),
     WahlAntwort(
         schluessel=lauf_layout.AUG_MASKEN,
-        name="Masken (SpecAugment)",
-        erklaerung=(
-            "Zeit- und Frequenzbalken ins Spektrogramm - das Modell lernt, aus dem "
-            "Rest zu schließen. Kostet praktisch nichts."
-        ),
+        name="SpecAugment",
+        erklaerung="Zeit- und Frequenzmasken im Spektrogramm.",
+        code=lauf_layout.CODE_AUGMENTIERUNG[lauf_layout.AUG_MASKEN],
     ),
     WahlAntwort(
         schluessel=lauf_layout.AUG_UMGEBUNG,
-        name="Masken, Raum und Rauschen",
-        erklaerung=(
-            "Dazu ein gewürfelter Raum und ein gewürfeltes Grundgeräusch - der "
-            "Abstand zum Mikrofon, die Wand dahinter, der Lüfter."
-        ),
+        name="+ Raum + Rauschen",
+        erklaerung="Dazu Nachhall und Hintergrundrauschen auf der Welle.",
+        code=lauf_layout.CODE_AUGMENTIERUNG[lauf_layout.AUG_UMGEBUNG],
     ),
     WahlAntwort(
         schluessel=lauf_layout.AUG_VOLL,
-        name="Dazu Tempo",
-        erklaerung=(
-            "Zusätzlich Tempo. Eigene Stufe, weil es bei dysarthrischer Sprache "
-            "auch schaden kann - dort ist das Tempo ein Merkmal des Sprechers."
-        ),
+        name="+ Tempo-Perturbation",
+        erklaerung="Dazu Abspieltempo 0,9–1,1×.",
+        code=lauf_layout.CODE_AUGMENTIERUNG[lauf_layout.AUG_VOLL],
     ),
 ]
 
@@ -202,19 +189,15 @@ AUGMENTIERUNGEN = [
 DAUERN = [
     WahlAntwort(
         schluessel=lauf_layout.DAUER_FEST,
-        name="Feste Zahl Durchgänge",
-        erklaerung=(
-            "So viele Durchgänge, wie im Rezept stehen - das Verfahren, nach dem "
-            "alle bisherigen Stände entstanden sind."
-        ),
+        name="Feste Epochenzahl",
+        erklaerung="Epochen laut Rezept.",
+        code=lauf_layout.CODE_DAUER[lauf_layout.DAUER_FEST],
     ),
     WahlAntwort(
         schluessel=lauf_layout.DAUER_GEDULDIG,
-        name="Bis nichts mehr besser wird",
-        erklaerung=(
-            "Höhere Obergrenze, Schluss bei ausbleibender Verbesserung. Kostet "
-            "Rechenzeit und nie Güte - ausgeliefert wird der beste Durchgang."
-        ),
+        name="Early Stopping",
+        erklaerung="Höhere Obergrenze, Abbruch ohne Verbesserung der Validierung.",
+        code=lauf_layout.CODE_DAUER[lauf_layout.DAUER_GEDULDIG],
     ),
 ]
 
@@ -223,24 +206,20 @@ TEMPI = [
     WahlAntwort(
         schluessel=lauf_layout.TEMPO_AUS,
         name="Aus",
-        erklaerung="Gar nicht vorspulen - der Zustand von immer.",
+        erklaerung="",
+        code=lauf_layout.CODE_TEMPO[lauf_layout.TEMPO_AUS],
     ),
     WahlAntwort(
         schluessel=lauf_layout.TEMPO_GESCHAETZT,
-        name="Aus den Dauern geschätzt",
-        erklaerung=(
-            "Aufnahmedauer geteilt durch die geschätzte Sprechdauer der Texte, "
-            "je Faltung, auf eine Viertelstufe gerundet. Kostet nichts."
-        ),
+        name="Geschätzt",
+        erklaerung="Aufnahmedauer / geschätzte Sprechdauer, je Faltung, auf 0,25 gerundet.",
+        code=lauf_layout.CODE_TEMPO[lauf_layout.TEMPO_GESCHAETZT],
     ),
     WahlAntwort(
         schluessel=lauf_layout.TEMPO_OPTIMAL,
-        name="Gesucht (0,75 bis 4,0)",
-        erklaerung=(
-            "Acht bis zehn Stützstellen am unveränderten Grundmodell, je "
-            "Faltung neu; am Ende die Kurven übereinandergelegt. Etwa eine "
-            "Minute je Faltung."
-        ),
+        name="Gesucht",
+        erklaerung="WER-Minimum über 0,75–4,0× am Grundmodell, je Faltung.",
+        code=lauf_layout.CODE_TEMPO[lauf_layout.TEMPO_OPTIMAL],
     ),
 ]
 
@@ -258,20 +237,14 @@ class GrundmodellAntwort(BaseModel):
     name: str
     erklaerung: str
     methoden: list[str]
+    code: str
 
 
 def _grundmodelle() -> list[GrundmodellAntwort]:
     konfiguration = einstellungen()
     beschreibung = {
-        "small": (
-            "244 Millionen Gewichte. Schnell, genügsam, und die Reihe, gegen die "
-            "\u201eh\u00f6ren\u201c seit jeher misst."
-        ),
-        "medium": (
-            "769 Millionen Gewichte - dreimal so groß und deutlich besser im "
-            "Ausgangspunkt. Nur mit LoRA: Volles Feintuning sprengt die Karte. "
-            "Rechnet spürbar länger."
-        ),
+        "small": "244 M Parameter.",
+        "medium": "769 M Parameter. Nur LoRA (GPU-Speicher).",
     }
     antworten = []
     for modell in konfiguration.grundmodelle():
@@ -280,8 +253,9 @@ def _grundmodelle() -> list[GrundmodellAntwort]:
             GrundmodellAntwort(
                 schluessel=modell,
                 name=f"whisper-{kurz}",
-                erklaerung=beschreibung.get(kurz, f"Grundmodell {kurz}."),
+                erklaerung=beschreibung.get(kurz, ""),
                 methoden=list(lauf_layout.methoden_fuer(modell)),
+                code=lauf_layout.grundmodellcode(modell),
             )
         )
     return antworten
@@ -319,6 +293,8 @@ class StandHinweis(BaseModel):
 class LaufAntwort(BaseModel):
     job_id: str
     sprecher_id: str
+    # Der Titel des Laufs: alle Achsen als Optionscode (`lauf_layout.optionscode`).
+    code: str
     methode: str
     daten: str
     # Was am Ende mit den Gewichten geschah. Ein Lauf von vor dieser Achse hat
@@ -574,6 +550,7 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
     return LaufAntwort(
         job_id=lauf.job_id,
         sprecher_id=lauf.sprecher_id,
+        code=lauf_layout.optionscode(lauf.auftrag),
         methode=str(lauf.auftrag.get("methode", "")),
         daten=str(lauf.auftrag.get("daten", "")),
         abschluss=str(lauf.auftrag.get("abschluss") or lauf_layout.ABSCHLUSS_BESTER),

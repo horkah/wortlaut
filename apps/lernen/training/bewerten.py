@@ -628,6 +628,7 @@ def gib_frei(
             "abschluss": str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER),
             "augmentierung": str(auftrag.get("augmentierung") or laeufe.AUG_KEINE),
             "dauer": str(auftrag.get("dauer") or laeufe.DAUER_FEST),
+            "tempowahl": laeufe.tempowahl_aus(auftrag),
             # Bei welcher Geschwindigkeit dieser Stand gelernt und gemessen
             # wurde. „schreiben" liest es und spult beim Diktieren genauso vor;
             # ohne die Angabe träfe ein Modell für schnelle Sprache auf einen

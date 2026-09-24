@@ -261,32 +261,13 @@
 {#if !lauf}
   <p class="gedaempft">Wird geladen …</p>
 {:else}
-  <h2>{lauf.methode === 'lora' ? 'Feintuning (LoRA)' : 'Volles Training'}</h2>
-  <p class="gedaempft">
-    {lauf.daten === 'original' ? 'Nur Originale' : 'Mit Abwandlungen'} ·
-    <!-- Der Abschluss nur, wenn er nicht der gewöhnliche ist: Ein Lauf von
-         früher soll heute lesen wie damals. Beschriftet vom Server, damit der
-         Name an einer Stelle steht und nicht an zweien. -->
-    {#if lauf.abschluss && lauf.abschluss !== 'bester'}
-      {daten?.abschluesse.find((wahl) => wahl.schluessel === lauf.abschluss)?.name ??
-        lauf.abschluss} ·
-    {/if}
-    {#if lauf.augmentierung && lauf.augmentierung !== 'keine'}
-      {daten?.augmentierungen.find((wahl) => wahl.schluessel === lauf.augmentierung)?.name ??
-        lauf.augmentierung} ·
-    {/if}
-    {#if lauf.dauer && lauf.dauer !== 'fest'}
-      {daten?.dauern.find((wahl) => wahl.schluessel === lauf.dauer)?.name ?? lauf.dauer} ·
-    {/if}
-    {lauf.basismodell} · {lauf.aufnahmen} Aufnahmen
-  </p>
+  <h2>
+    {#if lauf.kennung}<code class="kennung">{lauf.kennung}</code>{/if}
+    <span class="optionscode">{lauf.code}</span>
+  </h2>
 
-  <!-- Der Steckbrief: **jede** Achse, auch die auf Vorgabe.
-       Die Zeile darüber ist eine Überschrift und nennt nur, was abweicht -
-       das ist dort richtig, ein Lauf von früher soll lesen wie damals. Als
-       Auskunft wäre es falsch: „steht nicht da" hieße für die Hälfte der
-       Einstellungen „war die Vorgabe" und nicht „unbekannt", und das muss man
-       wissen, statt es zu schließen.
+  <!-- Der Steckbrief: **jede** Achse, auch die auf Vorgabe - der Code in der
+       Überschrift lässt Vorgaben weg.
 
        Beschriftet vom Server (`api/laeufe.steckbrief`), damit die Namen der
        Achsen an einer Stelle stehen - denselben, aus denen auch die
@@ -440,6 +421,20 @@
 {/if}
 
 <style>
+  .optionscode {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+
+  .kennung {
+    font-size: 0.6em;
+    padding: 0.05em 0.35em;
+    margin-right: 0.35em;
+    border: 1px solid var(--rand);
+    border-radius: 3px;
+    color: var(--gedaempft);
+    vertical-align: middle;
+  }
+
   .steckbrief {
     margin: 0 0 1rem;
     border: 1px solid var(--rand);

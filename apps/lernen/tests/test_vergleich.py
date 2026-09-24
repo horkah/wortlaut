@@ -209,10 +209,33 @@ class TestModelluebersicht:
 
         eigene = [modell for modell in antwort["modelle"] if modell["art"] == "trainiert"]
         assert [modell["version"] for modell in eigene] == [version]
-        # Die Zeile nennt beide unterscheidenden Angaben - vier Stände vom
-        # selben Tag wären sonst nicht auseinanderzuhalten.
-        assert "LoRA" in eigene[0]["name"]
-        assert "Nur Originale" in eigene[0]["name"]
+        # Der Titel ist der Optionscode: whisper-small, LoRA, sonst Vorgaben.
+        assert eigene[0]["name"] == "SL"
+
+    def test_training_und_modelltafel_nennen_denselben_code(
+        self, klient: TestClient, aufnahmen: list[str], datenverzeichnis, sprecher: str
+    ) -> None:
+        lauf = klient.post(
+            "/lernen/api/laeufe",
+            json={
+                "methode": "lora",
+                "daten": "augmentiert",
+                "abschluss": "beides",
+                "tempowahl": "optimal",
+            },
+        ).json()
+        _lauf_fertigstellen(datenverzeichnis, lauf["job_id"], sprecher, genauigkeit=88.0)
+
+        # Das Manifest kennt die Tempowahl nicht; der Code kommt aus dem Auftrag.
+        assert lauf["code"] == "SL-A-Ts-CI"
+        eigene = [
+            modell
+            for modell in klient.get("/lernen/api/modelle").json()["modelle"]
+            if modell["art"] == "trainiert"
+        ]
+        assert eigene[0]["name"] == lauf["code"]
+        einzeln = klient.get(f"/lernen/api/laeufe/{lauf['job_id']}").json()
+        assert einzeln["lauf"]["code"] == lauf["code"]
 
     def test_gemessen_wird_auf_denselben_aufnahmen(
         self, klient: TestClient, baseline: None, fertiger_lauf

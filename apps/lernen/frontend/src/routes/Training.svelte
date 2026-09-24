@@ -2,18 +2,11 @@
   /**
    * Läufe beauftragen und ihnen zusehen.
    *
-   * **Warum wenige Wahlen und keine Formularseite.** Zwei Methoden, zwei
-   * Datensätze, dazu der Abschluss: was am Ende mit den Gewichten geschieht.
-   * Alles andere steht fest - das Grundmodell, die Aufteilung, die Zahlen des
-   * Rezepts. Eine Seite voller Felder täuschte eine Freiheit vor, die es nicht
-   * gibt, und jede Einstellmöglichkeit wäre eine, deren Wirkung später niemand
-   * mehr zuzuordnen weiß.
-   *
-   * Jede der drei Wahlen ist deshalb eine Achse der Vergleichstafel und keine
-   * Stellschraube: Sie steht im Auftrag, sie steht am Modellstand, und sie
-   * lässt sich hinterher gegen die anderen messen. Der Abschluss hat mit
-   * `bester` genau die Vorgabe, nach der jeder Stand von vorher entstand -
-   * wer nichts wählt, rechnet, was dieses Projekt immer gerechnet hat.
+   * **Warum wenige Wahlen und keine Formularseite.** Sieben Achsen, jede mit
+   * wenigen Werten; alles andere steht im Rezept. Jede Achse steht im Auftrag
+   * und als Glied im Optionscode (`wortlaut/laeufe.optionscode`), der einen
+   * Lauf hier, in der Modelltafel und in der Einzelansicht benennt. Die
+   * Vorgaben sind das Verfahren, nach dem jeder Stand von vorher entstand.
    *
    * **Warum die Liste im Takt nachfragt.** Ein Training dauert Stunden. Der
    * Balken soll währenddessen wachsen, ohne dass jemand neu lädt - und er soll
@@ -27,8 +20,10 @@
     brichAb,
     laeufe as ladeLaeufe,
     loescheLauf,
+    type Grundmodell,
     type Lauf,
     type Laufliste,
+    type Wahl,
   } from '../lib/api';
   import { setzeTrainerschluessel, trainerschluessel } from '../lib/trainerschluessel';
   import { setzeTrainingswahl, trainingswahl } from '../lib/trainingswahl';
@@ -227,53 +222,15 @@
   }
 
   /**
-   * Die Überschrift einer Laufkarte.
-   *
-   * Der Abschluss steht nur dabei, wenn er nicht der gewöhnliche ist: Ein Lauf
-   * von früher soll heute heißen, wie er damals hieß, sonst sieht die Liste
-   * nach einer Änderung aus, wo keine ist.
+   * Die Geschwindigkeit, mit der ein Lauf rechnet - ein Ergebnis, keine Option,
+   * und deshalb nicht im Optionscode.
    */
-  function bezeichnung(lauf: Lauf): string {
-    const m = daten?.methoden.find((wahl) => wahl.schluessel === lauf.methode);
-    const d = daten?.datensaetze.find((wahl) => wahl.schluessel === lauf.daten);
-    const a = daten?.abschluesse.find((wahl) => wahl.schluessel === lauf.abschluss);
-    const g = daten?.augmentierungen.find((wahl) => wahl.schluessel === lauf.augmentierung);
-    const w = daten?.dauern.find((wahl) => wahl.schluessel === lauf.dauer);
-    // Das Grundmodell zuerst, und **immer**, nicht nur wenn es abweicht.
-    //
-    // Bis September 2026 stand es hier gar nicht. Solange es nur `small` gab,
-    // fiel das nicht auf; seit `medium` dazukam, sah man einer Laufkarte nicht
-    // mehr an, worauf sie trainiert hat - und das ist der stärkste Unterschied
-    // zwischen zwei Läufen überhaupt. Die Abwesenheit eines Namens ist eben
-    // keine Auskunft „dann eben das übliche", sondern gar keine.
-    const grund =
-      daten?.grundmodelle.find((g) => g.schluessel === lauf.basismodell)?.name ??
-      lauf.basismodell.replace(/^.*\//, '');
-    const teile = [grund, m?.name ?? lauf.methode, d?.name ?? lauf.daten];
-    if (lauf.abschluss && lauf.abschluss !== 'bester') teile.push(a?.name ?? lauf.abschluss);
-    if (lauf.augmentierung && lauf.augmentierung !== 'keine') {
-      teile.push(g?.name ?? lauf.augmentierung);
-    }
-    if (lauf.dauer && lauf.dauer !== 'fest') teile.push(w?.name ?? lauf.dauer);
-    // Die gefundene Geschwindigkeit statt des Namens der Achse: „Beste suchen"
-    // sagt, was bestellt war, „Tempo 1,75×" sagt, was dabei herauskam - und
-    // das ist die Zahl, die zwei Läufe voneinander trennt. Solange sie noch
-    // gesucht wird, steht das da; eine Überschrift, die erst später stimmt,
-    // wäre schlimmer als eine, die auf sich warten lässt.
+  function tempoErgebnis(lauf: Lauf): string {
     if (lauf.tempowahl !== 'aus') {
-      // Sobald eine Faltung einen Faktor gefunden hat, steht er da - mit dem
-      // Vermerk, dass er noch wandern kann. „wird gesucht" über zwanzig
-      // Minuten ist kein Zustand, sondern ein Platzhalter, der sich als einer
-      // ausgibt.
-      teile.push(
-        lauf.tempo === null
-          ? 'Tempo wird ermittelt'
-          : `Tempo ${tempoText(lauf.tempo)}${lauf.tempo_endgueltig ? '' : ' (vorläufig)'}`,
-      );
-    } else if (lauf.tempo !== null && lauf.tempo !== 1) {
-      teile.push(`Tempo ${tempoText(lauf.tempo)}`);
+      if (lauf.tempo === null) return 'Tempo wird ermittelt';
+      return `Tempo ${tempoText(lauf.tempo)}${lauf.tempo_endgueltig ? '' : ' (vorläufig)'}`;
     }
-    return teile.join(' · ');
+    return lauf.tempo !== null && lauf.tempo !== 1 ? `Tempo ${tempoText(lauf.tempo)}` : '';
   }
 
   async function hole() {
@@ -335,7 +292,7 @@
    * sich, womit in „schreiben" diktiert wird.
    */
   async function loesche(lauf: Lauf) {
-    const zeilen = [`${bezeichnung(lauf)} vom ${zeitpunkt(lauf.erstellt)} löschen?`, ''];
+    const zeilen = [`${lauf.code} vom ${zeitpunkt(lauf.erstellt)} löschen?`, ''];
     if (lauf.stand) {
       zeilen.push(`Das Modell „${lauf.stand.version}" wird mitgelöscht.`);
       if (lauf.stand.freigegeben) {
@@ -393,25 +350,28 @@
 </script>
 
 <h2>Training</h2>
-<p class="gedaempft">
-  Aus den Aufnahmen von „hören" ein Modell für diese eine Stimme. Trainiert wird auf
-  {daten?.basismodell ?? 'whisper-small'} - fest, denn nur so ist das Ergebnis mit der Baseline
-  aus der Auswertung vergleichbar.
-</p>
 
 {#if fehler}
   <p class="fehler">{fehler}</p>
 {/if}
 
+{#snippet option(wahl: Wahl | Grundmodell)}
+  <span>
+    <strong>{wahl.name}</strong>
+    {#if wahl.code}<code class="glied">{wahl.code}</code>{/if}
+    {#if wahl.erklaerung}<span class="gedaempft">{wahl.erklaerung}</span>{/if}
+  </span>
+{/snippet}
+
 <div class="karte bestellung">
   {#if daten && !daten.bereit}
     <p>{daten.hinweis}</p>
   {:else if daten}
+    <!-- Die Reihenfolge der Felder ist die der Glieder im Optionscode
+         (`wortlaut/laeufe.optionscode`). -->
     <div class="wahlen">
-      <!-- Das Grundmodell zuerst: Es ist der stärkste Hebel und entscheidet
-           zugleich, welche Methoden überhaupt noch zur Wahl stehen. -->
       <fieldset>
-        <legend>Worauf trainiert wird</legend>
+        <legend>Grundmodell</legend>
         {#each daten.grundmodelle as wahl (wahl.schluessel)}
           <label class="option">
             <input
@@ -419,16 +379,13 @@
               bind:group={grundmodell}
               value={wahl.schluessel === daten.basismodell ? '' : wahl.schluessel}
             />
-            <span>
-              <strong>{wahl.name}</strong>
-              <span class="gedaempft">{wahl.erklaerung}</span>
-            </span>
+            {@render option(wahl)}
           </label>
         {/each}
       </fieldset>
 
       <fieldset>
-        <legend>Wie trainiert wird</legend>
+        <legend>Methode</legend>
         {#each daten.methoden as wahl (wahl.schluessel)}
           {@const geht = erlaubteMethoden.includes(wahl.schluessel)}
           <label class="option" class:nichtmoeglich={!geht}>
@@ -438,98 +395,63 @@
               value={wahl.schluessel}
               disabled={!geht}
             />
-            <span>
-              <strong>{wahl.name}</strong>
-              <span class="gedaempft">
-                {wahl.erklaerung}
-                {#if !geht}
-                  <br />Mit {gewaehltesGrundmodell?.name} nicht möglich: Es sprengt den Speicher
-                  der Karte.
-                {/if}
-              </span>
-            </span>
+            {@render option(
+              geht
+                ? wahl
+                : { ...wahl, erklaerung: `Mit ${gewaehltesGrundmodell?.name} nicht möglich (GPU-Speicher).` },
+            )}
           </label>
         {/each}
       </fieldset>
 
       <fieldset>
-        <legend>Womit</legend>
+        <legend>Datensatz</legend>
         {#each daten.datensaetze as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={datensatz} value={wahl.schluessel} />
-            <span>
-              <strong>{wahl.name}</strong>
-              <span class="gedaempft">{wahl.erklaerung}</span>
-            </span>
+            {@render option(wahl)}
           </label>
         {/each}
       </fieldset>
 
-      <!-- Die fünfte Achse. Sie kommt aus einem Befund: Bei einem sehr
-           kleinen Korpus fiel die Validierungskurve am letzten Durchgang noch,
-           die Obergrenze aus dem Rezept band also. Ausgeliefert wird ohnehin
-           der beste Durchgang - Geduld kostet damit Rechenzeit und nie Güte. -->
       <fieldset>
-        <legend>Wie lange trainiert wird</legend>
+        <legend>Epochen</legend>
         {#each daten.dauern as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={dauer} value={wahl.schluessel} />
-            <span>
-              <strong>{wahl.name}</strong>
-              <span class="gedaempft">{wahl.erklaerung}</span>
-            </span>
+            {@render option(wahl)}
           </label>
         {/each}
       </fieldset>
 
-      <!-- Die vierte Achse: was mit einer Probe geschieht, während gelernt
-           wird. Anders als „Womit" (welche abgelegten Fassungen als eigene
-           Zeilen ins Manifest kommen) wird hier nichts abgelegt - es ist in
-           jedem Durchgang eine andere Abwandlung, und genau daran liegt die
-           Wirkung. -->
+      <!-- Online, je Durchgang neu gewürfelt - anders als „Datensatz", der
+           abgelegte Fassungen als eigene Proben hinzunimmt. -->
       <fieldset>
-        <legend>Wie abgewandelt wird</legend>
+        <legend>Augmentierung</legend>
         {#each daten.augmentierungen as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={augmentierung} value={wahl.schluessel} />
-            <span>
-              <strong>{wahl.name}</strong>
-              <span class="gedaempft">{wahl.erklaerung}</span>
-            </span>
+            {@render option(wahl)}
           </label>
         {/each}
       </fieldset>
 
-      <!-- Die sechste Achse, und die einzige, die etwas **sucht**.
-           Am Sprecherprofil hängt eine Geschwindigkeit; sie gilt fürs Messen,
-           fürs Diktieren und normalerweise auch hier. Nur ist der eingestellte
-           Wert der, den jemand zuerst ausprobiert hat, und nicht der beste. -->
       <fieldset>
-        <legend>Wie schnell gehört wird</legend>
+        <legend>Tempo</legend>
         {#each daten.tempi as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={tempowahl} value={wahl.schluessel} />
-            <span>
-              <strong>{wahl.name}</strong>
-              <span class="gedaempft">{wahl.erklaerung}</span>
-            </span>
+            {@render option(wahl)}
           </label>
         {/each}
       </fieldset>
 
-      <!-- Die dritte Achse. Sie fasst das Training nicht an: Sie entscheidet
-           nur, welcher Stand aus einem gelaufenen Training ausgeliefert wird -
-           und lässt sich damit an denselben Aufnahmen messen wie die
-           beiden anderen. -->
       <fieldset>
-        <legend>Was am Ende zählt</legend>
+        <legend>Abschluss</legend>
         {#each daten.abschluesse as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={abschluss} value={wahl.schluessel} />
-            <span>
-              <strong>{wahl.name}</strong>
-              <span class="gedaempft">{wahl.erklaerung}</span>
-            </span>
+            {@render option(wahl)}
           </label>
         {/each}
       </fieldset>
@@ -537,17 +459,10 @@
 
     {#if daten.schluessel_noetig}
       <!-- Ein Lauf belegt die Karte für Stunden, und das soll nicht jeder
-           anstoßen können, der einen Aufnahmelink hat. Der Schlüssel steht
-           beim Knopf und nicht auf einer Anmeldeseite: Er erlaubt keine
-           Ansicht, sondern genau diese eine Handlung. -->
+           anstoßen können, der einen Aufnahmelink hat. -->
       <label class="schluessel">
         <span class="gedaempft">Trainerschlüssel</span>
-        <input
-          type="password"
-          bind:value={schluessel}
-          autocomplete="off"
-          placeholder="nötig, um einen Lauf anzustoßen"
-        />
+        <input type="password" bind:value={schluessel} autocomplete="off" />
       </label>
     {/if}
 
@@ -559,32 +474,22 @@
       >
         Training beauftragen
       </button>
-      <span class="gedaempft">
-        {#if gerechnetGenau.has(bestellschluessel)}
-          Diese Kombination ist schon gerechnet - ein zweiter Lauf nimmt die seither
-          hinzugekommenen Aufnahmen mit.
-        {:else}
-          Der Lauf rechnet auf der Karte und dauert; er wartet, bis der Trainer Zeit hat.
-        {/if}
-      </span>
+      {#if gerechnetGenau.has(bestellschluessel)}
+        <span class="gedaempft">Schon gerechnet.</span>
+      {/if}
     </div>
 
     {#if daten.aufnahmen_neu > 0 && daten.laeufe.some((lauf) => lauf.status === 'fertig')}
       <!-- Kein Knopf, der von selbst drückt: Ein Lauf belegt die Karte und
            friert einen Stand des Korpus ein; von allein angestoßen wüsste
-           hinterher niemand, welche Aufnahmen in welchem Modell stecken.
-           Sichtbar machen, wann es sich lohnt, ist die halbe Automatik - und
-           die richtige Hälfte. -->
+           hinterher niemand, welche Aufnahmen in welchem Modell stecken. -->
       <p class="neu">
         <strong>{daten.aufnahmen_neu}</strong>
-        {daten.aufnahmen_neu === 1 ? 'Aufnahme ist' : 'Aufnahmen sind'} dazugekommen, seit
-        zuletzt etwas fertig trainiert wurde ({daten.aufnahmen_jetzt} insgesamt). Ein neuer Lauf
-        nimmt sie mit.
+        {daten.aufnahmen_neu === 1 ? 'neue Aufnahme' : 'neue Aufnahmen'} seit dem letzten fertigen
+        Lauf ({daten.aufnahmen_jetzt} insgesamt).
       </p>
     {/if}
 
-    <!-- Vier Felder, und man sieht auf einen Blick, welche noch fehlen: Die
-         Frage dieser App ist der Vergleich der vier. -->
     <div class="matrix" aria-hidden="true">
       {#each daten.methoden as m (m.schluessel)}
         {#each daten.datensaetze as d (d.schluessel)}
@@ -610,17 +515,11 @@
       <div class="karte lauf" class:offen={lauf.status === 'laeuft' && !lauf.haengt}>
         <div class="kopfzeile">
           <p class="marke">
-            <!-- Der kurze Code vor dem sprechenden Titel, nicht statt seiner:
-                 Der Titel sagt, **was** dieser Stand ist, die Kennung sagt,
-                 **welcher** - und sie ist dieselbe in der Modelltafel und in
-                 „schreiben" (`registry.kurzkennung`).
-
-                 Der Titel **ist** der Weg in die Einzelansicht. Ein Knopf
-                 „Details" daneben war eine zweite Beschriftung für dasselbe
-                 Ziel und nahm eine Zeile ein; wer wissen will, was hinter
-                 einem Lauf steckt, klickt ohnehin auf seinen Namen. -->
+            <!-- Die Kennung sagt, **welcher** Stand, der Optionscode, **was**
+                 er ist - beide dieselben wie in der Modelltafel. Der Code ist
+                 der Weg in die Einzelansicht. -->
             {#if lauf.kennung}<code class="kennung">{lauf.kennung}</code>{/if}
-            <a class="titel" href="#{LAUF_ROUTE}{lauf.job_id}">{bezeichnung(lauf)}</a>
+            <a class="titel" href="#{LAUF_ROUTE}{lauf.job_id}">{lauf.code}</a>
           </p>
           <span class="rechts">
             <!-- Ein hängender Lauf sagt im Zustand `laeuft`. Das hier ist die
@@ -639,7 +538,7 @@
               title={lauf.loeschbar
                 ? 'Diesen Lauf löschen'
                 : 'Ein rechnender Lauf lässt sich nicht löschen'}
-              aria-label="Lauf {bezeichnung(lauf)} löschen"
+              aria-label="Lauf {lauf.code} löschen"
               disabled={!lauf.loeschbar || loescht === lauf.job_id}
               onclick={() => loesche(lauf)}
             >
@@ -666,7 +565,8 @@
 
         <p class="gedaempft klein">
           {zeitpunkt(lauf.erstellt)} · {lauf.aufnahmen} Aufnahmen ·
-          {lauf.zeilen.gesamt ?? 0} Proben über {daten?.faltungen ?? 6} Faltungen
+          {lauf.zeilen.gesamt ?? 0} Proben · {daten?.faltungen ?? 6} Faltungen
+          {#if tempoErgebnis(lauf)} · {tempoErgebnis(lauf)}{/if}
         </p>
 
         {#if lauf.haengt}
@@ -675,9 +575,8 @@
                stattdessen dasteht, ist die Auskunft, die weiterhilft: wie weit
                er kam, und seit wann nichts mehr geschah. -->
           <p class="hinweise">
-            Seit {stillstand(lauf.stillstand_s)} hat dieser Lauf nichts mehr geschrieben.
-            {#if lauf.anteil !== null}Er steht bei {(lauf.anteil * 100).toFixed(0)} %.{/if}
-            Fortsetzen lässt er sich nicht - er lässt sich aber löschen.
+            Keine Ausgabe seit {stillstand(lauf.stillstand_s)}{#if lauf.anteil !== null},
+              stehen geblieben bei {(lauf.anteil * 100).toFixed(0)} %{/if}. Nicht fortsetzbar.
           </p>
         {:else if lauf.status === 'laeuft'}
           <!-- Der Balken bleibt leer, solange der Trainer die Schrittzahl nicht
@@ -703,9 +602,6 @@
             <button class="knopf" onclick={() => nimmZurueck(lauf.job_id)}>
               Zurücknehmen
             </button>
-            <span class="gedaempft klein">
-              Solange niemand rechnet, lässt sich der Auftrag zurückziehen.
-            </span>
           </div>
         {/if}
       </div>
@@ -725,6 +621,10 @@
   .titel:hover,
   .titel:focus-visible {
     text-decoration: underline;
+  }
+
+  .titel {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
   }
 
   /* Die Kurzkennung: klein, einfarbig, monospace - sie soll gefunden und
@@ -810,6 +710,17 @@
   .option .gedaempft {
     font-size: 0.85rem;
     line-height: 1.4;
+  }
+
+  /* Das Glied dieser Wahl im Optionscode. */
+  .glied {
+    margin-left: 0.35em;
+    padding: 0 0.3em;
+    border: 1px solid var(--akzent);
+    border-radius: 3px;
+    color: var(--akzent);
+    font-size: 0.8em;
+    white-space: nowrap;
   }
 
   /* Nicht versteckt, sondern abgeblendet: Dass volles Training mit `medium`
