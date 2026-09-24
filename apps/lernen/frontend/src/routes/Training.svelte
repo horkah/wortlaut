@@ -184,8 +184,9 @@
     return `${Math.round((anzahl / gezaehlt.length) * 100)}\u00a0%`;
   }
 
-  // Wie viele Streifen ein Balken hat - einer steht für fünf Prozent.
-  const STREIFEN = 20;
+  // Wie viele Streifen ein Balken hat - einer steht für zehn Prozent. Mehr
+  // Streifen auf derselben Höhe würden zu dünn, um sie noch zu trennen.
+  const STREIFEN = 10;
 
   /** Wie viele Streifen leuchten. Wer überhaupt gewählt wurde, bekommt einen. */
   function leuchtend(anzahl: number): number {
@@ -800,19 +801,18 @@
   }
 
   /* Alle Säulen gleich breit und im gleichen Abstand, breiter als das
-     eingerahmte Glied darunter. Auf einem schmalen Gerät scrollt die Reihe,
-     statt umzubrechen - ein Equalizer in zwei Zeilen ist keiner mehr. */
+     eingerahmte Glied darunter. Auf einem schmalen Gerät bricht die Reihe
+     in eine zweite Zeile um, statt seitlich zu scrollen. */
   .equalizer {
     display: flex;
-    gap: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.8rem 0.5rem;
     margin-top: 1.2rem;
-    padding-bottom: 0.2rem;
-    overflow-x: auto;
   }
 
   .regler {
     flex: none;
-    width: 2.8rem;
+    width: 1.9rem;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -825,11 +825,11 @@
     width: 100%;
     display: flex;
     flex-direction: column-reverse;
-    gap: 0.14rem;
+    gap: 0.1rem;
   }
 
   .streifen {
-    height: 0.3rem;
+    height: 0.2rem;
     border-radius: 1px;
     background: var(--rand);
     opacity: 0.45;
