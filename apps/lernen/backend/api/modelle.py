@@ -37,27 +37,6 @@ router = APIRouter(prefix="/lernen/api/modelle", tags=["Modelle"])
 GRUNDMODELL = "grundmodell"
 TRAINIERT = "trainiert"
 
-METHODEN = {"full": "Volles Training", "lora": "Feintuning (LoRA)"}
-DATEN = {"original": "Nur Originale", "augmentiert": "Mit Abwandlungen"}
-# Die übrigen Achsen, kurz beschriftet - sie stehen seit September 2026 im
-# **Titel** einer Zeile und müssen deshalb in eine Tabellenspalte passen.
-#
-# Die Vorgabewerte fehlen überall (`bester`, `keine`, `fest`): Sie sind das
-# Verfahren, nach dem jeder Stand davor entstand, und sie in jede Zeile zu
-# schreiben ergäbe Wörter, die nichts unterscheiden.
-ABSCHLUESSE = {
-    "mittel": "gemittelt",
-    "interpoliert": "interpoliert",
-    "beides": "gemittelt+interpoliert",
-}
-AUGMENTIERUNGEN = {
-    "masken": "Masken",
-    "umgebung": "Umgebung",
-    "voll": "Umgebung+Tempo",
-}
-DAUERN = {"geduldig": "geduldig"}
-
-
 class MassAntwort(BaseModel):
     """Ein Maß, wie die Tabelle es beschriftet - die Liste kommt vom Server.
 
@@ -181,7 +160,7 @@ class ModellAntwort(BaseModel):
 
     ref: str
     art: str  # grundmodell | trainiert
-    # Die Hauptzeile: „whisper-medium" oder „Feintuning (LoRA) · Mit Abwandlungen".
+    # Die Hauptzeile: „whisper-medium" oder der Optionscode, etwa „ML-A-C".
     name: str
     # Die Nebenzeile: Herkunft, Datum, Version.
     herkunft: str
@@ -271,42 +250,15 @@ def _grundmodellnamen() -> list[str]:
     return namen
 
 
-def _achsen(manifest: dict) -> list[str]:
-    """Die Achsen, in denen dieser Stand von der Vorgabe abweicht.
-
-    **Warum das in den Titel gehört und nicht in die Nebenzeile.** Bis
-    September 2026 hieß ein Stand nach Methode und Datensatz, und das genügte,
-    solange es nur diese beiden Achsen gab. Inzwischen sind es sechs - und zwei
-    Läufe, die sich nur im Abschluss unterschieden, trugen damit **denselben
-    Titel**. In einer Liste, in der je Zeile ein Knopf „freigeben" steht, ist
-    das kein Schönheitsfehler, sondern die Falle, in die man tritt: Zwei Stände
-    hießen beide „Feintuning (LoRA) · Mit Abwandlungen", unterschieden nur
-    durch ein Fragment tief in der grauen Nebenzeile - und freigegeben wurde
-    daraufhin der falsche.
-
-    Das Grundmodell steht mit dabei, sobald es nicht die Vorgabe ist: Es ist
-    der stärkste Unterschied zwischen zwei Ständen überhaupt.
-    """
-    teile = []
-    grund = lauf_layout.kurzname(str(manifest.get("basismodell", "")))
-    if grund and grund != lauf_layout.kurzname(einstellungen().lernen_basismodell):
-        teile.append(f"whisper-{grund}")
-    for karte, wert in (
-        (ABSCHLUESSE, manifest.get("abschluss")),
-        (AUGMENTIERUNGEN, manifest.get("augmentierung")),
-        (DAUERN, manifest.get("dauer")),
-    ):
-        beschriftung = karte.get(str(wert or ""), "")
-        if beschriftung:
-            teile.append(beschriftung)
-    return teile
-
-
 def _stand_name(manifest: dict) -> str:
-    """Der Titel einer Zeile - und er muss diese Zeile von jeder anderen trennen."""
-    methode = METHODEN.get(str(manifest.get("methode")), str(manifest.get("methode", "?")))
-    daten = DATEN.get(str(manifest.get("daten")), str(manifest.get("daten", "?")))
-    return " · ".join([methode, daten, *_achsen(manifest)])
+    """Der Titel einer Zeile: der Optionscode des Laufs, aus dem der Stand kam.
+
+    Aus dem Auftrag, solange es ihn gibt - ein Manifest von vor September 2026
+    kennt die Tempowahl nicht.
+    """
+    job_id = str(manifest.get("job_id") or "")
+    lauf = lauf_layout.lies_lauf(einstellungen().data_dir, job_id) if job_id else None
+    return lauf_layout.optionscode(lauf.auftrag if lauf is not None else manifest)
 
 
 def _abschluss_befund(manifest: dict) -> str:
@@ -315,8 +267,7 @@ def _abschluss_befund(manifest: dict) -> str:
     Das gehört in die Nebenzeile und nicht in den Titel: Es unterscheidet zwei
     Zeilen nicht, es erklärt eine.
     """
-    name = ABSCHLUESSE.get(str(manifest.get("abschluss", "")), "")
-    if not name:
+    if str(manifest.get("abschluss") or "") in ("", lauf_layout.ABSCHLUSS_BESTER):
         return ""
     # Zurückgenommen heißt: Der Abschluss hat auf der Validierung nicht
     # geholfen, ausgeliefert wurde der beste Durchgang. Das als „gemittelt" zu

@@ -43,6 +43,8 @@ export type Grundmodell = {
   name: string;
   erklaerung: string;
   methoden: string[];
+  /** Sein Anfang im Optionscode: `S`, `M`, `L3`. */
+  code: string;
 };
 
 /** Eine Wahlmöglichkeit beim Beauftragen - eine der Achsen eines Laufs. */
@@ -50,6 +52,8 @@ export type Wahl = {
   schluessel: string;
   name: string;
   erklaerung: string;
+  /** Ihr Glied im Optionscode; leer bei der Vorgabe einer Achse. */
+  code: string;
 };
 
 /** Der Modellstand, der aus einem Lauf hervorging - er ginge beim Löschen mit. */
@@ -61,6 +65,8 @@ export type StandHinweis = {
 export type Lauf = {
   job_id: string;
   sprecher_id: string;
+  /** Alle Achsen als Optionscode, etwa `ML-A-C` (`wortlaut/laeufe.optionscode`). */
+  code: string;
   methode: string;
   daten: string;
   /** Was am Ende mit den Gewichten geschah: bester | mittel | interpoliert | beides. */

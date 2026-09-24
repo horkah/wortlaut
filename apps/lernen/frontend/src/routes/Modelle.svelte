@@ -82,12 +82,9 @@
   /**
    * Wie ein Modell in einer Auswahl heißt.
    *
-   * Ein Stand trägt hier seine Kurzkennung und nicht seinen sprechenden
-   * Titel: In der Tabelle steht der Titel neben Herkunft und Datum und ist
-   * dort die Auskunft, in einer Zeile zur Wahl stünde er zweimal fast gleich
-   * - „Feintuning (LoRA) · Mit Abwandlungen" sagt nicht, welcher von dreien
-   * gemeint ist. Fünf Zeichen sagen es. Ein Grundmodell heißt ohnehin kurz
-   * und hat keine Kennung.
+   * Ein Stand trägt hier seine Kurzkennung und nicht seinen Optionscode: Zwei
+   * Läufe mit denselben Optionen haben denselben Code, aber nie dieselbe
+   * Kennung. Ein Grundmodell heißt ohnehin kurz und hat keine Kennung.
    */
   const kurz = (eintrag: Modell) => eintrag.kennung ?? eintrag.name;
 
@@ -427,7 +424,9 @@
                      Nur bei eigenen Ständen: Ein Grundmodell hat keinen Lauf,
                      und ein Link ins Leere wäre schlimmer als keiner. -->
                 {#if modell.job_id}
-                  <a class="name titel" href="#{LAUF_ROUTE}{modell.job_id}">{modell.name}</a>
+                  <a class="name titel optionscode" href="#{LAUF_ROUTE}{modell.job_id}"
+                    >{modell.name}</a
+                  >
                 {:else}
                   <span class="name">{modell.name}</span>
                 {/if}
@@ -708,6 +707,10 @@
 
   .modellspalte .name {
     font-weight: 600;
+  }
+
+  .optionscode {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
   }
 
   .modellspalte .klein {

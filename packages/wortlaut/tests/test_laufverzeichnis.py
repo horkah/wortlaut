@@ -141,6 +141,67 @@ class TestVokabular:
         assert rezept.is_file(), rezept
 
 
+class TestOptionscode:
+    def test_nur_vorgaben_ergibt_grundmodell_und_methode(self) -> None:
+        auftrag = {"basismodell": "openai/whisper-small", "methode": "lora", "daten": "original"}
+        assert laeufe.optionscode(auftrag) == "SL"
+
+    def test_jede_gewaehlte_achse_ist_ein_glied(self) -> None:
+        auftrag = {
+            "basismodell": "openai/whisper-medium",
+            "methode": "lora",
+            "daten": "augmentiert",
+            "dauer": "geduldig",
+            "augmentierung": "voll",
+            "tempowahl": "optimal",
+            "abschluss": "beides",
+        }
+        assert laeufe.optionscode(auftrag) == "ML-A-E-SRP-Ts-CI"
+
+    def test_die_alte_tempowahl_zaehlt_als_aus(self) -> None:
+        auftrag = {"basismodell": "openai/whisper-small", "methode": "full",
+                   "tempowahl": "wie_eingestellt"}
+        assert laeufe.optionscode(auftrag) == "SV"
+
+    def test_ein_unbekannter_wert_faellt_auf(self) -> None:
+        auftrag = {"basismodell": "openai/whisper-small", "methode": "lora", "abschluss": "neu"}
+        assert laeufe.optionscode(auftrag) == "SL-?"
+
+    @pytest.mark.parametrize(
+        ("basismodell", "code"),
+        [
+            ("openai/whisper-small", "S"),
+            ("openai/whisper-medium", "M"),
+            ("openai/whisper-large-v3", "L3"),
+            ("openai/whisper-large-v3-turbo", "L3T"),
+        ],
+    )
+    def test_grundmodellcode(self, basismodell: str, code: str) -> None:
+        assert laeufe.grundmodellcode(basismodell) == code
+
+    def test_die_glieder_verschiedener_achsen_teilen_keinen_anfang(self) -> None:
+        # Sonst hieße `C` je nach Stelle zweierlei.
+        tafeln = (
+            laeufe.CODE_DATENSATZ,
+            laeufe.CODE_DAUER,
+            laeufe.CODE_AUGMENTIERUNG,
+            laeufe.CODE_TEMPO,
+            laeufe.CODE_ABSCHLUSS,
+        )
+        anfaenge = [{code[0] for code in tafel.values() if code} for tafel in tafeln]
+        for i, eine in enumerate(anfaenge):
+            for andere in anfaenge[i + 1 :]:
+                assert not eine & andere, (eine, andere)
+
+    def test_jeder_wert_jeder_achse_hat_ein_glied(self) -> None:
+        assert set(laeufe.CODE_METHODE) == set(laeufe.METHODEN)
+        assert set(laeufe.CODE_DATENSATZ) == set(laeufe.DATENSAETZE)
+        assert set(laeufe.CODE_DAUER) == set(laeufe.DAUERN)
+        assert set(laeufe.CODE_AUGMENTIERUNG) == set(laeufe.AUGMENTIERUNGEN)
+        assert set(laeufe.CODE_TEMPO) == set(laeufe.TEMPI)
+        assert set(laeufe.CODE_ABSCHLUSS) == set(laeufe.ABSCHLUESSE)
+
+
 class TestZwischenstaende:
     """Was nach einem Lauf weggeräumt wird - und was dabei stehen bleibt.
 
