@@ -115,28 +115,61 @@
   );
 
   /**
-   * Welche der vier Kombinationen schon gelaufen sind. Nicht, um sie zu
-   * sperren - ein zweiter Lauf derselben Art ist ein gutes Recht, etwa nach
-   * fünfzig neuen Aufnahmen -, sondern um zu zeigen, was noch fehlt: Die
-   * Frage dieser App ist der Vergleich der vier, und der ist erst mit allen
-   * vieren zu haben.
+   * Wie oft jede Option gewählt ist - über die Modelle der Modelltafel und die
+   * Läufe, die gerade rechnen oder darauf warten.
+   *
+   * Ein Lauf zählt, wenn ein Stand aus ihm hervorging (`stand`), denn genau
+   * die stehen in der Modelltafel; ein gescheiterter oder zurückgenommener
+   * zählt nicht. Die Optionen sind die mit einem Glied im Optionscode, in
+   * dessen Reihenfolge - eine Vorgabe hat keins und steht hier nicht.
+   *
+   * Der Anteil bezieht sich auf alle gezählten Modelle: Jede Achse summiert
+   * sich damit zu höchstens hundert, und was fehlt, stand auf der Vorgabe.
    */
-  const gerechnet = $derived(
-    new Set(
-      laeufe
-        .filter((lauf) => lauf.status === 'fertig')
-        .map((lauf) => `${lauf.methode}/${lauf.daten}`),
+  const gezaehlt = $derived(
+    laeufe.filter(
+      (lauf) => lauf.stand !== null || lauf.status === 'laeuft' || lauf.status === 'wartet',
     ),
   );
 
+  type Regler = { schluessel: string; code: string; titel: string; anzahl: number };
+
+  const regler = $derived.by((): Regler[] => {
+    if (!daten) return [];
+    const achsen: [string, (Wahl | Grundmodell)[], (lauf: Lauf) => string][] = [
+      ['Grundmodell', daten.grundmodelle, (lauf) => lauf.basismodell],
+      ['Methode', daten.methoden, (lauf) => lauf.methode],
+      ['Datensatz', daten.datensaetze, (lauf) => lauf.daten],
+      ['Epochen', daten.dauern, (lauf) => lauf.dauer],
+      ['Augmentierung', daten.augmentierungen, (lauf) => lauf.augmentierung],
+      ['Tempo', daten.tempi, (lauf) => lauf.tempowahl],
+      ['Abschluss', daten.abschluesse, (lauf) => lauf.abschluss],
+    ];
+    return achsen.flatMap(([achse, wahlen, wert]) =>
+      wahlen
+        .filter((wahl) => wahl.code)
+        .map((wahl) => ({
+          schluessel: `${achse}/${wahl.schluessel}`,
+          code: wahl.code,
+          titel: `${achse}: ${wahl.name}`,
+          anzahl: gezaehlt.filter((lauf) => wert(lauf) === wahl.schluessel).length,
+        })),
+    );
+  });
+
+  // Wie viele Streifen ein Balken hat - einer steht für fünf Prozent.
+  const STREIFEN = 20;
+
+  /** Wie viele Streifen leuchten. Wer überhaupt gewählt wurde, bekommt einen. */
+  function leuchtend(anzahl: number): number {
+    if (!anzahl || !gezaehlt.length) return 0;
+    return Math.max(1, Math.round((anzahl / gezaehlt.length) * STREIFEN));
+  }
+
   /**
-   * Dasselbe mit dem Abschluss dazu - für den Satz neben dem Knopf.
-   *
-   * Die Tafel darüber bleibt bei den vier Feldern: Sie beantwortet die erste
-   * Frage dieser App (Methode gegen Datensatz), und ein Raster aus sechzehn
-   * Feldern beantwortete gar keine mehr. Wer aber gerade denselben Lauf mit
-   * einem anderen Abschluss bestellt, hat etwas Neues bestellt - und soll
-   * nicht lesen, das sei schon gerechnet.
+   * Welche Bestellungen schon gerechnet sind, mit allen Achsen - für den Satz
+   * neben dem Knopf. Wer denselben Lauf mit einem anderen Abschluss bestellt,
+   * hat etwas Neues bestellt und soll nicht lesen, das sei schon gerechnet.
    */
   const gerechnetGenau = $derived(
     new Set(
@@ -563,15 +596,33 @@
       </p>
     {/if}
 
-    <div class="matrix" aria-hidden="true">
-      {#each daten.methoden as m (m.schluessel)}
-        {#each daten.datensaetze as d (d.schluessel)}
-          <span class="feld" class:da={gerechnet.has(`${m.schluessel}/${d.schluessel}`)}>
-            {m.name} · {d.name}
-          </span>
+    {#if gezaehlt.length}
+      <!-- Wie oft jede Option gewählt ist, als Equalizer: ein Balken aus
+           Streifen je Option, darunter ihr Glied im Optionscode. Ohne Zahlen -
+           es geht um das Bild, wo schon viel gerechnet ist und wo kaum etwas. -->
+      <div class="equalizer" role="list" aria-label="Wie oft jede Option gewählt ist">
+        {#each regler as eintrag (eintrag.schluessel)}
+          {@const an = leuchtend(eintrag.anzahl)}
+          <div
+            class="regler"
+            role="listitem"
+            title={eintrag.titel}
+            aria-label="{eintrag.titel}: {eintrag.anzahl} von {gezaehlt.length}"
+          >
+            <div class="saeule" aria-hidden="true">
+              {#each { length: STREIFEN } as _, stufe}
+                <span
+                  class="streifen"
+                  class:an={stufe < an}
+                  style="--stufe: {stufe / (STREIFEN - 1)}"
+                ></span>
+              {/each}
+            </div>
+            <code class="glied">{eintrag.code}</code>
+          </div>
         {/each}
-      {/each}
-    </div>
+      </div>
+    {/if}
   {:else}
     <p class="gedaempft">Wird geladen …</p>
   {/if}
@@ -710,26 +761,51 @@
     font-size: 0.9rem;
   }
 
-  .matrix {
+  /* Alle Säulen gleich breit und im gleichen Abstand, breiter als das
+     eingerahmte Glied darunter. Auf einem schmalen Gerät scrollt die Reihe,
+     statt umzubrechen - ein Equalizer in zwei Zeilen ist keiner mehr. */
+  .equalizer {
     display: flex;
-    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.2rem;
+    padding-bottom: 0.2rem;
+    overflow-x: auto;
+  }
+
+  .regler {
+    flex: none;
+    width: 2.8rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     gap: 0.4rem;
-    margin-top: 0.9rem;
   }
 
-  .feld {
-    padding: 0.25rem 0.6rem;
-    border: 1px dashed var(--rand);
-    border-radius: 0.3rem;
-    font-size: 0.8rem;
-    color: var(--gedaempft);
+  /* Von unten nach oben gefüllt: Die Streifen stehen umgekehrt im Fluss, der
+     erste ist der unterste. */
+  .saeule {
+    width: 100%;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 0.14rem;
   }
 
-  .feld.da {
-    border-style: solid;
-    border-color: var(--akzent);
-    color: var(--akzent);
-    font-weight: 600;
+  .streifen {
+    height: 0.3rem;
+    border-radius: 1px;
+    background: var(--rand);
+    opacity: 0.45;
+  }
+
+  /* Nach oben kräftiger, wie bei einem Pegel - dieselbe Farbe, keine Ampel:
+     Häufig ist hier weder gut noch schlecht. */
+  .streifen.an {
+    background: var(--akzent);
+    opacity: calc(0.5 + 0.5 * var(--stufe));
+  }
+
+  .regler .glied {
+    margin: 0;
   }
 
   .laeufe {
