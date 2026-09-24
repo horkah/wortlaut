@@ -13,6 +13,11 @@
    * es auch dann, wenn der Auftrag in einem anderen Reiter angestoßen wurde.
    * Im Ruhezustand bleibt ein langsamer Takt: Läuft nichts, ist nichts zu
    * sehen.
+   *
+   * **Warum fertige Läufe hier fehlen.** Ein fertiger Lauf ist ein Modell und
+   * steht in der Modelltafel; von dort führt sein Code in die Einzelansicht,
+   * wo er sich auch löschen lässt. Hier stehen nur die Läufe, die noch etwas
+   * tun oder an denen etwas schiefging - oben, vor der Bestellung.
    */
   import { onMount } from 'svelte';
   import {
@@ -94,6 +99,19 @@
   const laeufe = $derived(daten?.laeufe ?? []);
   const arbeitet = $derived(laeufe.some((lauf) => lauf.status === 'laeuft'));
   const wartend = $derived(laeufe.filter((lauf) => lauf.status === 'wartet').length);
+
+  // Was hier als Karte steht: alles außer den fertigen Läufen - die sind
+  // Modelle und stehen in der Modelltafel, samt Weg in die Einzelansicht.
+  // Die rechnenden und wartenden zuerst, danach gescheiterte und
+  // zurückgenommene; innerhalb dessen bleibt die Reihenfolge des Servers.
+  const RANG: Record<string, number> = { laeuft: 0, wartet: 1 };
+  const offeneLaeufe = $derived(
+    laeufe
+      .filter((lauf) => lauf.status !== 'fertig')
+      .map((lauf, stelle) => ({ lauf, stelle }))
+      .sort((a, b) => (RANG[a.lauf.status] ?? 2) - (RANG[b.lauf.status] ?? 2) || a.stelle - b.stelle)
+      .map(({ lauf }) => lauf),
+  );
 
   /**
    * Welche der vier Kombinationen schon gelaufen sind. Nicht, um sie zu
@@ -349,11 +367,119 @@
   });
 </script>
 
-<h2>Training</h2>
-
 {#if fehler}
   <p class="fehler">{fehler}</p>
 {/if}
+
+<!-- Die Läufe zuerst: Wer diese Seite öffnet, will meist wissen, wie weit der
+     laufende ist, und erst danach den nächsten beauftragen. Fertige stehen
+     hier nicht - sie sind Modelle und stehen in der Modelltafel. -->
+{#if offeneLaeufe.length}
+  <h2>Läufe</h2>
+  <div class="laeufe">
+    {#each offeneLaeufe as lauf (lauf.job_id)}
+      <!-- `offen` hebt die Karte hervor, solange gerechnet wird. Ein hängender
+           Lauf gehört nicht dazu: Er sagt zwar `laeuft`, aber hervorzuheben ist
+           er nicht, weil dort etwas geschieht, sondern weil dort nichts mehr
+           geschieht - und das sagt schon das Wort daneben. -->
+      <div class="karte lauf" class:offen={lauf.status === 'laeuft' && !lauf.haengt}>
+        <div class="kopfzeile">
+          <p class="marke">
+            <!-- Die Kennung sagt, **welcher** Stand, der Optionscode, **was**
+                 er ist - beide dieselben wie in der Modelltafel. Der Code ist
+                 der Weg in die Einzelansicht. -->
+            {#if lauf.kennung}<code class="kennung">{lauf.kennung}</code>{/if}
+            <a class="titel" href="#{LAUF_ROUTE}{lauf.job_id}">{lauf.code}</a>
+          </p>
+          <span class="rechts">
+            <!-- Ein hängender Lauf sagt im Zustand `laeuft`. Das hier ist die
+                 einzige Stelle, an der die Ansicht ihm widerspricht - und sie
+                 tut es, weil „läuft" neben einem Balken, der sich seit zwanzig
+                 Minuten nicht bewegt, die Unwahrheit ist. -->
+            <span class="zustand {lauf.haengt ? 'gescheitert' : lauf.status}">
+              {lauf.haengt ? 'hängt' : (STATUS[lauf.status] ?? lauf.status)}
+            </span>
+            <!-- Der Papierkorb sitzt in der Kopfzeile der Karte und nicht bei
+                 den Knöpfen darunter: Dort stehen die Wege weiter, hier der
+                 eine Weg hinaus. Beschriftet für Vorlesestimmen, denn ein
+                 Sinnbild allein sagt nichts. -->
+            <button
+              class="papierkorb"
+              title={lauf.loeschbar
+                ? 'Diesen Lauf löschen'
+                : 'Ein rechnender Lauf lässt sich nicht löschen'}
+              aria-label="Lauf {lauf.code} löschen"
+              disabled={!lauf.loeschbar || loescht === lauf.job_id}
+              onclick={() => loesche(lauf)}
+            >
+              <!-- Strich und Maß stehen als Attribute, nicht nur im
+                   Stylesheet: Die Linien haben keine Fläche, ein reiner `fill`
+                   zeichnet also nichts. Bliebe das CSS einmal aus, wäre der
+                   Knopf unsichtbar statt unschön. -->
+              <svg
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
+              </svg>
+            </button>
+          </span>
+        </div>
+
+        <p class="gedaempft klein">
+          {zeitpunkt(lauf.erstellt)} · {lauf.aufnahmen} Aufnahmen ·
+          {lauf.zeilen.gesamt ?? 0} Proben · {daten?.faltungen ?? 6} Faltungen
+          {#if tempoErgebnis(lauf)} · {tempoErgebnis(lauf)}{/if}
+        </p>
+
+        {#if lauf.haengt}
+          <!-- Kein Balken. Ein Fortschrittsbalken sagt „gleich kommt der
+               nächste Schritt", und genau das stimmt hier nicht. Was
+               stattdessen dasteht, ist die Auskunft, die weiterhilft: wie weit
+               er kam, und seit wann nichts mehr geschah. -->
+          <p class="hinweise">
+            Keine Ausgabe seit {stillstand(lauf.stillstand_s)}{#if lauf.anteil !== null},
+              stehen geblieben bei {(lauf.anteil * 100).toFixed(0)} %{/if}. Nicht fortsetzbar.
+          </p>
+        {:else if lauf.status === 'laeuft'}
+          <!-- Der Balken bleibt leer, solange der Trainer die Schrittzahl nicht
+               genannt hat: Ein Balken, der bei null steht und nicht weiß, wovon,
+               ist eine Behauptung. Die Stufe daneben sagt, dass es vorangeht. -->
+          <div class="balken" aria-hidden="true">
+            <div class="fuellung" style="width: {(lauf.anteil ?? 0) * 100}%"></div>
+          </div>
+          <p class="klein">
+            {wobei(lauf)}
+            {#if lauf.anteil !== null}
+              <span class="gedaempft">· {(lauf.anteil * 100).toFixed(0)} %</span>
+            {/if}
+          </p>
+        {/if}
+
+        {#if lauf.fehler}
+          <p class="hinweise">{lauf.fehler}</p>
+        {/if}
+
+        {#if lauf.status === 'wartet'}
+          <div class="reihe">
+            <button class="knopf" onclick={() => nimmZurueck(lauf.job_id)}>
+              Zurücknehmen
+            </button>
+          </div>
+        {/if}
+      </div>
+    {/each}
+  </div>
+{/if}
+
+<h2>Training</h2>
 
 {#snippet option(wahl: Wahl | Grundmodell)}
   <span>
@@ -503,111 +629,6 @@
     <p class="gedaempft">Wird geladen …</p>
   {/if}
 </div>
-
-{#if laeufe.length}
-  <h3>Läufe</h3>
-  <div class="laeufe">
-    {#each laeufe as lauf (lauf.job_id)}
-      <!-- `offen` hebt die Karte hervor, solange gerechnet wird. Ein hängender
-           Lauf gehört nicht dazu: Er sagt zwar `laeuft`, aber hervorzuheben ist
-           er nicht, weil dort etwas geschieht, sondern weil dort nichts mehr
-           geschieht - und das sagt schon das Wort daneben. -->
-      <div class="karte lauf" class:offen={lauf.status === 'laeuft' && !lauf.haengt}>
-        <div class="kopfzeile">
-          <p class="marke">
-            <!-- Die Kennung sagt, **welcher** Stand, der Optionscode, **was**
-                 er ist - beide dieselben wie in der Modelltafel. Der Code ist
-                 der Weg in die Einzelansicht. -->
-            {#if lauf.kennung}<code class="kennung">{lauf.kennung}</code>{/if}
-            <a class="titel" href="#{LAUF_ROUTE}{lauf.job_id}">{lauf.code}</a>
-          </p>
-          <span class="rechts">
-            <!-- Ein hängender Lauf sagt im Zustand `laeuft`. Das hier ist die
-                 einzige Stelle, an der die Ansicht ihm widerspricht - und sie
-                 tut es, weil „läuft" neben einem Balken, der sich seit zwanzig
-                 Minuten nicht bewegt, die Unwahrheit ist. -->
-            <span class="zustand {lauf.haengt ? 'gescheitert' : lauf.status}">
-              {lauf.haengt ? 'hängt' : (STATUS[lauf.status] ?? lauf.status)}
-            </span>
-            <!-- Der Papierkorb sitzt in der Kopfzeile der Karte und nicht bei
-                 den Knöpfen darunter: Dort stehen die Wege weiter, hier der
-                 eine Weg hinaus. Beschriftet für Vorlesestimmen, denn ein
-                 Sinnbild allein sagt nichts. -->
-            <button
-              class="papierkorb"
-              title={lauf.loeschbar
-                ? 'Diesen Lauf löschen'
-                : 'Ein rechnender Lauf lässt sich nicht löschen'}
-              aria-label="Lauf {lauf.code} löschen"
-              disabled={!lauf.loeschbar || loescht === lauf.job_id}
-              onclick={() => loesche(lauf)}
-            >
-              <!-- Strich und Maß stehen als Attribute, nicht nur im
-                   Stylesheet: Die Linien haben keine Fläche, ein reiner `fill`
-                   zeichnet also nichts. Bliebe das CSS einmal aus, wäre der
-                   Knopf unsichtbar statt unschön. -->
-              <svg
-                viewBox="0 0 24 24"
-                width="18"
-                height="18"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
-              </svg>
-            </button>
-          </span>
-        </div>
-
-        <p class="gedaempft klein">
-          {zeitpunkt(lauf.erstellt)} · {lauf.aufnahmen} Aufnahmen ·
-          {lauf.zeilen.gesamt ?? 0} Proben · {daten?.faltungen ?? 6} Faltungen
-          {#if tempoErgebnis(lauf)} · {tempoErgebnis(lauf)}{/if}
-        </p>
-
-        {#if lauf.haengt}
-          <!-- Kein Balken. Ein Fortschrittsbalken sagt „gleich kommt der
-               nächste Schritt", und genau das stimmt hier nicht. Was
-               stattdessen dasteht, ist die Auskunft, die weiterhilft: wie weit
-               er kam, und seit wann nichts mehr geschah. -->
-          <p class="hinweise">
-            Keine Ausgabe seit {stillstand(lauf.stillstand_s)}{#if lauf.anteil !== null},
-              stehen geblieben bei {(lauf.anteil * 100).toFixed(0)} %{/if}. Nicht fortsetzbar.
-          </p>
-        {:else if lauf.status === 'laeuft'}
-          <!-- Der Balken bleibt leer, solange der Trainer die Schrittzahl nicht
-               genannt hat: Ein Balken, der bei null steht und nicht weiß, wovon,
-               ist eine Behauptung. Die Stufe daneben sagt, dass es vorangeht. -->
-          <div class="balken" aria-hidden="true">
-            <div class="fuellung" style="width: {(lauf.anteil ?? 0) * 100}%"></div>
-          </div>
-          <p class="klein">
-            {wobei(lauf)}
-            {#if lauf.anteil !== null}
-              <span class="gedaempft">· {(lauf.anteil * 100).toFixed(0)} %</span>
-            {/if}
-          </p>
-        {/if}
-
-        {#if lauf.fehler}
-          <p class="hinweise">{lauf.fehler}</p>
-        {/if}
-
-        {#if lauf.status === 'wartet'}
-          <div class="reihe">
-            <button class="knopf" onclick={() => nimmZurueck(lauf.job_id)}>
-              Zurücknehmen
-            </button>
-          </div>
-        {/if}
-      </div>
-    {/each}
-  </div>
-{/if}
 
 <style>
   /* Der Titel ist der Weg in die Einzelansicht. Er soll aussehen wie eine
