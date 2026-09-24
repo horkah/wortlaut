@@ -24,12 +24,13 @@
     beauftrage as beauftrageLauf,
     brichAb,
     laeufe as ladeLaeufe,
-    loescheLauf,
     type Grundmodell,
     type Lauf,
     type Laufliste,
     type Wahl,
   } from '../lib/api';
+  import Papierkorb from '../lib/Papierkorb.svelte';
+  import { loescheNachRueckfrage } from '../lib/laufloeschen';
   import { setzeTrainerschluessel, trainerschluessel } from '../lib/trainerschluessel';
   import { setzeTrainingswahl, trainingswahl } from '../lib/trainingswahl';
   import { LAUF_ROUTE, gehZu } from '../lib/zustand.svelte';
@@ -297,46 +298,11 @@
     }
   }
 
-  /**
-   * Einen Lauf löschen - ersatzlos, und das steht vorher in der Abfrage.
-   *
-   * Die Abfrage nennt, was verschwindet, und nicht nur „wirklich?". Ein
-   * fertiger Lauf hat ein Modell hervorgebracht, und das geht mit: Bliebe es
-   * stehen, zeigte es auf ein Verzeichnis, das es nicht mehr gibt, und die
-   * Frage, worauf es trainiert wurde, wäre nicht mehr zu beantworten. Wer das
-   * nicht weiß, bevor er bestätigt, erfährt es hinterher.
-   *
-   * Ein freigegebener Stand bekommt einen eigenen Satz dazu: Mit ihm ändert
-   * sich, womit in „schreiben" diktiert wird.
-   */
+  /** Die Rückfrage und was sie nennt: `lib/laufloeschen.ts`. */
   async function loesche(lauf: Lauf) {
-    const zeilen = [`${lauf.code} vom ${zeitpunkt(lauf.erstellt)} löschen?`, ''];
-    if (lauf.stand) {
-      zeilen.push(`Das Modell „${lauf.stand.version}" wird mitgelöscht.`);
-      if (lauf.stand.freigegeben) {
-        zeilen.push(
-          'Es ist gerade freigegeben - „schreiben" fällt danach auf das Grundmodell zurück, ' +
-            'bis ein anderer Stand freigegeben wird.',
-        );
-      }
-      // Die Folge, die niemand erwartet: Die Modelltafel rechnet jede Zahl
-      // über die Messungen, die **alle** Modelle haben. Fällt eine Zeile weg,
-      // wächst diese Schnittmenge - und jede übrige Zahl ändert sich.
-      // Gemessen waren das 0,15 WER, als ein alter Stand verschwand.
-      zeilen.push(
-        'In der Modelltafel können sich dadurch die Zahlen der übrigen Modelle ändern: ' +
-          'Sie stehen auf den Messungen, die alle Modelle gemeinsam haben.',
-      );
-      zeilen.push('');
-    }
-    zeilen.push('Auftrag, Schnappschuss, Kurven und Protokoll verschwinden mit.');
-    zeilen.push('Das lässt sich nicht rückgängig machen.');
-
-    if (!confirm(zeilen.join('\n'))) return;
-
     loescht = lauf.job_id;
     try {
-      await loescheLauf(lauf.job_id);
+      if (!(await loescheNachRueckfrage(lauf))) return;
       await hole();
       fehler = '';
     } catch (ursache) {
@@ -403,33 +369,14 @@
                  den Knöpfen darunter: Dort stehen die Wege weiter, hier der
                  eine Weg hinaus. Beschriftet für Vorlesestimmen, denn ein
                  Sinnbild allein sagt nichts. -->
-            <button
-              class="papierkorb"
+            <Papierkorb
               title={lauf.loeschbar
                 ? 'Diesen Lauf löschen'
                 : 'Ein rechnender Lauf lässt sich nicht löschen'}
-              aria-label="Lauf {lauf.code} löschen"
+              label="Lauf {lauf.code} löschen"
               disabled={!lauf.loeschbar || loescht === lauf.job_id}
               onclick={() => loesche(lauf)}
-            >
-              <!-- Strich und Maß stehen als Attribute, nicht nur im
-                   Stylesheet: Die Linien haben keine Fläche, ein reiner `fill`
-                   zeichnet also nichts. Bliebe das CSS einmal aus, wäre der
-                   Knopf unsichtbar statt unschön. -->
-              <svg
-                viewBox="0 0 24 24"
-                width="18"
-                height="18"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
-              </svg>
-            </button>
+            />
           </span>
         </div>
 
@@ -818,34 +765,6 @@
   .zustand {
     font-size: 0.85rem;
     color: var(--gedaempft);
-  }
-
-  /* Leise, bis man darauf zeigt: Der Weg hinaus soll zu finden, aber nicht das
-     Auffälligste an einer Karte sein. Die Fläche ist trotzdem groß genug für
-     einen Daumen. */
-  .papierkorb {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.2rem;
-    height: 2.2rem;
-    padding: 0;
-    border: 1px solid transparent;
-    border-radius: 0.35rem;
-    background: none;
-    color: var(--gedaempft);
-    cursor: pointer;
-  }
-
-  .papierkorb:hover:not(:disabled),
-  .papierkorb:focus-visible {
-    color: var(--fehler);
-    border-color: var(--rand);
-  }
-
-  .papierkorb:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
   }
 
   .zustand.gescheitert {
