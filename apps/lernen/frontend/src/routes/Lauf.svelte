@@ -17,8 +17,11 @@
   import { zeitpunkt } from '$ui/zeit';
   import { onMount } from 'svelte';
   import { einstellungen } from '$ui/einstellungen.svelte';
+  import { MODELLE_PFAD } from '$ui/apps';
   import type { Diagramm } from '../lib/diagramm';
   import { lauf as ladeLauf, type Laufeinzeln } from '../lib/api';
+  import Papierkorb from '../lib/Papierkorb.svelte';
+  import { loescheNachRueckfrage } from '../lib/laufloeschen';
   import { gehZu } from '../lib/zustand.svelte';
 
   let { jobId }: { jobId: string } = $props();
@@ -29,6 +32,7 @@
   let daten = $state<Laufeinzeln | null>(null);
   let fehler = $state('');
   let protokollOffen = $state(false);
+  let loescht = $state(false);
 
   let huelle = $state<HTMLDivElement | null>(null);
   // Ohne `$state`: ECharts führt seinen eigenen Zustand, und ein Proxy darum
@@ -41,6 +45,14 @@
   let baut = false;
 
   const lauf = $derived(daten?.lauf ?? null);
+  // Ein fertiger Lauf steht nur noch in der Modelltafel, alle anderen unter
+  // „Training" - dorthin führt der Weg zurück, und dorthin geht es nach dem
+  // Löschen.
+  const heimat = $derived(
+    lauf?.status === 'fertig'
+      ? { pfad: MODELLE_PFAD, text: 'Modelle' }
+      : { pfad: '/training', text: 'Training' },
+  );
   const laeuft = $derived(lauf?.status === 'laeuft');
   const kurve = $derived(daten?.kurve_training ?? []);
   const pruefung = $derived(daten?.kurve_validierung ?? []);
@@ -208,6 +220,23 @@
     }
   }
 
+  /**
+   * Hier steht der Papierkorb für jeden Lauf, auch den fertigen: Unter
+   * „Training" stehen fertige nicht mehr, und die Modelltafel hat keinen.
+   */
+  async function loesche() {
+    if (!lauf) return;
+    const ziel = heimat.pfad;
+    loescht = true;
+    try {
+      if (await loescheNachRueckfrage(lauf)) gehZu(ziel);
+    } catch (ursache) {
+      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+    } finally {
+      loescht = false;
+    }
+  }
+
   onMount(() => {
     let uhr: ReturnType<typeof setTimeout>;
     let beendet = false;
@@ -251,7 +280,7 @@
 </script>
 
 <p class="zurueck">
-  <a href="#/training" onclick={() => gehZu('/training')}>← Alle Läufe</a>
+  <a href="#{heimat.pfad}" onclick={() => gehZu(heimat.pfad)}>← {heimat.text}</a>
 </p>
 
 {#if fehler}
@@ -261,10 +290,18 @@
 {#if !lauf}
   <p class="gedaempft">Wird geladen …</p>
 {:else}
-  <h2>
-    {#if lauf.kennung}<code class="kennung">{lauf.kennung}</code>{/if}
-    <span class="optionscode">{lauf.code}</span>
-  </h2>
+  <div class="kopfzeile">
+    <h2>
+      {#if lauf.kennung}<code class="kennung">{lauf.kennung}</code>{/if}
+      <span class="optionscode">{lauf.code}</span>
+    </h2>
+    <Papierkorb
+      title={lauf.loeschbar ? 'Diesen Lauf löschen' : 'Ein rechnender Lauf lässt sich nicht löschen'}
+      label="Lauf {lauf.code} löschen"
+      disabled={!lauf.loeschbar || loescht}
+      onclick={loesche}
+    />
+  </div>
 
   <!-- Der Steckbrief: **jede** Achse, auch die auf Vorgabe - der Code in der
        Überschrift lässt Vorgaben weg.
@@ -423,6 +460,15 @@
 <style>
   .optionscode {
     font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+
+  /* Der Papierkorb rechts neben der Überschrift, wie in der Kopfzeile einer
+     Karte unter „Training". */
+  .kopfzeile {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
   }
 
   .kennung {
