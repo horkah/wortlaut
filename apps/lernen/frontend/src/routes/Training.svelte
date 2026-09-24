@@ -134,28 +134,55 @@
 
   type Regler = { schluessel: string; code: string; titel: string; anzahl: number };
 
-  const regler = $derived.by((): Regler[] => {
-    if (!daten) return [];
-    const achsen: [string, (Wahl | Grundmodell)[], (lauf: Lauf) => string][] = [
-      ['Grundmodell', daten.grundmodelle, (lauf) => lauf.basismodell],
-      ['Methode', daten.methoden, (lauf) => lauf.methode],
-      ['Datensatz', daten.datensaetze, (lauf) => lauf.daten],
-      ['Epochen', daten.dauern, (lauf) => lauf.dauer],
-      ['Augmentierung', daten.augmentierungen, (lauf) => lauf.augmentierung],
-      ['Tempo', daten.tempi, (lauf) => lauf.tempowahl],
-      ['Abschluss', daten.abschluesse, (lauf) => lauf.abschluss],
-    ];
-    return achsen.flatMap(([achse, wahlen, wert]) =>
+  const achsen = $derived.by((): [string, (Wahl | Grundmodell)[], (lauf: Lauf) => string][] =>
+    daten
+      ? [
+          ['Grundmodell', daten.grundmodelle, (lauf) => lauf.basismodell],
+          ['Methode', daten.methoden, (lauf) => lauf.methode],
+          ['Datensatz', daten.datensaetze, (lauf) => lauf.daten],
+          ['Epochen', daten.dauern, (lauf) => lauf.dauer],
+          ['Augmentierung', daten.augmentierungen, (lauf) => lauf.augmentierung],
+          ['Tempo', daten.tempi, (lauf) => lauf.tempowahl],
+          ['Abschluss', daten.abschluesse, (lauf) => lauf.abschluss],
+        ]
+      : [],
+  );
+
+  /** Wie viele gezählte Modelle jede Option gewählt haben, die Vorgaben eingeschlossen. */
+  const anzahlen = $derived(
+    new Map(
+      achsen.flatMap(([achse, wahlen, wert]) =>
+        wahlen.map((wahl): [string, number] => [
+          `${achse}/${wahl.schluessel}`,
+          gezaehlt.filter((lauf) => wert(lauf) === wahl.schluessel).length,
+        ]),
+      ),
+    ),
+  );
+
+  const regler = $derived(
+    achsen.flatMap(([achse, wahlen]): Regler[] =>
       wahlen
         .filter((wahl) => wahl.code)
         .map((wahl) => ({
           schluessel: `${achse}/${wahl.schluessel}`,
           code: wahl.code,
           titel: `${achse}: ${wahl.name}`,
-          anzahl: gezaehlt.filter((lauf) => wert(lauf) === wahl.schluessel).length,
+          anzahl: anzahlen.get(`${achse}/${wahl.schluessel}`) ?? 0,
         })),
-    );
-  });
+    ),
+  );
+
+  /**
+   * Derselbe Anteil wie im Equalizer, als ganze Prozent hinter der Option -
+   * auch hinter einer Vorgabe, die keinen Balken hat. Leer, solange nichts
+   * gezählt ist: „0 %" hinter allem sagte nichts.
+   */
+  function prozent(achse: string, wahl: Wahl | Grundmodell): string {
+    if (!gezaehlt.length) return '';
+    const anzahl = anzahlen.get(`${achse}/${wahl.schluessel}`) ?? 0;
+    return `${Math.round((anzahl / gezaehlt.length) * 100)}\u00a0%`;
+  }
 
   // Wie viele Streifen ein Balken hat - einer steht für fünf Prozent.
   const STREIFEN = 20;
@@ -461,10 +488,11 @@
 
 <h2>Training</h2>
 
-{#snippet option(wahl: Wahl | Grundmodell)}
+{#snippet option(wahl: Wahl | Grundmodell, anteil: string)}
   <span>
     <strong>{wahl.name}</strong>
     {#if wahl.code}<code class="glied">{wahl.code}</code>{/if}
+    {#if anteil}<small class="anteil" title="Anteil der gezählten Modelle">{anteil}</small>{/if}
     {#if wahl.erklaerung}<span class="gedaempft">{wahl.erklaerung}</span>{/if}
   </span>
 {/snippet}
@@ -485,7 +513,7 @@
               bind:group={grundmodell}
               value={wahl.schluessel === daten.basismodell ? '' : wahl.schluessel}
             />
-            {@render option(wahl)}
+            {@render option(wahl, prozent('Grundmodell', wahl))}
           </label>
         {/each}
       </fieldset>
@@ -505,6 +533,7 @@
               geht
                 ? wahl
                 : { ...wahl, erklaerung: `Mit ${gewaehltesGrundmodell?.name} nicht möglich (GPU-Speicher).` },
+              prozent('Methode', wahl),
             )}
           </label>
         {/each}
@@ -515,7 +544,7 @@
         {#each daten.datensaetze as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={datensatz} value={wahl.schluessel} />
-            {@render option(wahl)}
+            {@render option(wahl, prozent('Datensatz', wahl))}
           </label>
         {/each}
       </fieldset>
@@ -525,7 +554,7 @@
         {#each daten.dauern as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={dauer} value={wahl.schluessel} />
-            {@render option(wahl)}
+            {@render option(wahl, prozent('Epochen', wahl))}
           </label>
         {/each}
       </fieldset>
@@ -537,7 +566,7 @@
         {#each daten.augmentierungen as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={augmentierung} value={wahl.schluessel} />
-            {@render option(wahl)}
+            {@render option(wahl, prozent('Augmentierung', wahl))}
           </label>
         {/each}
       </fieldset>
@@ -547,7 +576,7 @@
         {#each daten.tempi as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={tempowahl} value={wahl.schluessel} />
-            {@render option(wahl)}
+            {@render option(wahl, prozent('Tempo', wahl))}
           </label>
         {/each}
       </fieldset>
@@ -557,7 +586,7 @@
         {#each daten.abschluesse as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={abschluss} value={wahl.schluessel} />
-            {@render option(wahl)}
+            {@render option(wahl, prozent('Abschluss', wahl))}
           </label>
         {/each}
       </fieldset>
@@ -739,6 +768,15 @@
     border-radius: 3px;
     color: var(--akzent);
     font-size: 0.8em;
+    white-space: nowrap;
+  }
+
+  /* Wie viele der gezählten Modelle diese Wahl haben - dieselbe Zahl, die
+     der Equalizer als Balken zeigt. */
+  .anteil {
+    margin-left: 0.35em;
+    color: var(--gedaempft);
+    font-size: 0.75em;
     white-space: nowrap;
   }
 
