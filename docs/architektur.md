@@ -195,7 +195,7 @@ wortlaut/
 │       │   │   └── outbox.py      # Korrekturen zurück an „hören"
 │       │   └── db/                # models.py, migrations/
 │       ├── frontend/
-│       │   └── src/routes/        # Aufnahme, Ergebnis, Zugangsdaten
+│       │   └── src/routes/        # Aufnahme, Ergebnis
 │       └── tests/                 # Diktat, Korrekturen, Modell, Zugang
 │
 ├── tests/                         # was keine einzelne App betrifft: gesamt.py
@@ -224,7 +224,7 @@ wortlaut/
 │   │   └── tests/                 # Chunker, Textformate, Audio, Ablage
 │   │
 │   └── ui/                        # geteilte Svelte-Komponenten und Einstellungen
-│       ├── Rahmen.svelte          # Kopf, Inhalt, Fuß - der Rahmen jeder App
+│       ├── Rahmen.svelte          # Kopf, Inhalt, Fuß, Menü - der Rahmen jeder App
 │       ├── Kopfleiste.svelte      # Marke, App-Reiter, Sprecher, Menüknopf
 │       ├── Fusszeile.svelte       # eine Zeile: welcher Stand hier läuft
 │       ├── Audio.svelte           # Mikrofon, Stimme, Tempo - für alle Apps
@@ -239,6 +239,7 @@ wortlaut/
 │       ├── api.ts                 # wie eine Anfrage hinausgeht - für alle drei
 │       ├── route.ts               # die Route im Hash; derselbe Router überall
 │       ├── wer.ts                 # wer ruft: die Antwort des Servers, ausgewertet
+│       ├── lage.svelte.ts         # Route und Zugang - ein Zustand für alle Apps
 │       ├── apps.ts                # die drei Apps, ihre Ansichten, das Menü,
 │       │                          # und was davon sich ausblenden lässt
 │       ├── reiter.ts              # wo man zuletzt war, je App

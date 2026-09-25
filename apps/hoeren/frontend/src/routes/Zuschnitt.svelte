@@ -44,7 +44,7 @@
     type Zuschnittaufnahme,
   } from '../lib/api';
   import { bearbeitungsschluessel, setzeBearbeitungsschluessel } from '../lib/bearbeitungsschluessel';
-  import { gehZu, zustand } from '../lib/zustand.svelte';
+  import { gehZu, lage } from '../lib/zustand.svelte';
   import { MEINE_DATEN_PFAD, EDITIEREN_ROUTE } from '$ui/apps';
 
   // Wie viele Aufnahmen auf eine Seite gehen. Zehn ist die Vorgabe; mehr darf
@@ -322,7 +322,7 @@
   }
 
   $effect(() => {
-    if (zustand.art === 'sprecher') starte();
+    if (lage.art === 'sprecher') starte();
     // Beim Verlassen der Ansicht nichts weiterlaufen lassen und den Speicher
     // freigeben: Eine Aufnahme, die aus einer geschlossenen Seite weiterspricht,
     // ist das Gegenteil von dem, was diese Ansicht verspricht.

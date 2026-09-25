@@ -27,13 +27,13 @@
     type AufsichtSitzung,
     type Einsicht,
   } from '../lib/api';
-  import { gehZu, sprecherAusRoute, zustand } from '../lib/zustand.svelte';
+  import { gehZu, lage, sprecherAusRoute } from '../lib/zustand.svelte';
 
   // Wie viele Zeilen eine Seite hat - für Sitzungen und Aufnahmen gleich, denn
   // beides sind Listen derselben Art (siehe `Pager.svelte`).
   const PRO_SEITE = 10;
 
-  const sprecherId = $derived(sprecherAusRoute(zustand.route));
+  const sprecherId = $derived(sprecherAusRoute(lage.route));
 
   let daten = $state<Einsicht | null>(null);
   let neuePin = $state('');
@@ -230,7 +230,7 @@
   const megabyte = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
   $effect(() => {
-    if (zustand.art === 'aufsicht' && sprecherId) lade();
+    if (lage.art === 'aufsicht' && sprecherId) lade();
   });
 </script>
 

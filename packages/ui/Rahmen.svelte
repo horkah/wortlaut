@@ -1,102 +1,139 @@
 <script lang="ts">
   /**
-   * Der Rahmen jeder App: Kopfzeile, Inhalt, Fußzeile - einmal gebaut.
+   * Der Rahmen jeder App: Kopfzeile, Inhalt, Fußzeile - und alles hinter dem
+   * Menüknopf, einmal gebaut.
    *
    * Marke, App-Reiter, Sprecherzeile und Menüknopf stehen in
-   * `Kopfleiste.svelte` und damit ohnehin nur an einer Stelle. Was bisher
-   * fehlte, war der Rahmen darum: Jede App hängte Kopf- und Fußzeile selbst
-   * auf und beantwortete die gerätebezogenen Menüpunkte selbst - dieselbe
-   * Kette aus `route === AUDIO_PFAD ? … : route === DARSTELLUNG_PFAD`
-   * in jeder `App.svelte`. Ein vierter solcher Punkt hätte jede App angefasst,
-   * und wer einen vergisst, hat einen Menüeintrag, der ins Leere führt.
+   * `Kopfleiste.svelte`. Was dort hineingeht, rechnet dieser Rahmen selbst
+   * aus dem gemeinsamen Zustand (`lage.svelte.ts`): wer angemeldet ist, was
+   * im Menü steht, welcher Reiter offen ist. Und er zeigt jede Ansicht, die
+   * im Menü steht und keiner einzelnen App gehört - Audio, Darstellung,
+   * System, Zugangsdaten -, dazu den Hinweis, wenn kein Zugang da ist.
    *
-   * Darum hier: Der Rahmen kennt die gerätebezogenen Ansichten
-   * (`GERAETE_PUNKTE` in `apps.ts`) und zeigt sie selbst. Die App liefert nur
-   * noch ihre eigenen Ansichten - als Inhalt zwischen den Klammern.
+   * **Warum so viel hier.** Bis September 2026 reichte jede App das dem Rahmen
+   * einzeln herein, und jede ein wenig anders: Die Stimmen vom Server bekam
+   * nur der Rahmen von „hören" - aus „lernen" und „schreiben" standen sie
+   * unter „Audio" gar nicht zur Wahl -, „lernen" nannte die Aufsicht in der
+   * Kopfzeile nicht, „schreiben" nannte die Verwaltung „kein Zugang", und die
+   * Zugangsdaten hatten in jeder App einen eigenen Umschlag. Keine dieser
+   * Abweichungen war entschieden worden. Was eine App nicht hereinreicht, kann
+   * sie nicht anders hereinreichen.
    *
-   * Was die App darüber hinaus ins Menü stellt (Sprecher, Zugangsdaten),
-   * reicht sie als `uebergreifend` durch: Punkte, die diese App auflöst, aber
-   * nicht in ihre Reiterreihe gehören. So bleibt das Menü an einer Stelle
-   * gebaut, ohne dass die Kopfleiste die Sonderfälle einzelner Apps kennt.
+   * Die App liefert nur, was ihr gehört: die Ansicht zu jedem ihrer Reiter
+   * (`ansichten`, die Reiter selbst stehen in `REITER`) und ihre Ansicht für
+   * alles, was kein Reiter ist (`ansicht`).
    */
-  import type { Snippet } from 'svelte';
+  import type { Component } from 'svelte';
   import Kopfleiste from './Kopfleiste.svelte';
   import Fusszeile from './Fusszeile.svelte';
   import Audio from './Audio.svelte';
-  import type { Servestimme } from './speak';
   import Darstellung from './Darstellung.svelte';
   import System from './System.svelte';
+  import Zugangsdaten from './Zugangsdaten.svelte';
+  import KeinZugang from './KeinZugang.svelte';
   import {
-    DARSTELLUNG_PFAD,
     AUDIO_PFAD,
+    DARSTELLUNG_PFAD,
+    REITER,
     SYSTEM_PFAD,
+    ZUGANGSDATEN_PFAD,
+    menuePunkte,
     type AppSchluessel,
-    type Menuepunkt,
   } from './apps';
+  import { merkeReiter, vorgabeReiter } from './reiter';
+  import { ladeZugang, lage } from './lage.svelte';
 
   let {
     app,
-    punkte = [],
-    uebergreifend = [],
-    sprecher,
-    sprache = null,
-    route = '/',
-    children,
-    servestimmen = [],
-    probeHolen,
+    ansichten = {},
+    ansicht = null,
+    markiert,
   }: {
     /** Welche der drei Apps diese Seite ist. */
     app: AppSchluessel;
-    /** Die Ansichten dieser App für die zweite Reihe; leer heißt: keine Reihe. */
-    punkte?: Menuepunkt[];
-    /** Menüpunkte dieser App, über den gerätebezogenen (siehe `Kopfleiste`). */
-    uebergreifend?: Menuepunkt[];
     /**
-     * Wer hier angemeldet ist - ein Sprechername oder, für „hören", auch
-     * „Verwaltung"/„Aufsicht". `undefined` heißt „führt keinen Sprecher".
+     * Die Ansicht zu jedem Reiter dieser App, nach Pfad. Ein Reiter ohne
+     * Ansicht steht nicht in der Leiste; keiner heißt: keine zweite Reihe.
      */
-    sprecher?: string | null;
+    ansichten?: Record<string, Component>;
+    /** Was die App zu einer Route zeigt, die kein Reiter ist; `null`: der Reiter. */
+    ansicht?: Component | null;
     /**
-     * Die Sprache seines Profils, für die Stimmwahl unter „Audio".
-     * `null`, solange die Antwort des Servers aussteht oder ein Verwalter ruft
-     * (`wer.ts`).
+     * Was die Kopfleiste auf einer solchen Route als offen markiert - etwa
+     * „Training" für einen einzelnen Lauf. Ohne Angabe der Reiter, der als
+     * Vorgabe gilt.
      */
-    sprache?: string | null;
-    /** Die offene Hash-Route, ohne `#`. */
-    route?: string;
-    /** Die Ansicht, die diese App zur Route zeigt. */
-    children: Snippet;
-    /**
-     * Stimmen, die der Server sprechen kann - nur „hören" hat welche, weil nur
-     * dort Vorlagen stehen. Ohne sie bleibt die Stimmwahl, was sie war.
-     */
-    servestimmen?: Servestimme[];
-    /** Einen Probesatz in einer Servestimme holen - für die Hörprobe dort. */
-    probeHolen?: (schluessel: string) => Promise<Blob>;
+    markiert?: string;
   } = $props();
 
-  // Großgeschrieben, damit Svelte 5 den Wert als Komponente nimmt. `null`
-  // heißt: keine gerätebezogene Ansicht offen, die App ist an der Reihe.
-  const Geraet = $derived(
-    route === AUDIO_PFAD
-      ? Audio
-      : route === DARSTELLUNG_PFAD
-        ? Darstellung
-        : route === SYSTEM_PFAD
-          ? System
-          : null,
+  // Die Ansichten hinter dem Menüknopf, die keiner App gehören. Sie stehen
+  // vor der Zugangsprüfung: Mikrofon und Schrift gehören zum Gerät, und die
+  // Zugangsdaten sind genau der Ort, an dem ein fehlender Zugang eingetragen
+  // wird - läge die Ansicht hinter der Prüfung, käme niemand je an sie heran.
+  const MENUEANSICHTEN: Record<string, Component> = {
+    [AUDIO_PFAD]: Audio,
+    [DARSTELLUNG_PFAD]: Darstellung,
+    [SYSTEM_PFAD]: System,
+    [ZUGANGSDATEN_PFAD]: Zugangsdaten,
+  };
+
+  const menue = $derived(menuePunkte(lage.art, app));
+  const reiter = $derived(REITER[app].filter((punkt) => punkt.pfad in ansichten));
+
+  // Welcher Reiter gilt, solange in der Adresse nichts steht: der, auf dem
+  // zuletzt gearbeitet wurde (siehe `reiter.ts`). Nicht angesprungen, sondern
+  // als Vorgabe eingesetzt - die Adresse bleibt leer, und der Zurück-Knopf
+  // führt nicht auf eine Seite, die niemand angesteuert hat.
+  const vorgabe = $derived(vorgabeReiter(app, reiter));
+  const aufReiter = $derived(reiter.some((punkt) => punkt.pfad === lage.route));
+
+  // Gemerkt wird jede Route, die ein Reiter ist. Menüansichten nicht -
+  // „Darstellung" ist kein Ort, an dem jemand weiterarbeiten will.
+  $effect(() => {
+    if (aufReiter) merkeReiter(app, lage.route);
+  });
+
+  // Was die Kopfleiste als offen markiert. Reiter und Menüansichten markieren
+  // sich selbst; alles andere fällt auf das zurück, was die App dafür nennt,
+  // sonst auf den Reiter, der wirklich dasteht - ohne das markierte eine
+  // unbekannte Route (altes Lesezeichen) nichts.
+  const offen = $derived(
+    aufReiter || menue.some((punkt) => punkt.pfad === lage.route)
+      ? lage.route
+      : (markiert ?? (reiter.length ? vorgabe : lage.route)),
   );
+
+  // Wer der Server in diesem Browser sieht, steht rechts oben - in jeder App
+  // gleich. Verwaltung und Aufsicht stehen dort wie ein Sprechername: Sie
+  // sagen, wer hier unterwegs ist. `undefined`, solange die Antwort aussteht,
+  // zeigt nichts, statt kurz „kein Zugang" vorzutäuschen; `null` heißt „kein
+  // gültiger Zugang".
+  const angemeldet = $derived(
+    lage.art === 'unbekannt'
+      ? undefined
+      : lage.art === 'aufsicht'
+        ? 'Aufsicht'
+        : lage.art === 'verwaltung'
+          ? 'Verwaltung'
+          : lage.name,
+  );
+
+  // Großgeschrieben, damit Svelte 5 den Wert als Komponente nimmt.
+  const Inhalt = $derived(
+    MENUEANSICHTEN[lage.route] ??
+      (lage.art === 'keiner'
+        ? KeinZugang
+        : (ansicht ?? ansichten[lage.route] ?? ansichten[vorgabe] ?? null)),
+  );
+
+  ladeZugang();
 </script>
 
-<Kopfleiste {app} {punkte} {uebergreifend} {sprecher} {route} />
+<Kopfleiste {app} punkte={reiter} {menue} sprecher={angemeldet} route={offen} />
 
 <main>
-  {#if Geraet === Audio}
-    <Audio {sprache} {servestimmen} {probeHolen} />
-  {:else if Geraet}
-    <Geraet />
-  {:else}
-    {@render children()}
+  {#if Inhalt}
+    <Inhalt />
   {/if}
 </main>
 

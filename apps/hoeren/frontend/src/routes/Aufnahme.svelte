@@ -31,11 +31,11 @@
     type Naechste,
   } from '../lib/api';
   import { einstellungen } from '$ui/einstellungen.svelte';
-  import { gehZu, setzeZufall, zustand } from '../lib/zustand.svelte';
+  import { gehZu, lage, setzeZufall, zustand } from '../lib/zustand.svelte';
 
   // Je Sprecher ein eigener Schlüssel: Wechselt auf einem Gerät der Zugang,
   // soll die Sitzung des anderen nicht weiterlaufen.
-  const SITZUNG_SCHLUESSEL = `wortlaut.sitzung.${zustand.sprecher}`;
+  const SITZUNG_SCHLUESSEL = `wortlaut.sitzung.${lage.sprecher}`;
 
   let stand = $state<'laedt' | 'bereit' | 'sendet' | 'geprueft'>('laedt');
   let ausschnitt = $state<Naechste | null>(null);
@@ -117,7 +117,7 @@
 
     try {
       await sprich(vorlage.text, {
-        stimme: stimmeNachUri(einstellungen.stimmeUri, stimmen(zustand.sprache)),
+        stimme: stimmeNachUri(einstellungen.stimmeUri, stimmen(lage.sprache)),
         tempo: einstellungen.tempo,
       });
     } catch (ursache) {
@@ -192,7 +192,7 @@
     schriftRem={einstellungen.schriftRem}
   />
 
-  {#if stimmeVerfuegbar(zustand.sprache)}
+  {#if stimmeVerfuegbar(lage.sprache)}
     <div class="reihe" style="justify-content:center">
       <button class="knopf" onclick={vorlesen} disabled={stand === 'sendet'}>
         ▶ Vorsprechen lassen

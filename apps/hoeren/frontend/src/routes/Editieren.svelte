@@ -37,10 +37,10 @@
     type Zuschnittaufnahme,
   } from '../lib/api';
   import { bearbeitungsschluessel } from '../lib/bearbeitungsschluessel';
-  import { gehZu, zustand } from '../lib/zustand.svelte';
+  import { gehZu, lage } from '../lib/zustand.svelte';
 
   const schluessel = bearbeitungsschluessel();
-  const kennung = $derived(zustand.route.slice(EDITIEREN_ROUTE.length));
+  const kennung = $derived(lage.route.slice(EDITIEREN_ROUTE.length));
 
   let aufnahme = $state<Zuschnittaufnahme | null>(null);
   let start = $state(0);
@@ -245,7 +245,7 @@
   }
 
   $effect(() => {
-    if (zustand.art === 'sprecher' && kennung) lade(kennung);
+    if (lage.art === 'sprecher' && kennung) lade(kennung);
     return () => {
       stoppe();
       vergiss();

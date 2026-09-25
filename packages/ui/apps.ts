@@ -117,13 +117,12 @@ export const SYSTEM_PFAD = '/system';
  * Mikrofon einmisst, will nicht an einem Formular für Serverzugänge
  * vorbeiblättern, und umgekehrt.
  *
- * Beide Apps kennen den Punkt, denn beide lesen denselben Zugang aus demselben
- * Browser (`zugang.ts`); die Ansicht dazu gibt es ebenfalls nur einmal
- * (`Zugangsdaten.svelte`). Trotzdem steht der Pfad hier und nicht in
- * `GERAETE_PUNKTE`: Ein Zugang gehört nicht zum Gerät, sondern zum Menschen,
- * und was er in der jeweiligen App bedeutet, weiß nur sie - „hören" nimmt in
- * dasselbe Feld auch Verwalter- und Aufsichtstoken. Jede App stellt ihn
- * deshalb selbst ins Menü, wie jeden anderen app-eigenen Punkt auch.
+ * Alle drei Apps kennen den Punkt, denn alle lesen denselben Zugang aus
+ * demselben Browser (`zugang.ts`); die Ansicht dazu gibt es nur einmal
+ * (`Zugangsdaten.svelte`), und der Rahmen zeigt sie selbst. Trotzdem steht der
+ * Pfad nicht in `GERAETE_PUNKTE`: Ein Zugang gehört nicht zum Gerät, sondern
+ * zum Menschen, und steht darum oben bei den Punkten, die sagen, wer hier ist
+ * (`menuePunkte`).
  */
 export const ZUGANGSDATEN_PFAD = '/zugangsdaten';
 
@@ -131,9 +130,9 @@ export const ZUGANGSDATEN_PFAD = '/zugangsdaten';
  * Wo ein Sprecher seine eigenen Daten ansieht - Profil, Sitzungen, Aufnahmen.
  *
  * Anders als `ZUGANGSDATEN_PFAD` gehört diese Ansicht nur „hören": Dort liegt
- * der Korpus, den sie zeigt. `schreiben` kennt den Pfad trotzdem - es stellt
- * den Menüpunkt mit einem `href` (siehe `Menuepunkt`), das auf die laufende
- * „hören"-Seite verweist, statt eine eigene, leere Ansicht dafür zu bauen.
+ * der Korpus, den sie zeigt. Die anderen beiden führen den Menüpunkt trotzdem -
+ * mit einem `href` (siehe `Menuepunkt`) auf die laufende „hören"-Seite, statt
+ * eine eigene, leere Ansicht dafür zu bauen.
  */
 export const MEINE_DATEN_PFAD = '/meine-daten';
 
@@ -217,10 +216,45 @@ export const MODELLE_URL = `/lernen/#${MODELLE_PFAD}`;
 export const SPRECHER_PFAD = '/sprecher';
 
 /**
+ * Die Reiter jeder App - die zweite Reihe der Kopfleiste, in ihrer Reihenfolge.
+ *
+ * Sie standen zweimal da: in der `App.svelte` jeder App, wo sie in die Leiste
+ * kamen, und in `SCHALTBARE_REITER`, wo sie unter „Darstellung" neben dem
+ * Haken stehen - dieselbe Lage wie bei `MENUE_TEXT`. Die App ordnet jedem Pfad
+ * hier nur noch ihre Ansicht zu (`Rahmen.svelte`).
+ *
+ * „hören": der Weg durch die Arbeit an einem Sprecher - Text holen, aufnehmen,
+ * nachsehen, was zusammengekommen ist, und am Ende messen, was die Modelle
+ * daraus machen (`AUSWERTUNG_PFAD`).
+ *
+ * „lernen": nachsehen, wie die Aufnahmen aufgeteilt sind, ein Training
+ * beauftragen und ihm zusehen, und am Ende entscheiden, welches Modell gelten
+ * soll.
+ *
+ * „schreiben" hat keine Reiterreihe, und das ist kein Versehen: Sein Weg ist
+ * eine Folge - sprechen, hören, bessern, bestätigen - und keine Auswahl
+ * (Grundentscheidung 7).
+ */
+export const REITER: Record<AppSchluessel, Menuepunkt[]> = {
+  hoeren: [
+    { pfad: '/quelle', text: 'Textquelle' },
+    { pfad: '/aufnahme', text: 'Aufnehmen' },
+    { pfad: '/fortschritt', text: 'Fortschritt' },
+    { pfad: AUSWERTUNG_PFAD, text: 'Auswertung' },
+  ],
+  lernen: [
+    { pfad: '/aufteilung', text: 'Aufteilung' },
+    { pfad: '/training', text: 'Training' },
+    { pfad: MODELLE_PFAD, text: 'Modelle' },
+  ],
+  schreiben: [],
+};
+
+/**
  * Wie die Punkte hinter dem Menüknopf heißen - einmal, für beide Listen.
  *
  * Der Text stand zweimal da: in `GERAETE_PUNKTE` beziehungsweise
- * `uebergreifendePunkte`, wo er ins Menü geschrieben wird, und in
+ * `menuePunkte`, wo er ins Menü geschrieben wird, und in
  * `SCHALTBARE_MENUEPUNKTE`, wo er unter „Darstellung" neben dem Haken steht.
  * Zwei Listen, dieselbe Beschriftung, nichts, das sie zusammenhält - und wer
  * einen Punkt umbenennt, benennt ihn erfahrungsgemäß einmal um. Dann heißt
@@ -243,11 +277,10 @@ export const MENUE_TEXT: Record<string, string> = {
 /**
  * Die Menüpunkte, die zum Gerät gehören - in jeder App dieselben.
  *
- * Sie stehen hier als Daten und nicht als feste Zeilen in der Kopfleiste,
- * weil zwei Stellen sie brauchen: die Kopfleiste, um sie ins Menü zu
- * schreiben, und der Rahmen, um ihre Ansichten zu zeigen (`Rahmen.svelte`).
+ * Sie stehen hier als Daten und nicht als feste Zeilen in der Kopfleiste:
+ * Der Rahmen stellt sie ins Menü und zeigt ihre Ansichten (`Rahmen.svelte`).
  * Ein vierter gerätebezogener Punkt ist damit ein Eintrag in dieser Liste
- * und eine Zeile im Rahmen - und keine Änderung in jeder App.
+ * und eine Zeile im Rahmen - und keine Änderung in einer App.
  */
 export const GERAETE_PUNKTE: Menuepunkt[] = [
   { pfad: AUDIO_PFAD, text: MENUE_TEXT[AUDIO_PFAD] },
@@ -262,7 +295,8 @@ export const GERAETE_PUNKTE: Menuepunkt[] = [
 
 
 /**
- * Die Menüpunkte, die in **jeder** App dieselben sind.
+ * Das Menü hinter dem Knopf der Kopfleiste - in **jeder** App dasselbe, bis
+ * auf den Weg zurück in die App, die gerade offen ist (`Kopfleiste.svelte`).
  *
  * Bis September 2026 baute sich jede der drei ihre eigene Liste, und sie waren
  * verschieden: „hören" führte für die Aufsicht „Sprecher", die beiden anderen
@@ -281,7 +315,7 @@ export const GERAETE_PUNKTE: Menuepunkt[] = [
  * App", und deshalb rechnet sie diese Funktion aus, statt sie jedem Aufrufer
  * zu überlassen.
  */
-export function uebergreifendePunkte(art: string, app: AppSchluessel): Menuepunkt[] {
+export function menuePunkte(art: string, app: AppSchluessel): Menuepunkt[] {
   const inHoeren = app === 'hoeren';
   // Von außen die volle Adresse, innerhalb von „hören" die Hash-Route.
   const nachHoeren = (pfad: string) => (inHoeren ? {} : { href: `/#${pfad}` });
@@ -307,25 +341,8 @@ export function uebergreifendePunkte(art: string, app: AppSchluessel): Menuepunk
   // dieser Punkt der einzige Weg herein, und ein Menü, das ihn erst nach
   // erfolgreicher Anmeldung zeigt, hätte die Tür hinter dem Schloss.
   punkte.push({ pfad: ZUGANGSDATEN_PFAD, text: MENUE_TEXT[ZUGANGSDATEN_PFAD] });
-  return punkte;
-}
-
-/**
- * Ob statt der Ansicht der Hinweis auf die Zugangsdaten stehen muss.
- *
- * Eine Regel für alle drei, denn es ist dieselbe Lage: Dieser Browser weist
- * nichts vor, also gibt keine API etwas her, und eine Ansicht, die es trotzdem
- * versucht, zeigt eine Reihe abgewiesener Anfragen statt des einen Satzes, der
- * weiterhilft (`KeinZugang.svelte`).
- *
- * **Ausgenommen bleibt die Ansicht der Zugangsdaten selbst.** Dorthin führt
- * der Hinweis; sie darf nicht hinter ihm liegen.
- *
- * „hören" tat das bis September 2026 nicht: Wer dort ohne Zugang ankam, sah
- * die Verwaltung - eine Seite, deren Anfragen sämtlich abgewiesen wurden.
- */
-export function ohneZugang(art: string, route: string): boolean {
-  return art === 'keiner' && route !== ZUGANGSDATEN_PFAD;
+  // Erst wer, dann womit.
+  return [...punkte, ...GERAETE_PUNKTE];
 }
 
 /**
@@ -409,15 +426,14 @@ export const SCHALTBARE_APPS: Schaltbar[] = APPS.map((eintrag) => ({
 }));
 
 /**
- * Die Punkte im Menüknopf, in ihrer Reihenfolge dort: erst die der App
- * (`uebergreifend`), dann die gerätebezogenen, zuletzt der Weg nach draußen.
+ * Die Punkte im Menüknopf, in ihrer Reihenfolge dort: erst wer, dann womit
+ * (`menuePunkte`), zuletzt der Weg nach draußen.
  *
- * Die Liste steht vollständig hier und nicht je App: „Darstellung" ist in
- * jeder App dieselbe Ansicht und soll überall dieselben Schalter zeigen -
- * sonst hinge es davon ab, wo man sie gerade geöffnet hat, ob ein Punkt
- * wiederzufinden ist. Was eine App gar nicht führt (`SPRECHER_PFAD` in
- * „schreiben"), steht dort ohnehin nicht im Menü; der Schalter dazu ist dann
- * eine Einstellung ohne Wirkung, aber keine falsche.
+ * Die Liste steht vollständig hier: „Darstellung" ist in jeder App dieselbe
+ * Ansicht und zeigt überall dieselben Schalter. „Sprecher" und „Meine Daten"
+ * stehen nie zugleich im Menü - welcher, hängt am Zugang -, geschaltet werden
+ * trotzdem beide, damit der Haken beim Wechsel des Zugangs nicht verloren
+ * geht.
  */
 export const SCHALTBARE_MENUEPUNKTE: Schaltbar[] = [
   { schluessel: menueSchluessel(SPRECHER_PFAD), text: MENUE_TEXT[SPRECHER_PFAD] },
@@ -456,26 +472,14 @@ export const SCHALTBARE_MENUEPUNKTE: Schaltbar[] = [
  * Ansicht der App stehen (jede App fällt auf ihren ersten Reiter zurück), und
  * „Darstellung" steht weiterhin im Menü.
  *
- * „schreiben" fehlt hier, und das ist kein Versehen: Die App hat keine
- * Reiterreihe. Ihr Weg ist eine Folge - sprechen, hören, bessern, bestätigen -
- * und keine Auswahl (Grundentscheidung 7).
+ * „schreiben" fehlt hier, weil es in `REITER` keine hat.
  */
-export const SCHALTBARE_REITER: { app: AppSchluessel; eintraege: Schaltbar[] }[] = [
-  {
-    app: 'hoeren',
-    eintraege: [
-      { schluessel: reiterSchluessel('hoeren', '/quelle'), text: 'Textquelle' },
-      { schluessel: reiterSchluessel('hoeren', '/aufnahme'), text: 'Aufnehmen' },
-      { schluessel: reiterSchluessel('hoeren', '/fortschritt'), text: 'Fortschritt' },
-      { schluessel: reiterSchluessel('hoeren', AUSWERTUNG_PFAD), text: 'Auswertung' },
-    ],
-  },
-  {
-    app: 'lernen',
-    eintraege: [
-      { schluessel: reiterSchluessel('lernen', '/aufteilung'), text: 'Aufteilung' },
-      { schluessel: reiterSchluessel('lernen', '/training'), text: 'Training' },
-      { schluessel: reiterSchluessel('lernen', MODELLE_PFAD), text: 'Modelle' },
-    ],
-  },
-];
+export const SCHALTBARE_REITER: { app: AppSchluessel; eintraege: Schaltbar[] }[] = APPS.filter(
+  (eintrag) => REITER[eintrag.schluessel].length,
+).map(({ schluessel: app }) => ({
+  app,
+  eintraege: REITER[app].map((punkt) => ({
+    schluessel: reiterSchluessel(app, punkt.pfad),
+    text: punkt.text,
+  })),
+}));

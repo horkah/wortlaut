@@ -19,6 +19,8 @@
  * Auswahl stellen.
  */
 
+import { api } from './api';
+
 /** Etwas langsamer als normal: die Vorgabe soll nachgesprochen werden. */
 export const TEMPO_VORGABE = 0.9;
 
@@ -142,6 +144,31 @@ export function istServestimme(uri: string | null): boolean {
 
 export function serveSchluessel(uri: string): string {
   return uri.slice(SERVE_PRAEFIX.length);
+}
+
+/**
+ * Die Stimmen liegen bei „hören" - auf der Wurzel der gemeinsamen Domain, also
+ * aus jeder App derselbe Weg (wie `wer.ts`). Sie standen einmal nur in der API
+ * von „hören", und die Stimmwahl unter „Audio" bot sie darum nur dort an: Aus
+ * „lernen" und „schreiben" geöffnet, fehlten sie in derselben Ansicht.
+ */
+const hoeren = api('/api');
+
+/** Welche Stimmen der Server sprechen kann. Leere Liste ist der Normalfall. */
+export const holeServestimmen = () => hoeren.anfrage<Servestimme[]>('/vorlesen/stimmen');
+
+/**
+ * Ein fester Satz in dieser Stimme - zum Vergleichen, bevor man wählt.
+ *
+ * `no-cache`, weil sich unter derselben Adresse der Inhalt ändern kann: Wird
+ * eine Stimme neu gesprochen, bleibt ihr Name derselbe (siehe `FRISCH` in der
+ * API von „hören").
+ */
+export async function stimmprobe(stimme: string): Promise<Blob> {
+  const antwort = await hoeren.hole(`/vorlesen/probe?stimme=${encodeURIComponent(stimme)}`, {
+    cache: 'no-cache',
+  });
+  return antwort.blob();
 }
 
 let laufend: HTMLAudioElement | null = null;

@@ -60,7 +60,7 @@ export interface Wer {
   sprache: string | null;
 }
 
-/** Was davon im Zustand einer App steht. */
+/** Was davon im gemeinsamen Zustand steht (`lage.svelte.ts`). */
 export interface Zugangsstand {
   art: Art;
   sprecher: string | null;
@@ -69,9 +69,8 @@ export interface Zugangsstand {
 }
 
 /**
- * Der Stand vor der ersten Antwort. Zum **Hineinstreuen** in den `$state` einer
- * App gedacht (`{ ...OFFEN }`) und nicht zum Verweisen darauf: Drei Apps, die
- * sich ein Objekt teilen, teilen sich auch dessen Änderungen.
+ * Der Stand vor der ersten Antwort - und der nach einer Abweisung, bis auf
+ * `art`. Hineingestreut in den gemeinsamen Zustand (`lage.svelte.ts`).
  */
 export const OFFEN: Zugangsstand = {
   art: 'unbekannt',

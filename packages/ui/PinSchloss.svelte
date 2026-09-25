@@ -5,8 +5,9 @@
    * desselben Gedankens (siehe dort).
    *
    * Sie steht **in** den beiden Ansichten und nicht an ihren Aufrufstellen:
-   * „Zugangsdaten" wird von jeder App einzeln eingehängt, und eine App, die
-   * die Klammer vergisst, hätte ein Schloss, das nur die halbe Tür schließt.
+   * „Zugangsdaten" zeigt außer dem Rahmen auch „lernen" selbst (für jeden, der
+   * kein Sprecher ist), und eine Stelle, die die Klammer vergisst, hätte ein
+   * Schloss, das nur die halbe Tür schließt.
    *
    * Solange die Auskunft aussteht, steht hier nichts: Ein kurz aufblitzendes
    * Formular, das gleich wieder verschwindet, sähe aus wie ein Fehler.
