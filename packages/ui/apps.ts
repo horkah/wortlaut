@@ -98,6 +98,18 @@ export const AUDIO_PFAD = '/einstellungen';
 export const DARSTELLUNG_PFAD = '/darstellung';
 
 /**
+ * Worauf wortlaut läuft: Karte, Prozessor, Speicher, Platten - und wie viel
+ * davon gerade belegt ist (`System.svelte`).
+ *
+ * Kein Punkt, der zum Gerät gehört wie Audio und Darstellung, sondern einer,
+ * der zur Maschine dahinter gehört. Er steht trotzdem in `GERAETE_PUNKTE`,
+ * weil er dasselbe braucht wie sie: in jeder App derselbe Punkt, vom Rahmen
+ * selbst beantwortet, ohne dass eine App ihn kennen muss. Dort steht er als
+ * letzter - er wird am seltensten gebraucht.
+ */
+export const SYSTEM_PFAD = '/system';
+
+/**
  * Wo die Zugangsdaten dieser Instanz verwaltet werden - Verwalter- und
  * Aufsichtstoken.
  *
@@ -225,6 +237,7 @@ export const MENUE_TEXT: Record<string, string> = {
   [ZUGANGSDATEN_PFAD]: 'Zugangsdaten',
   [AUDIO_PFAD]: 'Audio',
   [DARSTELLUNG_PFAD]: 'Darstellung',
+  [SYSTEM_PFAD]: 'System',
 };
 
 /**
@@ -242,6 +255,9 @@ export const GERAETE_PUNKTE: Menuepunkt[] = [
   // zuerst gesehen; wer nach Farbe und Schrift sucht, findet sie gleich
   // darunter.
   { pfad: DARSTELLUNG_PFAD, text: MENUE_TEXT[DARSTELLUNG_PFAD] },
+  // Zuletzt, direkt über „Über wortlaut": Wer nachsehen will, ob die Karte
+  // rechnet, weiß, wo er sucht - alle anderen sollen nicht darüber stolpern.
+  { pfad: SYSTEM_PFAD, text: MENUE_TEXT[SYSTEM_PFAD] },
 ];
 
 
@@ -419,6 +435,7 @@ export const SCHALTBARE_MENUEPUNKTE: Schaltbar[] = [
     fest: true,
     grund: 'Diese Seite selbst - ohne sie käme kein Schalter zurück.',
   },
+  { schluessel: menueSchluessel(SYSTEM_PFAD), text: MENUE_TEXT[SYSTEM_PFAD] },
   { schluessel: PROJEKT_SCHLUESSEL, text: 'Über wortlaut' },
 ];
 
