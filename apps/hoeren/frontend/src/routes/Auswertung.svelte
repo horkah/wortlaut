@@ -49,6 +49,7 @@
     auswertung as ladeAuswertung,
     auswertungStarten,
     auswertungStoppen,
+    diktatmodell,
     meineAufnahmeAudio,
     vergleich as ladeVergleich,
     type Auswertung,
@@ -87,6 +88,9 @@
   // Welches Modell als Balken steht; die übrigen werden Punkte darüber. Steht
   // hier nichts, entscheidet `balkenmodell` weiter unten.
   let gewaehlterBalken = $state('');
+  // Womit „schreiben" gerade diktiert - leer, solange die Antwort aussteht
+  // oder „schreiben" keine gibt.
+  let diktatRef = $state('');
 
   let gewaehlt = $state<Vergleich | null>(null);
   let gewaehlteNummer = $state(0);
@@ -183,17 +187,20 @@
   const varianten = $derived(daten?.varianten ?? []);
 
   /**
-   * Welches Modell den Balken bekommt. Die Vorgabe ist `small` - der
-   * Alltagsfall, gegen den die übrigen zu vergleichen sind. Ist es nicht
-   * konfiguriert, nimmt die Mitte der Liste seinen Platz ein; bei nur einem
-   * Modell ist es dieses.
+   * Welches Modell den Balken bekommt. Die Vorgabe ist das, womit „schreiben"
+   * diktiert - das unter „Modelle" freigegebene: Es ist der Alltagsfall, und
+   * gegen ihn sind die übrigen zu vergleichen. Wird es hier nicht gemessen
+   * (oder ist „schreiben" nicht zu erreichen), steht `small` da; fehlt auch
+   * das, die Mitte der Liste, und bei nur einem Modell dieses.
    */
   const balkenmodell = $derived(
     gewaehlterBalken && modelle.includes(gewaehlterBalken)
       ? gewaehlterBalken
-      : modelle.includes('small')
-        ? 'small'
-        : (modelle[Math.floor((modelle.length - 1) / 2)] ?? ''),
+      : diktatRef && modelle.includes(diktatRef)
+        ? diktatRef
+        : modelle.includes('small')
+          ? 'small'
+          : (modelle[Math.floor((modelle.length - 1) / 2)] ?? ''),
   );
 
   // Die Fassungen sind je Modell viermal da; gelesen wird immer eine.
@@ -585,6 +592,11 @@
 
     takt();
     baueDiagramm();
+    // Einmal je Besuch: Freigegeben wird in „lernen", und wer das tut, kommt
+    // danach über den Reiter hierher zurück.
+    diktatmodell().then((ref) => {
+      if (!beendet && ref) diktatRef = ref;
+    });
 
     return () => {
       beendet = true;
@@ -713,7 +725,9 @@
           onchange={(ereignis) => (gewaehlterBalken = ereignis.currentTarget.value)}
         >
           {#each modelle as modell (modell)}
-            <option value={modell}>{benannt(modell)}</option>
+            <option value={modell}
+              >{benannt(modell)}{modell === diktatRef ? ' · schreiben' : ''}</option
+            >
           {/each}
         </select>
       </label>

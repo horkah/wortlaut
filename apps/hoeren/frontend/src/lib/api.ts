@@ -549,6 +549,23 @@ export type Vergleich = {
 
 export const auswertung = () => anfrage<Auswertung>('/auswertung');
 
+/**
+ * Womit „schreiben" diktiert - die Kennung eines Standes oder ein Grundmodell.
+ *
+ * Gefragt wird „schreiben" selbst, wie in der Modellübersicht von „lernen":
+ * Dort steht die eine Antwort, samt allem, was sie überstimmt
+ * (`WORTLAUT_MODELL_REF`, ersatzweise `WORTLAUT_ASR_MODELL`). Scheitert die
+ * Frage, kommt `null` - die Auswertung steht auch ohne „schreiben".
+ */
+export async function diktatmodell(): Promise<string | null> {
+  try {
+    const antwort = await api('/schreiben/api').anfrage<{ ref: string }>('/model');
+    return antwort.ref || null;
+  } catch {
+    return null;
+  }
+}
+
 export const vergleich = (aufnahme: string) => anfrage<Vergleich>(`/auswertung/${aufnahme}`);
 
 export const auswertungStarten = () =>
