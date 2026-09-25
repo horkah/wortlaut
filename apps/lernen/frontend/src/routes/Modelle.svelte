@@ -430,9 +430,6 @@
                 {:else}
                   <span class="name">{modell.name}</span>
                 {/if}
-                {#if modell.art === 'trainiert'}
-                  <span class="abzeichen leise">eigenes</span>
-                {/if}
                 {#if modell.freigegeben}
                   <span class="abzeichen">freigegeben</span>
                 {/if}
