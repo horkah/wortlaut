@@ -164,7 +164,7 @@ wortlaut/
 │   │   │   ├── deps.py            # Zugang, eigene Datenbank, Korpus (lesend!)
 │   │   │   ├── api/               # aufteilung.py, laeufe.py, modelle.py
 │   │   │   ├── services/
-│   │   │   │   ├── aufteilung.py  # sechs Faltungen, der Reihe nach
+│   │   │   │   ├── aufteilung.py  # sechs Faltungen, nach Zählerstand
 │   │   │   │   ├── auftraege.py   # Schnappschuss und Auftrag schreiben
 │   │   │   │   ├── messwerte.py   # alle Modelle auf denselben Testaufnahmen
 │   │   │   │   └── vergleich.py   # trainierter Stand gegen die Baseline

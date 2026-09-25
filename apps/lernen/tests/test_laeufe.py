@@ -171,7 +171,7 @@ class TestManifest:
     ) -> None:
         # Derselbe Ton in zwei Faltungen hieße: Das Modell der einen lernt,
         # woran es in der anderen gemessen wird. Die Teile stehen direkt unter
-        # dem Original - der Reihe nach gezählt, landeten sie genau so.
+        # dem Original - einzeln verteilt, landeten sie genau so.
         from sqlalchemy.orm import Session
 
         from apps.hoeren.backend.db.models import Aufnahme
@@ -191,6 +191,11 @@ class TestManifest:
         assert faltung[original] == faltung[vorn] == faltung[hinten]
         # Und die übrigen rücken nach, statt eine Faltung leer zu lassen.
         assert sorted(set(faltung.values())) == list(range(laeufe.FALTUNGEN))
+        # Gezählt wird die Verwandtschaft mit allen drei Aufnahmen: Ihre
+        # Faltung ist damit voraus, und die übrigen neun gehen an ihr vorbei.
+        je_faltung = [list(faltung.values()).count(f) for f in range(laeufe.FALTUNGEN)]
+        assert je_faltung[faltung[original]] == 3
+        assert sorted(je_faltung) == [1, 2, 2, 2, 2, 3]
 
     def test_die_faltungen_folgen_der_reihenfolge(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis

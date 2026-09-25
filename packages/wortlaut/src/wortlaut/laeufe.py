@@ -46,7 +46,7 @@ from __future__ import annotations
 import json
 import shutil
 import time
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -80,11 +80,19 @@ ZWISCHENSTAENDE = (ARBEITSSTAND, GEWICHTE, VORGESPULT)
 
 # ── Die Faltungen ───────────────────────────────────────────────────────────
 #
-# Sechsfache Kreuzvalidierung über **alle** Aufnahmen. Jede Aufnahme bekommt
-# der Reihe nach eine Faltung - 1, 2, 3, 4, 5, 6, 1, 2, … -, und je Faltung
-# läuft ein Training: gelernt wird auf den anderen fünf Sechsteln, gemessen auf
-# diesem einen. Sechs Trainings später ist **jede** Aufnahme genau einmal von
-# einem Modell gehört worden, das sie nie gesehen hat.
+# Sechsfache Kreuzvalidierung über **alle** Aufnahmen. Jede Aufnahme kommt in
+# die Faltung, die bis dahin am wenigsten hat, und bei Gleichstand in die
+# vorderste - bei lauter einzelnen Aufnahmen also 1, 2, 3, 4, 5, 6, 1, 2, … Je
+# Faltung läuft ein Training: gelernt wird auf den anderen fünf Sechsteln,
+# gemessen auf diesem einen. Sechs Trainings später ist **jede** Aufnahme genau
+# einmal von einem Modell gehört worden, das sie nie gesehen hat.
+#
+# **Warum nach Zählerstand und nicht reihum.** Teile und Kopien aus „Editieren"
+# gehen geschlossen in die Faltung ihres Originals (`aufteilung.py` in
+# „lernen"). Reihum vergeben, bekam eine Faltung mit einer dreiteiligen
+# Verwandtschaft trotzdem ihren nächsten Platz in der Runde, und die Faltungen
+# standen bei 4, 4, 4, 6, 4, 4. Nach Zählerstand holen die anderen auf, bis
+# alle wieder gleich sind.
 #
 # **Was hier bis September 2026 stand, und warum es weg ist.** Ein festes
 # Testdrittel, einmal vergeben und nie wieder angefasst. Der Gedanke war
@@ -107,9 +115,20 @@ ZWISCHENSTAENDE = (ARBEITSSTAND, GEWICHTE, VORGESPULT)
 FALTUNGEN = 6
 
 
-def faltung_fuer(nummer: int) -> int:
-    """Welche Faltung der `nummer`-ten Aufnahme zusteht (ab 0)."""
-    return nummer % FALTUNGEN
+def verteile(groessen: Iterable[int]) -> list[int]:
+    """Die Faltung (ab 0) jeder Gruppe, in der Reihenfolge der `groessen`.
+
+    Eine Gruppe ist, was zusammenbleiben muss, und ihre Größe die Zahl ihrer
+    Aufnahmen. Jede kommt dorthin, wo bis dahin am wenigsten liegt; bei
+    Gleichstand in die Faltung mit der niedrigsten Nummer.
+    """
+    stand = [0] * FALTUNGEN
+    vergeben = []
+    for groesse in groessen:
+        faltung = stand.index(min(stand))
+        stand[faltung] += groesse
+        vergeben.append(faltung)
+    return vergeben
 
 
 # ── Methoden und Datensätze ─────────────────────────────────────────────────
