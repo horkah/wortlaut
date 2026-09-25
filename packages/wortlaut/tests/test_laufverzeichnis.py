@@ -26,18 +26,32 @@ def _auftrag(datenverzeichnis: Path, job_id: str, sprecher: str = "spr_a") -> Pa
 
 class TestFaltungen:
     def test_jede_faltung_kommt_gleich_oft_vor(self) -> None:
-        vergeben = [laeufe.faltung_fuer(nummer) for nummer in range(laeufe.FALTUNGEN * 4)]
+        vergeben = laeufe.verteile([1] * (laeufe.FALTUNGEN * 4))
         assert sorted(set(vergeben)) == list(range(laeufe.FALTUNGEN))
         assert all(vergeben.count(faltung) == 4 for faltung in range(laeufe.FALTUNGEN))
 
-    def test_wiederholt_sich_ohne_ende(self) -> None:
+    def test_einzelne_aufnahmen_gehen_reihum(self) -> None:
         # 1, 2, 3, 4, 5, 6, 1, 2, … - die siebte Aufnahme fängt wieder vorn an.
         n = laeufe.FALTUNGEN
-        assert laeufe.faltung_fuer(0) == laeufe.faltung_fuer(n) == laeufe.faltung_fuer(2 * n)
+        assert laeufe.verteile([1] * (2 * n + 1)) == [*range(n), *range(n), 0]
 
-    def test_die_erste_aufnahme_traegt_die_erste_faltung(self) -> None:
-        assert laeufe.faltung_fuer(0) == 0
-        assert laeufe.faltung_fuer(laeufe.FALTUNGEN - 1) == laeufe.FALTUNGEN - 1
+    def test_eine_grosse_gruppe_wird_aufgeholt(self) -> None:
+        # So stand FEMKE bei 4, 4, 4, 6, 4, 4: eine dreiteilige Verwandtschaft
+        # an vierter Stelle, reihum weitergezählt. Nach Zählerstand überspringen
+        # die nächsten Aufnahmen die volle Faltung, bis die anderen gleichauf
+        # sind.
+        groessen = [1, 1, 1, 3, *[1] * 20]
+        vergeben = laeufe.verteile(groessen)
+        stand = [0] * laeufe.FALTUNGEN
+        for faltung, groesse in zip(vergeben, groessen, strict=True):
+            stand[faltung] += groesse
+        assert stand == [5, 5, 4, 4, 4, 4]
+        assert vergeben[:6] == [0, 1, 2, 3, 4, 5]
+        assert vergeben[6:11] == [0, 1, 2, 4, 5]
+
+    def test_bei_gleichstand_die_niedrigste_nummer(self) -> None:
+        assert laeufe.verteile([2, 1, 1]) == [0, 1, 2]
+        assert laeufe.verteile([]) == []
 
 
 class TestWarteschlange:

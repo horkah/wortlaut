@@ -1,17 +1,21 @@
 """Wie der Korpus in sechs Faltungen zerfällt - und warum das nirgends steht.
 
-Jede Aufnahme bekommt der Reihe nach eine Faltung: 1, 2, 3, 4, 5, 6, 1, 2, …
-Je Faltung läuft ein Training, das auf den anderen fünf Sechsteln lernt und auf
+Jede Aufnahme kommt in die Faltung mit dem geringsten Zählerstand, bei
+Gleichstand in die mit der niedrigsten Nummer - bei lauter einzelnen Aufnahmen
+also 1, 2, 3, 4, 5, 6, 1, 2, … (`wortlaut.laeufe.verteile`). Je Faltung läuft ein Training, das auf den anderen fünf Sechsteln lernt und auf
 diesem einen misst. Sechs Trainings später ist jede Aufnahme genau einmal von
 einem Modell gehört worden, das sie nie gesehen hat - und das ist die Zahl, die
 in der Modelltabelle steht.
 
 **Eine Verwandtschaft ist eine Aufnahme.** Teile und Kopien aus „Editieren"
 sind neue Aufnahmen, aber derselbe Ton (`zuschnitt.stamm`). Sie stehen direkt
-unter ihrem Original, und nach der Reihe gezählt landeten sie in der nächsten
-Faltung - dann lernte das Modell der einen Faltung den Ton, an dem es in der
-anderen gemessen wird, und die Zahl stiege, ohne dass es besser hörte. Gezählt
-wird deshalb je Stamm: Original, Teile und Kopien teilen sich eine Faltung.
+unter ihrem Original, und einzeln verteilt landeten sie in anderen Faltungen -
+dann lernte das Modell der einen Faltung den Ton, an dem es in der anderen
+gemessen wird, und die Zahl stiege, ohne dass es besser hörte. Verteilt wird
+deshalb je Stamm: Original, Teile und Kopien teilen sich eine Faltung, und
+gezählt wird der Stamm mit all seinen Aufnahmen. Darum der Zählerstand statt
+einer festen Runde: Reihum bekam die Faltung einer dreiteiligen Verwandtschaft
+trotzdem ihren nächsten Platz, und die Faltungen liefen auseinander.
 
 **Warum hier nichts mehr gespeichert wird.** Bis September 2026 stand in einer
 Tabelle, welche Aufnahme lernt, steuert und prüft; einmal vergeben und nie
@@ -60,19 +64,21 @@ def proben(korpus: Session) -> list[Probe]:
     """Alle brauchbaren Aufnahmen mit ihrer Faltung, älteste zuerst.
 
     Die Reihenfolge ist die des Korpus und damit die des Aufnehmens. Sie ist
-    zugleich die Zuteilung: Der `n`-te Stamm trägt die `n % 6`-te Faltung, und
-    mit ihm alle seine Teile und Kopien (siehe oben). Nichts daran ist
-    gespeichert, und nichts muss es sein.
+    zugleich die der Zuteilung: Stamm für Stamm kommt jeder in die Faltung
+    mit den wenigsten Aufnahmen, und mit ihm alle seine Teile und Kopien
+    (siehe oben). Nichts daran ist gespeichert, und nichts muss es sein.
     """
     reihe = gueltige_aufnahmen(korpus)
-    staemme: dict[str, int] = {}
+    groessen: dict[str, int] = {}
     for aufnahme, _ in reihe:
-        staemme.setdefault(zuschnitt.stamm(aufnahme), len(staemme))
+        stamm = zuschnitt.stamm(aufnahme)
+        groessen[stamm] = groessen.get(stamm, 0) + 1
+    faltungen = dict(zip(groessen, laeufe.verteile(groessen.values()), strict=True))
     return [
         Probe(
             aufnahme=aufnahme,
             vorlage=vorlage,
-            faltung=laeufe.faltung_fuer(staemme[zuschnitt.stamm(aufnahme)]),
+            faltung=faltungen[zuschnitt.stamm(aufnahme)],
             nummer=nummer,
         )
         for nummer, (aufnahme, vorlage) in enumerate(reihe)

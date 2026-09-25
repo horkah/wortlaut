@@ -50,7 +50,7 @@ Abschnitt 7.
 
 | # | Schritt | Wo |
 |---|---|---|
-| 1 | Sechs Faltungen, der Reihe nach vergeben | `wortlaut/laeufe.py` (`faltung_fuer`), `apps/lernen/backend/services/aufteilung.py` |
+| 1 | Sechs Faltungen, nach Zählerstand vergeben | `wortlaut/laeufe.py` (`verteile`), `apps/lernen/backend/services/aufteilung.py` |
 | 2 | Manifest schreiben: je Probe Pfad, Text, Herkunft, Gewicht, Teil | `apps/lernen/backend/services/auftraege.py:_manifestzeile` |
 | 3 | WAV → Log-Mel, Text → Marken, Stapel bilden | `apps/lernen/training/daten.py:63` (`Proben.__getitem__`), `:77` (`Stapler`) |
 | 4 | **Modell aus Daten** - der eigentliche Lernschritt | `apps/lernen/training/finetune.py:205` (`trainiere`), `:341` (`trainer.train()`) |
@@ -386,10 +386,14 @@ Faltungen teilen und k Läufe rechnen; der Test bleibt unangetastet.
 
 **Was daraus geworden ist - und es ist mehr.** Das Testdrittel ist ganz
 weggefallen. Kreuzvalidiert wird über **alle** Aufnahmen, sechsfach, und die
-Faltung folgt schlicht der Reihenfolge des Korpus: 1, 2, 3, 4, 5, 6, 1, 2, …
-Gezählt wird dabei je Stamm: Teile und Kopien aus „Editieren" sind derselbe
+Faltung folgt der Reihenfolge des Korpus: Jede Aufnahme kommt in die Faltung
+mit dem geringsten Zählerstand, bei Gleichstand in die mit der niedrigsten
+Nummer - bei lauter einzelnen Aufnahmen also 1, 2, 3, 4, 5, 6, 1, 2, …
+Verteilt wird dabei je Stamm: Teile und Kopien aus „Editieren" sind derselbe
 Ton wie ihr Original und teilen sich dessen Faltung - sonst lernte ein Modell,
-woran es gemessen wird.
+woran es gemessen wird. Sie zählen dort mit, und bis September 2026, als noch
+reihum vergeben wurde, liefen die Faltungen dadurch auseinander (FEMKE: 4, 4,
+4, 6, 4, 4). Nach Zählerstand holen die anderen auf.
 
 Der Anlass war ein Korpus von neun Aufnahmen. Darin bestand der Test aus
 dreien, die Validierung aus **einer**. Eine Fehlerrate über drei Aufnahmen ist

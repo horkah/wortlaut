@@ -1,4 +1,4 @@
-"""Die Faltungen: sechs, der Reihe nach vergeben, nirgends gespeichert.
+"""Die Faltungen: sechs, nach Zählerstand vergeben, nirgends gespeichert.
 
 Hier stand bis September 2026 die wichtigste Zusage dieser App - eine Aufnahme,
 die einmal geprüft hat, trainiert nie. Es gibt sie nicht mehr, weil es das
