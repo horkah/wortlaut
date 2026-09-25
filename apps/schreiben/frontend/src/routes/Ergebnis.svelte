@@ -25,7 +25,7 @@
     sitzungHolen,
     type Versand,
   } from '../lib/api';
-  import { gehZu, setzeSitzung, zustand } from '../lib/zustand.svelte';
+  import { gehZu, lage, setzeSitzung, zustand } from '../lib/zustand.svelte';
 
   let liest = $state(false);
   let gesprochen = $state<string | null>(null);
@@ -60,7 +60,7 @@
         if (!liest) break; // in der Zwischenzeit angehalten
         gesprochen = abschnitt.id;
         await sprich(abschnitt.text, {
-          stimme: stimmeNachUri(einstellungen.stimmeUri, stimmen(zustand.sprache)),
+          stimme: stimmeNachUri(einstellungen.stimmeUri, stimmen(lage.sprache)),
           tempo: einstellungen.tempo,
         });
       }
@@ -187,11 +187,11 @@
   // Leuten, ist ein Telefon, das von selbst zu sprechen anfängt, der Grund,
   // es wegzulegen. Der Knopf „▶ Vorlesen" oben bleibt davon unberührt; er ist
   // die Handlung, das hier ist die Gewohnheit dahinter.
-  if (einstellungen.liestVonSelbst && stimmeVerfuegbar(zustand.sprache) && !bestaetigt) lies();
+  if (einstellungen.liestVonSelbst && stimmeVerfuegbar(lage.sprache) && !bestaetigt) lies();
 </script>
 
 <div class="reihe kopfzeile">
-  {#if stimmeVerfuegbar(zustand.sprache)}
+  {#if stimmeVerfuegbar(lage.sprache)}
     <button class="knopf" onclick={lies}>{liest ? '■ Anhalten' : '▶ Vorlesen'}</button>
   {/if}
   <span class="gedaempft">{abschnitte.length} Abschnitte · zum Bessern anklicken</span>

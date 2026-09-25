@@ -17,28 +17,13 @@
    *
    * Der persönliche Link ist der übliche Weg und verlangt niemandem etwas zu
    * tippen ab. Das Feld unter „Zugangsdaten" ist der Ausweg für den, der einen
-   * Zugang von Hand einsetzt - und für „hören" zugleich der einzige Weg in
-   * Verwaltung und Aufsicht (`verwaltet`).
+   * Zugang von Hand einsetzt - und zugleich der einzige Weg in Verwaltung und
+   * Aufsicht, aus jeder App (`Zugangsdaten.svelte`).
+   *
+   * Eingehängt wird sie vom Rahmen (`Rahmen.svelte`), nicht von den Apps.
    */
   import { ZUGANGSDATEN_PFAD } from './apps';
-
-  let {
-    gehZu,
-    verwaltet = false,
-  }: {
-    /**
-     * Der Weg dieser App zu einer ihrer Hash-Routen. Jede bringt ihren eigenen
-     * mit - dieselbe Aufteilung wie bei `pruefe` in `Zugangsdaten.svelte`.
-     */
-    gehZu: (route: string) => void;
-    /**
-     * Ob diese App außer Sprecherzugängen auch Verwalter- und Aufsichtstoken
-     * kennt. Nur „hören" tut das; in den beiden anderen wiese der Server sie
-     * ohnehin ab, und der Satz dazu wäre ein Hinweis auf eine Tür, die es hier
-     * nicht gibt.
-     */
-    verwaltet?: boolean;
-  } = $props();
+  import { gehZu } from './route';
 </script>
 
 <h2>Kein Zugang</h2>
@@ -52,9 +37,7 @@
     Der persönliche Link, einmal geöffnet, genügt - derselbe in allen drei Apps. Danach ist hier
     nichts mehr einzutragen.
   </p>
-  {#if verwaltet}
-    <p>Wer verwaltet oder beaufsichtigt, trägt stattdessen seinen Token ein - in dasselbe Feld.</p>
-  {/if}
+  <p>Wer verwaltet oder beaufsichtigt, trägt stattdessen seinen Token ein - in dasselbe Feld.</p>
   <button class="knopf haupt" onclick={() => gehZu(ZUGANGSDATEN_PFAD)}>Zu den Zugangsdaten</button>
   <p class="gedaempft">
     Dieselbe Seite steht immer im Menü (☰) rechts oben. Was dort eingetragen wird, bleibt in

@@ -29,7 +29,7 @@
     type AufsichtSitzung,
     type Konto,
   } from '../lib/api';
-  import { gehZu, zustand } from '../lib/zustand.svelte';
+  import { gehZu, lage } from '../lib/zustand.svelte';
 
   const PRO_SEITE = 10;
 
@@ -279,11 +279,11 @@
   let zuschneidbar = $state(false);
 
   $effect(() => {
-    if (zustand.art === 'sprecher') starte();
+    if (lage.art === 'sprecher') starte();
   });
 
   $effect(() => {
-    if (zustand.art !== 'sprecher') return;
+    if (lage.art !== 'sprecher') return;
     // Scheitert die Abfrage, bleibt der Knopf weg. Der Zuschnitt ist eine
     // Werkbank und keine Bedingung; ein Fehler darüber gehört nicht auf diese
     // Seite.

@@ -10,7 +10,6 @@
    */
   import {
     APPS,
-    GERAETE_PUNKTE,
     PROJEKT_SCHLUESSEL,
     PROJEKT_URL,
     appSchluessel,
@@ -27,7 +26,7 @@
   let {
     app,
     punkte = [],
-    uebergreifend = [],
+    menue,
     sprecher,
     route = '/',
   }: {
@@ -36,23 +35,16 @@
     /** Die Ansichten dieser App; leer lassen heißt: zweite Reihe ausblenden. */
     punkte?: Menuepunkt[];
     /**
-     * Ansichten, die nicht in die Reiterreihe gehören, sondern ins Menü - über
-     * die gerätebezogenen Punkte, denn erst kommt wer, dann womit. „hören"
-     * reicht hier Sprecher, Zugangsdaten und „Meine Daten" herein, „schreiben"
-     * nur die Zugangsdaten und einen `href`-Verweis auf „Meine Daten" bei
-     * „hören" (siehe `Menuepunkt`).
-     *
-     * Sie kommen als Daten und nicht als Schalter: Die Kopfleiste soll in
-     * jeder App dieselbe sein und nicht wissen müssen, welche App welche
-     * Sonderansicht hat.
+     * Was hinter dem Menüknopf steht (`menuePunkte` in `apps.ts`) - in jeder
+     * App dieselbe Liste. Als Daten und nicht als Schalter: Die Kopfleiste
+     * soll nicht wissen müssen, welche App welche Ansicht hat.
      */
-    uebergreifend?: Menuepunkt[];
+    menue: Menuepunkt[];
     /**
      * Wer hier angemeldet ist - als Statuszeile neben dem Menüknopf. Meist ein
-     * Sprechername; „hören" setzt hier auch „Verwaltung" oder „Aufsicht" ein,
-     * denn beide sollen genauso auffallen wie ein Sprecher es tut. `null`
-     * heißt „kein gültiger Zugang" und zeigt einen Platzhalter; ausgelassen
-     * heißt „diese App führt keinen Sprecher" und zeigt nichts.
+     * Sprechername, sonst „Verwaltung" oder „Aufsicht" (`Rahmen.svelte`).
+     * `null` heißt „kein gültiger Zugang" und zeigt einen Platzhalter;
+     * ausgelassen heißt „noch unbekannt" und zeigt nichts.
      */
     sprecher?: string | null;
     /** Die offene Hash-Route, ohne `#`. */
@@ -66,13 +58,11 @@
   let huelle = $state<HTMLElement | null>(null);
   let knopf = $state<HTMLButtonElement | null>(null);
 
-  // Erst wer, dann womit: die Punkte dieser App über den gerätebezogenen.
-  const eintraege = $derived([...uebergreifend, ...GERAETE_PUNKTE]);
   // Was davon wirklich dasteht: „Darstellung" lässt einzelne Punkte
   // ausblenden (siehe `Schaltbar` in `apps.ts`). Ausgeblendet heißt nur
   // unsichtbar - die Route bleibt, und die beiden Punkte, über die man
   // zurückfindet, sind gar nicht erst abschaltbar.
-  const gezeigt = $derived(eintraege.filter((punkt) => istSichtbar(menueSchluessel(punkt.pfad))));
+  const gezeigt = $derived(menue.filter((punkt) => istSichtbar(menueSchluessel(punkt.pfad))));
   const gezeigteApps = $derived(APPS.filter((eintrag) => istSichtbar(appSchluessel(eintrag.schluessel))));
   // Dasselbe für die zweite Reihe: Auch einzelne Ansichten einer App lassen
   // sich unter „Darstellung" ausblenden (siehe `SCHALTBARE_REITER`). Bleibt
@@ -87,7 +77,7 @@
   // wieder betritt. Ohne ihn käme man dort nur mit dem Zurück-Knopf des
   // Browsers heraus.
   const aussenstehend = $derived(
-    eintraege.some((punkt) => punkt.pfad === route) ||
+    menue.some((punkt) => punkt.pfad === route) ||
       (punkte.length > 0 && !gezeigteReiter.some((punkt) => punkt.pfad === route)),
   );
   const appName = $derived(APPS.find((eintrag) => eintrag.schluessel === app)?.name ?? '');
@@ -176,7 +166,7 @@
         {#if offen}
           <nav class="klappe" aria-label="Menü">
             <!-- Eine Schleife über eine Liste: was im Menü steht, entscheiden
-                 `uebergreifend` und `GERAETE_PUNKTE`, nicht diese Zeilen. -->
+                 `menuePunkte` in `apps.ts`, nicht diese Zeilen. -->
             {#each gezeigt as punkt (punkt.pfad)}
               <a
                 class="eintrag"

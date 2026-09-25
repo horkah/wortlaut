@@ -94,22 +94,32 @@ Die drei Oberflächen teilen sich `packages/ui/`. Dort liegt, was in allen
 dreien gleich aussehen und gleich heißen muss - und zwar als **eine**
 Definition und nicht als drei gleichlautende:
 
-* **Die übergreifenden Menüpunkte** (`uebergreifendePunkte` in `apps.ts`).
-  „Meine Daten" oder „Sprecher", je nachdem wer angemeldet ist, und immer die
-  „Zugangsdaten". Welche Adresse ein Punkt bekommt, rechnet die Funktion aus:
-  In „hören" sind es Hash-Routen, von außen volle Adressen, denn diese
-  Ansichten liegen in „hören".
-* **Die Regel für „kein Zugang"** (`ohneZugang`). Weist der Browser nichts
-  vor, steht überall derselbe eine Satz statt einer Ansicht, deren Anfragen
-  sämtlich abgewiesen würden - ausgenommen die Zugangsdaten selbst, denn
-  dorthin führt der Hinweis.
+* **Das ganze Menü** (`menuePunkte` in `apps.ts`). „Meine Daten" oder
+  „Sprecher", je nachdem wer angemeldet ist, immer die „Zugangsdaten", dann
+  Audio, Darstellung und System. Welche Adresse ein Punkt bekommt, rechnet die
+  Funktion aus: In „hören" sind es Hash-Routen, von außen volle Adressen, denn
+  diese Ansichten liegen in „hören".
+* **Die Ansichten hinter dem Menü** (`Rahmen.svelte`). Audio, Darstellung,
+  System und Zugangsdaten zeigt der Rahmen selbst, und er liest dafür
+  denselben Zustand wie jede App (`lage.svelte.ts`: Route und Zugang). Eine
+  App reicht nichts davon herein - weder die Sprache noch die Stimmen vom
+  Server noch, wohin es nach einem angenommenen Zugang weitergeht.
+* **Die Reiter** (`REITER` in `apps.ts`). Eine App ordnet jedem Pfad nur ihre
+  Ansicht zu; welcher offen ist und welcher beim nächsten Öffnen gilt, rechnet
+  der Rahmen.
+* **Die Regel für „kein Zugang"**. Weist der Browser nichts vor, steht
+  überall derselbe eine Satz statt einer Ansicht, deren Anfragen sämtlich
+  abgewiesen würden - ausgenommen die Ansichten hinter dem Menü, denn zu den
+  Zugangsdaten führt der Hinweis.
 
 **Warum das hier steht.** Bis September 2026 baute sich jede App diese Listen
 selbst, und sie waren verschieden: „hören" führte für die Aufsicht „Sprecher",
 die anderen beiden nichts; „Meine Daten" hatte in zweien ein `href` und im
 dritten nicht; und den Hinweis auf die Zugangsdaten kannten nur zwei - in
 „hören" landete man ohne Zugang auf der Verwaltung, deren Anfragen alle
-scheiterten.
+scheiterten. Danach reichte noch jede App ihrem Rahmen einzeln herein, was
+das Menü zeigen sollte, und wieder ungleich: Die Stimmen vom Server standen
+unter „Audio" nur zur Wahl, wenn man es aus „hören" öffnete.
 
 Keine dieser Abweichungen war je entschieden worden. Sie waren entstanden,
 weil dieselbe Überlegung dreimal angestellt wurde und zweimal etwas anders

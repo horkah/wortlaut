@@ -16,7 +16,6 @@
    * Sprecher - eine davon immer die falsche.
    */
   import { dauer } from '$ui/zeit';
-  import KeinZugang from '$ui/KeinZugang.svelte';
   import { ApiFehler } from '$ui/api';
   import { inDieZwischenablage } from '$ui/zwischenablage';
   import {
@@ -31,7 +30,7 @@
     type Sprecher,
     type Uebersicht,
   } from '../lib/api';
-  import { EINSICHT_ROUTE, gehZu, ladeZugang, zustand } from '../lib/zustand.svelte';
+  import { EINSICHT_ROUTE, gehZu, ladeZugang, lage } from '../lib/zustand.svelte';
 
   let sprecher = $state<(Sprecher | Uebersicht)[]>([]);
   let fehler = $state('');
@@ -47,17 +46,14 @@
 
   // Die Aufsicht sieht dieselbe Liste, holt sie aber über ihren eigenen Weg -
   // nur der bringt die Kennzahlen mit.
-  const beaufsichtigt = $derived(zustand.art === 'aufsicht');
+  const beaufsichtigt = $derived(lage.art === 'aufsicht');
 
   // Der frisch ausgegebene Zugang, solange er auf dem Bildschirm steht.
   let frisch = $state<{ sprecher_id: string; link: string } | null>(null);
   let kopiert = $state(false);
 
-  const zugangNoetig = $derived(zustand.art === 'keiner');
-
   async function lade() {
     fehler = '';
-    if (zugangNoetig) return;
     try {
       if (waehlbar.length === 0) {
         waehlbar = await holeSprachen();
@@ -139,116 +135,107 @@
 
 
   $effect(() => {
-    if (zustand.art === 'verwaltung' || zustand.art === 'aufsicht') lade();
+    if (lage.art === 'verwaltung' || lage.art === 'aufsicht') lade();
   });
 </script>
 
-{#if zugangNoetig}
-  <!-- Ohne Zugang wären Überschrift, Liste und Formular lauter Sackgassen:
-       Alle fragen denselben Server, der sie abweist. Also steht hier nur der
-       eine Schritt, der weiterführt - und zwar derselbe wie in „lernen" und
-       „schreiben" (siehe `$ui/KeinZugang.svelte`). `verwaltet`, weil dasselbe
-       Feld hier auch den Verwalter- und den Aufsichtstoken nimmt. -->
-  <KeinZugang {gehZu} verwaltet />
-{:else}
-  <h2>Sprecher</h2>
+<h2>Sprecher</h2>
 
-  {#if fehler}
-    <p class="fehler">{fehler}</p>
-  {/if}
-  {#if meldung}
-    <p class="gedaempft">{meldung}</p>
-  {/if}
+{#if fehler}
+  <p class="fehler">{fehler}</p>
+{/if}
+{#if meldung}
+  <p class="gedaempft">{meldung}</p>
+{/if}
 
-  {#if frisch}
-    <!-- Nur jetzt zu sehen: Gespeichert ist nur der Prüfwert. Wer den Link
-         wegklickt, gibt einen neuen aus - und der alte gilt dann nicht mehr. -->
-    <div class="karte neuer-zugang">
-      <strong>Zugang ausgegeben</strong>
-      <p class="gedaempft">
-        Diesen Link auf dem Gerät der Person einmal öffnen und als Lesezeichen ablegen. Er ist
-        <em>jetzt</em> zu sehen und später nicht mehr.
-      </p>
-      <code class="link">{frisch.link}</code>
-      <div class="reihe">
-        <button class="knopf haupt" onclick={kopiere}>
-          {kopiert ? 'Kopiert' : 'Link kopieren'}
-        </button>
-        <button class="knopf" onclick={() => (frisch = null)}>Fertig</button>
-      </div>
+{#if frisch}
+  <!-- Nur jetzt zu sehen: Gespeichert ist nur der Prüfwert. Wer den Link
+       wegklickt, gibt einen neuen aus - und der alte gilt dann nicht mehr. -->
+  <div class="karte neuer-zugang">
+    <strong>Zugang ausgegeben</strong>
+    <p class="gedaempft">
+      Diesen Link auf dem Gerät der Person einmal öffnen und als Lesezeichen ablegen. Er ist
+      <em>jetzt</em> zu sehen und später nicht mehr.
+    </p>
+    <code class="link">{frisch.link}</code>
+    <div class="reihe">
+      <button class="knopf haupt" onclick={kopiere}>
+        {kopiert ? 'Kopiert' : 'Link kopieren'}
+      </button>
+      <button class="knopf" onclick={() => (frisch = null)}>Fertig</button>
     </div>
-  {/if}
+  </div>
+{/if}
 
-  {#each sprecher as person (person.id)}
-    <div class="karte reihe">
-      <div style="flex:1">
-        <strong>{person.name}</strong>
-        <div class="gedaempft">{person.sprache} · {person.id}</div>
+{#each sprecher as person (person.id)}
+  <div class="karte reihe">
+    <div style="flex:1">
+      <strong>{person.name}</strong>
+      <div class="gedaempft">{person.sprache} · {person.id}</div>
+      <div class="gedaempft">
+        {person.zugang_erneuert
+          ? `Zugang ausgegeben am ${person.zugang_erneuert.slice(0, 10)}`
+          : 'Kein Zugang - für niemanden erreichbar'}
+      </div>
+      {#if 'kennzahlen' in person}
+        <!-- Nur die Aufsicht bekommt diese Zahlen mitgeliefert. Sie stehen
+             hier, weil sie die Frage beantworten, die man vor jedem Griff in
+             einen Korpus hat: Wie viel steht darin? -->
         <div class="gedaempft">
-          {person.zugang_erneuert
-            ? `Zugang ausgegeben am ${person.zugang_erneuert.slice(0, 10)}`
-            : 'Kein Zugang - für niemanden erreichbar'}
+          {person.kennzahlen.aufnahmen} Aufnahmen · {dauer(person.kennzahlen.sekunden)} ·
+          {person.kennzahlen.quellen} Textquellen
         </div>
-        {#if 'kennzahlen' in person}
-          <!-- Nur die Aufsicht bekommt diese Zahlen mitgeliefert. Sie stehen
-               hier, weil sie die Frage beantworten, die man vor jedem Griff in
-               einen Korpus hat: Wie viel steht darin? -->
-          <div class="gedaempft">
-            {person.kennzahlen.aufnahmen} Aufnahmen · {dauer(person.kennzahlen.sekunden)} ·
-            {person.kennzahlen.quellen} Textquellen
-          </div>
-        {/if}
-      </div>
-      {#if beaufsichtigt}
-        <button class="knopf" onclick={() => gehZu(`${EINSICHT_ROUTE}${person.id}`)}>
-          Ansehen
-        </button>
       {/if}
-      {#if person.zugang_erneuert}
-        <button class="knopf" onclick={() => zieh_zurueck(person)}>Zurückziehen</button>
-      {/if}
-      <button class="knopf haupt" onclick={() => gib_aus(person.id)}>
-        {person.zugang_erneuert ? 'Neuen Zugang' : 'Zugang ausgeben'}
-      </button>
     </div>
-  {:else}
-    <p class="gedaempft">Noch kein Sprecherprofil vorhanden.</p>
-  {/each}
-
-  <h2>Neues Profil</h2>
-  <form onsubmit={lege_an}>
-    <label>
-      <span>Name</span>
-      <input bind:value={name} required maxlength="200" />
-    </label>
-    <label>
-      <span>Sprache</span>
-      <select bind:value={sprache} required>
-        {#each waehlbar as wahl (wahl.kuerzel)}
-          <option value={wahl.kuerzel}>{wahl.name}</option>
-        {/each}
-      </select>
-    </label>
-    <button class="knopf haupt" type="submit">Anlegen und Zugang ausgeben</button>
-  </form>
-
-  {#if beaufsichtigt}
-    <h2>Gesamtsicherung</h2>
-    <div class="karte">
-      <p class="gedaempft">
-        Alle Korpora in <strong>einer</strong> Datei, zurückzuspielen mit
-        <code>scripts/restore.py</code>. Ohne Modellstände - die sind groß und neu zu rechnen.
-      </p>
-      <button class="knopf haupt" disabled={packt} onclick={sichereAlles}>
-        {packt ? 'Wird gepackt …' : 'Gesamtsicherung herunterladen (.tgz)'}
+    {#if beaufsichtigt}
+      <button class="knopf" onclick={() => gehZu(`${EINSICHT_ROUTE}${person.id}`)}>
+        Ansehen
       </button>
-      <p class="gedaempft">
-        Bei einem großen Bestand dauert das Packen; der Browser hält die Datei so lange im
-        Speicher. Für sehr große Bestände besser <code>curl</code> - siehe
-        <code>docs/betrieb.md</code>.
-      </p>
-    </div>
-  {/if}
+    {/if}
+    {#if person.zugang_erneuert}
+      <button class="knopf" onclick={() => zieh_zurueck(person)}>Zurückziehen</button>
+    {/if}
+    <button class="knopf haupt" onclick={() => gib_aus(person.id)}>
+      {person.zugang_erneuert ? 'Neuen Zugang' : 'Zugang ausgeben'}
+    </button>
+  </div>
+{:else}
+  <p class="gedaempft">Noch kein Sprecherprofil vorhanden.</p>
+{/each}
+
+<h2>Neues Profil</h2>
+<form onsubmit={lege_an}>
+  <label>
+    <span>Name</span>
+    <input bind:value={name} required maxlength="200" />
+  </label>
+  <label>
+    <span>Sprache</span>
+    <select bind:value={sprache} required>
+      {#each waehlbar as wahl (wahl.kuerzel)}
+        <option value={wahl.kuerzel}>{wahl.name}</option>
+      {/each}
+    </select>
+  </label>
+  <button class="knopf haupt" type="submit">Anlegen und Zugang ausgeben</button>
+</form>
+
+{#if beaufsichtigt}
+  <h2>Gesamtsicherung</h2>
+  <div class="karte">
+    <p class="gedaempft">
+      Alle Korpora in <strong>einer</strong> Datei, zurückzuspielen mit
+      <code>scripts/restore.py</code>. Ohne Modellstände - die sind groß und neu zu rechnen.
+    </p>
+    <button class="knopf haupt" disabled={packt} onclick={sichereAlles}>
+      {packt ? 'Wird gepackt …' : 'Gesamtsicherung herunterladen (.tgz)'}
+    </button>
+    <p class="gedaempft">
+      Bei einem großen Bestand dauert das Packen; der Browser hält die Datei so lange im
+      Speicher. Für sehr große Bestände besser <code>curl</code> - siehe
+      <code>docs/betrieb.md</code>.
+    </p>
+  </div>
 {/if}
 
 <style>

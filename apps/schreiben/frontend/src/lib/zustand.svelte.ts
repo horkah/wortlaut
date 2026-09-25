@@ -1,10 +1,8 @@
 /**
- * Was alle Ansichten teilen: die Route, die laufende Diktiersitzung und der
- * Modellstand.
+ * Was nur „schreiben" teilt: die laufende Diktiersitzung und den Modellstand.
  *
- * Route und Zugang sind in jeder App dieselbe Sache und stehen deshalb nicht
- * mehr hier: Der Hash-Router liegt in `$ui/route`, die Auskunft über den
- * Zugang in `$ui/wer`. Gefragt wird mit demselben Zugang wie in „hören": ein
+ * Route und Zugang sind in jeder App dieselbe Sache und stehen deshalb in
+ * `$ui/lage.svelte`. Gefragt wird mit demselben Zugang wie in „hören": ein
  * persönlicher Link, einmal geöffnet - gleich in welcher der Apps -, meldet in
  * allen an (siehe `$ui/zugang`). Ohne gültigen Zugang gibt es nichts zu
  * diktieren, und die Oberfläche sagt das, statt an einer Wand aus 401ern zu
@@ -19,29 +17,17 @@
  * dieselbe neben dem Aufnahmeknopf. Wessen Stand es ist, entscheidet der
  * Zugang: Jeder Sprecher läuft auf seinem eigenen Modell.
  */
-import { folgeHash, routeAusHash } from '$ui/route';
-import { OFFEN, ermittleZugang } from '$ui/wer';
-import { nimmZugangAusLink } from '$ui/zugang';
 import { modell, sitzungHolen, type Modell, type Sitzung } from './api';
 
 export { gehZu } from '$ui/route';
+export { lage } from '$ui/lage.svelte';
 
 const SITZUNG_SCHLUESSEL = 'wortlaut.diktat';
 
 export const zustand = $state({
-  route: routeAusHash(),
   sitzung: null as Sitzung | null,
   modellstand: null as Modell | null,
-  ...OFFEN,
 });
-
-folgeHash((route) => (zustand.route = route));
-
-/** Beim Server nachfragen, für wen dieser Browser eingestellt ist. */
-export async function ladeZugang(): Promise<void> {
-  if (nimmZugangAusLink(routeAusHash())) zustand.route = '/';
-  Object.assign(zustand, await ermittleZugang());
-}
 
 /** Ohne Auskunft bleibt der Modellstand leer - dann zeigen Kopfzeile und
  *  Aufnahmeansicht schlicht nichts an, statt einen Fehler vorzutäuschen. */

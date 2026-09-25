@@ -216,15 +216,8 @@ export const meineAufnahmeAudio = (aufnahme: string, fassung?: string) =>
 
 // ── Vorlesen ────────────────────────────────────────────────────────────────
 
-/** Eine Stimme, die der Server sprechen kann. Leere Liste ist der Normalfall. */
-export type Servestimme = {
-  schluessel: string;
-  name: string;
-  erklaerung: string;
-  sprache: string;
-};
-
-export const servestimmen = () => anfrage<Servestimme[]>('/vorlesen/stimmen');
+// Welche Stimmen es gibt und die Hörprobe dazu stehen in `$ui/speak`: Die
+// Stimmwahl unter „Audio" braucht sie in jeder App, nicht nur hier.
 
 /**
  * Vorgelesenes kann sich unter derselben Adresse ändern.
@@ -240,10 +233,6 @@ export const servestimmen = () => anfrage<Servestimme[]>('/vorlesen/stimmen');
  * Neuladen der Seite hinweg, und die Anfrage kam am Server gar nicht erst an.
  */
 const FRISCH: RequestInit = { cache: 'no-cache' };
-
-/** Ein fester Satz in dieser Stimme - zum Vergleichen, bevor man wählt. */
-export const stimmprobe = (stimme: string) =>
-  blob(`/vorlesen/probe?stimme=${encodeURIComponent(stimme)}`, FRISCH);
 
 /**
  * Eine Vorlage in einer Servestimme - als Blob, wie jedes Audio hier.

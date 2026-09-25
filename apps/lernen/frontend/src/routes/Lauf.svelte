@@ -22,9 +22,11 @@
   import { lauf as ladeLauf, type Laufeinzeln } from '../lib/api';
   import Papierkorb from '../lib/Papierkorb.svelte';
   import { loescheNachRueckfrage } from '../lib/laufloeschen';
-  import { gehZu } from '../lib/zustand.svelte';
+  import { gehZu, lage, laufAusRoute } from '../lib/zustand.svelte';
 
-  let { jobId }: { jobId: string } = $props();
+  // Die Kennung steht in der Adresse (`LAUF_ROUTE`) - von dort und nicht als
+  // Eigenschaft: Der Rahmen zeigt jede Ansicht gleich, ohne sie zu kennen.
+  const jobId = $derived(laufAusRoute(lage.route));
 
   const TAKT_LAEUFT = 3000;
   const TAKT_RUHT = 30000;

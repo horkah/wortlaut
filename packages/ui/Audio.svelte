@@ -18,13 +18,15 @@
     beiStimmenAenderung,
     istServestimme,
     SERVE_PRAEFIX,
-    serveSchluessel,
+    holeServestimmen,
     spieleVor,
     sprich,
     stimmen,
     stimmeNachUri,
+    stimmprobe,
     type Servestimme,
   } from './speak';
+  import { lage } from './lage.svelte';
   import {
     einstellungen,
     setzeAutoPegel,
@@ -39,27 +41,30 @@
 
 
   /**
-   * Stimmen, die der **Server** sprechen kann - von der App hereingereicht.
-   *
-   * Diese Ansicht liegt in `packages/ui` und wird von allen drei Apps benutzt;
-   * die Servestimmen gibt es aber nur, wo es Vorlagen gibt („hören"). Sie hier
-   * selbst zu holen hieße, dass diese Datei einen Endpunkt kennt, den zwei der
-   * drei Apps nicht haben. Ohne Eigenschaft bleibt alles, wie es war.
+   * Die Sprache des Profils, vom Server (`wer.ts`). `null`, solange die
+   * Antwort aussteht oder ein Verwalter ruft - dann wird nicht gefiltert,
+   * statt Deutsch anzunehmen (siehe `speak.ts`).
    */
-  let {
-    sprache = null,
-    servestimmen = [],
-    probeHolen,
-  }: {
-    /**
-     * Die Sprache des Profils, vom Server (`wer.ts`). `null`, solange die
-     * Antwort aussteht oder ein Verwalter ruft - dann wird nicht gefiltert,
-     * statt Deutsch anzunehmen (siehe `speak.ts`).
-     */
-    sprache?: string | null;
-    servestimmen?: Servestimme[];
-    probeHolen?: (schluessel: string) => Promise<Blob>;
-  } = $props();
+  const sprache = $derived(lage.sprache);
+
+  /**
+   * Stimmen, die der **Server** sprechen kann - geholt bei „hören", aus jeder
+   * App (`speak.ts`).
+   *
+   * Sie kamen einmal als Eigenschaft von der App herein, und nur „hören"
+   * reichte sie: Aus „lernen" und „schreiben" geöffnet, bot dieselbe Ansicht
+   * nur die Gerätestimmen an. Gefragt wird, sobald ein Sprecher feststeht -
+   * die Liste hängt am Zugang, und ohne ihn weist der Server ab. Scheitert
+   * die Abfrage, bleibt die Liste leer: Vorlesen ist eine Hilfe und keine
+   * Bedingung, ein Fehler darüber gehört nicht auf die Seite.
+   */
+  let servestimmen = $state<Servestimme[]>([]);
+  $effect(() => {
+    if (!lage.sprecher) return;
+    holeServestimmen()
+      .then((gefunden) => (servestimmen = gefunden))
+      .catch(() => (servestimmen = []));
+  });
 
   /**
    * Der Probesatz für die Browserstimme - je Sprache einer, wie beim Server
@@ -123,10 +128,10 @@
 
   async function probe() {
     fehler = '';
-    if (serveGewaehlt && probeHolen) {
+    if (serveGewaehlt) {
       let url: string | null = null;
       try {
-        url = URL.createObjectURL(await probeHolen(serveGewaehlt.schluessel));
+        url = URL.createObjectURL(await stimmprobe(serveGewaehlt.schluessel));
         await spieleVor(url, einstellungen.tempo);
         return;
       } catch {
@@ -226,7 +231,8 @@
 </p>
 
 <div class="reihe">
-  <button class="knopf" onclick={probe} disabled={liste.length === 0}>▶ Probe hören</button>
+  <button class="knopf" onclick={probe} disabled={liste.length === 0 && serveliste.length === 0}
+    >▶ Probe hören</button>
 </div>
 
 {#if fehler}

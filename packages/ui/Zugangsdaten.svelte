@@ -16,10 +16,13 @@
    * „lernen" oder „schreiben" saß, kam an das Feld gar nicht heran - er musste
    * erst wissen, dass es in einer dritten App steht. Ein Zugang, der überall
    * gilt, wird überall eingetragen; wohin es danach geht, sagt das Menü
-   * (`uebergreifendePunkte` in `apps.ts`).
+   * (`menuePunkte` in `apps.ts`).
    *
-   * Was die Apps noch unterscheidet, kommt als Eigenschaft herein: jede weiß
-   * selbst, wohin es nach einem angenommenen Zugang weitergeht (`weiter`).
+   * Die Apps unterschied danach nur noch, wohin es nach einem angenommenen
+   * Zugang weitergeht - und das hängt nicht an der App, sondern am Zugang: Ein
+   * Sprecher arbeitet weiter, wo er war; Verwaltung und Aufsicht führt der
+   * nächste Schritt zu den Sprechern. Seitdem hängt der Rahmen diese Ansicht
+   * selbst ein (`Rahmen.svelte`), und keine App hat mehr einen Umschlag dafür.
    *
    * Der Menüpunkt dazu steht immer im Menü, gerade auch ohne gültigen Zugang:
    * Dann ist er der einzige Weg herein, und ein Menü, das ihn erst nach der
@@ -38,35 +41,12 @@
    * Sichern, Umbenennen oder Löschen benutzen will, klappt das Feld hier auf.
    * Der persönliche Zugang kommt danach mit einem Klick auf den Link zurück.
    */
-  import type { Snippet } from 'svelte';
   import PinSchloss from './PinSchloss.svelte';
+  import { SPRECHER_PFAD } from './apps';
+  import { gehZu } from './route';
+  import { ladeZugang, lage } from './lage.svelte';
   import { werRuft } from './wer';
   import { setzeZugang, zugang as gespeichert } from './zugang';
-
-  let {
-    art,
-    name = null,
-    neuLaden,
-    weiter,
-  }: {
-    /** Wer hier gerade ruft: `sprecher`, `verwaltung`, `aufsicht`, `keiner`, `unbekannt`. */
-    art: string;
-    /** Der Name des Sprechers, falls einer hier ist. */
-    name?: string | null;
-    /**
-     * Den Zugangsstand dieser App neu einlesen, nachdem ein Token angenommen
-     * wurde: Wer die Seite gerade sieht, ist danach jemand anderes.
-     *
-     * Gefragt, **wer** ruft, wird nicht mehr von hier aus: Das tut `werRuft`
-     * für alle drei gleich (`wer.ts`). Diese Ansicht bekam die Frage einmal
-     * als Eigenschaft herein, und jede App reichte dieselben vier Zeilen
-     * hinein - bis auf „schreiben", das dabei seine eigene API fragte und
-     * einen gültigen Aufsichtstoken abwies.
-     */
-    neuLaden: () => Promise<void>;
-    /** Der nächste Schritt nach einem angenommenen Zugang. */
-    weiter?: Snippet;
-  } = $props();
 
   let eingabe = $state(gespeichert());
   let meldung = $state('');
@@ -82,7 +62,7 @@
     meldung = 'Wird geprüft …';
     try {
       const wer = await werRuft();
-      await neuLaden();
+      await ladeZugang();
       meldung =
         wer.art === 'sprecher'
           ? `Angenommen - dieser Browser gehört jetzt zu „${wer.name}“.`
@@ -120,18 +100,25 @@
   {#if meldung}
     <p class="gedaempft">{meldung}</p>
   {/if}
-  {#if angenommen && weiter}
+  {#if angenommen}
     <!-- Der nächste Schritt, nicht der einzige Ausgang: Heraus käme man auch
-         übers Menü. -->
-    {@render weiter()}
+         übers Menü. Die Sprecherliste liegt in „hören" - von dort ist es die
+         Hash-Route, von anderswo dieselbe Adresse mit neuer Seite. -->
+    {#if lage.art === 'sprecher'}
+      <button class="knopf haupt" onclick={() => gehZu('/')}>Weiter</button>
+    {:else}
+      <button class="knopf haupt" onclick={() => (location.href = `/#${SPRECHER_PFAD}`)}>
+        Weiter zu den Sprechern
+      </button>
+    {/if}
   {/if}
 {/snippet}
 
 <PinSchloss>
-  {#if art === 'sprecher'}
+  {#if lage.art === 'sprecher'}
     <p>
-      Dieser Browser hat den persönlichen Zugang von <strong>{name}</strong>. Er kam über den Link,
-      der einmal geöffnet wurde, und gilt weiter - hier ist nichts einzutragen.
+      Dieser Browser hat den persönlichen Zugang von <strong>{lage.name}</strong>. Er kam über den
+      Link, der einmal geöffnet wurde, und gilt weiter - hier ist nichts einzutragen.
     </p>
     <p class="gedaempft">
       Derselbe Zugang gilt in allen drei Apps: einmal geöffnet, überall angemeldet. Geht er
@@ -152,7 +139,7 @@
         Ein Browser trägt genau einen Zugang. Mit dem
         <code>WORTLAUT_AUTH_TOKEN</code> (Verwaltung) oder
         <code>WORTLAUT_ADMIN_TOKEN</code> (Aufsicht) gilt der von
-        <strong>{name}</strong> hier nicht mehr - der persönliche Link holt ihn zurück.
+        <strong>{lage.name}</strong> hier nicht mehr - der persönliche Link holt ihn zurück.
       </p>
       {@render formular()}
     {:else}

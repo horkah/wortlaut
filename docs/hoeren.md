@@ -90,14 +90,14 @@ der aus dem Korpus Zahlen macht, und ohne ihn bleibt die Modellübersicht in
 
 Marke, App-Reiter, Sprecherzeile und Menüknopf gibt es genau einmal, und keine
 App baut sie sich selbst zusammen: `packages/ui/Rahmen.svelte` klammert
-Kopfzeile, Inhalt und Fußzeile und beantwortet die gerätebezogenen Menüpunkte
-gleich mit. Eine App liefert nur ihre eigenen Ansichten und, was sie darüber
-hinaus ins Menü stellt - `hören` den Sprecher (oder, sobald einer spricht,
-**Meine Daten**) und die Zugangsdaten, `schreiben` dasselbe als Verweis und
-ebenfalls die Zugangsdaten. Was im Menü steht, ist damit eine Liste
-(`GERAETE_PUNKTE` in `apps.ts` und der Durchreichung der App) und keine Folge
-fester Zeilen mit Schaltern davor; ein neuer gerätebezogener Punkt ist ein
-Eintrag und eine Zeile im Rahmen, statt einer Änderung in jeder App. Weil es
+Kopfzeile, Inhalt und Fußzeile, stellt das Menü zusammen und zeigt dessen
+Ansichten - Audio, Darstellung, System, Zugangsdaten - gleich mit. Das Menü
+ist darum in jeder App dasselbe: **Sprecher** (oder, sobald einer spricht,
+**Meine Daten**), Zugangsdaten, Audio, Darstellung, System. Eine App liefert
+nur ihre eigenen Ansichten. Was im Menü steht, ist eine Liste (`menuePunkte`
+in `apps.ts`) und keine Folge fester Zeilen mit Schaltern davor; ein neuer
+Punkt ist ein Eintrag und eine Zeile im Rahmen, statt einer Änderung in jeder
+App. Weil es
 eine Liste ist, lässt sie sich auch kürzen: Welche Apps, welche Ansichten und
 welche Menüpunkte tatsächlich dastehen, schaltet **Darstellung** ein und aus
 (siehe dort).
@@ -133,10 +133,11 @@ wechseln**: Ein Browser trägt genau einen Zugang, und ihn gegen den Verwalter-
 oder Aufsichtstoken zu tauschen, ist der einzige Weg in die Verwaltung und in
 die Aufsicht - auch von einem Gerät aus, auf dem gerade jemand aufnimmt. Der
 persönliche Zugang kommt danach mit einem Klick auf den Link zurück. Die Ansicht selbst gibt es ebenfalls nur einmal
-(`packages/ui/Zugangsdaten.svelte`), denn es ist derselbe Zugang: Beide Apps
-lesen denselben Eintrag im `localStorage` (`packages/ui/zugang.ts`). Was die
-Apps unterscheidet, ist eine Eigenschaft - nur `hören` nimmt in dasselbe Feld
-auch Verwalter- und Aufsichtstoken.
+(`packages/ui/Zugangsdaten.svelte`), denn es ist derselbe Zugang: Alle drei
+Apps lesen denselben Eintrag im `localStorage` (`packages/ui/zugang.ts`), und
+in jeder nimmt dasselbe Feld auch Verwalter- und Aufsichtstoken. Wohin es nach
+einem angenommenen Zugang weitergeht, hängt am Zugang und nicht an der App:
+ein Sprecher dorthin, wo er war, Verwaltung und Aufsicht zu den Sprechern.
 
 Alle drei liegen unter einer Adresse (`wortlaut.example.org`), nicht unter drei
 Subdomains: ein Zertifikat, eine Proxy-Regel je App, und der Wechsel zwischen
