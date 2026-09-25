@@ -35,19 +35,32 @@ class TestFaltungen:
         n = laeufe.FALTUNGEN
         assert laeufe.verteile([1] * (2 * n + 1)) == [*range(n), *range(n), 0]
 
+    @staticmethod
+    def _stand(groessen: list[int]) -> list[int]:
+        stand = [0] * laeufe.FALTUNGEN
+        for faltung, groesse in zip(laeufe.verteile(groessen), groessen, strict=True):
+            stand[faltung] += groesse
+        return stand
+
     def test_eine_grosse_gruppe_wird_aufgeholt(self) -> None:
         # So stand FEMKE bei 4, 4, 4, 6, 4, 4: eine dreiteilige Verwandtschaft
-        # an vierter Stelle, reihum weitergezählt. Nach Zählerstand überspringen
-        # die nächsten Aufnahmen die volle Faltung, bis die anderen gleichauf
-        # sind.
+        # an vierter Stelle, reihum weitergezählt. Jetzt geht sie als größte
+        # voran, und die einzelnen Aufnahmen füllen die übrigen Faltungen auf.
         groessen = [1, 1, 1, 3, *[1] * 20]
-        vergeben = laeufe.verteile(groessen)
-        stand = [0] * laeufe.FALTUNGEN
-        for faltung, groesse in zip(vergeben, groessen, strict=True):
-            stand[faltung] += groesse
-        assert stand == [5, 5, 4, 4, 4, 4]
-        assert vergeben[:6] == [0, 1, 2, 3, 4, 5]
-        assert vergeben[6:11] == [0, 1, 2, 4, 5]
+        assert self._stand(groessen) == [5, 5, 4, 4, 4, 4]
+        assert laeufe.verteile(groessen)[:6] == [1, 2, 3, 0, 4, 5]
+
+    def test_spaet_geschnittenes_wird_trotzdem_ausgeglichen(self) -> None:
+        # So stand FEMKE im September 2026: die großen Verwandtschaften am Ende
+        # des Korpus, dahinter nichts mehr, das hätte aufholen können. In der
+        # Reihenfolge des Korpus vergeben, lagen die Faltungen bei 5, 9, 7, 10,
+        # 5, 7; die großen zuerst, bei 8, 7, 7, 7, 7, 7.
+        groessen = [1, 1, 1, 3, *[1] * 7, 3, *[1] * 7, 2, 4, 5, 3, 6]
+        assert sum(groessen) == 43
+        assert self._stand(groessen) == [8, 7, 7, 7, 7, 7]
+
+    def test_gleich_grosse_in_der_reihenfolge_des_korpus(self) -> None:
+        assert laeufe.verteile([1, 2, 1, 2]) == [2, 0, 3, 1]
 
     def test_bei_gleichstand_die_niedrigste_nummer(self) -> None:
         assert laeufe.verteile([2, 1, 1]) == [0, 1, 2]
