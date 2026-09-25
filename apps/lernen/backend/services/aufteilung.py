@@ -15,7 +15,9 @@ gemessen wird, und die Zahl stiege, ohne dass es besser hörte. Verteilt wird
 deshalb je Stamm: Original, Teile und Kopien teilen sich eine Faltung, und
 gezählt wird der Stamm mit all seinen Aufnahmen. Darum der Zählerstand statt
 einer festen Runde: Reihum bekam die Faltung einer dreiteiligen Verwandtschaft
-trotzdem ihren nächsten Platz, und die Faltungen liefen auseinander.
+trotzdem ihren nächsten Platz, und die Faltungen liefen auseinander. Und darum
+die größten Verwandtschaften zuerst: Geschnitten wird oft spät, und hinter
+einer späten großen Verwandtschaft bliebe nichts mehr, das aufholen könnte.
 
 **Warum hier nichts mehr gespeichert wird.** Bis September 2026 stand in einer
 Tabelle, welche Aufnahme lernt, steuert und prüft; einmal vergeben und nie
@@ -64,9 +66,9 @@ def proben(korpus: Session) -> list[Probe]:
     """Alle brauchbaren Aufnahmen mit ihrer Faltung, älteste zuerst.
 
     Die Reihenfolge ist die des Korpus und damit die des Aufnehmens. Sie ist
-    zugleich die der Zuteilung: Stamm für Stamm kommt jeder in die Faltung
-    mit den wenigsten Aufnahmen, und mit ihm alle seine Teile und Kopien
-    (siehe oben). Nichts daran ist gespeichert, und nichts muss es sein.
+    zugleich die der Zuteilung unter gleich großen Stämmen: Die größten
+    zuerst, kommt jeder in die Faltung mit den wenigsten Aufnahmen, und mit
+    ihm alle seine Teile und Kopien (siehe oben). Nichts daran ist gespeichert, und nichts muss es sein.
     """
     reihe = gueltige_aufnahmen(korpus)
     groessen: dict[str, int] = {}

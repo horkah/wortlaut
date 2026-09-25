@@ -393,7 +393,11 @@ Verteilt wird dabei je Stamm: Teile und Kopien aus „Editieren" sind derselbe
 Ton wie ihr Original und teilen sich dessen Faltung - sonst lernte ein Modell,
 woran es gemessen wird. Sie zählen dort mit, und bis September 2026, als noch
 reihum vergeben wurde, liefen die Faltungen dadurch auseinander (FEMKE: 4, 4,
-4, 6, 4, 4). Nach Zählerstand holen die anderen auf.
+4, 6, 4, 4). Nach Zählerstand holen die anderen auf - aber nur mit dem, was
+danach noch kommt. Standen die großen Verwandtschaften am Ende des Korpus, blieb
+nichts zum Aufholen (FEMKE: 5, 9, 7, 10, 5, 7). Vergeben wird deshalb die größte
+Verwandtschaft zuerst, unter gleich großen in der Reihenfolge des Korpus; die
+einzelnen Aufnahmen gleichen am Schluss aus (FEMKE: 8, 7, 7, 7, 7, 7).
 
 Der Anlass war ein Korpus von neun Aufnahmen. Darin bestand der Test aus
 dreien, die Validierung aus **einer**. Eine Fehlerrate über drei Aufnahmen ist

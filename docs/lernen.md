@@ -49,7 +49,9 @@ bei Gleichstand in die mit der niedrigsten Nummer - die erste in Faltung 1, die
 zweite in Faltung 2, nach der sechsten geht es wieder von vorn los. Teile und
 Kopien aus „Editieren" sind derselbe Ton wie ihr Original und kommen
 geschlossen in dessen Faltung; dort zählen sie mit, und die übrigen Faltungen
-holen auf, statt dass eine dauerhaft vorausläuft. Ein
+holen auf, statt dass eine dauerhaft vorausläuft. Damit dafür genug übrig
+bleibt, werden die großen Verwandtschaften zuerst vergeben und die einzelnen
+Aufnahmen zuletzt - egal, wann geschnitten wurde. Ein
 Trainingslauf rechnet dann **sieben** Trainings:
 
 | | Lernt auf | Gemessen an |

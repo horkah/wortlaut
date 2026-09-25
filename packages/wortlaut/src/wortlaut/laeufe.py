@@ -94,6 +94,15 @@ ZWISCHENSTAENDE = (ARBEITSSTAND, GEWICHTE, VORGESPULT)
 # standen bei 4, 4, 4, 6, 4, 4. Nach Zählerstand holen die anderen auf, bis
 # alle wieder gleich sind.
 #
+# **Warum die großen Verwandtschaften zuerst.** Aufholen können die anderen nur
+# mit dem, was danach noch kommt. Geschnitten wird aber oft spät: Bei FEMKE
+# standen die Verwandtschaften mit vier, fünf und sechs Aufnahmen am Ende des
+# Korpus, dahinter keine einzelne mehr, und die Faltungen lagen bei 5, 9, 7,
+# 10, 5, 7. Werden die Gruppen nach Größe vergeben, bleiben die einzelnen
+# Aufnahmen für den Ausgleich übrig - FEMKE steht damit bei 8, 7, 7, 7, 7, 7.
+# Unter gleich großen Gruppen gilt weiter die Reihenfolge des Korpus; bei
+# lauter einzelnen Aufnahmen ändert sich also nichts.
+#
 # **Was hier bis September 2026 stand, und warum es weg ist.** Ein festes
 # Testdrittel, einmal vergeben und nie wieder angefasst. Der Gedanke war
 # richtig, die Ausführung trug nicht: Bei einem Korpus von neun Aufnahmen
@@ -119,15 +128,17 @@ def verteile(groessen: Iterable[int]) -> list[int]:
     """Die Faltung (ab 0) jeder Gruppe, in der Reihenfolge der `groessen`.
 
     Eine Gruppe ist, was zusammenbleiben muss, und ihre Größe die Zahl ihrer
-    Aufnahmen. Jede kommt dorthin, wo bis dahin am wenigsten liegt; bei
-    Gleichstand in die Faltung mit der niedrigsten Nummer.
+    Aufnahmen. Die größte zuerst, unter gleich großen die vorderste, kommt
+    jede dorthin, wo bis dahin am wenigsten liegt; bei Gleichstand in die
+    Faltung mit der niedrigsten Nummer.
     """
+    groessen = list(groessen)
     stand = [0] * FALTUNGEN
-    vergeben = []
-    for groesse in groessen:
+    vergeben = [0] * len(groessen)
+    for gruppe in sorted(range(len(groessen)), key=lambda gruppe: -groessen[gruppe]):
         faltung = stand.index(min(stand))
-        stand[faltung] += groesse
-        vergeben.append(faltung)
+        stand[faltung] += groessen[gruppe]
+        vergeben[gruppe] = faltung
     return vergeben
 
 
