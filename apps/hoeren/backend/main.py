@@ -35,6 +35,7 @@ from .api import (
     sources,
     speakers,
     sprachen,
+    system,
     zugang,
     zuschnitt,
 )
@@ -57,6 +58,9 @@ app.include_router(zugang.router)
 
 # Welche Sprachen dieses System kennt - eine Auskunft ohne Wächter.
 app.include_router(sprachen.router)
+
+# Worauf das alles läuft - für jeden gültigen Zugang (siehe `api/system.py`).
+app.include_router(system.router)
 
 # Alles, was Daten berührt. Der Wächter steckt in `SprecherId`/`Datenbank`:
 # ohne Sprecherzugang gibt es keine Datenbank, die sich öffnen ließe.

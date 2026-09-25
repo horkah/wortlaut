@@ -25,9 +25,11 @@
   import Audio from './Audio.svelte';
   import type { Servestimme } from './speak';
   import Darstellung from './Darstellung.svelte';
+  import System from './System.svelte';
   import {
     DARSTELLUNG_PFAD,
     AUDIO_PFAD,
+    SYSTEM_PFAD,
     type AppSchluessel,
     type Menuepunkt,
   } from './apps';
@@ -76,7 +78,13 @@
   // Großgeschrieben, damit Svelte 5 den Wert als Komponente nimmt. `null`
   // heißt: keine gerätebezogene Ansicht offen, die App ist an der Reihe.
   const Geraet = $derived(
-    route === AUDIO_PFAD ? Audio : route === DARSTELLUNG_PFAD ? Darstellung : null,
+    route === AUDIO_PFAD
+      ? Audio
+      : route === DARSTELLUNG_PFAD
+        ? Darstellung
+        : route === SYSTEM_PFAD
+          ? System
+          : null,
   );
 </script>
 
