@@ -629,6 +629,10 @@ def gib_frei(
             "augmentierung": str(auftrag.get("augmentierung") or laeufe.AUG_KEINE),
             "dauer": str(auftrag.get("dauer") or laeufe.DAUER_FEST),
             "tempowahl": laeufe.tempowahl_aus(auftrag),
+            # Die Folge hinter dem Optionscode (`/43b`) - beim Auftrag vergeben
+            # und hier nur mitgenommen, damit der Stand sie auch ohne seinen
+            # Lauf trägt.
+            laeufe.FOLGE: auftrag.get(laeufe.FOLGE),
             # Bei welcher Geschwindigkeit dieser Stand gelernt und gemessen
             # wurde. „schreiben" liest es und spult beim Diktieren genauso vor;
             # ohne die Angabe träfe ein Modell für schnelle Sprache auf einen

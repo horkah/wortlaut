@@ -175,30 +175,39 @@ def beauftrage(
         verzeichnis / laeufe.MANIFEST, korpus, proben, auftrag.sprecher_id, auftrag.daten
     )
 
-    laeufe.schreibe_json(
-        verzeichnis / laeufe.AUFTRAG,
-        {
-            "job_id": job_id,
-            "sprecher_id": auftrag.sprecher_id,
-            "methode": auftrag.methode,
-            "daten": auftrag.daten,
-            "abschluss": auftrag.abschluss,
-            "augmentierung": auftrag.augmentierung,
-            "dauer": auftrag.dauer,
-            "basismodell": auftrag.basismodell,
-            # Die Sprache des Profils. Sie steht hier, weil `finetune.py` und
-            # `bewerten.py` sie genau hier lesen - und weil in `auftrag.json`
-            # nachvollziehbar sein soll, wofür trainiert wurde.
-            "sprache": auftrag.sprache,
-            # Ob der Trainer diesen Faktor benutzt oder sich einen sucht. Der
-            # eingefrorene Wert darüber bleibt trotzdem stehen: Er ist der
-            # Ausgangspunkt, gegen den sich eine Suche messen lassen muss.
-            "tempowahl": auftrag.tempowahl,
-            "erstellt": laeufe.jetzt(),
-            "zeilen": gezaehlt,
-            "aufnahmen": len(proben),
-        },
+    inhalt = {
+        "job_id": job_id,
+        "sprecher_id": auftrag.sprecher_id,
+        "methode": auftrag.methode,
+        "daten": auftrag.daten,
+        "abschluss": auftrag.abschluss,
+        "augmentierung": auftrag.augmentierung,
+        "dauer": auftrag.dauer,
+        "basismodell": auftrag.basismodell,
+        # Die Sprache des Profils. Sie steht hier, weil `finetune.py` und
+        # `bewerten.py` sie genau hier lesen - und weil in `auftrag.json`
+        # nachvollziehbar sein soll, wofür trainiert wurde.
+        "sprache": auftrag.sprache,
+        # Ob der Trainer diesen Faktor benutzt oder sich einen sucht. Der
+        # eingefrorene Wert darüber bleibt trotzdem stehen: Er ist der
+        # Ausgangspunkt, gegen den sich eine Suche messen lassen muss.
+        "tempowahl": auftrag.tempowahl,
+        "erstellt": laeufe.jetzt(),
+        "zeilen": gezaehlt,
+        "aufnahmen": len(proben),
+    }
+    # Die Folge hinter dem Optionscode (`/43`, `/43b`, …): einmal hier vergeben,
+    # gemessen an dem, was jetzt noch da ist, und danach nie wieder angefasst
+    # (`wortlaut/laeufe.py`). Die Stände zählen mit, falls einer seinen Lauf
+    # überlebt hat.
+    inhalt[laeufe.FOLGE] = laeufe.naechste_folge(
+        inhalt,
+        [
+            *(lauf.auftrag for lauf in laeufe.alle_laeufe(datenverzeichnis, auftrag.sprecher_id)),
+            *registry.alle_staende(datenverzeichnis, auftrag.sprecher_id),
+        ],
     )
+    laeufe.schreibe_json(verzeichnis / laeufe.AUFTRAG, inhalt)
 
     lauf = laeufe.lies_lauf(datenverzeichnis, job_id)
     assert lauf is not None  # gerade selbst geschrieben

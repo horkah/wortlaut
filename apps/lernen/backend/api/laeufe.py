@@ -293,7 +293,8 @@ class StandHinweis(BaseModel):
 class LaufAntwort(BaseModel):
     job_id: str
     sprecher_id: str
-    # Der Titel des Laufs: alle Achsen als Optionscode (`lauf_layout.optionscode`).
+    # Der Titel des Laufs: alle Achsen als Optionscode, dahinter die Folge
+    # (`/43b`, `lauf_layout.titel`).
     code: str
     methode: str
     daten: str
@@ -550,7 +551,7 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
     return LaufAntwort(
         job_id=lauf.job_id,
         sprecher_id=lauf.sprecher_id,
-        code=lauf_layout.optionscode(lauf.auftrag),
+        code=lauf_layout.titel(lauf.auftrag),
         methode=str(lauf.auftrag.get("methode", "")),
         daten=str(lauf.auftrag.get("daten", "")),
         abschluss=str(lauf.auftrag.get("abschluss") or lauf_layout.ABSCHLUSS_BESTER),
