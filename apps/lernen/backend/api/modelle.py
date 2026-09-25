@@ -251,14 +251,14 @@ def _grundmodellnamen() -> list[str]:
 
 
 def _stand_name(manifest: dict) -> str:
-    """Der Titel einer Zeile: der Optionscode des Laufs, aus dem der Stand kam.
+    """Der Titel einer Zeile: Optionscode und Folge des Laufs, aus dem der Stand kam.
 
     Aus dem Auftrag, solange es ihn gibt - ein Manifest von vor September 2026
     kennt die Tempowahl nicht.
     """
     job_id = str(manifest.get("job_id") or "")
     lauf = lauf_layout.lies_lauf(einstellungen().data_dir, job_id) if job_id else None
-    return lauf_layout.optionscode(lauf.auftrag if lauf is not None else manifest)
+    return lauf_layout.titel(lauf.auftrag if lauf is not None else manifest)
 
 
 def _abschluss_befund(manifest: dict) -> str:

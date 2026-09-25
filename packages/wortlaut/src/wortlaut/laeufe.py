@@ -315,8 +315,8 @@ DAUERN = (DAUER_FEST, DAUER_GEDULDIG)
 # ── Der Optionscode ─────────────────────────────────────────────────────────
 #
 # Alle sieben Achsen eines Auftrags in einer Zeichenkette, etwa `ML-A-SRP-Ts-C`.
-# Er ist der Titel eines Laufs und eines Standes - in „Training", in der
-# Modelltafel und in der Einzelansicht, und überall aus `optionscode`.
+# Mit der Folge dahinter (`titel`, siehe unten) ist er der Titel eines Laufs und
+# eines Standes - in „Training", in der Modelltafel und in der Einzelansicht.
 #
 # Vorn stehen immer Grundmodell und Methode, denn sie haben keinen Nullwert.
 # Dahinter je gewählter Achse ein Glied, in der Reihenfolge der Wahlfelder;
@@ -369,6 +369,80 @@ def optionscode(auftrag: dict[str, Any]) -> str:
         glied(CODE_ABSCHLUSS, auftrag.get("abschluss"), ABSCHLUSS_BESTER),
     )
     return "-".join([kopf, *(teil for teil in glieder if teil)])
+
+
+# ── Die Folge ───────────────────────────────────────────────────────────────
+#
+# Der Optionscode sagt, wie trainiert wurde, aber nicht worauf und nicht
+# welcher von mehreren. Zwei Läufe mit demselben Rezept über denselben Korpus
+# hießen gleich. Hinter den Code kommt deshalb die Folge: `/43` für die Zahl
+# der Aufnahmen, auf denen gelernt wurde, und ein Buchstabe, wenn es Code und
+# Zahl schon gibt - `ML-E-SRP-Ts-CI/43`, dann `/43b`, `/43c`, …, nach `z`
+# weiter mit `aa`, `ab`.
+#
+# **Vergeben beim Auftrag, danach nie wieder angefasst.** Sie steht in
+# `auftrag.json` (und im Manifest des Standes) und nicht gerechnet: Würde sie
+# aus den vorhandenen Läufen abgeleitet, rückte sie beim Löschen eines
+# anderen nach, und dieselbe Kennung zeigte heute auf dieses Modell und
+# morgen auf jenes.
+#
+# **Gezählt wird, was beim Auftrag noch da ist.** Der neue Buchstabe ist einer
+# über dem höchsten vorhandenen, mindestens `b`. Gelöschte zählen nicht: Gibt
+# es nur noch `/43b` und `/43e`, kommt `/43f`; gibt es keinen mehr, wieder
+# `/43` ohne Buchstaben.
+FOLGE = "folge"
+
+
+def folgebuchstaben(nummer: int) -> str:
+    """0 → „", 1 → „b", 25 → „z", 26 → „aa", 27 → „ab" - der Buchstabe zur laufenden Nummer.
+
+    Die erste Instanz trägt keinen Buchstaben; sie ist das stille `a`. Danach
+    zählt es wie Tabellenspalten: `z`, `aa`, `ab`, ….
+    """
+    if nummer <= 0:
+        return ""
+    wert = nummer + 1
+    zeichen = []
+    while wert > 0:
+        wert, rest = divmod(wert - 1, 26)
+        zeichen.append(chr(ord("a") + rest))
+    return "".join(reversed(zeichen))
+
+
+def folgenummer(buchstaben: str) -> int:
+    """Die Umkehrung von `folgebuchstaben`: „" → 0, „b" → 1, „aa" → 26."""
+    if not buchstaben:
+        return 0
+    wert = 0
+    for zeichen in buchstaben:
+        wert = wert * 26 + (ord(zeichen) - ord("a") + 1)
+    return wert - 1
+
+
+def naechste_folge(auftrag: dict[str, Any], vorhandene: Iterable[dict[str, Any]]) -> str:
+    """Die Folge für diesen Auftrag, gemessen an den `vorhandene` Aufträgen desselben Sprechers.
+
+    Mitgezählt wird nur, wer schon eine Folge trägt: Ohne sie gibt es keine
+    Kennung, die dieser gleichen könnte.
+    """
+    code = optionscode(auftrag)
+    zahl = str(int(auftrag.get("aufnahmen") or 0))
+    belegt = []
+    for anderer in vorhandene:
+        folge = str(anderer.get(FOLGE) or "")
+        buchstaben = folge.lstrip("0123456789")
+        if folge[: len(folge) - len(buchstaben)] == zahl and optionscode(anderer) == code:
+            belegt.append(folgenummer(buchstaben))
+    return zahl + (folgebuchstaben(max(belegt) + 1) if belegt else "")
+
+
+def titel(auftrag: dict[str, Any]) -> str:
+    """Optionscode und Folge - `ML-E-SRP-Ts-CI/43c`, so steht ein Lauf überall da.
+
+    Ein Auftrag von vor der Folge trägt nur den Code.
+    """
+    folge = str(auftrag.get(FOLGE) or "")
+    return f"{optionscode(auftrag)}/{folge}" if folge else optionscode(auftrag)
 
 
 # Der Zustand eines Laufs, wie ihn `zustand.json` nennt.

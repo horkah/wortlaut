@@ -250,8 +250,17 @@ wenn sie nicht auf ihrer Vorgabe steht, in dieser Reihenfolge:
 | Tempo | aus, geschätzt, gesucht | –, `Tg`, `Ts` |
 | Abschluss | bester Checkpoint, Checkpoint-Mittel, WiSE-FT, beides | –, `C`, `I`, `CI` |
 
-Zwei Läufe mit denselben Optionen tragen denselben Code; auseinander hält sie
-die Kennung (`registry.kurzkennung`). Ergebnisse wie das gefundene Tempo oder
+Zwei Läufe mit denselben Optionen tragen denselben Code. Hinter ihm steht
+deshalb die **Folge**: die Zahl der Aufnahmen, auf denen gelernt wurde, und ein
+Buchstabe, sobald es Code und Zahl schon gibt - `ML-E-SRP-Ts-CI/43`, dann
+`/43b`, `/43c`, nach `z` weiter mit `aa`, `ab` (`wortlaut/laeufe.titel`).
+Vergeben wird sie beim Auftrag und danach nie wieder geändert, auch wenn andere
+Läufe verschwinden. Gezählt wird nur, was beim Auftrag noch da ist: einer über
+dem höchsten vorhandenen Buchstaben, mindestens `b` - gibt es noch `/43b` und
+`/43e`, kommt `/43f`; gibt es keinen mehr, wieder `/43`. Läufe von vor der
+Folge bekommen sie mit `scripts/folge_nachtragen.py`, nach derselben Regel.
+Unabhängig davon trägt jeder Stand seine Kennung (`registry.kurzkennung`).
+Ergebnisse wie das gefundene Tempo oder
 das gewählte α gehören nicht zum Code - sie stehen in der Nebenzeile und im
 Steckbrief. Ein Stand von vor September 2026 kennt die Tempowahl im Manifest
 nicht; sein Code kommt deshalb aus dem Auftrag des Laufs.
