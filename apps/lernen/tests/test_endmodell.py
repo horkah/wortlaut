@@ -14,7 +14,9 @@ Güte fällt, sondern eines darüber, ob der Stand überhaupt noch zuhört.
 from __future__ import annotations
 
 from apps.lernen.backend.api.modelle import _vorbehalt
-from apps.lernen.training.bewerten import befund_ueber
+from wortlaut import registry
+
+from apps.lernen.training.bewerten import befund_ueber, freie_version
 
 FALTUNGEN = [{"wer": 0.23, "variante": "original"}] * 10
 
@@ -151,3 +153,33 @@ class TestPlanZurueckgelesen:
         from apps.lernen.training.nachziehen import plan_aus_dem_lauf
 
         assert plan_aus_dem_lauf(tmp_path / "gibtesnicht") == 0.0
+
+
+class TestFreieVersion:
+    """Dasselbe Rezept in derselben Minute beauftragt - und kein Stand geht verloren."""
+
+    VERSION = "20260925T2204-medium-lora-original-beides-voll-geduldig"
+
+    def _auftrag(self, job_id: str, folge: str = "") -> dict:
+        return {"sprecher_id": "spr_x", "job_id": job_id, "folge": folge}
+
+    def _eintragen(self, tmp_path, job_id: str, version: str) -> None:
+        registry.schreibe_stand(tmp_path, {"id": f"spr_x/{version}", "job_id": job_id})
+
+    def test_freier_name_bleibt(self, tmp_path) -> None:
+        assert freie_version(tmp_path, self._auftrag("job_b"), self.VERSION) == self.VERSION
+
+    def test_derselbe_lauf_behaelt_seinen_namen(self, tmp_path) -> None:
+        # So rechnet `nachziehen` einen Stand an seinem Platz neu.
+        self._eintragen(tmp_path, "job_b", self.VERSION)
+        assert freie_version(tmp_path, self._auftrag("job_b", "43b"), self.VERSION) == self.VERSION
+
+    def test_fremder_lauf_bekommt_seine_folge(self, tmp_path) -> None:
+        self._eintragen(tmp_path, "job_b", self.VERSION)
+        version = freie_version(tmp_path, self._auftrag("job_c", "43c"), self.VERSION)
+        assert version == f"{self.VERSION}-43c"
+
+    def test_ohne_folge_die_kennung_des_laufs(self, tmp_path) -> None:
+        self._eintragen(tmp_path, "job_b", self.VERSION)
+        version = freie_version(tmp_path, self._auftrag("job_c"), self.VERSION)
+        assert version == f"{self.VERSION}-job_c"
