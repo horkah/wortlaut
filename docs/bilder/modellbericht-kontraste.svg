@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 418" width="760" height="418" role="img" aria-label="Gepaarte Unterschiede">
+<style>
+svg{--surface:#fcfcfb;--t1:#0b0b0b;--t2:#52514e;--t3:#8a8984;--grid:#e6e5e0;--s:#2a78d6;--m:#eb6834;--band:#2a78d6;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){svg{--surface:#1a1a19;--t1:#ffffff;--t2:#c3c2b7;--t3:#8f8e87;--grid:#3a3a37;--s:#3987e5;--m:#d95926;--band:#3987e5}}
+.bg{fill:var(--surface)} .t1{fill:var(--t1)} .t2{fill:var(--t2)} .t3{fill:var(--t3)}
+.grid{stroke:var(--grid);stroke-width:1} .axis{stroke:var(--t3);stroke-width:1}
+.cS{stroke:var(--s);fill:var(--s)} .cM{stroke:var(--m);fill:var(--m)} .cB{stroke:var(--t2);fill:var(--surface)}
+.ring{stroke:var(--surface)}
+</style>
+<rect class="bg" width="760" height="418" rx="6"/>
+<text x="16" y="28" class="t1" font-size="16" font-weight="600">Was bewirkt eine Option? Gepaarte Unterschiede in der WER</text>
+<text x="16" y="48" class="t2" font-size="12.5">Links von null: die genannte Option ist besser. Nur was das breite Intervall nicht über null legt, ist belastbar.</text>
+<line x1="16" x2="40" y1="68" y2="68" class="cS" stroke-width="2"/><text x="46" y="72" class="t2" font-size="12">95 % nur über Aufnahmen (Bootstrap)</text>
+<rect x="300" y="63" width="24" height="10" rx="2" fill="var(--s)" opacity="0.22"/><text x="330" y="72" class="t2" font-size="12">95 % mit Trainingsrauschen (Näherung)</text>
+<line x1="302.9" x2="302.9" y1="90" y2="356" class="grid"/><text x="302.9" y="372" text-anchor="middle" class="t3" font-size="11">-0,3</text>
+<line x1="368.6" x2="368.6" y1="90" y2="356" class="grid"/><text x="368.6" y="372" text-anchor="middle" class="t3" font-size="11">-0,2</text>
+<line x1="434.3" x2="434.3" y1="90" y2="356" class="grid"/><text x="434.3" y="372" text-anchor="middle" class="t3" font-size="11">-0,1</text>
+<line x1="500.0" x2="500.0" y1="90" y2="356" class="axis"/><text x="500.0" y="372" text-anchor="middle" class="t3" font-size="11">0</text>
+<line x1="565.7" x2="565.7" y1="90" y2="356" class="grid"/><text x="565.7" y="372" text-anchor="middle" class="t3" font-size="11">+0,1</text>
+<line x1="631.4" x2="631.4" y1="90" y2="356" class="grid"/><text x="631.4" y="372" text-anchor="middle" class="t3" font-size="11">+0,2</text>
+<line x1="697.1" x2="697.1" y1="90" y2="356" class="grid"/><text x="697.1" y="372" text-anchor="middle" class="t3" font-size="11">+0,3</text>
+<text x="500" y="392" text-anchor="middle" class="t2" font-size="12">Δ WER (Option minus Vergleich)</text>
+<rect x="442.9" y="98.0" width="180.8" height="10" rx="3" fill="var(--s)" opacity="0.22"/>
+<line x1="475.1" x2="586.8" y1="103.0" y2="103.0" class="cS" stroke-width="2" stroke-linecap="round"/>
+<circle cx="533.3" cy="103.0" r="5" class="cS ring" stroke-width="2"><title>B: small statt medium: +0.051</title></circle>
+<text x="258" y="107.0" text-anchor="end" class="t1" font-size="12.5">B: small statt medium</text>
+<rect x="429.0" y="124.0" width="213.7" height="10" rx="3" fill="var(--s)" opacity="0.22"/>
+<line x1="467.1" x2="626.6" y1="129.0" y2="129.0" class="cS" stroke-width="2" stroke-linecap="round"/>
+<circle cx="535.8" cy="129.0" r="5" class="cS ring" stroke-width="2"><title>B: mit Abwandlungen (A): +0.054</title></circle>
+<text x="258" y="133.0" text-anchor="end" class="t1" font-size="12.5">B: mit Abwandlungen (A)</text>
+<rect x="466.9" y="150.0" width="177.4" height="10" rx="3" fill="var(--s)" opacity="0.22"/>
+<line x1="504.3" x2="610.3" y1="155.0" y2="155.0" class="cS" stroke-width="2" stroke-linecap="round"/>
+<circle cx="555.6" cy="155.0" r="5" class="cS ring" stroke-width="2"><title>B: Tempo gesucht, medium: +0.085</title></circle>
+<text x="258" y="159.0" text-anchor="end" class="t1" font-size="12.5">B: Tempo gesucht, medium</text>
+<rect x="359.1" y="176.0" width="262.0" height="10" rx="3" fill="var(--s)" opacity="0.22"/>
+<line x1="383.1" x2="573.5" y1="181.0" y2="181.0" class="cS" stroke-width="2" stroke-linecap="round"/>
+<circle cx="490.1" cy="181.0" r="5" class="cS ring" stroke-width="2"><title>B: Tempo gesucht, medium A: -0.015</title></circle>
+<text x="258" y="185.0" text-anchor="end" class="t1" font-size="12.5">B: Tempo gesucht, medium A</text>
+<rect x="460.0" y="202.0" width="202.4" height="10" rx="3" fill="var(--s)" opacity="0.22"/>
+<line x1="515.2" x2="608.1" y1="207.0" y2="207.0" class="cS" stroke-width="2" stroke-linecap="round"/>
+<circle cx="561.2" cy="207.0" r="5" class="cS ring" stroke-width="2"><title>B: Tempo gesucht, small: +0.093</title></circle>
+<text x="258" y="211.0" text-anchor="end" class="t1" font-size="12.5">B: Tempo gesucht, small</text>
+<rect x="433.3" y="228.0" width="209.1" height="10" rx="3" fill="var(--s)" opacity="0.22"/>
+<line x1="480.7" x2="587.4" y1="233.0" y2="233.0" class="cS" stroke-width="2" stroke-linecap="round"/>
+<circle cx="537.9" cy="233.0" r="5" class="cS ring" stroke-width="2"><title>B: Abschluss C statt CI: +0.058</title></circle>
+<text x="258" y="237.0" text-anchor="end" class="t1" font-size="12.5">B: Abschluss C statt CI</text>
+<rect x="353.8" y="254.0" width="154.1" height="10" rx="3" fill="var(--s)" opacity="0.22"/>
+<line x1="346.3" x2="500.5" y1="259.0" y2="259.0" class="cS" stroke-width="2" stroke-linecap="round"/>
+<circle cx="430.9" cy="259.0" r="5" class="cS ring" stroke-width="2"><title>B: gleiches Rezept, /43b − /43c: -0.105</title></circle>
+<text x="258" y="263.0" text-anchor="end" class="t1" font-size="12.5">B: gleiches Rezept, /43b − /43c</text>
+<line x1="16" x2="744" y1="273.0" y2="273.0" class="grid"/>
+<rect x="530.5" y="280.0" width="66.2" height="10" rx="3" fill="var(--s)" opacity="0.22"/>
+<line x1="549.4" x2="578.4" y1="285.0" y2="285.0" class="cS" stroke-width="2" stroke-linecap="round"/>
+<circle cx="563.6" cy="285.0" r="5" class="cS ring" stroke-width="2"><title>A: small statt medium: +0.097</title></circle>
+<text x="258" y="289.0" text-anchor="end" class="t1" font-size="12.5">A: small statt medium</text>
+<rect x="477.1" y="306.0" width="53.3" height="10" rx="3" fill="var(--s)" opacity="0.22"/>
+<line x1="493.3" x2="514.0" y1="311.0" y2="311.0" class="cS" stroke-width="2" stroke-linecap="round"/>
+<circle cx="503.7" cy="311.0" r="5" class="cS ring" stroke-width="2"><title>A: 166 statt 134 Aufnahmen: +0.006</title></circle>
+<text x="258" y="315.0" text-anchor="end" class="t1" font-size="12.5">A: 166 statt 134 Aufnahmen</text>
+<rect x="444.2" y="332.0" width="44.5" height="10" rx="3" fill="var(--s)" opacity="0.22"/>
+<line x1="452.9" x2="480.2" y1="337.0" y2="337.0" class="cS" stroke-width="2" stroke-linecap="round"/>
+<circle cx="466.5" cy="337.0" r="5" class="cS ring" stroke-width="2"><title>A: medium trainiert − large-v3: -0.051</title></circle>
+<text x="258" y="341.0" text-anchor="end" class="t1" font-size="12.5">A: medium trainiert − large-v3</text>
+</svg>

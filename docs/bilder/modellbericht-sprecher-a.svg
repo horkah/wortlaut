@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 294" width="760" height="294" role="img" aria-label="Sprecher A: alle Stände auf 127 gemeinsamen Aufnahmen">
+<style>
+svg{--surface:#fcfcfb;--t1:#0b0b0b;--t2:#52514e;--t3:#8a8984;--grid:#e6e5e0;--s:#2a78d6;--m:#eb6834;--band:#2a78d6;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){svg{--surface:#1a1a19;--t1:#ffffff;--t2:#c3c2b7;--t3:#8f8e87;--grid:#3a3a37;--s:#3987e5;--m:#d95926;--band:#3987e5}}
+.bg{fill:var(--surface)} .t1{fill:var(--t1)} .t2{fill:var(--t2)} .t3{fill:var(--t3)}
+.grid{stroke:var(--grid);stroke-width:1} .axis{stroke:var(--t3);stroke-width:1}
+.cS{stroke:var(--s);fill:var(--s)} .cM{stroke:var(--m);fill:var(--m)} .cB{stroke:var(--t2);fill:var(--surface)}
+.ring{stroke:var(--surface)}
+</style>
+<rect class="bg" width="760" height="294" rx="6"/>
+<text x="16" y="28" class="t1" font-size="16" font-weight="600">Sprecher A: alle Stände auf 127 gemeinsamen Aufnahmen</text>
+<text x="16" y="48" class="t2" font-size="12.5">Punkt: Mittel · Linie: 95-%-Bootstrap-Intervall über Aufnahmen</text>
+<circle cx="21" cy="68" r="5" class="cS" stroke-width="2"/><text x="31" y="72" class="t2" font-size="12">trainiert auf small</text>
+<circle cx="186.39999999999998" cy="68" r="5" class="cM" stroke-width="2"/><text x="196.39999999999998" y="72" class="t2" font-size="12">trainiert auf medium</text>
+<circle cx="358.4" cy="68" r="5" class="cB" stroke-width="2"/><text x="368.4" y="72" class="t2" font-size="12">Baseline, unverändert</text>
+<line x1="250.0" x2="250.0" y1="86" y2="236" class="grid"/><text x="250.0" y="252" text-anchor="middle" class="t3" font-size="11">0</text>
+<line x1="330.0" x2="330.0" y1="86" y2="236" class="grid"/><text x="330.0" y="252" text-anchor="middle" class="t3" font-size="11">0,1</text>
+<line x1="410.0" x2="410.0" y1="86" y2="236" class="grid"/><text x="410.0" y="252" text-anchor="middle" class="t3" font-size="11">0,2</text>
+<line x1="490.0" x2="490.0" y1="86" y2="236" class="grid"/><text x="490.0" y="252" text-anchor="middle" class="t3" font-size="11">0,3</text>
+<line x1="570.0" x2="570.0" y1="86" y2="236" class="grid"/><text x="570.0" y="252" text-anchor="middle" class="t3" font-size="11">0,4</text>
+<line x1="650.0" x2="650.0" y1="86" y2="236" class="grid"/><text x="650.0" y="252" text-anchor="middle" class="t3" font-size="11">0,5</text>
+<line x1="730.0" x2="730.0" y1="86" y2="236" class="grid"/><text x="730.0" y="252" text-anchor="middle" class="t3" font-size="11">0,6</text>
+<text x="490" y="272" text-anchor="middle" class="t2" font-size="12">WER, Mittel je Einheit (kleiner ist besser)</text>
+<text x="238" y="102.0" text-anchor="end" class="t1" font-size="12.5" font-family="ui-monospace,Menlo,monospace">ML-A-E-SRP-CI/134</text>
+<line x1="410.8" x2="459.7" y1="98.0" y2="98.0" class="cM" stroke-width="2" stroke-linecap="round"/>
+<circle cx="434.6" cy="98.0" r="5" class="cM" stroke-width="2"><title>ML-A-E-SRP-CI/134: 0.231 [0.201; 0.262]</title></circle>
+<text x="238" y="126.0" text-anchor="end" class="t1" font-size="12.5" font-family="ui-monospace,Menlo,monospace">ML-A-E-SRP-CI/166</text>
+<line x1="414.6" x2="465.4" y1="122.0" y2="122.0" class="cM" stroke-width="2" stroke-linecap="round"/>
+<circle cx="439.1" cy="122.0" r="5" class="cM" stroke-width="2"><title>ML-A-E-SRP-CI/166: 0.236 [0.206; 0.269]</title></circle>
+<text x="238" y="150.0" text-anchor="end" class="t1" font-size="12.5" font-family="ui-monospace,Menlo,monospace">SL-A-E-SRP-CI/132</text>
+<line x1="486.6" x2="539.3" y1="146.0" y2="146.0" class="cS" stroke-width="2" stroke-linecap="round"/>
+<circle cx="512.0" cy="146.0" r="5" class="cS" stroke-width="2"><title>SL-A-E-SRP-CI/132: 0.328 [0.296; 0.362]</title></circle>
+<text x="238" y="174.0" text-anchor="end" class="t2" font-size="12.5" font-family="ui-monospace,Menlo,monospace">Baseline large-v3</text>
+<line x1="456.2" x2="505.3" y1="170.0" y2="170.0" class="cB" stroke-width="2" stroke-linecap="round"/>
+<circle cx="479.9" cy="170.0" r="5" class="cB" stroke-width="2"><title>Baseline large-v3: 0.287 [0.258; 0.319]</title></circle>
+<text x="238" y="198.0" text-anchor="end" class="t2" font-size="12.5" font-family="ui-monospace,Menlo,monospace">Baseline medium</text>
+<line x1="541.4" x2="607.2" y1="194.0" y2="194.0" class="cB" stroke-width="2" stroke-linecap="round"/>
+<circle cx="572.8" cy="194.0" r="5" class="cB" stroke-width="2"><title>Baseline medium: 0.403 [0.364; 0.446]</title></circle>
+<text x="238" y="222.0" text-anchor="end" class="t2" font-size="12.5" font-family="ui-monospace,Menlo,monospace">Baseline small</text>
+<line x1="634.0" x2="695.3" y1="218.0" y2="218.0" class="cB" stroke-width="2" stroke-linecap="round"/>
+<circle cx="664.4" cy="218.0" r="5" class="cB" stroke-width="2"><title>Baseline small: 0.518 [0.480; 0.557]</title></circle>
+</svg>

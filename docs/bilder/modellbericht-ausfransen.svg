@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 270" width="760" height="270" role="img" aria-label="Anteil ausgefranster Einheiten">
+<style>
+svg{--surface:#fcfcfb;--t1:#0b0b0b;--t2:#52514e;--t3:#8a8984;--grid:#e6e5e0;--s:#2a78d6;--m:#eb6834;--band:#2a78d6;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){svg{--surface:#1a1a19;--t1:#ffffff;--t2:#c3c2b7;--t3:#8f8e87;--grid:#3a3a37;--s:#3987e5;--m:#d95926;--band:#3987e5}}
+.bg{fill:var(--surface)} .t1{fill:var(--t1)} .t2{fill:var(--t2)} .t3{fill:var(--t3)}
+.grid{stroke:var(--grid);stroke-width:1} .axis{stroke:var(--t3);stroke-width:1}
+.cS{stroke:var(--s);fill:var(--s)} .cM{stroke:var(--m);fill:var(--m)} .cB{stroke:var(--t2);fill:var(--surface)}
+.ring{stroke:var(--surface)}
+</style>
+<rect class="bg" width="760" height="270" rx="6"/>
+<text x="16" y="28" class="t1" font-size="16" font-weight="600">Sprecher B: Anteil der Einheiten mit mehr Fehlern als Wörtern</text>
+<text x="16" y="48" class="t2" font-size="12.5">WER &gt; 1 heißt: der Erkenner wiederholt oder redet weiter. 43 Aufnahmen × 2 Fassungen.</text>
+<line x1="250.0" x2="250.0" y1="64" y2="220" class="grid"/><text x="250.0" y="236" text-anchor="middle" class="t3" font-size="11">0 %</text>
+<line x1="362.5" x2="362.5" y1="64" y2="220" class="grid"/><text x="362.5" y="236" text-anchor="middle" class="t3" font-size="11">25 %</text>
+<line x1="475.0" x2="475.0" y1="64" y2="220" class="grid"/><text x="475.0" y="236" text-anchor="middle" class="t3" font-size="11">50 %</text>
+<line x1="587.5" x2="587.5" y1="64" y2="220" class="grid"/><text x="587.5" y="236" text-anchor="middle" class="t3" font-size="11">75 %</text>
+<line x1="700.0" x2="700.0" y1="64" y2="220" class="grid"/><text x="700.0" y="236" text-anchor="middle" class="t3" font-size="11">100 %</text>
+<path d="M250 70 h336.1 a4 4 0 0 1 4 4 v18 a4 4 0 0 1 -4 4 h-336.1 z" fill="var(--t3)"><title>small, unverändert: 76 %</title></path>
+<text x="238" y="85.0" text-anchor="end" class="t1" font-size="12.5">small, unverändert</text><text x="596.1" y="85.0" class="t2" font-size="12">76 %</text>
+<path d="M250 100 h362.3 a4 4 0 0 1 4 4 v18 a4 4 0 0 1 -4 4 h-362.3 z" fill="var(--t3)"><title>medium, unverändert: 81 %</title></path>
+<text x="238" y="115.0" text-anchor="end" class="t1" font-size="12.5">medium, unverändert</text><text x="622.3" y="115.0" class="t2" font-size="12">81 %</text>
+<path d="M250 130 h268.1 a4 4 0 0 1 4 4 v18 a4 4 0 0 1 -4 4 h-268.1 z" fill="var(--t3)"><title>large-v3, unverändert: 60 %</title></path>
+<text x="238" y="145.0" text-anchor="end" class="t1" font-size="12.5">large-v3, unverändert</text><text x="528.1" y="145.0" class="t2" font-size="12">60 %</text>
+<path d="M250 160 h100.7 a4 4 0 0 1 4 4 v18 a4 4 0 0 1 -4 4 h-100.7 z" fill="var(--s)"><title>small, trainiert (Mittel aus 3): 23 %</title></path>
+<text x="238" y="175.0" text-anchor="end" class="t1" font-size="12.5">small, trainiert (Mittel aus 3)</text><text x="360.7" y="175.0" class="t2" font-size="12">23 %</text>
+<path d="M250 190 h90.9 a4 4 0 0 1 4 4 v18 a4 4 0 0 1 -4 4 h-90.9 z" fill="var(--m)"><title>medium, trainiert (Mittel aus 7): 21 %</title></path>
+<text x="238" y="205.0" text-anchor="end" class="t1" font-size="12.5">medium, trainiert (Mittel aus 7)</text><text x="350.9" y="205.0" class="t2" font-size="12">21 %</text>
+</svg>
