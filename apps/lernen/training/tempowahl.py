@@ -48,7 +48,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from wortlaut import laeufe, metriken, tempo
+from wortlaut import metriken, tempo
 from wortlaut.text import chunker
 from wortlaut.augmentierung import ORIGINAL
 
@@ -250,12 +250,16 @@ def stichprobe(zeilen: list[dict[str, Any]], faltung: int | None) -> list[dict[s
 def waehle(
     zeilen: list[dict[str, Any]],
     korpuswurzel: Path,
-    basismodell: str,
+    modell: str,
     sprache: str,
     bericht,
     faltung: int | None = None,
 ) -> Ergebnis:
     """Den Faktor mit dem kleinsten WER am Grundmodell; `1.0`, wenn nichts geht.
+
+    `modell` ist, was faster-whisper laden soll: der kurze Name des
+    Grundmodells oder das Verzeichnis eines Ausgangsstands
+    (`ausgangsstand.erkenner`).
 
     Scheitert die Suche - kein Audio, kein Modell, keine Karte -, ist das kein
     Grund, den Lauf hinzuwerfen: Dann gilt 1,0, der Stand von immer, und der
@@ -275,10 +279,8 @@ def waehle(
     geraet, rechenart = einstellungen().rechenwerk()
     # Das **unveränderte** Grundmodell unter seinem kurzen Namen - genau das,
     # was `hören` in der Auswertung misst und was am Anfang jedes Feintunings
-    # steht.
-    erkenner = LokalerTranskriptor(
-        laeufe.kurzname(basismodell), geraet=geraet, rechenart=rechenart
-    )
+    # steht. Setzt der Lauf auf einem Stand auf, steht der am Anfang.
+    erkenner = LokalerTranskriptor(modell, geraet=geraet, rechenart=rechenart)
 
     # Eine eigene Stufe, und nicht mehr stillschweigend unter „laden".
     #

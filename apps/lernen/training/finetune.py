@@ -39,6 +39,7 @@ import yaml
 from wortlaut import laeufe, sprachen, tempo
 
 from . import abschluss as abschlussrechnung
+from . import ausgangsstand
 from . import tempowahl
 from . import klangwandel
 from .daten import Proben, Stapler, zeilen_fuer_faltung
@@ -402,7 +403,11 @@ def trainiere(
     zerteiler = WhisperTokenizerFast.from_pretrained(
         basismodell, language=sprache, task="transcribe"
     )
-    modell = WhisperForConditionalGeneration.from_pretrained(basismodell)
+    # Die Gewichte vom Grundmodell - oder von dem Stand, auf dem dieser Lauf
+    # aufsetzt (`ausgangsstand.py`). Zerteiler und Ausleser darüber bleiben
+    # die des Grundmodells: Ein Stand ändert an beiden nichts.
+    gewichtsquelle = ausgangsstand.quelle(verzeichnis, datenverzeichnis, auftrag, bericht)
+    modell = WhisperForConditionalGeneration.from_pretrained(gewichtsquelle)
 
     # Whisper bringt „erzwungene" Marken für Sprache und Aufgabe mit. Beim
     # Feintuning stören sie: Sie stehen schon in den Marken des Zerteilers, und
@@ -508,7 +513,12 @@ def trainiere(
             # anzufassen hieße, die Wahl an Daten zu treffen, an denen später
             # gemessen wird (siehe `tempowahl.py`).
             tempoergebnis = tempowahl.waehle(
-                lernzeilen, korpuswurzel, basismodell, sprache, bericht, faltung
+                lernzeilen,
+                korpuswurzel,
+                ausgangsstand.erkenner(datenverzeichnis, auftrag),
+                sprache,
+                bericht,
+                faltung,
             )
             faktor = tempoergebnis.faktor
             if tempoergebnis.hinweis:
@@ -748,7 +758,9 @@ def trainiere(
         modell=modell,
         trainer=trainer,
         rezept=rezept,
-        basismodell=basismodell,
+        # Interpoliert wird zum Anfang des Trainings zurück - auf einem Stand
+        # also zu ihm und nicht zum Whisper-Modell darunter.
+        basismodell=gewichtsquelle,
         arbeitsstand=ausgabe,
         hat_pruefung=hat_pruefung,
         bericht=bericht,

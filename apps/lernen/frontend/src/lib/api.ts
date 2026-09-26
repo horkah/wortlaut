@@ -84,7 +84,10 @@ export type Lauf = {
   tempo: number | null;
   /** Ob der Faktor endgültig ist - bei `optimal` erst nach der letzten Faltung. */
   tempo_endgueltig: boolean;
+  /** Das Whisper-Modell darunter - gegen das misst die Baseline. */
   basismodell: string;
+  /** Worauf aufgesetzt wurde, als Schlüssel der Wahl: Grundmodell oder trainierter Stand. */
+  grundmodell: string;
   erstellt: string;
   /** wartet | laeuft | fertig | gescheitert | abgebrochen */
   status: string;

@@ -137,7 +137,7 @@
   const achsen = $derived.by((): [string, (Wahl | Grundmodell)[], (lauf: Lauf) => string][] =>
     daten
       ? [
-          ['Grundmodell', daten.grundmodelle, (lauf) => lauf.basismodell],
+          ['Grundmodell', daten.grundmodelle, (lauf) => lauf.grundmodell],
           ['Methode', daten.methoden, (lauf) => lauf.methode],
           ['Datensatz', daten.datensaetze, (lauf) => lauf.daten],
           ['Epochen', daten.dauern, (lauf) => lauf.dauer],
@@ -206,7 +206,7 @@
         .map(
           (lauf) =>
             [
-              lauf.basismodell,
+              lauf.grundmodell,
               lauf.methode,
               lauf.daten,
               lauf.abschluss || 'bester',

@@ -130,6 +130,12 @@ def _version(auftrag: dict[str, Any], faktor: float | None = None) -> str:
     grund = laeufe.kurzname(str(auftrag.get("basismodell", "")))
     if grund and grund != VORGABE_GRUNDMODELL:
         marke = f"{marke}-{grund}"
+    # Und der Stand, auf dem aufgesetzt wurde, mit seiner Kennung: Zwei Läufe
+    # auf `medium`, der eine von vorn, der andere auf `C6G67`, sind
+    # verschiedene Modelle und sollen nicht gleich heißen.
+    ausgang = str(auftrag.get(laeufe.AUSGANGSSTAND) or "")
+    if ausgang:
+        marke = f"{marke}-{registry.beschriftung(ausgang)}"
     name = f"{marke}-{auftrag.get('methode', '?')}-{auftrag.get('daten', '?')}"
     art = str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER)
     if art != laeufe.ABSCHLUSS_BESTER:
@@ -657,6 +663,9 @@ def gib_frei(
             "id": f"{sprecher_id}/{version}",
             "sprecher_id": sprecher_id,
             "basismodell": auftrag.get("basismodell"),
+            # Leer bei einem Stand, der auf dem unveränderten Grundmodell
+            # gewachsen ist - sonst der Stand, auf dem er aufsetzt.
+            laeufe.AUSGANGSSTAND: auftrag.get(laeufe.AUSGANGSSTAND) or "",
             "methode": auftrag.get("methode"),
             "daten": auftrag.get("daten"),
             # Die Achsen des Auftrags, als schlichte Zeichenketten - und

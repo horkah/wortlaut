@@ -194,6 +194,23 @@ class TestOptionscode:
         auftrag = {"basismodell": "openai/whisper-small", "methode": "lora", "abschluss": "neu"}
         assert laeufe.optionscode(auftrag) == "SL-?"
 
+    def test_auf_einem_stand_steht_dessen_kennung_vorn(self) -> None:
+        # Nicht `ML`: Ein Lauf auf `medium` und einer auf einem Stand darüber
+        # sind verschiedene Rezepte und dürfen sich keine Folge teilen.
+        auftrag = {
+            "basismodell": "openai/whisper-medium",
+            "ausgangsstand": "spr_x/20260926T0458-medium-lora-augmentiert-beides-voll-geduldig",
+            "methode": "lora",
+            "daten": "augmentiert",
+        }
+        assert laeufe.optionscode(auftrag) == "C6G67-L-A"
+        assert laeufe.grundmodell_aus(auftrag) == auftrag["ausgangsstand"]
+
+    def test_ohne_stand_ist_die_wahl_das_grundmodell(self) -> None:
+        assert laeufe.grundmodell_aus({"basismodell": "openai/whisper-small"}) == (
+            "openai/whisper-small"
+        )
+
     @pytest.mark.parametrize(
         ("basismodell", "code"),
         [
