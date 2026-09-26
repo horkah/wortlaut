@@ -150,6 +150,43 @@ def _version(auftrag: dict[str, Any], faktor: float | None = None) -> str:
     return name if wirklich == tempo.VORGABE else f"{name}-{tempo.marke(wirklich)}"
 
 
+def freie_version(datenverzeichnis: Path, auftrag: dict[str, Any], version: str) -> str:
+    """Der Name aus `_version` - oder, wenn ihn schon ein anderer Lauf trägt, einer daneben.
+
+    **Warum das nötig ist.** Die Zeitmarke im Namen reicht auf die Minute.
+    Wer dasselbe Rezept dreimal hintereinander beauftragt, bekommt dreimal
+    denselben Namen - und bis September 2026 schrieb jeder dieser Läufe beim
+    Eintragen über den vorigen hinweg: Von `/43b`, `/43c` und `/43d` blieb
+    allein `/43d` übrig, Gewichte und Manifest der beiden anderen waren weg,
+    ohne dass irgendwo ein Fehler stand.
+
+    Derselbe Lauf darf seinen Namen behalten - `nachziehen` rechnet einen
+    Stand mit demselben Auftrag neu und soll ihn an seinem Platz ersetzen.
+    Ein fremder Lauf bekommt seine Folge angehängt (`-43c`), die ihn in
+    „lernen" ohnehin bezeichnet; fehlt sie, die Kennung des Laufs.
+    """
+    sprecher_id = str(auftrag["sprecher_id"])
+    job_id = str(auftrag.get("job_id") or "")
+
+    def frei(kandidat: str) -> bool:
+        try:
+            stand = registry.lies_stand(datenverzeichnis, sprecher_id, kandidat)
+        except (OSError, ValueError):
+            # Kein Manifest heißt nicht zwingend leer: Ein Lauf, der beim
+            # Umwandeln abbrach, hinterlässt ein Verzeichnis ohne. Das ist
+            # herrenlos, und hineinzuschreiben schadet keinem.
+            return True
+        return str(stand.get("job_id") or "") == job_id
+
+    if frei(version):
+        return version
+    folge = str(auftrag.get(laeufe.FOLGE) or "")
+    for anhang in (folge, job_id):
+        if anhang and frei(kandidat := f"{version}-{anhang}"):
+            return kandidat
+    raise RuntimeError(f"Kein freier Name für den Stand {version} von {job_id}.")
+
+
 # Wie lange der Trainer auf die Karte wartet, wenn sie gerade belegt ist, und
 # in welchen Abständen er nachsieht. Zusammen rund zehn Minuten.
 #
@@ -604,7 +641,7 @@ def gib_frei(
 
     sprecher_id = str(auftrag["sprecher_id"])
     faktor = geltendes_tempo(auftrag, mitgenommen)
-    version = _version(auftrag, faktor)
+    version = freie_version(datenverzeichnis, auftrag, _version(auftrag, faktor))
     ziel = registry.stand_verzeichnis(datenverzeichnis, sprecher_id, version)
     ct2 = ziel / "ct2"
 
