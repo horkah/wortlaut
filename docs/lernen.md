@@ -169,8 +169,8 @@ Blindstelle hat:
 
 Der Vergleich hängt daran, dass die Faltungen etwas taugen. Bei einem kleinen
 oder schweren Korpus stehen sie selbst nahe 1,0 - dann ist die anderthalbfache
-Schwelle unerreichbar und die Prüfung winkt alles durch. Genau so sind vier
-Stände von Femke durchgerutscht, die Sätze wiederholen. Mehr Fehler als Wörter
+Schwelle unerreichbar und die Prüfung winkt alles durch. Genau so sind bei
+einem Sprecher vier Stände durchgerutscht, die Sätze wiederholen. Mehr Fehler als Wörter
 ist dagegen nie in Ordnung, und erst recht nicht auf Material, das der Stand
 gelernt hat.
 
