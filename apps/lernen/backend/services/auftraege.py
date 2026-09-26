@@ -86,6 +86,9 @@ class Auftrag:
     # Ob die Geschwindigkeit gesucht wird oder die des Profils gilt.
     # `wie_eingestellt` ist das Verfahren von vorher.
     tempowahl: str = laeufe.TEMPO_AUS
+    # Der trainierte Stand, mit dessen Gewichten begonnen wird - leer heißt
+    # wie bisher: das unveränderte `basismodell` (`wortlaut/laeufe.py`).
+    ausgangsstand: str = ""
 
 
 def _quelle_von(korpus: Session, probe: Probe) -> str:
@@ -196,6 +199,10 @@ def beauftrage(
         "zeilen": gezaehlt,
         "aufnahmen": len(proben),
     }
+    # Nur wenn es einen gibt: Ein Auftrag ohne das Feld ist derselbe wie vor
+    # September 2026.
+    if auftrag.ausgangsstand:
+        inhalt[laeufe.AUSGANGSSTAND] = auftrag.ausgangsstand
     # Die Folge hinter dem Optionscode (`/43`, `/43b`, …): einmal hier vergeben,
     # gemessen an dem, was jetzt noch da ist, und danach nie wieder angefasst
     # (`wortlaut/laeufe.py`). Die Stände zählen mit, falls einer seinen Lauf

@@ -33,7 +33,7 @@ from pydantic import BaseModel
 from wortlaut import laeufe as lauf_layout, registry, streuung
 
 from ..config import einstellungen
-from ..deps import Korpus, Sprache, SprecherId
+from ..deps import Korpus, Sprache, SprecherId, korpus_engine
 from ..services import aufteilung, auftraege, vergleich
 
 router = APIRouter(prefix="/lernen/api/laeufe", tags=["Läufe"])
@@ -258,7 +258,63 @@ def _grundmodelle() -> list[GrundmodellAntwort]:
                 code=lauf_layout.grundmodellcode(modell),
             )
         )
+    for ref, manifest in _ausgangsstaende().items():
+        grund = str(manifest.get("basismodell", ""))
+        methoden = lauf_layout.methoden_fuer(grund)
+        antworten.append(
+            GrundmodellAntwort(
+                schluessel=ref,
+                name=registry.beschriftung(ref),
+                erklaerung=" · ".join(
+                    teil
+                    for teil in (
+                        _sprechername(str(manifest.get("sprecher_id", ""))),
+                        lauf_layout.titel(manifest),
+                        f"auf whisper-{lauf_layout.kurzname(grund)}"
+                        + (". Nur LoRA." if methoden == (lauf_layout.LORA,) else "."),
+                    )
+                    if teil
+                ),
+                methoden=list(methoden),
+                code=registry.beschriftung(ref),
+            )
+        )
     return antworten
+
+
+def _ausgangsstaende() -> dict[str, dict]:
+    """Die konfigurierten Ausgangsstände, die es wirklich gibt, mit ihrem Manifest.
+
+    Ein Stand, der inzwischen gelöscht ist, fällt still heraus, statt eine
+    Wahl anzubieten, die der Trainer nicht erfüllen kann.
+    """
+    konfiguration = einstellungen()
+    gefunden: dict[str, dict] = {}
+    for ref in konfiguration.ausgangsstaende():
+        if not registry.ist_stand(ref):
+            continue
+        sprecher_id, version = ref.split(registry.TRENNER, 1)
+        try:
+            manifest = registry.lies_stand(konfiguration.data_dir, sprecher_id, version)
+        except (OSError, ValueError):
+            continue
+        if registry.ct2_verzeichnis(konfiguration.data_dir, ref).is_dir():
+            gefunden[ref] = manifest
+    return gefunden
+
+
+def _sprechername(sprecher_id: str) -> str:
+    """Wem ein Ausgangsstand gehört - leer, wenn sich das nicht sagen lässt."""
+    from sqlalchemy.orm import Session
+
+    from apps.hoeren.backend.db.models import Sprecher
+
+    try:
+        with Session(korpus_engine(sprecher_id)) as sitzung:
+            eintrag = sitzung.get(Sprecher, sprecher_id)
+            return eintrag.name if eintrag is not None else ""
+    except Exception:  # noqa: BLE001 - ein fehlender Name kostet die Wahl nicht
+        return ""
 
 
 class Bestellung(BaseModel):
@@ -320,6 +376,11 @@ class LaufAntwort(BaseModel):
     # dransteht, dass sie es kann.
     tempo_endgueltig: bool = True
     basismodell: str
+    # Worauf aufgesetzt wurde, als Schlüssel der Wahl (`GrundmodellAntwort`):
+    # das Grundmodell - oder der trainierte Stand, dessen Gewichte den Anfang
+    # machten. `basismodell` bleibt das Whisper-Modell darunter; gegen das
+    # misst die Baseline.
+    grundmodell: str = ""
     erstellt: str
     status: str
     # Woran gerade gearbeitet wird: laden, tempowahl, training, abschluss,
@@ -561,6 +622,7 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         tempo=_tempo_des_laufs(lauf),
         tempo_endgueltig=bool(lauf.zustand.get("tempo_endgueltig", True)),
         basismodell=str(lauf.auftrag.get("basismodell", "")),
+        grundmodell=lauf_layout.grundmodell_aus(lauf.auftrag),
         erstellt=str(lauf.auftrag.get("erstellt", "")),
         status=lauf.status,
         stufe=str(lauf.zustand.get("stufe", "")),
@@ -720,6 +782,13 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
 
     # ── Was gelernt wurde ───────────────────────────────────────────────────
     dazu("Grundmodell", str(auftrag.get("basismodell", "")))
+    ausgang = str(auftrag.get(lauf_layout.AUSGANGSSTAND) or "")
+    if ausgang:
+        dazu(
+            "Ausgangsstand",
+            registry.beschriftung(ausgang),
+            hinweis=_sprechername(ausgang.split(registry.TRENNER, 1)[0]),
+        )
 
     rezept = dict(manifest.get("rezept") or {})
     methode = str(auftrag.get("methode", ""))
@@ -952,7 +1021,14 @@ def beauftrage(
 
     konfiguration = einstellungen()
     grundmodell = bestellung.grundmodell or konfiguration.lernen_basismodell
-    if grundmodell not in konfiguration.grundmodelle():
+    # Ein trainierter Stand zur Wahl: Er bringt sein eigenes Grundmodell mit,
+    # und an dem hängt alles Weitere - auch, welche Methode geht.
+    ausgangsstand = ""
+    staende = _ausgangsstaende()
+    if grundmodell in staende:
+        ausgangsstand = grundmodell
+        grundmodell = str(staende[ausgangsstand].get("basismodell", ""))
+    elif grundmodell not in konfiguration.grundmodelle():
         raise HTTPException(
             status_code=400, detail=f"Unbekanntes Grundmodell: {grundmodell}"
         )
@@ -992,6 +1068,7 @@ def beauftrage(
             dauer=bestellung.dauer,
             tempowahl=bestellung.tempowahl,
             basismodell=grundmodell,
+            ausgangsstand=ausgangsstand,
             # Aus dem Profil, nicht aus der Umgebung: Der Trainer setzt daraus
             # die erzwungenen Marken von Whisper, und die Bewertung misst in
             # derselben Sprache (`wortlaut/sprachen.py`).

@@ -52,6 +52,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from wortlaut import registry
+
 # Dasselbe Verzeichnis, das `services/loeschung.py` bereits kennt und löscht.
 SCHNAPPSCHUESSE = "snapshots"
 SPRECHER_MARKE = "sprecher.txt"
@@ -76,7 +78,12 @@ GEWICHTE = "gewichte"
 # abgeleitet, gehören zu diesem einen Lauf und wären im Korpus eine dritte
 # Garnitur Audiodateien, die niemand hören will.
 VORGESPULT = "vorgespult"
-ZWISCHENSTAENDE = (ARBEITSSTAND, GEWICHTE, VORGESPULT)
+# Die Gewichte des Ausgangsstands, wenn dieser Lauf auf einem trainierten
+# Stand aufsetzt statt auf einem Grundmodell (siehe `grundmodell_aus`). Ein
+# Stand liegt nur als CTranslate2 vor; transformers braucht ihn zurückgerechnet
+# (`training/ausgangsstand.py`), und das einmal je Lauf und nicht je Faltung.
+AUSGANG = "ausgang"
+ZWISCHENSTAENDE = (ARBEITSSTAND, GEWICHTE, VORGESPULT, AUSGANG)
 
 # ── Die Faltungen ───────────────────────────────────────────────────────────
 #
@@ -166,6 +173,29 @@ METHODEN = (VOLL, LORA)
 def kurzname(basismodell: str) -> str:
     """`openai/whisper-medium` → `medium` - so heißt es überall in den Tabellen."""
     return basismodell.rsplit("/", 1)[-1].removeprefix("whisper-")
+
+
+# Ein Lauf kann seit September 2026 auch auf einem **trainierten Stand**
+# aufsetzen statt auf einem unveränderten Grundmodell - auf einem eigenen, um
+# weiterzulernen, oder auf dem eines anderen Menschen, dessen Stimme der
+# eigenen näher liegt als die des Internets. Welche Stände das sein dürfen,
+# sagt die Konfiguration (`WORTLAUT_LERNEN_AUSGANGSSTAENDE`).
+#
+# Im Auftrag steht dann beides: `basismodell` bleibt das Whisper-Modell, auf
+# dem jener Stand selbst gewachsen ist - daran hängen Zerteiler, Rezept und die
+# Frage, ob volles Feintuning in die Karte passt -, und `ausgangsstand` sagt,
+# mit welchen Gewichten begonnen wird.
+AUSGANGSSTAND = "ausgangsstand"
+
+
+def grundmodell_aus(auftrag: dict[str, Any]) -> str:
+    """Worauf dieser Lauf aufsetzt, so wie es zur Wahl stand.
+
+    Der Ausgangsstand (`spr_…/<version>`), wenn es einen gibt, sonst das
+    Grundmodell (`openai/whisper-small`). Das ist der Schlüssel, unter dem die
+    Oberfläche die Wahl führt.
+    """
+    return str(auftrag.get(AUSGANGSSTAND) or auftrag.get("basismodell") or "")
 
 
 # Grundmodelle, die für volles Feintuning zu groß sind. Nicht der Karte wegen
@@ -358,8 +388,14 @@ def optionscode(auftrag: dict[str, Any]) -> str:
     def glied(tafel: dict[str, str], wert: object, vorgabe: str) -> str:
         return tafel.get(str(wert or vorgabe), "?")
 
-    kopf = grundmodellcode(str(auftrag.get("basismodell") or "")) + glied(
-        CODE_METHODE, auftrag.get("methode"), "?"
+    methode = glied(CODE_METHODE, auftrag.get("methode"), "?")
+    ausgang = str(auftrag.get(AUSGANGSSTAND) or "")
+    # Auf einem Stand steht dessen Kennung vorn, abgesetzt: `C6G67-L-…`. Ohne
+    # den Strich läse sich der Buchstabe der Methode als Teil der Kennung.
+    kopf = (
+        f"{registry.beschriftung(ausgang)}-{methode}"
+        if ausgang
+        else grundmodellcode(str(auftrag.get("basismodell") or "")) + methode
     )
     glieder = (
         glied(CODE_DATENSATZ, auftrag.get("daten"), NUR_ORIGINAL),
