@@ -1,34 +1,16 @@
 """Jede Aufnahme einmal ungehört - und der Stand, der ausgeliefert wird.
 
-Der Teil eines Laufs, der die Zahl hervorbringt, und er steht nicht am Ende,
-sondern sechsmal mittendrin. Je Faltung hört das eben trainierte Modell das
-Sechstel, das es nicht kannte (`services/aufteilung.py`); nach sechs Faltungen
-liegt zu **jeder** Aufnahme eine Messung von einem Modell vor, das sie nie
-gesehen hat.
+Je Faltung hört das eben trainierte Modell das Sechstel, das es nicht kannte
+(`services/aufteilung.py`); danach liegt zu jeder Aufnahme eine Messung von
+einem Modell vor, das sie nie gehört hat.
 
-**Zwei Modelle, eine Zeile in der Tabelle - und das muss man wissen.** Die
-Zahlen eines Laufs stammen aus den sechs Faltungsmodellen. Das Modell, das
-gespeichert und in „schreiben" angeboten wird, ist ein siebtes: auf dem ganzen
-Korpus trainiert, mit den Einstellungen, die sich in den Faltungen bewährt
-haben. Es ist damit besser als jedes der sechs - es hat mehr gesehen -, und
-gerade deshalb lässt es sich nicht mehr ehrlich messen. Die Zahl daneben ist
-die vorsichtige.
+**Zwei Modelle, eine Zeile.** Die Zahlen stammen aus den sechs Faltungen. Das
+Modell, das „schreiben" anbietet, ist ein siebtes: auf allem trainiert, mit den
+Einstellungen der Faltungen - besser als jedes der sechs und darum nicht
+ehrlich messbar. Die Zahl daneben ist die vorsichtige.
 
-**Warum hier und nicht im Webdienst.** Weil das Modell hier schon liegt - eben
-umgewandelt, auf einer Maschine mit Karte. Es dafür in einen anderen Container
-zu laden hieße, mehrere Gigabyte über ein Volume zu schieben, um dasselbe
-Ergebnis langsamer zu bekommen.
-
-**Warum dieselben Maße wie in „hören".** Verglichen wird mit der Baseline:
-dem, was das unveränderte Grundmodell in der Auswertung von „hören" auf
-denselben Aufnahmen erreicht hat. Ein anderes Maß, eine andere Angleichung des
-Textes oder eine andere Quantisierung machten aus dem Vergleich zwei getrennte
-Messungen. Gerechnet wird deshalb mit `wortlaut/metriken.py` - derselben Datei.
-
-**Warum auf allen Fassungen.** Weil die interessantere Hälfte der Frage
-lautet, ob das Modell den Sprecher verstanden hat oder bloß seine
-Aufnahmesituation. Das Manifest trägt die Testaufnahmen deshalb in allen
-Fassungen, unabhängig davon, womit trainiert wurde.
+Gemessen im Trainer, wo das Modell schon auf der Karte liegt, mit
+`wortlaut/metriken.py` wie die Baseline in „hören", auf allen Fassungen.
 """
 
 from __future__ import annotations
@@ -53,18 +35,15 @@ from wortlaut import (
 from apps.lernen.backend.config import einstellungen
 
 
-# Das Grundmodell, das nicht im Namen eines Standes auftaucht - es war lange
-# das einzige, und jeder Stand von früher heißt ohne es.
+# Das Grundmodell, das der Name eines Standes nicht nennt.
 VORGABE_GRUNDMODELL = "small"
 
 
 def _rezeptauszug(auftrag: dict[str, Any]) -> dict[str, Any]:
     """Die Stellschrauben des Rezepts, wie sie für diesen Lauf galten.
 
-    Nur die, die man wissen will, um einen Lauf zu wiederholen oder zwei zu
-    vergleichen - nicht das ganze Rezept. Die Augmentierungsparameter etwa
-    stehen nicht darin: Welche Stufe galt, sagt der Auftrag, und die Zahlen
-    dahinter sind für den Leser eines Steckbriefs kein Unterschied.
+    Was man zum Wiederholen und Vergleichen braucht; die Augmentierungsstufe
+    steht im Auftrag.
     """
     from .finetune import _rezept_fuer
 
@@ -94,15 +73,9 @@ def _rezeptauszug(auftrag: dict[str, Any]) -> dict[str, Any]:
 def geltendes_tempo(auftrag: dict[str, Any], mitgenommen: dict[str, Any] | None) -> float:
     """Mit welcher Geschwindigkeit dieser Stand wirklich gerechnet hat.
 
-    Bei `wie_eingestellt` der Wert aus dem Auftrag - der, der beim Beauftragen
-    im Profil stand. Bei `optimal` der Median über die sechs Faltungen, denn
-    genau damit ist das Endmodell trainiert worden.
-
-    **Warum das nicht egal ist.** Diese Zahl geht in den Namen des Standes und
-    in sein Manifest, und „schreiben" liest sie, um beim Diktieren genauso
-    vorzuspulen. Stünde hier der bestellte statt des gefundenen Faktors, bekäme
-    ein Modell, das auf 1,75 gelernt hat, beim Diktieren 1,0 zu hören - und der
-    ganze Lauf wäre umsonst gewesen, ohne dass irgendwo ein Fehler stünde.
+    Ohne Tempowahl der Wert aus dem Auftrag, sonst der aus den Faltungen
+    mitgenommene. Er geht in Name und Manifest, und „schreiben" spult danach
+    beim Diktieren vor.
     """
     if laeufe.tempowahl_aus(auftrag) != laeufe.TEMPO_AUS:
         gefunden = (mitgenommen or {}).get("tempo")
@@ -114,31 +87,20 @@ def geltendes_tempo(auftrag: dict[str, Any], mitgenommen: dict[str, Any] | None)
 def _version(auftrag: dict[str, Any], faktor: float | None = None) -> str:
     """Der Name des Standes: Zeit, Methode, Datensatz - und der Abschluss, wenn einer.
 
-    Alle drei, weil vier Stände nebeneinander liegen, die sich in genau diesen
-    Punkten unterscheiden. Eine Zeitmarke allein ließe offen, welcher von den
-    vieren gemeint ist - und ein Verzeichnisname, den man nachschlagen muss,
-    ist keiner.
-
-    Der Abschluss steht nur dann dabei, wenn er nicht `bester` ist. Das ist
-    keine Sparsamkeit: Ein Stand von früher soll heute genauso heißen wie
-    damals, sonst zeigt jeder Verweis auf ihn ins Leere.
+    Jede Achse erscheint nur, wenn sie nicht auf ihrer Vorgabe steht - so
+    bleibt ein Name stabil, wenn Achsen dazukommen.
     """
     marke = str(auftrag.get("erstellt", laeufe.jetzt()))[:16].replace(":", "").replace("-", "")
-    # Das Grundmodell direkt hinter der Zeit, und nur wenn es nicht `small`
-    # ist: Es ist der stärkste Unterschied zwischen zwei Ständen, und ein
-    # Stand von früher soll heute heißen wie damals.
+    # Das Grundmodell direkt hinter der Zeit - der stärkste Unterschied.
     grund = laeufe.kurzname(str(auftrag.get("basismodell", "")))
     if grund and grund != VORGABE_GRUNDMODELL:
         marke = f"{marke}-{grund}"
-    # Und der Stand, auf dem aufgesetzt wurde, mit seiner Kennung: Zwei Läufe
-    # auf `medium`, der eine von vorn, der andere auf `C6G67`, sind
-    # verschiedene Modelle und sollen nicht gleich heißen.
+    # Der Ausgangsstand mit seiner Kennung.
     ausgang = str(auftrag.get(laeufe.AUSGANGSSTAND) or "")
     if ausgang:
         marke = f"{marke}-{registry.beschriftung(ausgang)}"
     name = f"{marke}-{auftrag.get('methode', '?')}-{auftrag.get('daten', '?')}"
-    # Der Kern direkt hinter dem Datensatz, wie im Optionscode. Nur wenn er
-    # gewählt ist: Ein Stand von früher heißt heute wie damals.
+    # Der Kern hinter dem Datensatz, wie im Optionscode.
     if laeufe.auswahl_aus(auftrag) == laeufe.AUSWAHL_KERN:
         name = f"{name}-kern"
     art = str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER)
@@ -150,12 +112,8 @@ def _version(auftrag: dict[str, Any], faktor: float | None = None) -> str:
     dauer = str(auftrag.get("dauer") or laeufe.DAUER_FEST)
     if dauer != laeufe.DAUER_FEST:
         name = f"{name}-{dauer}"
-    # Zuletzt die Geschwindigkeit, und wieder nur, wenn sie nicht die
-    # gewöhnliche ist: Jeder Stand von vor dieser Spalte heißt damit heute, wie
-    # er damals hieß. Im Namen und nicht nur im Manifest, weil zwei Stände mit
-    # gleichem Rezept und verschiedenem Tempo sonst denselben Namen trügen -
-    # und genau daran ist im September 2026 schon einmal die falsche Freigabe
-    # gehangen.
+    # Zuletzt das Tempo - sonst trügen zwei Stände, die sich nur darin
+    # unterscheiden, denselben Namen.
     wirklich = geltendes_tempo(auftrag, None) if faktor is None else faktor
     return name if wirklich == tempo.VORGABE else f"{name}-{tempo.marke(wirklich)}"
 
@@ -163,17 +121,10 @@ def _version(auftrag: dict[str, Any], faktor: float | None = None) -> str:
 def freie_version(datenverzeichnis: Path, auftrag: dict[str, Any], version: str) -> str:
     """Der Name aus `_version` - oder, wenn ihn schon ein anderer Lauf trägt, einer daneben.
 
-    **Warum das nötig ist.** Die Zeitmarke im Namen reicht auf die Minute.
-    Wer dasselbe Rezept dreimal hintereinander beauftragt, bekommt dreimal
-    denselben Namen - und bis September 2026 schrieb jeder dieser Läufe beim
-    Eintragen über den vorigen hinweg: Von `/43b`, `/43c` und `/43d` blieb
-    allein `/43d` übrig, Gewichte und Manifest der beiden anderen waren weg,
-    ohne dass irgendwo ein Fehler stand.
-
-    Derselbe Lauf darf seinen Namen behalten - `nachziehen` rechnet einen
-    Stand mit demselben Auftrag neu und soll ihn an seinem Platz ersetzen.
-    Ein fremder Lauf bekommt seine Folge angehängt (`-43c`), die ihn in
-    „lernen" ohnehin bezeichnet; fehlt sie, die Kennung des Laufs.
+    Die Zeitmarke reicht auf die Minute; dasselbe Rezept kurz hintereinander
+    ergäbe denselben Namen, und ein Lauf überschriebe den anderen. Derselbe
+    Lauf behält ihn (`nachziehen`); ein fremder bekommt seine Folge (`-43c`),
+    sonst seine Kennung.
     """
     sprecher_id = str(auftrag["sprecher_id"])
     job_id = str(auftrag.get("job_id") or "")
@@ -182,9 +133,7 @@ def freie_version(datenverzeichnis: Path, auftrag: dict[str, Any], version: str)
         try:
             stand = registry.lies_stand(datenverzeichnis, sprecher_id, kandidat)
         except (OSError, ValueError):
-            # Kein Manifest heißt nicht zwingend leer: Ein Lauf, der beim
-            # Umwandeln abbrach, hinterlässt ein Verzeichnis ohne. Das ist
-            # herrenlos, und hineinzuschreiben schadet keinem.
+            # Ohne Manifest herrenlos, etwa nach abgebrochener Umwandlung.
             return True
         return str(stand.get("job_id") or "") == job_id
 
@@ -197,50 +146,26 @@ def freie_version(datenverzeichnis: Path, auftrag: dict[str, Any], version: str)
     raise RuntimeError(f"Kein freier Name für den Stand {version} von {job_id}.")
 
 
-# Wie lange der Trainer auf die Karte wartet, wenn sie gerade belegt ist, und
-# in welchen Abständen er nachsieht. Zusammen rund zehn Minuten.
+# Wie lange der Trainer auf eine belegte Karte wartet - zusammen rund zehn
+# Minuten.
 #
-# **Warum überhaupt gewartet wird.** Auf dieser Karte rechnen vier: der
-# Trainer, die Auswertung in „hören", das Diktat in „schreiben" und das
-# Sprachmodell der Textquelle. Die ersten drei sprechen sich nicht ab, und der
-# vierte hält seine fünf Gigabyte noch eine Weile nach der letzten Frage.
-#
-# Für drei von ihnen ist eine belegte Karte kein Unglück: Sie fallen auf den
-# Prozessor zurück und werden langsamer (`whisper/local.py`). Der Trainer tut
-# das mit Absicht nicht - er misst hier Rechenzeiten, und eine, die vom
-# Prozessor stammt, wäre in der Modelltafel eine Falle. Er scheitert also.
-#
-# Nur ist das die teuerste aller Antworten: Ein Lauf, der seit einer Stunde
-# rechnet, ist verloren, weil jemand einen Satz diktiert hat. Zehn Minuten
-# warten kostet dagegen zehn Minuten, und die kürzeren Belegungen - eine
-# Diktatsitzung, das Sprachmodell nach seiner Minute - sind in dieser Zeit
-# vorbei.
-#
-# **Warum nicht länger.** Weil ein Auswertungslauf über alle Aufnahmen Stunden
-# dauern kann. Den auszusitzen hieße, die Karte zu blockieren statt zu teilen,
-# und am Ende stünde dieselbe Frage bloß später. Wer eine Auswertung und ein
-# Training zugleich startet, soll das erfahren.
+# Die Karte teilen sich Trainer, Auswertung, Diktat und das Sprachmodell der
+# Textquelle. Die anderen weichen auf den Prozessor aus; der Trainer nicht,
+# denn seine Rechenzeiten stehen in der Modelltafel. Kurze Belegungen sind in
+# zehn Minuten vorbei; eine stundenlange Auswertung auszusitzen hieße, die
+# Karte zu blockieren.
 WARTEZEITEN_S = (5, 10, 20, 30, 60, 60, 60, 60, 60, 60, 60, 60)
 
 
 def _hole_karte(erkenner, bericht) -> None:
     """Den Erkenner jetzt laden - und warten, wenn die Karte gerade belegt ist.
 
-    Ausdrücklich hier und nicht im Transkriptor: Warten ist die richtige
-    Antwort für einen Lauf, der Stunden gerechnet hat, und die falsche für ein
-    Diktat, hinter dem ein Mensch sitzt. Derselbe Griff wäre an der anderen
-    Stelle ein Fehler.
-
-    Wiederholt wird **nur** bei Speichermangel. Ein Modell, das nicht zu laden
-    ist, weil es fehlt oder beschädigt ist, wird davon in zehn Minuten nicht
-    heil - und der Fehler soll sofort dastehen.
+    Hier und nicht im Transkriptor: Hinter einem Diktat wartet ein Mensch.
+    Wiederholt wird nur bei Speichermangel; jeder andere Fehler steht sofort da.
     """
     from .finetune import raeume_karte
 
-    # Gezählt wird über den Index und nicht über die Pausenlänge: Eine Pause
-    # von null Sekunden heißt „gleich noch einmal" und nicht „aufgeben", und
-    # beides in eine Zahl zu legen ist genau die Art Abkürzung, die später
-    # jemand falsch liest.
+    # Gezählt über den Index, nicht die Pausenlänge.
     versuche = len(WARTEZEITEN_S) + 1
     for nummer in range(1, versuche + 1):
         try:
@@ -252,9 +177,7 @@ def _hole_karte(erkenner, bericht) -> None:
             if "out of memory" not in str(ursache).lower() or nummer == versuche:
                 raise
             if nummer == 1:
-                # Vielleicht sind wir es selbst: Was der Trainer eben noch
-                # hielt, gibt torch nicht von sich aus an den Treiber zurück
-                # (siehe `finetune.raeume_karte`).
+                # Vielleicht hält torch noch selbst etwas (`finetune.raeume_karte`).
                 raeume_karte(bericht)
                 bericht.sage("  Karte belegt - es wird gewartet.")
             time.sleep(WARTEZEITEN_S[nummer - 1])
@@ -271,21 +194,17 @@ def bewerte_faltung(
 ) -> list[dict[str, Any]]:
     """Das Modell dieser Faltung hört ihr Sechstel; hängt an `bewertung.jsonl` an.
 
-    Gibt die Zeilen zurück, damit `main` sie über alle sechs Faltungen sammeln
-    kann - sie zusammen sind die Auskunft über dieses Rezept.
+    Gibt die Zeilen zurück, damit sie über alle Faltungen gesammelt werden.
     """
     from wortlaut.whisper.local import LokalerTranskriptor
 
-    # Erst hier geholt: `daten` zieht numpy und torch nach, und wer diese Datei
-    # nur nach ihrem Urteil fragt (`befund_ueber`), soll das nicht bezahlen -
-    # dieselbe Überlegung wie bei `wandle_um` weiter unten.
+    # Erst hier: `daten` zieht numpy und torch nach, `befund_ueber` braucht sie nicht.
     from .daten import zeilen_fuer_faltung
 
     sprecher_id = str(auftrag["sprecher_id"])
     korpuswurzel = datenverzeichnis / corpus.sprecher_relpfad(sprecher_id)
-    # Beim Kern nur seine Aufnahmen, auf seinen Faltungen - dieselben, an denen
-    # das Training dieser Faltung gesteuert wurde. Die übrigen misst erst die
-    # Auswertung in „hören", am Endmodell (`wortlaut/laeufe.py`, „Die Auswahl").
+    # Beim Kern nur seine Aufnahmen auf seinen Faltungen; den Rest hört das
+    # Endmodell in „hören" (`wortlaut/laeufe.py`, „Die Auswahl").
     _lern, zeilen = zeilen_fuer_faltung(
         verzeichnis,
         faltung,
@@ -296,22 +215,12 @@ def bewerte_faltung(
     bericht.stufe("bewerten", test_zeilen=len(zeilen))
     bericht.sage(f"Faltung {faltung + 1}: {len(zeilen)} Zeilen über alle Fassungen")
 
-    # Der Pfad des umgewandelten Modells statt eines Namens - faster-whisper
-    # nimmt beides, und so wird sicher dieser Stand geladen und nicht ein
-    # gleichnamiger aus dem Zwischenspeicher.
-    #
-    # Gerät und Rechenart kommen aus derselben Konfiguration wie in „hören" und
-    # „schreiben" (`wortlaut/rechenwerk.py`) und stehen hier **nicht** fest.
-    # Sie standen einmal fest, auf `float16` und der Karte, und das war der
-    # Fehler: Die Auswertung maß dieselben Modelle auf dem Prozessor, und in
-    # der Modellübersicht standen danach vier Sekunden neben einer
-    # Viertelsekunde. Zwei richtige Zahlen, die nebeneinander etwas Falsches
-    # behaupteten.
+    # Der Pfad, damit sicher dieser Stand lädt. Gerät und Rechenart wie in
+    # „hören" und „schreiben" (`wortlaut/rechenwerk.py`), damit Rechenzeiten
+    # vergleichbar sind.
     geraet, rechenart = einstellungen().rechenwerk()
     erkenner = LokalerTranskriptor(str(ct2), geraet=geraet, rechenart=rechenart)
     _hole_karte(erkenner, bericht)
-    # Der Rückfall gilt Aufträgen, die älter sind als das Feld - seit
-    # `services/auftraege.py` schreibt jeder neue Lauf seine Sprache selbst.
     sprache = str(auftrag.get("sprache") or sprachen.VORGABE)
 
     ergebnis = []
@@ -321,10 +230,7 @@ def bewerte_faltung(
             float(auftrag.get("tempo", tempo.VORGABE)) if faktor is None else faktor,
         )
     finally:
-        # Auch wenn das Messen scheitert: Die Karte gehört danach der nächsten
-        # Faltung. Ein Erkenner, der bis zum nächsten Sammellauf liegen bleibt,
-        # ist derselbe Fehler wie der, der diesen Aufruf nötig gemacht hat -
-        # nur in die andere Richtung (siehe `finetune.raeume_karte`).
+        # Auch nach einem Fehler: Die Karte gehört der nächsten Faltung.
         erkenner.entlade()
     return ergebnis
 
@@ -338,20 +244,14 @@ def vervollstaendige_kern(
 ) -> None:
     """Was dem Auswahlmodell fehlt, nachmessen - und dann den Kern wählen.
 
-    Der Server hat beim Auftrag gesammelt, was das freigegebene Modell über
-    diesen Korpus schon weiß (`services/kernauswahl.py`). Aufnahmen, die es
-    noch nie gehört hat, stehen in der Kernauswahl als `offen`. Sie hört es
-    hier, bevor die erste Faltung beginnt, auf ihrem Original und mit seinem
-    Tempo - dieselbe Messung, die „hören" in seiner Auswertung anstellen
-    würde. Danach wird nach derselben Regel gewählt und auf eigene Faltungen
-    verteilt wie beim Server (`laeufe.mit_kern`), und erst dann gelernt.
+    Die `offen`en Aufnahmen der Kernauswahl (`services/kernauswahl.py`) hört
+    das Auswahlmodell vor der ersten Faltung, im Original und mit seinem Tempo
+    wie in der Auswertung von „hören". Dann wird gewählt und verteilt
+    (`laeufe.mit_kern`). Ein fertiger Kern bleibt - auch nach einem Neustart
+    (`services/auftraege.UEBERNOMMEN`).
 
-    Was schon gewählt ist, bleibt gewählt: Ein neu gestarteter Lauf übernimmt
-    die Kernauswahl seines Vorgängers (`services/auftraege.UEBERNOMMEN`), und
-    ein Auftrag, bei dem nichts fehlte, kommt mit fertigem Kern an.
-
-    `erkenner` ist für die Tests da; sonst wird das Auswahlmodell geladen - ein
-    Stand aus seinen Gewichten, ein Grundmodell über seinen Namen.
+    `erkenner` für die Tests; sonst Stand aus seinen Gewichten, Grundmodell
+    über seinen Namen.
     """
     if laeufe.auswahl_aus(auftrag) != laeufe.AUSWAHL_KERN:
         return
@@ -368,9 +268,8 @@ def vervollstaendige_kern(
     modell = str(inhalt.get("modell") or "")
     faktor = float(inhalt.get("tempo") or tempo.VORGABE)
     offen = {str(kennung) for kennung in inhalt.get("offen") or []}
-    # Das Original jeder offenen Aufnahme. Was seit dem Auftrag verworfen
-    # wurde, liegt nicht mehr da und wird auch nicht gelernt
-    # (`daten.zeilen_fuer_faltung`) - es fällt aus der Wahl.
+    # Das Original jeder offenen Aufnahme; Verworfenes fällt heraus
+    # (`daten.zeilen_fuer_faltung`).
     zeilen = [
         zeile
         for zeile in laeufe.manifestzeilen(verzeichnis)
@@ -422,10 +321,8 @@ def _eine_zeile(
 ) -> dict[str, Any]:
     """Eine Manifestzeile erkennen und bewerten - ohne sie irgendwo abzulegen.
 
-    Gemessen wird auf demselben Klang, auf dem gelernt wurde. Ein Modell, das
-    nur vorgespulte Sprache gehört hat, an ungespulter zu messen, ergäbe eine
-    Zahl über eine Lage, die es nie gibt: Beim Diktieren bekommt es ebenfalls
-    Vorgespultes (`apps/schreiben/.../segmenter.py`).
+    Mit dem Tempo, mit dem gelernt und diktiert wird
+    (`apps/schreiben/.../segmenter.py`).
     """
     with tempfile.TemporaryDirectory() as ablage_tmp:
         wav = korpuswurzel / str(zeile["audio"])
@@ -447,38 +344,22 @@ def _eine_zeile(
         "wil": guete.wil,
         "genauigkeit": guete.genauigkeit,
         "rechenzeit_s": dauer,
-        # Worauf gemessen wurde - dieselbe Angabe, die „hören" neben jede
-        # seiner Zeilen schreibt (`008_rechenwerk.sql`). Ohne sie ist die
-        # Rechenzeit daneben keine Auskunft, sondern eine Zahl.
+        # Worauf gemessen wurde, wie in „hören" (`008_rechenwerk.sql`).
         "rechenwerk": erkenner.marke,
     }
 
 
-# Wie viele Aufnahmen die Plausibilitätsprüfung des Endmodells hört. Gleichmäßig
-# über den Korpus verteilt, nicht die ersten zwölf: Ein Stand, der nur am Ende
-# ausfranst, fiele sonst nicht auf. Zwölf, weil es um „funktioniert überhaupt"
-# geht und nicht um eine Nachkommastelle - auf der Karte sind das Sekunden.
+# Wie viele Aufnahmen die Prüfung des Endmodells hört, gleichmäßig verteilt -
+# es geht um „funktioniert überhaupt", nicht um Nachkommastellen.
 STICHPROBE = 12
 
-# Ab wann die Prüfung Alarm schlägt: Das Endmodell hört Material, das es
-# **gelernt** hat, und muss dort mindestens so gut sein wie die Faltungen auf
-# Ungehörtem. Ist es deutlich schlechter, stimmt etwas nicht mit dem Stand -
-# nicht mit den Daten.
+# Auf Gelerntem muss das Endmodell mindestens so gut sein wie die Faltungen
+# auf Ungehörtem; deutlich schlechter heißt, der Stand taugt nicht.
 PRUEF_SPIELRAUM = 1.5
 
-# Und ein Maß, das ohne Vergleich auskommt: Wie viel der Stichprobe länger
-# geraten darf als alles Gesagte.
-#
-# **Warum es beides braucht.** Der Vergleich oben hängt daran, dass die
-# Faltungen etwas taugen. Bei einem kleinen oder schweren Korpus stehen sie
-# selbst nahe 1,0 - dann ist die anderthalbfache Schwelle unerreichbar, und die
-# Prüfung winkt jeden Stand durch. Gemessen an Femke: vier Stände, deren
-# Faltungen bei 0,85 bis 1,00 lagen, und alle vier wiederholten Sätze oder
-# erfanden weiter, ohne dass etwas angeschlagen hätte.
-#
-# Mehr Fehler als Wörter ist dagegen nie in Ordnung - erst recht nicht auf
-# Material, das der Stand gelernt hat. Ein Viertel ist reichlich Spielraum für
-# eine einzelne missratene Aufnahme.
+# Ohne Vergleich: wie viel der Stichprobe länger geraten darf als alles
+# Gesagte (WER über 1). Nötig, weil bei schwerem Korpus die Faltungen selbst
+# nahe 1,0 stehen und die Schwelle oben unerreichbar wird.
 AUSGEFRANST_ANTEIL = 0.25
 
 
@@ -487,14 +368,9 @@ def befund_ueber(
 ) -> dict[str, Any]:
     """Das Urteil über eine Prüfstichprobe - die Rechnung ohne das Rechnen.
 
-    Verglichen werden zwei Mediane: was das Endmodell auf **Bekanntem**
-    erreicht und was seine Faltungen auf **Ungehörtem** erreicht haben. Das ist
-    kein fairer Vergleich, und genau deshalb taugt er: Das Endmodell hat den
-    leichteren Teil, es muss also mindestens gleichauf liegen. Tut es das
-    nicht, liegt es am Stand.
-
-    Nur Originalfassungen auf beiden Seiten - die verrauschten sind schwerer,
-    und eine Seite mit ihnen gegen eine ohne wäre kein Vergleich.
+    Zwei Mediane über Originale: das Endmodell auf Bekanntem, seine Faltungen
+    auf Ungehörtem. Das Endmodell hat den leichteren Teil und muss mindestens
+    gleichauf liegen.
     """
     eigen = statistics.median(float(z["wer"]) for z in gemessen) if gemessen else 0.0
     ungehoert = [
@@ -503,8 +379,7 @@ def befund_ueber(
         if str(z.get("variante")) == augmentierung.ORIGINAL
     ]
     faltungen = statistics.median(ungehoert) if ungehoert else 0.0
-    # Wie oft die Ausgabe länger geriet als alles Gesagte - das Kennzeichen
-    # eines Standes, der den Schluss verloren hat und weiterredet.
+    # Ausgaben länger als alles Gesagte: Der Stand redet weiter.
     ausgefranst = sum(1 for z in gemessen if float(z["wer"]) > 1.0)
 
     grund = ""
@@ -517,9 +392,7 @@ def befund_ueber(
         "wer_median": round(eigen, 4),
         "faltungen_wer_median": round(faltungen, 4),
         "ausgefranst": ausgefranst,
-        # Woran es liegt, nicht nur dass es liegt: Die beiden Gründe verlangen
-        # verschiedene Antworten - der eine mehr Daten, der andere ein anderes
-        # Training.
+        # Die Gründe verlangen verschiedene Antworten.
         "grund": grund,
         "auffaellig": bool(grund),
     }
@@ -536,39 +409,24 @@ def pruefe_endmodell(
 ) -> dict[str, Any]:
     """Hört der Stand, der ausgeliefert wird, überhaupt noch zu?
 
-    **Keine Note, ein Lebenszeichen.** Das Endmodell kennt den ganzen Korpus;
-    was es darauf erreicht, ist eine Zahl über sein Gedächtnis und gehört
-    deshalb in keine Tabelle. Gemessen wird trotzdem, weil bis September 2026
-    niemand hinsah: Ein Lauf vom 13. September gab einen Stand frei, der den
-    ersten Satz erkennt und dann weiterredet - auf Aufnahmen, die er selbst
-    gelernt hatte. Seine sechs Faltungen standen tadellos bei WER 0,23, und
-    niemand widersprach, denn gemessen wurden nur sie.
+    Keine Note, ein Lebenszeichen: Das Endmodell kennt den Korpus, seine Zahl
+    darauf gehört in keine Tabelle. Aber ein Stand, der ausfranst, franst auch
+    auf Bekanntem aus - auch wenn seine Faltungen tadellos stehen.
 
-    Genau das fängt diese Prüfung: Ein Stand, der ausfranst, franst auch auf
-    Bekanntem aus. Er muss hier also mindestens so gut sein wie seine Faltungen
-    auf Ungehörtem - schafft er das nicht, ist das ein Befund über den Stand
-    und nicht über die Daten.
-
-    Der Befund wandert ins Manifest und steht in „lernen" neben dem Modell. Die
-    Freigabe blockiert er nicht: Wer die Zahlen sieht, entscheidet selbst - und
-    ein Lauf, der nach Stunden nichts hinterlässt, wäre die schlechtere Antwort.
+    Der Befund wandert ins Manifest und steht in „lernen" neben dem Modell;
+    die Freigabe blockiert er nicht.
     """
     from wortlaut.whisper.local import LokalerTranskriptor
 
     sprecher_id = str(auftrag["sprecher_id"])
     korpuswurzel = datenverzeichnis / corpus.sprecher_relpfad(sprecher_id)
     sprache = str(auftrag.get("sprache") or sprachen.VORGABE)
-    # Beim Kern kennt das Endmodell nur ihn. Eine Stichprobe daneben mäße
-    # Aufnahmen, die es nie gehört hat, und hielte ihm das als Gedächtnis vor.
+    # Beim Kern kennt das Endmodell nur ihn.
     kern = laeufe.kern_aus(verzeichnis, auftrag)
     alle = [
         zeile
         for zeile in laeufe.manifestzeilen(verzeichnis)
-        # Dieselbe Einschränkung wie beim Lernen (`daten.zeilen_fuer_faltung`):
-        # Was seit dem Lauf verworfen wurde, liegt nicht mehr da. Für einen
-        # frischen Lauf ändert das nichts; einen nachgezogenen brächte es an
-        # einer fehlenden Datei zu Fall - kurz vor dem Ziel und nach einer
-        # Stunde Rechenzeit.
+        # Verworfenes fehlt, wie beim Lernen (`daten.zeilen_fuer_faltung`).
         if str(zeile.get("variante")) == augmentierung.ORIGINAL
         and (korpuswurzel / str(zeile["audio"])).is_file()
         and (kern is None or str(zeile.get("recording_id")) in kern)
@@ -631,8 +489,7 @@ def _miss(
     for nummer, zeile in enumerate(zeilen, start=1):
         eintrag = {
             **_eine_zeile(erkenner, zeile, korpuswurzel, sprache, faktor),
-            # Welche Faltung diese Zeile gemessen hat - und damit, welches der
-            # sechs Modelle sie gehört hat, ohne sie zu kennen.
+            # Welches Faltungsmodell sie gehört hat.
             "faltung": faltung,
         }
         laeufe.haenge_an(verzeichnis / laeufe.BEWERTUNG, eintrag)
@@ -643,29 +500,16 @@ def _miss(
     return ergebnis
 
 
-# Die Maße, zu denen ein Vertrauensbereich mitgeschrieben wird. Die Rechenzeit
-# fehlt mit Absicht: Sie ist eine Eigenschaft der Maschine und nicht des
-# Modells, und ein Bereich darum beschriebe die Maschine.
+# Die Maße mit Vertrauensbereich - ohne Rechenzeit, sie beschreibt die Maschine.
 GEMESSEN = ("wer", "cer", "mer", "wil", "genauigkeit")
 
 
 def _streuung(zeilen: list[dict[str, Any]], blockart: str) -> dict[str, Any]:
     """Zu jedem Mittel der Bereich, in dem er liegen dürfte - blockweise gezogen.
 
-    **Warum das hier mitgeschrieben wird und nicht erst in der Ansicht.** Weil
-    es der Ort ist, an dem die Einzelmessungen noch vollständig vorliegen, und
-    weil ein Stand seine Streuung dann für immer bei sich trägt - auch wenn
-    seine `bewertung.jsonl` später einmal fehlt. Es kostet einen Wimpernschlag
-    am Ende eines Laufs, der Stunden gerechnet hat.
-
-    **Warum je Aufnahme gezogen wird.** Die Fassungen einer Aufnahme sind
-    mehrere Messungen an einem Gegenstand, nicht unabhängige Auskünfte. Wer
-    sie einzeln zieht, bekommt einen Bereich heraus, der etwa halb so breit ist
-    wie der richtige (siehe `wortlaut/streuung.py`).
-
-    **Was sich dadurch an den bisherigen Zahlen ändert: nichts.** Die Mittel
-    daneben sind dieselben wie vorher, Stelle für Stelle. Hier kommt eine
-    Auskunft dazu, es geht keine verloren.
+    Hier, wo alle Einzelmessungen vorliegen, damit der Stand seine Streuung
+    auch ohne `bewertung.jsonl` trägt. Je Aufnahme gezogen - ihre Fassungen
+    sind Messungen an einem Gegenstand (`wortlaut/streuung.py`).
     """
     if blockart == streuung.AUS:
         return {}
@@ -686,17 +530,10 @@ def _streuung(zeilen: list[dict[str, Any]], blockart: str) -> dict[str, Any]:
 def _zusammengefasst(
     zeilen: list[dict[str, Any]], blockart: str = streuung.BLOCK_AUFNAHME
 ) -> dict[str, Any]:
-    """Die Mittel über alle Testzeilen - die Zahlen, die ins Manifest gehen.
+    """Die Mittel über alle gemessenen Zeilen und Fassungen - fürs Manifest.
 
-    Über alle Fassungen zusammen, denn das ist die Zahl, die einen Stand in
-    einer Zeile beschreibt. Aufgeschlüsselt liegt sie in `bewertung.jsonl`
-    daneben; die Ansicht in „lernen" liest sie von dort und stellt sie der
-    Baseline je Fassung gegenüber.
-
-    Unter `streuung` steht seit September 2026 zusätzlich, wie weit diese
-    Mittel tragen. Zusätzlich heißt zusätzlich: Die Schlüssel darüber sind
-    unverändert, und ein Stand von vorher hat den neuen schlicht nicht - die
-    Ansicht kommt mit beidem zurecht.
+    Je Fassung liegt es in `bewertung.jsonl`; `streuung` sagt, wie weit die
+    Mittel tragen.
     """
     if not zeilen:
         return {"test_einheiten": 0}
@@ -711,8 +548,7 @@ def _zusammengefasst(
         "wil": mittel("wil"),
         "genauigkeit": mittel("genauigkeit"),
         "test_einheiten": len(zeilen),
-        # Alle Zeilen eines Laufs stammen aus demselben Rechenwerk - der
-        # Erkenner wird einmal geladen. Deshalb genügt hier die erste.
+        # Ein Rechenwerk je Lauf - die erste Zeile genügt.
         "rechenwerk": str(zeilen[0].get("rechenwerk", "")),
         "streuung": _streuung(zeilen, blockart),
     }
@@ -730,20 +566,9 @@ def gib_frei(
 ) -> str:
     """Das Endmodell umwandeln, prüfen und eintragen. Gibt die Version zurück.
 
-    **Bewertet wird hier nichts mehr.** Die Zahlen dieses Standes sind die der
-    sechs Faltungen (`zeilen`) - jede Aufnahme einmal, von einem Modell, das
-    sie nicht kannte. Das Endmodell selbst kennt den ganzen Korpus; es an ihm
-    zu messen ergäbe eine schöne Zahl ohne Aussage.
-
-    **Geprüft wird trotzdem**, und das ist etwas anderes als bewerten: ob der
-    Stand überhaupt zuhört (`pruefe_endmodell`). Bis September 2026 geschah das
-    nicht, und ein Stand, der ausfranste, wurde freigegeben, ohne dass eine
-    Zahl widersprochen hätte - die Faltungen daneben standen tadellos.
-
-    Eingetragen wird mit `status: fertig` und nicht `active`: Ein durchgelaufenes
-    Training ist noch kein Modell, das jemand benutzen soll. Zwischen „hat
-    gerechnet" und „damit diktiere ich" liegt der Blick auf die Zahlen, und den
-    nimmt einem nichts ab (siehe `apps/lernen/backend/api/modelle.py`).
+    Die Zahlen sind die der Faltungen (`zeilen`); das Endmodell wird nur
+    geprüft (`pruefe_endmodell`). Eingetragen als `fertig`, freigegeben wird
+    von Hand (`apps/lernen/backend/api/modelle.py`).
     """
     from .finetune import wandle_um
 
@@ -765,42 +590,26 @@ def gib_frei(
             "id": f"{sprecher_id}/{version}",
             "sprecher_id": sprecher_id,
             "basismodell": auftrag.get("basismodell"),
-            # Leer bei einem Stand, der auf dem unveränderten Grundmodell
-            # gewachsen ist - sonst der Stand, auf dem er aufsetzt.
+            # Leer ohne Ausgangsstand.
             laeufe.AUSGANGSSTAND: auftrag.get(laeufe.AUSGANGSSTAND) or "",
             "methode": auftrag.get("methode"),
             "daten": auftrag.get("daten"),
             "auswahl": laeufe.auswahl_aus(auftrag),
-            # Die Achsen des Auftrags, als schlichte Zeichenketten - und
-            # daneben, was dabei herauskam. Ein Stand, dessen α niemand mehr
-            # nachsehen kann, ist mit keinem anderen zu vergleichen.
+            # Die Achsen des Auftrags, und daneben, was herauskam.
             "abschluss": str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER),
             "augmentierung": str(auftrag.get("augmentierung") or laeufe.AUG_KEINE),
             "dauer": str(auftrag.get("dauer") or laeufe.DAUER_FEST),
             "tempowahl": laeufe.tempowahl_aus(auftrag),
-            # Die Folge hinter dem Optionscode (`/43b`) - beim Auftrag vergeben
-            # und hier nur mitgenommen, damit der Stand sie auch ohne seinen
-            # Lauf trägt.
+            # Die Folge (`/43b`), damit der Stand sie auch ohne Lauf trägt.
             laeufe.FOLGE: auftrag.get(laeufe.FOLGE),
-            # Bei welcher Geschwindigkeit dieser Stand gelernt und gemessen
-            # wurde. „schreiben" liest es und spult beim Diktieren genauso vor;
-            # ohne die Angabe träfe ein Modell für schnelle Sprache auf einen
-            # langsamen Sprecher (`wortlaut/tempo.py`).
+            # „schreiben" spult beim Diktieren genauso vor (`wortlaut/tempo.py`).
             "tempo": faktor,
-            # Die Zahlen, mit denen wirklich gerechnet wurde. Sie standen
-            # bisher nur im Rezept - und ein Rezept ist eine Datei, die sich
-            # ändert. Wer in einem halben Jahr wissen will, mit welcher
-            # Lernrate dieser Stand entstand, soll nicht die Git-Historie einer
-            # YAML-Datei lesen müssen.
+            # Womit gerechnet wurde - die Rezeptdatei kann sich ändern.
             "rezept": _rezeptauszug(auftrag),
             "abschluss_bericht": abschluss.als_dict() if abschluss is not None else None,
-            # Woher die Einstellungen des Endmodells stammen: der Median über
-            # die sechs Faltungen. Ohne diese Zeile wäre nicht mehr zu sagen,
-            # wie lange dieser Stand trainiert hat.
+            # Was das Endmodell aus den Faltungen übernahm.
             "kreuzvalidierung": mitgenommen or {},
-            # Ob der Stand, der hier freigegeben wird, überhaupt noch zuhört -
-            # keine Note, ein Lebenszeichen (`pruefe_endmodell`). Leer bei
-            # Ständen von vor September 2026: Sie sind nie geprüft worden.
+            # Das Lebenszeichen (`pruefe_endmodell`).
             "pruefung": pruefung,
             "job_id": auftrag.get("job_id"),
             "erstellt": laeufe.jetzt(),
@@ -811,9 +620,6 @@ def gib_frei(
         },
     )
 
-    # Die Rohgewichte und der Arbeitsstand bleiben hier liegen - weggeräumt
-    # werden sie von `finetune.main`, und zwar auf beiden Wegen. Der Aufruf
-    # stand einmal hier, und das war die halbe Lösung: Ein Lauf, der vorher
-    # scheiterte, kam nie an ihm vorbei und hinterließ knapp drei Gigabyte.
+    # Rohgewichte und Arbeitsstand räumt `finetune.main` weg, auch nach Fehlern.
     bericht.fertig(version, gemessen)
     return version
