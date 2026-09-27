@@ -481,7 +481,7 @@ def trainiere(
     # Das Endmodell hält nichts zurück und hat keine Steuergröße.
     hat_pruefung = len(pruef) > 0
 
-    plan = zuschneiden(
+    zuschnitt = zuschneiden(
         modell,
         diese_karte,
         methode,
@@ -523,7 +523,7 @@ def trainiere(
     # Der Warmlauf, gedeckelt auf `WARMLAUF_ANTEIL` - sonst wäre bei neun
     # Aufnahmen der ganze Lauf Rampe. Größere Läufe behalten die Schrittzahl
     # des Rezepts.
-    je_durchgang = max(1, math.ceil(len(lern) / plan.wirksam))
+    je_durchgang = max(1, math.ceil(len(lern) / zuschnitt.wirksam))
     gesamtschritte = max(1, int(je_durchgang * durchgaenge))
     warmlauf = min(
         int(rezept["warmlauf_schritte"]),
@@ -537,12 +537,12 @@ def trainiere(
 
     # Je Faltung ein Arbeitsstand, den `main` vor der nächsten wegräumt.
     ausgabe = verzeichnis / laeufe.ARBEITSSTAND / _name_fuer(faltung)
-    sparsam = plan.gradientensparsam
+    sparsam = zuschnitt.gradientensparsam
     argumente = Seq2SeqTrainingArguments(
         output_dir=str(ausgabe),
-        per_device_train_batch_size=plan.stapel,
-        per_device_eval_batch_size=plan.stapel,
-        gradient_accumulation_steps=plan.akkumulation,
+        per_device_train_batch_size=zuschnitt.stapel,
+        per_device_eval_batch_size=zuschnitt.stapel,
+        gradient_accumulation_steps=zuschnitt.akkumulation,
         # Aktivierungen beim Rückwärtsgang neu rechnen: dieselben Gradienten,
         # weniger Platz - wenn der Probeschritt es verlangt (`zuschneiden`).
         gradient_checkpointing=sparsam,
@@ -555,8 +555,8 @@ def trainiere(
         weight_decay=float(rezept.get("gewichtsverfall", 0.0)),
         max_grad_norm=float(rezept.get("gradientenbegrenzung", 1.0)),
         # bf16 ab Ampere, fp16 mit Verlustskalierung darunter (`kartenplan.genauigkeit`).
-        fp16=plan.genauigkeit == "fp16",
-        bf16=plan.genauigkeit == "bf16",
+        fp16=zuschnitt.genauigkeit == "fp16",
+        bf16=zuschnitt.genauigkeit == "bf16",
         logging_steps=LOG_ALLE,
         # Je Durchgang prüfen - die zweite Kurve.
         eval_strategy="epoch" if hat_pruefung else "no",
@@ -669,7 +669,7 @@ def trainiere(
         "tempowahl": tempoergebnis.als_dict() if tempoergebnis is not None else None,
         # Worauf und wie gerechnet wurde - fürs Manifest (`bewerten.gib_frei`).
         "zuschnitt": {
-            **plan.als_dict(),
+            **zuschnitt.als_dict(),
             "karte": diese_karte.als_dict() if diese_karte else None,
         },
     }
