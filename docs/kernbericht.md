@@ -182,7 +182,72 @@ schwerer Aussprache sollte ein Modell mit Übung zulegen.
 
 ---
 
-## 6. Fazit
+## 6. Nebenbefund: Rauschen scheint einem Lauf ohne Rauschtraining zu helfen
+
+In der Modelltafel liegt `ML-E-SRP-CI/292` auf der Fassung `rauschen` besser
+als auf dem Original - obwohl er, anders als `ML-A-E-SRP-CI/292`, nie mit
+Abwandlungen trainiert hat und die übrigen Stände auf `rauschen` eher
+schlechter abschneiden. Die plausibelste Erklärung: **Zufall, getragen von
+wenigen Aufnahmen, auf denen das Modell in eine Schleife gerät.** Eine
+Robustheit gegen Rauschen ist es nicht.
+
+| Stand | WER Original | WER Rauschen | Δ [95 %] | Median Δ | Rauschen besser / schlechter | Δ ohne \|Δ\| > 2 |
+|---|---|---|---|---|---|---|
+| `ML-E-SRP-CI/292` | 0,947 | 0,918 | −0,029 [−0,133; +0,071] | 0 | 101 / 104 | −0,013 (7 weg) |
+| `ML-A-E-SRP-CI/292` | 0,852 | 0,854 | +0,002 [−0,067; +0,068] | 0 | 78 / 101 | +0,020 (5 weg) |
+| `SV-E-SRP-CI/292` | 0,909 | 0,886 | −0,023 [−0,099; +0,039] | 0 | 79 / 107 | +0,014 (2 weg) |
+| `ML-E-SRP-CI/43`, zwei Wiederholungen | 0,761 / 0,821 | 0,809 / 0,959 | +0,048 / +0,138 | 0 / +0,07 | 12 / 14, 7 / 23 | −0,010 / +0,133 |
+
+Alle 292 Aufnahmen aus der Kreuzvalidierung der Läufe, gepaart je Aufnahme,
+Bootstrap über Stämme.
+
+* **Der Vorteil sitzt im Mittel, nicht in der Masse.** Der Median des
+  Unterschieds ist 0, Rauschen hilft auf 101 Aufnahmen und schadet auf 104.
+  Ohne die sieben Aufnahmen, auf denen die beiden Fassungen um mehr als 2 WER
+  auseinanderliegen, schrumpft der Vorteil von 0,029 auf 0,013. Das Intervall
+  schließt die Null weit ein, und das Trainingsrauschen (rund 0,05) ist
+  größer als der ganze Effekt.
+* **Die Ausreißer sind Schleifen.** Auf dem Original wiederholt das Modell
+  eine Silbe oder einen Satz, bis das Fenster voll ist („Gedei-ge-er-ge-er-…",
+  „Die Strasse ist sehr flach." dreimal, „Das war's für heute. Bis zum
+  nächsten Mal."), auf der verrauschten Fassung bricht es früher ab. Meist
+  sind es kurze Aufnahmen: Bei zwei Wörtern Vorlage macht eine Schleife eine
+  WER von 5 bis 14, und je Aufnahme ist die WER nach oben offen. Wenige
+  solche Fälle bewegen das Mittel mehr als hundert gewöhnliche.
+* **Ob eine Fassung in die Schleife gerät, ist fast Münzwurf.** Das
+  Rauschen liegt 20 dB unter dem Pegel der ganzen Aufnahme und füllt vor
+  allem die langen Pausen dieser Sprecherin - vermutlich genau dort, wo
+  Whisper mangels Sprache aus dem eigenen Text weiterschreibt. Eine kleine Änderung im Ton
+  kippt eine Schleife in die eine oder die andere Richtung. Dieselbe
+  Richtung zeigt deshalb auch `SV-E-SRP-CI/292` im Mittel (−0,023), ebenfalls
+  ohne Rauschtraining; dasselbe Rezept auf 43 Aufnahmen zeigt die
+  entgegengesetzte (+0,048 und +0,138). Mit oder ohne Rauschtraining sagt
+  hier nichts voraus.
+* **Nach der Zahl der Aufnahmen** ist `ML-E-SRP-CI/292` am ehesten
+  gleichgültig gegen Rauschen (101 / 104), die beiden anderen Läufe auf allen
+  Aufnahmen werden eher schlechter (78 / 101 und 79 / 107). Besser auf
+  Rauschen ist keiner.
+
+**Die Modelltafel rechnet derzeit auf anderem Boden.** Am selben Tag wurde
+der Korpus neu geschnitten und eingelesen: Die neuen Stücke sind dieselben
+Buchseiten wie die, auf denen die Läufe gelernt haben, nur anders geteilt.
+Für die trainierten Stände sind sie also nicht ungehört. Und die Auswertung
+von „hören" misst sie erst nach und nach; beim Schreiben dieses Abschnitts
+standen in der Tafel 82 gemeinsame Aufnahmen. Auf diesem Boden wechselt das
+Vorzeichen je nach Teilmenge - auf den alten Aufnahmen ist
+`ML-E-SRP-CI/292` mit Rauschen 0,010 schlechter, auf den neuen 0,150
+besser -, bei einem Median nahe 0 für jeden Stand und jedes Grundmodell.
+Für einen Vergleich der Fassungen taugt die Tafel erst wieder, wenn die
+Stände auf dem neuen Korpus neu gerechnet sind.
+
+**Folgerung:** Ein Mittel über die WER je Aufnahme ist bei dieser Sprecherin
+schleifenanfällig. Für Aussagen über Fassungen zählen Median und die Zahl
+besser / schlechter; das Mittel allein trägt einen Unterschied dieser Größe
+nicht.
+
+---
+
+## 7. Fazit
 
 **Das Lernverfahren ist robust gegenüber den schlechten Daten dieses
 Korpus.** Die 30 % am schlechtesten erkannten Aufnahmen im Training haben das
