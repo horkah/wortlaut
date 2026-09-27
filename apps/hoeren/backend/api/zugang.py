@@ -1,17 +1,11 @@
 """Zugänge ausgeben, zurückziehen und auskunft geben, wer gerade ruft.
 
-Drei Endpunkte, zwei Wächter:
+* `GET /api/zugang` sagt, für wen dieser Browser eingestellt ist - Sprecher,
+  Verwaltung oder Aufsicht; die Antwort kommt aus dem Vorgelegten.
+* `POST` und `DELETE` unter einem Sprecher gehören der Verwaltung.
 
-* `GET /api/zugang` beantwortet die Frage, für wen dieser Browser gerade
-  eingestellt ist - Sprecher, Verwaltung oder Aufsicht. Er hat keinen eigenen
-  Wächter, denn er ist die Antwort darauf: Die Kennung kommt aus dem
-  Vorgelegten.
-* `POST` und `DELETE` unter einem Sprecher gehören der Verwaltung. Sie geben
-  den Zugang aus bzw. ziehen ihn zurück.
-
-Der Zugang wird genau einmal im Klartext zurückgegeben, beim Ausgeben.
-Gespeichert ist nur sein Prüfwert; ein zweites Mal ist er nicht zu haben. Wer
-ihn verliert, lässt einen neuen ausgeben - und der alte gilt damit nicht mehr.
+Im Klartext gibt es den Zugang genau einmal, beim Ausgeben; gespeichert ist
+nur der Prüfwert. Ein neuer macht den alten ungültig.
 """
 
 from __future__ import annotations
@@ -34,10 +28,8 @@ class WerAntwort(BaseModel):
     art: str  # sprecher | verwaltung | aufsicht
     sprecher_id: str | None = None
     name: str | None = None
-    # Die Sprache des Profils - die Oberfläche braucht sie für das Vorlesen
-    # (`packages/ui/speak.ts`) und holt sie hier, weil sie diese Frage ohnehin
-    # bei jedem Start stellt. Leer für Verwaltung und Aufsicht: Die sprechen
-    # für niemanden.
+    # Die Sprache des Profils, für das Vorlesen (`packages/ui/speak.ts`); leer
+    # für Verwaltung und Aufsicht.
     sprache: str | None = None
 
 
@@ -84,9 +76,8 @@ def gib_aus(sprecher_id: str) -> ZugangAntwort:
 def zieh_zurueck(sprecher_id: str) -> None:
     """Den Zugang zurückziehen, ohne Ersatz. Danach kommt niemand mehr herein.
 
-    Für einen verlorenen Zugang genügt das Ausgeben eines neuen; das hier ist
-    der Fall, in dem gar niemand mehr hineinsoll - bis ein neuer ausgegeben
-    wird.
+    Für einen verlorenen Zugang genügt ein neuer; das hier sperrt, bis einer
+    ausgegeben wird.
     """
     with Session(engine_fuer(sprecher_id)) as sitzung:
         sprecher = _hole(sitzung, sprecher_id)

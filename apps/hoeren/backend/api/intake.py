@@ -1,13 +1,9 @@
 """Korrekturen von „schreiben" annehmen.
 
-Bestätigt die Zielperson dort einen Abschnitt, wandert er als Audio-Text-Paar
-hierher. Diese Paare sind schwächere Daten: Der Text ist keine Vorgabe, sondern
-eine vom Nutzer abgenickte Maschinenausgabe. Deshalb bekommen sie eine eigene
-Quelle (`art = 'korrektur'`) und im Rezept ein niedrigeres Gewicht - wer sie
-gleichrangig einspeist, trainiert dem Modell seine eigenen Fehler an.
-
-Die Outbox von „schreiben" wiederholt bei Netzfehlern. `externe_id` sorgt
-dafür, dass eine Wiederholung nicht zu einem zweiten Datensatz führt.
+Jeder bestätigte Abschnitt kommt als Paar aus Audio und Text. Der Text ist
+eine abgenickte Maschinenausgabe, also schwächere Daten: eigene Quelle
+(`art = 'korrektur'`) und geringeres Gewicht im Training. Der Postausgang von
+„schreiben" wiederholt; `externe_id` verhindert Doppel.
 """
 
 from __future__ import annotations
@@ -105,8 +101,7 @@ async def nimm_korrektur_an(
     db.add(aufnahme)
     db.commit()
 
-    # Wie beim Aufnehmen über „hören": die Fassungen gleich mit, und ein
-    # Fehlschlag dabei kostet nicht die Aufnahme (siehe `api/recordings.py`).
+    # Die Fassungen gleich mit; ein Fehlschlag kostet nicht die Aufnahme.
     try:
         augmentierung.stelle_alle_her(ablage, aufnahme)
     except klang.AudioFehler:

@@ -1,33 +1,16 @@
 """Ein Sprecher sieht sich selbst an - dieselben Daten, die die Aufsicht sieht.
 
-Der Unterschied zu `api/admin.py`: Hier steht kein Sprecher in der Adresse.
-Es gibt keinen - die Kennung kommt wie bei jedem anderen Weg dieser App aus
-dem vorgelegten Zugang (`SprecherId`/`Datenbank`, siehe `deps.py`). Wer hier
-ruft, kann also von vornherein nur die eigene Datenbank öffnen, nie eine
-fremde; ein Sprecher, der versucht, eine andere Kennung hineinzuschreiben,
-hat dafür in dieser Datei gar kein Feld.
+Anders als in `api/admin.py` steht kein Sprecher in der Adresse: Die Kennung
+kommt aus dem Zugang (`deps.py`), geöffnet wird nur die eigene Datenbank.
 
-Zum Anhören und Verwerfen einer eigenen Aufnahme gibt es hier bewusst keine
-eigenen Wege: `api/recordings.py` hat sie längst, ebenso selbstbezogen, und
-ein zweiter Weg mit anderer Löschsemantik wäre eine zweite Vorstellung davon,
-was „diese Aufnahme loswerden" heißt.
+Ein Sprecher darf über seine Daten alles bis auf die zwei großen Löschstufen,
+die bei der Aufsicht bleiben: ansehen, umbenennen, Sicherung und Datensatz
+mitnehmen (über `services/ausleitung.py`, wie die Aufsicht). Anhören und
+Verwerfen einer Aufnahme stehen in `api/recordings.py`.
 
-Was ein Sprecher hier **nicht** kann, anders als die Aufsicht: alle Aufnahmen
-auf einmal löschen und sich selbst vollständig löschen. Genau diese beiden
-Stufen bleiben der Aufsicht vorbehalten (`api/admin.py`); alles Übrige darf
-jeder über seine eigenen Daten - ansehen, anhören, einzelne Aufnahmen
-verwerfen, sich umbenennen und beides mitnehmen, Sicherung wie Datensatz.
-
-Dass Ausleiten hier steht, ist keine Bequemlichkeit, sondern die naheliegende
-Seite der Sache: Es sind seine Aufnahmen, seine Stimme. Gepackt wird darum
-auch nicht ein zweites Mal, sondern über denselben Dienst wie bei der Aufsicht
-(`services/ausleitung.py`) - zwei Wege dorthin, eine Datei.
-
-Wer eine PIN gesetzt hat (siehe `services/pin.py`), braucht sie zusätzlich zum
-Zugang - als `X-Pin`-Kopfzeile an jedem Weg dieser Datei bis auf zwei.
-`GET .../pin` bleibt absichtlich ungeschützt (sonst könnte die Oberfläche gar
-nicht erst fragen, ob sie nach einer PIN fragen soll), ebenso `PATCH .../pin`:
-Die eigene PIN zu ändern ist nicht das Versehen, gegen das sie schützt.
+Mit gesetzter PIN (`services/pin.py`) verlangt jeder Weg hier `X-Pin` - außer
+`GET .../pin`, sonst ließe sich nicht fragen, ob gefragt werden muss, und
+`PATCH .../pin`.
 """
 
 from __future__ import annotations
@@ -83,18 +66,9 @@ def pin_stand(db: Datenbank, sprecher: SprecherId) -> PinAntwort:
 
 @router.get("/pin/pruefung", status_code=204, dependencies=[Depends(_pruefe_pin)])
 def pin_pruefung() -> None:
-    """Stimmt die vorgelegte PIN? Nur das, ohne Daten dazu.
-
-    Nötig geworden, als die PIN nicht mehr allein vor „Meine Daten" stand,
-    sondern auch vor „Darstellung" und „Zugangsdaten" (`packages/ui/pin.svelte.ts`).
-    Die beiden haben nichts abzurufen, was die Antwort mitliefern könnte -
-    „Meine Daten" prüft die PIN bis heute mit einem Testabruf des Kontos, hier
-    gäbe es kein Konto zu holen.
-
-    Die Arbeit tut `_pruefe_pin`: Sie wirft bei falscher oder fehlender PIN,
-    und wo keine gesetzt ist, geht sie durch. Dieser Rumpf bleibt deshalb
-    leer - 204 heißt „ja".
-    """
+    """Stimmt die vorgelegte PIN? Für „Darstellung" und „Zugangsdaten", die
+    nichts abzurufen haben (`packages/ui/pin.svelte.ts`). Die Arbeit tut
+    `_pruefe_pin`; 204 heißt ja."""
 
 
 @router.patch("/pin", response_model=PinAntwort)
@@ -110,8 +84,7 @@ def pin_setzen(aenderung: PinAenderung, db: Datenbank, sprecher: SprecherId) -> 
 def konto(sprecher: SprecherId, db: Datenbank, ablage: Ablage) -> KontoAntwort:
     """Profil, Kennzahlen und Textquellen - die eigenen, wie die Aufsicht sie sieht.
 
-    Mit einem Unterschied: Die Kennzahl „Sitzungen" zählt hier nur die, in
-    denen auch aufgenommen wurde - genau wie die Liste unter `/sessions`.
+    „Sitzungen" zählt nur die mit Aufnahmen, wie `/sessions`.
     """
     person = _hole(db, sprecher)
     return KontoAntwort(
@@ -124,9 +97,8 @@ def konto(sprecher: SprecherId, db: Datenbank, ablage: Ablage) -> KontoAntwort:
 def sitzungen(db: Datenbank, ab: int = 0, anzahl: int = 10) -> SitzungenAntwort:
     """Die eigenen Sitzungen, jüngste zuerst, seitenweise.
 
-    Ohne die leeren: Wer nur die Aufnahmeseite geöffnet und nichts gesprochen
-    hat, hat damit keine Sitzung erlebt, die ihm hier etwas sagen würde. Die
-    Aufsicht sieht sie weiterhin (`api/admin.py`, `services/uebersicht.py`).
+    Ohne die leeren - wer die Seite nur geöffnet hat, hat keine Sitzung
+    erlebt. Die Aufsicht sieht alle.
     """
     return uebersicht.sitzungen_seite(db, ab, anzahl, nur_mit_aufnahmen=True)
 
@@ -135,8 +107,7 @@ def sitzungen(db: Datenbank, ab: int = 0, anzahl: int = 10) -> SitzungenAntwort:
 def aufnahmen(db: Datenbank, ablage: Ablage, ab: int = 0, anzahl: int = 10) -> AufnahmenAntwort:
     """Die eigenen Aufnahmen mit ihrem Text, neueste zuerst, seitenweise.
 
-    Anhören und Verwerfen bleiben bei `api/recordings.py` - beides sind
-    bereits sprecherbezogene Wege und brauchen keinen zweiten hier.
+    Anhören und Verwerfen: `api/recordings.py`.
     """
     return uebersicht.aufnahmen_seite(db, ablage, ab, anzahl)
 
@@ -147,9 +118,7 @@ def umbenennen(
 ) -> UebersichtAntwort:
     """Den eigenen Namen ändern - dieselbe Beschriftung, die die Aufsicht ändert.
 
-    Die Kennung bleibt, was sie ist (siehe `api/admin.py`): Sie steckt in jedem
-    ausgegebenen Zugang und in den Pfaden der Ablage. Ein Name ist eine
-    Beschriftung, eine Kennung ist eine Zusage.
+    Die Kennung bleibt - sie steckt im Zugang und in den Pfaden.
     """
     person = _hole(db, sprecher)
     person.name = aenderung.name

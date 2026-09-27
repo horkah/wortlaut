@@ -1,19 +1,11 @@
 """Was zu einem Sprecher gehört - und damit, was seine Löschung umfasst.
 
-Das Recht auf Löschung muss ausführbar sein, nicht dokumentiert. Ausführbar
-heißt: an **einer** Stelle festgehalten, welche Verzeichnisse einer Person
-gehören. Sonst löscht die Aufsicht in der Oberfläche etwas anderes als
-`scripts/purge_speaker.py` auf der Kommandozeile, und der Unterschied fällt
-niemandem auf - bis er auffällt.
+Die eine Stelle, die Oberfläche der Aufsicht und `scripts/purge_speaker.py`
+fragen - sonst löschten beide Verschiedenes.
 
-Beide benutzen deshalb dieses Modul.
-
-Warum hier der Blick über die App-Grenze geht: Die Diktate von „schreiben"
-sind Stimmaufnahmen derselben Person, und was „lernen" führt, hängt an
-denselben Aufnahmen. Eine Löschung, die an der Grenze der App haltmacht, wäre
-unvollständig, und Unvollständigkeit ist bei Gesundheitsdaten kein
-Schönheitsfehler. Herübergeholt wird ausdrücklich nur die Layout-Funktion - ein
-reiner Pfadbau, der keine Umgebung liest und keinen Dienst startet.
+Der Blick geht über die App-Grenze: Diktate aus „schreiben" und alles, was
+„lernen" führt, gehören zur selben Person. Herübergeholt werden nur
+Pfadfunktionen, die keine Umgebung lesen.
 """
 
 from __future__ import annotations
@@ -26,8 +18,7 @@ from wortlaut import corpus, registry
 from apps.lernen.backend.config import sprecher_relpfad as lernen_relpfad
 from apps.schreiben.backend.config import sprecher_relpfad as diktate_relpfad
 
-# Schnappschüsse legt „lernen" an. Damit sie löschbar bleiben, ohne ihr
-# Manifest zu deuten, liegt neben dem Manifest eine Datei mit der Sprecher-ID.
+# Laufverzeichnisse von „lernen", erkannt an ihrer Datei mit der Sprecher-ID.
 SCHNAPPSCHUESSE = "snapshots"
 SCHNAPPSCHUSS_MARKE = "sprecher.txt"
 
@@ -35,18 +26,13 @@ SCHNAPPSCHUSS_MARKE = "sprecher.txt"
 def datenverzeichnisse(sprecher_id: str) -> list[str]:
     """Die Verzeichnisse eines Sprechers, relativ zum Datenverzeichnis.
 
-    Ohne die Schnappschüsse: Die stehen nicht unter seinem Namen, sondern unter
-    einer Job-Kennung, und werden deshalb gesondert gesucht (`ziele`). Für die
-    Sicherung sind sie ohnehin nicht gemeint - ein Schnappschuss ist eine
-    Kopie, und eine Kopie sichert man nicht mit.
+    Ohne die Laufverzeichnisse, die unter einer Job-Kennung stehen (`ziele`)
+    und als Kopien nicht in die Sicherung gehören.
     """
     return [
         corpus.sprecher_relpfad(sprecher_id),
         diktate_relpfad(sprecher_id),
-        # Was „lernen" über diesen Menschen führt: die Aufteilung seiner
-        # Aufnahmen in Lernen und Prüfen. Keine Stimmdaten, aber eine Liste
-        # von Aufnahmen, die es nicht mehr geben soll - und ein Verzeichnis,
-        # das sonst als einziges stehen bliebe.
+        # `lernen/<sprecher>`, falls vorhanden - Aufnahmekennungen ohne Stimme.
         lernen_relpfad(sprecher_id),
     ]
 
@@ -89,9 +75,8 @@ def schnappschuesse(datenverzeichnis: Path, sprecher_id: str) -> list[Path]:
 def ohne_marke(datenverzeichnis: Path) -> list[Path]:
     """Schnappschüsse ohne `sprecher.txt` - von Hand zu prüfen, nie geraten.
 
-    Wem ein solcher Schnappschuss gehört, steht nur in seinem Manifest. Ihn
-    beim Löschen zu übergehen, hinterlässt Stimmdaten; ihn mitzunehmen, könnte
-    fremde treffen. Also wird er gemeldet.
+    Übergangen hinterließe er Stimmdaten, mitgenommen träfe er womöglich
+    fremde - also wird er gemeldet.
     """
     wurzel = datenverzeichnis / SCHNAPPSCHUESSE
     if not wurzel.is_dir():

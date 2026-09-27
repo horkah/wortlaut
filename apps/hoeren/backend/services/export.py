@@ -12,9 +12,8 @@ Zwei Formate, weil es zwei Fragen sind:
   keine Datenbank, sondern ein Verzeichnis Audiodateien, neben jeder ihren Text
   als `.txt`, dazu eine `metadaten.csv` und eine `metadaten.jsonl`.
 
-Der Datensatz ist bewusst **keine** Sicherung: Aus ihm lässt sich der Betrieb
-nicht wiederherstellen (Sitzungen, Warteschlange und Messwerte fehlen zum Teil).
-Wer sichert, nimmt die `.tgz`.
+Der Datensatz ist keine Sicherung: Sitzungen, Warteschlange und Messwerte
+fehlen.
 """
 
 from __future__ import annotations
@@ -32,11 +31,8 @@ from wortlaut import storage
 from ..db.models import Aufnahme, Sprecher, Textquelle, Vorlage
 from . import zuschnitt
 
-# Die Spalten der `metadaten.csv`. `file_name` und `transcription` stehen
-# vorn und heißen englisch, weil genau diese beiden Namen das
-# `audiofolder`-Format von Hugging Face erwartet - damit lädt der Datensatz
-# ohne eine Zeile Anpassungscode. Alles Weitere steht dahinter und stört dort
-# niemanden.
+# `file_name` und `transcription` vorn und englisch: das `audiofolder`-Format
+# von Hugging Face lädt so ohne Anpassung.
 SPALTEN = (
     "file_name",
     "transcription",
@@ -66,23 +62,14 @@ def datensatz_zip(
             ├── rec_….wav        16 kHz mono, PCM 16 bit
             └── rec_….txt        der gesprochene Text, sonst nichts
 
-    Der Text steht doppelt darin: in der Tabelle für das Training, als
-    Textdatei neben dem Audio für alles, was sich nur eine Datei ansehen will.
-    Das kostet ein paar Kilobyte und spart jedem Werkzeug den Umweg über die
-    Tabelle.
-
-    Aufgenommen wird nur, was Status `ok` hat: Verworfene Aufnahmen haben kein
-    Audio mehr (siehe `api/recordings.py`) und wären leere Zeilen.
+    Der Text steht in der Tabelle und als `.txt` neben dem Audio. Nur Status
+    `ok` - verworfene Aufnahmen haben kein Audio.
     """
-    # Die Datenbank kann eine Aufnahme kennen, deren Datei fehlt. Das ist ein
-    # Befund und kein Grund, den ganzen Auszug abzubrechen: Die Zeile entfällt,
-    # damit Tabelle und Verzeichnis zueinander passen, der Rest steht.
+    # Fehlt eine Datei, entfällt ihre Zeile, und der Rest steht.
     zeilen = [
         (zeile, aufnahme, pfad)
         for zeile, aufnahme in _zeilen(sitzung, sprecher.id)
-        # Die Arbeitsdatei, nicht der Blob aus der Zeile: Wer den Datensatz
-        # mitnimmt, soll denselben Ton bekommen, auf dem hier trainiert und
-        # gemessen wird (`services/zuschnitt.py`).
+        # Die Arbeitsdatei - derselbe Ton wie beim Training.
         if (pfad := ablage.pfad(zuschnitt.arbeitsblob(aufnahme))).is_file()
     ]
     tabelle = [zeile for zeile, _, _ in zeilen]

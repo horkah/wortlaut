@@ -1,18 +1,11 @@
 """Worauf wortlaut läuft - die Auskunft hinter dem Menüpunkt „System".
 
-Sie steht in „hören", weil jede App ihre übergreifenden Fragen hierher stellt
-(`packages/ui/wer.ts`): Hier liegt die Wurzel der Domain, also ist der Weg aus
-jeder App derselbe. Gerechnet wird in `wortlaut/systemlage.py`.
+In „hören", weil jede App ihre übergreifenden Fragen an die Wurzel der Domain
+stellt (`packages/ui/wer.ts`). Gerechnet wird in `wortlaut/systemlage.py`.
 
-**Mit Wächter, aber jedem.** Wie viel Speicher die Karte hat, ist keine
-Auskunft über einen Menschen - aber eine über die Maschine, und die gehört
-nicht ins offene Netz. Jeder gültige Zugang genügt: Sprecher, Verwaltung und
-Aufsicht sehen dasselbe.
-
-**Keine Rechnung, die sich lohnt, zwischenzuspeichern.** Die Oberfläche fragt
-einmal je Sekunde, solange die Ansicht offen ist, und hört nach fünf Minuten
-von selbst auf. Eine Abfrage kostet einen Aufruf von `nvidia-smi` - rund
-fünfzig Millisekunden in einem Arbeitsfaden, nicht in der Ereignisschleife.
+Jeder gültige Zugang genügt - die Maschine gehört nicht ins offene Netz, ist
+aber keine Auskunft über einen Menschen. Die Oberfläche fragt einmal je
+Sekunde; eine Abfrage kostet einen Aufruf von `nvidia-smi` im Arbeitsfaden.
 """
 
 from __future__ import annotations

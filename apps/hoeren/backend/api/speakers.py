@@ -1,18 +1,11 @@
 """Sprecherprofile: Name und Sprache. Sonst nichts.
 
 Ein Profil anzulegen heißt, ein Korpusverzeichnis mit eigener Datenbank
-anzulegen. Alle anderen Endpunkte setzen ein bestehendes Profil voraus.
+anzulegen. Welches Grundmodell trainiert wird, steht im Auftrag des Laufs,
+welches diktiert, in der Freigabe von „lernen".
 
-**Ein Basismodell stand hier einmal daneben.** Es hat nie etwas entschieden:
-Welches Grundmodell trainiert wird, steht in der Bestellung des Laufs, und
-welches diktiert, entscheidet die Freigabe in „lernen". Das Feld wurde
-gelesen, um angezeigt zu werden, und sonst nirgends - die Auswahl beim Anlegen
-versprach etwas, das sie nicht hielt (`013_ohne_profilbasismodell.sql`).
-
-Diese Wege gehören der Verwaltung (`WORTLAUT_AUTH_TOKEN`, siehe `deps.py`).
-Ein frisch angelegtes Profil hat noch keinen Zugang und ist damit für
-niemanden erreichbar - der Zugang wird gesondert ausgegeben (`api/zugang.py`).
-`zugang_erneuert` sagt in der Liste, ob schon einer besteht.
+Diese Wege gehören der Verwaltung. Ein neues Profil hat noch keinen Zugang
+(`api/zugang.py`); `zugang_erneuert` sagt, ob einer besteht.
 """
 
 from __future__ import annotations
@@ -32,9 +25,6 @@ router = APIRouter(prefix="/api/speakers", tags=["Sprecher"])
 
 class NeuerSprecher(BaseModel):
     name: str = Field(min_length=1, max_length=200)
-    # Die Vorgabe steht in `wortlaut/sprachen.py` und nicht hier. Solange es
-    # eine Sprache gibt, kommt dasselbe heraus; der Unterschied zeigt sich bei
-    # der zweiten, und dann an genau einer Stelle.
     sprache: str = sprachen.VORGABE
 
     @field_validator("sprache")
@@ -42,10 +32,8 @@ class NeuerSprecher(BaseModel):
     def _bekannte_sprache(cls, wert: str) -> str:
         """Abweisen, was dieses System nicht kann - und normiert ablegen.
 
-        Ein Profil trägt seine Sprache ein Leben lang: Sie entscheidet über
-        die Vorlagen, das Feintuning und die Bewertung, und keiner der drei
-        Wege prüft sie noch einmal nach. Was hier durchkommt, ist damit
-        gesetzt - deshalb wird es hier geprüft und nicht später.
+        Ein Profil trägt seine Sprache ein Leben lang, und niemand prüft sie
+        später nach.
         """
         try:
             return sprachen.pruefe(wert)
@@ -53,10 +41,8 @@ class NeuerSprecher(BaseModel):
             raise ValueError(str(fehler)) from fehler
 
 
-# Was ein Profil ist, steht an einer Stelle und nicht an zweien: in
-# `services/uebersicht.py`. Diese Datei liefert es nackt aus, die Aufsicht mit
-# Kennzahlen daneben - und ein neues Feld erreicht beide, ohne dass jemand
-# daran denken müsste (siehe den Kopf von `ProfilAntwort`).
+# Was ein Profil ist, steht in `services/uebersicht.py`; die Aufsicht zeigt
+# dasselbe mit Kennzahlen.
 SprecherAntwort = ProfilAntwort
 
 
@@ -77,8 +63,7 @@ def lege_an(eingabe: NeuerSprecher) -> SprecherAntwort:
     with Session(engine_fuer(sprecher_id)) as sitzung:
         sitzung.add(sprecher)
         sitzung.commit()
-        # Innerhalb der Sitzung auslesen: danach ist die Instanz abgelöst und
-        # kann ihre Felder nicht mehr nachladen.
+        # In der Sitzung auslesen - danach ist die Instanz abgelöst.
         return _als_antwort(sprecher)
 
 

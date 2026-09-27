@@ -1,9 +1,7 @@
 """Textquellen: LLM-Thema, hochgeladener Text, fotografierte Vorlage.
 
-Beide Wege enden gleich: Text → `chunker.schneide()` → Vorlagen, die hinten an
-die Warteschlange angehängt werden. Herkunft und Erzeugungsparameter werden in
-`text_sources.parameter` festgehalten, damit später nachvollziehbar ist, woher
-eine Vorlage stammt.
+Alle Wege enden gleich: Text → `chunker.schneide()` → Vorlagen hinten an der
+Warteschlange. Herkunft und Parameter stehen in `text_sources.parameter`.
 """
 
 from __future__ import annotations
@@ -52,9 +50,8 @@ class ErkannterText(BaseModel):
     """Was aus einer Datei herausgelesen wurde - noch nichts davon gespeichert."""
 
     text: str
-    # `gelesen` = aus der Textebene des PDFs, `erkannt` = aus dem Bild geraten.
-    # Die Oberfläche sagt es dazu, denn es ändert, wie genau jemand hinsehen
-    # muss: Gelesenes stimmt, Erkanntes ist ein Vorschlag.
+    # `gelesen` (Textebene) oder `erkannt` (aus dem Bild geraten) - wie genau
+    # jemand hinsehen muss.
     herkunft: str
     seiten: int | None = None
 
@@ -64,8 +61,7 @@ class EigenerText(BaseModel):
 
     text: str = Field(min_length=1)
     titel: str = Field(default="", max_length=200)
-    # Woher er ursprünglich kam - fürs Protokoll in `parameter`, nicht für eine
-    # Entscheidung.
+    # Woher er kam - nur fürs Protokoll.
     herkunft: str = Field(default="eingefügt", max_length=40)
 
 
@@ -142,8 +138,7 @@ async def aus_upload(
 def erkennung_moeglich() -> dict:
     """Ob dieser Server Bilder lesen kann - damit die Oberfläche nichts verspricht.
 
-    Ohne Wächter und ohne Sprecher: Was der Server kann, ist keine Auskunft
-    über einen Menschen - dieselbe Überlegung wie bei `GET /api/sprachen`.
+    Ohne Wächter: keine Auskunft über einen Menschen.
     """
     return {"moeglich": ocr.verfuegbar(), "formate": list(ocr.UNTERSTUETZT)}
 
@@ -154,19 +149,10 @@ async def erkenne(
 ) -> ErkannterText:
     """Eine Datei lesen und den Text **zurückgeben**, ohne etwas zu speichern.
 
-    **Warum getrennt vom Anlegen.** Was hier herauskommt, ist bei einem Foto
-    geraten, nicht gelesen. Eine Zeichenerkennung verwechselt `rn` mit `m` und
-    erfindet an Knicken Zeichen, die nie dastanden. Ginge das unmittelbar in
-    den Korpus, wanderte der Fehler in die Vorlage, von dort in die Aufnahme -
-    denn der Mensch spricht nach, was dasteht - und von dort ins Training, wo
-    er als Abweichung des Sprechers gezählt würde. Der Umweg über die Anzeige
-    ist deshalb keine Bequemlichkeit, sondern die Stelle, an der ein Mensch
-    hinsieht, bevor es zählt.
-
-    **Der Weg einer Datei.** Ein PDF mit Textebene wird gelesen; eines ohne
-    gilt als Scan und wird erkannt. Ein Bild wird immer erkannt. Was dabei
-    herauskam, sagt `herkunft` - die Oberfläche warnt dann entsprechend
-    deutlich.
+    Getrennt vom Anlegen, weil Erkanntes geraten ist: Ein Fehler wanderte
+    sonst über Vorlage und Aufnahme ins Training und zählte als Abweichung
+    des Sprechers. Ein PDF mit Textebene wird gelesen, eines ohne und jedes
+    Bild erkannt; `herkunft` sagt, was geschah.
     """
     inhalt = await datei.read()
     if len(inhalt) > MAX_UPLOAD_BYTES:
@@ -174,13 +160,8 @@ async def erkenne(
 
     name = datei.filename or ""
 
-    # **Entschieden wird am Inhalt, nicht am Namen.** Der Name war einmal das
-    # Kriterium, und daran ist das Einfügen aus der Zwischenablage gescheitert:
-    # Ein Bildschirmfoto kommt als `image.png` an - das ging -, ein Foto aus
-    # der Mediathek des iPhones je nach Browser als `image` ohne Endung. Beides
-    # ist dasselbe Bild, und der Server wies das zweite als „nicht
-    # unterstütztes Format" ab. Ein PDF nennt sich in seinen ersten Bytes
-    # selbst, und ob etwas ein Bild ist, weiß Pillow besser als eine Endung.
+    # Am Inhalt entschieden, nicht am Namen - aus der Zwischenablage kommt ein
+    # Bild oft als `image` ohne Endung.
     if inhalt[:5] == b"%PDF-":
         if upload.pdf_hat_text(inhalt):
             return ErkannterText(text=upload.lies_text(inhalt, "x.pdf"), herkunft="gelesen")
@@ -191,20 +172,14 @@ async def erkenne(
             text=_erkannt(lambda: ocr.aus_bild(inhalt, sprache)), herkunft="erkannt"
         )
 
-    # Bleibt das, was seinen Text im Klartext trägt. Hier entscheidet die
-    # Endung weiterhin, und das ist richtig: Ob eine ZIP-Datei ein `docx` oder
-    # ein `epub` ist, steht nicht in ihren ersten Bytes, sondern in ihrem
-    # Aufbau - und der Name sagt es billiger.
+    # Textformate nach Endung: Ob ein ZIP `docx` oder `epub` ist, sagt der Name
+    # billiger als der Inhalt.
     try:
         return ErkannterText(text=upload.lies_text(inhalt, name), herkunft="gelesen")
     except upload.UploadFehler as fehler:
         if not ocr.verfuegbar():
-            # **Ohne Zeichenerkennung sagt der Server, was ihm fehlt.** Was hier
-            # ankommt und weder PDF noch Text ist, ist fast immer ein Bild -
-            # ohne Pillow kann er das aber nicht einmal feststellen
-            # (`ocr.ist_bild`). „Nicht unterstütztes Format: 'image'" wäre dann
-            # wahr und trotzdem irreführend: Es klänge nach der falschen Datei,
-            # wo in Wirklichkeit das Werkzeug fehlt.
+            # Ohne Zeichenerkennung ist das fast immer ein Bild, das sich nicht
+            # einmal als solches erkennen lässt - also sagen, was fehlt.
             raise HTTPException(
                 status_code=409,
                 detail=(
@@ -218,9 +193,7 @@ async def erkenne(
 def _erkannt(arbeit) -> str:
     """Die Zeichenerkennung aufrufen und ihre Fehler in Antworten übersetzen.
 
-    409 und nicht 500, wenn sie fehlt: Es ist kein Fehler dieses Servers,
-    sondern eine Möglichkeit, die er nicht hat - und die Oberfläche soll den
-    Satz zeigen können, statt „Fehler 500".
+    409, wenn sie fehlt - eine fehlende Möglichkeit, kein Serverfehler.
     """
     try:
         text = arbeit()
@@ -241,11 +214,7 @@ def aus_text(
 ) -> QuellenAntwort:
     """Text übernehmen, den ein Mensch vor sich gesehen hat.
 
-    Das Gegenstück zu `/erkennen` und zugleich der Weg für einen Schnipsel aus
-    der Zwischenablage: In beiden Fällen steht der Text in der Oberfläche,
-    bevor er hier ankommt. Was gespeichert wird, ist deshalb immer das, was
-    jemand gelesen und so gewollt hat - und nicht, was eine Maschine geraten
-    hat.
+    Das Gegenstück zu `/erkennen` und der Weg für einen eingefügten Text.
     """
     if not eingabe.text.strip():
         raise HTTPException(status_code=400, detail="Der Text ist leer.")
@@ -287,8 +256,7 @@ def _hole(db: Session, sprecher: str, quelle_id: str) -> Textquelle:
 def text_ansehen(sprecher: SprecherId, quelle_id: str, db: Datenbank) -> str:
     """Der Text, wie er in der Warteschlange steht - eine Einheit je Absatz.
 
-    Nicht das Original, sondern das Geschnittene: Genau das wird vorgesprochen,
-    und genau das will nachsehen, wer prüft, ob eine Quelle taugt.
+    Das Geschnittene, denn das wird vorgesprochen.
     """
     quelle = _hole(db, sprecher, quelle_id)
     einheiten = db.scalars(
@@ -316,13 +284,8 @@ def stelle_um(
 def loesche(sprecher: SprecherId, quelle_id: str, db: Datenbank) -> None:
     """Quelle mitsamt ihren Einheiten löschen - solange nichts daran hängt.
 
-    Gibt es zu einer Einheit eine gültige Aufnahme, wird nicht gelöscht: Das
-    Audio ist der Ertrag der ganzen Arbeit, und die Quelle ist seine Herkunft
-    (`parameter` hält fest, woher der Text stammt). Wer sie loswerden will,
-    legt sie stattdessen still - dafür gibt es den Schalter.
-
-    Verworfene Aufnahmen stehen dem nicht im Weg: Ihr Audio ist schon gelöscht,
-    die Zeile ist nur noch ein Vermerk und geht mit.
+    Mit gültigen Aufnahmen daran nicht - die Quelle ist ihre Herkunft; dann
+    wird sie abgestellt. Verworfene Aufnahmen gehen mit.
     """
     quelle = _hole(db, sprecher, quelle_id)
     vorlagen = select(Vorlage.id).where(Vorlage.source_id == quelle.id)
@@ -360,8 +323,7 @@ def _lege_quelle_an(
 ) -> QuellenAntwort:
     """Quelle speichern, Text schneiden, Vorlagen hinten anhängen.
 
-    `sprache` steuert den Schnitt: Wie viele Zeichen in eine Sekunde passen und
-    welche Punkte kein Satzende sind, hängt an ihr (`text/chunker.py`).
+    `sprache` steuert den Schnitt (`text/chunker.py`).
     """
     einheiten = chunker.schneide(text, sprache)
     if not einheiten:

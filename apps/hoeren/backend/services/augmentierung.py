@@ -1,43 +1,19 @@
 """Die abgewandelten Fassungen einer Aufnahme: anlegen, finden, wegräumen.
 
-Was eine Abwandlung ist und wie sie gerechnet wird, steht in
-`wortlaut/augmentierung.py` - das ist reine Klangmathematik und gehört ins
-gemeinsame Paket. Hier steht der Umgang damit im Korpus: wo die Dateien
-liegen, wann sie entstehen und wann sie wieder verschwinden.
+Wie eine Abwandlung gerechnet wird, steht in `wortlaut/augmentierung.py`;
+hier steht, wo die Dateien liegen und wann sie entstehen und verschwinden.
 
-**Warum bei Bedarf und nicht nur beim Aufnehmen.** Angelegt werden die
-Fassungen an beiden Enden: gleich nach dem Hochladen, damit eine frische
-Aufnahme vollständig ist, und noch einmal vor dem Messen, falls eine fehlt.
-Das zweite ist kein Gürtel zum Hosenträger, sondern der Weg für alles, was
-schon im Korpus liegt: Zu jeder Aufnahme, die vor dieser Änderung entstanden
-ist, gibt es keine einzige Fassung, und niemand soll dafür ein Skript suchen
-müssen. Teuer ist es nicht - nachzusehen, ob eine Fassung da ist, ist ein
-Blick ins Dateisystem, und eine vorhandene Datei wird nie neu gerechnet.
+* **Angelegt beim Hochladen und, falls eine fehlt, vor dem Messen** - so
+  bekommt jede Aufnahme ihre Fassungen ohne eigenes Skript. Eine vorhandene
+  Datei wird nie neu gerechnet.
+* **Abgelegt**, obwohl sie in 33 ms gerechnet wären: Die Ansicht spielt sie
+  ab, und das Manifest eines Laufs zeigt auf sie.
+* **Nicht in der Sicherung** - nichts davon ist gesprochen, und sie kommen von
+  selbst zurück (`services/ausleitung.py`).
+* **Beim Löschen dabei** - dieselbe Stimme, derselbe Gesundheitsdatensatz.
 
-**Warum sie überhaupt liegen bleiben - und warum das kein Kostenargument ist.**
-Man könnte jede Fassung im Arbeitsspeicher herstellen, messen und wieder
-vergessen; gemessen kostet eine 33 ms, das gäbe über den ganzen Korpus 13
-Sekunden. Zeit ist also nicht der Grund. Es sind zwei andere: Die Ansicht
-spielt genau diese Datei zum Mithören ab, und das Manifest eines Laufs zeigt
-auf sie - ein Schnappschuss, dessen Dateien es nicht gibt, wäre keiner.
-
-Was in der **Ausbildung** darüber hinaus an Abwandlung nötig ist, entsteht
-dagegen im Trainer und bleibt nirgends liegen
-(`apps/lernen/training/klangwandel.py`). Dort wären es Dutzende Fassungen je
-Aufnahme und je Durchgang eine andere; sie abzulegen wäre teuer und
-sinnlos zugleich.
-
-**Warum sie trotzdem nicht mitgesichert werden.** Liegenbleiben ist billig,
-Wegtragen nicht: Diese Dateien sind die Hälfte des Audios im Datenverzeichnis,
-und keine einzige davon ist gesprochen worden. Eine
-Sicherung lässt sie deshalb draußen und rechnet sie nach dem Zurückspielen neu
-- in Millisekunden je Datei, und ohnehin erst, wenn jemand misst (siehe
-`services/ausleitung.py`).
-
-**Warum sie beim Löschen mitgehen.** Eine abgewandelte Fassung ist dieselbe
-Stimme, nur verrauscht. Sie ist damit derselbe Gesundheitsdatensatz
-wie das Original (Grundentscheidung 6), und wer eine Aufnahme wegwirft, hat
-nicht drei Kopien davon gemeint.
+Die Abwandlung im Training entsteht im Trainer und bleibt nirgends liegen
+(`apps/lernen/training/klangwandel.py`).
 """
 
 from __future__ import annotations
@@ -51,8 +27,7 @@ from wortlaut import corpus, storage
 from ..db.models import Aufnahme
 from . import zuschnitt
 
-# Durchgereicht, damit der Rest der App eine Adresse für diese Begriffe hat und
-# nicht zwei Pakete tief greifen muss.
+# Durchgereicht für den Rest der App.
 ORIGINAL = klangwandel.ORIGINAL
 VARIANTEN = klangwandel.VARIANTEN
 ABWANDLUNGEN = klangwandel.ABWANDLUNGEN
@@ -61,16 +36,9 @@ ABWANDLUNGEN = klangwandel.ABWANDLUNGEN
 def relpfad(aufnahme: Aufnahme, variante: str) -> str:
     """Der Blob zu einer Fassung dieser Aufnahme.
 
-    Die Fassung `original` ist die **Arbeitsdatei** und nicht ein zweites Mal
-    berechnet: der Zuschnitt, wenn es einen gibt, sonst der Blob aus der Zeile
-    (`services/zuschnitt.py`). Eine Aufnahme, die über „schreiben" hereinkam,
-    liegt dort, wo ihre Zeile es sagt, und nirgendwo sonst.
-
-    Dass die Regel hier greift und nicht bei jedem Aufrufer einzeln, ist der
-    Grund, warum Auswertung, Anhören und Abwandlung dieselbe Datei meinen: Alle
-    drei fragen über diese Zeile. Der Name `original` bleibt trotzdem, was er
-    war - er unterscheidet die ungewandelte Fassung von den verrauschten, und
-    das tut er weiterhin.
+    `original` ist die Arbeitsdatei - der Zuschnitt, wenn es einen gibt, sonst
+    der Blob (`services/zuschnitt.py`). Hier und nicht bei jedem Aufrufer,
+    damit Auswertung, Anhören und Abwandlung dieselbe Datei meinen.
     """
     if variante == ORIGINAL:
         return zuschnitt.arbeitsblob(aufnahme)
@@ -82,14 +50,9 @@ def stelle_her(
 ) -> bool:
     """Eine fehlende Fassung rechnen; `True`, wenn dabei eine entstanden ist.
 
-    Nimmt die Blobs und nicht die Zeile, weil der Lauf hier ohne offene
-    Sitzung vorbeikommt (`services/auswertung.py`) - ein ORM-Objekt, dessen
-    Sitzung zu ist, wäre an dieser Stelle eine Falle.
-
-    Der Keim des Rauschens ist die Aufnahmekennung: Dieselbe Aufnahme ergibt
-    auf jeder Maschine dieselbe verrauschte Fassung, und eine gelöschte Datei
-    kommt Byte für Byte so zurück, wie sie war. Ohne das wäre eine Wiederholung
-    der Messung keine Wiederholung.
+    Nimmt Blobs statt der Zeile, weil der Auswertungslauf ohne offene Sitzung
+    vorbeikommt. Der Keim ist die Aufnahmekennung - dieselbe Datei auf jeder
+    Maschine.
     """
     if variante == ORIGINAL or ablage.pfad(ziel_blob).is_file():
         return False
@@ -98,8 +61,7 @@ def stelle_her(
     if not quelle.is_file():
         raise klangwandel.AudioFehler(f"Audio fehlt: {quelle_blob}")
 
-    # Erst daneben schreiben, dann ablegen: `lege_ab` verschiebt, und eine halb
-    # geschriebene Datei am Zielort sähe für den nächsten Blick fertig aus.
+    # Erst daneben schreiben, dann ablegen - nie eine halbe Datei am Zielort.
     with tempfile.TemporaryDirectory() as verzeichnis:
         entwurf = Path(verzeichnis) / f"{variante}.wav"
         klangwandel.wandle_ab(quelle, entwurf, variante, keim=keim)
@@ -114,9 +76,7 @@ def stelle_alle_her(ablage: storage.Ablage, aufnahme: Aufnahme) -> list[str]:
         for abwandlung in ABWANDLUNGEN
         if stelle_her(
             ablage,
-            # Abgewandelt wird die Arbeitsdatei, nicht das Original: Sonst
-            # hörte ein Training dieselbe Äußerung in zwei Längen - einmal
-            # zugeschnitten und dreimal nicht.
+            # Die Arbeitsdatei, sonst gäbe es dieselbe Äußerung in zwei Längen.
             quelle_blob=zuschnitt.arbeitsblob(aufnahme),
             ziel_blob=relpfad(aufnahme, abwandlung.name),
             variante=abwandlung.name,
@@ -128,9 +88,7 @@ def stelle_alle_her(ablage: storage.Ablage, aufnahme: Aufnahme) -> list[str]:
 def loesche(ablage: storage.Ablage, aufnahme: Aufnahme) -> None:
     """Alle abgewandelten Fassungen entfernen. Das Original bleibt unangetastet.
 
-    Es zu löschen ist die Sache des Aufrufers: Verwerfen und Wegräumen gehen
-    an dieser Stelle verschiedene Wege (siehe `api/recordings.py` und
-    `api/admin.py`), und beide fassen den Blob selbst schon an.
+    Das Original fasst der Aufrufer selbst an.
     """
     for abwandlung in ABWANDLUNGEN:
         ablage.loesche(relpfad(aufnahme, abwandlung.name))

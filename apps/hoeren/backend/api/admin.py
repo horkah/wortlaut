@@ -1,19 +1,11 @@
 """Die Aufsicht: über alle Korpora sehen, sichern, umbenennen, löschen.
 
-Alles hier hängt an `WORTLAUT_ADMIN_TOKEN` (siehe `deps.py`). Ohne gesetzten
-Token ist dieser ganze Router zu - auch in der Entwicklung.
+Alles hängt an `WORTLAUT_ADMIN_TOKEN` (`deps.py`); ohne ihn ist der Router zu.
+Als einzige Wege der App nennen diese ihren Sprecher in der Adresse - die
+Aufsicht hat keinen eigenen - und liegen deshalb unter `/api/admin/…`.
 
-Der Unterschied zu jedem anderen Weg dieser App: Hier steht der Sprecher
-**in der Adresse**. Er ist nicht abgeleitet, weil die Aufsicht keinen eigenen
-hat; sie sieht über alle hinweg. Damit das nicht die stille Verwechslung
-zurückholt, gegen die der Zugang als Kennung angetreten ist, liegen diese Wege
-unter einem eigenen Präfix und nirgends sonst: Wer `/api/admin/…` liest, sieht
-sofort, dass hier jemand von außen auf einen fremden Korpus schaut.
-
-**Eine Grenze gibt es, und sie ist absichtlich hart:** Es gibt keinen Weg, der
-mehr als einen Sprecher löscht. Sichern über alle geht, löschen nur einzeln,
-und auch das nur mit der Kennung als Bestätigung im Aufruf. Ein Versehen soll
-höchstens eine Person kosten, nie den ganzen Bestand.
+Kein Weg löscht mehr als einen Sprecher; gelöscht wird nur mit der Kennung als
+Bestätigung. Sichern über alle geht.
 """
 
 from __future__ import annotations
@@ -56,10 +48,7 @@ Bestaetigung = Annotated[
 
 # ── Ansehen ─────────────────────────────────────────────────────────────────
 #
-# Die Modelle und das Auslesen selbst - Profil, Kennzahlen, Textquellen,
-# Sitzungen, Aufnahmen - stehen in `services/uebersicht.py`: „hören" zeigt
-# dieselben Daten noch an einer zweiten Stelle, dem Sprecher selbst
-# (`api/konto.py`), und beide sollen dieselbe Zählung benutzen.
+# Das Auslesen steht in `services/uebersicht.py`, geteilt mit `api/konto.py`.
 
 
 class EinsichtAntwort(BaseModel):
@@ -83,9 +72,7 @@ def uebersicht_aller(ablage: Ablage) -> list[UebersichtAntwort]:
 def einsicht(sprecher_id: str, ablage: Ablage) -> EinsichtAntwort:
     """Was in der Datenbank **eines** Sprechers steht: Profil und Quellen.
 
-    Sitzungen und Aufnahmen stehen nicht darin, sondern hinter eigenen Wegen:
-    Es können Hunderte oder Tausende sein, und sie sind das Einzige, was
-    seitenweise geholt werden muss.
+    Sitzungen und Aufnahmen kommen seitenweise über eigene Wege.
     """
     with Session(engine_fuer(sprecher_id)) as sitzung:
         sprecher = _hole(sitzung, sprecher_id)
@@ -132,9 +119,7 @@ def abhoeren(sprecher_id: str, aufnahme_id: str, ablage: Ablage) -> FileResponse
 def benenne_um(sprecher_id: str, aenderung: Umbenennung, ablage: Ablage) -> UebersichtAntwort:
     """Nur der Name ändert sich.
 
-    Die Kennung bleibt, was sie ist: Sie steckt in jedem ausgegebenen Zugang,
-    in den Pfaden der Ablage und in der `.env` von „schreiben". Ein Name ist
-    eine Beschriftung, eine Kennung ist eine Zusage.
+    Die Kennung bleibt - sie steckt im Zugang und in den Pfaden.
     """
     with Session(engine_fuer(sprecher_id)) as sitzung:
         sprecher = _hole(sitzung, sprecher_id)
@@ -147,9 +132,7 @@ def benenne_um(sprecher_id: str, aenderung: Umbenennung, ablage: Ablage) -> Uebe
 def setze_pin(sprecher_id: str, aenderung: PinAenderung) -> PinAntwort:
     """Die PIN einer Person setzen, ändern oder (mit `pin: null`) wegnehmen.
 
-    Anders als beim eigenen Weg (`api/konto.py`) unter keinem eigenen Vorbehalt:
-    Die Aufsicht ist der Rückweg, wenn jemand seine PIN vergessen oder aus
-    Versehen eine falsche eingetippt hat, und braucht dafür nicht die alte.
+    Der Rückweg für eine vergessene PIN; die alte braucht es nicht.
     """
     with Session(engine_fuer(sprecher_id)) as sitzung:
         sprecher = _hole(sitzung, sprecher_id)
@@ -165,9 +148,7 @@ def setze_pin(sprecher_id: str, aenderung: PinAenderung) -> PinAntwort:
 def sicherung_eines(sprecher_id: str) -> FileResponse:
     """Der vollständige Stand eines Sprechers als `.tgz` - zum Zurückspielen.
 
-    Gepackt wird in `services/ausleitung.py`: Denselben Griff hat ein Sprecher
-    für seine eigenen Daten (`api/konto.py`), und beide sollen dieselbe Datei
-    bekommen.
+    Gepackt in `services/ausleitung.py`, wie für den Sprecher selbst.
     """
     with Session(engine_fuer(sprecher_id)) as sitzung:
         return ausleitung.sicherung_eines(_hole(sitzung, sprecher_id))
@@ -177,11 +158,8 @@ def sicherung_eines(sprecher_id: str) -> FileResponse:
 def sicherung_aller() -> FileResponse:
     """Der ganze Bestand als **eine** `.tgz` - alle Korpora, alle Diktate.
 
-    Das ist die Sicherung, die man wegträgt: Ein Server weniger, und dieses
-    eine Archiv stellt alles wieder her. Nicht darin ist, was sich neu rechnen
-    lässt - Modellstände, abgewandelte Fassungen, Messwerte der Auswertung
-    (`services/ausleitung.py`). Was unwiederbringlich ist, sind die Aufnahmen,
-    und die sind vollzählig drin.
+    Die Sicherung zum Wegtragen; was sich neu rechnen lässt, bleibt draußen
+    (`services/ausleitung.py`).
     """
     konfiguration = einstellungen()
     kennungen = corpus.sprecher_ids(konfiguration.data_dir)
@@ -212,8 +190,7 @@ def sicherung_aller() -> FileResponse:
 def datensatz(sprecher_id: str, ablage: Ablage) -> FileResponse:
     """Text-Audio-Paare als `.zip` - für Training und Ansehen von außen.
 
-    Keine Sicherung, sondern ein Auszug in Ordnerform (siehe
-    `services/export.py`).
+    Keine Sicherung (`services/export.py`).
     """
     with Session(engine_fuer(sprecher_id)) as sitzung:
         sprecher = _hole(sitzung, sprecher_id)
@@ -222,28 +199,22 @@ def datensatz(sprecher_id: str, ablage: Ablage) -> FileResponse:
 
 # ── Löschen ─────────────────────────────────────────────────────────────────
 #
-# Drei Stufen, jede enger als die vorige: eine Aufnahme, alle Aufnahmen einer
-# Person, die Person. Eine vierte Stufe „alle Personen" gibt es nicht und soll
-# es nicht geben - sie wäre ein Knopf, der einmal im Leben gedrückt wird, und
-# dann versehentlich.
+# Drei Stufen: eine Aufnahme, alle Aufnahmen einer Person, die Person. Eine
+# Stufe „alle Personen" gibt es nicht.
 
 
 @router.delete("/speakers/{sprecher_id}/recordings/{aufnahme_id}", status_code=204)
 def loesche_aufnahme(sprecher_id: str, aufnahme_id: str, ablage: Ablage) -> None:
     """Eine Aufnahme wirklich löschen: Audio und Datensatz.
 
-    Der Unterschied zum Verwerfen durch den Sprecher (`api/recordings.py`):
-    Dort bleibt die Zeile als Spur stehen, damit die Warteschlange die Vorlage
-    wieder anbietet. Hier räumt jemand auf - dann soll auch nichts stehen
-    bleiben. Die Vorlage wird dadurch ebenfalls wieder offen.
+    Anders als beim Verwerfen (`api/recordings.py`) bleibt keine Zeile als
+    Spur. Die Vorlage wird wieder offen.
     """
     with Session(engine_fuer(sprecher_id)) as sitzung:
         _hole(sitzung, sprecher_id)
         aufnahme = _hole_aufnahme(sitzung, aufnahme_id)
         ablage.loesche(aufnahme.blob)
-        # Samt der abgewandelten Fassungen und des Zuschnitts: Dieselbe
-        # Stimme, nur verrauscht beziehungsweise nur kürzer, ist derselbe
-        # Gesundheitsdatensatz.
+        # Fassungen und Zuschnitt sind dieselbe Stimme.
         augmentierung.loesche(ablage, aufnahme)
         zuschnitt.loesche(ablage, aufnahme)
         sitzung.delete(aufnahme)
@@ -256,9 +227,7 @@ def loesche_alle_aufnahmen(
 ) -> dict[str, int]:
     """Alle Aufnahmen eines Sprechers - Profil, Quellen und Vorlagen bleiben.
 
-    Danach steht die Warteschlange wieder ganz am Anfang: Der Text ist noch da,
-    gesprochen ist nichts mehr. Das ist der Fall „neu anfangen", nicht der Fall
-    „Person löschen" - dafür gibt es den Weg darunter.
+    „Neu anfangen": Die Warteschlange steht wieder am Anfang.
     """
     _pruefe_bestaetigung(sprecher_id, bestaetigung)
     with Session(engine_fuer(sprecher_id)) as sitzung:
@@ -277,21 +246,15 @@ def loesche_alle_aufnahmen(
 def loesche_sprecher(sprecher_id: str, bestaetigung: Bestaetigung) -> dict[str, list[str]]:
     """Eine Person vollständig löschen - Korpus, Diktate, Modelle, Schnappschüsse.
 
-    Dasselbe, was `scripts/purge_speaker.py` auf der Kommandozeile tut; beide
-    fragen `services/loeschung.py`, damit es nicht zwei Vorstellungen davon
-    gibt, was zu einer Person gehört.
-
-    Es gibt hier bewusst keine Mehrzahl: Der Weg nimmt genau eine Kennung, und
-    die muss zur Bestätigung ein zweites Mal dastehen. Wer zwei Personen
-    löschen will, tut es zweimal - und denkt dabei zweimal nach.
+    Derselbe Umfang wie `scripts/purge_speaker.py` (`services/loeschung.py`).
+    Genau eine Kennung, zur Bestätigung zweimal.
     """
     _pruefe_bestaetigung(sprecher_id, bestaetigung)
     konfiguration = einstellungen()
     if not corpus.datenbank_pfad(konfiguration.data_dir, sprecher_id).is_file():
         raise HTTPException(status_code=404, detail="Unbekannter Sprecher")
 
-    # Erst die Verbindung aus dem Zwischenspeicher nehmen: Eine offene Engine
-    # auf eine gelöschte Datei legte die Datei beim nächsten Zugriff wieder an.
+    # Erst die Engine vergessen - sie legte die Datei sonst wieder an.
     vergiss_engine(sprecher_id)
     entfernt = loeschung.loesche(konfiguration.data_dir, sprecher_id)
     return {
