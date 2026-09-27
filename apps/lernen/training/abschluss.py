@@ -1,50 +1,25 @@
 """Was am Ende mit den Gewichten geschieht - nach der Schleife, vor dem Sichern.
 
-Zwei Handgriffe, die beide kein zusätzliches Training kosten und beide die
-Trainingsschleife nicht anfassen (Vorschlag **D** in `docs/trainingsverfahren.md`):
+Zwei Handgriffe ohne zusätzliches Training, außerhalb der Trainingsschleife:
 
-* **Mittelung** („Model Soup"): Statt des einen besten Zwischenstandes werden
-  die besten drei bis fünf elementweise gemittelt. Sie liegen in derselben
-  Verlustmulde; ihr Mittel ist in aller Regel etwas robuster als jeder
-  einzelne, und zur Laufzeit kostet es nichts - herauskommt wieder ein Modell.
-* **Interpolation mit dem Grundmodell** (WiSE-FT): θ = α·θ_grund + (1−α)·θ_fein.
-  Das ist die direkteste bekannte Antwort auf katastrophales Vergessen, und sie
-  macht aus der Gefahr einen Regler, den man **nach** dem Training einstellt,
-  statt einer Wette, die man vorher eingeht.
+* **Mittelung** („Model Soup"): die besten Zwischenstände elementweise
+  gemittelt. Sie liegen in derselben Verlustmulde; das Mittel ist meist etwas
+  robuster und kostet zur Laufzeit nichts.
+* **Interpolation mit dem Grundmodell** (WiSE-FT): θ = α·θ_grund + (1−α)·θ_fein -
+  katastrophales Vergessen als Regler, eingestellt nach dem Training.
 
-**Warum das eine Wahl beim Beauftragen ist.** Beides ist billig genug, um es
-einfach immer zu tun. Genau das wäre hier falsch: Jede Maßnahme kommt als
-weitere Achse in die Vergleichstafel und nicht als stille Änderung des Rezepts,
-sonst ist hinterher nicht mehr zu sagen, was gewirkt hat. `bester` rechnet
-deshalb Gewicht für Gewicht das, was dieses Projekt bisher gerechnet hat.
+Beides ist eine Achse des Auftrags, keine stille Rezeptänderung, damit die
+Tafel zeigt, was wirkt; `bester` lässt den besten Durchgang unverändert.
 
-**Wo α gewählt wird: auf der Validierung.** Nie auf dem Testdrittel - das wird
-nie angefasst, und ein α, das auf ihm gewählt wäre, machte aus der Testzahl
-eine Trainingszahl. Gemessen wird der Validierungsverlust, dieselbe Größe, an
-der schon `load_best_model_at_end` den besten Durchgang erkennt. Der WER wäre
-das bessere Maß, verlangte aber einen Dekodierdurchgang je α; das gehört zu
-Vorschlag **B** und nicht hierher.
+**α wird auf dem Validierungsverlust gewählt**, derselben Größe, an der
+`load_best_model_at_end` den besten Durchgang erkennt. In einer Faltung ist
+die Validierung die zurückgehaltene Faltung selbst. Der WER wäre das bessere
+Maß, kostete aber einen Dekodierdurchgang je α.
 
-**Warum α = 0 im Raster steht.** α = 0 ist der Stand, mit dem die Interpolation
-anfängt. Steht es zur Wahl, kann sie auf der Validierung nicht verlieren.
-
-**Und warum das allein nicht genügte.** Bei `beides` fängt die Interpolation
-nicht beim besten Zwischenstand an, sondern beim **gemittelten** - α = 0 holt
-also den besten Einzelstand nicht zurück, wenn die Mittelung ihm geschadet hat.
-Genau das ist im September 2026 auf einem sehr kleinen Korpus passiert: Der
-beste Durchgang lag bei 5,5295, die Mittelung über drei Stände bei 5,6504, und
-das beste α machte daraus 5,6435 - ausgeliefert wurde ein Modell, das auf der
-Validierung schlechter war als das, mit dem der Abschluss begann.
-
-Seitdem hält der Abschluss als Ganzes, was die Interpolation allein versprach:
-Er merkt sich den Stand, mit dem er anfängt, und stellt ihn wieder her, wenn er
-am Ende schlechter dasteht. Die Achse misst damit „so gut wie möglich, aber
-nie schlechter" - und der Fall, in dem zurückgenommen wurde, steht als Hinweis
-am Stand, damit ihn niemand für einen Gewinn hält.
-
-**Was hier nicht passiert.** Nichts wird an der Aufteilung, am Manifest oder an
-den Testaufnahmen gedreht, und keine Zahl eines älteren Standes ändert sich.
-Ein Lauf mit `bester` schreibt denselben Stand wie vorher.
+**Nie schlechter als der Anfang.** α = 0 steht im Raster, doch bei `beides`
+beginnt die Interpolation beim gemittelten Stand. Deshalb merkt sich der
+Abschluss den Stand, mit dem er anfängt, und stellt ihn wieder her, wenn er am
+Ende schlechter dasteht; `zurueckgenommen` steht dann am Stand.
 """
 
 from __future__ import annotations
@@ -59,10 +34,8 @@ from wortlaut import laeufe
 # Wie die Zwischenstände des Trainers heißen: `checkpoint-<schritt>`.
 STAND_PRAEFIX = "checkpoint-"
 
-# Wo die Gewichte eines Zwischenstandes stehen können, in dieser Reihenfolge.
-# Bei LoRA ist es der Zusatz allein (`adapter_model.safetensors`), beim vollen
-# Training das ganze Modell. Die `.bin`-Fassung steht dabei, weil ältere
-# Fassungen von `transformers` sie noch schreiben.
+# Wo die Gewichte eines Zwischenstandes stehen können: bei LoRA der Zusatz
+# allein, sonst das ganze Modell; `.bin` schreiben manche `transformers`-Fassungen.
 GEWICHTSDATEIEN = (
     "adapter_model.safetensors",
     "model.safetensors",
@@ -73,9 +46,7 @@ GEWICHTSDATEIEN = (
 STAENDE = 3
 
 # Welche Anteile des Grundmodells versucht werden, wenn das Rezept nichts sagt.
-# Die Null gehört dazu (siehe Kopf), und nach oben ist bei der Hälfte Schluss:
-# Was darüber hinaus hilft, ist kein feingetuntes Modell mehr, sondern ein
-# Hinweis darauf, dass das Training selbst nicht getaugt hat.
+# Bis zur Hälfte - hilft mehr, taugte das Training nicht.
 ALPHAS = (0.0, 0.1, 0.2, 0.3, 0.5)
 
 
@@ -83,30 +54,24 @@ ALPHAS = (0.0, 0.1, 0.2, 0.3, 0.5)
 class Ergebnis:
     """Was der Abschluss getan hat - für Protokoll, Fortschritt und Registry.
 
-    Er steht später neben dem Modellstand, und das ist der Zweck: Ein Stand,
-    dessen α niemand mehr nachsehen kann, ist mit keinem anderen zu
-    vergleichen.
+    Steht neben dem Modellstand, damit sein α nachzusehen ist.
     """
 
     art: str
     # Die gemittelten Zwischenstände, bei ihrem Namen (`checkpoint-63`).
     staende: tuple[str, ...] = ()
-    # Der gewählte Anteil des Grundmodells; `None`, wenn nicht interpoliert
-    # wurde. 0.0 heißt: interpoliert wurde, und gewonnen hat der feingetunte
-    # Stand - auch das ist eine Auskunft.
+    # Der gewählte Anteil des Grundmodells; `None` ohne Interpolation.
     alpha: float | None = None
-    # Der Validierungsverlust vor und nach dem Abschluss. Dieselbe Größe, an
-    # der auch der beste Durchgang erkannt wird.
+    # Der Validierungsverlust vor und nach dem Abschluss.
     verlust_vorher: float | None = None
     verlust_nachher: float | None = None
-    # Der Verlust unmittelbar nach der Mittelung, vor jeder Interpolation -
-    # sonst wäre bei `beides` nicht zu sagen, welche Hälfte gewirkt hat.
+    # Nach der Mittelung, vor der Interpolation - zeigt bei `beides`, was wirkte.
     verlust_mittel: float | None = None
     # Je versuchtem α sein Verlust - die Kurve hinter der Wahl.
     versuche: tuple[tuple[float, float], ...] = ()
     # Ob der Abschluss am Ende zurückgenommen wurde, weil er nicht half.
     zurueckgenommen: bool = False
-    # Warum weniger passiert ist als bestellt. Leer heißt: alles wie bestellt.
+    # Warum weniger geschah als bestellt.
     hinweis: str = ""
 
     def als_dict(self) -> dict[str, Any]:
@@ -176,10 +141,7 @@ def alphas_aus(rezept: dict[str, Any]) -> tuple[float, ...]:
 def zu_behalten(art: str, rezept: dict[str, Any]) -> int:
     """Wie viele Zwischenstände auf der Platte bleiben müssen (`save_total_limit`).
 
-    Einer genügt, solange nur der beste gebraucht wird - das ist die Einstellung
-    von vorher und der Grund, warum ein Lauf ohne Mittelung keinen Platz mehr
-    braucht als bisher. Wer mittelt, braucht so viele, wie er mittelt: Ein
-    Zwischenstand, der schon gelöscht ist, lässt sich nicht mehr wiegen.
+    Einer ohne Mittelung, sonst so viele, wie gemittelt werden.
     """
     return staende_aus(rezept) if laeufe.mittelt(art) else 1
 
@@ -350,12 +312,8 @@ def interpoliere(
         else:
             grund = _grundgewichte(basismodell)
             eigen = modell.state_dict()
-            # `.clone()` ist hier kein Zierrat, sondern der Unterschied zwischen
-            # Interpolation und Unsinn: Liegt das Modell auf dem Prozessor,
-            # gibt `.to("cpu")` dasselbe Stück Speicher zurück statt einer
-            # Kopie. Der feingetunte Stand wäre dann kein festgehaltener Stand,
-            # sondern ein Zeiger auf das Modell - und jedes α rechnete auf dem
-            # Ergebnis des vorigen weiter.
+            # `.clone()`: Auf dem Prozessor gibt `.to("cpu")` denselben Speicher
+            # zurück, und jedes α rechnete auf dem vorigen weiter.
             fein = {
                 name: wert.detach().to("cpu", torch.float32).clone()
                 for name, wert in eigen.items()
@@ -399,19 +357,9 @@ def fuehre_aus(
     Das Modell wird dabei an Ort und Stelle verändert - danach steht in ihm
     der Stand, der gesichert und ausgeliefert wird.
 
-    **Ohne Steuergröße gibt es nichts zu wählen** - aber womöglich etwas zu
-    übernehmen. Beide Handgriffe brauchen ein Maß: die Mittelung, um zu wissen,
-    welche Zwischenstände die besten sind, die Interpolation, um α zu wählen.
-    Das Endmodell der Kreuzvalidierung hat keines; es hat nichts
-    zurückgehalten.
-
-    Es bringt aber ein α aus den sechs Faltungen mit (`alpha_vorgabe`), und das
-    wird angewandt, ohne es noch einmal zu prüfen. Genau dafür ist die
-    Kreuzvalidierung da: Sie beantwortet die Frage einmal über den ganzen
-    Korpus, statt sie siebenmal an je einem Sechstel neu zu stellen. Die
-    **Mittelung** wird dabei nicht übernommen - sie ist kein Parameter, sondern
-    eine Auswahl unter Zwischenständen, und die lässt sich ohne Maß nicht
-    treffen.
+    Das Endmodell hält nichts zurück und hat damit kein Maß. Es wendet das α
+    der Faltungen an (`alpha_vorgabe`); die Mittelung entfällt, denn sie wählt
+    unter Zwischenständen.
     """
     sammler = _Sammler(art=art)
     if art == laeufe.ABSCHLUSS_BESTER:
@@ -440,10 +388,8 @@ def fuehre_aus(
     bericht.sage(f"Validierungsverlust vor dem Abschluss: {sammler.verlust_vorher:.5f}")
 
     ist_lora = _ist_lora(modell)
-    # Der Stand, mit dem wir anfangen - auf dem Prozessor, damit er der Karte
-    # nicht im Weg liegt. Bei LoRA sind das ein paar Megabyte, beim vollen
-    # Training ein Gigabyte Arbeitsspeicher; das ist der Preis für die Zusage,
-    # dass dieser Schritt nicht schaden kann.
+    # Der Anfangsstand, auf dem Prozessor - bei vollem Training ein Gigabyte,
+    # der Preis dafür, dass der Abschluss nicht schaden kann.
     anfangsstand = _abzug(modell)
 
     if laeufe.mittelt(art):
@@ -479,10 +425,7 @@ def fuehre_aus(
     sammler.verlust_nachher = messe()
     bericht.sage(f"Validierungsverlust nach dem Abschluss: {sammler.verlust_nachher:.5f}")
 
-    # Die Zusage: Der Abschluss kann nicht verlieren. Ist er am Ende
-    # schlechter als der Stand, mit dem er anfing, wird er zurückgenommen -
-    # und das steht dann als Hinweis am Modell, damit niemand einen Gewinn
-    # darin sieht, wo keiner war.
+    # Schlechter als der Anfang: zurücknehmen und es am Stand vermerken.
     if sammler.verlust_nachher > sammler.verlust_vorher:
         _einspielen(modell, anfangsstand)
         sammler.zurueckgenommen = True
