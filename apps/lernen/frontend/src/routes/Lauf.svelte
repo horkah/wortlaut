@@ -65,10 +65,7 @@
   /**
    * Ob neben dem Unterschied steht, wie sicher er ist.
    *
-   * Abgeschaltet und abschaltbar aus demselben Grund wie in der Modelltabelle:
-   * Was hier steht, wird mit dem verglichen, was bei früheren Läufen hier
-   * stand. Die Zahlen ändern sich nicht, wenn man es einschaltet - es kommt
-   * eine Spalte dazu.
+   * Zuschaltbar wie in der Modelltabelle - die Zahlen bleiben, eine Spalte kommt dazu.
    */
   let sicherheit = $state('aus');
 
@@ -223,8 +220,8 @@
   }
 
   /**
-   * Hier steht der Papierkorb für jeden Lauf, auch den fertigen: Unter
-   * „Training" stehen fertige nicht mehr, und die Modelltafel hat keinen.
+   * Der Papierkorb für jeden Lauf, auch den fertigen - „Training" zeigt
+   * fertige nicht, die Modelltafel hat keinen.
    */
   async function loesche() {
     if (!lauf) return;
@@ -263,11 +260,8 @@
   /**
    * Das Diagramm aufbauen, sobald seine Leinwand im Baum steht.
    *
-   * Und ausdrücklich nicht in `onMount`: Die Leinwand steht erst da, wenn der
-   * Lauf geladen ist - vorher zeigt die Seite „Wird geladen …". `onMount`
-   * läuft aber, bevor die erste Antwort da ist; `huelle` wäre dann `null`, der
-   * Aufbau bräche ab, und niemand riefe ihn ein zweites Mal. Übrig bliebe das
-   * leere weiße Feld, in dem das Diagramm stehen sollte.
+   * Nicht in `onMount`: Die Leinwand erscheint erst mit dem geladenen Lauf,
+   * `huelle` wäre dort noch `null`.
    */
   $effect(() => {
     if (huelle && !diagramm && !baut) baueDiagramm(huelle);

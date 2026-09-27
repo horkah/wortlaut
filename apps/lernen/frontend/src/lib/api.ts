@@ -112,16 +112,15 @@ export type Lauf = {
   fehler: string | null;
   /** `null`, solange kein Modell aus diesem Lauf entstanden ist. */
   stand: StandHinweis | null;
-  /** Ein rechnender Lauf lässt sich nicht löschen - ein anderer Container schreibt dort.
-   *  Ein hängender schon: Dort schreibt seit einer Viertelstunde niemand mehr. */
+  /** Nicht, solange er rechnet; ein hängender schon. */
   loeschbar: boolean;
   /** Anhalten verlangt, der Trainer hat den Prozess aber noch nicht beendet. */
   wird_angehalten: boolean;
   /** Gescheitert oder angehalten - dann lässt er sich neu starten. */
   neu_startbar: boolean;
-  /** Sagt `laeuft`, hat aber seit einer Viertelstunde nichts geschrieben. */
+  /** Sagt `laeuft`, schreibt aber nichts mehr (`wortlaut/laeufe.py`). */
   haengt: boolean;
-  /** Seit wann nichts mehr geschrieben wurde, in Sekunden - nur bei `laeuft`. */
+  /** Sekunden ohne Schreiben, nur bei `laeuft`. */
   stillstand_s: number | null;
 };
 
@@ -198,7 +197,7 @@ export type Laufliste = {
   hinweis: string;
   /** Ob der Server vor einem Auftrag den Trainerschlüssel sehen will. */
   schluessel_noetig: boolean;
-  /** Wie viele brauchbare Aufnahmen es inzwischen gibt. */
+  /** Wie viele brauchbare Aufnahmen es gibt. */
   aufnahmen_jetzt: number;
   /** Wie viele davon der jüngste fertige Lauf noch nicht kannte. */
   aufnahmen_neu: number;
@@ -228,7 +227,7 @@ export type Laufeinzeln = {
   grundmodelle: Grundmodell[];
   kurve_training: Punkt[];
   kurve_validierung: Punkt[];
-  /** Fassung → die Maße, jeweils vorher und nachher. */
+  /** Fassung → die Maße, Baseline und trainiert. */
   vergleich: Record<string, Gegenueber[]>;
   protokoll: string;
   /** Welche Blockart gerechnet wurde: `aus`, `aufnahme` oder `einheit`. */
@@ -334,7 +333,7 @@ export const laeufe = () => anfrage<Laufliste>('/laeufe');
 
 /**
  * Ein Lauf im Einzelnen. `intervall` schaltet die Vertrauensbereiche dazu:
- * `aus` (Vorgabe, die Antwort von vorher), `aufnahme` (blockweise gezogen -
+ * `aus` (Vorgabe), `aufnahme` (blockweise gezogen -
  * die richtige Wahl) oder `einheit` (naiv je Messung, zum Vergleich mit der
  * Literatur).
  */
@@ -342,13 +341,8 @@ export const lauf = (jobId: string, intervall = 'aus') =>
   anfrage<Laufeinzeln>(`/laeufe/${jobId}?intervall=${encodeURIComponent(intervall)}`);
 
 /**
- * Einen Lauf beauftragen - neben dem Neustart die Anfrage dieser App, die ein
- * zweites Geheimnis trägt.
- *
- * Der Schlüssel steht in einem eigenen Kopf und nicht in `Authorization`:
- * Dort liegt der Zugang des Sprechers, aus dem der Server ableitet, wessen
- * Modell entsteht. Das eine gegen das andere zu tauschen hieße, entweder für
- * niemanden zu trainieren oder ohne Erlaubnis.
+ * Einen Lauf beauftragen - mit Trainerschlüssel im eigenen Kopf; in
+ * `Authorization` liegt der Zugang, der sagt, wessen Modell entsteht.
  */
 export type Bestellung = {
   methode: string;
@@ -362,10 +356,8 @@ export type Bestellung = {
 };
 
 /**
- * Die Achsen als Objekt und nicht als Reihe von Argumenten: Es sind inzwischen
- * sieben, alle vom selben Typ, und zwei vertauschte fielen niemandem auf -
- * weder dem Übersetzer noch dem Leser. Der Schlüssel steht daneben, weil er
- * kein Teil der Bestellung ist, sondern die Erlaubnis dazu.
+ * Die Achsen als Objekt: gleich typisierte Argumente ließen sich unbemerkt
+ * vertauschen. Der Schlüssel ist Erlaubnis, nicht Bestellung.
  */
 export const beauftrage = (bestellung: Bestellung, schluessel: string) =>
   anfrage<Lauf>('/laeufe', {
@@ -395,13 +387,8 @@ export const loescheLauf = (jobId: string) =>
   );
 
 /**
- * Die Modelltabelle. Ohne Parameter genau die Antwort von vorher - die Zahlen
- * hängen nicht davon ab, ob man einen Bereich dazubestellt.
- *
- * `vergleichMit` nennt ein Modell, gegen das jede andere Zeile gepaart
- * antritt. Das ist die schärfere Frage als zwei Bereiche nebeneinander: Beide
- * Modelle haben dieselben Aufnahmen gehört, und der gemeinsame Anteil fällt in
- * der Differenz heraus.
+ * Die Modelltabelle; ein Bereich ändert die Zahlen nicht. `vergleichMit`
+ * paart jede andere Zeile gegen ein Modell - schärfer als zwei Bereiche.
  */
 const modellabfrage = (intervall: string, vergleichMit: string) =>
   `?intervall=${encodeURIComponent(intervall)}&vergleich_mit=${encodeURIComponent(vergleichMit)}`;
