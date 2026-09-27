@@ -1,14 +1,9 @@
 # Konfiguration
 
-Alles über Umgebungsvariablen, eingelesen in der `config.py` der jeweiligen App,
-nirgends `os.environ` im Fachcode. Was alle drei gleich lesen - wo die Daten
-liegen, worauf gerechnet wird -, steht als gemeinsame Grundlage in
-`wortlaut/einstellungen.py`; gelesen wird die Umgebung trotzdem erst dort, wo
-eine App ihre eigene Klasse davon ableitet und anlegt. Der Fachcode der
-Bibliothek liest gar keine Umgebung: Pfade und Schlüssel werden ihm übergeben.
-
-Vollständig kommentiert steht alles in [`.env.example`](../.env.example) - das
-ist die Vorlage, die kopiert wird. Diese Seite ist die Übersicht dazu.
+Alles über Umgebungsvariablen, eingelesen in der `config.py` jeder App; der
+Fachcode liest keine Umgebung. Was alle Apps gleich lesen, steht als
+gemeinsame Grundlage in `wortlaut/einstellungen.py`. Die kommentierte Vorlage
+ist [`.env.example`](../.env.example):
 
 ```bash
 cp .env.example .env
@@ -20,23 +15,39 @@ cp .env.example .env
 
 | Variable | Vorgabe | Was sie tut |
 |---|---|---|
-| `WORTLAUT_DATA_DIR` | `./data` | wo alles liegt: Korpora, Diktate, Schnappschüsse, Modelle |
-| `WORTLAUT_STORAGE` | `local` | Blob-Ablage; `s3` ist vorbereitet, aber nicht in Betrieb |
-| `WORTLAUT_MODELLCACHE` | `./data/modellcache` | wohin die Grundmodelle von Hugging Face geladen werden (Whisper in allen Größen) |
-| `WORTLAUT_OLLAMACACHE` | `./data/ollama` | wohin Ollama seine Sprachmodelle legt |
-| `WORTLAUT_TRAININGSABLAGE` | `./data/training` | wo `modelle/` und `snapshots/` auf dem Wirt liegen - im Container bleiben sie unter `WORTLAUT_DATA_DIR` |
+| `WORTLAUT_DATA_DIR` | `./data` | Korpora, Diktate, Läufe, Modelle; im Container immer `/srv/wortlaut/data` |
+| `WORTLAUT_STORAGE` | `local` | Blob-Ablage; `s3` ist vorbereitet, nicht umgesetzt |
+| `WORTLAUT_STIMMEN_DIR` | `./modellcache/stimmen` | Piper-Stimmen fürs Vorlesen; ohne Stimme liest der Browser |
+| `WORTLAUT_VORLESEN_MOTOR` | `piper` | welcher Motor spricht |
+| `WORTLAUT_MODELLCACHE` | `./data/modellcache` | *Compose:* Grundmodelle von Hugging Face auf dem Wirt |
+| `WORTLAUT_OLLAMACACHE` | `./data/ollama` | *Compose:* Modelle von Ollama auf dem Wirt |
+| `WORTLAUT_TRAININGSABLAGE` | `./data/training` | *Compose:* `modelle/` und `snapshots/` auf dem Wirt |
 
-Im Container ist `WORTLAUT_DATA_DIR` immer `/srv/wortlaut/data`; wo das auf dem
-Wirt liegt, entscheidet das Volume in der `compose.yaml`.
+Die drei mit *Compose* liest keine App: Im Container haben diese Pfade feste
+Namen, die Variable sagt nur, wo das auf dem Wirt liegt. Was dort liegt, ist
+ersetzbar und gehört nicht ins Volume der Daten
+([Betrieb](betrieb.md#was-wo-liegt)).
 
-Die drei letzten Zeilen sind die Ausnahme dieser Seite: Sie liest **Compose**
-und nicht die `config.py` einer App. In keiner Einstellungsklasse kommen sie
-vor - im Container heißen diese Pfade immer `/srv/wortlaut/modellcache`,
-`/root/.ollama`, `…/data/modelle` und `…/data/snapshots`, und die Variablen
-sagen nur, wo das auf dem Wirt liegt. Sie
-stehen trotzdem hier, weil sie in derselben `.env` stehen. Was darunter liegt,
-ist jederzeit neu zu laden und gehört deshalb nicht ins Volume der Daten
-(siehe [Betrieb](betrieb.md#betrieb-mit-compose)).
+## Rechenwerk - worauf erkannt wird
+
+| Variable | Vorgabe | Was sie tut |
+|---|---|---|
+| `WORTLAUT_GERAET` | `auto` | `auto` nimmt die Karte, wenn CTranslate2 eine sieht; `cuda` verlangt sie; `cpu` bleibt beim Prozessor |
+| `WORTLAUT_RECHENART` | `auto` | `int8_float16` auf der Karte, `int8` auf dem Prozessor; sonst ein fester Wert |
+
+**Eine Einstellung für drei Stellen:** das Diktat in `schreiben`, die
+Auswertung in `hören` und die Bewertung eines Laufs im Trainer. Ihre
+Rechenzeiten stehen in derselben Tafel; zwischen Karte und Prozessor liegt das
+Zehn- bis Zwanzigfache.
+
+**`int8_float16` statt `float16`**, weil die Auswertung alle Modelle
+gleichzeitig hält, `large-v3` darunter - in `float16` gut sechs Gigabyte, neben
+einem Training und dem Sprachmodell auf derselben Karte.
+
+**Ist die Karte voll**, weicht die Erkennung auf den Prozessor aus und
+schreibt das neben jede Messung; die Modelltafel vergleicht dann die
+Rechenzeiten nicht. Wer `cuda` verlangt, bekommt stattdessen den Fehler.
+Einzelheiten: `wortlaut/rechenwerk.py`.
 
 ---
 
@@ -44,85 +55,31 @@ ist jederzeit neu zu laden und gehört deshalb nicht ins Volume der Daten
 
 | Variable | Vorgabe | Was sie tut |
 |---|---|---|
-| `WORTLAUT_AUTH_TOKEN` | leer | **Verwaltung**: Profile anlegen, Zugänge ausgeben. Leer heißt abgeschaltet, auch in der Entwicklung. Öffnet selbst keinen Korpus. |
-| `WORTLAUT_ADMIN_TOKEN` | leer | **Aufsicht**: in jeden Korpus sehen, umbenennen, sichern, löschen. Leer heißt abgeschaltet, nicht offen. |
-| `WORTLAUT_EDITOR_KEY` | leer | **Zuschnitt**: als Kopfzeile `X-Editor-Key` vor den Wegen unter `/api/zuschnitt/…`. Leer heißt abgeschaltet, nicht offen - dann steht der Punkt in „Meine Daten" gar nicht erst da. |
-| `WORTLAUT_LLM_PROVIDER` | leer | Textquelle „LLM": leer = aus, `openai` = jede OpenAI-kompatible Schnittstelle (lokales Ollama, Groq, Gemini, Mistral), `anthropic` = Claude |
+| `WORTLAUT_AUTH_TOKEN` | leer | **Verwaltung**: Profile anlegen, Zugänge ausgeben. Öffnet keinen Korpus |
+| `WORTLAUT_ADMIN_TOKEN` | leer | **Aufsicht**: jeden Korpus einsehen, umbenennen, sichern, löschen |
+| `WORTLAUT_EDITOR_KEY` | leer | **Zuschnitt**: Kopfzeile `X-Editor-Key` vor `/api/zuschnitt/…`, neben dem Sprecherzugang |
+| `WORTLAUT_LLM_PROVIDER` | leer | Textquelle per LLM: leer = aus, `openai` = jede OpenAI-kompatible Schnittstelle, `anthropic` = Claude |
 | `WORTLAUT_LLM_API_KEY` | leer | bei lokalem Ollama leer |
 | `WORTLAUT_LLM_MODEL` | `gemma2:9b` | für ein paar Vorlesesätze genügt ein kleines Modell |
 | `WORTLAUT_LLM_BASE_URL` | leer | nur bei `openai`, z. B. `http://ollama:11434/v1` |
-| `WORTLAUT_AUSWERTUNG_MODELLE` | `small,medium,large-v3` | welche Grundmodelle gegeneinander antreten - dieselbe Liste, gegen die in `lernen` die eigenen Stände antreten |
+| `WORTLAUT_AUSWERTUNG_MODELLE` | `small,medium,large-v3` | welche Grundmodelle antreten - in der Auswertung und in der Modelltafel von `lernen` |
 
-Die beiden Token sind kein Zugang zu den Aufnahmen: Dorthin führt allein der
-persönliche Zugang eines Sprechers (siehe [hören](hoeren.md)).
+Leer heißt bei allen drei Geheimnissen abgeschaltet, nicht offen. Aufsicht und
+Verwaltung dürfen nicht denselben Token tragen, sonst bricht der Server beim
+Start ab. `WORTLAUT_AUSWERTUNG_MODELLE` steht nur einmal, weil die Zahlen in
+`lernen` aus dieser Auswertung stammen; `large-v3` ist teuer, beantwortet aber,
+ob überhaupt ein fertiges Modell reicht.
 
-Der **Bearbeitungsschlüssel** ist etwas Drittes und steht **neben** dem Zugang,
-nicht an seiner Stelle: Wer zuschneidet, legt beides vor. Er beantwortet
-dieselbe Art von Frage wie der Trainerschlüssel in `lernen` - der Zugang sagt,
-wessen Aufnahmen das sind, der Schlüssel, ob jemand in den Bestand greifen
-darf. Und das tut ein Zuschnitt: Ab dem Schnitt arbeiten alle Apps mit der
-geschnittenen Fassung, und die bisherigen Messwerte der betroffenen Aufnahmen
-werden verworfen. Die Originale bleiben liegen, der Schnitt lässt sich
-zurücknehmen.
+### Das Sprachmodell für die Textquelle
 
-Zur Auswertungsliste: `medium` braucht auf einer CPU je Aufnahme etwa das Drei-
-bis Zehnfache ihrer Dauer, `large-v3` noch einmal ein Mehrfaches davon und gut
-anderthalb Gigabyte Speicher obendrauf. Sie steht trotzdem in der Vorgabe, denn
-nur das größte fertige Modell beantwortet, ob überhaupt eines für diese Stimme
-reicht. Wer wenig Maschine hat, kürzt auf `small`.
-
----
-
-## Rechenwerk - worauf erkannt wird
+`ollama` läuft als eigener Dienst auf derselben Karte (`compose.yaml`).
 
 | Variable | Vorgabe | Was sie tut |
 |---|---|---|
-| `WORTLAUT_GERAET` | `auto` | `auto` nimmt die Karte, wenn CTranslate2 eine sieht; `cuda` verlangt sie; `cpu` bleibt beim Prozessor |
-| `WORTLAUT_RECHENART` | `auto` | `auto` heißt `int8_float16` auf der Karte, `int8` auf dem Prozessor; sonst ein fester Wert |
+| `OLLAMA_KEEP_ALIVE` | `1m` | wie lange das Modell nach einer Anfrage auf der Karte bleibt |
 
-**Eine Einstellung und nicht drei, und das ist der Punkt.** Sie gilt für
-`schreiben` beim Diktieren, für die Auswertung in `hören` und für den Trainer,
-wenn er seine Faltungsmodelle an den zurückgehaltenen Aufnahmen misst. Diese drei schicken
-dieselben Modelle über dieselben Aufnahmen, und ihre Rechenzeiten stehen in der
-Modellübersicht von `lernen` nebeneinander - vergleichbar sind sie nur, wenn
-sie von derselben Maschine stammen. Zwischen Karte und Prozessor liegt beim
-Erkennen das Zehn- bis Zwanzigfache.
-
-Sie standen einmal getrennt, und genau das ging schief: Die Auswertung maß auf
-dem Prozessor, der Trainer auf der Karte, und in der Tabelle standen vier
-Sekunden neben einer Viertelsekunde für dasselbe Modell.
-
-**Warum `int8_float16` und nicht `float16`.** Speicher. Die Auswertung hält
-alle drei Modelle gleichzeitig im Speicher (sie rechnet aufnahmeweise, nicht
-modellweise), `large-v3` darunter; in `float16` sind das gut sechs Gigabyte.
-Daneben will ein volles Training acht und das Sprachmodell für die Textquelle
-weitere sechs - auf einer einzelnen Karte mit elf geht das nicht auf.
-
-**Was passiert, wenn die Karte voll ist.** Die Erkennung weicht auf den
-Prozessor aus, statt das Diktat scheitern zu lassen, und schreibt das neben
-jede Messung (`erkennungen.rechenwerk`). Die Modellübersicht sieht daran, dass
-sie die Rechenzeiten nicht vergleichen darf, und sagt es. Wer `cuda`
-ausdrücklich verlangt hat, bekommt dagegen den Fehler zu sehen - sonst sucht er
-die verlorene Rechenzeit an der falschen Stelle.
-
-Einzelheiten: `packages/wortlaut/src/wortlaut/rechenwerk.py`.
-
----
-
-## Das Sprachmodell für die Textquelle
-
-`ollama` läuft als eigener Dienst auf derselben Karte (`compose.yaml`) und legt
-sein Modell vollständig darauf, solange der Speicher reicht.
-
-| Variable | Vorgabe | Was sie tut |
-|---|---|---|
-| `OLLAMA_KEEP_ALIVE` | `15m` | wie lange das Modell nach einer Anfrage auf der Karte liegen bleibt |
-
-Ollamas eigene Vorgabe sind fünf Minuten; wer danach eine zweite Textquelle
-anlegt, wartet erneut die knapp sechs Sekunden, die das Laden von sechs
-Gigabyte dauert. Länger ist nicht umsonst: Solange es liegt, belegt es diese
-sechs Gigabyte auf derselben Karte, auf der ein Training acht will. Eine
-Viertelstunde ist der Ausgleich.
+Kurz, weil das Modell gut 5 GB auf der Karte belegt, auf der trainiert wird;
+die nächste Textquelle wartet dafür einige Sekunden aufs Laden.
 
 ---
 
@@ -130,49 +87,29 @@ Viertelstunde ist der Ausgleich.
 
 | Variable | Vorgabe | Was sie tut |
 |---|---|---|
-| `WORTLAUT_TRAINER_KEY` | leer | **Training anstoßen**: als Kopfzeile `X-Trainer-Key` vor `POST /lernen/api/laeufe`. Leer heißt abgeschaltet, nicht offen - dann kann hier niemand trainieren |
-| `WORTLAUT_STIMMEN_DIR` | `./modellcache/stimmen` | wo die Piper-Stimmen für das Vorlesen liegen. Leer ist der Normalfall - dann liest der Browser vor (`scripts/vorlesen.py --hole`) |
-| `WORTLAUT_VORLESEN_MOTOR` | `piper` | welcher Motor spricht. Heute gibt es einen; der zweite kommt daneben |
-| `WORTLAUT_LERNEN_BASISMODELL` | `openai/whisper-small` | die **Vorgabe**, worauf trainiert wird |
-| `WORTLAUT_LERNEN_GRUNDMODELLE` | `openai/whisper-small,openai/whisper-medium` | was darüber hinaus zur Wahl steht. Jedes davon muss in `WORTLAUT_AUSWERTUNG_MODELLE` stehen, sonst fehlt seinem Stand die Baseline. `medium` und größer lassen sich nur mit LoRA trainieren |
-| `WORTLAUT_AUSWERTUNG_MODELLE` | `small,medium,large-v3` | welche Grundmodelle in der Modelltabelle gegen die eigenen Stände antreten; dieselbe Variable wie oben, und das ist Absicht |
-| `WORTLAUT_LERNEN_GERAET` | `cuda` | worauf **trainiert** wird; auf einem Prozessor dauert ein Feintuning Tage statt Stunden. Etwas anderes als `WORTLAUT_GERAET` oben: Dort geht es ums Erkennen, hier ums Lernen, und nur das Erkennen darf ausweichen |
-| `WORTLAUT_LERNEN_TAKT_S` | `5` | wie oft der Läufer nach neuen Aufträgen sieht |
-
-Der Trainerschlüssel ist das einzige Geheimnis dieser App, und er ist keine
-Rolle: Er steht vor den beiden teuren Wegen, dem Beauftragen und dem Neustart
-eines Laufs. Ein Lauf belegt die Karte für
-Minuten bis Stunden - der Sprecherzugang beantwortet aber die Frage „wessen
-Modell?" und nicht „wer darf rechnen lassen?". Ohne die Trennung wäre jeder
-ausgegebene Aufnahmelink zugleich ein Knopf, der Rechenzeit kostet. Zusehen,
-anhalten, löschen und freigeben bleiben beim Sprecher.
-
-`WORTLAUT_AUSWERTUNG_MODELLE` steht bewusst nur einmal in der `.env`: Von der
-Auswertung in `hören` stammen die Zahlen, die in `lernen` in der Tabelle
-landen. Zwei getrennte Listen wären zwei Gelegenheiten, sie auseinanderlaufen
-zu lassen - und eine Tabellenzeile ohne Messung.
+| `WORTLAUT_TRAINER_KEY` | leer | Kopfzeile `X-Trainer-Key` vor Beauftragen und Neustart. Leer = hier trainiert niemand |
+| `WORTLAUT_LERNEN_BASISMODELL` | `openai/whisper-small` | die Vorgabe, worauf trainiert wird |
+| `WORTLAUT_LERNEN_GRUNDMODELLE` | `openai/whisper-small,openai/whisper-medium` | was zur Wahl steht; jedes auch in `WORTLAUT_AUSWERTUNG_MODELLE`, sonst fehlt seine Baseline. `medium` und größer nur mit LoRA |
+| `WORTLAUT_LERNEN_GERAET` | `cuda` | worauf **trainiert** wird; auf dem Prozessor dauert es Tage. Anders als beim Erkennen gibt es kein Ausweichen |
+| `WORTLAUT_LERNEN_TAKT_S` | `5` | wie oft der Läufer nach Aufträgen sieht |
 
 ---
 
 ## schreiben
 
-Wessen Stimme, steht hier **nicht**: Der Sprecher kommt aus dem Zugang, den der
-Browser vorlegt - derselbe wie bei `hören`.
+Der Sprecher kommt aus dem Zugang, den der Browser vorlegt.
 
 | Variable | Vorgabe | Was sie tut |
 |---|---|---|
-| `WORTLAUT_MODELL_REF` | leer | ein fester Stand für alle, zum Erproben. Leer ist der Betriebsfall: Dann gilt die Freigabe je Sprecher. |
-| `WORTLAUT_ASR_MODELL` | `small` | das unveränderte Grundmodell, solange nichts freigegeben ist |
-| `WORTLAUT_ASR` | `local` | `local` = faster-whisper im eigenen Prozess, `remote` = fremder Endpunkt |
+| `WORTLAUT_MODELL_REF` | leer | ein Stand für alle, zum Erproben. Leer: die Freigabe je Sprecher |
+| `WORTLAUT_ASR_MODELL` | `small` | das Grundmodell, solange nichts freigegeben ist |
+| `WORTLAUT_ASR` | `local` | `local` = faster-whisper im Prozess, `remote` = fremder Endpunkt |
 | `WORTLAUT_ASR_ENDPOINT` | leer | nur bei `remote` |
 | `WORTLAUT_ASR_API_KEY` | leer | nur bei `remote` |
 | `WORTLAUT_INTAKE_URL` | leer | wohin die Korrekturen gehen, z. B. `http://127.0.0.1:8000/api/korpus/intake` |
 
-Ein Token für den Intake gibt es nicht und braucht es nicht: Gesendet wird mit
-dem Zugang dessen, der den Text gerade bestätigt hat. Damit liegt kein
-Geheimnis in der Konfiguration, und die Korrektur geht zwingend in den Korpus
-desjenigen, der sie abgenickt hat.
+Gesendet wird mit dem Zugang dessen, der bestätigt hat; ein eigenes Geheimnis
+für den Intake gibt es nicht.
 
-**Vorsicht bei `remote`:** Jeder entfernte Adapter - für ASR wie für das LLM -
-schickt Stimm- oder Textdaten an Dritte. Beide sind bewusste Schalter mit
-lokaler Voreinstellung; siehe [Datenschutz](datenschutz.md).
+**Vorsicht bei `remote`:** Jeder entfernte Adapter - ASR wie LLM - schickt
+Stimm- oder Textdaten an Dritte ([Datenschutz](datenschutz.md)).

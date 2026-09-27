@@ -1,113 +1,57 @@
 # Der Entwurf
 
-Warum wortlaut so gebaut ist, wie es gebaut ist: die Festlegungen, an denen
-sich alles Übrige ausrichtet, der Aufbau des Bestands, die Nahtstellen
-zwischen den Apps und die Technikwahl dahinter.
-
-Die Apps selbst stehen je in einer eigenen Datei:
+Die Festlegungen, an denen sich alles ausrichtet, der Aufbau, die Nahtstellen
+zwischen den Apps und die Technikwahl. Die Apps selbst:
 [hören](hoeren.md), [lernen](lernen.md), [schreiben](schreiben.md).
 
 ---
 
 ## Grundentscheidungen
 
-**1. Whisper ist gesetzt.**
-Basis ist `openai/whisper-large-v3`, Laufzeit faster-whisper (CTranslate2), Training
-über HF Transformers. Nicht weil Whisper das genaueste Modell ist - das ist es seit
-2026 nicht mehr - sondern weil es das einzige ist, bei dem Trainingsrezept,
-Laufzeit-Ökosystem und dokumentierte Ergebnisse für genau diesen Fall vollständig
-vorliegen. MIT-Lizenz, keine Attributionspflicht. Für die Entwicklung ohne GPU
-genügt `whisper-small`; darunter wird nicht gemessen - `whisper-tiny` versteht
-bei abweichender Aussprache zu wenig, um einen Vergleich zu tragen, und
-`whisper-base` verstand zwar genug, nur fragte niemand mehr danach.
+**1. Whisper ist gesetzt.** Laufzeit faster-whisper (CTranslate2), Training
+über HF Transformers. Nicht das genaueste Modell, aber das einzige, bei dem
+Trainingsrezept, Laufzeit und dokumentierte Ergebnisse für diesen Fall
+vollständig vorliegen. MIT-Lizenz. Gemessen wird ab `whisper-small`; darunter
+versteht Whisper abweichende Aussprache zu schlecht für einen Vergleich.
 
-**2. Aufnahme erfolgt äußerungsweise, nicht am Stück.**
-`hören` zeigt immer genau eine kurze Einheit und nimmt genau dazu auf. Jedes
-Audio-Text-Paar ist damit von Haus aus ausgerichtet - kein Forced Alignment, keine
-Segmentierungsheuristik, kein Timestamp-Drift. Das ist der größte
-Komplexitätsgewinn im ganzen Entwurf.
+**2. Aufgenommen wird äußerungsweise.** `hören` zeigt eine kurze Einheit und
+nimmt genau dazu auf. Jedes Paar aus Audio und Text ist damit ausgerichtet -
+der größte Komplexitätsgewinn im Entwurf.
 
-**3. Ein Modell gehört zu genau einem Sprecher.**
-Kein Mehrsprecher-Mischtraining. Ein Sprecher, ein Basismodell, eine Versionskette.
+**3. Ein Modell gehört genau einem Sprecher.** Kein Mehrsprecher-Training.
 
-**4. Volles Feintuning ist die Voreinstellung, LoRA ein Schalter.**
-Bei stark abweichender Aussprache reicht die Kapazität von LoRA oft nicht, bei
-Dialekt schon. Beides über dieselbe Rezeptdatei, nicht über zwei Codepfade.
+**4. Volles Feintuning und LoRA über dieselbe Rezeptdatei.** Bei stark
+abweichender Aussprache reicht LoRA oft nicht, bei Dialekt schon; beides ist
+eine Achse des Auftrags, kein zweiter Codepfad.
 
 **5. Was Stunden dauert, läuft in einem eigenen Container; was Sekunden
-dauert, läuft dort, wo die Anfrage ist - auf der Karte, wenn eine da ist.**
-*(Überarbeitet. Vorher stand hier: „GPU-Arbeit läuft nie im Web-Prozess.")*
+dauert, dort, wo die Anfrage ist - auf der Karte, wenn eine da ist.** Das
+Training braucht Gigabyte an Abhängigkeiten und darf keinen Webdienst
+aufhalten; es hängt über ein Verzeichnis an (`data/snapshots/`). Die Erkennung
+hängt an einer laufenden Anfrage und nimmt die Karte im Webprozess. Worauf
+erkannt wird, entscheidet eine Stelle (`wortlaut/rechenwerk.py`) für
+„schreiben", die Auswertung in „hören" und die Bewertung eines Laufs - ihre
+Rechenzeiten stehen in einer Tafel und sind nur so vergleichbar.
 
-Die alte Fassung zog die Grenze am Gerät, und das war die falsche Achse.
-Gemeint war das **Training**: Stunden Rechenzeit, Gigabyte an Abhängigkeiten,
-ein Prozess, der einen Webdienst nicht neu starten lassen darf. Das bleibt, wo
-es war - eigener Container, eigenes Abbild, verbunden über ein Verzeichnis
-(`data/snapshots/`).
+**6. Genau ein Schreiber je Datenbestand.** `hören` schreibt den Korpus,
+`lernen` liest ihn. `lernen` schreibt die Registry, `schreiben` liest sie.
 
-Was die Regel mitgenommen hat, ohne es zu meinen, war die **Erkennung**. Die
-dauert Sekunden, hängt an einer laufenden Anfrage und hat im selben Rechner
-eine Karte ungenutzt liegen lassen: vier Sekunden je Diktat statt einer
-Viertelsekunde. Sie läuft deshalb jetzt dort, wo die Anfrage ist, und nimmt die
-Karte, wenn eine da ist.
+**7. Keine Anmeldung - aber ein Sprecher.** Die Zielperson kann schlecht lesen
+und schreiben. Jede App leitet den Sprecher aus dem Zugang ab, den der Browser
+vorlegt; alle drei liegen unter einer Domain und teilen den `localStorage`,
+also genügt ein persönlicher Link, einmal geöffnet.
 
-Worauf gerechnet wird, entscheidet **eine** Stelle
-(`wortlaut/rechenwerk.py`) - für „schreiben", für die Auswertung in „hören" und
-für die Bewertung eines Laufs. Nicht aus Ordnungsliebe: Diese drei messen
-dieselben Modelle, und ihre Rechenzeiten stehen in einer Tabelle nebeneinander.
-Sie sind nur vergleichbar, wenn sie von derselben Maschine kommen.
+**8. Jede Entscheidung hat genau einen Ort.** Welches Modell gilt, wird in
+`lernen` unter **Modelle** entschieden, wo die Zahlen stehen. `schreiben`
+liest die Freigabe und zeigt sie an.
 
-Austauschbar bleibt beides: Transkription hat eine lokale und eine entfernte
-Umsetzung, und ohne Karte fällt die lokale auf den Prozessor zurück - langsamer
-und unverändert richtig.
-
-**6. Genau ein Schreiber pro Datenbestand.**
-`hören` schreibt den Korpus, `lernen` liest ihn. `lernen` schreibt die
-Modell-Registry, `schreiben` liest sie. Keine geteilten Schreibrechte, keine
-verteilten Transaktionen.
-
-**7. `schreiben` verlangt keine Anmeldung - führt aber denselben Sprecher.**
-Die Zielperson kann schlecht lesen und schreiben; ein Anmeldefeld wäre eine
-unüberwindbare Hürde, und ein großer Knopf bleibt der ganze Zweck der App.
-Trotzdem ist eine Instanz nicht mehr auf **einen** Sprecher konfiguriert: Sie
-leitet ihn aus dem Zugang ab, den der Browser vorlegt - demselben, den `hören`
-ausgibt. Beide Apps liegen unter einer Domain und teilen sich damit den
-`localStorage`, also genügt weiterhin ein persönlicher Link, einmal geöffnet,
-gleich in welcher der beiden Apps.
-
-Jeder Sprecher bekommt aus `lernen` sein **eigenes** Modell
-(Grundentscheidung 3), und was er hier diktiert, fließt als Korrektur in
-**seinen** Korpus zurück. Beides braucht die Kennung zur Laufzeit; eine Instanz
-je Person wäre eine Instanz je Modell und je Korpus gewesen.
-
-**8. Jede Entscheidung hat genau einen Ort.**
-Welches Modell gilt, wird in `lernen` unter **Modelle** entschieden - dort, wo
-die Zahlen stehen, an denen sie hängt, und nirgends sonst. `schreiben` liest
-diese Freigabe und zeigt sie an. Zwei Ansichten für dieselbe Frage sind keine
-doppelte Bequemlichkeit, sondern zwei Gelegenheiten, verschiedene Antworten zu
-geben.
-
-**9. Ein Zugang sagt, wem etwas gehört - nicht, was es kosten darf.**
-Der Sprecherzugang beantwortet eine Frage: wessen Korpus, wessen Modell, wessen
-Diktat. Er beantwortet nicht die zweite, die es nur an einer Stelle gibt - ob
-jemand die Karte für Stunden belegen darf. Ein Training kostet Rechenzeit,
-Strom und die Wartezeit aller anderen, und der Zugang ist an jeden ausgegeben,
-der aufnimmt; wäre er auch die Erlaubnis, wäre jeder Aufnahmelink ein Knopf,
-der Geld kostet, so oft wie jemand darauf drückt. Deshalb steht vor
-`POST /lernen/api/laeufe` und vor dem Neustart eines Laufs ein zweites
-Geheimnis (`WORTLAUT_TRAINER_KEY`, Kopfzeile `X-Trainer-Key`) - und **nur**
-dort. Zusehen, anhalten, löschen und freigeben kosten nichts und bleiben beim
-Sprecher. Leer heißt abgeschaltet,
-nicht offen, wie bei Verwaltung und Aufsicht.
-
-Dieselbe Trennung, anderer Anlass, steht vor dem **Zuschnitt** in `hören`
-(`WORTLAUT_EDITOR_KEY`, Kopfzeile `X-Editor-Key`). Dort kostet nicht die
-Rechenzeit, sondern der Eingriff: Ein Zuschnitt entscheidet für jede folgende
-Messung und jedes folgende Training, welcher Ton gilt, und verwirft die
-vorhandenen Messwerte. Der Zugang ist an jeden ausgegeben, der aufnimmt, und
-liegt auf einem Telefon; er beantwortet „wessen Aufnahmen?", nicht „wer darf in
-den Bestand greifen?". Anders als beim Training hängt der Schlüssel hier vor
-**allen** Wegen, auch den lesenden: Beim Training ist Zusehen das, was jeder
-darf; beim Zuschnitt ist auch das Ansehen schon die Werkbank.
+**9. Ein Zugang sagt, wem etwas gehört - nicht, was es kosten darf.** Der
+Sprecherzugang liegt bei jedem, der aufnimmt. Wo ein Weg mehr kostet als
+Zusehen, steht ein zweites Geheimnis davor: der Trainerschlüssel
+(`WORTLAUT_TRAINER_KEY`, `X-Trainer-Key`) vor Beauftragen und Neustart eines
+Laufs, der Bearbeitungsschlüssel (`WORTLAUT_EDITOR_KEY`, `X-Editor-Key`) vor
+jedem Weg des Zuschnitts - dort auch vor den lesenden, denn schon die Ansicht
+ist die Werkbank. Leer heißt abgeschaltet, nicht offen.
 
 ---
 
@@ -115,431 +59,271 @@ darf; beim Zuschnitt ist auch das Ansehen schon die Werkbank.
 
 ```
 wortlaut/
-├── README.md
-├── Dockerfile                     # ein Abbild für beide Apps
+├── Dockerfile                     # ein Abbild für alle drei Apps
 ├── compose.yaml
-├── Makefile                       # test, dev, migrate, train, release
-├── pyproject.toml                 # Abhängigkeiten und Testeinstellungen
+├── Makefile                       # test, dev, migrate, augmentieren, trainer, train
+├── pyproject.toml
 ├── conftest.py                    # geteilte Testbausteine
 ├── .env.example
 │
 ├── apps/
-│   ├── gesamt.py                  # alle drei Apps in einem Prozess (Betrieb)
-│   ├── hoeren/                    # App „hören"
-│   │   ├── Dockerfile
+│   ├── gesamt.py                  # alle drei Apps in einem Prozess
+│   ├── hoeren/
+│   │   ├── Dockerfile             # „hören" allein
 │   │   ├── backend/
-│   │   │   ├── main.py            # FastAPI, Router, Ausliefern des Frontends
-│   │   │   ├── config.py          # Settings aus ENV, ein Ort
-│   │   │   ├── deps.py            # Zugang → Sprecher, Datenbank, Ablage
-│   │   │   ├── api/
-│   │   │   │   ├── speakers.py    # Sprecherprofile
-│   │   │   │   ├── zugang.py      # Zugänge ausgeben, zurückziehen, auskunft
-│   │   │   │   ├── admin.py       # Aufsicht: einsehen, sichern, löschen
-│   │   │   │   ├── sources.py     # LLM-Themen, Textupload
-│   │   │   │   ├── prompts.py     # nächste Sprecheinheit, Sitzungen
-│   │   │   │   ├── recordings.py  # Upload, Prüfung, Verwerfen
-│   │   │   │   ├── zuschnitt.py   # Stille an den Rändern wegschneiden
-│   │   │   │   ├── progress.py    # gesammelte Minuten, Marken
-│   │   │   │   └── intake.py      # Korrekturen von „schreiben"
-│   │   │   ├── services/
-│   │   │   │   ├── prompt_queue.py    # Reihenfolge, Wiederaufnahme
-│   │   │   │   ├── quality.py         # Pegel, Clipping, Dauerplausibilität
-│   │   │   │   ├── zuschnitt.py       # welche Datei gilt - die eine Regel
-│   │   │   │   ├── export.py          # Datensatz als .zip (Text-Audio-Paare)
-│   │   │   │   └── loeschung.py       # was zu einem Sprecher gehört
-│   │   │   └── db/
-│   │   │       ├── models.py      # typisierte Modelle zum Schema
-│   │   │       └── migrations/    # 001_init.sql, 002_…
-│   │   ├── frontend/
-│   │   │   ├── vite.config.ts     # Alias auf packages/ui, Proxy auf /api
-│   │   │   └── src/
-│   │   │       ├── lib/           # api.ts, zustand.svelte.ts
-│   │   │       └── routes/        # Verwaltung, Quelle wählen, Aufnahme,
-│   │   │                          # Fortschritt, Einsicht, Einstellungen
-│   │   └── tests/                 # Endpunkte, Warteschlange, Intake, Aufsicht
+│   │   │   ├── main.py, config.py, deps.py
+│   │   │   ├── api/               # speakers, zugang, admin, konto, sources,
+│   │   │   │                      # prompts, recordings, zuschnitt, progress,
+│   │   │   │                      # auswertung, intake, sprachen, system
+│   │   │   ├── services/          # prompt_queue, quality, zuschnitt, augmentierung,
+│   │   │   │                      # auswertung, vorlesen, uebersicht, pin,
+│   │   │   │                      # export, ausleitung, loeschung
+│   │   │   └── db/                # models.py, migrations/
+│   │   ├── frontend/src/routes/   # Verwaltung, Quelle, Aufnahme, Fortschritt,
+│   │   │                          # Auswertung, MeineDaten, Einsicht, Zuschnitt,
+│   │   │                          # Editieren
+│   │   └── tests/
 │   │
-│   ├── lernen/                    # App „lernen"
+│   ├── lernen/
 │   │   ├── backend/
-│   │   │   ├── main.py            # FastAPI unter /lernen, hinter dem Zugang
-│   │   │   ├── config.py          # Grundmodell, Gerät, Takt des Läufers
-│   │   │   ├── deps.py            # Zugang, eigene Datenbank, Korpus (lesend!)
-│   │   │   ├── api/               # aufteilung.py, laeufe.py, modelle.py
-│   │   │   ├── services/
-│   │   │   │   ├── aufteilung.py  # sechs Faltungen, nach Zählerstand
-│   │   │   │   ├── auftraege.py   # Schnappschuss und Auftrag schreiben
-│   │   │   │   ├── messwerte.py   # alle Modelle auf denselben Testaufnahmen
-│   │   │   │   └── vergleich.py   # trainierter Stand gegen die Baseline
-│   │   ├── frontend/              # Wie gemessen wird, Training, Modelle
-│   │   ├── training/              # das, was auf der GPU läuft - eigenes Abbild
-│   │   │   ├── Dockerfile         # pytorch/cuda, ~4 GB, eigener Compose-Dienst
-│   │   │   ├── laeufer.py         # wartet auf Aufträge, einer nach dem anderen
-│   │   │   ├── finetune.py        # das Training selbst, schreibt die Kurven
-│   │   │   ├── bewerten.py        # Testaufnahmen messen, Stand eintragen
+│   │   │   ├── main.py, config.py, deps.py   # keine eigene Datenbank
+│   │   │   ├── api/               # aufteilung, laeufe, modelle
+│   │   │   └── services/          # aufteilung, auftraege, kernauswahl,
+│   │   │                          # messwerte, vergleich
+│   │   ├── frontend/src/routes/   # Aufteilung, Training, Lauf, Modelle
+│   │   ├── training/              # was auf der Karte läuft - eigenes Abbild
+│   │   │   ├── Dockerfile
+│   │   │   ├── laeufer.py         # nimmt Aufträge, einen nach dem anderen
+│   │   │   ├── finetune.py        # Kreuzvalidierung und Endmodell
 │   │   │   ├── daten.py           # Manifest → Merkmale und Marken
+│   │   │   ├── klangwandel.py     # Augmentierung zur Laufzeit
+│   │   │   ├── tempowahl.py       # Vorspulfaktor schätzen oder suchen
+│   │   │   ├── abschluss.py       # Checkpoint-Mittel und WiSE-FT
+│   │   │   ├── ausgangsstand.py   # auf einem trainierten Stand aufsetzen
+│   │   │   ├── bewerten.py        # Faltungen messen, Kern wählen, Stand eintragen
+│   │   │   ├── karte.py           # auf eine belegte Karte warten
+│   │   │   ├── nachziehen.py      # das Endmodell eines Laufs neu rechnen
 │   │   │   └── rezepte/           # whisper_full.yaml, whisper_lora.yaml
-│   │   └── tests/                 # Faltungen, Aufträge, Vergleich, Grenzen
+│   │   └── tests/
 │   │
-│   └── schreiben/                 # App „schreiben"
-│       ├── Dockerfile
+│   └── schreiben/
+│       ├── Dockerfile             # „schreiben" allein
 │       ├── backend/
-│       │   ├── main.py            # FastAPI hinter dem Zugang des Sprechers
-│       │   ├── config.py          # Modellstand, ASR, Intake-Adresse
-│       │   ├── deps.py            # Zugang, Datenbank, Ablage, Transkriptor
-│       │   ├── api/
-│       │   │   ├── sessions.py    # Diktiersitzung, Bestätigen
-│       │   │   ├── segments.py    # diktieren, Abschnitt neu einsprechen
-│       │   │   ├── model.py       # was geladen ist, und ob ausgesteuert wird
-│       │   │   ├── outbox.py      # Postausgang ansehen, noch einmal senden
-│       │   │   └── zugang.py      # wer ruft - für die Kopfzeile
-│       │   ├── services/
-│       │   │   ├── segmenter.py   # transkribieren, an Zeitmarken schneiden
-│       │   │   └── outbox.py      # Korrekturen zurück an „hören"
-│       │   └── db/                # models.py, migrations/
-│       ├── frontend/
-│       │   └── src/routes/        # Aufnahme, Ergebnis
-│       └── tests/                 # Diktat, Korrekturen, Modell, Zugang
-│
-├── tests/                         # was keine einzelne App betrifft: gesamt.py
+│       │   ├── main.py, config.py, deps.py
+│       │   ├── api/               # sessions, segments, model, outbox
+│       │   ├── services/          # segmenter, outbox
+│       │   └── db/
+│       ├── frontend/src/routes/   # Aufnahme, Ergebnis
+│       └── tests/
 │
 ├── packages/
-│   ├── wortlaut/                  # eine Python-Bibliothek, von allen genutzt
-│   │   ├── src/wortlaut/
-│   │   │   ├── audio.py           # 16 kHz mono, Pegel, Dauer
-│   │   │   ├── corpus.py          # Korpus-Layout lesen und schreiben
-│   │   │   ├── registry.py        # Modellstände lesen und schreiben
-│   │   │   ├── rechenwerk.py      # worauf gerechnet wird - eine Antwort für alle
-│   │   │   ├── einstellungen.py   # was jede App gleich aus der Umgebung liest
-│   │   │   ├── storage.py         # Blob-Ablage: lokal (S3 vorbereitet)
-│   │   │   ├── sicherung.py       # Sicherungsarchiv schreiben und einspielen
-│   │   │   ├── db.py              # SQLite-Verbindung, Migrationen, Sicherungskopie
-│   │   │   ├── ids.py             # zeitlich sortierbare Kennungen
-│   │   │   ├── metriken.py        # WER, CER, MER, WIL und die Zahl darüber
-│   │   │   ├── zugang.py          # Sprecherzugang: Form, Prüfwert, Prüfung
-│   │   │   ├── text/
-│   │   │   │   ├── llm.py         # Thema + Altersspanne → Text
-│   │   │   │   ├── upload.py      # txt, md, pdf, epub, docx → Reintext
-│   │   │   │   └── chunker.py     # Text → sprechbare Einheiten
-│   │   │   └── whisper/           # für „schreiben": lokal oder entfernt
-│   │   │       ├── local.py       # faster-whisper
-│   │   │       └── remote.py      # OpenAI-kompatibler Endpunkt
-│   │   └── tests/                 # Chunker, Textformate, Audio, Ablage
+│   ├── wortlaut/src/wortlaut/     # Python-Bibliothek aller Apps
+│   │   ├── audio.py               # 16 kHz mono, Pegel, Schnitt, Stimmgrenzen
+│   │   ├── augmentierung.py       # die gemessenen Fassungen einer Aufnahme
+│   │   ├── corpus.py              # Korpus-Layout
+│   │   ├── laeufe.py              # Laufverzeichnis, Achsen, Optionscode
+│   │   ├── registry.py            # Modellstände und Freigabe
+│   │   ├── metriken.py            # WER, CER, MER, WIL, Genauigkeit
+│   │   ├── streuung.py            # Bootstrap-Bereiche und gepaarte Vergleiche
+│   │   ├── rechenwerk.py          # worauf erkannt wird
+│   │   ├── tempo.py               # Vorspulen ohne Tonhöhenänderung
+│   │   ├── sprachen.py            # die unterstützten Sprachen
+│   │   ├── vorlesen.py            # Sprachsynthese, Motor austauschbar
+│   │   ├── zugang.py              # Sprecherzugang: Form, Prüfwert, Prüfung
+│   │   ├── einstellungen.py       # was alle Apps gleich aus der Umgebung lesen
+│   │   ├── db.py, ids.py, storage.py, sicherung.py, systemlage.py, web.py
+│   │   ├── text/                  # llm, upload, ocr, chunker
+│   │   └── whisper/               # local (faster-whisper), remote
 │   │
-│   └── ui/                        # geteilte Svelte-Komponenten und Einstellungen
-│       ├── Rahmen.svelte          # Kopf, Inhalt, Fuß, Menü - der Rahmen jeder App
-│       ├── Kopfleiste.svelte      # Marke, App-Reiter, Sprecher, Menüknopf
-│       ├── Fusszeile.svelte       # eine Zeile: welcher Stand hier läuft
-│       ├── Audio.svelte           # Mikrofon, Stimme, Tempo - für alle Apps
-│       ├── Darstellung.svelte     # Farben, Schrift, was in der Leiste steht
-│       ├── Zugangsdaten.svelte    # der Zugang dieses Browsers, in jeder App
-│       ├── KeinZugang.svelte      # was dasteht, wenn keiner da ist - dreimal dasselbe
-│       ├── PinSchloss.svelte      # die PIN vor Darstellung und Zugangsdaten
-│       ├── pin.svelte.ts          # eine PIN, eine Sitzung, alle Apps
-│       ├── Textvergleich.svelte   # Vorlage gegen Erkennung, Zeichen für Zeichen
-│       ├── diff.ts                # längste gemeinsame Teilfolge, zeichenweise
-│       ├── zugang.ts              # wo der Zugang liegt; ein Eintrag für alle
-│       ├── api.ts                 # wie eine Anfrage hinausgeht - für alle drei
-│       ├── route.ts               # die Route im Hash; derselbe Router überall
-│       ├── wer.ts                 # wer ruft: die Antwort des Servers, ausgewertet
-│       ├── lage.svelte.ts         # Route und Zugang - ein Zustand für alle Apps
-│       ├── apps.ts                # die drei Apps, ihre Ansichten, das Menü,
-│       │                          # und was davon sich ausblenden lässt
-│       ├── reiter.ts              # wo man zuletzt war, je App
-│       ├── app.css                # das gemeinsame Aussehen aller Apps
-│       ├── Recorder.svelte
-│       ├── AudioPlayer.svelte
-│       ├── Pegelverlauf.svelte    # Lautstärkekurve mit zwei Grenzen zum Ziehen
-│       ├── ausschnitt.ts          # einen Bereich abspielen, ohne ihn zu schneiden
-│       ├── PromptView.svelte      # eine Einheit groß, Kontext blass („hören")
-│       ├── SegmentList.svelte     # anklickbare Abschnitte („schreiben")
-│       ├── Mikrofontest.svelte    # Gerät wählen, Pegel sehen, Probe hören
-│       ├── Pegelanzeige.svelte    # Pegelbalken, Grenzen wie in quality.py
-│       ├── mikrofon.ts            # Aufnahmekette: Gerät, Verstärkung, Messung
-│       ├── speak.ts               # Vorlesen über Web Speech API, Stimme und Tempo
-│       └── einstellungen.svelte.ts # Gerätewerte im localStorage, appübergreifend
+│   └── ui/                        # geteilte Svelte-Komponenten
+│       ├── Rahmen.svelte          # Kopf, Inhalt, Fuß, Menü jeder App
+│       ├── apps.ts                # Apps, Reiter, Menü, was sich ausblenden lässt
+│       ├── lage.svelte.ts         # Route und Zugang - ein Zustand für alle
+│       ├── zugang.ts, wer.ts, pin.svelte.ts, api.ts, route.ts, reiter.ts
+│       ├── Audio.svelte, Darstellung.svelte, System.svelte, Zugangsdaten.svelte
+│       ├── Recorder.svelte, Mikrofontest.svelte, mikrofon.ts, speak.ts
+│       ├── Pegelverlauf.svelte, ausschnitt.ts, Textvergleich.svelte, diff.ts
+│       └── zeit.ts, einstellungen.svelte.ts, app.css, …
 │
-├── data/                          # nicht im Git
-├── docs/                          # dieser Entwurf, die drei Apps, Betrieb,
-│                                  # Konfiguration, Entwicklung, Datenschutz
-└── scripts/
-    ├── migrate.py
-    ├── augmentieren.py            # abgewandelte Fassungen aller Aufnahmen
-    ├── restore.py                 # eine Sicherung zurückspielen
-    └── purge_speaker.py           # Löschung, vollständig
+├── scripts/                       # migrate, augmentieren, varianten_aufraeumen,
+│                                  # vorlesen, importieren, paare_teilen,
+│                                  # folge_nachtragen, restore, purge_speaker
+├── tests/                         # was keine einzelne App betrifft
+├── docs/
+└── data/                          # nicht im Git
 ```
 
 ---
 
 ## Erste Nahtstelle: der Korpus
 
-Ein Verzeichnis, kein Dienst. `hören` ist der einzige Schreiber, `lernen` liest.
-Beide laufen auf demselben Server, SQLite im WAL-Modus erlaubt gleichzeitige Leser.
+Ein Verzeichnis je Sprecher, kein Dienst. `hören` schreibt, `lernen` liest;
+SQLite im WAL-Modus erlaubt gleichzeitige Leser.
 
 ```
 data/korpus/<sprecher_id>/
+├── hoeren.sqlite                            # Vorlagen, Aufnahmen, Sitzungen, Messwerte
 ├── audio/
-│   ├── <aufnahme_id>.wav                    # 16 kHz mono, PCM 16 bit
-│   ├── varianten/
-│   │   └── <aufnahme_id>.<fassung>.wav      # abgewandelt, gerechnet
-│   └── zuschnitt/
-│       └── <aufnahme_id>.wav                # beschnitten, wenn jemand schnitt
-└── hoeren.sqlite                            # Vorlagen, Aufnahmen, Sitzungen
+│   ├── <aufnahme_id>.wav                    # was gesprochen wurde, 16 kHz mono PCM
+│   ├── varianten/<aufnahme_id>.<fassung>.wav   # abgewandelt, gerechnet
+│   └── zuschnitt/<aufnahme_id>.wav          # beschnitten, wenn jemand schnitt
+└── vorlesen/<vorlage>.<stimme>.wav          # vom Server vorgelesene Sätze
 ```
 
-Unter `varianten/` liegen die abgewandelten Fassungen jeder Aufnahme
-(siehe [hören](hoeren.md#zwei-fassungen-je-aufnahme)). Sie liegen ein Stockwerk tiefer und
-nicht daneben, und das ist der ganze Schutz gegen Verwechslung: `audio/` ist
-genau das, was in `recordings.blob` steht - was ein Mensch gesprochen hat -,
-`audio/varianten/` ist das Abgeleitete, das sich jederzeit neu rechnen lässt.
-Ein Werkzeug, das über `audio/` läuft, muss den Unterschied nicht am
-Dateinamen erraten. Der Name trägt trotzdem beides, erst die Aufnahme, dann
-die Fassung: Ein sortiertes Verzeichnis liegt damit nach Aufnahmen geordnet
-da, und Aufnahmekennungen enthalten keinen Punkt.
+`audio/` enthält genau, was in `recordings.blob` steht - was ein Mensch
+gesprochen hat. Alles darunter ist abgeleitet und lässt sich neu rechnen.
 
-Unter `zuschnitt/` liegt, was von einer Aufnahme übrig bleibt, wenn jemand die
-Stille an ihren Rändern weggeschnitten hat. Daran hängt **eine Regel, und zwar
-genau eine**: Gibt es zu einer Aufnahme einen Zuschnitt, arbeitet jede App mit
-ihm - die Auswertung in `hören`, das Manifest eines Trainingslaufs in `lernen`,
-der Datensatz zum Mitnehmen, das Anhören. Gibt es keinen, bleibt es beim
-Original. Die Regel steht an einer Stelle
-(`apps/hoeren/backend/services/zuschnitt.py`, `arbeitsblob`) und wird überall
-sonst nur befragt; ein Schalter „Zuschnitt benutzen" daneben wäre eine zweite
-Frage zu derselben Sache, und irgendwann trainierte jemand auf einer Datei, die
-er in der Ansicht nicht hört.
+**Der Zuschnitt gilt überall.** Gibt es zu einer Aufnahme einen Zuschnitt,
+arbeitet jede App mit ihm: Auswertung, Trainingsmanifest, Datensatz, Anhören.
+Die Regel steht an einer Stelle (`apps/hoeren/backend/services/zuschnitt.py`,
+`arbeitsblob`). Das Original wird nie überschrieben; geschnitten wird immer aus
+ihm, verlustfrei auf ganze Abtastwerte, nach außen gerundet.
 
-Das Original wird dabei nie überschrieben. `recordings.blob` zeigt weiter
-darauf, und ein Zuschnitt lässt sich zurücknehmen, ohne dass jemand noch einmal
-sprechen muss - eine Aufnahme ist, was ein Mensch gesprochen hat, ein Zuschnitt
-ist eine Entscheidung darüber. Geschnitten wird deshalb auch beim zweiten Mal
-aus dem Original und nie aus dem vorigen Ergebnis; sonst wanderte die Grenze mit
-jedem Durchgang nach innen.
+**Der Zuschnitt steckt in der Sicherung, die Varianten nicht.** Beide ließen
+sich neu rechnen, aber nur `hören` darf in den Korpus schreiben. Eine fehlende
+Variante holt sich die Auswertung selbst; den Zuschnitt braucht auch `lernen`,
+das nichts nachschneiden darf.
 
-Verlustfrei ist der Schnitt, ohne dass es dafür ffmpeg bräuchte: Bei 16 kHz mono
-PCM ist ein Rahmen zwei Byte und zugleich der kleinste Block, an dem sich
-schneiden lässt - ein Schnitt ist das Kopieren eines Byte-Bereichs, Abtastwert
-für Abtastwert. Gerundet wird nach außen, Anfang abwärts und Ende aufwärts: Ein
-Rahmen zu viel sind 62 Mikrosekunden Stille, ein Rahmen zu wenig wäre ein
-angeschnittener Abtastwert.
-
-**Warum der Zuschnitt in der Sicherung steckt und die Varianten nicht.** Beide
-ließen sich neu rechnen. Der Unterschied ist nicht die Rechenzeit, sondern wer
-nachrechnen dürfte: Eine fehlende Abwandlung holt sich die Auswertung selbst,
-und die läuft in `hören` - dem Schreiber des Korpus. Der Zuschnitt ist die
-Arbeitsdatei auch für `lernen`, und `lernen` liest den Korpus, es schreibt ihn
-nicht (Grundentscheidung 6). Ein Trainingslauf über einer zurückgespielten
-Sicherung müsste sonst eine fehlende Datei nachschneiden, und das wäre genau der
-Sonderfall, den diese Regel ausschließt.
-
-Die Datenbank liegt **innerhalb** des Sprecherverzeichnisses, also eine je
-Sprecher. Das hat drei Folgen: `lernen` liest genau eine Datei statt einer
-gefilterten Tabelle, eine vollständige Löschung ist das Entfernen eines
-Verzeichnisses, und jeder Endpunkt von `hören` muss seinen Sprecher nennen.
-
-`lernen` kopiert daraus vor jedem Job einen unveränderlichen Schnappschuss:
-
-```
-data/snapshots/<job_id>/
-├── manifest.jsonl
-└── sprecher.txt                # nur die Sprecher-ID
-```
-
-`sprecher.txt` ist die Zusage an die Löschung: `scripts/purge_speaker.py` findet
-einen Schnappschuss daran, ohne das Manifest deuten zu müssen. Fehlt die Datei,
-meldet das Skript den Schnappschuss zur Prüfung von Hand.
-
-Eine Zeile pro Aufnahme:
-
-```json
-{"audio":"audio/rec_01J8….wav","text":"…","quelle":"vorlage","modus":"gelesen",
- "dauer_s":4.8,"gewicht":1.0,"faltung":"train"}
-```
-
-Der Schnappschuss ist der Grund, warum weiter aufgenommen werden kann, während ein
-Training läuft, ohne dass das Ergebnis unreproduzierbar wird.
+Eine Datenbank je Sprecher: `lernen` liest eine Datei, eine Löschung entfernt
+ein Verzeichnis, und jeder Weg in `hören` braucht seinen Sprecher.
 
 **Quellen und Gewichte.** `quelle` ist `vorlage` oder `korrektur`. Korrekturen
-stammen aus `schreiben` und sind schwächere Daten: der Text ist keine Vorgabe,
-sondern eine vom Nutzer abgenickte Maschinenausgabe. Wer sie gleichrangig einspeist,
-trainiert dem Modell seine eigenen Fehler an. Voreinstellung ist ein niedrigeres
-Gewicht, festgelegt im Rezept.
-
-**Modi.** `modus` ist `gelesen`, `nachgesprochen` oder `frei`. Die ersten beiden
-kommen aus `hören` (siehe [dort](hoeren.md#vorsprechen-statt-vorlesen)), `frei` aus `schreiben`:
-dort spricht die Person selbst formulierte Sätze, nicht eine Vorlage.
-`GET /api/progress` zählt beides getrennt, damit sich die Gewichtung an Zahlen
-statt an Vermutungen ausrichten kann.
+aus `schreiben` sind abgenickte Maschinenausgaben und gehen mit geringerem
+Gewicht ins Training. **Modi:** `gelesen` und `nachgesprochen` aus `hören`,
+`frei` aus `schreiben`; `GET /api/progress` zählt sie getrennt.
 
 ---
 
-## Zweite Nahtstelle: die Modell-Registry
+## Zweite Nahtstelle: das Laufverzeichnis
 
-Ebenfalls Dateien statt Tabelle. Ein Modellstand ist ein Verzeichnis, das man
-kopieren, sichern und per `scp` verschieben kann.
+`lernen` legt je Auftrag ein Verzeichnis an; der Trainer schreibt dort mit.
+
+```
+data/snapshots/<job_id>/
+├── sprecher.txt          # die Sprecher-ID - für die Löschung
+├── manifest.jsonl        # der eingefrorene Korpus: eine Zeile je Probe und Fassung
+├── kernauswahl.json      # nur bei Kernauswahl
+├── auftrag.json          # zuletzt geschrieben - erst damit ist der Lauf offen
+├── zustand.json          # vom Trainer: Status, Stufe, Faltung
+├── fortschritt.jsonl, bewertung.jsonl, protokoll.txt
+└── halt                  # der Wunsch, anzuhalten
+```
+
+```json
+{"audio":"audio/zuschnitt/rec_01J8….wav","text":"…","quelle":"vorlage","modus":"gelesen",
+ "variante":"original","dauer_s":4.8,"gewicht":1.0,"faltung":3,"recording_id":"rec_01J8…"}
+```
+
+Der Schnappschuss macht einen Lauf reproduzierbar, während weiter aufgenommen
+wird. `sprecher.txt` lässt `scripts/purge_speaker.py` ihn finden, ohne das
+Manifest zu deuten. Die Einzelheiten stehen in `wortlaut/laeufe.py`.
+
+---
+
+## Dritte Nahtstelle: die Registry
+
+Ein Modellstand ist ein Verzeichnis, das sich kopieren und sichern lässt.
 
 ```
 data/modelle/<sprecher_id>/
 ├── freigabe.json               # welches Modell dieser Mensch benutzt
 └── <version>/
     ├── manifest.json
-    ├── ct2/                    # für faster-whisper exportiert
-    └── checkpoint/             # Rohgewichte, optional
+    └── ct2/                    # für faster-whisper
 ```
 
 ```json
 {
-  "id": "spr_7f2a/20260912T1420-lora-augmentiert",
+  "id": "spr_7f2a/20260912T1420-medium-lora-original-beides-voll-geduldig-2.25x",
   "sprecher_id": "spr_7f2a",
-  "basismodell": "openai/whisper-small",
-  "methode": "lora",
-  "daten": "augmentiert",
-  "abschluss": "beides",
-  "abschluss_bericht": { "art": "beides", "staende": ["checkpoint-126"],
-                         "alpha": 0.2, "verlust_vorher": 0.412,
-                         "verlust_mittel": 0.401, "verlust_nachher": 0.394 },
+  "basismodell": "openai/whisper-medium",
+  "methode": "lora", "daten": "original", "auswahl": "alle",
+  "abschluss": "beides", "augmentierung": "voll", "dauer": "geduldig",
+  "tempowahl": "optimal", "tempo": 2.25,
+  "abschluss_bericht": { "art": "beides", "alpha": 0.2, "…": "…" },
+  "kreuzvalidierung": { "durchgaenge": 6.0, "plan": 60.0, "alpha": 0.2, "…": "…" },
+  "pruefung": { "stichprobe": 12, "wer_median": 0.21, "auffaellig": false, "…": "…" },
+  "metriken": { "wer": 0.146, "cer": 0.061, "genauigkeit": 81.4, "streuung": { "…": "…" } },
   "job_id": "job_01J8…",
-  "erstellt": "2026-09-12T14:20:03Z",
-  "daten_umfang": { "train": 1832, "validierung": 118, "test": 480 },
-  "metriken": { "wer": 0.146, "cer": 0.061, "genauigkeit": 81.4,
-                "test_einheiten": 480 },
-  "laufzeit": "faster-whisper>=1.1",
   "status": "fertig"
 }
 ```
 
-Die Version nennt Zeit, Methode und Datensatz, und das ist kein Schmuck: Es
-liegen vier Stände nebeneinander, die sich in genau diesen Punkten
-unterscheiden (zwei Methoden mal zwei Datensätze). Eine Zeitmarke allein ließe
-offen, welcher von den vieren gemeint ist. Ist der **Abschluss** nicht der
-gewöhnliche, hängt er hinten an - `…-lora-augmentiert-beides`. Nur dann: Ein
-Stand von früher soll heute heißen, wie er damals hieß, sonst zeigt jeder
-Verweis auf ihn ins Leere.
-
-`abschluss` und `abschluss_bericht` sind die dritte Achse und ihr Ergebnis:
-was am Ende mit den Gewichten geschah, welche Zwischenstände dafür gemittelt
-wurden, welcher Anteil des Grundmodells auf der Validierung gewonnen hat
-(`apps/lernen/training/abschluss.py`). Ein Stand von vor September 2026 hat
-beide Felder nicht - das heißt `bester`, und das ist genau das, was damals
-gerechnet wurde.
-
-`status` ist `fertig`, bis jemand den Stand in `lernen` **freigibt** - dann
-wird er `active` und jeder andere `zurueckgezogen`.
+Die Version nennt Zeit, Grundmodell (außer `small`), Methode und Datensatz,
+dahinter jede Achse, die nicht auf ihrer Vorgabe steht, zuletzt das Tempo.
+Angezeigt wird ein Stand mit seiner Kurzkennung (`K7M2Q`,
+`registry.kurzkennung`) und seinem Optionscode (siehe
+[lernen](lernen.md#der-optionscode)).
 
 ### Die Freigabe
 
-Freigegeben ist höchstens ein Modell je Sprecher, und es ist das, mit dem
-`schreiben` diktiert. Zwei freigegebene Modelle wären keine Freigabe, sondern
-eine offene Frage, die irgendwo weiter unten jemand beantworten müsste.
-
-Freigeben lässt sich seit der Zusammenlegung der Modellansichten auch ein
-**unverändertes Grundmodell**: „meins ist noch nicht besser als `medium`" ist
-eine Antwort, und sie braucht denselben Knopf wie jede andere. Für ein
-Grundmodell gibt es hier aber kein Verzeichnis und kein Manifest. Die Freigabe
-steht deshalb in einer eigenen, winzigen Datei je Sprecher:
+Höchstens ein Modell je Sprecher ist freigegeben; mit ihm diktiert
+`schreiben`. Freigeben lässt sich auch ein unverändertes Grundmodell, deshalb
+steht die Freigabe in einer eigenen Datei:
 
 ```json
-{ "ref": "spr_7f2a/20260912T1420-lora-augmentiert" }
+{ "ref": "spr_7f2a/20260912T1420-lora-original" }
 ```
 
-Darin steht entweder eine Standkennung `<sprecher_id>/<version>` oder ein
-Grundmodellname wie `medium`; unterscheiden lassen sich beide am Schrägstrich,
-und genau deshalb dürfen sie in dasselbe Feld. Ein leeres `ref` nimmt die
-Freigabe zurück.
-
-Die Manifeste führen ihren `status` weiter mit: Wer ein Verzeichnis wegkopiert,
-soll ihm ansehen, was es einmal war. Geschrieben werden beide in einem Zug,
-gelesen wird die Freigabedatei - und fehlt sie, zählen die Manifeste, damit ein
-Bestand von vorher nach dem Aufspielen nicht stumm auf das Grundmodell
-zurückfällt.
+Eine Standkennung `<sprecher_id>/<version>` oder ein Grundmodellname wie
+`medium` - unterscheidbar am Schrägstrich. Leer nimmt die Freigabe zurück. Die
+Manifeste führen ihren `status` (`fertig`, `active`, `zurueckgezogen`) mit,
+damit ein weggetragenes Verzeichnis zeigt, was es war; gelesen wird die
+Freigabedatei.
 
 ### Welches Modell `schreiben` lädt
 
-Zwei Herkünfte, und die Reihenfolge ist die Rangfolge:
+1. `WORTLAUT_MODELL_REF`, falls gesetzt - ein Stand für alle, zum Erproben.
+2. Die Freigabe dieses Sprechers.
+3. Sonst das Grundmodell aus `WORTLAUT_ASR_MODELL`.
 
-1. **`WORTLAUT_MODELL_REF`**, falls gesetzt - der eine Stand für alle, zum
-   Erproben, nicht für den Betrieb.
-2. **Die Freigabe** dieses Sprechers.
+Die Zeile unter dem Aufnahmeknopf nennt dauerhaft, welches Modell arbeitet.
 
-Darunter liegt das unveränderte Grundmodell aus `WORTLAUT_ASR_MODELL`: Damit
-fängt eine Installation an, solange nichts freigegeben ist.
-
-`schreiben` wählt nicht mehr selbst (Grundentscheidung 8). Es führte einmal
-eine eigene Auswahlliste, in der sich jeder Stand und jedes Grundmodell
-ausprobieren ließ - nur stand dort keine einzige Zahl daneben, an der die Wahl
-hing. Die Liste ist in `lernen` aufgegangen, wo die Zahlen entstehen; aus
-`schreiben` führt ein Klick auf die Modellzeile dorthin.
-
-Was dabei nicht aufgegeben wurde: Zu jeder Ausgabe steht fest, welches Modell
-sie erzeugt hat. Die Zeile unter dem Aufnahmeknopf nennt es dauerhaft, samt
-Methode und Datensatz - vier Stände vom selben Tag wären sonst nicht
-auseinanderzuhalten.
+---
 
 ## Datenmodell
 
-**hören**
+**hören** (je Sprecher eine Datenbank)
 
 | Tabelle | Zweck |
 |---|---|
-| `speakers` | Profil, Sprache, Prüfwert des Zugangs - genau eine Zeile je Datenbank |
-| `text_sources` | LLM-Auftrag, hochgeladener Text oder Korrektur, mit Parametern |
-| `prompts` | eine Sprecheinheit, Herkunft, fortlaufende Position |
-| `sessions` | Aufnahmesitzung: begonnen, zuletzt aktiv |
-| `recordings` | Blob-Referenz, Messwerte, Modus, Status, Kennung aus „schreiben" |
-| `erkennungen` | je Aufnahme, Modell und Fassung eine Messung - Text, Fehlerraten, Rechenzeit und das Rechenwerk, auf dem sie entstand |
+| `speakers` | Profil, Sprache, Prüfwert von Zugang und PIN - genau eine Zeile |
+| `text_sources` | LLM-Auftrag, hochgeladener oder erkannter Text, Korrektur |
+| `prompts` | eine Sprecheinheit, fortlaufende Position über alle Quellen |
+| `sessions` | Aufnahmesitzung |
+| `recordings` | Blob, Messwerte, Modus, Status, Zuschnittgrenzen, Kennung aus „schreiben" |
+| `erkennungen` | je Aufnahme, Modell und Fassung eine Messung, mit Rechenwerk und Herkunft |
 
-**lernen**
-
-| Tabelle | Zweck |
-|---|---|
-| *(keine)* | Die Aufteilung ist im September 2026 weggefallen (`002_ohne_aufteilung.sql`); die Faltungen der Kreuzvalidierung folgen der Reihenfolge des Korpus und stehen im Schnappschuss |
-
-Es ist genau eine Tabelle, und das ist Absicht. Eine Jobtabelle daneben hätte
-nahegelegen und wäre eine zweite Wahrheit über denselben Lauf gewesen: Der
-Trainer läuft in einem anderen Container und schreibt in Dateien, die Zeile
-hier wüsste nichts davon - und irgendwann stünde darin „läuft", während längst
-nichts mehr läuft. Ein Lauf ist deshalb ein Verzeichnis
-(`data/snapshots/<job_id>/`), ein Modellstand auch (`data/modelle/…`), und der
-Korpus gehört ohnehin `hören`. Übrig bleibt die eine Sache, die nirgends sonst
-stehen kann.
+**lernen** hat keine Datenbank. Läufe und Stände sind Verzeichnisse, die
+Faltungen folgen dem Korpus und stehen im Manifest; eine Tabelle daneben wäre
+eine zweite Wahrheit über dasselbe.
 
 **schreiben**
 
 | Tabelle | Zweck |
 |---|---|
 | `sessions` | eine Diktiersitzung |
-| `segments` | Text, Reihenfolge, Audio, Herkunft (initial/neu) |
+| `segments` | Text, Reihenfolge, Audio, Herkunft |
 | `outbox` | offene Korrekturen mit Wiederholungszähler |
 
-Zugriff über SQLAlchemy 2.0 mit typisierten Modellen. Schemaänderungen als
-nummerierte `.sql`-Dateien. Kein Alembic - bei diesem Schemaumfang ist die
-Migrationsmaschinerie größer als das Schema.
+SQLAlchemy 2.0 mit typisierten Modellen, Schemaänderungen als nummerierte
+`.sql`-Dateien. Angewendet werden sie beim Anlegen eines Sprechers, beim ersten
+Zugriff auf seine Datenbank (`deps.engine_fuer`) und mit `make migrate` für
+alle auf einmal. Ein Update braucht also keinen Handgriff.
 
-Angewendet werden sie an drei Stellen, und die dritte ist die wichtigste: beim
-Anlegen eines Sprechers (`api/speakers.py`), beim ersten Zugriff auf dessen
-Datenbank (`deps.engine_fuer`) und für alle Korpora auf einmal mit
-`make migrate` - im Container `docker compose exec wortlaut python
-scripts/migrate.py`, denn dort gibt es weder `make` noch `uv`.
+Spalten mit mehr Bedeutung als ihr Name:
 
-Die zweite Stelle ist die wichtigste: Ein Update darf nicht davon abhängen,
-dass sich jemand an ein Skript erinnert. Der Container startet uvicorn, sonst
-nichts - und ein Korpus im ältesten Schemastand wird beim ersten Zugriff
-eingeholt, statt an einer fehlenden Spalte zu scheitern.
-
-Zwei Spalten tragen mehr Bedeutung, als ihr Name verrät:
-
-- `prompts.position` ist über **alle** Quellen eines Sprechers fortlaufend. Eine
-  neue Textquelle hängt hinten an, statt in die laufende Sitzung zu springen.
+- `prompts.position` läuft über **alle** Quellen eines Sprechers; eine neue
+  Quelle hängt hinten an.
 - `recordings.externe_id` ist die Abschnittskennung aus `schreiben` und
-  eindeutig. Die dortige Outbox darf damit beliebig oft wiederholen, ohne dass
-  dieselbe Korrektur zweimal im Korpus landet.
-- `recordings.zuschnitt_start_s` und `…_ende_s` sind die Grenzen des Zuschnitts,
-  NULL heißt „nicht zugeschnitten". Der **Pfad** der Datei steht nicht daneben -
-  er folgt aus der Kennung, wie bei den abgewandelten Fassungen; zwei Wahrheiten
-  darüber, wo eine Datei liegt, sind eine zu viel. Und `dauer_s` bleibt die
-  Dauer des Originals: Sie ist ein Messwert und soll einer bleiben, die des
-  Zuschnitts ist `ende - start` und wird gerechnet.
-- `recordings.sortierschluessel` ist leer, außer bei den Teilen einer
-  geteilten Aufnahme: `<id des Originals>.1`, `.2`. Die Teile tragen das Datum
-  des Originals, und sortiert wird nach `erstellt`, dann nach
-  `COALESCE(sortierschluessel, id)` - so steht ein Original vor seinen Teilen.
+  eindeutig - der Postausgang darf beliebig oft wiederholen.
+- `recordings.zuschnitt_start_s`, `…_ende_s`: Grenzen des Zuschnitts, NULL
+  heißt ungeschnitten. Der Pfad folgt aus der Kennung; `dauer_s` bleibt die
+  des Originals.
+- `recordings.sortierschluessel`: leer, außer bei Teilen einer geteilten
+  Aufnahme (`<id des Originals>.1`, `.2`). Sortiert wird nach `erstellt`, dann
+  nach `COALESCE(sortierschluessel, id)` - ein Original steht vor seinen
+  Teilen, und `zuschnitt.stamm` findet so die Verwandtschaft.
 
 ---
 
@@ -547,34 +331,34 @@ Zwei Spalten tragen mehr Bedeutung, als ihr Name verrät:
 
 | Bereich | Wahl | Warum |
 |---|---|---|
-| Backend | Python 3.12, FastAPI, Uvicorn | ML-Ökosystem ist Python, async für Uploads |
-| Datenbank | SQLite (WAL) | ein Server, ein Sprecher; Backup heißt Datei kopieren |
-| Frontend | Svelte 5, Vite, TypeScript | kompiliert weg, kein Laufzeit-Framework auf schwachen Geräten |
-| Aufnahme | `MediaRecorder` (Opus), serverseitig ffmpeg → 16 kHz mono WAV | Browser liefern kein WAV, Konvertierung an einer Stelle |
-| Vorlesen | Web Speech API | deutsche Stimmen fast überall vorhanden, keine Infrastruktur, keine Latenz - dafür schwankt die Qualität je nach Betriebssystem stark, Stimme und Tempo sind deshalb einstellbar |
-| ASR | faster-whisper (CTranslate2), auf der Karte `int8_float16`, sonst `int8` | schnellste brauchbare Whisper-Laufzeit auf beidem; die halbe Darstellung, weil mehrere Modelle gleichzeitig im Speicher liegen und sich die Karte mit Training und Sprachmodell teilen |
-| ASR entfernt | OpenAI-kompatibler Endpunkt | ein Adapter deckt mehrere Anbieter ab |
-| Training | HF Transformers, Datasets, Accelerate | Standardrezept für Whisper, breit dokumentiert |
-| Diagramme | Apache ECharts, nachgeladen und nur mit den eingetragenen Teilen | Finger und Maus gleichermaßen, gemischte Reihen in einem Bild, und `connect` koppelt mehrere Diagramme aneinander - der Punkt, an dem die schlankeren Bibliotheken aufhören |
-| Textquelle | LLM über einen Adapter, OpenAI-kompatibel oder Anthropic | Thema und Altersspanne als Prompt-Parameter; derselbe Adapter bedient ein lokales Ollama und die bezahlten Anbieter - für ein paar Vorlesesätze genügt ein kleines Modell auf der eigenen GPU |
-| Jobs | ein Verzeichnis je Auftrag, ein Läufer, der danach sieht | keine Broker-Abhängigkeit für eine Warteschlange mit selten mehr als einem Eintrag - und keine Tabelle, die „läuft" sagt, während längst nichts mehr läuft |
-| Proxy | der vorhandene Reverse Proxy des Wirts | TLS und Pfadverteilung gehören zur Maschine, nicht in dieses Projekt |
-| Auth | je Sprecher ein Zugang, der zugleich die Kennung ist - derselbe in allen drei Apps; der Token davor schützt nur die Verwaltung, ein zweiter die Aufsicht | die Bindung zwischen Aufrufer und Verzeichnis muss der Server ziehen, nicht der Aufrufer; ein Mensch, ein Link, drei Apps |
-| Tests | pytest, FastAPI-TestClient | echte SQLite-Datei, echte Endpunkte, kein Nachbau |
-| Werkzeug | uv | eine Abhängigkeitsdatei, ein Befehl, keine Diskussion |
+| Backend | Python 3.12, FastAPI, Uvicorn | das ML-Ökosystem ist Python |
+| Datenbank | SQLite (WAL) | ein Server, ein Sprecher je Datei; Sichern über die Backup-Schnittstelle |
+| Frontend | Svelte 5, Vite, TypeScript | kompiliert weg, leicht auf schwachen Geräten |
+| Aufnahme | `MediaRecorder` (Opus), serverseitig ffmpeg → 16 kHz mono WAV | Browser liefern kein WAV |
+| Vorlesen | Piper auf dem Server, sonst Web Speech API | gleicher Klang auf jedem Gerät; ohne Stimme liest der Browser |
+| ASR | faster-whisper, `int8_float16` auf der Karte, sonst `int8` | schnell auf beidem; mehrere Modelle passen gleichzeitig in den Speicher |
+| ASR entfernt | OpenAI-kompatibler Endpunkt | ein Adapter für mehrere Anbieter |
+| Training | HF Transformers, PEFT, Accelerate | Standardrezept für Whisper |
+| Zeichenerkennung | Tesseract, lokal | Vorlagen vom Foto, ohne dass ein Bild das Haus verlässt |
+| Diagramme | Apache ECharts, nachgeladen | Finger und Maus, gemischte Reihen, gekoppelte Diagramme |
+| Textquelle | LLM über einen Adapter, OpenAI-kompatibel oder Anthropic | bedient ein lokales Ollama wie bezahlte Anbieter |
+| Jobs | ein Verzeichnis je Auftrag, ein Läufer | kein Broker für eine Schlange mit selten mehr als einem Eintrag |
+| Proxy | der Reverse Proxy des Wirts | TLS und Domain gehören zur Maschine |
+| Auth | je Sprecher ein Zugang, der die Kennung trägt; Token für Verwaltung und Aufsicht | die Bindung an den Korpus zieht der Server |
+| Tests | pytest, FastAPI-TestClient | echte SQLite-Dateien, echte Endpunkte |
+| Werkzeug | uv | eine Abhängigkeitsdatei, ein Befehl |
 
 ---
 
 ## Bewusst nicht enthalten
 
 - **Phonetisch ausgewogene Vorlagen.** LLM-Text ist flüssig, aber phonetisch
-  beliebig. Eine dritte Textquelle aus einer festen, phonetisch abgedeckten
-  Satzliste wäre für Sprechstörungen wirksamer und steht auf der Liste.
-- **Rollen und Mandanten.** Mehrere Personen an einer `hören`-Instanz gehen,
-  seit der Zugang die Kennung trägt - aber es gibt genau drei Arten von
-  Aufrufer, den Sprecher, die Verwaltung und die Aufsicht, und keine
-  Rechtematrix dazwischen. Jede ist ein Token, keine ist ein Konto. Ein
-  Benutzerkonzept wäre größer als das, was es zu trennen gibt.
-- **Streaming-Transkription.** Die Vorlese-Korrektur-Schleife arbeitet
-  abschnittsweise; Live-Erkennung würde das Bedienkonzept nicht verbessern.
+  beliebig. Eine feste, phonetisch abgedeckte Satzliste als dritte Quelle
+  wäre für Sprechstörungen wirksamer und steht auf der Liste.
+- **Rollen und Mandanten.** Es gibt drei Arten von Aufrufer - Sprecher,
+  Verwaltung, Aufsicht - und keine Rechtematrix. Jede ist ein Token, keine
+  ein Konto.
+- **Streaming-Transkription.** Die Korrekturschleife arbeitet abschnittsweise.
 - **Diarisierung, Zeitstempel auf Wortebene.** Ein Sprecher, kurze Abschnitte.
+- **Frontend-Tests.** `npm run check` prüft die Typen; den Weg im Browser
+  deckt der [manuelle Test](manueller-test.md) ab.

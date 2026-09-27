@@ -1,189 +1,116 @@
 # App „schreiben" - diktieren und vorlesen lassen
 
 Ein großer Knopf: sprechen, den Text hören, einzelne Abschnitte neu
-einsprechen, bestätigen. Was bestätigt wurde, geht als Korrektur zurück in den
-Korpus von [hören](hoeren.md) und trainiert dort das nächste Modell mit.
-
-Der Entwurf dahinter steht in [Der Entwurf](architektur.md); welches Modell
+einsprechen, bestätigen. Was bestätigt ist, geht als Korrektur in den Korpus
+von [hören](hoeren.md) und trainiert das nächste Modell mit. Welches Modell
 hier arbeitet, entscheidet [lernen](lernen.md).
-
-Die **Grundentscheidungen**, auf die hier verwiesen wird, stehen
-[dort](architektur.md#grundentscheidungen).
 
 ---
 
 ## Ablauf
 
-1. Nutzer spricht, Whisper liefert Text mit Segmentgrenzen.
-2. Die App liest jeden Abschnitt vor. Jeder Abschnitt ist anklickbar.
-3. Klick → nur dieser Abschnitt wird neu eingesprochen und neu transkribiert. Das
-   neue Audio ersetzt den alten Ausschnitt, der Rest bleibt stehen.
-4. Bestätigt der Nutzer den fertigen Text, geht jeder Abschnitt als Korrekturpaar an
-   `POST /api/korpus/intake` von `hören`. Die Outbox puffert, wenn `hören` nicht
-   erreichbar ist.
+1. Die Person spricht; Whisper liefert Text mit Segmentgrenzen.
+2. Die App liest die Abschnitte vor; jeder ist anklickbar.
+3. Ein Klick → nur dieser Abschnitt wird neu eingesprochen und erkannt; der
+   Rest bleibt.
+4. Bestätigt, geht jeder Abschnitt als Korrekturpaar an
+   `POST /api/korpus/intake` von `hören`. Der Postausgang puffert, wenn `hören`
+   nicht erreichbar ist.
 
 ## Aufbau
 
 ```
 backend/
-├── main.py                 FastAPI, Router, Ausliefern des Frontends
-├── config.py               Settings aus ENV; auch das Ablage-Layout
-├── deps.py                 Zugang, Datenbank, Ablage, Transkriptor
+├── main.py                 FastAPI unter /schreiben, Ausliefern des Frontends
+├── config.py               Einstellungen und Ablage-Layout
+├── deps.py                 Zugang, Datenbank, Ablage, Transkriptor, Sprache
 ├── api/
 │   ├── sessions.py         Sitzung anlegen, ansehen, bestätigen
 │   ├── segments.py         diktieren, Abschnitt neu einsprechen, anhören
-│   ├── model.py            was geladen ist, und ob ausgesteuert wird
-│   ├── outbox.py           Postausgang ansehen und noch einmal senden
-│   └── zugang.py           wer ruft - für die Kopfzeile
+│   ├── model.py            welches Modell geladen ist
+│   └── outbox.py           Postausgang ansehen, noch einmal senden
 ├── services/
-│   ├── segmenter.py        umwandeln, transkribieren, an Zeitmarken schneiden
-│   └── outbox.py           Korrekturen zurück an „hören", mit Wiederholung
-└── db/                     models.py und migrations/
+│   ├── segmenter.py        umwandeln, erkennen, an Zeitmarken schneiden
+│   └── outbox.py           Korrekturen an „hören", mit Wiederholung
+└── db/                     models.py, migrations/
 
-frontend/src/
-├── lib/                    api.ts, zustand.svelte.ts
-└── routes/                 Aufnahme, Ergebnis
+frontend/src/routes/        Aufnahme, Ergebnis
 ```
 
-Geteilt mit den anderen Apps und über `$ui` eingebunden: `Rahmen`,
-`Kopfleiste`, `Recorder`, `AudioPlayer`, `SegmentList`, `lage.svelte.ts`,
-`mikrofon.ts`, `speak.ts`, `einstellungen.svelte.ts` und `app.css` - alles in
-`packages/ui/`. Das Menü samt Audio, Darstellung, System, Zugangsdaten und dem
-Hinweis ohne Zugang bringt der `Rahmen` selbst mit.
+Kopfzeile, Menü samt Audio, Darstellung, System und Zugangsdaten sowie der
+Hinweis ohne Zugang kommen aus dem gemeinsamen `Rahmen` in `packages/ui/`.
 
 ---
 
 ## Der Abschnitt ist die Einheit
 
-Was `hören` die Vorlage ist, ist `schreiben` der Abschnitt: die Einheit, an der
-alles hängt. Whisper meldet zu jedem Segment Anfang und Ende, und genau dort
-wird die Aufnahme zerschnitten (`wortlaut.audio.schneide_ausschnitt`). Jeder
-Abschnitt hat deshalb seine eigene WAV-Datei - anders ließe er sich weder
-einzeln ersetzen noch einzeln als Audio-Text-Paar zurückgeben.
+Whisper meldet zu jedem Segment Anfang und Ende, und dort wird die Aufnahme
+zerschnitten (`wortlaut.audio.schneide_ausschnitt`). Jeder Abschnitt hat seine
+eigene WAV-Datei - so lässt er sich einzeln ersetzen und einzeln
+zurückgeben. Die zusammenhängende Aufnahme wird danach nicht behalten.
 
-Die zusammenhängende Aufnahme wird nach dem Schnitt nicht behalten. Sie wäre
-eine zweite Kopie derselben Stimmdaten und wird nicht mehr gebraucht.
-
-**Nicht jedes gemeldete Segment wird ein Abschnitt.** Whisper hört die Aufnahme
-in einem auf 30 Sekunden aufgefüllten Fenster und meldet gelegentlich ein
-Segment, das erst hinter dem letzten Abtastwert beginnt - meist der bekannte
-Untertitelsatz aus der Stille. Dazu gibt es kein Audio, also auch keinen
-Abschnitt: Er wird übergangen wie ein stummes Segment. Ein gemeldetes **Ende**
-hinter der Aufnahme wird dagegen auf sie gestutzt, und die Dauer in der Zeile
-ist die des gestutzten Ausschnitts.
-
-Das ist keine Feinheit, sondern der Unterschied zwischen einem übergangenen
-Satz und einem verlorenen Diktat: Bis September 2026 scheiterte am leeren
-Schnitt der ganze Aufruf, und mit ihm alles richtig Verstandene davor.
+Ein Segment, das erst hinter dem letzten Abtastwert beginnt - meist der
+Untertitelsatz, den Whisper aus der Stille erfindet -, hat kein Audio und wird
+übergangen. Ein Ende hinter der Aufnahme wird auf sie gestutzt.
 
 ## Ein großer Knopf
 
-Die Zielperson kann schlecht lesen und schreiben (Grundentscheidung 7). Daraus
-folgt mehr als der Verzicht auf ein Anmeldefeld - und der Verzicht bleibt, auch
-seit die App einen Sprecher führt: Der Zugang kommt über den persönlichen Link
-und liegt danach im Browser, hier wie in `hören`.
+Die Zielperson kann schlecht lesen und schreiben (Grundentscheidung 7):
 
-- **Zwei Ansichten, keine Menüführung.** Sprechen und Ergebnis; der Weg
-  dazwischen ergibt sich, statt gewählt zu werden. Die zweite Reiterreihe der
-  Kopfzeile bleibt leer.
-- **Vorgelesen wird von selbst.** Wer den Text nicht sicher lesen kann, hört
-  den Fehler - deshalb liest die Ergebnisansicht sofort los und markiert
-  mitlaufend, wo sie gerade ist.
-- **Nichts zu tippen, auch nicht zum Anmelden.** Der Zugang kommt über den
-  persönlichen Link und liegt danach im Browser - derselbe Eintrag, den `hören`
-  liest, denn beide Apps liegen unter derselben Adresse.
-- **Was man einmal einstellt, steht im Menü.** Mikrofon, Stimme, Tempo und Schriftgröße
-  gelten für alle drei Apps und stehen eingeklappt hinter dem Menüknopf, damit
-  die Oberfläche ein großer Knopf bleibt. Dort liegt auch der eine Verweis,
-  der aus dieser App herausführt: **Meine Daten** nach `hören`. Zu den Modellen
-  geht es nicht über das Menü, sondern über die Modellzeile unter dem
-  Aufnahmeknopf - wer sie liest, denkt gerade darüber nach.
-- **Bearbeitet wird durch Sprechen.** Der fertige Text ist zum Weitergeben da,
-  nicht zum Tippen - und auch nicht zum Auswählen: „Text weitergeben" öffnet
-  das Teilen-Blatt des Geräts, „Text kopieren" nimmt ihn ganz. Beides ohne
-  einen Finger auf dem Text.
-- **Handlung vor Ort, Gewohnheit ins Menü.** „▶ Vorlesen" steht über dem Text,
-  weil man es von Fall zu Fall tut. *Ob* von selbst vorgelesen wird, steht
-  unter „Audio", weil man es einmal entscheidet - unterwegs, neben anderen
-  Leuten, ist ein Telefon, das von selbst zu sprechen anfängt, der Grund, es
-  wegzulegen.
+- **Zwei Ansichten, keine Menüführung.** Sprechen und Ergebnis; die zweite
+  Reiterreihe bleibt leer.
+- **Vorgelesen wird von selbst**, mit mitlaufender Markierung - wer den Text
+  nicht sicher liest, hört den Fehler. Ob von selbst vorgelesen wird, steht
+  unter „Audio"; „▶ Vorlesen" steht über dem Text.
+- **Nichts zu tippen.** Der Zugang kommt über den persönlichen Link, derselbe
+  Eintrag wie in `hören`.
+- **Bearbeitet wird durch Sprechen.** „Text weitergeben" öffnet das
+  Teilen-Blatt des Geräts, „Text kopieren" nimmt ihn ganz.
+- **Einstellungen stehen im Menü**, gemeinsam für alle Apps, dazu **Meine
+  Daten** in `hören`.
 
-## Ohne Freigabe fängt es mit `small` an
-
-Erkannt wird auf der Karte, wenn eine da ist - dieselbe Einstellung wie in der
-Auswertung von `hören` und beim Trainer (`WORTLAUT_GERAET`, siehe
-[Konfiguration](konfiguration.md#rechenwerk---worauf-erkannt-wird)). Für ein
-Diktat ist das der Unterschied zwischen einer Sekunde Warten und mehreren.
-Ist die Karte voll, weil gerade trainiert wird, weicht die Erkennung auf den
-Prozessor aus: lieber langsam verstanden als gar nicht.
+## Welches Modell erkennt
 
 Solange in `lernen` nichts freigegeben ist, lädt faster-whisper das
-unveränderte `whisper-small` aus `WORTLAUT_ASR_MODELL`. Die Zeile unter dem
-Aufnahmeknopf schreibt dauerhaft hin, was gerade arbeitet (`whisper-small ·
-unverändert`, später `whisper-small · LoRA · mit Abwandlungen · Stand
-2026-09-12`) - wer eine Ausgabe beurteilt, beurteilt immer ein bestimmtes
-Modell.
+unveränderte Grundmodell aus `WORTLAUT_ASR_MODELL`; sonst die Freigabe dieses
+Sprechers, samt dem Tempo, auf dem der Stand gelernt hat (siehe
+[Der Entwurf](architektur.md#welches-modell-schreiben-lädt)). Erkannt wird
+auf der Karte, wenn eine da ist; ist sie voll, auf dem Prozessor.
 
-**Eine Kennzahl steht dort bewusst nicht.** Sie stand einmal: die
-Wortfehlerrate aus dem Manifest des Standes. Die ist das Mittel über die
-Testeinheiten *seines* Laufs, während die Modellübersicht in `lernen` über die
-Einheiten mittelt, die alle Modelle gemeinsam haben - zwei Zahlen zum selben
-Modell, beide richtig, und nebeneinander ein Rätsel. Wie gut ein Modell ist,
-steht an genau einer Stelle; diese Zeile sagt, **welches** es ist.
-
-Dieselbe Zeile ist der Weg zur Entscheidung: Ein Klick darauf führt in die
-**Modellübersicht** von [lernen](lernen.md), wo die eigenen Stände und die
-Grundmodelle an denselben Testaufnahmen gemessen nebeneinanderstehen und eines
-davon freigegeben wird. Gewählt wird hier nichts - diese App liest die Freigabe
-und sagt, was daraus geladen wurde.
+Die Zeile unter dem Aufnahmeknopf nennt dauerhaft, welches Modell arbeitet
+(`whisper-small · unverändert`, `K7M2Q · whisper-small · LoRA · …`) - aber
+keine Kennzahl: Wie gut ein Modell ist, steht in der Modelltafel von `lernen`,
+und ein Klick auf die Zeile führt dorthin.
 
 ## Der Postausgang
 
-Zwischen `schreiben` und `hören` liegt eine Tabelle und kein direkter Aufruf:
-Dass beide gleichzeitig erreichbar sind, ist nicht zugesichert. Zwei Zusagen
-halten das einfach - Wiederholen ist gefahrlos (`hören` erkennt die
-Abschnittskennung als `externe_id` wieder), und nichts wird stillschweigend
-verworfen: Ein Fehlschlag zählt hoch und schreibt seinen Grund in die Zeile,
-der Eintrag bleibt offen.
-
-Erst wenn ein Abschnitt im Korpus angekommen ist, wird seine Audiodatei hier
-gelöscht.
+Zwischen `schreiben` und `hören` liegt eine Tabelle, kein direkter Aufruf.
+Wiederholen ist gefahrlos - `hören` erkennt die Abschnittskennung als
+`externe_id` wieder -, und nichts wird still verworfen: Ein Fehlschlag zählt
+hoch, schreibt seinen Grund in die Zeile und bleibt offen. Gesendet wird mit
+dem Zugang dessen, der bestätigt hat; die Korrektur landet damit zwingend in
+seinem Korpus. Erst wenn ein Abschnitt dort angekommen ist, wird seine Datei
+hier gelöscht.
 
 ## Endpunkte
 
 ```
-POST   /schreiben/api/sessions              neue Diktiersitzung
+POST   /schreiben/api/sessions                      neue Diktiersitzung
 GET    /schreiben/api/sessions/{id}
 POST   /schreiben/api/sessions/{id}/segments        multipart: audio → Abschnitte
 POST   /schreiben/api/sessions/{id}/bestaetigen     → Postausgang, sofort senden
-POST   /schreiben/api/segments/{id}/neu     multipart: audio, ersetzt einen
+POST   /schreiben/api/segments/{id}/neu             multipart: audio, ersetzt einen
 GET    /schreiben/api/segments/{id}/audio
-GET    /schreiben/api/model                 was geladen ist, und ob ausgesteuert wird
+GET    /schreiben/api/model                         welches Modell geladen ist
 GET    /schreiben/api/outbox
-POST   /schreiben/api/outbox/senden         noch einmal versuchen
-GET    /gesundheit                          ohne Zugang, auf der Wurzel
+POST   /schreiben/api/outbox/senden                 noch einmal versuchen
+GET    /gesundheit                                  ohne Zugang, auf der Wurzel
 ```
 
-Alles unter `/schreiben` - dem Ort dieser App unter der gemeinsamen Domain.
-
-Eine Auskunft fehlt hier bewusst: **wer gerade ruft.** Sie stand einmal als
-`GET /schreiben/api/zugang` da und war eine zweite Wahrheit über denselben
-Menschen. Diese API lässt mit gutem Grund nur Sprecherzugänge durch - sie
-spricht für einen Menschen und hat nichts zu verwalten -, also wies sie einen
-gültigen Verwalter- oder Aufsichtstoken ab, während dasselbe Eingabefeld in
-„hören" ihn annahm. Wer seinen Aufsichtstoken einsetzte, während „schreiben"
-offen war, bekam „Der Server weist diesen Zugang ab", obwohl der Token stimmte.
-
-Gefragt wird deshalb aus jeder App bei „hören" (`packages/ui/wer.ts`): Dort
-liegt der Korpus, dort steht der Name, und dort werden alle drei Arten von
+Jeder Weg außer `/gesundheit` verlangt den Sprecherzugang und leitet die
+Kennung daraus ab; nur Sprecherzugänge kommen durch. Wer gerade ruft, fragt
+jede App bei `hören` (`packages/ui/wer.ts`) - dort werden alle drei Arten von
 Zugang erkannt.
-Nur `/gesundheit` bleibt auf der Wurzel: Eine Überwachung spricht den Container
-unmittelbar an.
-
-Kein Sprecherparameter, aber ein Zugang: Jeder Weg außer `/gesundheit` verlangt
-den Sprecherzugang aus `hören` und leitet die Kennung daraus ab - dieselbe
-Regel wie drüben, aus demselben Grund (die Bindung zieht der Server, nicht der
-Aufrufer).
 
 ## Ablage
 
@@ -193,11 +120,6 @@ data/diktate/<sprecher_id>/
 └── schreiben.sqlite             Sitzungen, Abschnitte, Postausgang
 ```
 
-Nach Sprecher gegliedert wie der Korpus: Sonst fände
-`scripts/purge_speaker.py` diese Dateien nicht, und eine Löschung wäre
-unvollständig.
-
-Bewusst **neben** und nicht **im** Korpus: `hören` ist dessen einziger
-Schreiber (Grundentscheidung 6). Was hier liegt, ist Arbeitsstand. Sobald ein
-Abschnitt im Korpus angekommen ist, wird seine Audiodatei hier gelöscht -
-zweimal braucht sie niemand, und es sind Gesundheitsdaten.
+Nach Sprecher gegliedert wie der Korpus, damit eine Löschung sie findet; neben
+und nicht im Korpus, weil `hören` dessen einziger Schreiber ist. Was hier
+liegt, ist Arbeitsstand.
