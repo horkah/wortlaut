@@ -70,8 +70,7 @@ KARTEN: dict[str, Modellkarte] = {
     ),
     "medium": Modellkarte(
         erklaerung=(
-            "Dreimal so viele Parameter wie small und entsprechend langsamer; "
-            "nur mit LoRA zu trainieren."
+            "Dreimal so viele Parameter wie small und entsprechend langsamer."
         ),
         parameter_mio=769,
         schichten=24,

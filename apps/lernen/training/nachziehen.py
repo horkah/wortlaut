@@ -9,7 +9,7 @@ Ersetzt werden die Gewichte, mit denen diktiert wird. Die Zahlen in „lernen"
 und „hören" stammen aus den Faltungen und bleiben; nur die Zeilen, die das
 Endmodell in der Auswertung selbst gerechnet hat, gehen, damit sie neu
 gemessen werden. Seit dem Lauf verworfene Aufnahmen fehlen
-(`daten.zeilen_fuer_faltung`).
+(`laeufe.zeilen_fuer_faltung`).
 
 Aufruf im Trainingscontainer, der die Karte hat:
 
@@ -115,7 +115,7 @@ def ziehe_nach(datenverzeichnis: Path, ref: str) -> str:
         f"{mitgenommen.get('plan', mitgenommen['durchgaenge']):.1f} Durchgänge, "
         f"Schluss nach {float(mitgenommen['durchgaenge']):.1f}"
     )
-    gewichte, ergebnis, _kennzahlen = trainiere_geduldig(
+    gewichte, ergebnis, kennzahlen = trainiere_geduldig(
         verzeichnis, datenverzeichnis, bericht, faltung=None, vorgaben=mitgenommen
     )
     neu = gib_frei(
@@ -127,6 +127,7 @@ def ziehe_nach(datenverzeichnis: Path, ref: str) -> str:
         ergebnis,
         zeilen=zeilen,
         mitgenommen=mitgenommen,
+        zuschnitt=kennzahlen.get("zuschnitt"),
     )
     pruefung = (registry.lies_stand(datenverzeichnis, sprecher_id, version).get("pruefung")) or {}
     schlechter = bool(

@@ -12,11 +12,19 @@
 #   make trainer                 den Läufer auf dieser Maschine starten
 #                                (im Betrieb ein eigener Container, siehe
 #                                 apps/lernen/training/)
+#   make train SPEAKER=spr_… RECIPE=whisper_lora [MODELL=large-v3]
+#                                einen Lauf beauftragen und ihm zusehen;
+#                                gerechnet wird im Läufer
+#   make release JOB=job_…       seinen Stand für „schreiben" freigeben
+#   make rerun JOB=job_…         einen Lauf ohne Läufer hier rechnen
 #   make backend APP=hoeren      nur das Backend
 #   make frontend APP=hoeren     nur Vite
 #   make install APP=hoeren      Frontend-Abhängigkeiten installieren
 
 APP ?= hoeren
+# Worauf `make train` trainiert - das größte Modell, das mit LoRA auf die
+# 11-GB-Karte passt. Welche Methode geht, prüft der Auftrag an der Karte.
+MODELL ?= large-v3
 
 # Je App ein eigener Port, damit beide gleichzeitig laufen können; die
 # Vite-Konfiguration von „schreiben" leitet /api genau dorthin.
@@ -25,7 +33,7 @@ PORT ?= $(if $(filter schreiben,$(APP)),8001,$(if $(filter lernen,$(APP)),8002,8
 FRONTEND     = apps/$(APP)/frontend
 NODE_MODULES = $(FRONTEND)/node_modules
 
-.PHONY: test dev backend frontend install migrate augmentieren trainer train release
+.PHONY: test dev backend frontend install migrate augmentieren trainer train rerun release
 
 test:
 	uv run pytest
@@ -63,11 +71,22 @@ augmentieren:
 trainer:
 	uv run python -m apps.lernen.training.laeufer
 
-# Ein einzelner Lauf, ohne auf die Warteschlange zu warten - zum Nachsehen,
-# woran ein gescheiterter Auftrag gescheitert ist.
+# Einen Lauf beauftragen - dieselbe Prüfung wie in der Oberfläche - und
+# Zustand und Protokoll mitlesen, bis er endet. Gerechnet wird im Läufer
+# (Trainings-Container oder `make trainer`), nicht hier. Im Betrieb:
+#   docker compose exec wortlaut python scripts/trainieren.py <sprecher> <rezept> …
+# ACHSEN ändert Vorgaben des Auftrags, etwa ACHSEN="dauer=geduldig daten=augmentiert".
 train:
-	@test -n "$(JOB)" || (echo "Aufruf: make train JOB=job_01J8…" && exit 1)
-	uv run python -m apps.lernen.training.finetune data/snapshots/$(JOB)
+	@test -n "$(SPEAKER)" -a -n "$(RECIPE)" || (echo "Aufruf: make train SPEAKER=spr_… RECIPE=whisper_lora [MODELL=large-v3]" && exit 1)
+	uv run python scripts/trainieren.py $(SPEAKER) $(RECIPE) --grundmodell $(MODELL) $(ACHSEN)
 
+# Den Stand eines fertigen Laufs freigeben - wie der Knopf unter „Modelle".
 release:
-	@echo "Freigegeben wird in der Oberfläche von „lernen\" (Reiter Modelle)." && exit 1
+	@test -n "$(JOB)" || (echo "Aufruf: make release JOB=job_01J8…" && exit 1)
+	uv run python scripts/freigeben.py $(JOB)
+
+# Ein Lauf ohne Läufer, hier und sofort - zum Nachsehen, woran ein
+# gescheiterter Auftrag gescheitert ist.
+rerun:
+	@test -n "$(JOB)" || (echo "Aufruf: make rerun JOB=job_01J8…" && exit 1)
+	uv run python -m apps.lernen.training.finetune data/snapshots/$(JOB)

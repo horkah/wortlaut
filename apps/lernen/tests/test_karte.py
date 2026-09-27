@@ -96,3 +96,77 @@ class TestErkennung:
 
     def test_anderer_fehler(self) -> None:
         assert not karte.ist_speichermangel(RuntimeError("device-side assert triggered"))
+
+
+class TestOllama:
+    """Vor jedem Lauf gibt Ollama die Karte frei - ohne Netz geprüft."""
+
+    @staticmethod
+    def _ollama(geladen: list[str]):
+        anfragen: list[tuple[str, dict | None]] = []
+
+        def anfrage(url: str, nutzlast: dict | None) -> dict:
+            anfragen.append((url, nutzlast))
+            if url.endswith("/api/ps"):
+                return {"models": [{"name": name} for name in geladen]}
+            return {}
+
+        return anfrage, anfragen
+
+    def test_jedes_geladene_modell_geht(self) -> None:
+        anfrage, anfragen = self._ollama(["gemma2:9b", "llama3:8b"])
+        bericht = Bericht()
+        assert karte.entlade_ollama("http://ollama:11434/", bericht, anfrage) == ["gemma2:9b", "llama3:8b"]
+        assert anfragen[1:] == [
+            ("http://ollama:11434/api/generate", {"model": "gemma2:9b", "keep_alive": 0}),
+            ("http://ollama:11434/api/generate", {"model": "llama3:8b", "keep_alive": 0}),
+        ]
+        assert "gemma2:9b" in bericht.zeilen[0]
+
+    def test_nichts_geladen_nichts_zu_sagen(self) -> None:
+        anfrage, anfragen = self._ollama([])
+        bericht = Bericht()
+        assert karte.entlade_ollama("http://ollama:11434", bericht, anfrage) == []
+        assert len(anfragen) == 1
+        assert bericht.zeilen == []
+
+    def test_ohne_adresse_kein_versuch(self) -> None:
+        anfrage, anfragen = self._ollama(["gemma2:9b"])
+        assert karte.entlade_ollama("", Bericht(), anfrage) == []
+        assert anfragen == []
+
+    def test_unerreichbar_haelt_das_training_nicht_auf(self) -> None:
+        def anfrage(url: str, nutzlast: dict | None) -> dict:
+            raise OSError("Name or service not known")
+
+        bericht = Bericht()
+        assert karte.entlade_ollama("http://ollama:11434", bericht, anfrage) == []
+        assert "nicht erreichbar" in bericht.zeilen[0]
+
+
+class TestPlatz:
+    def test_ist_genug_frei_wird_nicht_gewartet(self) -> None:
+        geschlafen: list[float] = []
+        frei = karte.warte_auf_platz(4000, lambda: 9000.0, Bericht(), schlafe=geschlafen.append)
+        assert frei == 9000.0
+        assert geschlafen == []
+
+    def test_es_wird_gewartet_bis_platz_ist(self) -> None:
+        stand = iter([1000.0, 2000.0, 6000.0])
+        geschlafen: list[float] = []
+        bericht = Bericht()
+        frei = karte.warte_auf_platz(
+            4000, lambda: next(stand), bericht, wartezeiten=(5, 10, 20), schlafe=geschlafen.append
+        )
+        assert frei == 6000.0
+        assert geschlafen == [5, 10]
+        assert "gewartet" in bericht.zeilen[0]
+
+    def test_nach_der_letzten_wartezeit_geht_es_trotzdem_los(self) -> None:
+        # Was dann fehlt, meldet der Probeschritt - und `mit_geduld` übernimmt.
+        geschlafen: list[float] = []
+        frei = karte.warte_auf_platz(
+            4000, lambda: 1000.0, Bericht(), wartezeiten=(5, 10), schlafe=geschlafen.append
+        )
+        assert frei == 1000.0
+        assert geschlafen == [5, 10]

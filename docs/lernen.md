@@ -28,10 +28,12 @@ Sprecher: Es gibt eine Karte.
 ## Sechsfache Kreuzvalidierung
 
 Die Aufnahmen gehen auf sechs Faltungen, je Stamm: Teile und Kopien aus
-„Editieren" sind derselbe Ton wie ihr Original und teilen dessen Faltung. Die
-größten Verwandtschaften werden zuerst vergeben, jede in die Faltung mit dem
-kleinsten Zählerstand, bei Gleichstand in die niedrigste
-(`laeufe.verteile`). Ein Lauf rechnet sieben Trainings:
+„Editieren" sind derselbe Ton wie ihr Original und teilen dessen Faltung.
+**Die Faltung hängt an der Kennung** - ein Hash des Stamms, modulo sechs
+(`laeufe.verteile`). Neue und gelöschte Aufnahmen verschieben keine andere,
+und eine Aufnahme misst in jedem Lauf in derselben Faltung. Nur wenn ein
+kleiner Korpus eine Faltung leer ließe, gehen die Stämme reihum in
+Hash-Reihenfolge. Ein Lauf rechnet sieben Trainings:
 
 | | lernt auf | gemessen an |
 |---|---|---|
@@ -40,8 +42,16 @@ kleinsten Zählerstand, bei Gleichstand in die niedrigste
 
 Danach ist jede Aufnahme genau einmal von einem Modell gehört worden, das sie
 nie gelernt hat; diese Messungen sind die Zahl des Laufs. Die Faltung wird bei
-jedem Auftrag neu gerechnet und steht im Manifest - verglichen werden Läufe,
-nicht Faltungen.
+jedem Auftrag gerechnet und steht im Manifest.
+
+**Gemessen wird nur an Vorlagen** (`laeufe.zeilen_fuer_faltung`). Eine
+Korrektur aus „schreiben" trägt als Text eine abgenickte Maschinenausgabe;
+sie lernt in jeder Faltung mit, gewichtet mit 0,5, und wird nie gemessen.
+
+**Am Ende steht das Grundmodell daneben.** Protokoll und Manifest
+(`grundmodell`) nennen WER und CER des Laufs und des unveränderten
+Grundmodells auf denselben Messungen. Die Zahlen des Grundmodells stammen aus
+der Auswertung von „hören"; was dort fehlt, wird gezählt, nicht nachgemessen.
 
 **Was die Zahl sagt.** Wie gut das Verfahren auf diesem Korpus arbeitet - kein
 unabhängiger Test. Und sie ist leicht optimistisch: Das zurückgehaltene
@@ -82,7 +92,7 @@ Optionscode. Die Vorgabe ist jeweils der erste Wert.
 
 | Achse | Werte | wofür |
 |---|---|---|
-| Grundmodell | whisper-small, whisper-medium | `medium` nur mit LoRA: volles Feintuning sprengt eine 11-GB-Karte; API und Trainer weisen es ab |
+| Grundmodell | whisper-small, whisper-medium, whisper-large-v3 | welche Methode geht, entscheidet die Karte; API und Trainer weisen ab, was nicht passt |
 | Methode | Volles Feintuning, LoRA | wie viel Freiheit das Modell bekommt |
 | Datensatz | Nur Originale, Mit Abwandlungen | ob die gemessenen Fassungen mitgelernt werden |
 | Auswahl | Alle Aufnahmen, Kernauswahl | siehe [Die Kernauswahl](#die-kernauswahl) |
@@ -98,16 +108,29 @@ stehen, steht in `WORTLAUT_LERNEN_GRUNDMODELLE`; jedes muss auch in
 trainierten Stand weiterzulernen ist im Trainer vorbereitet
 (`training/ausgangsstand.py`), wird aber nicht angeboten.
 
-**`medium` braucht `gradientensparsam`.** Die Aktivierungen werden beim
-Rückwärtsgang neu gerechnet statt aufgehoben: gleiche Gradienten, 2,3 statt
-9,3 GB bei Stapel 8, und sogar schneller, weil der Speicher nicht mehr an die
-Decke stößt. Erst dann passt danach auch der Erkenner zum Messen auf die Karte.
+**Welche Methode mit welchem Modell geht, entscheidet die Karte**
+(`wortlaut/kartenplan.py`). Der Läufer meldet sie beim Start
+(`data/snapshots/karte.json`), vorher gilt die RTX 2080 Ti mit 11 GB: dort
+`small` voll und mit LoRA, `medium` und `large-v3` nur mit LoRA. Volles
+Feintuning braucht sechzehn Byte je Gewicht (Gewicht, Gradient, Adam); auf
+40 GB geht damit auch `large-v3` voll. Gezählt wird mit
+`WORTLAUT_LERNEN_RESERVE_MB` Platz für die Erkenner des Webdienstes.
+
+**Wie ein Lauf auf die Karte passt, misst der Trainer** vor jedem Training:
+Ein Probeschritt mit dem längsten Text zeigt, wie viele Proben je Schritt
+Platz haben - erst ohne Gradientensparen, dann mit, dann mit halbem Stapel.
+Die Akkumulation holt den wirksamen Stapel des Rezepts zurück. Genauigkeit
+bf16 ab Ampere, darunter fp16; die Aufmerksamkeit über `sdpa`; bei LoRA das
+eingefrorene Grundmodell in halber Genauigkeit, der Zusatz in float32. Was
+gewählt wurde, steht im Protokoll und im Steckbrief (Stapel, Karte).
 
 **Wenn andere die Karte halten.** Auswertung, Diktat und Sprachmodell rechnen
-auf derselben Karte. Scheitert ein Training am Speicher, räumt der Trainer die
-Faltung weg, wartet und beginnt sie neu - bis zu zehn Minuten
-(`training/karte.py`). Hält niemand sonst etwas auf der Karte, bricht er
-sofort ab: Dann passt das Training nicht.
+auf derselben Karte. Vor jedem Lauf und jeder Faltung gibt Ollama seine
+Modelle ab (`WORTLAUT_OLLAMA_URL`), und der Lauf wartet, bis genug frei ist.
+Scheitert ein Training trotzdem am Speicher, räumt der Trainer die Faltung
+weg, wartet und beginnt sie neu - bis zu zehn Minuten (`training/karte.py`).
+Hält niemand sonst etwas auf der Karte, bricht er sofort ab: Dann passt das
+Training nicht.
 
 ### Die Kernauswahl
 
@@ -135,9 +158,9 @@ Gewichte des freigegebenen Standes fehlen.
 
 **Der Kern ist für den Lauf der ganze Korpus.** Die übrigen 30 % kommen weder
 zum Lernen noch zum Steuern noch in der Messung der Faltungen vor. Die
-Kreuzvalidierung läuft auf eigens über den Kern verteilten Faltungen
-(`laeufe.verteile_kern`, dieselbe Regel je Stamm), die Plausibilitätsprüfung
-zieht nur aus dem Kern.
+Kreuzvalidierung läuft auf den Faltungen des Kerns (`laeufe.verteile_kern`,
+dieselbe Regel je Stamm - eine Kernaufnahme misst in derselben Faltung wie im
+ganzen Korpus), die Plausibilitätsprüfung zieht nur aus dem Kern.
 
 **Den Rest hört erst das Endmodell**, in der Auswertung von „hören": Für einen
 Kernstand gelten dort nur die Kernaufnahmen als gehört
@@ -336,6 +359,23 @@ darauf trainiert, welche eigenen Stände darauf gewachsen sind und ob es
 freigegeben ist. Die Parameterzahl wird an den Gewichten gegengeprüft
 (float16, zwei Byte je Parameter). Darunter seine Zahlen aus der Tafel, je
 Fassung neben denen des freigegebenen Modells.
+
+---
+
+## Von der Kommandozeile
+
+```
+make train SPEAKER=spr_7f2a RECIPE=whisper_lora [MODELL=large-v3] [ACHSEN="dauer=geduldig"]
+make release JOB=job_01J8…
+```
+
+`scripts/trainieren.py` bestellt über dieselbe Stelle wie die Oberfläche
+(`services/auftraege.bestelle`) und liest Zustand und Protokoll mit, bis der
+Lauf endet; gerechnet wird im Läufer. Das Rezept (`training/rezepte/`) nennt
+die Methode, `MODELL` das Grundmodell, die übrigen Achsen stehen auf ihrer
+Vorgabe. `scripts/freigeben.py` gibt den Stand eines Laufs frei wie der Knopf
+unter **Modelle** (`services/freigabe.py`). Im Betrieb beide im Container,
+siehe [Betrieb](betrieb.md#der-trainer).
 
 ---
 

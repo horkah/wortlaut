@@ -14,7 +14,7 @@ import os
 import time
 
 from fastapi.testclient import TestClient
-from wortlaut import augmentierung, laeufe, sprachen
+from wortlaut import augmentierung, kartenplan, laeufe, sprachen
 
 
 def _manifest(datenverzeichnis, job_id: str) -> list[dict]:
@@ -118,6 +118,26 @@ class TestBeauftragen:
         }
         assert nach_name["whisper-small"] == ["full", "lora"]
         assert nach_name["whisper-medium"] == ["lora"]
+        assert nach_name["whisper-large-v3"] == ["lora"]
+
+    def test_eine_grosse_karte_erlaubt_mehr(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        # Was der Trainer als seine Karte meldet, gilt (`kartenplan.KARTE`).
+        kartenplan.schreibe_karte(
+            laeufe.wurzel(datenverzeichnis),
+            kartenplan.Karte(name="NVIDIA H100", speicher_mb=85_000.0, rechenfaehigkeit=(9, 0)),
+        )
+        sprich(6)
+        nach_name = {
+            g["name"]: g["methoden"] for g in klient.get("/lernen/api/laeufe").json()["grundmodelle"]
+        }
+        assert nach_name["whisper-large-v3"] == ["full", "lora"]
+        antwort = klient.post(
+            "/lernen/api/laeufe",
+            json={"methode": "full", "daten": "original", "grundmodell": "openai/whisper-medium"},
+        )
+        assert antwort.status_code == 201, antwort.text
 
     def test_der_auftrag_steht_vollstaendig_da(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis
@@ -169,8 +189,8 @@ class TestManifest:
         self, klient: TestClient, quelle: str, sprich, sprecher: str, datenverzeichnis
     ) -> None:
         # Derselbe Ton in zwei Faltungen hieße: Das Modell der einen lernt,
-        # woran es in der anderen gemessen wird. Die Teile stehen direkt unter
-        # dem Original - einzeln verteilt, landeten sie genau so.
+        # woran es in der anderen gemessen wird. Die Teile tragen den Stamm
+        # ihres Originals und damit seine Faltung.
         from sqlalchemy.orm import Session
 
         from apps.hoeren.backend.db.models import Aufnahme
@@ -188,18 +208,13 @@ class TestManifest:
         zeilen = _manifest(datenverzeichnis, _beauftrage(klient, "lora", "original")["job_id"])
         faltung = {z["recording_id"]: z["faltung"] for z in zeilen}
         assert faltung[original] == faltung[vorn] == faltung[hinten]
-        # Und die übrigen rücken nach, statt eine Faltung leer zu lassen.
+        # Und keine Faltung bleibt leer.
         assert sorted(set(faltung.values())) == list(range(laeufe.FALTUNGEN))
-        # Gezählt wird die Verwandtschaft mit allen drei Aufnahmen: Ihre
-        # Faltung ist damit voraus, und die übrigen neun gehen an ihr vorbei.
-        je_faltung = [list(faltung.values()).count(f) for f in range(laeufe.FALTUNGEN)]
-        assert je_faltung[faltung[original]] == 3
-        assert sorted(je_faltung) == [1, 2, 2, 2, 2, 3]
 
-    def test_die_faltungen_folgen_der_reihenfolge(
+    def test_jede_aufnahme_hat_eine_faltung(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis
     ) -> None:
-        # 1, 2, 3, 4, 5, 6, 1, 2, … - und keine Aufnahme bleibt ohne.
+        # Keine Aufnahme bleibt ohne, keine Faltung leer.
         sprich(12)
         lauf = _beauftrage(klient, "lora", "original")
 

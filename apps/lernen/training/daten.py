@@ -15,8 +15,7 @@ from typing import Any
 
 import numpy as np
 import torch
-from wortlaut import laeufe, tempo
-from wortlaut.augmentierung import ORIGINAL
+from wortlaut import tempo
 
 from .klangwandel import RAHMENSCHRITT, Wandler
 
@@ -133,46 +132,3 @@ class Stapler:
                 [probe.gewicht for probe in proben], dtype=torch.float32
             ),
         }
-
-
-def zeilen_fuer_faltung(
-    verzeichnis: Path,
-    faltung: int | None,
-    daten: str,
-    korpus: Path | None = None,
-    kern: dict[str, int] | None = None,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Was in dieser Faltung gelernt und was daran gemessen wird.
-
-    Lernzeilen und Messzeilen an einer Stelle, denn hier hängt die Zusage der
-    Kreuzvalidierung: Kein Modell hört, woran es gemessen wird.
-
-    `faltung = None` ist das Endmodell: lernt auf allem, misst nichts
-    (`finetune.py`). Gemessen wird auf allen Fassungen, gelernt je nach
-    `daten` - Modelle unterscheiden sich nur in ihren Trainingsdaten.
-
-    Mit `kern` (Kernaufnahme → Faltung, `laeufe.kernfaltungen_aus`) ist der
-    Kern der ganze Korpus: Der Rest fehlt in Lern- und Messzeilen, die auch
-    das Training steuern (`finetune.trainiere`). Ohne `kern` alle Aufnahmen
-    auf den Faltungen des Manifests.
-    """
-    lern: list[dict[str, Any]] = []
-    mess: list[dict[str, Any]] = []
-    for zeile in laeufe.manifestzeilen(verzeichnis):
-        # Seit dem Schnappschuss verworfene Aufnahmen haben kein Audio
-        # (`apps/hoeren/backend/api/recordings.py`) - wichtig bei Neustart und
-        # `nachziehen.py`.
-        if korpus is not None and not (korpus / str(zeile["audio"])).is_file():
-            continue
-        if kern is None:
-            ihre = int(zeile.get("faltung", -1))
-        elif (kennung := str(zeile.get("recording_id"))) in kern:
-            ihre = kern[kennung]
-        else:
-            continue
-        if faltung is not None and ihre == faltung:
-            mess.append(zeile)
-            continue
-        if daten == laeufe.MIT_VARIANTEN or str(zeile.get("variante")) == ORIGINAL:
-            lern.append(zeile)
-    return lern, mess

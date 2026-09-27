@@ -89,9 +89,11 @@ die nächste Textquelle wartet dafür einige Sekunden aufs Laden.
 |---|---|---|
 | `WORTLAUT_TRAINER_KEY` | leer | Kopfzeile `X-Trainer-Key` vor Beauftragen und Neustart. Leer = hier trainiert niemand |
 | `WORTLAUT_LERNEN_BASISMODELL` | `openai/whisper-small` | die Vorgabe, worauf trainiert wird |
-| `WORTLAUT_LERNEN_GRUNDMODELLE` | `openai/whisper-small,openai/whisper-medium` | was zur Wahl steht; jedes auch in `WORTLAUT_AUSWERTUNG_MODELLE`, sonst fehlt seine Baseline. `medium` und größer nur mit LoRA |
+| `WORTLAUT_LERNEN_GRUNDMODELLE` | `openai/whisper-small,openai/whisper-medium,openai/whisper-large-v3` | was zur Wahl steht; jedes auch in `WORTLAUT_AUSWERTUNG_MODELLE`, sonst fehlt seine Baseline. Welche Methode je Modell geht, entscheidet die Karte (`wortlaut/kartenplan.py`) |
 | `WORTLAUT_LERNEN_GERAET` | `cuda` | worauf **trainiert** wird; auf dem Prozessor dauert es Tage. Anders als beim Erkennen gibt es kein Ausweichen |
 | `WORTLAUT_LERNEN_TAKT_S` | `5` | wie oft der Läufer nach Aufträgen sieht |
+| `WORTLAUT_LERNEN_RESERVE_MB` | `2000` | was ein Lauf auf der Karte für die Erkenner des Webdienstes übrig lässt; zählt beim Angebot der Methoden und beim Probeschritt |
+| `WORTLAUT_OLLAMA_URL` | `http://ollama:11434` | wo der Trainer Ollama vor jedem Lauf die Modelle abnimmt. Leer = kein Ollama |
 
 ---
 

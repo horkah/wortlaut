@@ -26,6 +26,7 @@ Offen ist ein Auftrag ohne `zustand.json` - das ist die ganze Warteschlange.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import shutil
@@ -36,7 +37,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from wortlaut import registry
+from wortlaut import augmentierung, kartenplan, registry
 
 SCHNAPPSCHUESSE = "snapshots"
 SPRECHER_MARKE = "sprecher.txt"
@@ -70,30 +71,30 @@ ZWISCHENSTAENDE = (ARBEITSSTAND, GEWICHTE, VORGESPULT, AUSGANG)
 # einmal von einem Modell gehört, das sie nie gelernt hat. Kein unabhängiger
 # Test - der wäre eigens aufzunehmen.
 #
-# Teile und Kopien aus „Editieren" bleiben mit ihrem Original in einer Faltung
-# (`aufteilung.py` in „lernen"). Vergeben wird nach Zählerstand, die größten
-# Verwandtschaften zuerst, damit die einzelnen Aufnahmen am Ende ausgleichen;
-# unter gleich großen gilt die Reihenfolge des Korpus. Die Faltung wird bei
-# jedem Auftrag neu gerechnet und steht im Schnappschuss - in fünf von sechs
-# Faltungen lernt jede Aufnahme ohnehin, eine feste Zuteilung braucht es nicht.
+# **Die Faltung hängt an der Kennung**, nicht an der Reihenfolge: ein Hash des
+# Stamms, modulo sechs. Neue und gelöschte Aufnahmen verschieben keine andere,
+# und eine Aufnahme misst in jedem Lauf in derselben Faltung. Teile und
+# Kopien aus „Editieren" tragen den Stamm ihres Originals und bleiben bei ihm
+# (`aufteilung.py` in „lernen").
+#
+# Ein Hash verteilt erst bei vielen Stämmen gleichmäßig. Bliebe eine Faltung
+# leer, ließe sich nicht kreuzvalidieren - dann gehen die Stämme reihum, in
+# der Reihenfolge ihres Hashs. Das trifft nur sehr kleine Korpora.
 FALTUNGEN = 6
 
 
-def verteile(groessen: Iterable[int]) -> list[int]:
-    """Die Faltung (ab 0) jeder Gruppe, in der Reihenfolge der `groessen`.
+def _hash(stamm: str) -> int:
+    return int.from_bytes(hashlib.sha256(stamm.encode("utf-8")).digest()[:8], "big")
 
-    Eine Gruppe bleibt zusammen, ihre Größe ist die Zahl ihrer Aufnahmen. Die
-    größte zuerst, unter gleich großen die vorderste, kommt jede in die
-    Faltung mit dem kleinsten Zählerstand, bei Gleichstand in die niedrigste.
-    """
-    groessen = list(groessen)
-    stand = [0] * FALTUNGEN
-    vergeben = [0] * len(groessen)
-    for gruppe in sorted(range(len(groessen)), key=lambda gruppe: -groessen[gruppe]):
-        faltung = stand.index(min(stand))
-        stand[faltung] += groessen[gruppe]
-        vergeben[gruppe] = faltung
-    return vergeben
+
+def verteile(staemme: Iterable[str]) -> list[int]:
+    """Die Faltung (ab 0) jedes Stamms, in der Reihenfolge der `staemme`."""
+    staemme = list(staemme)
+    vergeben = [_hash(stamm) % FALTUNGEN for stamm in staemme]
+    if len(set(vergeben)) == FALTUNGEN:
+        return vergeben
+    rang = {stamm: nummer for nummer, stamm in enumerate(sorted(staemme, key=_hash))}
+    return [rang[stamm] % FALTUNGEN for stamm in staemme]
 
 
 # ── Methode und Datensatz ───────────────────────────────────────────────────
@@ -107,8 +108,8 @@ METHODEN = (VOLL, LORA)
 # ── Grundmodelle ────────────────────────────────────────────────────────────
 #
 # Worauf feingetunt wird. `small` ist die Vorgabe: die kleinste Stufe, die
-# ganze Sätze trifft. Die großen nur mit LoRA - volles Feintuning sprengt eine
-# 11-GB-Karte (`NUR_MIT_ZUSATZ`).
+# ganze Sätze trifft. Welche Methode mit welchem Modell geht, entscheidet die
+# Karte (`methoden_fuer`, `kartenplan.py`).
 def kurzname(basismodell: str) -> str:
     """`openai/whisper-medium` → `medium` - so heißt es überall in den Tabellen."""
     return basismodell.rsplit("/", 1)[-1].removeprefix("whisper-")
@@ -131,13 +132,17 @@ def grundmodell_aus(auftrag: dict[str, Any]) -> str:
     return str(auftrag.get(AUSGANGSSTAND) or auftrag.get("basismodell") or "")
 
 
-# Grundmodelle, die für volles Feintuning zu groß sind.
-NUR_MIT_ZUSATZ = ("medium", "large", "large-v2", "large-v3")
+def methoden_fuer(
+    basismodell: str,
+    karte: kartenplan.Karte | None = kartenplan.VORGABE,
+    reserve_mb: float = kartenplan.RESERVE_MB,
+) -> tuple[str, ...]:
+    """Welche Methoden mit diesem Grundmodell auf diese Karte passen.
 
-
-def methoden_fuer(basismodell: str) -> tuple[str, ...]:
-    """Welche Methoden dieses Grundmodell verträgt - `lora` allein bei den großen."""
-    return (LORA,) if kurzname(basismodell) in NUR_MIT_ZUSATZ else METHODEN
+    Auf der 11-GB-Karte, für die wortlaut gebaut ist: `small` voll und mit
+    LoRA, die großen nur mit LoRA. Auf 40 GB auch `large-v3` voll.
+    """
+    return kartenplan.methoden(kurzname(basismodell), karte, reserve_mb)
 
 
 NUR_ORIGINAL = "original"
@@ -206,19 +211,18 @@ def auswahl_aus(auftrag: dict[str, Any]) -> str:
 
 
 def verteile_kern(kern: Iterable[str], staemme: dict[str, str]) -> dict[str, int]:
-    """Die Faltung jeder Kernaufnahme - der Kern verteilt wie ein eigener Korpus.
+    """Die Faltung jeder Kernaufnahme - dieselbe Regel wie beim Auftrag (`verteile`).
 
-    Dieselbe Regel wie beim Auftrag (`verteile`), je Stamm, in der
-    Reihenfolge des Korpus; `staemme` nennt jede Aufnahme mit ihrem Stamm in
-    dieser Reihenfolge. Die Faltungen des Manifests sind über alle Aufnahmen
-    verteilt und trügen nach der Wahl ungleich viel Kern.
+    Je Stamm; `staemme` nennt jede Aufnahme mit ihrem Stamm. Eine Kernaufnahme
+    misst damit in derselben Faltung wie im ganzen Korpus - außer der Kern ist
+    so klein, dass eine Faltung leer bliebe.
     """
     im_kern = set(kern)
     gruppen: dict[str, list[str]] = {}
     for kennung, stamm in staemme.items():
         if kennung in im_kern:
             gruppen.setdefault(stamm, []).append(kennung)
-    vergeben = verteile(len(gruppe) for gruppe in gruppen.values())
+    vergeben = verteile(gruppen)
     return {
         kennung: faltung
         for gruppe, faltung in zip(gruppen.values(), vergeben, strict=True)
@@ -689,3 +693,55 @@ def manifestzeilen(verzeichnis: Path) -> Iterator[dict[str, Any]]:
         for roh in datei:
             if roh.strip():
                 yield json.loads(roh)
+
+
+# Gemessen wird nur, was nach einer Vorlage gesprochen wurde. Eine Korrektur
+# aus „schreiben" trägt als Text eine abgenickte Maschinenausgabe - an ihr
+# gemessen, zählte die Erkennung ihre eigenen Fehler als richtig. Sie lernt mit
+# (gewichtet, `services/auftraege.GEWICHTE` in „lernen"), in jeder Faltung.
+GEMESSENE_QUELLE = "vorlage"
+
+
+def zeilen_fuer_faltung(
+    verzeichnis: Path,
+    faltung: int | None,
+    daten: str,
+    korpus: Path | None = None,
+    kern: dict[str, int] | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Was in dieser Faltung gelernt und was daran gemessen wird.
+
+    Lernzeilen und Messzeilen an einer Stelle, denn hier hängt die Zusage der
+    Kreuzvalidierung: Kein Modell hört, woran es gemessen wird.
+
+    `faltung = None` ist das Endmodell: lernt auf allem, misst nichts
+    (`training/finetune.py`). Gemessen wird auf allen Fassungen und nur an
+    Vorlagen (`GEMESSENE_QUELLE`), gelernt je nach `daten` - Modelle
+    unterscheiden sich nur in ihren Trainingsdaten.
+
+    Mit `kern` (Kernaufnahme → Faltung, `kernfaltungen_aus`) ist der Kern der
+    ganze Korpus: Der Rest fehlt in Lern- und Messzeilen, die auch das
+    Training steuern. Ohne `kern` alle Aufnahmen auf den Faltungen des
+    Manifests.
+    """
+    lern: list[dict[str, Any]] = []
+    mess: list[dict[str, Any]] = []
+    for zeile in manifestzeilen(verzeichnis):
+        # Seit dem Schnappschuss verworfene Aufnahmen haben kein Audio
+        # (`apps/hoeren/backend/api/recordings.py`) - wichtig bei Neustart und
+        # `nachziehen.py`.
+        if korpus is not None and not (korpus / str(zeile["audio"])).is_file():
+            continue
+        if kern is None:
+            ihre = int(zeile.get("faltung", -1))
+        elif (kennung := str(zeile.get("recording_id"))) in kern:
+            ihre = kern[kennung]
+        else:
+            continue
+        gemessen = str(zeile.get("quelle", GEMESSENE_QUELLE)) == GEMESSENE_QUELLE
+        if faltung is not None and ihre == faltung and gemessen:
+            mess.append(zeile)
+            continue
+        if daten == MIT_VARIANTEN or str(zeile.get("variante")) == augmentierung.ORIGINAL:
+            lern.append(zeile)
+    return lern, mess

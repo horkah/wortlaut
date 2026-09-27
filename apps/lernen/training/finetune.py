@@ -11,7 +11,14 @@ Kartenspeicher sicher zurückgibt.
 wortlos gestorben ist.
 
 Faltungen stehen im Manifest, Zahlen im Rezept (`rezepte/`); diese Datei setzt
-zusammen.
+zusammen. **Wie** auf der Karte gerechnet wird - Genauigkeit, Stapel je
+Schritt, Gradientensparen -, misst sie vor jedem Training (`zuschneiden`,
+`wortlaut/kartenplan.py`): Dasselbe Rezept läuft auf 11 GB und auf 80 GB.
+
+    python -m apps.lernen.training.finetune --karte
+
+beschreibt nur die Karte (`kartenplan.KARTE`) - der Läufer ruft das beim Start,
+damit „lernen" weiß, was passt, bevor der erste Lauf kommt.
 """
 
 from __future__ import annotations
@@ -27,14 +34,14 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from wortlaut import laeufe, sprachen, tempo
+from wortlaut import kartenplan, laeufe, sprachen, tempo
 
 from . import abschluss as abschlussrechnung
 from . import ausgangsstand
 from . import tempowahl
 from . import klangwandel
 from . import karte
-from .daten import Proben, Stapler, zeilen_fuer_faltung
+from .daten import Proben, Stapler
 
 REZEPTE = Path(__file__).parent / "rezepte"
 # Der Keim des Laufs - für den Trainer und den Würfel des Wandlers (`klangwandel.py`).
@@ -54,7 +61,8 @@ def _rezeptpfad(methode: str) -> Path:
 def _rezept_fuer(methode: str, basismodell: str) -> dict[str, Any]:
     """Das Rezept dieser Methode, mit den Abweichungen dieses Grundmodells darüber.
 
-    Am Grundmodell hängt nur der Platz auf der Karte (`je_grundmodell`).
+    `je_grundmodell` ist für Lernzahlen, die an der Modellgröße hängen; der
+    Platz auf der Karte ist keine davon (`zuschneiden`).
     """
     rezept = yaml.safe_load(_rezeptpfad(methode).read_text(encoding="utf-8"))
     abweichungen = (rezept.get("je_grundmodell") or {}).get(laeufe.kurzname(basismodell), {})
@@ -306,6 +314,8 @@ def trainiere(
     )
     from wortlaut import corpus
 
+    from apps.lernen.backend.config import einstellungen
+
     auftrag = laeufe.lies_json(verzeichnis / laeufe.AUFTRAG) or {}
     methode = str(auftrag["methode"])
     basismodell = str(auftrag["basismodell"])
@@ -322,13 +332,22 @@ def trainiere(
         raise RuntimeError(
             f"Unbekannte Dauer: {dauer}. Zur Wahl stehen: {', '.join(laeufe.DAUERN)}."
         )
-    # Auch hier geprüft: Ein Auftrag kann von Hand im Verzeichnis liegen.
-    if methode not in laeufe.methoden_fuer(basismodell):
+    konfiguration = einstellungen()
+    # Vor jedem Training: Das Sprachmodell der Textquelle kann seit dem letzten
+    # längst wieder geladen sein.
+    karte.entlade_ollama(konfiguration.ollama_url, bericht)
+    diese_karte = miss_karte()
+    # Auch hier geprüft, auf der Karte, die wirklich da ist: Ein Auftrag kann
+    # von Hand im Verzeichnis liegen oder von einer anderen Maschine stammen.
+    erlaubt = laeufe.methoden_fuer(basismodell, diese_karte, konfiguration.lernen_reserve_mb)
+    if methode not in erlaubt:
         raise RuntimeError(
-            f"{laeufe.kurzname(basismodell)} lässt sich nur mit "
-            f"{', '.join(laeufe.methoden_fuer(basismodell))} trainieren."
+            f"{laeufe.kurzname(basismodell)} lässt sich auf "
+            f"{diese_karte.name if diese_karte else 'dem Prozessor'} nur mit "
+            f"{', '.join(erlaubt) or 'nichts'} trainieren."
         )
     rezept = _rezept_fuer(methode, basismodell)
+    gemischt = bool(rezept.get("mischpraezision", True)) and diese_karte is not None
 
     bericht.stufe("laden")
     bericht.sage(f"Rezept: {rezept['name']} · Grundmodell: {basismodell}")
@@ -344,7 +363,15 @@ def trainiere(
     # Gewichte vom Grundmodell oder Ausgangsstand (`ausgangsstand.py`);
     # Zerteiler und Ausleser bleiben die des Grundmodells.
     gewichtsquelle = ausgangsstand.quelle(verzeichnis, datenverzeichnis, auftrag, bericht)
-    modell = WhisperForConditionalGeneration.from_pretrained(gewichtsquelle)
+    # Bei LoRA das eingefrorene Grundmodell in halber Genauigkeit, der Zusatz
+    # bleibt float32 (`autocast_adapter_dtype` unten) - bei `large-v3` drei
+    # Gigabyte weniger (`kartenplan.py`). Die Aufmerksamkeit immer über `sdpa`.
+    halb = methode == laeufe.LORA and gemischt
+    modell = WhisperForConditionalGeneration.from_pretrained(
+        gewichtsquelle,
+        attn_implementation="sdpa",
+        dtype=_torchtyp(kartenplan.genauigkeit(diese_karte)) if halb else torch.float32,
+    )
 
     # Die erzwungenen Marken stehen schon in denen des Zerteilers.
     modell.generation_config.language = sprache
@@ -373,11 +400,13 @@ def trainiere(
                 target_modules=list(einstellung["ziele"]),
                 bias="none",
             ),
+            # Der Zusatz in float32, auch über einem halben Grundmodell.
+            autocast_adapter_dtype=True,
         )
-        if rezept.get("gradientensparsam", False):
-            # Sonst bekommt der Zusatz beim Gradientensparen keinen Gradienten -
-            # der Lauf liefe durch und lernte nichts.
-            modell.enable_input_require_grads()
+        # Sonst bekommt der Zusatz beim Gradientensparen keinen Gradienten -
+        # der Lauf liefe durch und lernte nichts. Ob gespart wird, zeigt erst
+        # der Probeschritt (`zuschneiden`).
+        modell.enable_input_require_grads()
         trainierbar = sum(p.numel() for p in modell.parameters() if p.requires_grad)
         gesamt = sum(p.numel() for p in modell.parameters())
         bericht.sage(f"LoRA: {trainierbar:,} von {gesamt:,} Gewichten werden gelernt")
@@ -390,7 +419,7 @@ def trainiere(
         keim=KEIM + (faltung or 0),
     )
     kern = laeufe.kernfaltungen_aus(verzeichnis, auftrag)
-    lernzeilen, messzeilen = zeilen_fuer_faltung(
+    lernzeilen, messzeilen = laeufe.zeilen_fuer_faltung(
         verzeichnis,
         faltung,
         str(auftrag.get("daten") or laeufe.NUR_ORIGINAL),
@@ -452,6 +481,18 @@ def trainiere(
     # Das Endmodell hält nichts zurück und hat keine Steuergröße.
     hat_pruefung = len(pruef) > 0
 
+    plan = zuschneiden(
+        modell,
+        diese_karte,
+        methode,
+        int(rezept["stapel"]),
+        gemischt,
+        laengste=max(len(zerteiler(str(zeile["text"])).input_ids) for zeile in lernzeilen),
+        mel_kanaele=int(ausleser.feature_size),
+        reserve_mb=konfiguration.lernen_reserve_mb,
+        bericht=bericht,
+    )
+
     # `geduldig` braucht eine Validierung; ohne fällt es auf `fest` zurück.
     geduldig = dauer == laeufe.DAUER_GEDULDIG and hat_pruefung
     if dauer == laeufe.DAUER_GEDULDIG and not hat_pruefung:
@@ -482,9 +523,7 @@ def trainiere(
     # Der Warmlauf, gedeckelt auf `WARMLAUF_ANTEIL` - sonst wäre bei neun
     # Aufnahmen der ganze Lauf Rampe. Größere Läufe behalten die Schrittzahl
     # des Rezepts.
-    je_durchgang = max(
-        1, math.ceil(len(lern) / (int(rezept["stapel"]) * int(rezept["akkumulation"])))
-    )
+    je_durchgang = max(1, math.ceil(len(lern) / plan.wirksam))
     gesamtschritte = max(1, int(je_durchgang * durchgaenge))
     warmlauf = min(
         int(rezept["warmlauf_schritte"]),
@@ -498,15 +537,14 @@ def trainiere(
 
     # Je Faltung ein Arbeitsstand, den `main` vor der nächsten wegräumt.
     ausgabe = verzeichnis / laeufe.ARBEITSSTAND / _name_fuer(faltung)
-    sparsam = bool(rezept.get("gradientensparsam", False))
+    sparsam = plan.gradientensparsam
     argumente = Seq2SeqTrainingArguments(
         output_dir=str(ausgabe),
-        per_device_train_batch_size=int(rezept["stapel"]),
-        per_device_eval_batch_size=int(rezept["stapel"]),
-        gradient_accumulation_steps=int(rezept["akkumulation"]),
+        per_device_train_batch_size=plan.stapel,
+        per_device_eval_batch_size=plan.stapel,
+        gradient_accumulation_steps=plan.akkumulation,
         # Aktivierungen beim Rückwärtsgang neu rechnen: dieselben Gradienten,
-        # weniger Platz - eine Platzfrage des Rezepts (`je_grundmodell`,
-        # dort die Messwerte).
+        # weniger Platz - wenn der Probeschritt es verlangt (`zuschneiden`).
         gradient_checkpointing=sparsam,
         # Sonst warnt torch je Schritt, und die reentrante Fassung verträgt
         # eingefrorene LoRA-Gewichte schlecht.
@@ -516,7 +554,9 @@ def trainiere(
         num_train_epochs=durchgaenge,
         weight_decay=float(rezept.get("gewichtsverfall", 0.0)),
         max_grad_norm=float(rezept.get("gradientenbegrenzung", 1.0)),
-        fp16=bool(rezept.get("fp16", True)) and torch.cuda.is_available(),
+        # bf16 ab Ampere, fp16 mit Verlustskalierung darunter (`kartenplan.genauigkeit`).
+        fp16=plan.genauigkeit == "fp16",
+        bf16=plan.genauigkeit == "bf16",
         logging_steps=LOG_ALLE,
         # Je Durchgang prüfen - die zweite Kurve.
         eval_strategy="epoch" if hat_pruefung else "no",
@@ -627,6 +667,11 @@ def trainiere(
         "alpha": ergebnis.alpha,
         "tempo": faktor,
         "tempowahl": tempoergebnis.als_dict() if tempoergebnis is not None else None,
+        # Worauf und wie gerechnet wurde - fürs Manifest (`bewerten.gib_frei`).
+        "zuschnitt": {
+            **plan.als_dict(),
+            "karte": diese_karte.als_dict() if diese_karte else None,
+        },
     }
 
     # `del`, sonst hält der Trainer Modell und Optimierer auf der Karte fest.
@@ -672,6 +717,155 @@ def fremd_belegt_mb() -> float:
         return 0.0
     frei, gesamt = torch.cuda.mem_get_info()
     return (gesamt - frei - torch.cuda.memory_reserved()) / 1e6
+
+
+def frei_mb() -> float:
+    """Was auf der Karte gerade frei ist - für alle, nicht nur für diesen Prozess."""
+    import torch
+
+    if not torch.cuda.is_available():
+        return 0.0
+    return torch.cuda.mem_get_info()[0] / 1e6
+
+
+def miss_karte() -> kartenplan.Karte | None:
+    """Die Karte, auf der gerechnet wird - `None` ohne CUDA.
+
+    Die erste sichtbare; mehrere zählen nur mit (`kartenplan.py`).
+    """
+    import torch
+
+    if not torch.cuda.is_available():
+        return None
+    eigenschaften = torch.cuda.get_device_properties(0)
+    return kartenplan.Karte(
+        name=str(eigenschaften.name),
+        speicher_mb=eigenschaften.total_memory / 1e6,
+        rechenfaehigkeit=(int(eigenschaften.major), int(eigenschaften.minor)),
+        anzahl=int(torch.cuda.device_count()),
+    )
+
+
+def melde_karte(datenverzeichnis: Path, bericht: Bericht | None = None) -> kartenplan.Karte | None:
+    """Die Karte messen und neben die Läufe legen - damit `lernen` anbietet, was passt."""
+    diese = miss_karte()
+    if diese is not None:
+        kartenplan.schreibe_karte(laeufe.wurzel(datenverzeichnis), diese)
+        if bericht is not None:
+            bericht.sage(
+                f"Karte: {diese.name}, {diese.speicher_mb:.0f} MB, Rechenfähigkeit "
+                f"{diese.rechenfaehigkeit[0]}.{diese.rechenfaehigkeit[1]}"
+                + (f", {diese.anzahl} Karten - gerechnet wird auf der ersten" if diese.anzahl > 1 else "")
+                + f"; frei {frei_mb():.0f} MB"
+            )
+    elif bericht is not None:
+        bericht.sage("Keine Karte - gerechnet wird auf dem Prozessor.")
+    return diese
+
+
+def _torchtyp(genauigkeit: str):
+    import torch
+
+    return {"bf16": torch.bfloat16, "fp16": torch.float16}.get(genauigkeit, torch.float32)
+
+
+def _probeschritt(
+    modell, stapel: int, sparsam: bool, mel_kanaele: int, laengste: int, genauigkeit: str
+) -> float:
+    """Ein Vorwärts- und Rückwärtsgang mit dem schwersten Stapel; gibt die Spitze in MB.
+
+    Schwerster Stapel: Whisper hört immer 30 Sekunden (3000 Merkmalsrahmen),
+    also zählt allein der längste Text. Ein Speichermangel geht als Fehler
+    hinaus; was der Schritt belegt hat, gibt er in jedem Fall zurück.
+    """
+    import torch
+
+    if sparsam:
+        modell.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+    else:
+        modell.gradient_checkpointing_disable()
+    modell.train()
+    geraet = next(modell.parameters()).device
+    merkmale = torch.zeros((stapel, mel_kanaele, 3000), device=geraet)
+    # Irgendeine Marke, so oft wie der längste Text lang ist.
+    marken = torch.full((stapel, max(2, laengste)), 50257, dtype=torch.long, device=geraet)
+    torch.cuda.reset_peak_memory_stats()
+    try:
+        with torch.autocast("cuda", dtype=_torchtyp(genauigkeit), enabled=genauigkeit != "fp32"):
+            verlust = modell(input_features=merkmale, labels=marken).loss
+        verlust.backward()
+        return torch.cuda.max_memory_reserved() / 1e6
+    finally:
+        modell.zero_grad(set_to_none=True)
+        verlust = merkmale = marken = None
+        gc.collect()
+        torch.cuda.empty_cache()
+
+
+def zuschneiden(
+    modell,
+    diese_karte: kartenplan.Karte | None,
+    methode: str,
+    wirksam: int,
+    gemischt: bool,
+    *,
+    laengste: int,
+    mel_kanaele: int,
+    reserve_mb: float,
+    bericht: Bericht,
+) -> kartenplan.Plan:
+    """Wie dieses Training auf diese Karte passt - ausprobiert, nicht geschätzt.
+
+    Die Kandidaten der Reihe nach (`kartenplan.kandidaten`): erst schnell, dann
+    sparsam, dann mit kleinerem Stapel. Der erste, dessen Probeschritt samt
+    Optimierer neben den anderen Prozessen und der Reserve Platz hat, gilt.
+    Passt keiner, ist das ein Speichermangel - `mit_geduld` wartet dann, falls
+    andere die Karte halten.
+    """
+    if diese_karte is None:
+        plan = kartenplan.plan(None, methode, wirksam, wirksam, False)
+        bericht.sage(f"Zuschnitt: Prozessor · {plan.beschreibung()}")
+        return plan
+
+    genau = kartenplan.genauigkeit(diese_karte) if gemischt else "fp32"
+    modell.to("cuda")
+    trainierbar = sum(p.numel() for p in modell.parameters() if p.requires_grad)
+    zusatz = kartenplan.optimierer_mb(trainierbar)
+    for stapel, sparsam in kartenplan.kandidaten(wirksam):
+        try:
+            spitze = _probeschritt(modell, stapel, sparsam, mel_kanaele, laengste, genau)
+        except Exception as ursache:  # noqa: BLE001 - was immer torch wirft
+            if not karte.ist_speichermangel(ursache):
+                raise
+            spitze = None
+        if spitze is not None and kartenplan.passt(
+            spitze, zusatz, diese_karte.speicher_mb, fremd_belegt_mb(), reserve_mb
+        ):
+            plan = kartenplan.plan(diese_karte, methode, wirksam, stapel, sparsam)
+            if not gemischt:
+                plan = kartenplan.Plan(
+                    genauigkeit="fp32",
+                    halbe_grundgewichte=False,
+                    stapel=plan.stapel,
+                    akkumulation=plan.akkumulation,
+                    gradientensparsam=plan.gradientensparsam,
+                )
+            # Wie beim Probeschritt zuletzt eingestellt - der Trainer schaltet
+            # das Sparen nur ein, nie aus.
+            if not sparsam:
+                modell.gradient_checkpointing_disable()
+            bericht.sage(
+                f"Zuschnitt: {diese_karte.name} · {plan.beschreibung()} · "
+                f"Probeschritt {spitze:.0f} MB, Optimierer {zusatz:.0f} MB, "
+                f"Reserve {reserve_mb:.0f} MB"
+            )
+            bericht.merke(zuschnitt=plan.als_dict())
+            return plan
+    raise RuntimeError(
+        f"CUDA out of memory: Auf {diese_karte.name} passt nicht einmal ein Stapel von 1 "
+        f"mit Gradientensparen neben {fremd_belegt_mb():.0f} MB anderer Prozesse und "
+        f"{reserve_mb:.0f} MB Reserve (WORTLAUT_LERNEN_RESERVE_MB)."
+    )
 
 
 # Was faster-whisper neben den Gewichten braucht. Ohne `tokenizer.json` nimmt
@@ -829,6 +1023,22 @@ def kreuzvalidiere(
     return zeilen, mitgenommen
 
 
+def pruefe_karte(datenverzeichnis: Path, auftrag: dict[str, Any], bericht: Bericht) -> None:
+    """Vor dem Lauf: Ollama entladen, die Karte melden, auf genug Platz warten."""
+    from apps.lernen.backend.config import einstellungen
+
+    konfiguration = einstellungen()
+    bericht.stufe("karte")
+    karte.entlade_ollama(konfiguration.ollama_url, bericht)
+    diese = melde_karte(datenverzeichnis, bericht)
+    if diese is None:
+        return
+    bedarf = kartenplan.bedarf_mb(
+        laeufe.kurzname(str(auftrag["basismodell"])), str(auftrag["methode"])
+    )
+    karte.warte_auf_platz(bedarf, frei_mb, bericht)
+
+
 class Angehalten(BaseException):
     """Der Läufer hat angehalten (`laeufer._fuehre_aus`, SIGTERM).
 
@@ -843,6 +1053,12 @@ def _halt_bei_sigterm(_signal: int, _rahmen: object) -> None:
 
 def main(argumente: list[str]) -> int:
     signal.signal(signal.SIGTERM, _halt_bei_sigterm)
+    if argumente == ["--karte"]:
+        from apps.lernen.backend.config import einstellungen
+
+        diese = melde_karte(einstellungen().data_dir)
+        print(f"Karte gemeldet: {diese.name}, {diese.speicher_mb:.0f} MB" if diese else "Keine Karte.")
+        return 0
     if len(argumente) != 1:
         print(__doc__)
         return 2
@@ -859,6 +1075,8 @@ def main(argumente: list[str]) -> int:
     begonnen = time.monotonic()
 
     try:
+        pruefe_karte(datenverzeichnis, auftrag, bericht)
+
         # Beim Kern zuerst die Wahl - erst danach steht fest, worauf gelernt wird.
         from .bewerten import vervollstaendige_kern
 
@@ -869,7 +1087,7 @@ def main(argumente: list[str]) -> int:
 
         bericht.faltung(None)
         bericht.sage("── Endmodell: lernt auf allem, was da ist")
-        gewichte, ergebnis, _ = trainiere_geduldig(
+        gewichte, ergebnis, kennzahlen = trainiere_geduldig(
             verzeichnis, datenverzeichnis, bericht, faltung=None, vorgaben=mitgenommen
         )
 
@@ -877,7 +1095,7 @@ def main(argumente: list[str]) -> int:
 
         version = gib_frei(
             verzeichnis, datenverzeichnis, gewichte, auftrag, bericht, ergebnis,
-            zeilen=zeilen, mitgenommen=mitgenommen,
+            zeilen=zeilen, mitgenommen=mitgenommen, zuschnitt=kennzahlen.get("zuschnitt"),
         )
     except Angehalten:
         bericht.sage("Angehalten auf Wunsch.")

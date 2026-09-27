@@ -1,7 +1,7 @@
 # Volles Training: alle Gewichte von whisper-small werden angepasst.
 #
-# Eingestellt auf einen Menschen, wenige hundert kurze Sätze und eine Karte
-# mit 11 GB; änderbar ohne Neubau.
+# Eingestellt auf einen Menschen und wenige hundert kurze Sätze; änderbar ohne
+# Neubau. Auf welcher Karte und wie, entscheidet der Trainer.
 name: Volles Training
 
 # Klein: Eine höhere Lernrate löscht in wenigen hundert Schritten, was das
@@ -14,14 +14,14 @@ warmlauf_schritte: 50
 # `finetune.py`). Zu hoch kostet Rechenzeit, zu niedrig Güte.
 epochen: 8
 
-# Zwei mal vier: whisper-small mit Adam braucht voll gut 8 GB plus
-# Aktivierungen; wirksam bleiben es acht.
-stapel: 4
-akkumulation: 2
+# Der wirksame Stapel. Wie viele davon je Schritt auf der Karte liegen und wie
+# oft gesammelt wird, misst der Trainer (`wortlaut/kartenplan.py`).
+stapel: 8
 
 gewichtsverfall: 0.01
-# float16 mit Verlustskalierung - Turing (RTX 2080 Ti) kann kein bfloat16.
-fp16: true
+# Halbe Genauigkeit, wo eine Karte ist: bf16 ab Ampere, sonst fp16 mit
+# Verlustskalierung (Turing kann kein bf16). Die Gewichte bleiben float32.
+mischpraezision: true
 # Gegen Ausreißer einzelner Stapel.
 gradientenbegrenzung: 1.0
 
