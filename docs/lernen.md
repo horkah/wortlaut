@@ -229,46 +229,6 @@ wie bei `small` - und es wurde dabei nicht langsamer, sondern schneller
 (68 statt 125 ms je Probe), weil ein Vorrat, der an die Decke stößt, mehr
 kostet als die zweite Rechnung.
 
-### Auf einem trainierten Stand weiterlernen
-
-Neben den Grundmodellen stehen trainierte Stände zur Wahl - welche, sagt
-`WORTLAUT_LERNEN_AUSGANGSSTAENDE`, und dann für **jeden** Sprecher, nicht nur
-für den, dem der Stand gehört. In der Wahl heißt ein solcher Stand mit seiner
-Kennung (`C6G67`), daneben stehen sein Besitzer und sein Titel.
-
-Im Auftrag steht dann beides: `basismodell` bleibt das Whisper-Modell, auf dem
-der Stand gewachsen ist - daran hängen Zerteiler, Rezept und die erlaubten
-Methoden; ein Stand auf `medium` geht also nur mit LoRA -, und
-`ausgangsstand` nennt den Stand, dessen Gewichte den Anfang machen. Der
-Optionscode beginnt mit dessen Kennung (`C6G67-L-A-E-SRP-CI`), der Name des
-neuen Standes trägt sie hinter dem Grundmodell
-(`20260927T0900-medium-C6G67-lora-…`).
-
-**Die Gewichte kommen aus der `model.bin`.** Ein Stand liegt nur als
-CTranslate2 vor; die Rohgewichte räumt jeder Lauf weg. Der Trainer rechnet sie
-beim ersten Training eines Laufs zurück (`training/ausgangsstand.py`) und legt
-sie für die übrigen im Laufverzeichnis ab (`ausgang/`, am Ende weggeräumt wie
-die anderen Zwischenstände). Das ist verlustfrei: Die Umwandlung legt nur um
-und fügt zusammen. Nachgeprüft an `C6G67`: zurückgerechnet und wieder
-umgewandelt, sind alle 790 Größen der `model.bin` Byte für Byte dieselben.
-
-Was sich sonst am Anfang orientiert, orientiert sich am Stand: Die Tempowahl
-misst mit ihm, und WiSE-FT interpoliert zu ihm zurück und nicht zum
-Whisper-Modell darunter. Die **Baseline** bleibt dagegen das Whisper-Modell -
-gemessen ist nur das, in der Auswertung von „hören".
-
-**Wo die Zahl zu gut aussieht.** Setzt ein Sprecher auf einem Stand auf, der
-schon auf seinen eigenen Aufnahmen gelernt hat, dann hat das Modell jeder
-Faltung die Aufnahmen, an denen es gemessen wird, schon einmal gesehen - im
-Ausgangsstand. Die Kreuzvalidierung misst dann nicht mehr, was sie verspricht,
-und ihre Zahl ist zu freundlich. Ehrlich bleibt sie bei einem fremden Stand
-oder auf Aufnahmen, die nach dem Ausgangsstand dazukamen.
-
-**Und eine fremde Stimme.** Ein Stand trägt die Stimme dessen in sich, auf
-dem er gelernt hat (Grundentscheidung 3). Wer ihn anderen anbietet, gibt ein
-Stück davon weiter - deshalb ist die Liste leer, bis die Konfiguration sie
-ausdrücklich füllt.
-
 ### Der Optionscode
 
 Ein Lauf und der Stand, der aus ihm entsteht, heißen nach ihren Optionen - in
@@ -283,7 +243,6 @@ wenn sie nicht auf ihrer Vorgabe steht, in dieser Reihenfolge:
 | Achse | Wert | Glied |
 |---|---|---|
 | Grundmodell | whisper-small, whisper-medium, whisper-large-v3 | `S`, `M`, `L3` |
-| | ein trainierter Stand | seine Kennung und ein Strich: `C6G67-` |
 | Methode | Volles Feintuning, LoRA | `V`, `L` |
 | Datensatz | Nur Originale, Mit Abwandlungen | –, `A` |
 | Epochen | Feste Epochenzahl, Early Stopping | –, `E` |

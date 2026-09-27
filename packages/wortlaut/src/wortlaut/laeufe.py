@@ -178,8 +178,9 @@ def kurzname(basismodell: str) -> str:
 # Ein Lauf kann seit September 2026 auch auf einem **trainierten Stand**
 # aufsetzen statt auf einem unveränderten Grundmodell - auf einem eigenen, um
 # weiterzulernen, oder auf dem eines anderen Menschen, dessen Stimme der
-# eigenen näher liegt als die des Internets. Welche Stände das sein dürfen,
-# sagt die Konfiguration (`WORTLAUT_LERNEN_AUSGANGSSTAENDE`).
+# eigenen näher liegt als die des Internets. Vorbereitet ist das im Trainer,
+# angeboten wird es nicht: Der Versuch, einen Stand weiter zu trainieren, ist
+# gescheitert, und die Wahl kennt nur die Whisper-Modelle.
 #
 # Im Auftrag steht dann beides: `basismodell` bleibt das Whisper-Modell, auf
 # dem jener Stand selbst gewachsen ist - daran hängen Zerteiler, Rezept und die

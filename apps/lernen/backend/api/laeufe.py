@@ -258,49 +258,7 @@ def _grundmodelle() -> list[GrundmodellAntwort]:
                 code=lauf_layout.grundmodellcode(modell),
             )
         )
-    for ref, manifest in _ausgangsstaende().items():
-        grund = str(manifest.get("basismodell", ""))
-        methoden = lauf_layout.methoden_fuer(grund)
-        antworten.append(
-            GrundmodellAntwort(
-                schluessel=ref,
-                name=registry.beschriftung(ref),
-                erklaerung=" · ".join(
-                    teil
-                    for teil in (
-                        _sprechername(str(manifest.get("sprecher_id", ""))),
-                        lauf_layout.titel(manifest),
-                        f"auf whisper-{lauf_layout.kurzname(grund)}"
-                        + (". Nur LoRA." if methoden == (lauf_layout.LORA,) else "."),
-                    )
-                    if teil
-                ),
-                methoden=list(methoden),
-                code=registry.beschriftung(ref),
-            )
-        )
     return antworten
-
-
-def _ausgangsstaende() -> dict[str, dict]:
-    """Die konfigurierten Ausgangsstände, die es wirklich gibt, mit ihrem Manifest.
-
-    Ein Stand, der inzwischen gelöscht ist, fällt still heraus, statt eine
-    Wahl anzubieten, die der Trainer nicht erfüllen kann.
-    """
-    konfiguration = einstellungen()
-    gefunden: dict[str, dict] = {}
-    for ref in konfiguration.ausgangsstaende():
-        if not registry.ist_stand(ref):
-            continue
-        sprecher_id, version = ref.split(registry.TRENNER, 1)
-        try:
-            manifest = registry.lies_stand(konfiguration.data_dir, sprecher_id, version)
-        except (OSError, ValueError):
-            continue
-        if registry.ct2_verzeichnis(konfiguration.data_dir, ref).is_dir():
-            gefunden[ref] = manifest
-    return gefunden
 
 
 def _sprechername(sprecher_id: str) -> str:
@@ -1021,14 +979,11 @@ def beauftrage(
 
     konfiguration = einstellungen()
     grundmodell = bestellung.grundmodell or konfiguration.lernen_basismodell
-    # Ein trainierter Stand zur Wahl: Er bringt sein eigenes Grundmodell mit,
-    # und an dem hängt alles Weitere - auch, welche Methode geht.
-    ausgangsstand = ""
-    staende = _ausgangsstaende()
-    if grundmodell in staende:
-        ausgangsstand = grundmodell
-        grundmodell = str(staende[ausgangsstand].get("basismodell", ""))
-    elif grundmodell not in konfiguration.grundmodelle():
+    # Nur die Whisper-Modelle stehen zur Wahl. Auf einem trainierten Stand
+    # weiterzulernen ist im Trainer vorbereitet (`auftraege.Auftrag.ausgangsstand`,
+    # `training/ausgangsstand.py`), wird aber nicht angeboten: Der Versuch damit
+    # ist gescheitert.
+    if grundmodell not in konfiguration.grundmodelle():
         raise HTTPException(
             status_code=400, detail=f"Unbekanntes Grundmodell: {grundmodell}"
         )
@@ -1068,7 +1023,6 @@ def beauftrage(
             dauer=bestellung.dauer,
             tempowahl=bestellung.tempowahl,
             basismodell=grundmodell,
-            ausgangsstand=ausgangsstand,
             # Aus dem Profil, nicht aus der Umgebung: Der Trainer setzt daraus
             # die erzwungenen Marken von Whisper, und die Bewertung misst in
             # derselben Sprache (`wortlaut/sprachen.py`).
