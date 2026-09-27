@@ -86,12 +86,10 @@ class TestIntake:
 
 
 class TestFalschKonfiguriert:
-    """„schreiben" mit dem Zugang des einen und der Kennung des anderen.
+    """Eine Lieferung mit dem Zugang des einen und der Kennung des anderen.
 
-    Das ist der Weg, auf dem Gesundheitsdaten früher still in einen fremden
-    Korpus gewandert wären: „schreiben" nennt seinen `WORTLAUT_SPRECHER_ID`,
-    und „hören" schrieb dorthin. Jetzt hält „hören" die Behauptung gegen den
-    Zugang aus `WORTLAUT_INTAKE_TOKEN`.
+    „hören" hält die Behauptung gegen den Zugang - sonst wanderten
+    Gesundheitsdaten still in einen fremden Korpus.
     """
 
     def test_fremde_kennung_wird_abgewiesen(

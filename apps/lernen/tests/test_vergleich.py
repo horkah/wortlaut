@@ -45,8 +45,7 @@ def _baseline_modell(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setattr(
         auswertung,
         "transkriptor_fuer",
-        # Seit die Auswertung auch trainierte Stände misst, bekommt sie das
-        # Datenverzeichnis dazu - dort liegen deren Gewichte.
+        # Das Datenverzeichnis, dort liegen die Gewichte trainierter Stände.
         lambda modell, geraet, rechenart, datenverzeichnis=None: PlatzhalterErkenner(
             "völlig daneben gehört"
         ),
@@ -319,9 +318,7 @@ class TestModelluebersicht:
     def test_auch_ein_grundmodell_laesst_sich_freigeben(
         self, klient: TestClient, fertiger_lauf, datenverzeichnis, sprecher: str
     ) -> None:
-        # „Mein eigenes ist noch nicht besser als das Grundmodell" ist eine
-        # Antwort, und sie soll sich hier geben lassen - früher ging das nur
-        # drüben in „schreiben".
+        # „Mein eigenes ist noch nicht besser als das Grundmodell" ist eine Antwort.
         antwort = klient.post(
             "/lernen/api/modelle/freigabe", json={"ref": "small"}
         ).json()
@@ -594,10 +591,8 @@ class TestSteckbrief:
     def test_ein_lauf_von_vor_den_achsen_wird_rekonstruiert(
         self, klient: TestClient, aufnahmen: list[str], datenverzeichnis
     ) -> None:
-        # Ein Auftrag, wie ihn der Code von früher geschrieben hat: ohne
-        # `abschluss`, `augmentierung`, `dauer`, `tempo`, `tempowahl`. Was
-        # fehlt, ist keine Unbekannte - es galt die Vorgabe, weil es nichts
-        # anderes gab, das hätte gelten können.
+        # Ein Auftrag ohne `abschluss`, `augmentierung`, `dauer`, `tempo`,
+        # `tempowahl`: Es gelten die Vorgaben.
         from wortlaut import laeufe as l
 
         lauf = klient.post(

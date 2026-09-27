@@ -79,8 +79,7 @@ class TestDiktieren:
     ) -> None:
         # Die Aufnahme ist acht Sekunden lang (siehe `conftest`). Whisper hört
         # ein auf 30 Sekunden aufgefülltes Fenster und findet in der Stille
-        # dahinter noch einen Satz - im September 2026 scheiterte daran ein
-        # ganzes Diktat, weil der leere Schnitt einen Fehler warf.
+        # dahinter noch einen Satz; das übrige Diktat darf daran nicht scheitern.
         whisper.abschnitte = [
             Abschnitt(start_s=0.0, ende_s=2.0, text="Ich möchte einen Kaffee."),
             Abschnitt(start_s=9.0, ende_s=11.0, text="Untertitel von Stephanie Geiges"),

@@ -5,9 +5,8 @@ Es gibt drei Klienten, weil es drei Arten von Zugang gibt (siehe
 ist der Zugang **eines** Sprechers und damit der Weg zu dessen Daten, und
 `aufsicht` sieht über alle Korpora hinweg.
 
-Die Aufrufe hängen `?sprecher=…` weiterhin an - nicht mehr, um den Sprecher zu
-wählen, sondern damit die Behauptung gegen die abgeleitete Kennung geprüft
-wird.
+Die Aufrufe hängen `?sprecher=…` an - nicht zur Wahl, sondern damit die
+Behauptung gegen die abgeleitete Kennung geprüft wird.
 
 Jeder Test bekommt ein eigenes Datenverzeichnis und einen frischen Zustand.
 Zwei Dinge werden ersetzt:

@@ -39,9 +39,7 @@ asr = ["faster-whisper>=1.1"]
 # Prozessor und braucht keine Karte; die Stimmen selbst liegen nicht hier,
 # sondern im Modellspeicher (`scripts/vorlesen.py`).
 #
-# Ein eigenes Extra, weil es ohne geht: Fehlt Piper, liest der Browser vor wie
-# bisher. Eine feste Abhängigkeit wäre ein Paket mehr in jeder Installation,
-# die diese Hilfe nie benutzt.
+# Ein eigenes Extra, weil es ohne geht: Fehlt Piper, liest der Browser vor.
 vorlesen = ["piper-tts>=1.3"]
 # Zeichenerkennung für fotografierte und eingescannte Vorlagen
 # (`wortlaut/text/ocr.py`). `pytesseract` ist nur die Hülle um das Programm

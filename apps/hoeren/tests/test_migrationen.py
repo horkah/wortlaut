@@ -211,13 +211,6 @@ class TestTinyWirdAusgeraeumt:
 
         assert self._modelle(korpus_mit_tiny) == ["small"]
 
-    # Dass ein Profil von `whisper-tiny` auf `whisper-small` rückt, stand hier
-    # einmal als eigener Test. Sein Gegenstand ist weg: `013` entfernt die
-    # Spalte, weil sie nie etwas entschieden hat, und ein Test, der alle
-    # Migrationen anwendet, kann danach nicht mehr in sie hineinsehen. Der
-    # Umzug bleibt trotzdem richtig - er hat die Daten in Ordnung gehalten,
-    # solange es die Spalte gab.
-
     def test_die_aufnahme_selbst_bleibt(self, korpus_mit_tiny: Path) -> None:
         """Gelöscht wird Abgeleitetes, nie das, was ein Mensch gesprochen hat."""
         db.wende_migrationen_an(korpus_mit_tiny, einstellungen().migrationsverzeichnis)

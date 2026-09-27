@@ -10,39 +10,21 @@
 # „lernen" liefert hier nur seine Oberfläche aus und legt Aufträge an;
 # trainiert wird im Abbild unter apps/lernen/training/, das eine Karte verlangt.
 #
-# Was hier **wohl** drin ist, seit dem Umbau auf ein gemeinsames Rechenwerk:
-# cuBLAS und cuDNN. Diktieren und die Auswertung nehmen die Karte, wenn eine da
-# ist (`wortlaut/rechenwerk.py`) - das ist der Unterschied zwischen vier
-# Sekunden und einer Viertelsekunde je Aufnahme. Die beiden Bibliotheken wiegen
-# gut zwei Gigabyte im Abbild, ändern aber nichts an der Startzeit: Geladen
-# wird erst, wenn zum ersten Mal erkannt wird, und ohne Karte bleiben sie
-# unberührt liegen.
+# Was hier **wohl** drin ist: cuBLAS und cuDNN. Diktieren und Auswertung
+# nehmen die Karte, wenn eine da ist (`wortlaut/rechenwerk.py`) - vier Sekunden
+# gegen eine Viertelsekunde je Aufnahme. Gut zwei Gigabyte im Abbild, geladen
+# erst beim ersten Erkennen.
 
 # ── Stufe 1: die drei Frontends, jede App für sich ──────────────────────────
 #
-# Drei Stufen und nicht eine, und das ist keine Ordnungsfrage, sondern eine
-# Frage der Abhängigkeit: Innerhalb einer Stufe hängen die Schichten in einer
-# Reihe, und was unter einer verworfenen Schicht steht, wird mit verworfen -
-# auch wenn es mit ihr nichts zu tun hat. Eine geänderte Zeile in „lernen"
-# baute deshalb „schreiben" gleich mit; jetzt baut sie „lernen" und sonst
-# nichts (gemessen: 8 s auf 6 s). Als eigene Stufen haben die drei nichts
-# miteinander zu tun, und BuildKit nimmt sie sich deshalb gleichzeitig vor -
-# das zeigt sich dort, wo wirklich alle drei müssen: Eine Änderung an
-# `packages/ui` kostete in Reihe 14 s reine Bauzeit, nebeneinander 6.
-#
-# Was sie doch teilen, steht in jeder von ihnen noch einmal: `packages/ui` und
-# `assets`. Das ist richtig so - ändert sich dort etwas, geht es in alle drei
-# Bündel ein, also müssen auch alle drei neu gebaut werden. Es steht nur
-# **unter** `npm ci`, damit eine geänderte Svelte-Datei nicht die Installation
-# verwirft.
+# Je App eine Stufe: Eine Änderung in einer App baut nur sie, und BuildKit
+# baut die Stufen gleichzeitig. `packages/ui` und `assets` stehen in jeder -
+# sie gehen in alle Bündel ein -, aber **unter** `npm ci`, damit eine
+# geänderte Svelte-Datei die Installation nicht verwirft.
 #
 # `npm ci` statt `npm install`: baut genau das, was in package-lock.json steht.
-# Der Mount darunter ist der Paketspeicher von npm - außerhalb des Abbilds,
-# und er erspart den Weg ins Netz, wenn eine Schicht doch neu gebaut wird. Je
-# App ein eigener Speicher (`id=`), denn die drei Stufen laufen gleichzeitig,
-# und ein gemeinsames Verzeichnis wäre genau das, worüber sie stolpern
-# könnten. Der Preis sind ein paar Dutzend Megabyte doppelt - auf einer Platte,
-# die ohnehin Gigabyte an Bauspeicher hält.
+# Der Mount ist der Paketspeicher von npm, außerhalb des Abbilds; je App ein
+# eigener (`id=`), weil die Stufen gleichzeitig laufen.
 FROM node:22-slim AS frontendgrund
 WORKDIR /bau
 
@@ -144,7 +126,7 @@ RUN mkdir -p packages/wortlaut/src/wortlaut \
 # diesem Abbild Pflicht: „schreiben" läuft hier mit, und die Auswertung von
 # „hören" ebenso.
 #
-# Piper ist es nicht - ohne liest der Browser vor wie bisher -, wiegt aber
+# Piper ist es nicht - ohne liest der Browser vor -, wiegt aber
 # wenige Megabyte und teilt sich onnxruntime mit faster-whisper. Die Stimmen
 # liegen ohnehin außerhalb des Abbilds (`scripts/vorlesen.py`).
 #
@@ -192,18 +174,10 @@ COPY --from=frontend-schreiben /bau/apps/schreiben/frontend/dist ./apps/schreibe
 
 # Wann dieses Abbild entstanden ist.
 #
-# **Warum hier unten und nicht im Frontend.** Das Baudatum stand bisher allein
-# im JavaScript-Bündel (`packages/ui/bau.ts`, gesetzt über `define` in der
-# Vite-Konfiguration). Das ist genau so lange richtig, wie sich am Frontend
-# etwas ändert: Wird nur das Backend angefasst, sind die Frontend-Stufen
-# unverändert, BuildKit nimmt sie aus dem Zwischenspeicher - samt des Datums,
-# das beim letzten Frontend-Bau darin festgeschrieben wurde. Der Seitenfuß
-# zeigte dann tagelang dieselbe Uhrzeit, während dreimal ausgerollt wurde.
-#
-# Diese Zeile steht **unter** allen `COPY` dieser Stufe und erbt damit deren
-# Zwischenspeicher: Ändert sich irgendetwas am ausgelieferten Stand - Backend,
-# Skripte, Frontend -, entsteht sie neu. Ändert sich nichts, bleibt sie stehen,
-# und das ist ebenso richtig: Dann läuft auch nichts Neues.
+# Hier unten und nicht nur im Bündel (`packages/ui/bau.ts`): Bei einer reinen
+# Backend-Änderung kämen die Frontend-Stufen samt altem Datum aus dem
+# Zwischenspeicher. Unter allen `COPY` entsteht die Zeile neu, sobald sich am
+# ausgelieferten Stand irgendetwas ändert.
 RUN date -u +%Y-%m-%dT%H:%M:%SZ > /srv/wortlaut/STAND
 
 # Die Grundmodelle landen in einem eigenen Ablagepfad und nicht im Abbild;

@@ -115,9 +115,8 @@ class TestFreigabe:
     """Höchstens ein Modell je Mensch - und es darf ein Grundmodell sein.
 
     Die Freigabe ist die eine Entscheidung, die „lernen" trifft und „schreiben"
-    liest. Seit die Modellübersicht beide Sorten in einer Tabelle zeigt, kann
-    sie auch auf ein unverändertes Whisper-Modell fallen - für das gibt es hier
-    kein Verzeichnis, also steht sie in einer eigenen Datei daneben.
+    liest. Sie kann auf ein Grundmodell fallen, das kein Verzeichnis hat -
+    deshalb eine eigene Datei.
     """
 
     def test_gibt_einen_stand_frei_und_zieht_die_anderen_zurueck(self, tmp_path: Path) -> None:

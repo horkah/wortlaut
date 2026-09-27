@@ -33,9 +33,7 @@ MODELLE = "small,medium"
 # gerechneten zu unterscheiden.
 AUS_DER_FALTUNG = "aus der Faltung"
 # Zwei Modelle mal alle Fassungen: So viele Zeilen entstehen je Aufnahme. Die
-# Zahl der Fassungen steht in `augmentierung` und nicht hier - sie hat sich
-# schon einmal geändert (September 2026, `pegel` und `lauter` verworfen), und
-# eine Kopie davon wäre die Stelle, die dann bricht.
+# Zahl der Fassungen kommt aus `augmentierung`, keine Kopie hier.
 FASSUNGEN = len(augmentierung.VARIANTEN)
 JE_AUFNAHME = 2 * FASSUNGEN
 
@@ -72,8 +70,7 @@ def _erkenner(
     monkeypatch.setattr(
         auswertung,
         "transkriptor_fuer",
-        # Seit die Auswertung auch trainierte Stände misst, bekommt sie das
-        # Datenverzeichnis dazu - dort liegen deren Gewichte.
+        # Das Datenverzeichnis, dort liegen die Gewichte trainierter Stände.
         lambda modell, geraet, rechenart, datenverzeichnis=None: PlatzhalterErkenner(
             modell, antworten
         ),
@@ -573,9 +570,7 @@ class TestNichtsZuTun:
 
         nochmal = klient.post("/api/auswertung/start").json()
 
-        # `laeuft` ist die Auskunft, an der die Ansicht das erkennt. Früher
-        # stand hier `True`, obwohl die Aufgabe nichts vorfand und sofort
-        # zurückkam - eine Angabe, auf die sich niemand verlassen konnte.
+        # `laeuft` ist die Auskunft, an der die Ansicht das erkennt.
         assert nochmal["laeuft"] is False
         assert nochmal["erledigt"] == nochmal["gesamt"] == fertig["gesamt"]
 

@@ -1,18 +1,8 @@
 """Die Faltungen: sechs, nach Zählerstand vergeben, nirgends gespeichert.
 
-Hier stand bis September 2026 die wichtigste Zusage dieser App - eine Aufnahme,
-die einmal geprüft hat, trainiert nie. Es gibt sie nicht mehr, weil es das
-Testdrittel nicht mehr gibt: Gemessen wird mit sechsfacher Kreuzvalidierung
-über den ganzen Korpus, und dabei trainiert jede Aufnahme in fünf von sechs
-Faltungen.
-
-Was an ihre Stelle tritt, ist eine schwächere, aber immer noch tragende Zusage:
-**Eine Aufnahme trägt genau eine Faltung.** Trüge sie zwei, hörte ein Modell
-die Aufnahme, an der es gemessen wird - und das sieht gut aus. Geprüft wird das
-dort, wo es entsteht: am Manifest (`test_laeufe.py`).
-
-Hier bleibt die Ansicht: dass sie die Zahlen nennt, ohne die Aufnahmen ein
-zweites Mal aufzuzählen.
+Die tragende Zusage - **eine Aufnahme trägt genau eine Faltung**, sonst hörte
+ein Modell, woran es gemessen wird - prüft `test_laeufe.py` am Manifest. Hier
+die Ansicht: Sie nennt die Zahlen, ohne die Aufnahmen aufzuzählen.
 """
 
 from __future__ import annotations

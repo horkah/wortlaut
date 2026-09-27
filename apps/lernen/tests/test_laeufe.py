@@ -91,8 +91,7 @@ class TestBeauftragen:
     def test_ohne_wahl_gilt_die_vorgabe(
         self, klient: TestClient, quelle: str, sprich
     ) -> None:
-        # Ein Auftrag von einem Aufrufer, der diese Achse nicht kennt, bleibt
-        # derselbe Auftrag wie vor September 2026.
+        # Ohne die Achse gilt ihre Vorgabe.
         sprich(6)
         lauf = _beauftrage(klient, "lora", "original")
         liste = klient.get("/lernen/api/laeufe").json()
@@ -300,11 +299,7 @@ class TestListeUndAbbruch:
 class TestLoeschen:
     """Ersatzlos - und ohne etwas Zeigendes zurückzulassen.
 
-    Ein Lauf hängt an drei Dingen: seinem Verzeichnis, dem Modell, das aus ihm
-    entstand, und der Aufteilung, aus der er seine Proben zog. Die ersten
-    beiden gehören ihm und gehen mit. Die dritte gehört den Aufnahmen und
-    bleibt - sie mit zu löschen hieße, sie beim nächsten Lauf neu zu würfeln
-    und damit Testaufnahmen ins Training zu lassen, die vorher geprüft haben.
+    Verzeichnis und Stand gehen mit; der Korpus bleibt.
     """
 
     def test_ein_wartender_verschwindet_ganz(
@@ -335,8 +330,7 @@ class TestLoeschen:
     def test_das_modell_geht_mit(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis, sprecher: str
     ) -> None:
-        # Bliebe es stehen, zeigte es auf ein Verzeichnis, das es nicht mehr
-        # gibt - und worauf es trainiert wurde, wäre nicht mehr zu beantworten.
+        # Ohne Lauf wäre nicht nachzusehen, worauf es gelernt hat.
         from wortlaut import registry
 
         sprich(6)
@@ -424,9 +418,7 @@ class TestLoeschen:
     def test_ein_haengender_laesst_sich_loeschen(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis
     ) -> None:
-        # `laeuft` ist eine Behauptung des rechnenden Prozesses, und sie bleibt
-        # stehen, wenn er sie nicht mehr zurücknehmen kann. Vorher war so ein
-        # Lauf für immer unlöschbar.
+        # `laeuft` bleibt stehen, wenn der Prozess es nicht zurücknehmen kann.
         sprich(6)
         lauf = _beauftrage(klient)
         verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"])
@@ -628,8 +620,7 @@ class TestTempowahl:
         assert ergebnis.hinweis
 
     def test_alte_auftraege_gelten_als_aus(self) -> None:
-        # `wie_eingestellt` gab es bis September 2026; der Profilfaktor ist
-        # gefallen, der Wert steht noch in alten Aufträgen.
+        # `wie_eingestellt` in einem Auftrag heißt: ohne Tempowahl.
         assert laeufe.tempowahl_aus({"tempowahl": "wie_eingestellt"}) == laeufe.TEMPO_AUS
         assert laeufe.tempowahl_aus({}) == laeufe.TEMPO_AUS
         assert laeufe.tempowahl_aus({"tempowahl": "geschaetzt"}) == laeufe.TEMPO_GESCHAETZT
@@ -649,11 +640,8 @@ class TestTempowahl:
 class TestVerwaisteLaeufe:
     """Was beim Start des Trainers mit Läufen geschieht, die `laeuft` sagen.
 
-    Dieser Läufer rechnet einen Auftrag nach dem anderen in einem
-    Unterprozess, den er selbst startet. Fährt er hoch, rechnet nichts - es
-    kann nichts rechnen. Jeder Lauf, der dann `laeuft` behauptet, ist von einem
-    Vorgänger übrig, den es nicht mehr gibt. Das ist keine Schätzung wie
-    `haengt`, sondern eine Feststellung.
+    Beim Start rechnet nichts; jeder `laeuft` ist übrig - eine Feststellung,
+    keine Schätzung wie `haengt`.
     """
 
     def test_der_start_macht_aus_laeuft_gescheitert(

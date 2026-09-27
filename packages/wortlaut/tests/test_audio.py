@@ -190,7 +190,7 @@ class TestSchnittNachAussen:
     def test_ohne_den_schalter_bleibt_es_beim_abschneiden(
         self, tmp_path: Path, wav_schreiben
     ) -> None:
-        """Das Verhalten, auf das sich „schreiben" seit jeher verlässt."""
+        """Das Verhalten, auf das sich „schreiben" verlässt."""
         quelle = wav_schreiben(tmp_path / "ganz.wav", sekunden=4.0)
 
         erreicht = audio.schneide_ausschnitt(quelle, tmp_path / "innen.wav", 1.000_03, 2.000_03)

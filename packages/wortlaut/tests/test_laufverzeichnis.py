@@ -51,10 +51,9 @@ class TestFaltungen:
         assert laeufe.verteile(groessen)[:6] == [1, 2, 3, 0, 4, 5]
 
     def test_spaet_geschnittenes_wird_trotzdem_ausgeglichen(self) -> None:
-        # So stand FEMKE im September 2026: die großen Verwandtschaften am Ende
-        # des Korpus, dahinter nichts mehr, das hätte aufholen können. In der
-        # Reihenfolge des Korpus vergeben, lagen die Faltungen bei 5, 9, 7, 10,
-        # 5, 7; die großen zuerst, bei 8, 7, 7, 7, 7, 7.
+        # Die großen Verwandtschaften am Ende des Korpus: In Korpusreihenfolge
+        # vergeben lägen die Faltungen bei 5, 9, 7, 10, 5, 7; die großen zuerst
+        # bei 8, 7, 7, 7, 7, 7.
         groessen = [1, 1, 1, 3, *[1] * 7, 3, *[1] * 7, 2, 4, 5, 3, 6]
         assert sum(groessen) == 43
         assert self._stand(groessen) == [8, 7, 7, 7, 7, 7]
@@ -276,7 +275,7 @@ class TestKern:
         assert faltungen["rec_a"] == faltungen["rec_b"] != faltungen["rec_c"]
 
     def test_ohne_eigene_faltungen_gelten_die_des_manifests(self, tmp_path: Path) -> None:
-        # Eine Kernauswahl von vorher: eingeschränkt auf den Kern, sonst unverändert.
+        # Eine Kernauswahl ohne eigene Faltungen: die des Manifests, auf den Kern beschränkt.
         (tmp_path / laeufe.MANIFEST).write_text(
             "\n".join(
                 json.dumps({"recording_id": kennung, "faltung": faltung})

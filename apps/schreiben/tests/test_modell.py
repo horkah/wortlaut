@@ -54,17 +54,14 @@ class TestModellauskunft:
 
         assert antwort["basismodell"] == "openai/whisper-large-v3"
         assert antwort["methode"] == "full"
-        # Die Methode steht mit in der Zeile: Seit „lernen" je Sprecher vier
-        # Stände liefert, wären zwei vom selben Tag sonst nicht zu unterscheiden.
+        # Mit Methode - zwei Stände vom selben Tag wären sonst nicht zu unterscheiden.
         assert antwort["beschriftung"] == "whisper-large-v3 · voll · Stand 2026-08-15"
 
     def test_die_beschriftung_traegt_keine_kennzahl(
         self, klient: TestClient, datenverzeichnis: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        # Sie sagt, **welches** Modell arbeitet, und nicht, wie gut. Die
-        # Wortfehlerrate aus dem Manifest stand hier einmal und widersprach der
-        # Zahl in der Modellübersicht von „lernen" - beide richtig, über
-        # verschiedene Einheiten gemittelt, und nebeneinander ein Rätsel.
+        # Sie sagt, welches Modell arbeitet, nicht wie gut - Zahlen stehen in
+        # der Modelltafel von „lernen".
         registry.schreibe_stand(datenverzeichnis, MANIFEST)
         monkeypatch.setenv("WORTLAUT_MODELL_REF", MANIFEST["id"])
         einstellungen.cache_clear()
@@ -106,9 +103,8 @@ class TestEigenesModell:
     def test_ein_freigegebenes_grundmodell_gilt_genauso(
         self, klient: TestClient, datenverzeichnis: Path, sprecher: str
     ) -> None:
-        # Seit die Modellübersicht beide Sorten in einer Tabelle zeigt, kann
-        # auch ein unverändertes Whisper-Modell freigegeben sein - „mein
-        # eigenes ist noch nicht besser als medium" ist eine Antwort.
+        # Auch ein Grundmodell kann freigegeben sein - „mein eigenes ist noch
+        # nicht besser als medium" ist eine Antwort.
         registry.gib_frei(datenverzeichnis, sprecher, "medium")
 
         antwort = klient.get("/schreiben/api/model").json()

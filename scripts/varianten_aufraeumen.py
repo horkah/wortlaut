@@ -8,15 +8,8 @@ je Abwandlung (`wortlaut/augmentierung.py`). Wird eine Abwandlung abgeschafft,
 bleiben ihre Dateien liegen: Sie stehen in keiner Tabelle, also räumt sie auch
 keine Migration weg, und wer über das Verzeichnis läuft, hält sie für gültig.
 
-Dieses Skript ist die Antwort darauf, und es kennt keine Namensliste: Es
-vergleicht, was auf der Platte liegt, mit dem, was `augmentierung.VARIANTEN`
-heute nennt, und entfernt den Rest. Damit gilt es auch für die nächste
-Abwandlung, die einmal wegfällt - und für die, die jemand versehentlich unter
-falschem Namen ablegt.
-
-Anlass war der Herbst 2026: `pegel` und `lauter` sind verworfen worden, weil
-sie an Whisper nahezu wirkungslos sind (siehe `009_ohne_pegelvarianten.sql`).
-Bei 400 Aufnahmen sind das 800 Dateien.
+Ohne Namensliste: Es vergleicht die Platte mit `augmentierung.VARIANTEN` und
+entfernt den Rest - auch falsch benannt Abgelegtes.
 
 Ein zweiter Lauf tut nichts, und ohne `--wirklich` tut auch der erste nichts:
 Vorgabe ist die Liste dessen, was wegginge.
