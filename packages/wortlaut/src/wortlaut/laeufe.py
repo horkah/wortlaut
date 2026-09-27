@@ -435,8 +435,9 @@ def optionscode(auftrag: dict[str, Any]) -> str:
 
 # ── Die Folge ───────────────────────────────────────────────────────────────
 #
-# Hinter dem Optionscode: die Zahl der Aufnahmen und ein Buchstabe, wenn es
-# Code und Zahl schon gibt - `/43`, `/43b`, `/43c`, nach `z` weiter mit `aa`.
+# Hinter dem Optionscode: die Zahl der gelernten Aufnahmen - bei der
+# Kernauswahl die des Kerns - und ein Buchstabe, wenn es Code und Zahl schon
+# gibt: `/43`, `/43b`, `/43c`, nach `z` weiter mit `aa`.
 # Vergeben beim Auftrag, einer über dem höchsten noch vorhandenen Buchstaben,
 # und danach nie geändert - sonst zeigte dieselbe Kennung nach einer Löschung
 # auf ein anderes Modell.
@@ -469,13 +470,19 @@ def folgenummer(buchstaben: str) -> int:
     return wert - 1
 
 
+def folgezahl(auftrag: dict[str, Any]) -> int:
+    """Wie viele Aufnahmen der Lauf sieht - bei der Kernauswahl nur den Kern."""
+    aufnahmen = int(auftrag.get("aufnahmen") or 0)
+    return kern_anzahl(aufnahmen) if auswahl_aus(auftrag) == AUSWAHL_KERN else aufnahmen
+
+
 def naechste_folge(auftrag: dict[str, Any], vorhandene: Iterable[dict[str, Any]]) -> str:
     """Die Folge für diesen Auftrag, gemessen an den `vorhandene` Aufträgen desselben Sprechers.
 
     Mitgezählt wird nur, wer eine Folge trägt.
     """
     code = optionscode(auftrag)
-    zahl = str(int(auftrag.get("aufnahmen") or 0))
+    zahl = str(folgezahl(auftrag))
     belegt = []
     for anderer in vorhandene:
         folge = str(anderer.get(FOLGE) or "")
