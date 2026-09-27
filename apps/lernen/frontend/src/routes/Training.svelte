@@ -2,22 +2,15 @@
   /**
    * Läufe beauftragen und ihnen zusehen.
    *
-   * **Warum wenige Wahlen und keine Formularseite.** Acht Achsen, jede mit
-   * wenigen Werten; alles andere steht im Rezept. Jede Achse steht im Auftrag
-   * und als Glied im Optionscode (`wortlaut/laeufe.optionscode`), der einen
-   * Lauf hier, in der Modelltafel und in der Einzelansicht benennt. Die
-   * Vorgaben sind das Verfahren, nach dem jeder Stand von vorher entstand.
+   * Wenige Achsen mit wenigen Werten, alles andere im Rezept. Jede Achse ist
+   * ein Glied im Optionscode (`wortlaut/laeufe.optionscode`), der einen Lauf
+   * überall benennt.
    *
-   * **Warum die Liste im Takt nachfragt.** Ein Training dauert Stunden. Der
-   * Balken soll währenddessen wachsen, ohne dass jemand neu lädt - und er soll
-   * es auch dann, wenn der Auftrag in einem anderen Reiter angestoßen wurde.
-   * Im Ruhezustand bleibt ein langsamer Takt: Läuft nichts, ist nichts zu
-   * sehen.
+   * Die Liste fragt im Takt nach, damit der Balken ohne Neuladen wächst - auch
+   * für Aufträge aus einem anderen Reiter.
    *
-   * **Warum fertige Läufe hier fehlen.** Ein fertiger Lauf ist ein Modell und
-   * steht in der Modelltafel; von dort führt sein Code in die Einzelansicht,
-   * wo er sich auch löschen lässt. Hier stehen nur die Läufe, die noch etwas
-   * tun oder an denen etwas schiefging - oben, vor der Bestellung.
+   * Fertige Läufe stehen als Modelle in der Modelltafel; hier nur, was noch
+   * arbeitet oder scheiterte.
    */
   import { onMount } from 'svelte';
   import {
@@ -48,10 +41,7 @@
   // Welcher Lauf gerade gelöscht wird - der Knopf sperrt sich so lange selbst.
   let loescht = $state('');
 
-  // Die Wahl kommt aus dem Browser und geht dorthin zurück: Wer vier Läufe
-  // vergleicht, sieht sich zwischendurch Kurven an, und nach der Rückkehr soll
-  // nicht alles wieder auf der Vorgabe stehen (siehe `lib/trainingswahl.ts`).
-  // Die Vorgaben selbst sind das Verfahren von vorher - siehe Kopf dieser Datei.
+  // Die Wahl übersteht einen Reiterwechsel (`lib/trainingswahl.ts`).
   const gemerkt = trainingswahl();
   let grundmodell = $state(gemerkt.grundmodell);
   let methode = $state(gemerkt.methode);
@@ -227,11 +217,8 @@
    * Die gerade eingestellte Bestellung als Schlüssel - dieselbe Form wie in
    * `gerechnetGenau`.
    *
-   * Das Grundmodell steht mit darin, und das fehlte bis September 2026: Ein
-   * fertiger `small`-Lauf meldete eine `medium`-Bestellung als „schon
-   * gerechnet". Solange es nur ein Grundmodell gab, war der Schlüssel
-   * vollständig; seither war er es nicht mehr, ohne dass sich etwas daran
-   * geändert hätte - der stillste aller Fehler.
+   * Mit Grundmodell - sonst gälte eine `medium`-Bestellung nach einem
+   * `small`-Lauf als „schon gerechnet".
    */
   const bestellschluessel = $derived(
     [
@@ -259,12 +246,7 @@
   };
 
   /**
-   * Welches der sieben Trainings gerade läuft.
-   *
-   * Ohne diese Angabe erschien „Modell wird geladen" siebenmal im Lauf, ohne
-   * dass zu sehen war, dass es jedes Mal ein anderes Training ist - wer nach
-   * zwanzig Minuten wieder hinsah, las dieselbe Zeile wie am Anfang und
-   * schloss auf einen Lauf, der hängt.
+   * Welches Training gerade läuft - jede Faltung durchläuft dieselben Stufen.
    */
   function wobei(lauf: Lauf): string {
     const stufe = STUFEN[lauf.stufe] ?? lauf.stufe;
@@ -273,9 +255,7 @@
     // „Endmodell", denn auch dort ist die Faltung `null`.
     if (lauf.stufe === 'vorbereiten') return stufe;
     if (lauf.stufe === 'kernauswahl') return `${stufe} (${lauf.kern_offen} Aufnahmen)`;
-    // `faltung === null` heißt: das siebte Training, das auf allem lernt.
-    // Auch das gehört dazu - sonst sieht die letzte halbe Stunde eines Laufs
-    // aus wie die erste.
+    // `faltung === null`: das Endmodell, das auf allem lernt.
     const wo =
       lauf.faltung === null
         ? 'Endmodell'
@@ -286,9 +266,7 @@
   /**
    * Wie lange ein Lauf schon stillsteht, für Menschen.
    *
-   * Grob und mit Absicht: Ob es einundzwanzig oder zweiundzwanzig Minuten
-   * sind, ändert nichts an dem, was jemand jetzt tut. Dass es Minuten und
-   * nicht Sekunden sind, ändert alles.
+   * Grob mit Absicht: Minuten oder Stunden, keine Sekunden.
    */
   function stillstand(sekunden: number | null): string {
     const s = sekunden ?? 0;
@@ -349,9 +327,7 @@
         },
         schluessel,
       );
-      // Erst merken, wenn er gestimmt hat: Ein falsch getippter Schlüssel, der
-      // den Neustart überlebt, ist einer, den man beim nächsten Mal nicht mehr
-      // verdächtigt.
+      // Erst merken, wenn er gestimmt hat.
       setzeTrainerschluessel(schluessel);
       await hole();
       fehler = '';
@@ -456,10 +432,7 @@
             <a class="titel" href="#{LAUF_ROUTE}{lauf.job_id}">{lauf.code}</a>
           </p>
           <span class="rechts">
-            <!-- Ein hängender Lauf sagt im Zustand `laeuft`. Das hier ist die
-                 einzige Stelle, an der die Ansicht ihm widerspricht - und sie
-                 tut es, weil „läuft" neben einem Balken, der sich seit zwanzig
-                 Minuten nicht bewegt, die Unwahrheit ist. -->
+            <!-- Ein hängender Lauf sagt `laeuft`; nur hier widerspricht die Ansicht. -->
             <span class="zustand {lauf.haengt ? 'gescheitert' : lauf.status}">
               {lauf.haengt ? 'hängt' : (STATUS[lauf.status] ?? lauf.status)}
             </span>
@@ -496,10 +469,7 @@
         </p>
 
         {#if lauf.haengt}
-          <!-- Kein Balken. Ein Fortschrittsbalken sagt „gleich kommt der
-               nächste Schritt", und genau das stimmt hier nicht. Was
-               stattdessen dasteht, ist die Auskunft, die weiterhilft: wie weit
-               er kam, und seit wann nichts mehr geschah. -->
+          <!-- Kein Balken, sondern wie weit er kam und seit wann nichts geschah. -->
           <p class="hinweise">
             Keine Ausgabe seit {stillstand(lauf.stillstand_s)}{#if lauf.anteil !== null},
               stehen geblieben bei {(lauf.anteil * 100).toFixed(0)} %{/if}. Nicht fortsetzbar.

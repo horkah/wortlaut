@@ -1,21 +1,7 @@
 <script lang="ts">
   /**
-   * Wie gemessen wird - und warum die Aufnahmen hier nicht noch einmal stehen.
-   *
-   * Diese Ansicht hieß einmal „wer lernt, wer steuert, wer prüft" und zeigte
-   * jede Aufnahme mit ihrem Platz in der Aufteilung. Das war nötig, solange es
-   * ein Testdrittel gab: Wer wissen wollte, ob seine Prüfaufnahmen ungesehen
-   * sind, musste sie sehen können.
-   *
-   * Seit der Kreuzvalidierung gibt es diese Teilmenge nicht mehr - jede
-   * Aufnahme trainiert in fünf von sechs Faltungen und misst in der sechsten.
-   * Es bleibt also nichts nachzuzählen, und die Liste wäre eine zweite
-   * Darstellung derselben Daten, die unter „Meine Daten" schon vollständig
-   * steht. Zwei Listen über dieselbe Sache sind eine zu viel; die zweite ist
-   * die, die irgendwann nicht mehr stimmt.
-   *
-   * Was hierher gehört, ist die Erklärung: was mit den Aufnahmen geschieht,
-   * wenn trainiert und gemessen wird.
+   * Wie gemessen wird: was mit den Aufnahmen beim Trainieren und Messen
+   * geschieht. Die Aufnahmen selbst stehen unter „Meine Daten".
    */
   import { onMount } from 'svelte';
   import { MEINE_DATEN_PFAD } from '$ui/apps';
@@ -107,8 +93,8 @@
       bewährt haben (Durchgänge, α, Tempo). Dieser Stand steht in „Modelle" zur Freigabe.
     </p>
     <p class="gedaempft">
-      Er kennt jede Aufnahme und lässt sich deshalb nicht mehr messen. Die Zahl daneben ist
-      die vorsichtige aus der Kreuzvalidierung.
+      Er kennt jede Aufnahme und lässt sich deshalb nicht ehrlich messen. Die Zahl daneben
+      ist die vorsichtige aus der Kreuzvalidierung.
     </p>
   </div>
 

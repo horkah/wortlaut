@@ -4,17 +4,10 @@
  * Dieselbe Bibliothek und derselbe Aufbau wie in „hören"
  * (`apps/hoeren/frontend/src/lib/diagramm.ts`), aber mit anderen Bausteinen:
  * Dort werden Balken und Punkte über Aufnahmen gezeichnet, hier Linien über
- * Trainingsschritte. Die Bausteine werden **namentlich** eingeführt und nicht
- * als ganzes Bündel - das ist kein Stil, sondern der Unterschied zwischen 90
- * und 370 Kilobyte im Browser.
+ * Trainingsschritte. Die Bausteine namentlich - 90 statt 370 Kilobyte.
  *
- * **Warum die Datei zweimal existiert.** Die geteilten Komponenten unter
- * `packages/ui` kommen ohne eine einzige fremde Bibliothek aus; sie haben kein
- * eigenes `node_modules` und werden aus dem der jeweiligen App gebaut. Ein
- * `import 'echarts'` dort fände nichts. Der Umzug dorthin ist ein
- * npm-Arbeitsbereich - und dann steht diese Liste einmal statt zweimal. Bis
- * dahin ist die Doppelung die ehrlichere Lösung: Zwei Apps zeichnen
- * Verschiedenes, und jede trägt nur, was sie zeichnet.
+ * Zweimal vorhanden, weil `packages/ui` kein eigenes `node_modules` hat und
+ * ohne fremde Bibliothek auskommt; jede App trägt nur, was sie zeichnet.
  *
  * Geladen wird das Ganze erst, wenn eine Ansicht es braucht
  * (`await import('./diagramm')`) - die Aufteilung schleppt es nicht mit.

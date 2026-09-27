@@ -1,21 +1,13 @@
 /**
  * Die Wahl beim Beauftragen - über einen Reiterwechsel hinweg.
  *
- * Acht Achsen hat ein Auftrag inzwischen: Grundmodell, Methode, Datensatz,
- * Auswahl, Abschluss, Augmentierung, Dauer, Tempowahl. Wer vier Läufe hintereinander beauftragt,
- * um sie zu vergleichen, ändert zwischen zweien davon genau eine - und
- * zwischendurch sieht er sich die Kurven des vorigen an. Bis September 2026
- * stand nach der Rückkehr alles wieder auf der Vorgabe, und man fing von vorn
- * an zu klicken.
+ * Wer Läufe zum Vergleich beauftragt, ändert zwischen zweien meist eine Achse
+ * und sieht sich zwischendurch Kurven an. Die Wahl liegt deshalb im
+ * `localStorage` - wie der Trainerschlüssel (`trainerschluessel.ts`); ohne
+ * Speicher gilt die Vorgabe.
  *
- * Deshalb liegt die Wahl im `localStorage`, unter demselben Vorbehalt wie der
- * Trainerschlüssel nebenan (`trainerschluessel.ts`): Ein Browser mit
- * gesperrtem Speicher ist kein Fehlerfall, dann gilt eben die Vorgabe.
- *
- * **Was hier nicht liegt: das Ergebnis.** Dies ist ein Bedienkomfort und keine
- * zweite Wahrheit über einen Lauf. Was wirklich bestellt wurde, steht im
- * Auftrag des Laufs und nirgends sonst (`wortlaut/laeufe.py`) - diese Datei
- * merkt sich nur, wie die Knöpfe zuletzt standen.
+ * Nur Bedienkomfort: Was bestellt wurde, steht im Auftrag des Laufs
+ * (`wortlaut/laeufe.py`).
  */
 
 const SCHLUESSEL = 'wortlaut.trainingswahl';
@@ -32,10 +24,7 @@ export type Trainingswahl = {
   tempowahl: string;
 };
 
-/**
- * Die Vorgabe - und zwar genau das, was dieses Projekt vor jeder dieser Achsen
- * gerechnet hat. Wer nichts wählt, bekommt das Verfahren von damals.
- */
+/** Die Vorgabe jeder Achse, wie in `wortlaut/laeufe.py`. */
 export const VORGABE: Trainingswahl = {
   grundmodell: '',
   methode: 'lora',
@@ -52,9 +41,8 @@ export function trainingswahl(): Trainingswahl {
     const roh = localStorage.getItem(SCHLUESSEL);
     if (!roh) return { ...VORGABE };
     const gelesen = JSON.parse(roh) as Partial<Trainingswahl>;
-    // Feld für Feld über die Vorgabe gelegt: Eine Achse, die es beim letzten
-    // Besuch noch nicht gab, steht damit auf ihrer Vorgabe statt auf
-    // `undefined` - und eine, die es nicht mehr gibt, fällt weg.
+    // Feld für Feld über die Vorgabe gelegt: Fehlende Achsen stehen auf ihrer
+    // Vorgabe, unbekannte fallen weg.
     return {
       grundmodell: gelesen.grundmodell ?? VORGABE.grundmodell,
       methode: gelesen.methode ?? VORGABE.methode,

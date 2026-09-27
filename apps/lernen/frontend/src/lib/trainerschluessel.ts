@@ -7,12 +7,9 @@
  * deshalb an genau eine: `POST /lernen/api/laeufe` (siehe
  * `backend/api/laeufe.py`).
  *
- * Warum er überhaupt im `localStorage` liegt und nicht jedes Mal neu getippt
- * wird: Wer trainiert, tut das in Sitzungen - vier Läufe hintereinander, um
- * sie zu vergleichen -, und ein Feld, das bei jedem Auftrag leer ist, wird
- * abgeschrieben und landet in einer Textdatei neben dem Browser. Er steht
- * unter einem eigenen Namen und nicht beim Zugang, damit „abmelden" das eine
- * räumen kann, ohne das andere mitzunehmen.
+ * Im `localStorage`, weil in Sitzungen trainiert wird und ein jedes Mal
+ * leeres Feld in einer Textdatei landet. Unter eigenem Namen, damit
+ * „abmelden" den Zugang räumt, ohne den Schlüssel mitzunehmen.
  */
 
 const SCHLUESSEL = 'wortlaut.trainerschluessel';

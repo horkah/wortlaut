@@ -2,29 +2,14 @@
   /**
    * Alle Modelle dieses Menschen an einem Ort - gemessen, verglichen, freigegeben.
    *
-   * **Warum eine Ansicht und nicht zwei.** Es waren zwei: eine Liste der
-   * eigenen Stände mit einem Freigabeknopf hier, und drüben in „schreiben"
-   * eine zweite Liste, in der sich zusätzlich ein Grundmodell auswählen ließ.
-   * Zwei Ansichten, zwei Begriffe, dieselbe Entscheidung - und in keiner von
-   * beiden stand die Frage, um die es geht: Ist das eigene Modell besser als
-   * das, was Whisper von sich aus mitbringt? Diese Frage beantwortet nur eine
-   * Tabelle, in der beide Sorten nebeneinander stehen.
+   * Eigene Stände und Grundmodelle in einer Tabelle - nur so zeigt sich, ob
+   * das eigene Modell besser ist als Whisper von sich aus. Eine Rangfolge
+   * liest man in Spalten; wenige Spalten, denn hier wird entschieden, nicht
+   * geforscht - die Aufschlüsselung steht in der Auswertung von „hören" und
+   * beim Lauf.
    *
-   * **Warum eine Tabelle und nicht Karten.** Karten zeigen ein Modell gut und
-   * fünf Modelle schlecht: Der Blick muss von Zahl zu Zahl springen, statt
-   * eine Spalte hinunterzulaufen. Gefragt ist hier eine Rangfolge, und eine
-   * Rangfolge liest man in Spalten.
-   *
-   * **Warum trotzdem wenig darin steht.** Vier Spalten, mehr nicht. Die
-   * vollständige Aufschlüsselung - je Aufnahme, je Fassung, mit den erkannten
-   * Texten daneben - steht dort, wo sie hingehört: in der Auswertung von
-   * „hören" und beim einzelnen Lauf. Hier wird entschieden, nicht geforscht.
-   *
-   * **Warum das Beste hervorgehoben wird und nicht sortiert werden muss.**
-   * Sortiert wird trotzdem, nach der Spalte, die gerade zählt; aber auch ohne
-   * einen Klick soll die beste Zahl jeder Spalte ins Auge fallen. Sie steht
-   * nicht nur farbig da, sondern trägt ein Wort in ihrem `title` - Farbe
-   * allein wäre für einen Teil der Leser keine Auskunft.
+   * Die beste Zahl jeder Spalte fällt auch ohne Sortieren ins Auge, farbig und
+   * mit einem Wort im `title`.
    */
   import { ANZEIGE_GEBIET } from '$ui/sprache';
   import { zeitpunkt } from '$ui/zeit';
@@ -48,32 +33,19 @@
   let geladen = $state(false);
   let arbeitet = $state('');
 
-  // Welche Fassung die Tabelle zeigt. „Alle Fassungen" ist die Vorgabe: Das
-  // ist die Zahl, die ein Modell in einem Satz beschreibt. Wer wissen will, ob
-  // ein Stand den Sprecher verstanden hat oder seine Aufnahmesituation,
-  // schaltet auf „Original" oder „Rauschen" um - dieselbe Frage wie beim Lauf.
+  // Vorgabe „Alle Fassungen"; „Original" oder „Rauschen" zeigen, ob ein Stand
+  // den Sprecher verstanden hat oder die Aufnahmesituation.
   let fassung = $state('alle');
-  // Wonach sortiert wird; die Richtung ergibt sich aus dem Maß selbst (bei den
-  // Fehlerraten ist klein besser). Ein eigener Umschalter dafür wäre eine
-  // Gelegenheit, versehentlich die schlechtesten nach oben zu holen.
+  // Die Richtung folgt aus dem Maß.
   let sortiertNach = $state('genauigkeit');
 
   /**
    * Ob und wie ein Vertrauensbereich neben jede Zahl tritt.
    *
-   * **Warum das abschaltbar ist und abgeschaltet anfängt.** Diese Tabelle ist
-   * das Laborbuch dieses Projekts: Was hier steht, wird mit dem verglichen, was
-   * vor Monaten hier stand. Eine Ansicht, die ihre Zahlen von sich aus anders
-   * rechnet, macht jeden solchen Vergleich zunichte. Also ändert sie nichts -
-   * `aus` ist die Tabelle von gestern, Zeichen für Zeichen -, und wer die
-   * Streuung sehen will, bestellt sie.
-   *
-   * **Warum zwei Arten zur Wahl stehen.** `aufnahme` zieht blockweise: Die vier
-   * Fassungen einer Aufnahme sind vier Messungen an einem Gegenstand und
-   * gehören zusammen gezogen. Das ist die richtige Wahl. `einheit` zieht naiv
-   * je Messung und ergibt einen etwa halb so breiten Bereich - falsch, aber das
-   * in der Literatur übliche Verfahren, und ohne es wären die Zahlen hier mit
-   * keiner Veröffentlichung vergleichbar.
+   * Zugeschaltet, nie von selbst: Die Zahlen bleiben dieselben. `aufnahme`
+   * zieht blockweise - die Fassungen einer Aufnahme sind Messungen an einem
+   * Gegenstand. `einheit` zieht naiv je Messung, etwa halb so breit, aber das
+   * in der Literatur übliche Verfahren.
    */
   let sicherheit = $state('aus');
   /** Gegen welches Modell gepaart verglichen wird; leer heißt: gegen keines. */
@@ -160,8 +132,7 @@
   /**
    * Ob der Vorsprung des besten Wertes vor dem zweitbesten überhaupt einer ist.
    *
-   * `null`, solange keine Bereiche angefordert sind - dann bleibt die
-   * Hervorhebung, was sie immer war. Sonst: überlappen die beiden Bereiche,
+   * `null`, solange keine Bereiche angefordert sind. Sonst: Überlappen die beiden Bereiche,
    * ist der Vorsprung **nicht** belegt, und die Spalte sagt das.
    *
    * Der Test über zwei einzelne Bereiche ist dabei die vorsichtige Variante:
@@ -189,17 +160,10 @@
   /**
    * Die Tabellenzeile zu dem Modell, das „schreiben" gerade geladen hat.
    *
-   * Damit stehen in der Karte oben und in der Zeile unten dieselben Zahlen aus
-   * derselben Rechnung. Vorher nannte die Karte die Wortfehlerrate aus dem
-   * Manifest des Standes - das Mittel über die Testeinheiten *seines* Laufs -,
-   * die Tabelle dagegen das Mittel über die Einheiten, die **alle** Modelle
-   * gemessen haben. Beide Zahlen waren richtig, nebeneinander waren sie ein
-   * Rätsel.
-   *
-   * `undefined` ist möglich und kein Fehler: `WORTLAUT_MODELL_REF` kann auf
-   * einen Stand zeigen, der hier nicht zur Wahl steht, und ein gelöschter
-   * steht ebenfalls nicht mehr in der Liste. Dann bleibt die Beschriftung von
-   * „schreiben" stehen, und Zahlen gibt es eben keine.
+   * So nennen Karte und Zeile dieselben Zahlen aus derselben Rechnung.
+   * `undefined`, wenn `WORTLAUT_MODELL_REF` auf einen Stand außerhalb der Liste
+   * zeigt oder der Stand gelöscht ist - dann bleibt die Beschriftung von
+   * „schreiben", ohne Zahlen.
    */
   const laufend = $derived(
     diktat ? (uebersicht?.modelle ?? []).find((modell) => modell.ref === diktat!.ref) : undefined,
@@ -220,14 +184,8 @@
   /**
    * Ein Modell freigeben - nach einer Rückfrage, die es beim Namen nennt.
    *
-   * Die Rückfrage ist nicht Zierde. Diese Liste enthält Zeilen, die einander
-   * ähneln - sechs Achsen, und zwei Läufe können sich in genau einer
-   * unterscheiden. Ein Klick ändert, womit ein Mensch ab sofort diktiert;
-   * dass dabei genannt wird, **welches** Modell gemeint ist, ist die letzte
-   * Stelle, an der ein Vergreifen auffällt.
-   *
-   * Genannt wird beides: was gilt und was gelten soll. „Statt" ist die
-   * Information, die fehlt, wenn man nur das Ziel liest.
+   * Zeilen ähneln einander, und ein Klick ändert, womit ein Mensch diktiert.
+   * Genannt wird deshalb, was gilt und was gelten soll.
    */
   async function freigeben(ref: string) {
     const neu = uebersicht?.modelle.find((m) => m.ref === ref);
@@ -416,10 +374,8 @@
             <th scope="row" class="modellspalte">
               <span class="zeile">
                 {#if modell.kennung}<code class="kennung">{modell.kennung}</code>{/if}
-                <!-- Der Name **ist** der Weg in die Einzelansicht: Steckbrief,
-                     Lernkurven, Protokoll. Ein Link „Details" darunter war eine
-                     zweite Beschriftung für dasselbe Ziel; wer eine Zahl in
-                     dieser Tafel nicht glaubt, klickt auf das Modell.
+                <!-- Der Name ist der Weg in die Einzelansicht: Steckbrief,
+                     Lernkurven, Protokoll.
 
                      Nur bei eigenen Ständen: Ein Grundmodell hat keinen Lauf,
                      und ein Link ins Leere wäre schlimmer als keiner. -->
@@ -437,9 +393,7 @@
               <span class="gedaempft klein">
                 {modell.herkunft}{#if modell.erstellt} · {zeitpunkt(modell.erstellt)}{/if}
               </span>
-              <!-- Steht hier und nicht in einer eigenen Spalte: Es betrifft die
-                   ganze Zeile, und wer die Zahlen rechts liest, soll den Satz
-                   vorher gelesen haben. -->
+              <!-- Vor den Zahlen, denn es betrifft die ganze Zeile. -->
               {#if modell.vorbehalt}
                 <span class="vorbehalt klein">{modell.vorbehalt}</span>
               {/if}
@@ -458,19 +412,13 @@
                   >
                     {zahl(roh, mass)}
                   </span>
-                  <!-- Nur an der Rechenzeit und nur, wenn sie nicht vergleichbar
-                       ist: Dann sagt die Marke, worauf sie entstand, statt die
-                       Zahl kommentarlos neben eine von einer anderen Maschine zu
-                       stellen. -->
+                  <!-- Nicht vergleichbare Rechenzeit: die Marke sagt, worauf sie entstand. -->
                   {#if mass.schluessel === 'rechenzeit_s' && !vergleichbar(mass)}
                     <span class="werk" title="Gemessen auf {modell.rechenwerk || 'unbekanntem Rechenwerk'}">
                       {modell.rechenwerk ? modell.rechenwerk.split('/')[0] : '?'}
                     </span>
                   {/if}
-                  <!-- Die zweite Zeile: entweder der Bereich um diese Zahl oder,
-                       wenn ein Vergleichsmodell gewählt ist, der gepaarte
-                       Abstand zu ihm. Beides zugleich wäre in einer Tabellen-
-                       zelle nicht mehr zu lesen. -->
+                  <!-- Zweite Zeile: der Bereich, oder mit Vergleichsmodell der gepaarte Abstand. -->
                   {@const um = abstand(modell, mass.schluessel)}
                   {@const drum = bereich(modell, mass.schluessel)}
                   {#if um}

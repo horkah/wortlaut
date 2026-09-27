@@ -5,11 +5,8 @@
  * und die Einzelansicht, der einzige Ort, an dem ein fertiger Lauf noch als
  * Lauf steht. Die Rückfrage steht deshalb hier und nicht zweimal.
  *
- * Die Abfrage nennt, was verschwindet, und nicht nur „wirklich?". Ein
- * fertiger Lauf hat ein Modell hervorgebracht, und das geht mit: Bliebe es
- * stehen, zeigte es auf ein Verzeichnis, das es nicht mehr gibt, und die
- * Frage, worauf es trainiert wurde, wäre nicht mehr zu beantworten. Wer das
- * nicht weiß, bevor er bestätigt, erfährt es hinterher.
+ * Die Abfrage nennt, was verschwindet: Das Modell eines fertigen Laufs geht
+ * mit (`services/auftraege.loesche`).
  *
  * Ein freigegebener Stand bekommt einen eigenen Satz dazu: Mit ihm ändert
  * sich, womit in „schreiben" diktiert wird.
@@ -32,10 +29,8 @@ export async function loescheNachRueckfrage(lauf: Lauf): Promise<boolean> {
           'bis ein anderer Stand freigegeben wird.',
       );
     }
-    // Die Folge, die niemand erwartet: Die Modelltafel rechnet jede Zahl
-    // über die Messungen, die **alle** Modelle haben. Fällt eine Zeile weg,
-    // wächst diese Schnittmenge - und jede übrige Zahl ändert sich.
-    // Gemessen waren das 0,15 WER, als ein alter Stand verschwand.
+    // Die Modelltafel rechnet über die gemeinsamen Messungen; fällt eine
+    // Zeile weg, ändert sich jede übrige Zahl.
     zeilen.push(
       'In der Modelltafel können sich dadurch die Zahlen der übrigen Modelle ändern: ' +
         'Sie stehen auf den Messungen, die alle Modelle gemeinsam haben.',

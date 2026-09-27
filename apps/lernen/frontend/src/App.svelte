@@ -3,15 +3,9 @@
    * Was „lernen" an eigenen Ansichten hat - der Rahmen darum steht in
    * `$ui/Rahmen.svelte` und ist in jeder App derselbe, samt Menü.
    *
-   * Drei Reiter (`REITER` in `$ui/apps`), und ihre Reihenfolge ist der Weg
-   * durch die Arbeit: nachsehen, wie die Aufnahmen aufgeteilt sind, ein
-   * Training beauftragen und ihm zusehen, und am Ende entscheiden, welches
-   * Modell gelten soll.
-   *
-   * Die letzte davon - „Modelle" - ist zugleich die Ansicht, auf der auch
-   * „schreiben" und „hören" landen, wenn dort jemand auf das Modell klickt.
-   * Sie liegt hier, weil hier die Stände entstehen; sie zeigt aber alles, was
-   * dieser Mensch laden kann, die unveränderten Grundmodelle eingeschlossen.
+   * Die Reiter (`REITER` in `$ui/apps`) folgen dem Weg durch die Arbeit:
+   * Aufteilung, Training, Modelle. „Modelle" ist auch das Ziel eines Klicks
+   * auf das Modell in „schreiben" und „hören" - samt Grundmodellen.
    */
   import Rahmen from '$ui/Rahmen.svelte';
   import Zugangsdaten from '$ui/Zugangsdaten.svelte';
