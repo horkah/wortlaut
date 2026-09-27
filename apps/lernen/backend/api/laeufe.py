@@ -878,8 +878,7 @@ def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         faltungen=lauf_layout.FALTUNGEN,
         bereit=genug and erlaubt,
         schluessel_noetig=erlaubt,
-        # Der Schlüssel zuerst: Wer ohnehin nicht trainieren darf, soll nicht
-        # erst Aufnahmen sammeln, um dann vor derselben Wand zu stehen.
+        # Der Schlüssel zuerst - ohne ihn helfen auch mehr Aufnahmen nicht.
         hinweis=(
             ""
             if genug and erlaubt
@@ -901,11 +900,10 @@ def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
 def beauftrage(
     bestellung: Bestellung, korpus: Korpus, sprecher: SprecherId, sprache: Sprache
 ) -> LaufAntwort:
-    """Einen Lauf beauftragen - mit dem Neustart der Weg, der den Trainerschlüssel verlangt.
+    """Einen Lauf beauftragen.
 
-    Er steht vor allen anderen Prüfungen, und zwar mit Absicht: Wer nicht
-    trainieren darf, soll nicht erfahren, wie viele Aufnahmen im Korpus eines
-    Sprechers liegen oder ob eine Methode diesen Server kennt.
+    Der Trainerschlüssel wird vor allem anderen geprüft: Wer nicht trainieren
+    darf, erfährt nichts über Korpus oder Methoden.
     """
     if bestellung.methode not in lauf_layout.METHODEN:
         raise HTTPException(status_code=400, detail=f"Unbekannte Methode: {bestellung.methode}")
@@ -931,16 +929,13 @@ def beauftrage(
 
     konfiguration = einstellungen()
     grundmodell = bestellung.grundmodell or konfiguration.lernen_basismodell
-    # Nur die Whisper-Modelle stehen zur Wahl. Auf einem trainierten Stand
-    # weiterzulernen ist im Trainer vorbereitet (`auftraege.Auftrag.ausgangsstand`,
-    # `training/ausgangsstand.py`), wird aber nicht angeboten: Der Versuch damit
-    # ist gescheitert.
+    # Nur Whisper-Modelle. Ein Ausgangsstand (`auftraege.Auftrag.ausgangsstand`,
+    # `training/ausgangsstand.py`) kann der Trainer, angeboten wird er nicht.
     if grundmodell not in konfiguration.grundmodelle():
         raise HTTPException(
             status_code=400, detail=f"Unbekanntes Grundmodell: {grundmodell}"
         )
-    # Die eine Kombination, die es nicht gibt. Sie hier abzuweisen kostet
-    # nichts; sie zuzulassen kostete zwei Stunden und endete am Speicher.
+    # Scheiterte sonst erst nach Stunden am Speicher der Karte.
     erlaubte = lauf_layout.methoden_fuer(grundmodell)
     if bestellung.methode not in erlaubte:
         raise HTTPException(
@@ -983,9 +978,7 @@ def beauftrage(
             dauer=bestellung.dauer,
             tempowahl=bestellung.tempowahl,
             basismodell=grundmodell,
-            # Aus dem Profil, nicht aus der Umgebung: Der Trainer setzt daraus
-            # die erzwungenen Marken von Whisper, und die Bewertung misst in
-            # derselben Sprache (`wortlaut/sprachen.py`).
+            # Für Whispers Sprachmarken und die Bewertung (`wortlaut/sprachen.py`).
             sprache=sprache,
         ),
         kernauswahl=kern,
@@ -1000,9 +993,7 @@ def einzeln(
     """Kurven, Bewertung und Vergleich zu einem Lauf.
 
     `intervall` legt neben jedes Gegenüber den gepaarten Abstand samt Bereich
-    und p-Wert (`wortlaut/streuung.py`). Ohne den Parameter kommt genau die
-    Antwort von vorher: Die Zahlen ändern sich nicht, es kommt nur eine
-    Auskunft darüber dazu, wie weit sie tragen.
+    und p-Wert (`wortlaut/streuung.py`); die Zahlen selbst bleiben dieselben.
     """
     if intervall not in streuung.BLOCKARTEN:
         raise HTTPException(
@@ -1041,8 +1032,7 @@ def einzeln(
             ]
             for fassung, eintraege in vergleich.je_fassung(lauf, korpus, intervall).items()
         },
-        # Nur das Ende: Wer ein Protokoll liest, sucht den letzten Satz vor dem
-        # Abbruch, nicht den ersten des Ladevorgangs.
+        # Nur das Ende - dort steht, woran es scheiterte.
         protokoll=protokoll.read_text(encoding="utf-8")[-4000:] if protokoll.is_file() else "",
         intervall=intervall,
         streuung_marke=(
@@ -1064,7 +1054,7 @@ def _punkt(zeile: dict) -> dict:
 
 class GeloeschtAntwort(BaseModel):
     job_id: str
-    # Die Version des mitgelöschten Modellstands; leer, wenn es keinen gab.
+    # Die Version des mitgelöschten Stands, sonst leer.
     version: str
     war_freigegeben: bool
 
@@ -1073,13 +1063,9 @@ class GeloeschtAntwort(BaseModel):
 def loeschen(job_id: str, sprecher: SprecherId) -> GeloeschtAntwort:
     """Einen Lauf ersatzlos entfernen - samt dem Modell, das aus ihm entstand.
 
-    Ersatzlos heißt ersatzlos: Es gibt keinen Papierkorb und keinen Weg
-    zurück. Die Sicherheitsabfrage steht in der Oberfläche und nennt vorher,
-    was verschwindet (`frontend/src/routes/Training.svelte`); hier wird nur
-    noch getan, was bestätigt wurde.
-
-    Warum das Modell mitgeht und die Aufteilung nicht, steht in
-    `services/auftraege.py`.
+    Ohne Papierkorb; die Sicherheitsabfrage nennt vorher, was verschwindet
+    (`frontend/src/routes/Training.svelte`). Warum der Stand mitgeht:
+    `services/auftraege.loesche`.
     """
     _hole(sprecher, job_id)  # 404, wenn er einem anderen gehört
     try:
@@ -1100,8 +1086,7 @@ def loeschen(job_id: str, sprecher: SprecherId) -> GeloeschtAntwort:
 def abbrechen(job_id: str, sprecher: SprecherId) -> LaufAntwort:
     """Anhalten - einen wartenden sofort, einen rechnenden über den Trainer.
 
-    Ohne Trainerschlüssel, wie das Löschen: Anhalten belegt keine Karte,
-    es gibt sie frei.
+    Ohne Trainerschlüssel: Anhalten gibt die Karte frei.
     """
     _hole(sprecher, job_id)
     if not auftraege.halte_an(einstellungen().data_dir, job_id):
@@ -1122,9 +1107,7 @@ def abbrechen(job_id: str, sprecher: SprecherId) -> LaufAntwort:
 def neu_starten(job_id: str, sprecher: SprecherId) -> LaufAntwort:
     """Einen gescheiterten oder angehaltenen Lauf noch einmal rechnen lassen.
 
-    Mit Trainerschlüssel, wie das Beauftragen: Es belegt die Karte für Stunden.
-    Was übernommen wird und warum der alte geht, steht in
-    `services/auftraege.starte_neu`.
+    Mit Trainerschlüssel (`services/auftraege.starte_neu`).
     """
     _hole(sprecher, job_id)
     try:
