@@ -304,6 +304,29 @@ export type Modelluebersicht = {
 };
 
 /**
+ * Ein Grundmodell im Einzelnen (`api/modelle.grundmodell`).
+ *
+ * Zwei Steckbriefe: was das Modell ist (aus der Modellkarte von OpenAI) und
+ * was davon hier liegt und läuft (aus dem Modellcache gelesen). Darunter die
+ * Zeile aus der Modelltabelle - und die des freigegebenen Modells, wenn das
+ * ein anderes ist.
+ */
+export type Grundmodelleinzeln = {
+  name: string;
+  titel: string;
+  erklaerung: string;
+  freigegeben: boolean;
+  /** Leer bei einem Grundmodell ohne Modellkarte. */
+  steckbrief: SteckbriefZeile[];
+  vor_ort: SteckbriefZeile[];
+  modell: Modell | null;
+  freigabe: Modell | null;
+  masse: Mass[];
+  fassungen: Fassung[];
+  vergleichbar: boolean;
+};
+
+/**
  * Was „schreiben" gerade lädt.
  *
  * Die Auskunft kommt aus der API von „schreiben" und nicht aus dieser App: Dort
@@ -392,6 +415,9 @@ export const loescheLauf = (jobId: string) =>
  */
 const modellabfrage = (intervall: string, vergleichMit: string) =>
   `?intervall=${encodeURIComponent(intervall)}&vergleich_mit=${encodeURIComponent(vergleichMit)}`;
+
+export const grundmodell = (name: string) =>
+  anfrage<Grundmodelleinzeln>(`/modelle/grundmodell/${encodeURIComponent(name)}`);
 
 export const modelle = (intervall = 'aus', vergleichMit = '') =>
   anfrage<Modelluebersicht>(`/modelle${modellabfrage(intervall, vergleichMit)}`);

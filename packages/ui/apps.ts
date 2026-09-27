@@ -192,6 +192,17 @@ export function laufUrl(jobId: string): string {
 }
 
 /**
+ * Ein unverändertes Whisper-Modell in „lernen": `#/grundmodell/<name>` - sein
+ * Steckbrief, das Gegenstück zur Einzelansicht eines Laufs. Aus „hören" führt
+ * `grundmodellUrl` dorthin.
+ */
+export const GRUNDMODELL_ROUTE = '/grundmodell/';
+
+export function grundmodellUrl(name: string): string {
+  return `/lernen/#${GRUNDMODELL_ROUTE}${encodeURIComponent(name)}`;
+}
+
+/**
  * Wo der Sprecher gewählt und angelegt wird.
  *
  * Auch das gehört nicht in die Reiterreihe einer App: Der Sprecher ist die

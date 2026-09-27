@@ -321,6 +321,22 @@ auch ein Grundmodell, und `schreiben` diktiert sofort damit (siehe
 Zahlen wie seine Zeile, aus derselben Rechnung. Die Auskunft kommt aus der API
 von `schreiben`; antwortet es nicht, entfällt die Karte.
 
+### Ein Name führt in die Einzelansicht
+
+Jeder Modellname - in der Tafel, auf der Karte darüber und in der Tabelle der
+Auswertung von „hören" - öffnet die Einzelansicht: bei einem eigenen Stand
+seinen Lauf, bei einem Grundmodell dessen **Steckbrief** (`#/grundmodell/<name>`).
+
+Der Steckbrief eines Grundmodells steht in zwei Teilen. **Was das Modell ist**,
+aus der Modellkarte von OpenAI (`services/grundmodelle.py`): Veröffentlichung,
+Parameter, Aufbau, Eingang, Sprachen, Trainingsdaten, Lizenz. **Was davon hier
+liegt**, aus dem Modellcache gelesen: die CTranslate2-Fassung mit Revision,
+Ladezeitpunkt und Größe, das Rechenwerk der Auswertung, ob und wie `lernen`
+darauf trainiert, welche eigenen Stände darauf gewachsen sind und ob es
+freigegeben ist. Die Parameterzahl wird an den Gewichten gegengeprüft
+(float16, zwei Byte je Parameter). Darunter seine Zahlen aus der Tafel, je
+Fassung neben denen des freigegebenen Modells.
+
 ---
 
 ## Endpunkte
@@ -337,6 +353,7 @@ DELETE /lernen/api/laeufe/{id}              löschen, samt Stand
 GET    /lernen/api/modelle                  die Tafel
                                             ?intervall=aus|aufnahme|einheit&vergleich_mit=<ref>
 POST   /lernen/api/modelle/freigabe         { ref } - leer nimmt die Freigabe zurück
+GET    /lernen/api/modelle/grundmodell/{n}  Steckbrief eines Grundmodells, seine Zahlen
 GET    /gesundheit                          ohne Zugang
 ```
 

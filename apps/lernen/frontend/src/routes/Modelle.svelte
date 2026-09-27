@@ -25,7 +25,7 @@
     type Modelluebersicht,
     type Unterschied,
   } from '../lib/api';
-  import { LAUF_ROUTE } from '../lib/zustand.svelte';
+  import { GRUNDMODELL_ROUTE, LAUF_ROUTE } from '../lib/zustand.svelte';
 
   let uebersicht = $state<Modelluebersicht | null>(null);
   let diktat = $state<Diktatmodell | null>(null);
@@ -244,6 +244,10 @@
         <!-- Wie der Name in der Tabelle: der Weg in die Einzelansicht. -->
         {#if laufend?.job_id}
           <a class="titel optionscode" href="#{LAUF_ROUTE}{laufend.job_id}">{laufend.name}</a>
+        {:else if laufend?.art === 'grundmodell'}
+          <a class="titel" href="#{GRUNDMODELL_ROUTE}{encodeURIComponent(laufend.ref)}"
+            >{laufend.name}</a
+          >
         {:else}
           {laufend?.name ?? diktat.beschriftung}
         {/if}
@@ -381,13 +385,15 @@
             <th scope="row" class="modellspalte">
               <span class="zeile">
                 {#if modell.kennung}<code class="kennung">{modell.kennung}</code>{/if}
-                <!-- Der Name ist der Weg in die Einzelansicht: Steckbrief,
-                     Lernkurven, Protokoll.
-
-                     Nur bei eigenen Ständen: Ein Grundmodell hat keinen Lauf,
-                     und ein Link ins Leere wäre schlimmer als keiner. -->
+                <!-- Der Name ist der Weg in die Einzelansicht: bei einem
+                     eigenen Stand Steckbrief, Lernkurven, Protokoll; bei
+                     einem Grundmodell Modellkarte und was davon hier liegt. -->
                 {#if modell.job_id}
                   <a class="name titel optionscode" href="#{LAUF_ROUTE}{modell.job_id}"
+                    >{modell.name}</a
+                  >
+                {:else if modell.art === 'grundmodell'}
+                  <a class="name titel" href="#{GRUNDMODELL_ROUTE}{encodeURIComponent(modell.ref)}"
                     >{modell.name}</a
                   >
                 {:else}

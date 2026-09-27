@@ -18,7 +18,8 @@ from wortlaut import augmentierung, laeufe as lauf_layout, registry, streuung
 
 from ..config import einstellungen
 from ..deps import Korpus, SprecherId
-from ..services import messwerte
+from ..services import grundmodelle, messwerte
+from .laeufe import METHODEN, SteckbriefZeile
 
 router = APIRouter(prefix="/lernen/api/modelle", tags=["Modelle"])
 
@@ -495,3 +496,225 @@ def gib_frei(
     registry.gib_frei(konfiguration.data_dir, sprecher, freigabe.ref)
     # Mit denselben Parametern, damit die Tabelle ihre Bereiche behält.
     return uebersicht(korpus, sprecher, intervall, vergleich_mit)
+
+
+# ── Ein Grundmodell im Einzelnen ────────────────────────────────────────────
+
+
+class GrundmodellEinzeln(BaseModel):
+    """Die Einzelansicht eines Grundmodells - das Gegenstück zu der eines Laufs.
+
+    Zwei Steckbriefe statt einem: was das Modell ist (`steckbrief`, aus der
+    Modellkarte) und was davon hier liegt und läuft (`vor_ort`, gelesen).
+    Darunter die Zahlen dieses Menschen, aus derselben Rechnung wie die Tabelle
+    - neben denen des freigegebenen Modells, wenn das ein anderes ist.
+    """
+
+    name: str
+    titel: str
+    erklaerung: str
+    freigegeben: bool
+    steckbrief: list[SteckbriefZeile]
+    vor_ort: list[SteckbriefZeile]
+    # Die Zeile aus der Tabelle; `None`, solange „hören" nichts gemessen hat.
+    modell: ModellAntwort | None
+    # Die Zeile des freigegebenen Modells - `None`, wenn es dieses ist.
+    freigabe: ModellAntwort | None
+    masse: list[MassAntwort]
+    fassungen: list[FassungAntwort]
+    vergleichbar: bool
+
+
+def _datum(iso: str) -> str:
+    """`2022-09-21` → `21.09.2022` - ein Tag, kein Zeitpunkt."""
+    jahr, monat, tag = iso.split("-")
+    return f"{tag}.{monat}.{jahr}"
+
+
+def _mio(anzahl: float) -> str:
+    return f"{anzahl:,.0f} Mio.".replace(",", ".")
+
+
+def _modellkarte(
+    karte: grundmodelle.Modellkarte, erkennen: grundmodelle.Cacheeintrag | None
+) -> list[SteckbriefZeile]:
+    auskunft = grundmodelle.selbstauskunft(erkennen) if erkennen else None
+    zeilen = [
+        SteckbriefZeile(
+            begriff="Herkunft",
+            wert="OpenAI, Whisper",
+            hinweis="Radford et al., \u201eRobust Speech Recognition via Large-Scale Weak Supervision\u201c",
+        ),
+        SteckbriefZeile(begriff="Veröffentlicht", wert=_datum(karte.veroeffentlicht)),
+        SteckbriefZeile(
+            begriff="Parameter",
+            wert=_mio(karte.parameter_mio),
+            # Gegenprobe an den Gewichten hier: float16, zwei Byte je Parameter.
+            hinweis=(
+                f"die Gewichte hier ergeben {_mio(erkennen.gewichte_bytes / 2e6)} (float16)"
+                if erkennen and erkennen.gewichte_bytes
+                else ""
+            ),
+        ),
+        SteckbriefZeile(
+            begriff="Aufbau",
+            wert=(
+                f"Encoder und Decoder je {karte.schichten} Schichten, "
+                f"Breite {karte.breite}, {karte.koepfe} Köpfe"
+            ),
+            hinweis="Transformer",
+        ),
+        SteckbriefZeile(
+            begriff="Eingang",
+            wert=(
+                f"Log-Mel-Spektrogramm, {(auskunft and auskunft.mel_kanaele) or karte.mel_kanaele} "
+                f"Kanäle, Fenster {grundmodelle.FENSTER_S} s"
+            ),
+            hinweis="16 kHz mono",
+        ),
+        SteckbriefZeile(
+            begriff="Ausgabe",
+            wert=f"höchstens {grundmodelle.AUSGABE_TOKEN} Token je Fenster",
+            hinweis=(
+                f"Wortschatz {auskunft.wortschatz:,} Token".replace(",", ".")
+                if auskunft and auskunft.wortschatz
+                else ""
+            ),
+        ),
+        SteckbriefZeile(
+            begriff="Sprachen",
+            wert=str((auskunft and auskunft.sprachen) or karte.sprachen),
+            hinweis="eine Mischung, kein Modell je Sprache - Deutsch ist eine davon",
+        ),
+        SteckbriefZeile(begriff="Trainingsdaten", wert=karte.trainingsdaten),
+        SteckbriefZeile(begriff="Lizenz", wert=grundmodelle.LIZENZ),
+    ]
+    return zeilen
+
+
+def _hier(
+    name: str,
+    erkennen: grundmodelle.Cacheeintrag | None,
+    zeile: ModellAntwort | None,
+    sprecher: str,
+    freigegeben: bool,
+) -> list[SteckbriefZeile]:
+    konfiguration = einstellungen()
+    zeilen: list[SteckbriefZeile] = []
+    if erkennen:
+        zeilen += [
+            SteckbriefZeile(
+                begriff="Erkennen mit",
+                wert=erkennen.repo,
+                hinweis="CTranslate2-Fassung für faster-whisper - dieselbe in \u201ehören\u201c und \u201eschreiben\u201c",
+            ),
+            SteckbriefZeile(begriff="Revision", wert=erkennen.revision[:12], hinweis=erkennen.revision),
+            SteckbriefZeile(begriff="Heruntergeladen", wert=erkennen.geladen, art="zeit"),
+            SteckbriefZeile(
+                begriff="Auf der Platte",
+                wert=grundmodelle.groesse(erkennen.bytes),
+                hinweis=f"davon {erkennen.gewichte} {grundmodelle.groesse(erkennen.gewichte_bytes)}",
+            ),
+        ]
+    else:
+        zeilen.append(
+            SteckbriefZeile(
+                begriff="Erkennen mit",
+                wert=grundmodelle.repo_erkennen(name),
+                hinweis="noch nicht im Cache - wird beim ersten Gebrauch geladen",
+            )
+        )
+    if zeile and zeile.rechenwerk:
+        zeilen.append(
+            SteckbriefZeile(
+                begriff="Gerechnet als",
+                wert=zeile.rechenwerk,
+                hinweis="Rechenwerk und Genauigkeit der Auswertung in \u201ehören\u201c",
+            )
+        )
+
+    # Trainieren: nur, was `lernen` zur Wahl stellt - mit den Originalen von OpenAI.
+    repo = grundmodelle.repo_trainieren(name)
+    trainierbar = repo in konfiguration.grundmodelle()
+    if trainierbar:
+        namen = {wahl.schluessel: wahl.name for wahl in METHODEN}
+        methoden = ", ".join(
+            namen.get(methode, methode) for methode in lauf_layout.methoden_fuer(repo)
+        )
+        original = grundmodelle.im_cache(repo)
+        zeilen.append(
+            SteckbriefZeile(
+                begriff="Trainierbar",
+                wert=methoden,
+                hinweis=(
+                    f"auf {repo}, Revision {original.revision[:12]}, "
+                    f"{grundmodelle.groesse(original.bytes)}"
+                    if original
+                    else f"auf {repo} - noch nicht im Cache"
+                ),
+            )
+        )
+    else:
+        zeilen.append(
+            SteckbriefZeile(
+                begriff="Trainierbar",
+                wert="nicht zur Wahl",
+                hinweis="nur als Baseline gemessen (WORTLAUT_LERNEN_GRUNDMODELLE)",
+            )
+        )
+
+    staende = [
+        manifest
+        for manifest in registry.alle_staende(konfiguration.data_dir, sprecher)
+        if lauf_layout.kurzname(str(manifest.get("basismodell", ""))) == name
+    ]
+    zeilen.append(
+        SteckbriefZeile(
+            begriff="Eigene Stände darauf",
+            wert=str(len(staende)),
+            hinweis=", ".join(
+                registry.kurzkennung(str(manifest["id"]).split("/", 1)[-1])
+                for manifest in staende
+                if manifest.get("id")
+            ),
+        )
+    )
+    zeilen.append(
+        SteckbriefZeile(
+            begriff="Freigegeben",
+            wert="ja" if freigegeben else "nein",
+            hinweis="damit diktiert \u201eschreiben\u201c" if freigegeben else "",
+        )
+    )
+    return zeilen
+
+
+@router.get("/grundmodell/{name}", response_model=GrundmodellEinzeln)
+def grundmodell(name: str, korpus: Korpus, sprecher: SprecherId) -> GrundmodellEinzeln:
+    """Ein unverändertes Whisper-Modell im Einzelnen - was es ist, was hier liegt, wie es misst.
+
+    Ohne Modellkarte (ein Grundmodell außerhalb von `KARTEN`) bleibt der erste
+    Steckbrief leer; was hier liegt, steht trotzdem da.
+    """
+    if name not in _grundmodellnamen():
+        raise HTTPException(status_code=404, detail="Dieses Grundmodell steht hier nicht zur Wahl.")
+    karte = grundmodelle.KARTEN.get(name)
+
+    tafel = uebersicht(korpus, sprecher)
+    zeile = next((m for m in tafel.modelle if m.ref == name), None)
+    freigabe = next((m for m in tafel.modelle if m.freigegeben and m.ref != name), None)
+    freigegeben = tafel.freigegeben == name
+    erkennen = grundmodelle.im_cache(grundmodelle.repo_erkennen(name))
+    return GrundmodellEinzeln(
+        name=name,
+        titel=f"whisper-{name}",
+        erklaerung=karte.erklaerung if karte else "",
+        freigegeben=freigegeben,
+        steckbrief=_modellkarte(karte, erkennen) if karte else [],
+        vor_ort=_hier(name, erkennen, zeile, sprecher, freigegeben),
+        modell=zeile,
+        freigabe=freigabe,
+        masse=MASSE,
+        fassungen=FASSUNGEN,
+        vergleichbar=tafel.vergleichbar,
+    )

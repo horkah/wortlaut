@@ -7,13 +7,20 @@
  * Link, drei Apps.
  */
 
-import { LAUF_ROUTE } from '$ui/apps';
+import { GRUNDMODELL_ROUTE, LAUF_ROUTE } from '$ui/apps';
 
 export { gehZu } from '$ui/route';
 export { lage } from '$ui/lage.svelte';
-// Ein einzelner Lauf: `#/lauf/<job_id>` - in `$ui/apps`, weil „hören" dorthin verlinkt.
-export { LAUF_ROUTE };
+// Ein einzelner Lauf (`#/lauf/<job_id>`) und ein Grundmodell
+// (`#/grundmodell/<name>`) - in `$ui/apps`, weil „hören" dorthin verlinkt.
+export { GRUNDMODELL_ROUTE, LAUF_ROUTE };
 
 export function laufAusRoute(route: string): string {
   return route.startsWith(LAUF_ROUTE) ? route.slice(LAUF_ROUTE.length) : '';
+}
+
+export function grundmodellAusRoute(route: string): string {
+  return route.startsWith(GRUNDMODELL_ROUTE)
+    ? decodeURIComponent(route.slice(GRUNDMODELL_ROUTE.length))
+    : '';
 }
