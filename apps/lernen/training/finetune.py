@@ -2,26 +2,16 @@
 
     python -m apps.lernen.training.finetune data/snapshots/job_01J8…
 
-Aufgerufen vom Läufer (`laeufer.py`), der die Warteschlange beobachtet. Das
-Argument ist ein Laufverzeichnis (`wortlaut/laeufe.py`): Darin steht der
-Auftrag, darin steht das Manifest, und dorthin wird geschrieben, was daraus
-wird.
+Aufgerufen vom Läufer (`laeufer.py`) mit einem Laufverzeichnis
+(`wortlaut/laeufe.py`): Darin stehen Auftrag und Manifest, dorthin geht das
+Ergebnis. Ein Prozess je Lauf, weil nur ein endender Prozess den
+Kartenspeicher sicher zurückgibt.
 
-**Warum ein eigener Prozess je Lauf.** Ein Feintuning belegt Speicher auf der
-Karte, und PyTorch gibt ihn nach einem Abbruch nicht immer zuverlässig zurück.
-Ein Prozess, der endet, gibt alles zurück - das ist der einzige Aufräumweg, auf
-den man sich verlassen kann. Außerdem überlebt der Läufer damit einen Lauf, der
-sich an einem kaputten Modell verschluckt.
+`zustand.json` gehört diesem Prozess; der Läufer schreibt nur hinein, wenn er
+wortlos gestorben ist.
 
-**Wem `zustand.json` gehört.** Diesem Prozess, und nur ihm. Der Läufer schreibt
-darin ausschließlich dann, wenn dieser Prozess gestorben ist, ohne etwas zu
-sagen - sonst gäbe es zwei Schreiber und irgendwann einen Zustand, der von
-beiden halb stammt.
-
-**Was hier nicht entschieden wird.** Die Aufteilung in Lernen und Prüfen (die
-steht im Manifest) und die Zahlen des Rezepts (die stehen in `rezepte/`). Diese
-Datei setzt zusammen; sie hat keine eigene Meinung, die sich nicht ändern ließe,
-ohne sie anzufassen.
+Faltungen stehen im Manifest, Zahlen im Rezept (`rezepte/`); diese Datei setzt
+zusammen.
 """
 
 from __future__ import annotations
@@ -47,18 +37,13 @@ from . import karte
 from .daten import Proben, Stapler, zeilen_fuer_faltung
 
 REZEPTE = Path(__file__).parent / "rezepte"
-# Der Keim des Laufs. Er steht hier und nicht nur in den Trainerargumenten,
-# weil ihn seit der Augmentierung zwei Seiten brauchen: der Trainer für seine
-# Startgewichte und der Wandler für seinen Würfel (`klangwandel.py`).
+# Der Keim des Laufs - für den Trainer und den Würfel des Wandlers (`klangwandel.py`).
 KEIM = 20260912
-# Wie oft eine Zeile in die Lernkurve geschrieben wird. Jeder Schritt wäre bei
-# tausend Schritten eine tausendzeilige Datei, die die Oberfläche im Takt
-# einliest; alle zehn genügt für eine Kurve, die man ansieht.
+# Jeder wievielte Schritt in die Lernkurve geht - die Oberfläche liest sie im Takt.
 LOG_ALLE = 10
 
-# Wie viel eines Laufs höchstens Warmlauf sein darf. Der Wert im Rezept steht
-# als Schrittzahl da und passt für einen Korpus mit hunderten Proben; bei einem
-# sehr kleinen wäre der Warmlauf länger als der ganze Lauf (siehe `trainiere`).
+# Höchstanteil des Warmlaufs - bei sehr kleinem Korpus wäre die Schrittzahl des
+# Rezepts länger als der Lauf (`trainiere`).
 WARMLAUF_ANTEIL = 0.2
 
 
@@ -69,11 +54,7 @@ def _rezeptpfad(methode: str) -> Path:
 def _rezept_fuer(methode: str, basismodell: str) -> dict[str, Any]:
     """Das Rezept dieser Methode, mit den Abweichungen dieses Grundmodells darüber.
 
-    Ein Rezept je Methode und nicht je Kombination: Lernrate, Durchgänge und
-    LoRA-Rang hängen daran, wie trainiert wird, nicht woran. Was am Grundmodell
-    hängt, ist der Platz auf der Karte - `medium` ist dreimal so groß wie
-    `small`, und derselbe Stapel passt nicht mehr. Genau dafür steht
-    `je_grundmodell` in der YAML-Datei, und nur dafür.
+    Am Grundmodell hängt nur der Platz auf der Karte (`je_grundmodell`).
     """
     rezept = yaml.safe_load(_rezeptpfad(methode).read_text(encoding="utf-8"))
     abweichungen = (rezept.get("je_grundmodell") or {}).get(laeufe.kurzname(basismodell), {})
@@ -83,18 +64,13 @@ def _rezept_fuer(methode: str, basismodell: str) -> dict[str, Any]:
 class Bericht:
     """Der Draht nach draußen: Zustand, Fortschritt, Protokoll.
 
-    Alles, was dieser Prozess über sich sagt, geht durch dieses Objekt. Eine
-    Stelle, damit der Zustand nie halb geschrieben ist und die Oberfläche nie
-    raten muss, was gerade läuft.
+    Eine Stelle für alles, was der Prozess über sich sagt.
     """
 
     def __init__(self, verzeichnis: Path, spuren: bool = True) -> None:
         self.verzeichnis = verzeichnis
-        # **Ohne Spuren redet dieser Bericht nur.** Ein Lauf, der nachgezogen
-        # wird (`nachziehen.py`), rührt den alten Lauf nicht an: Der ist fertig
-        # und bleibt es, seine Kurven gehören zu den Faltungen von damals, und
-        # ein zweites Training darübergeschrieben wäre eine Kurve, die zwei
-        # Läufe zeigt und keinen erklärt.
+        # Ohne Spuren redet der Bericht nur - `nachziehen.py` lässt den
+        # fertigen Lauf unberührt.
         self.spuren = spuren
         self.zustand: dict[str, Any] = {
             "status": laeufe.LAEUFT,
@@ -128,11 +104,8 @@ class Bericht:
     def merke(self, **felder: Any) -> None:
         """Einen Wert in den Zustand legen, den die Übersicht sehen soll.
 
-        Für das, was ein Lauf **herausgefunden** hat und nicht bloß tut: die
-        gewählte Geschwindigkeit etwa. Im Zustand und nicht nur im Fortschritt,
-        weil die Liste es neben jedem Lauf zeigt und dafür keine
-        tausendzeilige Datei lesen soll - dieselbe Überlegung wie bei
-        `faltung`.
+        Was ein Lauf herausgefunden hat, etwa das Tempo - die Liste zeigt es,
+        ohne den Fortschritt zu lesen.
         """
         self.zustand.update(felder)
         self._schreibe()
@@ -140,9 +113,7 @@ class Bericht:
     def faltung(self, nummer: int | None) -> None:
         """Welche der sieben Trainings gerade läuft - für den Balken der Liste.
 
-        `None` ist das Endmodell. Es steht im Zustand und nicht nur im
-        Fortschritt, weil die Übersicht es zeigt und dafür keine
-        tausendzeilige Datei lesen soll.
+        `None` ist das Endmodell.
         """
         self.zustand["faltung"] = nummer
         self.zustand["faltungen_gesamt"] = laeufe.FALTUNGEN
@@ -151,8 +122,7 @@ class Bericht:
         self.ereignis(art="faltung", nummer=nummer)
 
     def schritt(self, schritt: int, gesamt: int) -> None:
-        """Der Balken. Im Zustand und nicht nur im Fortschritt: Die Liste der
-        Läufe zeigt ihn, und sie soll dafür keine tausendzeilige Datei lesen."""
+        """Der Balken der Liste."""
         self.zustand["schritt"] = schritt
         self.zustand["schritte_gesamt"] = gesamt
         self._schreibe()
@@ -187,10 +157,7 @@ class Bericht:
 def _rueckmeldung(bericht: Bericht):
     """Ein Trainer-Rückruf, der aus Verlusten eine Kurve macht.
 
-    Innen definiert, weil er `transformers` braucht - und das soll erst geladen
-    werden, wenn wirklich trainiert wird. Ein Import von torch kostet Sekunden
-    und mehrere hundert Megabyte; ein Läufer, der nur wartet, soll ihn nicht
-    bezahlen.
+    Innen definiert, damit `transformers` erst beim Training geladen wird.
     """
     from transformers import TrainerCallback
 
@@ -217,11 +184,8 @@ def _rueckmeldung(bericht: Bericht):
 
         def on_evaluate(self, args, zustand, steuerung, metrics=None, **weiteres):
             metrics = metrics or {}
-            # Nur die Prüfung je Durchgang gehört in die Kurve. Der Abschluss
-            # misst danach noch mehrfach am selben Schritt (siehe
-            # `abschluss.py`) - unter eigenem Präfix, und daran ist er hier zu
-            # erkennen. Ohne diese Zeile stünde ein halbes Dutzend Punkte
-            # übereinander, alle mit Verlust null.
+            # Nur die Prüfung je Durchgang; der Abschluss misst unter eigenem
+            # Präfix (`abschluss.py`).
             if "eval_loss" not in metrics:
                 return
             bericht.ereignis(
@@ -237,14 +201,9 @@ def _rueckmeldung(bericht: Bericht):
 def _trainerklasse():
     """Ein Trainer, der Proben nach ihrem Gewicht zählt.
 
-    Korrekturen aus „schreiben" sind schwächere Daten: Ihr Text ist keine
-    Vorgabe, sondern eine vom Menschen abgenickte Maschinenausgabe. Sie
-    gleichrangig einzuspeisen hieße, dem Modell seine eigenen Fehler
-    anzutrainieren. Das Gewicht steht je Zeile im Manifest; hier wird es
-    angewandt - der Verlust je Probe mal ihr Gewicht, dann gemittelt.
-
-    Das geht nicht ohne eigene Verlustrechnung: Der Trainer von `transformers`
-    mittelt über alle Marken des Stapels und kennt keine Proben.
+    Das Gewicht steht je Zeile im Manifest (`services/auftraege.GEWICHTE`).
+    Eine eigene Verlustrechnung, weil `transformers` über alle Marken des
+    Stapels mittelt und keine Proben kennt.
     """
     import torch
     from transformers import Seq2SeqTrainer
@@ -270,9 +229,7 @@ def _trainerklasse():
             ).view(marken.shape)
 
             gilt = marken.ne(-100)
-            # Je Probe: Summe der Markenverluste geteilt durch ihre Markenzahl.
-            # Ohne das zählte ein langer Satz mehr als ein kurzer, und das
-            # Gewicht aus dem Manifest ginge darin unter.
+            # Je Probe gemittelt, damit lange Sätze nicht mehr zählen.
             je_probe = (je_marke * gilt).sum(dim=1) / gilt.sum(dim=1).clamp(min=1)
             gewichte = gewichte.to(je_probe.device, je_probe.dtype)
             verlust = (je_probe * gewichte).sum() / gewichte.sum().clamp(min=1e-8)
@@ -289,14 +246,9 @@ def _name_fuer(faltung: int | None) -> str:
 def _halt_nach(ziel: float, bericht):
     """Ein Rückruf, der nach `ziel` Durchgängen Schluss macht - Plan unberührt.
 
-    Das Gegenstück zum frühen Abbruch der Faltungen, nur ohne Kriterium: Das
-    Endmodell hat nichts zurückgehalten, woran „wird nicht mehr besser" zu
-    erkennen wäre. Es weiß aber aus den sechs Läufen davor, **wann** es so weit
-    war, und hört genau dort auf - auf derselben Rampe, an derselben Stelle.
-
-    Ein kleineres `num_train_epochs` täte es nicht: Es verschöbe den ganzen
-    Lernratenverlauf (siehe `trainiere`). Innen definiert wie `_rueckmeldung`,
-    und aus demselben Grund.
+    Das Endmodell hat kein Abbruchkriterium, weiß aber aus den Faltungen,
+    wann sie am besten standen, und hört dort auf - auf derselben Rampe. Ein
+    kleineres `num_train_epochs` verschöbe den Lernratenverlauf (`trainiere`).
     """
     from transformers import TrainerCallback
 
@@ -321,9 +273,7 @@ def _halt_nach(ziel: float, bericht):
 def _bester_durchgang(trainer, obergrenze: float, hat_pruefung: bool) -> float:
     """Bei welchem Durchgang dieser Lauf am besten stand.
 
-    Ohne Steuergröße gibt es keinen besten - dann ist es die Zahl, die gelaufen
-    ist. Das trifft nur das Endmodell, und dort ist die Zahl ohnehin von außen
-    gesetzt.
+    Ohne Steuergröße (Endmodell) die gelaufene Zahl.
     """
     if not hat_pruefung or not trainer.state.best_model_checkpoint:
         return float(trainer.state.epoch or obergrenze)
@@ -341,20 +291,11 @@ def trainiere(
 ) -> tuple[Path, abschlussrechnung.Ergebnis, dict[str, Any]]:
     """Ein Training; gibt Gewichte, Abschluss und die gelernten Kennzahlen zurück.
 
-    **Einmal je Faltung, und einmal für das Endmodell.** `faltung` sagt, welches
-    Sechstel des Korpus draußen bleibt: Gelernt wird auf den anderen fünf,
-    gesteuert und gemessen auf diesem einen. `faltung = None` ist das
-    Endmodell - es lernt auf allem, wird an nichts gemessen und ist der Stand,
-    der später in „schreiben" diktiert.
-
-    **`vorgaben` ist das Wissen aus den Faltungen.** Das Endmodell hat keine
-    Validierung, kann also weder seine Durchgangszahl noch sein α selbst
-    finden. Beides bringt es aus den sechs Läufen davor mit - der Median über
-    die Faltungen. Genau dafür ist die Kreuzvalidierung da.
-
-    Der Abschluss ist die dritte Achse eines Laufs (`abschluss.py`): was mit
-    den Gewichten geschieht, wenn die Schleife durch ist. Er steht im Auftrag,
-    und ohne Angabe ist er `bester` - das Verfahren von vorher.
+    `faltung` bleibt draußen: Gelernt wird auf den anderen fünf, gesteuert und
+    gemessen auf ihr. `None` ist das Endmodell - lernt auf allem, misst nichts,
+    diktiert in „schreiben". Ohne Validierung bringt es Durchgänge, Plan, α
+    und Tempo aus den Faltungen mit (`vorgaben`). Den Abschluss regelt
+    `abschluss.py`.
     """
     import torch
     from transformers import (
@@ -369,8 +310,7 @@ def trainiere(
     methode = str(auftrag["methode"])
     basismodell = str(auftrag["basismodell"])
     sprecher_id = str(auftrag["sprecher_id"])
-    # Vor dem Laden geprüft und nicht erst am Ende gebraucht: Ein Tippfehler im
-    # Auftrag soll in Sekunden auffallen und nicht nach zwei Stunden Rechnen.
+    # Vor dem Laden geprüft, damit ein Tippfehler sofort auffällt.
     art = abschlussrechnung.pruefe(
         str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER)
     )
@@ -382,10 +322,7 @@ def trainiere(
         raise RuntimeError(
             f"Unbekannte Dauer: {dauer}. Zur Wahl stehen: {', '.join(laeufe.DAUERN)}."
         )
-    # Die eine Kombination, die es nicht gibt - hier noch einmal geprüft und
-    # nicht nur in der API. Ein Auftrag kann von Hand im Verzeichnis liegen,
-    # und zwei Stunden zu rechnen, um dann am Speicher zu scheitern, ist die
-    # schlechteste aller Auskünfte.
+    # Auch hier geprüft: Ein Auftrag kann von Hand im Verzeichnis liegen.
     if methode not in laeufe.methoden_fuer(basismodell):
         raise RuntimeError(
             f"{laeufe.kurzname(basismodell)} lässt sich nur mit "
@@ -396,59 +333,30 @@ def trainiere(
     bericht.stufe("laden")
     bericht.sage(f"Rezept: {rezept['name']} · Grundmodell: {basismodell}")
 
-    # Die Sprache steht im Korpus; hier genügt, dass sie fest gesetzt ist:
-    # Ein Modell, das die Sprache erst erkennen muss, verschenkt bei kurzen
-    # Sätzen Genauigkeit an eine Frage, deren Antwort feststeht.
-    # Der Rückfall gilt Aufträgen, die älter sind als das Feld - seit
-    # `services/auftraege.py` schreibt jeder neue Lauf seine Sprache selbst.
+    # Fest gesetzt: Sprache zu erkennen kostet bei kurzen Sätzen Genauigkeit.
     sprache = str(auftrag.get("sprache") or sprachen.VORGABE)
     ausleser = WhisperFeatureExtractor.from_pretrained(basismodell)
-    # Ausdrücklich der schnelle Zerteiler, und das ist keine
-    # Geschwindigkeitsfrage: Nur er schreibt beim Sichern eine `tokenizer.json`,
-    # und genau diese Datei sucht faster-whisper später neben dem umgewandelten
-    # Modell. Fehlt sie, lädt es still den Zerteiler von `whisper-tiny` und
-    # liefert Text, der aussieht, als hätte das Training nichts gebracht.
+    # Der schnelle Zerteiler: Nur er schreibt `tokenizer.json`, und ohne sie
+    # lädt faster-whisper still den Zerteiler von `whisper-tiny`.
     zerteiler = WhisperTokenizerFast.from_pretrained(
         basismodell, language=sprache, task="transcribe"
     )
-    # Die Gewichte vom Grundmodell - oder von dem Stand, auf dem dieser Lauf
-    # aufsetzt (`ausgangsstand.py`). Zerteiler und Ausleser darüber bleiben
-    # die des Grundmodells: Ein Stand ändert an beiden nichts.
+    # Gewichte vom Grundmodell oder Ausgangsstand (`ausgangsstand.py`);
+    # Zerteiler und Ausleser bleiben die des Grundmodells.
     gewichtsquelle = ausgangsstand.quelle(verzeichnis, datenverzeichnis, auftrag, bericht)
     modell = WhisperForConditionalGeneration.from_pretrained(gewichtsquelle)
 
-    # Whisper bringt „erzwungene" Marken für Sprache und Aufgabe mit. Beim
-    # Feintuning stören sie: Sie stehen schon in den Marken des Zerteilers, und
-    # doppelt gesetzt lernt das Modell eine Folge, die es nie erzeugen soll.
+    # Die erzwungenen Marken stehen schon in denen des Zerteilers.
     modell.generation_config.language = sprache
     modell.generation_config.task = "transcribe"
     modell.generation_config.forced_decoder_ids = None
     modell.config.forced_decoder_ids = None
 
-    # Und noch ein Erbstück in derselben Ecke: Die `config.json` von Whisper
-    # führt Erzeugungsparameter mit, die dort seit Jahren nicht mehr hingehören
-    # - `max_length`, `suppress_tokens`, `begin_suppress_tokens`. Sie stehen
-    # richtig in der `generation_config`, und `save_pretrained` räumt sie beim
-    # Sichern von selbst um. Dabei warnt es, und zwar bei **jedem**
-    # Zwischenstand: Bei sechs Faltungen mit bis zu sechzig Durchgängen ist das
-    # ein Protokoll, in dem die Warnung häufiger steht als die Verlustkurve.
-    #
-    # Schlimmer als laut ist, wie es umräumt: Es setzt den Wert aus der
-    # `config` ungeprüft über den der `generation_config`. Bei `small` sind die
-    # beiden nicht gleich - dort führt die `config` 86 zu unterdrückende Marken
-    # und die `generation_config` 88, und die zwei zusätzlichen sind
-    # `<|translate|>` und `<|transcribe|>`. Der ältere, kürzere Stand gewinnt,
-    # und die umgewandelten Stände dieses Projekts tragen entsprechend 86.
-    #
-    # Ausgewirkt hat sich das nie: faster-whisper stellt die Liste bei jedem
-    # Aufruf aus dem Zerteiler neu zusammen und übergibt sie ausdrücklich
-    # (`get_suppressed_tokens`), womit die Zahl im Stand überschrieben wird -
-    # nachgemessen sind es zur Laufzeit 88, beide Marken dabei. Es bleibt
-    # trotzdem eine Stelle, an der zwei Quellen dasselbe behaupten sollen und
-    # es nicht tun, und die stille Auflösung geht zugunsten der falschen aus.
-    #
-    # Hier fällt die falsche weg, statt sie zu überschreiben: Was in der
-    # `generation_config` steht, ist richtig und bleibt unangetastet.
+    # Whispers `config.json` führt Erzeugungsparameter (`max_length`,
+    # `suppress_tokens`, …), die in die `generation_config` gehören.
+    # `save_pretrained` räumt sie bei jedem Zwischenstand mit Warnung um und
+    # setzt dabei den Wert der `config` über den richtigen - bei `small` 86
+    # statt 88 unterdrückte Marken. Hier fällt die `config`-Seite weg.
     for feld in list(modell.config._get_non_default_generation_parameters()):
         setattr(modell.config, feld, None)
 
@@ -467,21 +375,15 @@ def trainiere(
             ),
         )
         if rezept.get("gradientensparsam", False):
-            # Beim Gradientensparen hängt der Rückwärtsgang an der Eingabe des
-            # ersten Blocks. Bei LoRA ist alles davor eingefroren, sie verlangt
-            # also keinen Gradienten - und ohne diesen Griff bekommt der Zusatz
-            # gar keinen. Das ist der bekannte stille Fehlschlag von LoRA mit
-            # Gradientensparen: Es läuft durch und lernt nichts.
+            # Sonst bekommt der Zusatz beim Gradientensparen keinen Gradienten -
+            # der Lauf liefe durch und lernte nichts.
             modell.enable_input_require_grads()
         trainierbar = sum(p.numel() for p in modell.parameters() if p.requires_grad)
         gesamt = sum(p.numel() for p in modell.parameters())
         bericht.sage(f"LoRA: {trainierbar:,} von {gesamt:,} Gewichten werden gelernt")
 
     korpuswurzel = datenverzeichnis / corpus.sprecher_relpfad(sprecher_id)
-    # Der Wandler steht **nur** an den Lernproben. Das zurückgehaltene Sechstel
-    # steuert den Lauf - es sagt, welcher Durchgang der beste war und welches α
-    # gewinnt; eine Steuergröße, die in jedem Durchgang anders klingt, misst
-    # den Würfel statt das Modell (siehe `klangwandel.py`).
+    # Nur an den Lernproben; die Steuergröße bleibt unverändert (`klangwandel.py`).
     wandler = klangwandel.Wandler(
         stufe=abwandlung,
         einstellungen=klangwandel.einstellungen_aus(rezept),
@@ -500,17 +402,14 @@ def trainiere(
             f"Kernauswahl: nur der Kern ({len(kern)} Aufnahmen) - "
             f"{len(lernzeilen)} Proben zum Lernen, {len(messzeilen)} zum Steuern und Messen"
         )
-    # Der Tempofaktor steht im Auftrag und nicht im Rezept: Er ist kein
-    # Verfahrensparameter, sondern der Zustand, in dem der Korpus betrachtet
-    # wird (`services/auftraege.py`). Vorgespult wird beim ersten Zugriff je
-    # Datei und dann nicht wieder; das Zwischenlager geht mit dem Lauf.
+    # Das Tempo steht im Auftrag, nicht im Rezept. Vorgespult wird je Datei
+    # einmal, ins Zwischenlager des Laufs.
     faktor = float(auftrag.get("tempo", tempo.VORGABE))
     tempoergebnis: tempowahl.Ergebnis | None = None
     gewaehlt = laeufe.tempowahl_aus(auftrag)
 
     if gewaehlt == laeufe.TEMPO_GESCHAETZT:
-        # Gerechnet und nicht gesucht: aus Textlänge und Aufnahmedauer dieser
-        # Faltung. Kostet keine Erkennung (siehe `tempowahl.aus_dauern`).
+        # Aus Textlänge und Aufnahmedauer (`tempowahl.aus_dauern`).
         if vorgaben and vorgaben.get("tempo") is not None:
             faktor = float(vorgaben["tempo"])
             bericht.sage(f"Tempo aus den Faltungen übernommen: Faktor {faktor:g}")
@@ -521,15 +420,11 @@ def trainiere(
                 bericht.sage(f"  {tempoergebnis.hinweis}")
     elif gewaehlt == laeufe.TEMPO_OPTIMAL:
         if vorgaben and vorgaben.get("tempo") is not None:
-            # Das Endmodell sucht nicht noch einmal: Es übernimmt, worauf sich
-            # die sechs Faltungen geeinigt haben - wie bei den Durchgängen und
-            # beim α auch.
+            # Das Endmodell übernimmt das Tempo der Faltungen.
             faktor = float(vorgaben["tempo"])
             bericht.sage(f"Tempo aus den Faltungen übernommen: Faktor {faktor:g}")
         else:
-            # Gesucht wird auf den **Lernzeilen** dieser Faltung. Die Messzeilen
-            # anzufassen hieße, die Wahl an Daten zu treffen, an denen später
-            # gemessen wird (siehe `tempowahl.py`).
+            # Auf den Lernzeilen - nie an dem, woran gemessen wird.
             tempoergebnis = tempowahl.waehle(
                 lernzeilen,
                 korpuswurzel,
@@ -554,48 +449,27 @@ def trainiere(
     if not len(lern):
         raise RuntimeError("Das Manifest enthält keine Trainingsprobe.")
 
-    # Das Endmodell hat nichts zurückgehalten und damit keine Steuergröße. Es
-    # ist nicht das Modell, das beurteilt wird - beurteilt haben die sechs
-    # Faltungen davor -, sondern das, das ausgeliefert wird.
+    # Das Endmodell hält nichts zurück und hat keine Steuergröße.
     hat_pruefung = len(pruef) > 0
 
-    # Wie viele Durchgänge, und wann Schluss ist.
-    #
-    # `geduldig` braucht eine Validierung: Ohne sie gibt es nichts, woran „wird
-    # nicht mehr besser" zu erkennen wäre. Ein zu kleiner Korpus fällt deshalb
-    # auf `fest` zurück und bekommt es gesagt - weiterzulaufen, bis irgendetwas
-    # passiert, wäre kein Verfahren, sondern eine Hoffnung.
+    # `geduldig` braucht eine Validierung; ohne fällt es auf `fest` zurück.
     geduldig = dauer == laeufe.DAUER_GEDULDIG and hat_pruefung
     if dauer == laeufe.DAUER_GEDULDIG and not hat_pruefung:
         bericht.sage(
             "Geduldig nicht möglich: Ohne Validierungsproben gibt es kein "
             "Kriterium. Es gilt die feste Zahl Durchgänge."
         )
-    # Der **Plan** ist der Horizont, über den die Lernrate läuft; `halt` ist,
-    # wo aufgehört wird. Für eine Faltung fallen beide zusammen: Sie plant über
-    # ihre Obergrenze und hört auf, wenn die Geduld aufgebraucht ist.
+    # `plan` ist der Horizont der Lernrate, `halt` wo aufgehört wird. Eine
+    # Faltung plant über ihre Obergrenze und hört auf, wenn die Geduld endet.
     plan = float(
         rezept.get("epochen_hoechstens", rezept["epochen"]) if geduldig else rezept["epochen"]
     )
     halt: float | None = None
     if vorgaben and vorgaben.get("durchgaenge"):
-        # **Das Endmodell übernimmt beides, nicht nur die Zahl.**
-        #
-        # Es nahm bisher allein die Durchgangszahl mit (den Median des besten
-        # Durchgangs der sechs Faltungen) und baute seinen Lernratenplan in
-        # genau diesen Horizont neu. Gemessen an einem Lauf vom 13. September:
-        # Eine Faltung plante über acht Durchgänge, wärmte 50 Schritte lang an,
-        # erreichte ihre Spitze bei Durchgang 2,1 und fiel danach flach ab -
-        # ihr bester Stand lag bei Durchgang 2, also gerade am Ende des
-        # Warmlaufs. Das Endmodell bekam „2,0 Durchgänge", hatte damit 68
-        # Schritte, kürzte den Warmlauf auf 14, war bei Durchgang 0,6 auf der
-        # Spitze und bei 1,8 schon wieder bei einem Fünftel davon.
-        #
-        # Gleiche Epochenzahl, anderer Lauf - und das Ergebnis war ein Stand,
-        # der ausfranst: Er erkennt den ersten Satz und redet dann weiter
-        # (`docs/lernen.md`). Deshalb erbt das Endmodell jetzt den Horizont der
-        # Faltungen und hört an der Stelle auf, an der sie am besten standen.
-        # Dieselbe Rampe, dieselbe Neigung, derselbe Punkt darauf.
+        # Das Endmodell erbt Plan und Halt der Faltungen: dieselbe Rampe,
+        # derselbe Punkt darauf. Nur die Durchgangszahl mit neu gebautem Plan
+        # wäre ein anderer Lauf - mit Warmlauf und Spitze an anderer Stelle
+        # (`docs/lernen.md`).
         plan = float(vorgaben.get("plan") or vorgaben["durchgaenge"])
         halt = float(vorgaben["durchgaenge"])
         geduldig = False
@@ -605,16 +479,9 @@ def trainiere(
         )
     durchgaenge = plan
 
-    # Der Warmlauf, gedeckelt auf einen Anteil des Laufs.
-    #
-    # Er stand bisher als feste Schrittzahl im Rezept, und das ging bei jedem
-    # Korpus gut, der groß genug war. Bei einem sehr kleinen ging es schief:
-    # Neun Aufnahmen ergaben 24 Schritte bei einem Warmlauf von 50 - die
-    # Lernrate erreichte nie mehr als die Hälfte ihres Wertes, der ganze Lauf
-    # war Rampe. Gemessen an Schritt 20: 3,2e-4 statt 1e-3.
-    #
-    # Der Deckel greift nur dort. Ein Lauf über 396 Schritte behält seine 50
-    # (20 % wären 79), er rechnet also Gewicht für Gewicht wie vorher.
+    # Der Warmlauf, gedeckelt auf `WARMLAUF_ANTEIL` - sonst wäre bei neun
+    # Aufnahmen der ganze Lauf Rampe. Größere Läufe behalten die Schrittzahl
+    # des Rezepts.
     je_durchgang = max(
         1, math.ceil(len(lern) / (int(rezept["stapel"]) * int(rezept["akkumulation"])))
     )
@@ -629,10 +496,7 @@ def trainiere(
             f"- der Lauf hat nur {gesamtschritte}."
         )
 
-    # Je Faltung ein eigener Arbeitsstand. Sie liegen nacheinander da und nicht
-    # nebeneinander - was eine Faltung hinterlässt, räumt `main` weg, bevor die
-    # nächste anfängt (beim vollen Training wären sieben Stände sonst sieben
-    # Gigabyte).
+    # Je Faltung ein Arbeitsstand, den `main` vor der nächsten wegräumt.
     ausgabe = verzeichnis / laeufe.ARBEITSSTAND / _name_fuer(faltung)
     sparsam = bool(rezept.get("gradientensparsam", False))
     argumente = Seq2SeqTrainingArguments(
@@ -640,25 +504,12 @@ def trainiere(
         per_device_train_batch_size=int(rezept["stapel"]),
         per_device_eval_batch_size=int(rezept["stapel"]),
         gradient_accumulation_steps=int(rezept["akkumulation"]),
-        # Aktivierungen nicht aufheben, sondern beim Rückwärtsgang neu rechnen.
-        #
-        # Rechnerisch ändert das nichts: Es kommen dieselben Gradienten heraus,
-        # nur wird der Vorwärtsgang je Block ein zweites Mal ausgeführt, statt
-        # seine Zwischenergebnisse aufzuheben. Deshalb ist es keine weitere
-        # Achse, sondern eine Frage des Platzes - und steht im Rezept unter
-        # `je_grundmodell`, wo die anderen Platzfragen auch stehen.
-        #
-        # Gemessen an `medium` mit LoRA und Stapel 8: 9,3 GB ohne, 2,3 GB mit.
-        # Und entgegen der Erwartung nicht langsamer, sondern schneller (125 ms
-        # je Probe ohne, 68 ms mit) - bei 9,3 GB auf einer Karte mit 10,75 GB
-        # nutzbarem Speicher stößt der Vorrat von torch dauernd an die Decke
-        # und muss beim Treiber nachfordern, und das kostet mehr als die
-        # zweite Rechnung. Bei `small` bleibt es aus: Dort ist der Platz nicht
-        # knapp, und dann ist die Neuberechnung tatsächlich nur Aufwand.
+        # Aktivierungen beim Rückwärtsgang neu rechnen: dieselben Gradienten,
+        # weniger Platz - eine Platzfrage des Rezepts (`je_grundmodell`,
+        # dort die Messwerte).
         gradient_checkpointing=sparsam,
-        # Ohne `use_reentrant=False` schweigt torch nicht nur, es warnt bei
-        # jedem Schritt - und die ältere Fassung verträgt sich schlecht damit,
-        # dass bei LoRA fast alle Gewichte eingefroren sind.
+        # Sonst warnt torch je Schritt, und die reentrante Fassung verträgt
+        # eingefrorene LoRA-Gewichte schlecht.
         gradient_checkpointing_kwargs={"use_reentrant": False} if sparsam else None,
         learning_rate=float(rezept["lernrate"]),
         warmup_steps=warmlauf,
@@ -667,44 +518,24 @@ def trainiere(
         max_grad_norm=float(rezept.get("gradientenbegrenzung", 1.0)),
         fp16=bool(rezept.get("fp16", True)) and torch.cuda.is_available(),
         logging_steps=LOG_ALLE,
-        # Je Durchgang einmal prüfen - das ist der Takt, in dem die zweite
-        # Kurve entsteht. Fehlt die Validierung (zu kleiner Korpus), gibt es
-        # nichts zu prüfen und der Lauf läuft ohne sie durch.
+        # Je Durchgang prüfen - die zweite Kurve.
         eval_strategy="epoch" if hat_pruefung else "no",
-        # Je Durchgang sichern und am Ende den **besten** nehmen, nicht den
-        # letzten.
+        # Je Durchgang sichern und am Ende den besten nehmen: Die Validierung
+        # dreht bei wenig Sprache in der Mitte, danach lernt das Modell
+        # auswendig. Die Durchgangszahl ist so nur eine Obergrenze.
         #
-        # Das ist die wichtigste Zeile dieses Rezepts. Bei wenigen hundert
-        # kurzen Sätzen dreht die Validierungskurve irgendwo in der Mitte und
-        # steigt danach wieder: Das Modell lernt die Trainingssätze auswendig.
-        # Wer den letzten Durchgang nimmt, liefert genau dieses Modell aus -
-        # und die Zahl der Durchgänge im Rezept wird zu einer Wette, die man
-        # je Korpus neu abschließen müsste. So ist sie nur noch eine
-        # Obergrenze: Es wird ausgeliefert, was auf der Validierung am besten
-        # war, und zu lange zu trainieren kostet Rechenzeit statt Güte.
-        #
-        # `save_total_limit=1` hält den Platzbedarf in Grenzen - zusammen mit
-        # dem besten liegen höchstens zwei Zwischenstände auf der Platte, beim
-        # vollen Training je knapp drei Gigabyte. Sie verschwinden mit dem
-        # `arbeitsstand`, sobald der Lauf endet - durchgelaufen oder
-        # gescheitert (siehe `main`).
-        #
-        # Wer mittelt, braucht mehr davon: Ein Zwischenstand, den der Trainer
-        # schon weggeräumt hat, lässt sich nicht mehr wiegen. Dafür fällt dann
-        # der Optimierer aus den Sicherungen (`save_only_model`) - er wiegt
-        # zwei Drittel eines Zwischenstandes, und dieses Projekt setzt einen
-        # Lauf nie fort. Ohne Mittelung bleibt beides, wie es war.
+        # Wie viele Zwischenstände bleiben, sagt `abschluss.zu_behalten`; wer
+        # mittelt, sichert ohne Optimierer (`save_only_model`) - fortgesetzt
+        # wird ein Lauf nie. Alles verschwindet mit dem `arbeitsstand` (`main`).
         save_strategy="epoch" if hat_pruefung else "no",
         save_total_limit=abschlussrechnung.zu_behalten(art, rezept),
         save_only_model=laeufe.mittelt(art),
         load_best_model_at_end=hat_pruefung,
         metric_for_best_model="eval_loss",
         greater_is_better=False,
-        # Der Bericht ist der einzige Draht nach draußen; Tensorboard und
-        # dergleichen schrieben ins Leere.
+        # Der Bericht ist der einzige Draht nach draußen.
         report_to=[],
-        # Vier Ladefäden je Karte wären hier Verwaltungsaufwand ohne Nutzen:
-        # Eine kurze WAV-Datei zu lesen dauert weniger als ein Schritt.
+        # Eine kurze WAV-Datei liest sich schneller als ein Schritt.
         dataloader_num_workers=2,
         remove_unused_columns=False,
         label_names=["labels"],
@@ -741,9 +572,8 @@ def trainiere(
     bericht.stufe("training")
     trainer.train()
 
-    # Ob die Geduld gereicht hat oder die Obergrenze gebunden hat. Das ist die
-    # Auskunft, die dem Lauf von Femke gefehlt hat: Eine Kurve, die am Ende
-    # noch fällt, sieht aus wie eine, die fertig ist.
+    # Ob die Geduld endete oder die Obergrenze - eine Kurve, die am Ende noch
+    # fällt, sieht sonst fertig aus.
     if geduldig:
         gelaufen = float(trainer.state.epoch or 0.0)
         if gelaufen >= durchgaenge - 0.5:
@@ -755,9 +585,7 @@ def trainiere(
             bericht.sage(f"Schluss nach {gelaufen:.0f} Durchgängen: Es wurde nicht mehr besser.")
 
     if hat_pruefung and trainer.state.best_model_checkpoint:
-        # Sichtbar machen, welcher Durchgang gewonnen hat: Steht er weit vor
-        # dem letzten, war die Obergrenze zu hoch angesetzt - und das ist eine
-        # Auskunft über das Rezept, nicht über diesen einen Lauf.
+        # Weit vor dem letzten heißt: Die Obergrenze des Rezepts ist zu hoch.
         bericht.sage(
             f"Bester Durchgang: {Path(trainer.state.best_model_checkpoint).name} "
             f"· Validierungsverlust {trainer.state.best_metric:.5f}"
@@ -768,16 +596,13 @@ def trainiere(
             verlust=round(float(trainer.state.best_metric), 5),
         )
 
-    # Der Abschluss: Was jetzt noch mit den Gewichten geschieht, bevor sie
-    # gesichert werden. Bei `bester` geschieht nichts - dann steht hier
-    # derselbe Stand wie vor dieser Zeile (siehe `abschluss.py`).
+    # Bei `bester` geschieht nichts (`abschluss.py`).
     ergebnis = abschlussrechnung.fuehre_aus(
         art=art,
         modell=modell,
         trainer=trainer,
         rezept=rezept,
-        # Interpoliert wird zum Anfang des Trainings zurück - auf einem Stand
-        # also zu ihm und nicht zum Whisper-Modell darunter.
+        # Interpoliert wird zum Anfang des Trainings, also ggf. zum Ausgangsstand.
         basismodell=gewichtsquelle,
         arbeitsstand=ausgabe,
         hat_pruefung=hat_pruefung,
@@ -788,35 +613,23 @@ def trainiere(
     bericht.stufe("sichern")
     gewichte = verzeichnis / laeufe.GEWICHTE / _name_fuer(faltung)
     if methode == laeufe.LORA:
-        # Zusammengerechnet und nicht als Zusatz gespeichert: Was danach kommt,
-        # ist die Umwandlung nach CTranslate2, und die kennt kein LoRA. Ein
-        # Modell, das nur mit peft zu laden wäre, könnte „schreiben" nicht
-        # benutzen - und dann wäre der ganze Lauf ohne Ziel.
+        # Zusammengerechnet: CTranslate2 kennt kein LoRA.
         modell = modell.merge_and_unload()
     modell.save_pretrained(gewichte, safe_serialization=True)
-    # Zerteiler und Merkmalsausleser daneben: Die Umwandlung nimmt beide mit
-    # (siehe `wandle_um`), und ohne sie ist der Stand kein vollständiges Modell,
-    # sondern ein Satz Gewichte.
+    # Die Umwandlung nimmt beide mit (`wandle_um`).
     zerteiler.save_pretrained(gewichte)
     ausleser.save_pretrained(gewichte)
 
-    # Was diese Faltung gelernt hat und das Endmodell später mitnimmt: bei
-    # welchem Durchgang sie am besten stand und welches α gewonnen hat.
+    # Was das Endmodell von dieser Faltung mitnimmt.
     kennzahlen: dict[str, Any] = {
         "durchgaenge": _bester_durchgang(trainer, durchgaenge, hat_pruefung),
-        # Der Horizont, über den die Lernrate lief. Das Endmodell erbt ihn -
-        # ohne ihn wäre „zwei Durchgänge" eine Zahl ohne den Lauf, aus dem sie
-        # stammt (siehe oben).
         "plan_durchgaenge": plan,
         "alpha": ergebnis.alpha,
         "tempo": faktor,
         "tempowahl": tempoergebnis.als_dict() if tempoergebnis is not None else None,
     }
 
-    # Die Karte räumen, bevor jemand anders sie braucht. Ausdrücklich `del`
-    # und nicht bloß das Ende der Funktion: Was hier hängt, ist das Modell samt
-    # Optimiererzustand, und solange der Trainer noch darauf zeigt, gibt auch
-    # `raeume_karte` nichts her (siehe dort).
+    # `del`, sonst hält der Trainer Modell und Optimierer auf der Karte fest.
     del trainer, modell
     raeume_karte(bericht)
 
@@ -832,9 +645,7 @@ def trainiere_geduldig(
 ) -> tuple[Path, abschlussrechnung.Ergebnis, dict[str, Any]]:
     """`trainiere` - und ist die Karte belegt, warten und die Faltung neu beginnen.
 
-    Neu heißt von vorn: Was diese Faltung schon an Zwischenständen und
-    Gewichten hingelegt hat, geht weg, damit der zweite Versuch nicht auf den
-    Resten des ersten aufsetzt (siehe `karte.py`).
+    Von vorn: Zwischenstände und Gewichte der Faltung gehen weg (`karte.py`).
     """
 
     def aufraeumen() -> None:
@@ -863,40 +674,18 @@ def fremd_belegt_mb() -> float:
     return (gesamt - frei - torch.cuda.memory_reserved()) / 1e6
 
 
-# Was neben den umgewandelten Gewichten liegen muss, damit faster-whisper den
-# Stand wirklich laden kann. Der Zerteiler ist der wichtigere der beiden: Fehlt
-# `tokenizer.json`, greift faster-whisper still auf den von `whisper-tiny`
-# zurück - kein Fehler, keine Warnung, nur schlechterer Text.
+# Was faster-whisper neben den Gewichten braucht. Ohne `tokenizer.json` nimmt
+# es still den Zerteiler von `whisper-tiny`.
 BEIZULEGEN = ["tokenizer.json", "preprocessor_config.json"]
 
 
 def raeume_karte(bericht: Bericht | None = None) -> float:
     """Den Speicher der Karte wirklich zurückgeben; liefert die Megabyte.
 
-    **Warum das nötig ist, obwohl niemand mehr auf das Modell zeigt.** torch
-    gibt freigewordenen Kartenspeicher nicht an den Treiber zurück, sondern
-    behält ihn in einem eigenen Vorrat - eine sinnvolle Entscheidung, denn der
-    nächste Trainingsschritt will ihn ohnehin gleich wieder. Für torch selbst
-    ist der Speicher damit frei; für jeden anderen ist er belegt.
-
-    Genau das ist im September 2026 passiert. Eine Faltung auf `medium` lief
-    durch, der Stand war gesichert und umgewandelt - und beim Laden des
-    Erkenners stand da `CUDA failed with error out of memory`. Die Karte war
-    nicht voll: Sie war voll aus Sicht von CTranslate2, das seinen Speicher
-    beim Treiber holt und nicht bei torch. Gemessen waren es 1,7 GB allein für
-    die eingefrorenen Gewichte; mit Optimierer, Gradienten und Aktivierungen
-    ist es ein Vielfaches davon.
-
-    Bei `small` ging es gut, und das ist der Grund, warum es so lange
-    unbemerkt blieb: Ein kleinerer Vorrat lässt genug übrig. Die Grenze lag
-    also nicht bei „passt das Modell auf die Karte", sondern bei „passen beide
-    gleichzeitig darauf" - und die zweite Frage stellt sich nie, wenn man sie
-    nicht stellt.
-
-    Kostenlos ist der Aufruf nicht: Der nächste Trainingsschritt muss sich
-    seinen Vorrat neu vom Treiber holen. Deshalb steht er an den zwei Stellen,
-    an denen wirklich gewechselt wird - nach dem Lernen und nach dem Messen -
-    und nicht in der Schleife.
+    torch behält freigewordenen Speicher in seinem Vorrat; für CTranslate2,
+    das beim Treiber holt, bleibt er belegt - bei `medium` genug, dass der
+    Erkenner danach nicht mehr lädt. Aufgerufen nur beim Wechsel zwischen
+    Lernen und Messen, denn danach muss torch seinen Vorrat neu holen.
     """
     gc.collect()
     try:
@@ -916,18 +705,15 @@ def raeume_karte(bericht: Bericht | None = None) -> float:
 def wandle_um(gewichte: Path, ziel: Path, bericht: Bericht) -> None:
     """Nach CTranslate2 - das Format, das faster-whisper lädt.
 
-    Ohne diesen Schritt wäre der Stand ein Verzeichnis voller Gewichte, das
-    niemand in diesem Projekt benutzen kann: „schreiben" und die Auswertung
-    laufen beide über faster-whisper (siehe `wortlaut/whisper/local.py`).
+    „schreiben" und die Auswertung laufen über faster-whisper
+    (`wortlaut/whisper/local.py`).
     """
     from ctranslate2.converters import TransformersConverter
 
     bericht.stufe("umwandeln")
     fehlend = [name for name in BEIZULEGEN if not (gewichte / name).is_file()]
     if fehlend:
-        # Lieber hier abbrechen als einen Stand ausliefern, der mit dem
-        # falschen Zerteiler arbeitet: Der Fehler wäre sonst erst am Ergebnis
-        # zu sehen, und dort sähe er aus wie ein misslungenes Training.
+        # Sonst sähe der falsche Zerteiler aus wie ein misslungenes Training.
         raise RuntimeError(f"Zum Umwandeln fehlt: {', '.join(fehlend)}")
 
     TransformersConverter(
@@ -936,12 +722,7 @@ def wandle_um(gewichte: Path, ziel: Path, bericht: Bericht) -> None:
 
 
 def _median(werte: list[float]) -> float | None:
-    """Der Median - die Zahl, mit der die Faltungen mehrheitlich einverstanden sind.
-
-    Nicht das Mittel: Eine Faltung, die aus der Reihe fällt, soll die
-    Entscheidung nicht mitnehmen. Bei sechs Werten ist das der Durchschnitt der
-    beiden mittleren.
-    """
+    """Der Median - eine Faltung, die aus der Reihe fällt, entscheidet nicht mit."""
     da = sorted(wert for wert in werte if wert is not None)
     if not da:
         return None
@@ -952,19 +733,15 @@ def _median(werte: list[float]) -> float | None:
 def _gewaehltes_tempo(gelernt: list[dict[str, Any]], auftrag: dict[str, Any]) -> float | None:
     """Der Faktor, mit dem das Endmodell rechnet.
 
-    Bei `optimal` das Minimum der zusammengelegten Kurve; sonst der Median
-    dessen, was die Faltungen benutzt haben - und das ist bei jedem anderen
-    Verfahren ohnehin überall derselbe Wert.
+    Gesucht: das Minimum der zusammengelegten Kurve. Geschätzt: das Mittel,
+    auf eine Viertelstufe gerundet. Sonst ist der Wert überall derselbe.
     """
     faktoren = [float(k["tempo"]) for k in gelernt if k.get("tempo") is not None]
     if not faktoren:
         return None
     gewaehlt = laeufe.tempowahl_aus(auftrag)
     if gewaehlt == laeufe.TEMPO_GESCHAETZT:
-        # Das Mittel der sechs geschätzten Faktoren, wieder auf eine
-        # Viertelstufe gerundet. Der Median wäre hier zu grob: Sechs Werte, die
-        # alle nah beieinanderliegen, mitteln sich sauber, und ein Ausreißer
-        # ist bei einer Rechnung über Summen ohnehin nicht zu erwarten.
+        # Das Mittel: Über Summen gerechnet sind Ausreißer nicht zu erwarten.
         return tempowahl.auf_stufe(sum(faktoren) / len(faktoren))
     if gewaehlt != laeufe.TEMPO_OPTIMAL:
         return _median(faktoren)
@@ -977,13 +754,8 @@ def kreuzvalidiere(
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Sechs Trainings, sechs Messungen - und was das Endmodell daraus mitnimmt.
 
-    Je Faltung wird auf fünf Sechsteln gelernt und auf dem sechsten gemessen.
-    Danach ist **jede** Aufnahme genau einmal von einem Modell gehört worden,
-    das sie nie gesehen hat; die Zeilen daraus sind die Zahl dieses Laufs.
-
-    Weggeräumt wird nach jeder Faltung sofort. Sieben Stände des vollen
-    Trainings nebeneinander wären sieben Gigabyte, und gebraucht wird immer nur
-    der eine, der gerade misst.
+    Danach ist jede Aufnahme einmal von einem Modell gehört worden, das sie
+    nicht kannte. Nach jeder Faltung wird sofort weggeräumt.
     """
     from .bewerten import bewerte_faltung
 
@@ -1007,50 +779,30 @@ def kreuzvalidiere(
                 auftrag,
                 faltung,
                 bericht,
-                # Der Faktor **dieser** Faltung und nicht der des Auftrags: Bei
-                # `optimal` hat sie sich einen eigenen gesucht, und gemessen
-                # werden muss auf dem Klang, auf dem gelernt wurde.
+                # Das Tempo dieser Faltung - gemessen wird, wie gelernt wurde.
                 faktor=float(kennzahlen["tempo"]),
             )
         )
         gelernt.append({**kennzahlen, "faltung": faltung, "abschluss": ergebnis.als_dict()})
         if gewaehlt != laeufe.TEMPO_AUS:
-            # Nach **jeder** Faltung, nicht erst nach allen sechs.
-            #
-            # Der Median steht endgültig erst am Ende fest - die Übersicht sagte
-            # deshalb über den ganzen Lauf hinweg „Tempo wird gesucht", auch als
-            # längst fünf Faltungen einen Faktor gefunden hatten. Das ist keine
-            # Auskunft, sondern ein Platzhalter, der sich als eine ausgibt.
-            #
-            # Gemeldet wird der Median dessen, was bis hierher gefunden wurde,
-            # und dazu, dass er noch vorläufig ist. Eine Zahl, die sich noch
-            # ändern kann, ist mehr wert als keine - solange dransteht, dass sie
-            # es kann.
+            # Nach jeder Faltung der vorläufige Wert, als solcher markiert.
             bericht.merke(
                 tempo=_gewaehltes_tempo(gelernt, auftrag),
                 tempo_endgueltig=False,
             )
-        # Sofort und nicht am Ende: Die nächste Faltung braucht den Platz.
-        # Das gilt für die Platte und für die Karte gleichermaßen - der
-        # Erkenner ist in `bewerte_faltung` schon freigegeben, hier kommt zurück,
-        # was torch sich beim Messen sonst noch genommen hat.
+        # Sofort: Die nächste Faltung braucht Platte und Karte.
         raeume_karte(bericht)
         shutil.rmtree(gewichte.parent, ignore_errors=True)
         shutil.rmtree(verzeichnis / laeufe.ARBEITSSTAND / _name_fuer(faltung), ignore_errors=True)
 
     mitgenommen = {
         "durchgaenge": _median([float(k["durchgaenge"]) for k in gelernt]),
-        # Der Horizont der Faltungen, damit das Endmodell auf derselben Rampe
-        # läuft und nicht auf einer, die in seine Epochenzahl gestaucht wurde.
+        # Der Horizont der Lernrate, damit das Endmodell auf derselben Rampe läuft.
         "plan": _median([float(k["plan_durchgaenge"]) for k in gelernt]),
         "alpha": _median([k["alpha"] for k in gelernt if k["alpha"] is not None]),
-        # Nicht der Median der sechs Sieger, sondern das Minimum der
-        # **zusammengelegten** Kurve (siehe `tempowahl.zusammengelegt`): Eine
-        # einzelne Faltung hört zu wenige Aufnahmen, als dass ihr Sieger mehr
-        # wäre als Zufall - übereinandergelegt sind dieselben Kurven glatt.
+        # Beim Suchen das Minimum der zusammengelegten Kurve (`_gewaehltes_tempo`).
         "tempo": _gewaehltes_tempo(gelernt, auftrag),
-        # Die gemittelte Kurve samt Standardfehler je Stützstelle. Ohne sie ist
-        # der Faktor darüber nicht zu beurteilen.
+        # Die gemittelte Kurve samt Standardfehler je Stützstelle.
         "tempokurve": tempowahl.zusammengelegt(gelernt)[1],
         "faltungen": gelernt,
     }
@@ -1072,8 +824,7 @@ def kreuzvalidiere(
         tempo=mitgenommen["tempo"],
     )
     if gewaehlt != laeufe.TEMPO_AUS and mitgenommen["tempo"] is not None:
-        # Jetzt steht er fest: derselbe Wert, mit dem gleich das Endmodell
-        # trainiert wird.
+        # Jetzt endgültig - der Wert des Endmodells.
         bericht.merke(tempo=float(mitgenommen["tempo"]), tempo_endgueltig=True)
     return zeilen, mitgenommen
 
@@ -1081,9 +832,8 @@ def kreuzvalidiere(
 class Angehalten(BaseException):
     """Der Läufer hat angehalten (`laeufer._fuehre_aus`, SIGTERM).
 
-    Eine `BaseException` und keine `Exception`: Auf dem Weg nach oben liegen
-    Stellen, die jede `Exception` fangen und weitermachen - das Warten auf die
-    Karte etwa (`karte.mit_geduld`). Ein Anhalten soll keine davon aufhalten.
+    Eine `BaseException`, damit kein `except Exception` unterwegs (etwa
+    `karte.mit_geduld`) das Anhalten schluckt.
     """
 
 
@@ -1109,15 +859,12 @@ def main(argumente: list[str]) -> int:
     begonnen = time.monotonic()
 
     try:
-        # Beim Kern zuerst die Wahl: Was dem Auswahlmodell fehlt, hört es jetzt,
-        # und erst danach steht fest, worauf die Faltungen lernen.
+        # Beim Kern zuerst die Wahl - erst danach steht fest, worauf gelernt wird.
         from .bewerten import vervollstaendige_kern
 
         vervollstaendige_kern(verzeichnis, datenverzeichnis, auftrag, bericht)
 
-        # Erst die Messung, dann der Stand, der ausgeliefert wird. Sieben
-        # Trainings also, und das ist der Preis dafür, dass die Zahl über den
-        # ganzen Korpus geht statt über ein Drittel.
+        # Erst die Messung, dann der Stand, der ausgeliefert wird.
         zeilen, mitgenommen = kreuzvalidiere(verzeichnis, datenverzeichnis, auftrag, bericht)
 
         bericht.faltung(None)
@@ -1143,16 +890,8 @@ def main(argumente: list[str]) -> int:
         bericht.gescheitert(f"{type(ursache).__name__}: {ursache}")
         return 1
     finally:
-        # Auf beiden Wegen, und deshalb hier und nicht am Ende des guten. Ein
-        # gescheiterter Lauf ließ bis eben den halben Arbeitsstand samt
-        # Optimierer liegen - beim vollen Training knapp drei Gigabyte, die
-        # niemand mehr liest und die niemand wegräumt, eben weil der Lauf
-        # schiefging. Nach genügend Fehlläufen ist die Platte voll, und dann
-        # scheitert auch der gesunde Lauf.
-        #
-        # Was ein `finally` nicht kann, ist der erschlagene Prozess: kein
-        # Python läuft mehr, das hier ankäme. Diesen Fall nimmt der Läufer
-        # (`laeufer.einmal`), der den Unterprozess überlebt.
+        # Auf jedem Weg - sonst füllen gescheiterte Läufe die Platte. Einen
+        # erschlagenen Prozess übernimmt der Läufer (`laeufer.einmal`).
         entfernt = laeufe.raeume_zwischenstaende_auf(verzeichnis)
         if entfernt:
             bericht.sage(f"Aufgeräumt: {', '.join(entfernt)}")
