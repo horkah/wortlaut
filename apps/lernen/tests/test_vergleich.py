@@ -209,8 +209,9 @@ class TestModelluebersicht:
 
         eigene = [modell for modell in antwort["modelle"] if modell["art"] == "trainiert"]
         assert [modell["version"] for modell in eigene] == [version]
-        # Der Titel ist der Optionscode: whisper-small, LoRA, sonst Vorgaben.
-        assert eigene[0]["name"] == "SL"
+        # Der Titel ist der Optionscode: whisper-small, LoRA, sonst Vorgaben -
+        # und dahinter die Folge, hier die neun Aufnahmen.
+        assert eigene[0]["name"] == "SL/9"
 
     def test_training_und_modelltafel_nennen_denselben_code(
         self, klient: TestClient, aufnahmen: list[str], datenverzeichnis, sprecher: str
@@ -227,7 +228,7 @@ class TestModelluebersicht:
         _lauf_fertigstellen(datenverzeichnis, lauf["job_id"], sprecher, genauigkeit=88.0)
 
         # Das Manifest kennt die Tempowahl nicht; der Code kommt aus dem Auftrag.
-        assert lauf["code"] == "SL-A-Ts-CI"
+        assert lauf["code"] == "SL-A-Ts-CI/9"
         eigene = [
             modell
             for modell in klient.get("/lernen/api/modelle").json()["modelle"]
