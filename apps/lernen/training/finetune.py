@@ -30,6 +30,7 @@ import gc
 import json
 import math
 import shutil
+import signal
 import sys
 import time
 from pathlib import Path
@@ -168,6 +169,12 @@ class Bericht:
         )
         self._schreibe()
         self.ereignis(art="fertig", version=version)
+
+    def abgebrochen(self) -> None:
+        """Angehalten auf Wunsch (`laeufe.HALT`). Wo er stand, bleibt stehen."""
+        self.zustand.update({"status": laeufe.ABGEBROCHEN, "beendet": laeufe.jetzt()})
+        self._schreibe()
+        self.ereignis(art="abgebrochen")
 
     def gescheitert(self, grund: str) -> None:
         self.zustand.update(
@@ -1071,7 +1078,21 @@ def kreuzvalidiere(
     return zeilen, mitgenommen
 
 
+class Angehalten(BaseException):
+    """Der Läufer hat angehalten (`laeufer._fuehre_aus`, SIGTERM).
+
+    Eine `BaseException` und keine `Exception`: Auf dem Weg nach oben liegen
+    Stellen, die jede `Exception` fangen und weitermachen - das Warten auf die
+    Karte etwa (`karte.mit_geduld`). Ein Anhalten soll keine davon aufhalten.
+    """
+
+
+def _halt_bei_sigterm(_signal: int, _rahmen: object) -> None:
+    raise Angehalten
+
+
 def main(argumente: list[str]) -> int:
+    signal.signal(signal.SIGTERM, _halt_bei_sigterm)
     if len(argumente) != 1:
         print(__doc__)
         return 2
@@ -1105,6 +1126,10 @@ def main(argumente: list[str]) -> int:
             verzeichnis, datenverzeichnis, gewichte, auftrag, bericht, ergebnis,
             zeilen=zeilen, mitgenommen=mitgenommen,
         )
+    except Angehalten:
+        bericht.sage("Angehalten auf Wunsch.")
+        bericht.abgebrochen()
+        return 3
     except Exception as ursache:  # noqa: BLE001 - was immer torch wirft
         import traceback
 

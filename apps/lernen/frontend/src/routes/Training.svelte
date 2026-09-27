@@ -22,7 +22,8 @@
   import { onMount } from 'svelte';
   import {
     beauftrage as beauftrageLauf,
-    brichAb,
+    halteAn,
+    starteNeu,
     laeufe as ladeLaeufe,
     type Grundmodell,
     type Lauf,
@@ -298,7 +299,7 @@
     laeuft: 'läuft',
     fertig: 'fertig',
     gescheitert: 'gescheitert',
-    abgebrochen: 'zurückgenommen',
+    abgebrochen: 'angehalten',
   };
 
   /** `1.75` → `1,75×`, `2` → `2×`. Ohne Nullen, die niemand liest. */
@@ -356,10 +357,35 @@
     }
   }
 
-  async function nimmZurueck(jobId: string) {
+  /**
+   * Anhalten. Ein wartender Lauf geht ohne Rückfrage - an ihm ist noch nichts
+   * gerechnet. Ein rechnender fragt nach: Was er bisher gerechnet hat, ist
+   * danach verloren, und ein Neustart beginnt von vorn.
+   */
+  async function halte(lauf: Lauf) {
+    if (
+      lauf.status === 'laeuft' &&
+      !confirm(
+        `${lauf.code} anhalten?\n\nWas bisher gerechnet wurde, geht verloren. ` +
+          'Der Lauf bleibt als angehalten stehen und lässt sich von vorn neu starten.',
+      )
+    )
+      return;
     try {
-      await brichAb(jobId);
+      await halteAn(lauf.job_id);
       await hole();
+    } catch (ursache) {
+      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+    }
+  }
+
+  /** Neu starten - derselbe Auftrag, derselbe Schnappschuss; der alte Lauf geht. */
+  async function neuStarten(lauf: Lauf) {
+    try {
+      await starteNeu(lauf.job_id, schluessel);
+      setzeTrainerschluessel(schluessel);
+      await hole();
+      fehler = '';
     } catch (ursache) {
       fehler = ursache instanceof Error ? ursache.message : String(ursache);
     }
@@ -481,10 +507,27 @@
           <p class="hinweise">{lauf.fehler}</p>
         {/if}
 
-        {#if lauf.status === 'wartet'}
+        {#if lauf.wird_angehalten}
+          <p class="klein gedaempft">Wird angehalten …</p>
+        {:else if lauf.status === 'wartet' || lauf.status === 'laeuft'}
           <div class="reihe">
-            <button class="knopf" onclick={() => nimmZurueck(lauf.job_id)}>
-              Zurücknehmen
+            <button class="knopf" onclick={() => halte(lauf)}>
+              {lauf.status === 'wartet' ? 'Zurücknehmen' : 'Anhalten'}
+            </button>
+          </div>
+        {:else if lauf.neu_startbar}
+          <!-- Neu starten belegt die Karte wie ein neuer Auftrag und verlangt
+               deshalb denselben Schlüssel - er steht unten bei der Bestellung. -->
+          <div class="reihe">
+            <button
+              class="knopf"
+              onclick={() => neuStarten(lauf)}
+              disabled={daten?.schluessel_noetig && !schluessel.trim()}
+              title={daten?.schluessel_noetig && !schluessel.trim()
+                ? 'Erst unten den Trainerschlüssel eintragen'
+                : 'Derselbe Auftrag noch einmal; dieser Lauf wird dabei entfernt'}
+            >
+              Neu starten
             </button>
           </div>
         {/if}

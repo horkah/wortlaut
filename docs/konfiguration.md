@@ -140,11 +140,12 @@ Viertelstunde ist der Ausgleich.
 | `WORTLAUT_LERNEN_TAKT_S` | `5` | wie oft der Läufer nach neuen Aufträgen sieht |
 
 Der Trainerschlüssel ist das einzige Geheimnis dieser App, und er ist keine
-Rolle: Er steht vor genau einem Weg, dem teuren. Ein Lauf belegt die Karte für
+Rolle: Er steht vor den beiden teuren Wegen, dem Beauftragen und dem Neustart
+eines Laufs. Ein Lauf belegt die Karte für
 Minuten bis Stunden - der Sprecherzugang beantwortet aber die Frage „wessen
 Modell?" und nicht „wer darf rechnen lassen?". Ohne die Trennung wäre jeder
 ausgegebene Aufnahmelink zugleich ein Knopf, der Rechenzeit kostet. Zusehen,
-zurücknehmen, löschen und freigeben bleiben beim Sprecher.
+anhalten, löschen und freigeben bleiben beim Sprecher.
 
 `WORTLAUT_AUSWERTUNG_MODELLE` steht bewusst nur einmal in der `.env`: Von der
 Auswertung in `hören` stammen die Zahlen, die in `lernen` in der Tabelle

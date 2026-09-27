@@ -2,8 +2,9 @@
 
 Ein Lauf belegt die Karte für Minuten bis Stunden. Der Sprecherzugang sagt,
 wessen Modell dabei entsteht; er sagt nicht, dass dieser Mensch die Maschine
-dafür beschäftigen darf. Deshalb ein zweites Geheimnis vor genau einem Weg -
-`POST /lernen/api/laeufe`, und vor keinem anderen.
+dafür beschäftigen darf. Deshalb ein zweites Geheimnis vor den beiden Wegen,
+die rechnen lassen - `POST /lernen/api/laeufe` und dem Neustart eines Laufs -,
+und vor keinem anderen.
 
 Geprüft wird hier beides: dass der Schlüssel die teure Tür wirklich zuhält,
 und dass er vor keiner billigen steht.

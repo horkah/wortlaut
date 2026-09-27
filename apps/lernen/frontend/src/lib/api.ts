@@ -110,6 +110,10 @@ export type Lauf = {
   /** Ein rechnender Lauf lässt sich nicht löschen - ein anderer Container schreibt dort.
    *  Ein hängender schon: Dort schreibt seit einer Viertelstunde niemand mehr. */
   loeschbar: boolean;
+  /** Anhalten verlangt, der Trainer hat den Prozess aber noch nicht beendet. */
+  wird_angehalten: boolean;
+  /** Gescheitert oder angehalten - dann lässt er sich neu starten. */
+  neu_startbar: boolean;
   /** Sagt `laeuft`, hat aber seit einer Viertelstunde nichts geschrieben. */
   haengt: boolean;
   /** Seit wann nichts mehr geschrieben wurde, in Sekunden - nur bei `laeuft`. */
@@ -333,8 +337,8 @@ export const lauf = (jobId: string, intervall = 'aus') =>
   anfrage<Laufeinzeln>(`/laeufe/${jobId}?intervall=${encodeURIComponent(intervall)}`);
 
 /**
- * Einen Lauf beauftragen - die einzige Anfrage dieser App, die ein zweites
- * Geheimnis trägt.
+ * Einen Lauf beauftragen - neben dem Neustart die Anfrage dieser App, die ein
+ * zweites Geheimnis trägt.
  *
  * Der Schlüssel steht in einem eigenen Kopf und nicht in `Authorization`:
  * Dort liegt der Zugang des Sprechers, aus dem der Server ableitet, wessen
@@ -364,8 +368,19 @@ export const beauftrage = (bestellung: Bestellung, schluessel: string) =>
     headers: { 'Content-Type': 'application/json', 'X-Trainer-Key': schluessel },
   });
 
-export const brichAb = (jobId: string) =>
+/** Anhalten: einen wartenden sofort, einen rechnenden über den Trainer. */
+export const halteAn = (jobId: string) =>
   anfrage<Lauf>(`/laeufe/${jobId}/abbruch`, { method: 'POST' });
+
+/**
+ * Einen gescheiterten oder angehaltenen Lauf neu starten. Der neue ersetzt den
+ * alten; verlangt wie das Beauftragen den Trainerschlüssel.
+ */
+export const starteNeu = (jobId: string, schluessel: string) =>
+  anfrage<Lauf>(`/laeufe/${jobId}/neustart`, {
+    method: 'POST',
+    headers: { 'X-Trainer-Key': schluessel },
+  });
 
 /** Einen Lauf ersatzlos entfernen - samt dem Modell, das aus ihm entstand. */
 export const loescheLauf = (jobId: string) =>

@@ -98,7 +98,7 @@ def hoeren(zugang: str) -> Iterator[TestClient]:
 def klient(zugang: str) -> Iterator[TestClient]:
     """Der Klient von „lernen", mit demselben Zugang - und mit dem Trainerschlüssel.
 
-    Der Schlüssel hängt an jeder Anfrage, obwohl ihn nur eine braucht. Das ist
+    Der Schlüssel hängt an jeder Anfrage, obwohl ihn nur zwei brauchen. Das ist
     der bequeme Weg und der richtige: Er ist die Erlaubnis eines Menschen, nicht
     das Merkmal eines Aufrufs, und ein Server, der ihn dort liest, wo er nichts
     zu suchen hat, fiele in `test_trainerschluessel.py` auf.
