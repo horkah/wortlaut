@@ -4,33 +4,18 @@ Ein Auftrag ist ein Verzeichnis (`wortlaut/laeufe.py`), kein Funktionsaufruf.
 Diese Datei schreibt es und liest es wieder; gerechnet wird anderswo, in einem
 Container mit Karte.
 
-**Was im Verzeichnis steht, bevor der Trainer es anfasst.** Der Auftrag - wer,
-womit, wie - und das Manifest: jede Probe mit ihrem Pfad, ihrem Text, ihrer
-Herkunft und ihrer Faltung. Das Manifest ist der Schnappschuss:
-Ab hier steht fest, womit trainiert wird, auch wenn derselbe Mensch in der
-nächsten Stunde zwanzig weitere Aufnahmen macht. Ohne diesen Schnitt wäre
-hinterher nicht mehr zu sagen, worauf ein Modell eigentlich gelernt hat.
+**Was im Verzeichnis steht, bevor der Trainer es anfasst:** der Auftrag und
+das Manifest - jede Probe mit Pfad, Text, Herkunft und Faltung. Das Manifest
+ist der Schnappschuss: Weitere Aufnahmen ändern nicht, worauf ein Modell
+gelernt hat.
 
-**Warum jede Aufnahme ihre Faltung trägt.** Gemessen wird mit sechsfacher
-Kreuzvalidierung über den ganzen Korpus (`services/aufteilung.py`): Je Faltung
-läuft ein Training, das auf den anderen fünf Sechsteln lernt und auf diesem
-einen misst. Die Faltung einer Zeile sagt also beides - in welchem der sechs
-Läufe sie gelernt wird und in welchem sie zählt.
+**Jede Zeile trägt ihre Faltung** (`services/aufteilung.py`): Sie misst in
+dieser und lernt in den anderen fünf.
 
-**Warum kein Testdrittel mehr.** Es stand bis September 2026 hier, und der
-Gedanke war richtig: ungesehene Aufnahmen, an denen gemessen wird. Die
-Ausführung trug nicht. Bei neun Aufnahmen bestand der Test aus dreien, die
-Validierung aus einer - Zahlen über drei Aufnahmen sind keine Auskunft. Die
-Kreuzvalidierung beantwortet dieselbe Frage über alle Aufnahmen. Wirklich
-unabhängige Testaufnahmen sind damit nicht ersetzt; sie werden eigens
-aufgenommen werden.
-
-**Warum je Fassung eine Zeile - und zwar immer alle.** „hören" legt neben jede
-Aufnahme eine abgewandelte Fassung (`wortlaut/augmentierung.py`). Ob sie
-mittrainiert wird, steht im Auftrag (`daten`) und entscheidet der Trainer beim
-Lesen. Ins Manifest gehören trotzdem alle: **Gemessen** wird immer auf allen
-Fassungen - dieselben, die in der Auswertung von „hören" schon gemessen
-wurden. Nur so ist die Baseline eine Baseline und kein anderer Versuch.
+**Je Fassung eine Zeile, immer alle** (`wortlaut/augmentierung.py`). Ob die
+Abwandlung mitlernt, entscheidet der Trainer am Auftrag (`daten`); gemessen
+wird auf allen Fassungen, wie in der Auswertung von „hören" - sonst wäre die
+Baseline ein anderer Versuch.
 """
 
 from __future__ import annotations
@@ -63,35 +48,16 @@ class Auftrag:
     methode: str
     daten: str
     basismodell: str
-    # Die Sprache des Profils. Sie steht im Auftrag und nicht in der Umgebung,
-    # weil ein Lauf nachvollziehbar sein soll: In `auftrag.json` ist später zu
-    # lesen, wofür trainiert wurde, und der Trainer muss es nicht raten.
-    #
-    # Ohne Vorgabe, und das mit Absicht. `finetune.py` und `bewerten.py` lasen
-    # den Schlüssel schon immer - geschrieben hat ihn nie jemand, also griff
-    # dort stets der Rückfall auf Deutsch. Ein spanisches Profil hätte deutsche
-    # erzwungene Marken bekommen und wäre als Deutsch bewertet worden, ohne
-    # dass irgendwo ein Fehler gestanden hätte. Ein Feld ohne Vorgabe kann
-    # nicht wieder vergessen werden.
+    # Die Sprache des Profils, im Auftrag statt in der Umgebung. Ohne Vorgabe:
+    # Ein vergessenes Feld fiele sonst still auf Deutsch zurück.
     sprache: str
-    # Was am Ende mit den Gewichten geschieht (`wortlaut/laeufe.py`). Mit
-    # Vorgabe, und die ist das Verfahren von vorher: Ein Auftrag von einem
-    # Aufrufer, der diese Achse nicht kennt, bleibt derselbe Auftrag.
+    # Die Achsen (`wortlaut/laeufe.py`), jede mit ihrer Vorgabe.
     abschluss: str = laeufe.ABSCHLUSS_BESTER
-    # Womit die Trainingsproben beim Laden abgewandelt werden. Auch hier mit
-    # Vorgabe: `keine` ist das Verfahren von vorher.
     augmentierung: str = laeufe.AUG_KEINE
-    # Wie lange trainiert wird. `fest` ist die Zahl aus dem Rezept und das
-    # Verfahren von vorher.
     dauer: str = laeufe.DAUER_FEST
-    # Ob die Geschwindigkeit gesucht wird oder die des Profils gilt.
-    # `wie_eingestellt` ist das Verfahren von vorher.
     tempowahl: str = laeufe.TEMPO_AUS
-    # Der trainierte Stand, mit dessen Gewichten begonnen wird - leer heißt
-    # wie bisher: das unveränderte `basismodell` (`wortlaut/laeufe.py`).
+    # Leer: das unveränderte `basismodell`.
     ausgangsstand: str = ""
-    # Ob auf allen Aufnahmen gelernt wird oder nur auf dem Kern
-    # (`wortlaut/laeufe.py`). `alle` ist das Verfahren von vorher.
     auswahl: str = laeufe.AUSWAHL_ALLE
 
 
@@ -104,15 +70,10 @@ def _quelle_von(korpus: Session, probe: Probe) -> str:
 def _manifestzeile(
     probe: Probe, variante: str, quelle: str, sprecher_id: str
 ) -> dict[str, Any]:
-    # Der Pfad steht relativ zum Korpus dieses Sprechers und nicht absolut:
-    # Ein Schnappschuss soll sich auf eine andere Maschine kopieren lassen,
-    # ohne dass jemand Pfade darin ersetzt.
+    # Relativ zum Korpus, damit sich ein Schnappschuss kopieren lässt.
     innerhalb = corpus.sprecher_relpfad(sprecher_id)
-    # Die Arbeitsdatei und nicht der Blob aus der Zeile: Hat jemand die Stille
-    # an den Rändern weggeschnitten, ist der Zuschnitt das, was gilt - hier
-    # wie in der Auswertung und beim Anhören (`hoeren/services/zuschnitt.py`).
-    # Die Regel steht dort und wird hier nur befragt; „lernen" liest den Korpus
-    # und deutet ihn nicht (Grundentscheidung 6).
+    # Die Arbeitsdatei: Ein Zuschnitt gilt hier wie überall
+    # (`hoeren/services/zuschnitt.py`).
     voll = (
         zuschnitt.arbeitsblob(probe.aufnahme)
         if variante == augmentierung.ORIGINAL
@@ -126,8 +87,6 @@ def _manifestzeile(
         "variante": variante,
         "dauer_s": zuschnitt.arbeitsdauer(probe.aufnahme),
         "gewicht": GEWICHTE.get(quelle, 1.0),
-        # In welcher der sechs Faltungen diese Aufnahme gemessen wird - und
-        # damit in welchen fünf sie gelernt wird.
         "faltung": probe.faltung,
         "recording_id": probe.aufnahme.id,
     }
@@ -138,11 +97,8 @@ def schreibe_manifest(
 ) -> dict[str, int]:
     """Das Manifest schreiben; gibt zurück, wie viele Zeilen je Faltung entstanden.
 
-    `daten` steht hier nicht mehr im Weg: Geschrieben werden immer alle
-    Fassungen, und welche davon gelernt werden dürfen, entscheidet der Trainer
-    am Auftrag (`training/daten.py`). Das Manifest ist damit für jeden Lauf
-    dasselbe und bleibt, was es sein soll - der Schnappschuss des Korpus, nicht
-    die Anweisung an den Trainer.
+    Immer alle Fassungen, unabhängig von `daten` - was gelernt wird, entscheidet
+    der Trainer (`training/daten.py`).
     """
     gezaehlt = {str(faltung): 0 for faltung in range(laeufe.FALTUNGEN)}
     with ziel.open("w", encoding="utf-8") as datei:
@@ -165,19 +121,15 @@ def beauftrage(
 ) -> laeufe.Lauf:
     """Einen Lauf anlegen: Verzeichnis, Marke, Manifest, Auftrag - in dieser Reihenfolge.
 
-    Beim Kern kommt die Kernauswahl dazu, vor dem Auftrag wie das Manifest:
-    Der Trainer liest beides, sobald er den Auftrag sieht.
-
-    Der Auftrag zuletzt, und das ist die ganze Verriegelung: Der Trainer
-    erkennt einen offenen Lauf an `auftrag.json`. Läge die Datei zuerst da,
-    könnte er ein halbes Manifest erwischen.
+    Beim Kern kommt die Kernauswahl dazu, ebenfalls vor dem Auftrag: Der
+    Trainer erkennt einen offenen Lauf an `auftrag.json` und fände sonst ein
+    halbes Manifest.
     """
     job_id = ids.neue_id("job")
     verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, job_id)
     verzeichnis.mkdir(parents=True, exist_ok=True)
 
-    # Die Zusage an die Löschung - ohne sie findet `scripts/purge_speaker.py`
-    # diesen Schnappschuss nicht und meldet ihn zur Prüfung von Hand.
+    # Für die Löschung (`scripts/purge_speaker.py`).
     (verzeichnis / laeufe.SPRECHER_MARKE).write_text(
         f"{auftrag.sprecher_id}\n", encoding="utf-8"
     )
@@ -201,26 +153,16 @@ def beauftrage(
         "augmentierung": auftrag.augmentierung,
         "dauer": auftrag.dauer,
         "basismodell": auftrag.basismodell,
-        # Die Sprache des Profils. Sie steht hier, weil `finetune.py` und
-        # `bewerten.py` sie genau hier lesen - und weil in `auftrag.json`
-        # nachvollziehbar sein soll, wofür trainiert wurde.
         "sprache": auftrag.sprache,
-        # Ob der Trainer diesen Faktor benutzt oder sich einen sucht. Der
-        # eingefrorene Wert darüber bleibt trotzdem stehen: Er ist der
-        # Ausgangspunkt, gegen den sich eine Suche messen lassen muss.
         "tempowahl": auftrag.tempowahl,
         "erstellt": laeufe.jetzt(),
         "zeilen": gezaehlt,
         "aufnahmen": len(proben),
     }
-    # Nur wenn es einen gibt: Ein Auftrag ohne das Feld ist derselbe wie vor
-    # September 2026.
     if auftrag.ausgangsstand:
         inhalt[laeufe.AUSGANGSSTAND] = auftrag.ausgangsstand
-    # Die Folge hinter dem Optionscode (`/43`, `/43b`, …): einmal hier vergeben,
-    # gemessen an dem, was jetzt noch da ist, und danach nie wieder angefasst
-    # (`wortlaut/laeufe.py`). Die Stände zählen mit, falls einer seinen Lauf
-    # überlebt hat.
+    # Die Folge hinter dem Optionscode (`/43`, `/43b`, …), einmal vergeben
+    # (`wortlaut/laeufe.py`). Stände zählen mit, falls einer seinen Lauf überlebt hat.
     inhalt[laeufe.FOLGE] = laeufe.naechste_folge(
         inhalt,
         [
@@ -238,21 +180,13 @@ def beauftrage(
 def halte_an(datenverzeichnis: Path, job_id: str) -> bool:
     """Einen Lauf anhalten - einen wartenden sofort, einen rechnenden über den Trainer.
 
-    **Ein wartender** wird hier und jetzt `abgebrochen`: Noch rechnet niemand
-    an ihm, also gibt es niemanden zu fragen.
+    Ein wartender wird sofort `abgebrochen`. Bei einem rechnenden legt diese
+    App den Wunsch ins Verzeichnis (`laeufe.HALT`), und der Läufer im
+    Trainer-Container beendet den Prozess (`training/laeufer.py`). Ein
+    hängender (`Lauf.haengt`) wird ebenfalls sofort `abgebrochen`; ein doch
+    noch lebender Prozess findet denselben Wunsch.
 
-    **Ein rechnender** gehört einem anderen Container. Hineingreifen kann
-    diese App nicht; sie legt den Wunsch ins Verzeichnis (`laeufe.HALT`), und
-    der Läufer im Trainer-Container beendet den Prozess
-    (`training/laeufer.py`). Bis dahin sagt der Lauf weiter `laeuft` - die
-    Ansicht zeigt, dass er angehalten wird.
-
-    **Ein hängender** sagt `laeuft`, aber niemand schreibt mehr (`Lauf.haengt`).
-    Auf den Läufer zu warten hieße womöglich, ewig zu warten; er wird hier
-    `abgebrochen`. Lebt der Prozess doch noch, findet ihn der Läufer über
-    denselben Wunsch.
-
-    `False` heißt: Es gab nichts anzuhalten - der Lauf ist schon zu Ende.
+    `False`: Der Lauf ist schon zu Ende.
     """
     lauf = laeufe.lies_lauf(datenverzeichnis, job_id)
     if lauf is None or lauf.status not in (laeufe.WARTET, laeufe.LAEUFT):
@@ -266,9 +200,7 @@ def halte_an(datenverzeichnis: Path, job_id: str) -> bool:
     return True
 
 
-# Was ein neu gestarteter Lauf von seinem Vorgänger übernimmt: den Schnappschuss
-# des Korpus und, beim Kern, dessen Auswahl. Alles andere - Zustand,
-# Fortschritt, Protokoll, Bewertung - gehört zu dem, was schiefging.
+# Was ein Neustart übernimmt: Schnappschuss und Kernauswahl - nicht, was schiefging.
 UEBERNOMMEN = (laeufe.SPRECHER_MARKE, laeufe.MANIFEST, laeufe.KERNAUSWAHL)
 NEU_STARTBAR = (laeufe.GESCHEITERT, laeufe.ABGEBROCHEN)
 
@@ -276,17 +208,12 @@ NEU_STARTBAR = (laeufe.GESCHEITERT, laeufe.ABGEBROCHEN)
 def starte_neu(datenverzeichnis: Path, sprecher_id: str, job_id: str) -> laeufe.Lauf:
     """Einen gescheiterten oder angehaltenen Lauf noch einmal rechnen lassen.
 
-    **Derselbe Auftrag auf demselben Schnappschuss.** Neu gestartet wird, was
-    damals bestellt wurde, und nicht, was heute im Korpus liegt: Wer einen
-    Lauf neu startet, will das Ergebnis, das er verpasst hat. Seither
-    verworfene Aufnahmen fallen dabei heraus, wie bei jedem Lauf
-    (`daten.zeilen_fuer_faltung`). Wer den heutigen Korpus will, beauftragt
-    neu.
+    Derselbe Auftrag auf demselben Schnappschuss; verworfene Aufnahmen fallen
+    heraus wie immer (`daten.zeilen_fuer_faltung`). Wer den heutigen Korpus
+    will, beauftragt neu.
 
-    **Der neue ersetzt den alten.** Er bekommt eine eigene Kennung und damit
-    ein leeres Verzeichnis, und der alte geht - samt einem Stand, falls einer
-    entstanden war (`loesche`). Die Folge (`/43b`) nimmt er mit: Es ist
-    derselbe Lauf, nur diesmal zu Ende gerechnet.
+    Der neue Lauf bekommt eine eigene Kennung und die Folge (`/43b`) des
+    alten; der alte geht samt Stand (`loesche`).
     """
     alt = laeufe.lies_lauf(datenverzeichnis, job_id)
     if alt is None or alt.sprecher_id != sprecher_id:
@@ -327,42 +254,17 @@ class Geloescht:
 def loesche(datenverzeichnis: Path, sprecher_id: str, job_id: str) -> Geloescht:
     """Einen Lauf ersatzlos entfernen - samt dem Modell, das aus ihm entstand.
 
-    **Warum das Modell mitgeht.** Ein Modellstand trägt die Kennung des Laufs,
-    aus dem er stammt (`job_id` im Manifest). Bliebe er stehen, zeigte er auf
-    ein Verzeichnis, das es nicht mehr gibt: Die Ansicht böte einen Weg „Zum
-    Lauf" ins Leere, und die Frage, worauf dieses Modell eigentlich trainiert
-    wurde, wäre nicht mehr zu beantworten - das Manifest, das es sagt, liegt
-    im gelöschten Lauf. Ein Modell, dessen Herkunft niemand mehr nachsehen
-    kann, ist genau das, wogegen diese App gebaut ist.
-
-    Deshalb ist das Löschen eines Laufs das Löschen von allem, was aus ihm
-    hervorging. Die Oberfläche sagt das vorher, ausdrücklich und samt der
-    Angabe, ob der Stand gerade freigegeben ist (siehe `api/laeufe.py`).
-
-    **Was nicht mitgeht: der Korpus.** Er gehört „hören" und nicht diesem Lauf.
-    Die Faltungen hängen an ihm und werden beim nächsten Auftrag neu gerechnet;
-    gespeichert ist daran nichts (`services/aufteilung.py`).
+    Ohne Lauf wäre nicht mehr nachzusehen, worauf ein Stand gelernt hat - sein
+    Manifest liegt dort. Die Oberfläche nennt vorher, ob der Stand freigegeben
+    ist (`api/laeufe.py`). Der Korpus bleibt.
     """
     lauf = laeufe.lies_lauf(datenverzeichnis, job_id)
     if lauf is None or lauf.sprecher_id != sprecher_id:
         raise LookupError(job_id)
     if lauf.status == laeufe.LAEUFT and not lauf.haengt:
-        # In das Verzeichnis schreibt gerade ein anderer Container. Es unter
-        # ihm wegzuziehen hieße, einen laufenden Prozess ins Leere greifen zu
-        # lassen - und das Ergebnis wäre ein halb geschriebener Modellstand.
-        #
-        # `und not haengt` ist der Unterschied zwischen einem Wächter und einer
-        # Falle. Der Zustand `laeuft` ist eine Behauptung des rechnenden
-        # Prozesses, und sie bleibt stehen, wenn er sie nicht mehr
-        # zurücknehmen kann - weil sein Container neu gestartet wurde, weil die
-        # Maschine neu gestartet ist, weil der Kern ihn erschlagen hat. Vorher
-        # war so ein Lauf für immer unlöschbar: Er rechnete nicht, sagte aber,
-        # er rechne, und niemand kam an ihn heran.
-        #
-        # Eine Viertelstunde ohne ein geschriebenes Byte ist keine Rechnung
-        # mehr (`wortlaut/laeufe.py`). Falls doch noch ein Prozess daran hängt,
-        # greift er nach dem Löschen ins Leere und stirbt - das ist der Preis,
-        # und er ist kleiner als ein Verzeichnis, das niemand loswird.
+        # Sonst entstünde ein halb geschriebener Stand. Ein hängender Lauf
+        # (`wortlaut/laeufe.py`) behauptet `laeuft` nur noch - sein Prozess
+        # starb mit Container oder Maschine; ihn zu löschen ist erlaubt.
         raise RuntimeError(
             "Dieser Lauf rechnet gerade. Erst wenn er durch ist, lässt er sich löschen."
         )
@@ -376,18 +278,12 @@ def loesche(datenverzeichnis: Path, sprecher_id: str, job_id: str) -> Geloescht:
         ergebnis = Geloescht(
             job_id=job_id, version=version, war_freigegeben=war_freigegeben
         )
-        # War dieses Modell freigegeben, geht die Freigabe mit: Eine, die auf
-        # ein gelöschtes Verzeichnis zeigt, wäre in „schreiben" eine Zeile
-        # „Modellstand nicht gefunden" statt einer Antwort - und niemand käme
-        # auf den Gedanken, dass sie hier entstand.
+        # Sonst zeigte die Freigabe in „schreiben" ins Leere.
         if war_freigegeben:
             registry.gib_frei(datenverzeichnis, sprecher_id, "")
         registry.loesche_stand(datenverzeichnis, sprecher_id, version)
 
-    # Zuletzt das Laufverzeichnis, und in dieser Reihenfolge: Bräche das
-    # Löschen dazwischen ab, bliebe ein Lauf ohne Modell stehen - lästig, aber
-    # widerspruchsfrei. Andersherum bliebe ein Modell ohne Lauf, und genau das
-    # soll es nicht geben.
+    # Zuletzt: Ein Abbruch hinterlässt einen Lauf ohne Stand, nie umgekehrt.
     shutil.rmtree(lauf.verzeichnis, ignore_errors=True)
     return ergebnis
 
@@ -395,10 +291,8 @@ def loesche(datenverzeichnis: Path, sprecher_id: str, job_id: str) -> Geloescht:
 def lernkurve(lauf: laeufe.Lauf) -> dict[str, list[dict[str, float]]]:
     """Was die Kurven zeigen: der Verlust je Schritt, die Prüfung je Durchgang.
 
-    Zwei Reihen und nicht eine. Der Trainingsverlust sagt, ob überhaupt etwas
-    passiert; er fällt auch dann weiter, wenn das Modell nur noch auswendig
-    lernt. Erst die Validierung daneben zeigt, wann das anfängt - sie ist die
-    Reihe, die wieder steigt, während die andere sinkt.
+    Der Verlust fällt auch beim Auswendiglernen weiter; die Validierung zeigt,
+    wann es anfängt.
     """
     schritte = []
     pruefungen = []

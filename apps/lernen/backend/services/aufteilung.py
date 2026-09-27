@@ -1,43 +1,19 @@
-"""Wie der Korpus in sechs Faltungen zerfällt - und warum das nirgends steht.
+"""Wie der Korpus in sechs Faltungen zerfällt - gerechnet, nicht gespeichert.
 
-Jede Aufnahme kommt in die Faltung mit dem geringsten Zählerstand, bei
-Gleichstand in die mit der niedrigsten Nummer - bei lauter einzelnen Aufnahmen
-also 1, 2, 3, 4, 5, 6, 1, 2, … (`wortlaut.laeufe.verteile`). Je Faltung läuft ein Training, das auf den anderen fünf Sechsteln lernt und auf
-diesem einen misst. Sechs Trainings später ist jede Aufnahme genau einmal von
-einem Modell gehört worden, das sie nie gesehen hat - und das ist die Zahl, die
-in der Modelltabelle steht.
+Je Faltung lernt ein Training auf den anderen fünf Sechsteln und misst an
+diesem; danach ist jede Aufnahme einmal von einem Modell gehört, das sie nicht
+kannte - die Zahl der Modelltafel.
 
 **Eine Verwandtschaft ist eine Aufnahme.** Teile und Kopien aus „Editieren"
-sind neue Aufnahmen, aber derselbe Ton (`zuschnitt.stamm`). Sie stehen direkt
-unter ihrem Original, und einzeln verteilt landeten sie in anderen Faltungen -
-dann lernte das Modell der einen Faltung den Ton, an dem es in der anderen
-gemessen wird, und die Zahl stiege, ohne dass es besser hörte. Verteilt wird
-deshalb je Stamm: Original, Teile und Kopien teilen sich eine Faltung, und
-gezählt wird der Stamm mit all seinen Aufnahmen. Darum der Zählerstand statt
-einer festen Runde: Reihum bekam die Faltung einer dreiteiligen Verwandtschaft
-trotzdem ihren nächsten Platz, und die Faltungen liefen auseinander. Und darum
-die größten Verwandtschaften zuerst: Geschnitten wird oft spät, und hinter
-einer späten großen Verwandtschaft bliebe nichts mehr, das aufholen könnte.
+sind derselbe Ton (`zuschnitt.stamm`); in verschiedenen Faltungen lernte ein
+Modell, woran es gemessen wird. Verteilt wird je Stamm nach Zählerstand, die
+größten zuerst (`wortlaut.laeufe.verteile`), damit die einzelnen Aufnahmen
+ausgleichen.
 
-**Warum hier nichts mehr gespeichert wird.** Bis September 2026 stand in einer
-Tabelle, welche Aufnahme lernt, steuert und prüft; einmal vergeben und nie
-wieder angefasst. Das musste so sein, solange es ein Testdrittel gab: Eine
-Aufnahme, die einmal geprüft hatte, durfte nie trainieren, sonst maß der Test
-das Auswendiggelernte. Rückte durch eine Löschung alles um einen Platz vor, war
-genau das passiert.
-
-Diese Gefahr gibt es nicht mehr. In fünf von sechs Faltungen trainiert jede
-Aufnahme ohnehin; welche Faltung sie trägt, entscheidet nur, in welchem der
-sechs Läufe sie gemessen wird. Die Faltung folgt deshalb schlicht der
-Reihenfolge des Korpus, wird bei jedem Auftrag neu gerechnet und im
-Schnappschuss festgehalten (`services/auftraege.py`). Eine Tabelle daneben wäre
-eine zweite Wahrheit über dieselbe Sache.
-
-**Was dabei verloren geht, und warum das in Ordnung ist.** Wer eine Aufnahme
-löscht, verschiebt die Faltungen aller jüngeren. Zwei Läufe über verschiedene
-Korpusstände messen damit auf verschiedenen Faltungen. Das ist kein Bruch: Jeder
-Lauf misst über **alle** Aufnahmen, die er kennt, und trägt sein Manifest bei
-sich. Verglichen werden Läufe, nicht Faltungen.
+**Gerechnet bei jedem Auftrag und im Schnappschuss festgehalten**
+(`services/auftraege.py`). In fünf von sechs Faltungen lernt jede Aufnahme
+ohnehin; welche sie trägt, entscheidet nur, wo sie gemessen wird. Eine
+Löschung verschiebt die Faltungen - verglichen werden Läufe, nicht Faltungen.
 """
 
 from __future__ import annotations
@@ -65,10 +41,7 @@ class Probe:
 def proben(korpus: Session) -> list[Probe]:
     """Alle brauchbaren Aufnahmen mit ihrer Faltung, älteste zuerst.
 
-    Die Reihenfolge ist die des Korpus und damit die des Aufnehmens. Sie ist
-    zugleich die der Zuteilung unter gleich großen Stämmen: Die größten
-    zuerst, kommt jeder in die Faltung mit den wenigsten Aufnahmen, und mit
-    ihm alle seine Teile und Kopien (siehe oben). Nichts daran ist gespeichert, und nichts muss es sein.
+    Die Reihenfolge des Korpus entscheidet unter gleich großen Stämmen.
     """
     reihe = gueltige_aufnahmen(korpus)
     groessen: dict[str, int] = {}
@@ -90,9 +63,7 @@ def proben(korpus: Session) -> list[Probe]:
 def zaehle(proben_liste: list[Probe]) -> dict[int, int]:
     """Wie viele Aufnahmen auf jede Faltung entfallen - alle sechs, auch leere.
 
-    Alle sechs, weil eine fehlende Faltung eine Auskunft ist: Unter sechs
-    Aufnahmen bleiben Faltungen leer, und ein Lauf darüber hätte Sechstel, die
-    nichts messen.
+    Eine leere Faltung ist eine Auskunft.
     """
     return {
         faltung: sum(1 for probe in proben_liste if probe.faltung == faltung)
@@ -103,8 +74,6 @@ def zaehle(proben_liste: list[Probe]) -> dict[int, int]:
 def genug(proben_liste: list[Probe]) -> bool:
     """Ob sich damit kreuzvalidieren lässt: mindestens eine Aufnahme je Faltung.
 
-    Weniger als sechs Aufnahmen ergeben leere Faltungen - ein Training, das auf
-    nichts misst, und eine Zahl, die keine ist. Dann steht die Schaltfläche
-    still und sagt, woran es liegt.
+    Sonst misst ein Training an nichts; die Oberfläche sagt dann, woran es liegt.
     """
     return all(anzahl > 0 for anzahl in zaehle(proben_liste).values())

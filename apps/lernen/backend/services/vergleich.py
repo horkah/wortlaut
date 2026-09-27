@@ -1,26 +1,14 @@
 """Hat es etwas gebracht? - der trainierte Stand gegen die Baseline.
 
-Die Frage dieser App ist nicht, wie gut ein Modell ist, sondern ob das
-Training es besser gemacht hat. Dafür braucht es zwei Zahlen zu denselben
-Aufnahmen, und die zweite liegt schon da: „hören" hat in seiner Auswertung
-jede Aufnahme durch `small`, `medium` und `large-v3` geschickt und je
-Fassung gemessen (`apps/hoeren/.../auswertung.py`). Die Zeilen zu `small` auf
-den **Testaufnahmen** sind die Baseline - dasselbe Grundmodell, auf das hier
-trainiert wird, an denselben Aufnahmen, mit demselben Maß.
+Die Baseline misst „hören" in seiner Auswertung: das Grundmodell des Laufs
+an denselben Aufnahmen, je Fassung, mit demselben Maß
+(`apps/hoeren/.../auswertung.py`). Neu gemessen wird nicht - eine zweite
+Messung wäre eine zweite Gelegenheit, es anders zu machen.
 
-**Warum nicht neu gemessen.** Weil eine zweite Messung derselben Sache eine
-zweite Gelegenheit wäre, sie anders zu machen - ein anderes Gerät, eine andere
-Quantisierung, eine andere Textangleichung. Gemessen wird einmal, und was
-verglichen wird, stammt aus derselben Rechnung.
+Der trainierte Stand zählt jede Aufnahme aus der Faltung, die sie zurückhielt.
 
-**Warum über alle Aufnahmen.** Auf allem anderen hat das trainierte Modell
-gelernt. Eine Verbesserung dort ist keine Auskunft, sondern eine
-Selbstverständlichkeit.
-
-**Warum je Fassung.** Weil die interessantere Hälfte der Frage lautet, ob das
-Modell den Sprecher verstanden hat oder seine Aufnahmesituation. Ein Stand,
-der auf dem Original gewinnt und beim Rauschen verliert, hat etwas anderes
-gelernt als einer, der überall gleichmäßig zulegt.
+**Je Fassung**, denn ein Stand, der auf dem Original gewinnt und beim Rauschen
+verliert, hat den Sprecher gelernt, nicht die Aufnahmesituation.
 """
 
 from __future__ import annotations
@@ -33,8 +21,7 @@ from wortlaut import augmentierung, laeufe, streuung
 
 from apps.hoeren.backend.db.models import Erkennung
 
-# Die Maße, die verglichen werden - dieselben Namen wie in „hören", damit
-# niemand zwei Vokabulare im Kopf halten muss.
+# Benannt wie in „hören".
 MASSE = ("genauigkeit", "wer", "cer", "mer", "wil")
 
 # Bei diesem Maß ist größer besser; bei allen übrigen kleiner.
@@ -49,11 +36,8 @@ class Gegenueber:
     baseline: float | None
     trainiert: float | None
     anzahl: int
-    # Der gepaarte Vergleich der beiden - `None`, solange niemand ihn
-    # angefordert hat (`blockart = aus`, die Vorgabe) oder zu wenige Aufnahmen
-    # gemeinsam gemessen wurden. Die Differenz ist **trainiert minus
-    # Baseline**: bei der Genauigkeit ist positiv gut, bei jeder Fehlerrate
-    # negativ.
+    # Der gepaarte Vergleich, trainiert minus Baseline - `None` ohne Anforderung
+    # (`blockart = aus`) oder bei zu wenigen gemeinsamen Aufnahmen.
     unterschied: dict | None = None
     # Die beiden Vertrauensbereiche einzeln, für die Anzeige daneben.
     bereich_baseline: dict | None = None
@@ -63,11 +47,7 @@ class Gegenueber:
     def besser(self) -> bool | None:
         """Ob der trainierte Stand gewonnen hat. `None`, solange eines fehlt.
 
-        Sagt, wer vorn liegt - **nicht**, ob das mehr ist als Zufall. Diese
-        zweite Frage beantwortet `unterschied`, und zwar nur, wenn sie gestellt
-        wurde. Beide nebeneinander stehen zu lassen ist Absicht: Die Pfeile in
-        der Ansicht gab es vorher, sie sollen bleiben, was sie waren, und die
-        schärfere Auskunft tritt daneben statt an ihre Stelle.
+        Wer vorn liegt - ob das mehr ist als Zufall, sagt `unterschied`.
         """
         if self.baseline is None or self.trainiert is None:
             return None
@@ -83,9 +63,7 @@ def _mittel(werte: list[float]) -> float | None:
 def baseline(korpus: Session, aufnahmen: set[str], basismodell: str) -> dict[str, dict]:
     """Die gemessenen Zeilen aus „hören" zu diesen Aufnahmen, nach Fassung.
 
-    `basismodell` kommt als `openai/whisper-small` herein und heißt in der
-    Auswertung schlicht `small` - die eine Stelle, an der die beiden
-    Schreibweisen aufeinandertreffen.
+    `openai/whisper-small` heißt in der Auswertung `small`.
     """
     kurz = basismodell.rsplit("/", 1)[-1].removeprefix("whisper-")
     treffer: dict[str, dict] = {}
@@ -99,7 +77,7 @@ def baseline(korpus: Session, aufnahmen: set[str], basismodell: str) -> dict[str
 
 
 def bewertung(lauf: laeufe.Lauf) -> dict[str, dict[str, dict]]:
-    """Was das trainierte Modell auf den Testaufnahmen erreicht hat, nach Fassung."""
+    """Was das trainierte Modell erreicht hat, nach Fassung."""
     treffer: dict[str, dict[str, dict]] = {}
     for zeile in laeufe.lies_zeilen(lauf.verzeichnis / laeufe.BEWERTUNG):
         kennung = zeile.get("recording_id")
@@ -120,17 +98,11 @@ def je_fassung(
 ) -> dict[str, list[Gegenueber]]:
     """Baseline gegen trainierten Stand, je Fassung und Maß.
 
-    Verglichen wird nur, was **beide** gemessen haben. Eine Aufnahme, die in
-    der Auswertung von „hören" noch nicht gerechnet ist, fällt aus beiden
-    Mittelwerten - sonst stünde ein Mittel über zwanzig gegen ein Mittel über
-    achtzehn, und der Unterschied läge an der Auswahl statt am Modell.
+    Nur, was beide gemessen haben - sonst läge ein Unterschied an der Auswahl.
 
-    `blockart` schaltet die Vertrauensbereiche dazu; `aus` ist die Vorgabe und
-    ergibt genau das, was diese Funktion immer schon ergeben hat. Innerhalb
-    **einer** Fassung trägt jede Aufnahme ohnehin nur eine Messung bei - die
-    beiden Blockarten fallen hier also zusammen. Der Unterschied zwischen
-    ihnen zeigt sich erst dort, wo über alle Fassungen gemittelt wird
-    (`services/messwerte.py`).
+    `blockart` schaltet Vertrauensbereiche dazu (Vorgabe `aus`). Innerhalb
+    einer Fassung fallen die Blockarten zusammen; unterscheiden tun sie sich
+    erst über alle Fassungen (`services/messwerte.py`).
     """
     gemessen = bewertung(lauf)
     if not gemessen:
