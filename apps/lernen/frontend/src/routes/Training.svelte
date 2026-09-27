@@ -248,6 +248,7 @@
 
   const STUFEN: Record<string, string> = {
     vorbereiten: 'wird vorbereitet',
+    kernauswahl: 'Kernauswahl: das freigegebene Modell hört, was ihm fehlt',
     laden: 'Modell wird geladen',
     tempowahl: 'sucht die Geschwindigkeit',
     training: 'trainiert',
@@ -268,6 +269,10 @@
   function wobei(lauf: Lauf): string {
     const stufe = STUFEN[lauf.stufe] ?? lauf.stufe;
     if (lauf.status !== 'laeuft') return stufe;
+    // Vor der ersten Faltung gibt es noch kein „wo" - ohne das stünde hier
+    // „Endmodell", denn auch dort ist die Faltung `null`.
+    if (lauf.stufe === 'vorbereiten') return stufe;
+    if (lauf.stufe === 'kernauswahl') return `${stufe} (${lauf.kern_offen} Aufnahmen)`;
     // `faltung === null` heißt: das siebte Training, das auf allem lernt.
     // Auch das gehört dazu - sonst sieht die letzte halbe Stunde eines Laufs
     // aus wie die erste.
@@ -473,9 +478,20 @@
           </span>
         </div>
 
+        <!-- Beim Kern steht, worauf gelernt wird, vor dem Ganzen: Die volle
+             Zahl allein las sich, als lerne der Lauf auf allem. Gemessen wird
+             trotzdem an allen - deshalb „von" und nicht nur die kleinere Zahl. -->
         <p class="gedaempft klein">
-          {zeitpunkt(lauf.erstellt)} · {lauf.aufnahmen} Aufnahmen ·
-          {lauf.zeilen.gesamt ?? 0} Proben · {daten?.faltungen ?? 6} Faltungen
+          {zeitpunkt(lauf.erstellt)} ·
+          {#if lauf.kern_aufnahmen !== null}
+            <span title="Kernauswahl: gelernt nur auf diesen, gemessen an allen">
+              {lauf.kern_aufnahmen} von {lauf.aufnahmen} Aufnahmen ·
+              {lauf.kern_proben} von {lauf.zeilen.gesamt ?? 0} Proben
+            </span>
+          {:else}
+            {lauf.aufnahmen} Aufnahmen · {lauf.zeilen.gesamt ?? 0} Proben
+          {/if}
+          · {daten?.faltungen ?? 6} Faltungen
           {#if tempoErgebnis(lauf)} · {tempoErgebnis(lauf)}{/if}
         </p>
 

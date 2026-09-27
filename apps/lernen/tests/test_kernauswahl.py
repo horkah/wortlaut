@@ -1,10 +1,11 @@
 """Die Kernauswahl: gelernt nur auf den Aufnahmen, die das freigegebene Modell am besten verstand.
 
-Der Trainer läuft hier nicht. Geprüft wird, was davor liegt: dass der Server
-den Kern nach den richtigen Werten wählt, ihn neben den Auftrag schreibt und
-abweist, wo er nichts Ehrliches wählen könnte. Die Werte eines trainierten
-Standes werden nachgestellt wie in `test_vergleich.py` - als `bewertung.jsonl`
-seines Laufs.
+Der Trainer läuft hier nicht als Ganzes. Geprüft wird, was vor seinen
+Faltungen liegt: dass der Server den Kern nach den richtigen Werten wählt, ihn
+neben den Auftrag schreibt und fehlende Werte als offen festhält - und dass
+der Trainer sie nachmisst, bevor er wählt (`bewerten.vervollstaendige_kern`).
+Die Werte eines trainierten Standes werden nachgestellt wie in
+`test_vergleich.py` - als `bewertung.jsonl` seines Laufs.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from apps.hoeren.backend.services import auswertung
 from apps.lernen.backend.deps import korpus_engine
 from apps.lernen.backend.services import kernauswahl
 from apps.lernen.backend.services.aufteilung import Probe
+from apps.lernen.training.bewerten import vervollstaendige_kern
 
 KERN = {"methode": "lora", "daten": "original", "auswahl": "kern"}
 
@@ -33,6 +35,34 @@ KERN = {"methode": "lora", "daten": "original", "auswahl": "kern"}
 class PlatzhalterErkenner:
     def transkribiere(self, wav: Path, sprache: str) -> Transkript:
         return Transkript(text="völlig daneben gehört", abschnitte=[])
+
+
+class HoertNachVorlage:
+    """Ein Erkenner für den Trainer: Er gibt je Audiodatei den Text, der ihm genannt wurde."""
+
+    marke = "test/test"
+
+    def __init__(self, texte: dict[str, str]) -> None:
+        self.texte = texte
+        self.gehoert: list[str] = []
+
+    def transkribiere(self, wav: Path, sprache: str) -> Transkript:
+        self.gehoert.append(wav.name)
+        return Transkript(text=self.texte.get(wav.name, "völlig daneben"), abschnitte=[])
+
+
+class StummerBericht:
+    def __init__(self) -> None:
+        self.stufen: list[str] = []
+
+    def stufe(self, name: str, **_weiteres) -> None:
+        self.stufen.append(name)
+
+    def sage(self, _text: str) -> None:
+        pass
+
+    def schritt(self, _schritt: int, _gesamt: int) -> None:
+        pass
 
 
 @pytest.fixture(autouse=True)
@@ -97,6 +127,8 @@ def _stand_mit_werten(
         {"status": laeufe.FERTIG, "beendet": laeufe.jetzt(), "version": version},
     )
     ref = f"{sprecher}/{version}"
+    # Die Gewichte, aus denen der Trainer nachmessen würde.
+    registry.ct2_verzeichnis(datenverzeichnis, ref).mkdir(parents=True)
     registry.gib_frei(datenverzeichnis, sprecher, ref)
     return ref
 
@@ -173,24 +205,118 @@ class TestWahl:
         assert not (verzeichnis / laeufe.KERNAUSWAHL).exists()
 
 
+class TestNachmessen:
+    def test_eine_ungehoerte_aufnahme_bleibt_offen(
+        self, klient: TestClient, aufnahmen: list[str], datenverzeichnis: Path, sprecher: str
+    ) -> None:
+        # Die letzte Aufnahme kennt der Stand nicht. Ob sie in den Kern gehört,
+        # lässt sich noch nicht sagen - der Trainer misst sie nach.
+        _stand_mit_werten(
+            klient, datenverzeichnis, sprecher, {kennung: 0.1 for kennung in aufnahmen[:-1]}
+        )
+        antwort = klient.post("/lernen/api/laeufe", json=KERN)
+        assert antwort.status_code == 201, antwort.text
+        lauf = antwort.json()
+
+        auswahl = _kernauswahl(datenverzeichnis, lauf["job_id"])
+        assert auswahl["offen"] == [aufnahmen[-1]]
+        assert "kern" not in auswahl
+        anzahl = math.ceil(len(aufnahmen) * laeufe.KERN_ANTEIL)
+        assert auswahl["anzahl"] == anzahl
+
+        # Wie viele, steht trotzdem schon da - auch in der Übersicht.
+        assert lauf["kern_aufnahmen"] == anzahl
+        assert lauf["kern_proben"] == lauf["zeilen"]["gesamt"] * anzahl // len(aufnahmen)
+        assert lauf["kern_offen"] == 1
+        steckbrief = klient.get(f"/lernen/api/laeufe/{lauf['job_id']}").json()["steckbrief"]
+        zeile = next(zeile for zeile in steckbrief if zeile["begriff"] == "Auswahl")
+        assert f"{anzahl} von {len(aufnahmen)} Aufnahmen" in zeile["hinweis"]
+        assert "1 vor dem Training nachzumessen" in zeile["hinweis"]
+
+        # Solange offen ist, gibt es keinen Kern zum Lernen.
+        verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"])
+        with pytest.raises(RuntimeError, match="noch nicht gewählt"):
+            laeufe.kern_aus(verzeichnis, {"auswahl": "kern"})
+
+    def test_der_trainer_misst_nach_und_waehlt_dann(
+        self, klient: TestClient, aufnahmen: list[str], datenverzeichnis: Path, sprecher: str
+    ) -> None:
+        # Alle bekannten mittelmäßig; die ungehörte wird gleich perfekt erkannt
+        # und muss deshalb in den Kern.
+        _stand_mit_werten(
+            klient, datenverzeichnis, sprecher, {kennung: 0.5 for kennung in aufnahmen[:-1]}
+        )
+        lauf = klient.post("/lernen/api/laeufe", json=KERN).json()
+        verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"])
+        auftrag = laeufe.lies_json(verzeichnis / laeufe.AUFTRAG)
+        original = next(
+            zeile
+            for zeile in laeufe.manifestzeilen(verzeichnis)
+            if zeile["recording_id"] == aufnahmen[-1] and zeile["variante"] == "original"
+        )
+        erkenner = HoertNachVorlage({Path(original["audio"]).name: original["text"]})
+        bericht = StummerBericht()
+
+        vervollstaendige_kern(verzeichnis, datenverzeichnis, auftrag, bericht, erkenner)
+
+        # Gehört wurde genau die offene Aufnahme, auf ihrem Original.
+        assert erkenner.gehoert == [Path(original["audio"]).name]
+        assert bericht.stufen == ["kernauswahl"]
+        auswahl = _kernauswahl(datenverzeichnis, lauf["job_id"])
+        assert "offen" not in auswahl
+        assert auswahl["nachgemessen"] == [aufnahmen[-1]]
+        assert auswahl["wer"][aufnahmen[-1]] == pytest.approx(0.0)
+        assert auswahl["kern"][0] == aufnahmen[-1]
+        assert len(auswahl["kern"]) == math.ceil(len(aufnahmen) * laeufe.KERN_ANTEIL)
+        assert laeufe.kern_aus(verzeichnis, auftrag) == set(auswahl["kern"])
+
+        # Ein zweiter Aufruf - etwa nach einem Neustart - misst nichts mehr.
+        vervollstaendige_kern(verzeichnis, datenverzeichnis, auftrag, bericht, erkenner)
+        assert len(erkenner.gehoert) == 1
+
+        antwort = klient.get(f"/lernen/api/laeufe/{lauf['job_id']}").json()
+        zeile = next(zeile for zeile in antwort["steckbrief"] if zeile["begriff"] == "Auswahl")
+        assert "1 davon nachgemessen" in zeile["hinweis"]
+        assert antwort["lauf"]["kern_offen"] == 0
+
+    def test_ohne_offene_bleibt_der_kern_des_servers(
+        self, klient: TestClient, aufnahmen: list[str], datenverzeichnis: Path, sprecher: str
+    ) -> None:
+        wer = {kennung: stelle / 10 for stelle, kennung in enumerate(aufnahmen)}
+        _stand_mit_werten(klient, datenverzeichnis, sprecher, wer)
+        lauf = klient.post("/lernen/api/laeufe", json=KERN).json()
+        verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"])
+        vorher = _kernauswahl(datenverzeichnis, lauf["job_id"])
+
+        erkenner = HoertNachVorlage({})
+        vervollstaendige_kern(
+            verzeichnis,
+            datenverzeichnis,
+            laeufe.lies_json(verzeichnis / laeufe.AUFTRAG),
+            StummerBericht(),
+            erkenner,
+        )
+        assert erkenner.gehoert == []
+        assert _kernauswahl(datenverzeichnis, lauf["job_id"]) == vorher
+
+
 class TestAbgewiesen:
     def test_ohne_freigabe_kein_kern(self, klient: TestClient, aufnahmen: list[str]) -> None:
         antwort = klient.post("/lernen/api/laeufe", json=KERN)
         assert antwort.status_code == 409
         assert "freigegeben" in antwort.json()["detail"]
 
-    def test_eine_ungehoerte_aufnahme_haelt_den_kern_auf(
+    def test_ohne_gewichte_laesst_sich_nichts_nachmessen(
         self, klient: TestClient, aufnahmen: list[str], datenverzeichnis: Path, sprecher: str
     ) -> None:
-        # Die letzte Aufnahme kennt der Stand nicht: Ob sie in den Kern gehört,
-        # lässt sich nicht sagen.
-        _stand_mit_werten(
+        ref = _stand_mit_werten(
             klient, datenverzeichnis, sprecher, {kennung: 0.1 for kennung in aufnahmen[:-1]}
         )
+        registry.ct2_verzeichnis(datenverzeichnis, ref).rmdir()
         antwort = klient.post("/lernen/api/laeufe", json=KERN)
         assert antwort.status_code == 409
         assert f"1 von {len(aufnahmen)} Aufnahmen" in antwort.json()["detail"]
-        assert "Auswertung" in antwort.json()["detail"]
+        assert "Gewichte" in antwort.json()["detail"]
 
     def test_eine_unbekannte_auswahl(self, klient: TestClient, aufnahmen: list[str]) -> None:
         antwort = klient.post("/lernen/api/laeufe", json={**KERN, "auswahl": "irgendwas"})
@@ -207,7 +333,12 @@ class TestGrundmodell:
         sprecher: str,
     ) -> None:
         registry.gib_frei(datenverzeichnis, sprecher, "small")
-        assert klient.post("/lernen/api/laeufe", json=KERN).status_code == 409
+        # Noch nichts gehört: Der Auftrag geht trotzdem durch, alles ist offen.
+        vorab = klient.post("/lernen/api/laeufe", json=KERN)
+        assert vorab.status_code == 201, vorab.text
+        offen = _kernauswahl(datenverzeichnis, vorab.json()["job_id"])
+        assert offen["offen"] == sorted(aufnahmen)
+        assert offen["tempo"] == 1.0
 
         assert hoeren.post("/api/auswertung/start").status_code == 200
         ende = time.monotonic() + 20.0

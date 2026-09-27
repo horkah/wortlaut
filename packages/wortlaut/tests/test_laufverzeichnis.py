@@ -262,6 +262,19 @@ class TestKern:
         with pytest.raises(RuntimeError, match="kernauswahl.json"):
             laeufe.kern_aus(tmp_path, {"auswahl": "kern"})
 
+    def test_ein_ungewaehlter_kern_ist_kein_leerer(self, tmp_path: Path) -> None:
+        # Offene Werte heißen: noch nicht gewählt - und nicht: auf nichts lernen.
+        laeufe.schreibe_json(tmp_path / laeufe.KERNAUSWAHL, {"offen": ["rec_a"]})
+        with pytest.raises(RuntimeError, match="noch nicht gewählt"):
+            laeufe.kern_aus(tmp_path, {"auswahl": "kern"})
+
+    def test_aufgerundet_und_bei_gleichstand_nach_kennung(self) -> None:
+        assert laeufe.kern_anzahl(10) == 7
+        assert laeufe.kern_anzahl(9) == 7
+        assert laeufe.kern_anzahl(292) == 205
+        wer = {"rec_c": 0.1, "rec_b": 0.2, "rec_a": 0.2, "rec_d": 0.9}
+        assert laeufe.waehle_kern(wer) == ["rec_c", "rec_a", "rec_b"]
+
 
 class TestZwischenstaende:
     """Was nach einem Lauf weggeräumt wird - und was dabei stehen bleibt.

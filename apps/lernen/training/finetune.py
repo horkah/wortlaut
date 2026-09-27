@@ -1109,6 +1109,12 @@ def main(argumente: list[str]) -> int:
     begonnen = time.monotonic()
 
     try:
+        # Beim Kern zuerst die Wahl: Was dem Auswahlmodell fehlt, hört es jetzt,
+        # und erst danach steht fest, worauf die Faltungen lernen.
+        from .bewerten import vervollstaendige_kern
+
+        vervollstaendige_kern(verzeichnis, datenverzeichnis, auftrag, bericht)
+
         # Erst die Messung, dann der Stand, der ausgeliefert wird. Sieben
         # Trainings also, und das ist der Preis dafür, dass die Zahl über den
         # ganzen Korpus geht statt über ein Drittel.

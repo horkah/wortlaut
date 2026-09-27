@@ -44,6 +44,7 @@ mehr stimmt.
 from __future__ import annotations
 
 import json
+import math
 import shutil
 import time
 from collections.abc import Iterable, Iterator
@@ -234,10 +235,16 @@ DATENSAETZE = (NUR_ORIGINAL, MIT_VARIANTEN)
 # Sonst verschwänden gerade die schweren Aufnahmen aus der Messung, die Zahl
 # sähe besser aus, und kein Lauf wäre mehr mit einem anderen zu vergleichen.
 #
-# Welche Aufnahmen zum Kern gehören, entscheidet der Server beim Auftrag
-# (`apps/lernen/backend/services/kernauswahl.py`) und schreibt es neben das
-# Manifest (`KERNAUSWAHL`). Der Trainer liest es nur und wählt nicht selbst:
-# Er kennt weder die Freigabe noch die Messungen von „hören".
+# **Wie viele, steht beim Auftrag fest; welche, vor dem ersten Training.** Der
+# Server sammelt beim Auftrag die Werte des freigegebenen Modells
+# (`apps/lernen/backend/services/kernauswahl.py`) und schreibt sie neben das
+# Manifest (`KERNAUSWAHL`). Fehlen welche - Aufnahmen, die das Modell noch nie
+# gehört hat -, stehen sie dort als `offen`, und der Trainer lässt sie vor der
+# ersten Faltung von genau diesem Modell hören (`training/bewerten.py`,
+# `vervollstaendige_kern`). Erst dann wird gewählt, nach derselben Regel an
+# beiden Stellen (`waehle_kern`), und erst dann gelernt. Die Freigabe und die
+# Messungen von „hören" kennt der Trainer dabei nicht: Er bekommt das Modell
+# und die fehlenden Aufnahmen genannt.
 AUSWAHL_ALLE = "alle"
 AUSWAHL_KERN = "kern"
 AUSWAHLEN = (AUSWAHL_ALLE, AUSWAHL_KERN)
@@ -246,6 +253,25 @@ KERN_ANTEIL = 0.7
 # Die Kernauswahl eines Laufs: welche Aufnahmen, nach welchem Modell, mit
 # welchem Wert - jede Aufnahme mit ihrer WER, auch die außerhalb des Kerns.
 KERNAUSWAHL = "kernauswahl.json"
+
+
+def kern_anzahl(aufnahmen: int) -> int:
+    """Wie viele Aufnahmen den Kern bilden.
+
+    Aufgerundet: Bei zehn Aufnahmen sind es sieben, bei neun ebenfalls sieben
+    und nicht sechs - lieber eine Aufnahme mehr gelernt als eine weniger.
+    """
+    return math.ceil(aufnahmen * KERN_ANTEIL)
+
+
+def waehle_kern(wer: dict[str, float]) -> list[str]:
+    """Die besten `kern_anzahl` Aufnahmen nach ihrer WER, die beste zuerst.
+
+    Bei gleicher WER entscheidet die Kennung, damit derselbe Korpus immer
+    denselben Kern ergibt.
+    """
+    rangfolge = sorted(wer, key=lambda kennung: (wer[kennung], kennung))
+    return rangfolge[: kern_anzahl(len(wer))]
 
 
 def auswahl_aus(auftrag: dict[str, Any]) -> str:
@@ -259,12 +285,15 @@ def kern_aus(verzeichnis: Path, auftrag: dict[str, Any]) -> set[str] | None:
     Fehlt die Datei bei einem Auftrag, der den Kern verlangt, ist das ein
     Fehler und kein Rückfall auf alle Aufnahmen: Ein Lauf, der still auf allem
     lernt, hieße trotzdem `K` und wäre ein anderes Modell als sein Name.
+    Dasselbe gilt für einen Kern, der noch nicht gewählt ist.
     """
     if auswahl_aus(auftrag) != AUSWAHL_KERN:
         return None
     inhalt = lies_json(verzeichnis / KERNAUSWAHL)
     if inhalt is None:
         raise RuntimeError(f"Der Auftrag verlangt den Kern, aber {KERNAUSWAHL} fehlt.")
+    if "kern" not in inhalt:
+        raise RuntimeError(f"Der Kern ist noch nicht gewählt ({KERNAUSWAHL}).")
     return {str(kennung) for kennung in inhalt.get("kern", [])}
 
 # ── Die Geschwindigkeit ─────────────────────────────────────────────────────
