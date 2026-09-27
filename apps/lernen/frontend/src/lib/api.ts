@@ -101,6 +101,11 @@ export type Lauf = {
   anteil: number | null;
   aufnahmen: number;
   zeilen: Record<string, number>;
+  /** Beim Kern: worauf gelernt wird - schon vor der Wahl. `null` heißt: auf allem. */
+  kern_aufnahmen: number | null;
+  kern_proben: number | null;
+  /** Wie viele Aufnahmen der Trainer vor der Wahl noch nachmisst. */
+  kern_offen: number;
   version: string | null;
   /** Der kurze Code des Standes aus diesem Lauf (`K7M2Q`); null, solange keiner da ist. */
   kennung: string | null;

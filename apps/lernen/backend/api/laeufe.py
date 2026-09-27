@@ -146,7 +146,8 @@ AUSWAHLEN = [
         name="Kernauswahl",
         erklaerung=(
             f"Gelernt nur auf den besten {round(lauf_layout.KERN_ANTEIL * 100)} % "
-            "nach WER des freigegebenen Modells, gemessen auf allen."
+            "nach WER des freigegebenen Modells, gemessen auf allen. Was es noch "
+            "nicht gehört hat, misst der Trainer vorher nach."
         ),
         code=lauf_layout.CODE_AUSWAHL[lauf_layout.AUSWAHL_KERN],
     ),
@@ -383,6 +384,14 @@ class LaufAntwort(BaseModel):
     anteil: float | None
     aufnahmen: int
     zeilen: dict[str, int]
+    # Beim Kern: auf wie vielen Aufnahmen und Proben gelernt wird - schon vor
+    # der Wahl, denn wie viele es sind, steht beim Auftrag fest
+    # (`services/kernauswahl.py`). `null` heißt: auf allen.
+    kern_aufnahmen: int | None = None
+    kern_proben: int | None = None
+    # Wie viele Aufnahmen der Trainer vor der Wahl noch nachmessen muss - 0,
+    # sobald gewählt ist.
+    kern_offen: int = 0
     version: str | None
     # Der kurze Code des Standes, der aus diesem Lauf entstand - dieselbe
     # Kennung wie in der Modelltafel und in „schreiben"
@@ -601,6 +610,29 @@ def _stand_zu(lauf: lauf_layout.Lauf) -> StandHinweis | None:
     )
 
 
+def _kernumfang(lauf: lauf_layout.Lauf) -> dict[str, int]:
+    """Auf wie vielen Aufnahmen und Proben ein Kernlauf lernt - leer bei allen.
+
+    Die Proben werden nicht gezählt, sondern gerechnet: Jede Aufnahme steht mit
+    allen Fassungen im Manifest (`services/auftraege.schreibe_manifest`), also
+    mit gleich vielen Zeilen. So steht die Zahl auch da, bevor gewählt ist.
+    """
+    if lauf_layout.auswahl_aus(lauf.auftrag) != lauf_layout.AUSWAHL_KERN:
+        return {}
+    inhalt = lauf_layout.lies_json(lauf.verzeichnis / lauf_layout.KERNAUSWAHL) or {}
+    aufnahmen = int(lauf.auftrag.get("aufnahmen", 0))
+    proben = int(dict(lauf.auftrag.get("zeilen") or {}).get("gesamt", 0))
+    if "kern" in inhalt:
+        anzahl = len(inhalt["kern"])
+    else:
+        anzahl = int(inhalt.get("anzahl") or lauf_layout.kern_anzahl(aufnahmen))
+    return {
+        "kern_aufnahmen": anzahl,
+        "kern_proben": proben * anzahl // aufnahmen if aufnahmen else 0,
+        "kern_offen": 0 if "kern" in inhalt else len(inhalt.get("offen") or []),
+    }
+
+
 def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
     return LaufAntwort(
         job_id=lauf.job_id,
@@ -625,6 +657,7 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         anteil=_anteil(lauf),
         aufnahmen=int(lauf.auftrag.get("aufnahmen", 0)),
         zeilen=dict(lauf.auftrag.get("zeilen", {})),
+        **_kernumfang(lauf),
         version=lauf.zustand.get("version"),
         kennung=(
             registry.kurzkennung(str(lauf.zustand["version"]))
@@ -750,13 +783,20 @@ def _auswahl_im_steckbrief(lauf: lauf_layout.Lauf) -> tuple[str, str]:
     if auswahl != lauf_layout.AUSWAHL_KERN:
         return name, ""
     inhalt = lauf_layout.lies_json(lauf.verzeichnis / lauf_layout.KERNAUSWAHL) or {}
-    kern = list(inhalt.get("kern") or [])
-    alle = dict(inhalt.get("wer") or {})
+    alle = len(inhalt.get("wer") or {}) + len(inhalt.get("offen") or [])
     modell = str(inhalt.get("modell") or "")
+    offen = len(inhalt.get("offen") or [])
+    nachgemessen = len(inhalt.get("nachgemessen") or [])
+    if "kern" in inhalt:
+        umfang = f"{len(inhalt['kern'])} von {alle} Aufnahmen"
+    else:
+        umfang = f"{inhalt.get('anzahl', 0)} von {alle} Aufnahmen"
     teile = [
-        f"{len(kern)} von {len(alle)} Aufnahmen" if alle else "",
+        umfang if alle else "",
         f"nach {registry.beschriftung(modell)}" if modell else "",
         f"WER bis {_zahl(inhalt['schwelle'])}" if inhalt.get("schwelle") is not None else "",
+        f"{offen} vor dem Training nachzumessen" if offen else "",
+        f"{nachgemessen} davon nachgemessen" if nachgemessen else "",
     ]
     return name, " · ".join(teil for teil in teile if teil)
 

@@ -259,10 +259,21 @@ Kopien aus „Editieren" misst ein Stand nicht, weil er ihren Ton schon kennt;
 sie erben den Wert ihres Originals. Bei gleicher WER entscheidet die Kennung,
 damit derselbe Korpus immer denselben Kern ergibt.
 
-**Ohne Werte kein Kern.** Ist kein Modell freigegeben oder hat es eine
-Aufnahme noch nicht gehört, wird der Auftrag abgewiesen: Ob sie in den Kern
-gehört, lässt sich dann nicht sagen. Der Weg ist die Auswertung in „hören",
-die das freigegebene Modell auf allem misst, was ihm fehlt.
+**Fehlende Werte werden vor dem Training nachgemessen.** Hat das
+freigegebene Modell eine Aufnahme noch nie gehört, lässt sich nicht sagen, ob
+sie in den Kern gehört. Der Server hält sie deshalb als `offen` fest, und der
+Trainer lässt sie von genau diesem Modell hören, bevor die erste Faltung
+beginnt: auf dem Original und mit dem Tempo des Modells, wie in der
+Auswertung von „hören". Die Oberfläche zeigt diese Stufe als „Kernauswahl".
+Erst danach wird gewählt, nach derselben Regel wie beim Server
+(`laeufe.waehle_kern`), und erst dann gelernt. Abgewiesen wird ein Auftrag
+nur noch, wenn kein Modell freigegeben ist oder die Gewichte des
+freigegebenen Standes fehlen.
+
+**Wie viele, steht beim Auftrag fest.** 70 % aller Aufnahmen des Auftrags,
+aufgerundet (`laeufe.kern_anzahl`). Die Übersicht zeigt deshalb vom ersten
+Augenblick an, worauf gelernt wird, etwa „205 von 292 Aufnahmen · 410 von 584
+Proben", auch bevor gewählt ist.
 
 **Gelernt wird auf dem Kern, gemessen auf allem.** Jede Faltung lernt nur
 auf den Kernaufnahmen ihrer fünf Sechstel und misst weiter an allen
@@ -272,11 +283,19 @@ hinaus trägt. Das Endmodell lernt auf dem ganzen Kern, und seine
 Plausibilitätsprüfung zieht ihre Stichprobe nur aus dem Kern: Er ist alles,
 was es kennt.
 
-Gewählt wird beim Auftrag, vom Server (`services/kernauswahl.py`), und
-festgehalten in `kernauswahl.json` neben dem Manifest: jede Aufnahme mit
-ihrer WER, das Modell, nach dem gewählt wurde, und der Kern selbst. Der
-Trainer liest nur die Liste (`laeufe.kern_aus`). Der Steckbrief nennt, wie
-viele Aufnahmen im Kern liegen, nach welchem Modell und bis zu welcher WER.
+**Die 30 % außerhalb des Kerns haben trotzdem einen Wert.** Jede Faltung
+misst alle Aufnahmen ihres Sechstels, also auch die außerhalb des Kerns. Ihre
+Messung kommt von einem Modell, das sie nie gelernt hat, und landet wie jede
+Faltungsmessung in der Modelltafel und in der Auswertung von „hören". Eine
+eigene Auswertung braucht es dafür nicht.
+
+Festgehalten wird alles in `kernauswahl.json` neben dem Manifest. Der Server
+schreibt dort beim Auftrag das Modell, sein Tempo, die Anzahl, jede Aufnahme
+mit ihrer WER und die offenen. Der Trainer ergänzt die nachgemessenen Werte
+(`training/bewerten.vervollstaendige_kern`) und schreibt den Kern samt der
+Schwelle dazu. Beim Lernen liest er nur die Liste (`laeufe.kern_aus`). Der
+Steckbrief nennt, wie viele Aufnahmen im Kern liegen, nach welchem Modell,
+bis zu welcher WER und wie viele davon nachgemessen wurden.
 
 ### Der Optionscode
 

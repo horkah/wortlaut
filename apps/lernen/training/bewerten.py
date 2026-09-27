@@ -323,6 +323,104 @@ def bewerte_faltung(
     return ergebnis
 
 
+def vervollstaendige_kern(
+    verzeichnis: Path,
+    datenverzeichnis: Path,
+    auftrag: dict[str, Any],
+    bericht,
+    erkenner=None,
+) -> None:
+    """Was dem Auswahlmodell fehlt, nachmessen - und dann den Kern wählen.
+
+    Der Server hat beim Auftrag gesammelt, was das freigegebene Modell über
+    diesen Korpus schon weiß (`services/kernauswahl.py`). Aufnahmen, die es
+    noch nie gehört hat, stehen in der Kernauswahl als `offen`. Sie hört es
+    hier, bevor die erste Faltung beginnt, auf ihrem Original und mit seinem
+    Tempo - dieselbe Messung, die „hören" in seiner Auswertung anstellen
+    würde. Danach wird nach derselben Regel gewählt wie beim Server
+    (`laeufe.waehle_kern`), und erst dann gelernt.
+
+    Was schon gewählt ist, bleibt gewählt: Ein neu gestarteter Lauf übernimmt
+    die Kernauswahl seines Vorgängers (`services/auftraege.UEBERNOMMEN`), und
+    ein Auftrag, bei dem nichts fehlte, kommt mit fertigem Kern an.
+
+    `erkenner` ist für die Tests da; sonst wird das Auswahlmodell geladen - ein
+    Stand aus seinen Gewichten, ein Grundmodell über seinen Namen.
+    """
+    if laeufe.auswahl_aus(auftrag) != laeufe.AUSWAHL_KERN:
+        return
+    pfad = verzeichnis / laeufe.KERNAUSWAHL
+    inhalt = laeufe.lies_json(pfad)
+    if inhalt is None:
+        raise RuntimeError(f"Der Auftrag verlangt den Kern, aber {laeufe.KERNAUSWAHL} fehlt.")
+    if "kern" in inhalt:
+        return
+
+    sprecher_id = str(auftrag["sprecher_id"])
+    korpuswurzel = datenverzeichnis / corpus.sprecher_relpfad(sprecher_id)
+    sprache = str(auftrag.get("sprache") or sprachen.VORGABE)
+    modell = str(inhalt.get("modell") or "")
+    faktor = float(inhalt.get("tempo") or tempo.VORGABE)
+    offen = {str(kennung) for kennung in inhalt.get("offen") or []}
+    # Das Original jeder offenen Aufnahme. Was seit dem Auftrag verworfen
+    # wurde, liegt nicht mehr da und wird auch nicht gelernt
+    # (`daten.zeilen_fuer_faltung`) - es fällt aus der Wahl.
+    zeilen = [
+        zeile
+        for zeile in laeufe.manifestzeilen(verzeichnis)
+        if str(zeile.get("recording_id")) in offen
+        and str(zeile.get("variante")) == augmentierung.ORIGINAL
+        and (korpuswurzel / str(zeile["audio"])).is_file()
+    ]
+
+    wer = {str(kennung): float(wert) for kennung, wert in dict(inhalt.get("wer") or {}).items()}
+    if zeilen:
+        bericht.stufe("kernauswahl", test_zeilen=len(zeilen))
+        bericht.sage(
+            f"Kernauswahl: {registry.beschriftung(modell)} hört {len(zeilen)} Aufnahmen, "
+            "die es noch nicht kennt"
+        )
+        eigener = erkenner is None
+        if eigener:
+            from wortlaut.whisper.local import LokalerTranskriptor
+
+            quelle: str | Path = modell
+            if registry.ist_stand(modell):
+                quelle = registry.ct2_verzeichnis(datenverzeichnis, modell)
+            geraet, rechenart = einstellungen().rechenwerk()
+            erkenner = LokalerTranskriptor(str(quelle), geraet=geraet, rechenart=rechenart)
+            _hole_karte(erkenner, bericht)
+        try:
+            for nummer, zeile in enumerate(zeilen, start=1):
+                gemessen = _eine_zeile(erkenner, zeile, korpuswurzel, sprache, faktor)
+                wer[str(zeile["recording_id"])] = float(gemessen["wer"])
+                bericht.schritt(nummer, len(zeilen))
+                if nummer % 10 == 0 or nummer == len(zeilen):
+                    bericht.sage(f"  gehört: {nummer}/{len(zeilen)}")
+        finally:
+            if eigener:
+                erkenner.entlade()
+
+    kern = laeufe.waehle_kern(wer)
+    nachgemessen = sorted(str(zeile["recording_id"]) for zeile in zeilen)
+    inhalt = {key: wert for key, wert in inhalt.items() if key != "offen"}
+    laeufe.schreibe_json(
+        pfad,
+        {
+            **inhalt,
+            "anzahl": len(kern),
+            "wer": wer,
+            "nachgemessen": nachgemessen,
+            "kern": kern,
+            "schwelle": max((wer[kennung] for kennung in kern), default=0.0),
+        },
+    )
+    bericht.sage(
+        f"Kernauswahl: {len(kern)} von {len(wer)} Aufnahmen, WER bis "
+        f"{max((wer[kennung] for kennung in kern), default=0.0):.2f}"
+    )
+
+
 def _eine_zeile(
     erkenner, zeile: dict[str, Any], korpuswurzel: Path, sprache: str, faktor: float
 ) -> dict[str, Any]:
