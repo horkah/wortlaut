@@ -228,23 +228,12 @@ services:
     networks:
       - intern
     environment:
-      # Wie lange das Sprachmodell nach einer Anfrage auf der Karte liegen
-      # bleibt. Ollamas Vorgabe sind fünf Minuten; wer danach eine zweite
-      # Textquelle anlegt, wartet erneut die knapp sechs Sekunden, die das
-      # Laden von sechs Gigabyte dauert.
-      #
-      # Länger ist nicht umsonst: Solange es liegt, belegt es diese Gigabyte,
-      # und es ist dieselbe Karte, auf der trainiert wird. Nachgemessen sind es
-      # bei `gemma2:9b` 5,4 GB von 10,75 nutzbaren - der mit Abstand größte
-      # einzelne Posten auf dieser Karte.
-      #
-      # Eine Viertelstunde stand hier lange als Ausgleich. Sie war zu lang: Wer
-      # eine Textquelle anlegt und danach ein Training startet, hat die 5,4 GB
-      # noch volle vierzehn Minuten gegen sich, und der Trainer ist der
-      # einzige, der daran scheitert statt langsamer zu werden
-      # (`training/bewerten.py`). Eine Minute deckt weiterhin den Fall ab, für
-      # den das gedacht war - mehrere Textquellen hintereinander -, und gibt
-      # die Karte danach frei. Über die .env zu ändern.
+      # Wie lange das Sprachmodell nach einer Anfrage auf der Karte liegt.
+      # Solange belegt es sie - bei `gemma2:9b` 5,4 GB von 10,75 nutzbaren,
+      # auf derselben Karte, auf der trainiert wird; neu laden kostet knapp
+      # sechs Sekunden. Eine Minute deckt mehrere Textquellen hintereinander
+      # ab und gibt die Karte bald frei - der Trainer wartet auf sie, statt
+      # auszuweichen (`training/bewerten.py`). Über die .env zu ändern.
       OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-1m}
     volumes:
       # Die geladenen Modelle überleben hier einen Neustart - und sie liegen

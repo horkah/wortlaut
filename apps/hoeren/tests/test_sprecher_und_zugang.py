@@ -31,12 +31,8 @@ class TestVerwaltung:
     def test_ohne_gesetzten_token_ist_die_verwaltung_zu(
         self, _umgebung: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        # „Leer" hieß hier einmal „offen", als Bequemlichkeit für die
-        # Entwicklung. Nur weiß keine Installation, ob sie Entwicklung ist:
-        # Wer den Token beim Aufsetzen vergisst, stellte damit eine Seite ins
-        # Netz, auf der jeder Profile anlegt und ausgegebene Zugänge
-        # zurückzieht. Ein vergessener Token ist jetzt die zugesperrte, nicht
-        # die großzügigste Einstellung.
+        # Ein vergessener Token ist die zugesperrte Einstellung, nicht die
+        # großzügigste - keine Installation weiß, ob sie Entwicklung ist.
         monkeypatch.setenv("WORTLAUT_AUTH_TOKEN", "")
         einstellungen.cache_clear()
         with TestClient(app) as offen:
@@ -168,10 +164,10 @@ class TestSprecher:
 
 
 class TestBindung:
-    """Wofür der ganze Umbau da ist: Kennung abgeleitet, Fehlgriff laut."""
+    """Die Kennung wird abgeleitet, ein Fehlgriff ist laut."""
 
     def test_ohne_zugang_keine_daten(self, klient_ohne_token: TestClient, sprecher: str) -> None:
-        # Auch mit richtiger Kennung im Parameter: Die Kennung wählt nicht mehr.
+        # Auch mit richtiger Kennung im Parameter: Die Kennung wählt nicht.
         assert klient_ohne_token.get(f"/api/progress?sprecher={sprecher}").status_code == 401
 
     def test_verwalter_kommt_nicht_an_die_daten(
@@ -194,8 +190,7 @@ class TestBindung:
         klient_fuer: Callable[[str], TestClient],
         sprecher: str,
     ) -> None:
-        # Der Fall aus dem alten Lesezeichen: Der Zugang gehört zu A, die
-        # Adresse nennt B. Früher wurde in B geschrieben, jetzt gibt es 403.
+        # Der Zugang gehört zu A, die Adresse nennt B: 403.
         fremd = _zweiter_sprecher(verwalter)
 
         antwort = klient.get(f"/api/progress?sprecher={fremd}")

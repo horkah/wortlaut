@@ -1,14 +1,11 @@
-"""Die Folge (`/43`, `/43b`, …) für Läufe nachtragen, die vor ihr entstanden sind.
+"""Die Folge (`/43`, `/43b`, …) für Läufe nachtragen, die keine tragen.
 
     uv run python scripts/folge_nachtragen.py                        # auf dem Wirt
     docker compose exec wortlaut python scripts/folge_nachtragen.py  # im Container
 
-Seit September 2026 bekommt jeder Auftrag hinter seinem Optionscode die Zahl
-seiner Aufnahmen und, wenn es Code und Zahl schon gibt, einen Buchstaben
-(`wortlaut/laeufe.py`, „Die Folge"). Vergeben wird sie beim Auftrag. Die Läufe
-davor haben keine - dieses Skript gibt sie ihnen, einmal und nach derselben
-Regel: Sprecher für Sprecher, ältester Lauf zuerst, gemessen an den älteren,
-die es noch gibt.
+Die Folge wird beim Auftrag vergeben (`wortlaut/laeufe.py`, „Die Folge").
+Läufen ohne sie gibt dieses Skript eine, nach derselben Regel: Sprecher für
+Sprecher, ältester Lauf zuerst, gemessen an den älteren, die es gibt.
 
 Geschrieben wird in `auftrag.json` und, falls der Lauf schon einen Stand
 hervorgebracht hat, in dessen Manifest. Der Trainer liest `auftrag.json` nur;

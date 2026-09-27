@@ -4,11 +4,6 @@ Geprüft wird, was die eine verbliebene Abwandlung zusichert - dass das Rauschen
 hörbar ist, die Sprache aber vorn bleibt, und dass es jede Aufnahme gleich hart
 trifft - und die eine Eigenschaft, ohne die eine Messung keine Messung wäre:
 dass dasselbe zweimal dasselbe ergibt.
-
-`pegel` und `lauter` standen hier bis September 2026 und sind verworfen: Eine
-gleichmäßige Verstärkung ist an Whisper nahezu wirkungslos (siehe
-`wortlaut/augmentierung.py`). Was sie geprüft haben, prüft niemand mehr, weil
-es niemand mehr rechnet.
 """
 
 from __future__ import annotations

@@ -1,10 +1,7 @@
 """Wer hier diktiert - und dass niemand in fremde Diktate sieht.
 
-Diese App führt seit dem Wegfall der Einzelnutzer-Instanz denselben Sprecher
-wie „hören": Sie leitet ihn aus dem vorgelegten Zugang ab (`backend/deps.py`).
-Zwei Dinge hängen daran, und beide wären teuer, wenn sie stillschweigend
-danebengriffen - das Modell, auf dem jemand spricht, und der Korpus, in den
-seine Korrekturen zurückfließen.
+Der Sprecher wird aus dem Zugang abgeleitet (`backend/deps.py`); daran hängen
+das Modell, auf dem er spricht, und der Korpus, in den Korrekturen fließen.
 
 Geprüft wird deshalb nicht nur, dass ein gültiger Zugang hereinkommt, sondern
 vor allem, dass ohne ihn nichts geht und dass zwei Sprecher einander nicht
@@ -53,17 +50,8 @@ class TestOhneZugang:
         assert antwort.status_code == 401
 
 
-# Die Auskunft „wer ruft hier?" gibt es in dieser App nicht mehr.
-#
-# Sie stand hier einmal als `GET /schreiben/api/zugang` und war eine zweite
-# Wahrheit über denselben Menschen: Diese API lässt mit gutem Grund nur einen
-# Sprecherzugang durch, also wies sie einen gültigen Aufsichtstoken ab -
-# während dasselbe Feld in „hören" ihn annahm. Gefragt wird jetzt aus jeder
-# App bei „hören" (`packages/ui/wer.ts`), wo alle drei Arten erkannt werden.
-#
-# Dass hier nur Sprecherzugänge durchkommen, gilt unverändert und wird von
-# `TestZugangNoetig` weiter oben geprüft - nur eben an den Wegen, um die es
-# dabei wirklich geht.
+# „Wer ruft hier?" beantwortet „hören" für alle Apps (`packages/ui/wer.ts`);
+# dass hier nur Sprecherzugänge durchkommen, prüft `TestZugangNoetig`.
 
 
 class TestGetrennteAblage:

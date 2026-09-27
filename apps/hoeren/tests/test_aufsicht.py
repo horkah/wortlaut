@@ -497,16 +497,8 @@ def _manifest(archiv: bytes) -> dict:
 class TestEinProfilEineBeschreibung:
     """Verwaltung und Aufsicht liefern dasselbe Profil - Feld für Feld.
 
-    Es gab dieses Profil zweimal als Pydantic-Modell, einmal je Ansicht. Das
-    ist harmlos, solange niemand ein Feld hinzufügt - und im September 2026 kam
-    `tempo` dazu, aber nur in einem der beiden. Die Verwaltung zeigte
-    „2-fach", die Aufsicht „normal", und beide lasen dieselbe Datenbankzeile.
-
-    Der Anlass war `tempo`; es ist inzwischen wieder gefallen
-    (`012_ohne_profiltempo.sql`). Geprüft wird trotzdem weiter, denn die Regel
-    dahinter bleibt: Was die eine Ansicht über ein Profil sagt, sagt die andere
-    auch. Ein Feld, das jemand künftig nur an einer Stelle ergänzt, fällt hier
-    auf.
+    Was die eine Ansicht über ein Profil sagt, sagt die andere auch - ein Feld,
+    das nur an einer Stelle ergänzt wird, fällt hier auf.
     """
 
     def test_dieselben_felder_mit_denselben_werten(

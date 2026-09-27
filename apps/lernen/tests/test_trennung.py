@@ -94,10 +94,8 @@ class TestKorpusBleibtUnberuehrt:
 class TestLoeschung:
     """Was „lernen" führt, verschwindet mit dem Menschen.
 
-    Die Aufteilung ist keine Stimmaufnahme, aber eine Liste von Aufnahmen, die
-    es nicht mehr geben soll - und der Schnappschuss eines Laufs enthält jede
-    Vorlage im Klartext. Beides gehört zur Löschung, sonst bliebe ausgerechnet
-    das stehen, was auf die gelöschten Daten zeigt.
+    Der Schnappschuss eines Laufs enthält jede Vorlage im Klartext und gehört
+    deshalb zur Löschung.
     """
 
     def test_die_laeufe_gehen_mit(
@@ -114,9 +112,7 @@ class TestLoeschung:
         sprich(6)
         klient.post("/lernen/api/laeufe", json={"methode": "lora", "daten": "original"})
 
-        # Der Schnappschuss liegt jetzt da. Eine eigene Datenbank hat „lernen"
-        # seit dem Wegfall der Aufteilung nicht mehr zu füllen - die Faltungen
-        # folgen der Reihenfolge des Korpus (`services/aufteilung.py`).
+        # Der Schnappschuss liegt jetzt da; eine eigene Datenbank hat „lernen" nicht.
         assert loeschung.schnappschuesse(datenverzeichnis, sprecher)
 
         entfernt = loeschung.loesche(datenverzeichnis, sprecher)

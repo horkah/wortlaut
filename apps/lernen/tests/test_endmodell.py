@@ -1,14 +1,9 @@
 """Der siebte Stand - der, mit dem später diktiert wird.
 
-Die Zahlen eines Laufs stammen aus seinen sechs Faltungen. Freigegeben wird ein
-siebtes Modell, das auf allem gelernt hat; **bewerten** lässt es sich nicht
-mehr, denn es kennt jede Aufnahme. Bis September 2026 hieß das: Es wurde auch
-nicht angesehen. Ein Lauf vom 13. September gab daraufhin einen Stand frei, der
-den ersten Satz erkennt und dann weiterredet - während seine Faltungen daneben
-bei WER 0,23 standen und niemand widersprach.
-
-Hier steht, was seitdem dagegen steht: eine Prüfung, die kein Urteil über die
-Güte fällt, sondern eines darüber, ob der Stand überhaupt noch zuhört.
+Die Zahlen eines Laufs stammen aus seinen Faltungen. Freigegeben wird ein
+Modell, das auf allem gelernt hat und sich deshalb nicht bewerten lässt -
+wohl aber prüfen, ob es überhaupt zuhört, statt nach dem ersten Satz
+weiterzureden.
 """
 
 from __future__ import annotations
@@ -90,8 +85,7 @@ class TestBefund:
 
 class TestVorbehalt:
     def test_ohne_pruefung_steht_nichts_da(self) -> None:
-        # Stände von vor September 2026 sind nie geprüft worden. Über sie ist
-        # nichts bekannt, und nichts zu behaupten ist die richtige Auskunft.
+        # Ohne Befund ist nichts zu behaupten.
         assert _vorbehalt({}) == ""
 
     def test_ein_unauffaelliger_stand_traegt_keinen_satz(self) -> None:
@@ -116,10 +110,8 @@ class TestVorbehalt:
 class TestPlanZurueckgelesen:
     """Der Plan der Faltungen steht nicht im Manifest - aber im Fortschritt.
 
-    Ein Stand von vor September 2026 trägt unter `kreuzvalidierung` nur die
-    Durchgangszahl. Den Horizont, über den die Lernrate lief, hat aber jede
-    Faltung beim Start gemeldet. Ohne ihn ließe sich ein altes Endmodell nicht
-    mit dem heutigen Verfahren nachziehen.
+    Fehlt `plan` unter `kreuzvalidierung`, liest `nachziehen` ihn aus den
+    Startmeldungen der Faltungen.
     """
 
     def _lauf(self, tmp_path, *zeilen: dict):
