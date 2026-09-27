@@ -13,7 +13,8 @@ nicht das, was ein Sprachmodell für plausibel hält.
 > **Dieses Repository beschreibt nur den aktuellen Stand.** Code, Kommentare,
 > Doku und Oberfläche sagen, was gilt und warum - nie, wie es vorher war. Die
 > Geschichte steht allein in der Commit-History. Ausgenommen sind datierte
-> Berichte wie der [Modellbericht](docs/modellbericht.md).
+> Berichte wie der [Modellbericht](docs/modellbericht.md) und der
+> [Kernbericht](docs/kernbericht.md).
 
 ---
 
@@ -114,6 +115,7 @@ docker compose --profile training up -d training
 | [Manueller Test](docs/manueller-test.md) | der ganze Weg zum Durchklicken |
 | [Andere Sprachen](docs/sprachen.md) | wortlaut in einer anderen Sprache (englisch) |
 | [Modellbericht](docs/modellbericht.md) | Vergleich aller Stände, Stand 26.09.2026 |
+| [Kernbericht](docs/kernbericht.md) | Kernauswahl gegen alle Aufnahmen, Stand 27.09.2026 |
 
 ---
 
