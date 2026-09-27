@@ -96,7 +96,7 @@ Im Container gibt es weder `make` noch `uv`. Daneben:
 | `scripts/varianten_aufraeumen.py` | Dateien von Fassungen entfernen, die `augmentierung.VARIANTEN` nicht mehr nennt; `--wirklich` löscht |
 | `scripts/vorlesen.py` | Stimmen holen (`--hole <stimme>`), alle Vorlagen vorab sprechen |
 | `scripts/importieren.py` | Paare aus Ton und Text von außerhalb als Textquelle übernehmen |
-| `scripts/paare_teilen.py` | zu lange Paare aus Ton und Text vor dem Import an Pausen in Stücke von 15–29 s teilen |
+| `scripts/paare_teilen.py` | zu lange Paare aus Ton und Text vor dem Import in Stücke unter 30 s teilen, bevorzugt an Satzenden und in der Stille |
 | `scripts/folge_nachtragen.py` | die Folge hinter dem Optionscode für Läufe ohne sie vergeben |
 | `scripts/restore.py`, `scripts/purge_speaker.py` | siehe unten |
 
