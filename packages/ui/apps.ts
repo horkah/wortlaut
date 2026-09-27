@@ -177,6 +177,21 @@ export const MODELLE_PFAD = '/modelle';
 export const MODELLE_URL = `/lernen/#${MODELLE_PFAD}`;
 
 /**
+ * Ein einzelner Lauf in „lernen": `#/lauf/<job_id>` - die Einzelansicht eines
+ * eigenen Stands, samt Steckbrief, Lernkurven und Protokoll.
+ *
+ * Die Kennung steht in der Adresse, damit ein Lauf verlinkbar bleibt - ein
+ * Training dauert Stunden, und wer nach dem Mittagessen wieder hinsehen will,
+ * soll den Reiter wiederfinden statt ihn zu suchen. Aus „hören" führt
+ * `laufUrl` dorthin, von der Auswertung aus.
+ */
+export const LAUF_ROUTE = '/lauf/';
+
+export function laufUrl(jobId: string): string {
+  return `/lernen/#${LAUF_ROUTE}${jobId}`;
+}
+
+/**
  * Wo der Sprecher gewählt und angelegt wird.
  *
  * Auch das gehört nicht in die Reiterreihe einer App: Der Sprecher ist die

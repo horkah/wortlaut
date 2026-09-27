@@ -26,6 +26,7 @@
   import Textvergleich from '$ui/Textvergleich.svelte';
   import type { Diagramm } from '../lib/diagramm';
   import { einstellungen } from '$ui/einstellungen.svelte';
+  import { laufUrl } from '$ui/apps';
   import {
     auswertung as ladeAuswertung,
     auswertungStarten,
@@ -668,7 +669,13 @@
                     style="background: {reihenfarbe(gruppe.modell, gruppe.nummer, 'var(--akzent)')}"
                     aria-hidden="true"
                   ></span>
-                  {benannt(gruppe.modell)}
+                  <!-- Der Name führt in die Einzelansicht in „lernen" -
+                       dieselbe wie aus der Modelltafel. -->
+                  {#if daten?.laeufe?.[gruppe.modell]}
+                    <a href={laufUrl(daten.laeufe[gruppe.modell])}>{benannt(gruppe.modell)}</a>
+                  {:else}
+                    {benannt(gruppe.modell)}
+                  {/if}
                 </th>
               {/if}
               <th scope="row" class="fassung">{zeile.name}</th>

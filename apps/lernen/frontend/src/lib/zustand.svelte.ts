@@ -7,17 +7,12 @@
  * Link, drei Apps.
  */
 
+import { LAUF_ROUTE } from '$ui/apps';
+
 export { gehZu } from '$ui/route';
 export { lage } from '$ui/lage.svelte';
-
-/**
- * Ein einzelner Lauf: `#/lauf/<job_id>`.
- *
- * Die Kennung steht in der Adresse, damit ein Lauf verlinkbar bleibt - ein
- * Training dauert Stunden, und wer nach dem Mittagessen wieder hinsehen will,
- * soll den Reiter wiederfinden statt ihn zu suchen.
- */
-export const LAUF_ROUTE = '/lauf/';
+// Ein einzelner Lauf: `#/lauf/<job_id>` - in `$ui/apps`, weil „hören" dorthin verlinkt.
+export { LAUF_ROUTE };
 
 export function laufAusRoute(route: string): string {
   return route.startsWith(LAUF_ROUTE) ? route.slice(LAUF_ROUTE.length) : '';

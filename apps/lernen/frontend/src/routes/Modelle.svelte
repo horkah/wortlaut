@@ -240,7 +240,14 @@
           <span class="abzeichen leise">Grundmodell</span>
         {/if}
       </div>
-      <p class="beschriftung">{laufend?.name ?? diktat.beschriftung}</p>
+      <p class="beschriftung">
+        <!-- Wie der Name in der Tabelle: der Weg in die Einzelansicht. -->
+        {#if laufend?.job_id}
+          <a class="titel optionscode" href="#{LAUF_ROUTE}{laufend.job_id}">{laufend.name}</a>
+        {:else}
+          {laufend?.name ?? diktat.beschriftung}
+        {/if}
+      </p>
       <p class="gedaempft klein">{laufend?.herkunft ?? ''}</p>
 
       {#if laufend}

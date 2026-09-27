@@ -506,6 +506,8 @@ export type Auswertung = {
    * unterscheiden sich nur darin.
    */
   beschriftungen: Record<string, string>;
+  /** Stand -> sein Lauf in „lernen" (`laufUrl`); Grundmodelle fehlen. */
+  laeufe: Record<string, string>;
   varianten: Variante[];
   metriken: Metrik[];
   stand: Laufstand;
