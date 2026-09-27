@@ -26,7 +26,7 @@
   import Textvergleich from '$ui/Textvergleich.svelte';
   import type { Diagramm } from '../lib/diagramm';
   import { einstellungen } from '$ui/einstellungen.svelte';
-  import { laufUrl } from '$ui/apps';
+  import { grundmodellUrl, laufUrl } from '$ui/apps';
   import {
     auswertung as ladeAuswertung,
     auswertungStarten,
@@ -670,9 +670,13 @@
                     aria-hidden="true"
                   ></span>
                   <!-- Der Name führt in die Einzelansicht in „lernen" -
-                       dieselbe wie aus der Modelltafel. -->
+                       dieselbe wie aus der Modelltafel: ein Stand in seinen
+                       Lauf, ein Grundmodell in seinen Steckbrief. Ein Stand
+                       ohne Lauf (gelöscht) bleibt ohne Link. -->
                   {#if daten?.laeufe?.[gruppe.modell]}
                     <a href={laufUrl(daten.laeufe[gruppe.modell])}>{benannt(gruppe.modell)}</a>
+                  {:else if !gruppe.modell.includes('/')}
+                    <a href={grundmodellUrl(gruppe.modell)}>{benannt(gruppe.modell)}</a>
                   {:else}
                     {benannt(gruppe.modell)}
                   {/if}

@@ -409,6 +409,9 @@ Es treten an die Grundmodelle aus `WORTLAUT_AUSWERTUNG_MODELLE`:
 | `medium` | was mit mehr Rechenzeit zu holen ist |
 | `large-v3` | das größte fertige Modell - reicht überhaupt eines für diese Stimme? |
 
+Jeder Name in der Tabelle der Kennzahlen führt in die Einzelansicht in
+`lernen` - ein Grundmodell in seinen Steckbrief, ein Stand in seinen Lauf.
+
 ### Die eigenen Stände treten mit an
 
 Jeder trainierte Stand des Sprechers mit Gewichten (`ct2/`) steht daneben.
