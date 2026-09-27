@@ -172,8 +172,9 @@ Glied, wenn sie nicht auf ihrer Vorgabe steht:
 `ML-A-K-SRP-Ts-C` ist whisper-medium mit LoRA, mit Abwandlungen, auf dem Kern,
 voller Augmentierung, gesuchtem Tempo und Checkpoint-Mittel.
 
-Hinter dem Code steht die **Folge**: die Zahl der Aufnahmen und ein
-Buchstabe, sobald es Code und Zahl schon gibt - `/43`, `/43b`, `/43c`, nach
+Hinter dem Code steht die **Folge**: die Zahl der gelernten Aufnahmen - bei
+der Kernauswahl die des Kerns, `ML-K-E-SRP-CI/205` - und ein Buchstabe,
+sobald es Code und Zahl schon gibt - `/43`, `/43b`, `/43c`, nach
 `z` weiter mit `aa` (`laeufe.titel`). Vergeben wird sie beim Auftrag, einer
 über dem höchsten noch vorhandenen Buchstaben, und danach nie geändert.
 `scripts/folge_nachtragen.py` trägt sie für Läufe ohne Folge nach. Ergebnisse
