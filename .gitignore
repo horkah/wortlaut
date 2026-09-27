@@ -1,5 +1,6 @@
 # Daten: enthalten Stimmaufnahmen (Gesundheitsdaten nach Art. 9 DSGVO)
 data/
+bak/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
