@@ -9,18 +9,10 @@
  * Satz, den der Server dazu geschrieben hat, und aus einer geglückten Antwort
  * kommt JSON heraus - außer bei 204, wo nichts darin steht.
  *
- * Es stand dreimal da, einmal je App, und war schon auseinandergelaufen: Die
- * Zugangsprüfung von „lernen" wertete den `detail` des Servers nicht aus und
- * meldete „Fehler 401", wo „hören" beim selben Fehlschlag den Satz des Servers
- * zeigte. Zwei Meldungen für dieselbe Lage, und der Unterschied fällt nur dem
- * auf, der beide nacheinander liest.
- *
- * Unterschieden bleibt allein der **Ort**: „hören" liegt auf der Wurzel,
- * „lernen" unter `/lernen/`, „schreiben" unter `/schreiben/`. Den nennt jede
- * App einmal beim Aufruf von `api()` und nirgends sonst. Dass hier eine App
- * die API einer anderen anspricht, ist damit eine zweite Zeile und kein
- * zweiter Anlauf - „lernen" tut genau das, für die Zugangsprüfung und für den
- * Modellstand von „schreiben".
+ * Einmal für alle Apps; unterschieden ist nur der Ort („hören" auf der
+ * Wurzel, `/lernen/`, `/schreiben/`), den jede App beim Aufruf von `api()`
+ * nennt. Die API einer anderen App anzusprechen ist so eine zweite Zeile -
+ * „lernen" fragt „hören" und „schreiben".
  */
 
 import { mitZugang } from './zugang';

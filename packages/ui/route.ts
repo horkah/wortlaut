@@ -2,10 +2,7 @@
  * Die Route im Hash - derselbe Router in allen drei Apps.
  *
  * `#/aufnahme`, `#/training`, `#/ergebnis`: Das genügt für eine Handvoll
- * Ansichten je App und spart ein Routing-Paket samt Server-Konfiguration. Die
- * Entscheidung war in jeder App dieselbe, und die drei Zeilen dahinter waren
- * es ebenfalls - unterschieden hat sie nur, in welche Variable das Ergebnis
- * ging.
+ * Ansichten je App und spart ein Routing-Paket samt Server-Konfiguration.
  *
  * Was hier **nicht** steht, ist die Route selbst: Sie gehört in den `$state`
  * der App, neben das, was diese App sonst noch teilt - die Diktiersitzung in

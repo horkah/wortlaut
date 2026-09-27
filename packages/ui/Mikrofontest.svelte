@@ -304,8 +304,7 @@
     gap: 0.5rem;
     margin-bottom: 0.75rem;
   }
-  /* Breite und Innenabstand regelt inzwischen das Stylesheet für jedes
-     Ankreuzfeld (`app.css`); hier bleibt, was nur dieses eine betrifft. */
+  /* Breite und Innenabstand regelt `app.css`; hier nur, was dieses Feld betrifft. */
   .kasten input {
     width: 1.1rem;
     height: 1.1rem;

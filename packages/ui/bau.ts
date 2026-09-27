@@ -5,10 +5,7 @@
  * `vite.config.ts`), steht also fest im ausgelieferten Bündel und kostet zur
  * Laufzeit nichts. In der Entwicklung ist es der Start des Vite-Servers.
  *
- * Wozu: Eine Single-Page-App sieht nach einem Ausrollen genauso aus wie
- * vorher. Ohne sichtbares Datum lässt sich „ist das schon die neue Fassung?"
- * nur am Netzwerk-Reiter des Browsers beantworten - mit Datum genügt ein Blick
- * an den Seitenfuß.
+ * Wozu: Ob ein Ausrollen angekommen ist, zeigt so ein Blick in den Seitenfuß.
  */
 declare const __BAUDATUM__: string;
 

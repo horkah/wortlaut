@@ -50,8 +50,7 @@ export const AUTOPEGEL_VORGABE = true;
  *
  * **Warum das eine Einstellung ist und kein Knopf vor Ort.** Vorgelesen wird,
  * weil die Zielperson den Text nicht sicher lesen kann - gehört wird der
- * Fehler, nicht gesehen. Für die Person, die dafür am Tisch sitzt, ist das
- * richtig, und es war bis hierher die einzige Möglichkeit.
+ * Fehler, nicht gesehen. Für die Person, die dafür am Tisch sitzt, ist das richtig.
  *
  * Diese App wird aber im Alltag benutzt, und dort steht der Mensch im Laden,
  * im Bus, neben anderen Leuten. Ein Telefon, das nach jedem Diktat laut zu
@@ -63,8 +62,7 @@ export const AUTOPEGEL_VORGABE = true;
  * „■ Anhalten" bleiben deshalb, wo sie sind - das ist die Handlung. Ob es
  * **von selbst** losgeht, ist die Gewohnheit dahinter.
  *
- * Vorgabe bleibt `true`: das Verhalten von vorher, und das richtige für den,
- * der nicht lesen kann und nichts eingestellt hat.
+ * Vorgabe `true` - richtig für den, der nicht lesen kann und nichts eingestellt hat.
  */
 export const VONSELBST_VORGABE = true;
 
@@ -102,11 +100,8 @@ function zahl(schluessel: string, vorgabe: number, spanne: { min: number; max: n
 
 /**
  * Gelesen wird durch dieselbe Angleichung, durch die auch geschrieben wird
- * (`normalisiereFarbe`). Was dort nicht durchkommt, fällt auf die Vorgabe
- * zurück: Im Speicher kann noch stehen, was das frühere, ungeprüfte Textfeld
- * dort abgelegt hat, und ein `#FFF` oder ein Tippfehler machte das Farbfeld
- * sonst schwarz - `input[type=color]` kennt nur `#rrggbb` und nimmt bei allem
- * anderen stillschweigend Schwarz an.
+ * (`normalisiereFarbe`). Was nicht durchkommt, fällt auf die Vorgabe zurück -
+ * `input[type=color]` kennt nur `#rrggbb` und zeigte sonst Schwarz.
  */
 function farbwerte(): Record<string, string> {
   const werte: Record<string, string> = {};
@@ -215,15 +210,9 @@ export function setzeSchrift(wert: number): void {
  *
  * Erlaubt ist, was ein Mensch schreibt, der eine Farbe im Kopf hat: `#1B4D3E`,
  * `1b4d3e`, `#abc`. Zurück kommt immer `#aabbcc` in Kleinschreibung - dieselbe
- * Form, die `input[type=color]` liefert. Ohne diese Angleichung stünde
- * derselbe Ton je nach Eingabeweg unterschiedlich im Speicher, und der
- * Vergleich mit der Vorgabe („ist das noch die Werkseinstellung?") ginge
- * daneben.
- *
- * Zurückgewiesen wird alles andere. Vorher landete auch Unsinn im
- * `localStorage`: Der Browser übergeht eine ungültige CSS-Variable
- * stillschweigend, die Farbe blieb also scheinbar stehen - und beim nächsten
- * Laden war sie plötzlich weg, ohne dass irgendwo gestanden hätte, warum.
+ * Form, die `input[type=color]` liefert, damit der Vergleich mit der Vorgabe
+ * stimmt. Alles andere wird zurückgewiesen - eine ungültige CSS-Variable
+ * übergeht der Browser stillschweigend.
  */
 export function normalisiereFarbe(wert: string): string | null {
   const roh = wert.trim().replace(/^#/, '').toLowerCase();

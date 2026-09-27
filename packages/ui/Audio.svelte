@@ -51,9 +51,7 @@
    * Stimmen, die der **Server** sprechen kann - geholt bei „hören", aus jeder
    * App (`speak.ts`).
    *
-   * Sie kamen einmal als Eigenschaft von der App herein, und nur „hören"
-   * reichte sie: Aus „lernen" und „schreiben" geöffnet, bot dieselbe Ansicht
-   * nur die Gerätestimmen an. Gefragt wird, sobald ein Sprecher feststeht -
+   * Gefragt wird, sobald ein Sprecher feststeht -
    * die Liste hängt am Zugang, und ohne ihn weist der Server ab. Scheitert
    * die Abfrage, bleibt die Liste leer: Vorlesen ist eine Hilfe und keine
    * Bedingung, ein Fehler darüber gehört nicht auf die Seite.
@@ -88,11 +86,7 @@
    * nicht reaktiv - daher der Zähler als Auslöser. Die Sprache kommt vom
    * Server und steht beim ersten Bild noch auf `null` (`wer.ts`).
    *
-   * Hier stand `$state(stimmen(sprache))`, und damit war die Liste die des
-   * ersten Augenblicks: ungefiltert, weil die Sprache noch fehlte, und
-   * ungefiltert bleibend, weil ein `$state` den späteren Wert nicht mehr
-   * sieht. Bei einer Sprache fiel das nicht auf - jede Stimme war die
-   * richtige.
+   * `$derived` und nicht `$state`, das die spätere Sprache nicht sähe.
    */
   let neuGeholt = $state(0);
   $effect(() => beiStimmenAenderung(() => neuGeholt++));
@@ -104,10 +98,7 @@
   /**
    * Die Stimmen des Servers, die zu diesem Profil passen.
    *
-   * Angeboten wurde bisher alles, was auf dem Server liegt. Solange nur
-   * Deutsch möglich war, war das dasselbe; bei zwei Sprachen stünde sonst eine
-   * deutsche Stimme zur Wahl, die einen spanischen Satz vorliest
-   * (`wortlaut/sprachen.py`).
+   * Sonst läse eine deutsche Stimme einen spanischen Satz (`wortlaut/sprachen.py`).
    */
   const serveliste = $derived(
     sprache ? servestimmen.filter((s) => s.sprache.startsWith(sprache)) : servestimmen,
