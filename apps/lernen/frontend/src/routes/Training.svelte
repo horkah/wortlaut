@@ -2,7 +2,7 @@
   /**
    * Läufe beauftragen und ihnen zusehen.
    *
-   * **Warum wenige Wahlen und keine Formularseite.** Sieben Achsen, jede mit
+   * **Warum wenige Wahlen und keine Formularseite.** Acht Achsen, jede mit
    * wenigen Werten; alles andere steht im Rezept. Jede Achse steht im Auftrag
    * und als Glied im Optionscode (`wortlaut/laeufe.optionscode`), der einen
    * Lauf hier, in der Modelltafel und in der Einzelansicht benennt. Die
@@ -55,6 +55,7 @@
   let grundmodell = $state(gemerkt.grundmodell);
   let methode = $state(gemerkt.methode);
   let datensatz = $state(gemerkt.datensatz);
+  let auswahl = $state(gemerkt.auswahl);
   let abschluss = $state(gemerkt.abschluss);
   let augmentierung = $state(gemerkt.augmentierung);
   let dauer = $state(gemerkt.dauer);
@@ -65,6 +66,7 @@
       grundmodell,
       methode,
       datensatz,
+      auswahl,
       abschluss,
       augmentierung,
       dauer,
@@ -140,6 +142,7 @@
           ['Grundmodell', daten.grundmodelle, (lauf) => lauf.grundmodell],
           ['Methode', daten.methoden, (lauf) => lauf.methode],
           ['Datensatz', daten.datensaetze, (lauf) => lauf.daten],
+          ['Auswahl', daten.auswahlen, (lauf) => lauf.auswahl],
           ['Epochen', daten.dauern, (lauf) => lauf.dauer],
           ['Augmentierung', daten.augmentierungen, (lauf) => lauf.augmentierung],
           ['Tempo', daten.tempi, (lauf) => lauf.tempowahl],
@@ -209,6 +212,7 @@
               lauf.grundmodell,
               lauf.methode,
               lauf.daten,
+              lauf.auswahl || 'alle',
               lauf.abschluss || 'bester',
               lauf.augmentierung || 'keine',
               lauf.dauer || 'fest',
@@ -233,6 +237,7 @@
       grundmodell || daten?.basismodell || '',
       methode,
       datensatz,
+      auswahl,
       abschluss,
       augmentierung,
       dauer,
@@ -329,6 +334,7 @@
         {
           methode,
           daten: datensatz,
+          auswahl,
           abschluss,
           augmentierung,
           dauer,
@@ -546,6 +552,19 @@
           <label class="option">
             <input type="radio" bind:group={datensatz} value={wahl.schluessel} />
             {@render option(wahl, prozent('Datensatz', wahl))}
+          </label>
+        {/each}
+      </fieldset>
+
+      <!-- Wirkt nur aufs Lernen: Gemessen wird jede Faltung weiter an allen
+           ihren Aufnahmen, sonst wäre kein Lauf mehr mit einem anderen zu
+           vergleichen (`wortlaut/laeufe.py`, „Die Auswahl"). -->
+      <fieldset>
+        <legend>Auswahl</legend>
+        {#each daten.auswahlen as wahl (wahl.schluessel)}
+          <label class="option">
+            <input type="radio" bind:group={auswahl} value={wahl.schluessel} />
+            {@render option(wahl, prozent('Auswahl', wahl))}
           </label>
         {/each}
       </fieldset>

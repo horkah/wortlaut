@@ -69,6 +69,8 @@ export type Lauf = {
   code: string;
   methode: string;
   daten: string;
+  /** Worauf gelernt wurde: alle | kern (`wortlaut/laeufe.py`, „Die Auswahl"). */
+  auswahl: string;
   /** Was am Ende mit den Gewichten geschah: bester | mittel | interpoliert | beides. */
   abschluss: string;
   /** Womit die Trainingsproben abgewandelt wurden: keine | masken | umgebung | voll. */
@@ -173,6 +175,7 @@ export type Laufliste = {
   laeufe: Lauf[];
   methoden: Wahl[];
   datensaetze: Wahl[];
+  auswahlen: Wahl[];
   abschluesse: Wahl[];
   augmentierungen: Wahl[];
   dauern: Wahl[];
@@ -208,6 +211,7 @@ export type Laufeinzeln = {
   steckbrief: SteckbriefZeile[];
   methoden: Wahl[];
   datensaetze: Wahl[];
+  auswahlen: Wahl[];
   abschluesse: Wahl[];
   augmentierungen: Wahl[];
   dauern: Wahl[];
@@ -340,6 +344,7 @@ export const lauf = (jobId: string, intervall = 'aus') =>
 export type Bestellung = {
   methode: string;
   daten: string;
+  auswahl: string;
   abschluss: string;
   augmentierung: string;
   dauer: string;

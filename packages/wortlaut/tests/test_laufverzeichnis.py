@@ -178,12 +178,13 @@ class TestOptionscode:
             "basismodell": "openai/whisper-medium",
             "methode": "lora",
             "daten": "augmentiert",
+            "auswahl": "kern",
             "dauer": "geduldig",
             "augmentierung": "voll",
             "tempowahl": "optimal",
             "abschluss": "beides",
         }
-        assert laeufe.optionscode(auftrag) == "ML-A-E-SRP-Ts-CI"
+        assert laeufe.optionscode(auftrag) == "ML-A-K-E-SRP-Ts-CI"
 
     def test_die_alte_tempowahl_zaehlt_als_aus(self) -> None:
         auftrag = {"basismodell": "openai/whisper-small", "methode": "full",
@@ -227,6 +228,7 @@ class TestOptionscode:
         # Sonst hieße `C` je nach Stelle zweierlei.
         tafeln = (
             laeufe.CODE_DATENSATZ,
+            laeufe.CODE_AUSWAHL,
             laeufe.CODE_DAUER,
             laeufe.CODE_AUGMENTIERUNG,
             laeufe.CODE_TEMPO,
@@ -240,10 +242,25 @@ class TestOptionscode:
     def test_jeder_wert_jeder_achse_hat_ein_glied(self) -> None:
         assert set(laeufe.CODE_METHODE) == set(laeufe.METHODEN)
         assert set(laeufe.CODE_DATENSATZ) == set(laeufe.DATENSAETZE)
+        assert set(laeufe.CODE_AUSWAHL) == set(laeufe.AUSWAHLEN)
         assert set(laeufe.CODE_DAUER) == set(laeufe.DAUERN)
         assert set(laeufe.CODE_AUGMENTIERUNG) == set(laeufe.AUGMENTIERUNGEN)
         assert set(laeufe.CODE_TEMPO) == set(laeufe.TEMPI)
         assert set(laeufe.CODE_ABSCHLUSS) == set(laeufe.ABSCHLUESSE)
+
+
+class TestKern:
+    def test_ohne_kern_wird_auf_allem_gelernt(self, tmp_path: Path) -> None:
+        assert laeufe.kern_aus(tmp_path, {"daten": "original"}) is None
+        assert laeufe.kern_aus(tmp_path, {"auswahl": "alle"}) is None
+
+    def test_der_kern_kommt_aus_der_kernauswahl(self, tmp_path: Path) -> None:
+        laeufe.schreibe_json(tmp_path / laeufe.KERNAUSWAHL, {"kern": ["rec_a", "rec_b"]})
+        assert laeufe.kern_aus(tmp_path, {"auswahl": "kern"}) == {"rec_a", "rec_b"}
+
+    def test_ohne_datei_kein_stiller_rueckfall_auf_alles(self, tmp_path: Path) -> None:
+        with pytest.raises(RuntimeError, match="kernauswahl.json"):
+            laeufe.kern_aus(tmp_path, {"auswahl": "kern"})
 
 
 class TestZwischenstaende:

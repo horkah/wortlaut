@@ -160,7 +160,11 @@ class Stapler:
 
 
 def zeilen_fuer_faltung(
-    verzeichnis: Path, faltung: int | None, daten: str, korpus: Path | None = None
+    verzeichnis: Path,
+    faltung: int | None,
+    daten: str,
+    korpus: Path | None = None,
+    kern: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Was in dieser Faltung gelernt und was daran gemessen wird.
 
@@ -179,6 +183,10 @@ def zeilen_fuer_faltung(
     ist kein Versehen, sondern der Punkt: Die zu vergleichenden Modelle
     unterscheiden sich in ihren Trainingsdaten und in nichts sonst - schon gar
     nicht in dem, woran sie gemessen werden.
+
+    Aus demselben Grund wirkt der **Kern** (`kern`, die Aufnahmen aus
+    `laeufe.kern_aus`) nur auf die Lernzeilen: Gelernt wird nur auf ihm,
+    gemessen weiter an jeder Aufnahme der Faltung. `None` heißt: alle.
     """
     lern: list[dict[str, Any]] = []
     mess: list[dict[str, Any]] = []
@@ -195,6 +203,8 @@ def zeilen_fuer_faltung(
         eigene = faltung is not None and int(zeile.get("faltung", -1)) == faltung
         if eigene:
             mess.append(zeile)
+            continue
+        if kern is not None and str(zeile.get("recording_id")) not in kern:
             continue
         if daten == laeufe.MIT_VARIANTEN or str(zeile.get("variante")) == ORIGINAL:
             lern.append(zeile)
