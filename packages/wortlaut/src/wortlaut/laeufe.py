@@ -230,10 +230,14 @@ DATENSAETZE = (NUR_ORIGINAL, MIT_VARIANTEN)
 # Ein Modell, das nur auf dem sauberen Teil lernt, soll ein stabiler Kern
 # werden, auf dem sich später aufbauen lässt.
 #
-# **Nur gelernt wird auf dem Kern, gemessen wird auf allem.** Jede Faltung
-# misst weiter an allen ihren Aufnahmen, auch an denen außerhalb des Kerns.
-# Sonst verschwänden gerade die schweren Aufnahmen aus der Messung, die Zahl
-# sähe besser aus, und kein Lauf wäre mehr mit einem anderen zu vergleichen.
+# **Der Kern ist für den Lauf der ganze Korpus.** Die Aufnahmen außerhalb
+# kommen in ihm nicht vor - weder zum Lernen noch zum Steuern noch zum Messen
+# der Faltungen. Die Kreuzvalidierung läuft über den Kern allein, auf eigens
+# über ihn verteilten Faltungen (`verteile_kern`), damit jede gleich viel
+# trägt. Die übrigen hört erst das fertige Endmodell, in der Auswertung von
+# „hören": Für einen Kernstand gelten nur die Kernaufnahmen als gehört
+# (`hoeren/services/auswertung._gehoert_im_lauf`), alles andere ist für ihn
+# eine neue Aufnahme wie jede, die nach dem Training dazukam.
 #
 # **Wie viele, steht beim Auftrag fest; welche, vor dem ersten Training.** Der
 # Server sammelt beim Auftrag die Werte des freigegebenen Modells
@@ -242,9 +246,9 @@ DATENSAETZE = (NUR_ORIGINAL, MIT_VARIANTEN)
 # gehört hat -, stehen sie dort als `offen`, und der Trainer lässt sie vor der
 # ersten Faltung von genau diesem Modell hören (`training/bewerten.py`,
 # `vervollstaendige_kern`). Erst dann wird gewählt, nach derselben Regel an
-# beiden Stellen (`waehle_kern`), und erst dann gelernt. Die Freigabe und die
-# Messungen von „hören" kennt der Trainer dabei nicht: Er bekommt das Modell
-# und die fehlenden Aufnahmen genannt.
+# beiden Stellen (`waehle_kern`, `mit_kern`), und erst dann gelernt. Die
+# Freigabe und die Messungen von „hören" kennt der Trainer dabei nicht: Er
+# bekommt das Modell und die fehlenden Aufnahmen genannt.
 AUSWAHL_ALLE = "alle"
 AUSWAHL_KERN = "kern"
 AUSWAHLEN = (AUSWAHL_ALLE, AUSWAHL_KERN)
@@ -279,6 +283,49 @@ def auswahl_aus(auftrag: dict[str, Any]) -> str:
     return str(auftrag.get("auswahl") or AUSWAHL_ALLE)
 
 
+def verteile_kern(kern: Iterable[str], staemme: dict[str, str]) -> dict[str, int]:
+    """Die Faltung jeder Kernaufnahme - der Kern verteilt wie ein eigener Korpus.
+
+    Dieselbe Regel wie beim Auftrag (`apps/lernen/backend/services/aufteilung.py`),
+    nur über den Kern: je Stamm eine Gruppe, damit Teile und Kopien mit ihrem
+    Original in derselben Faltung bleiben, in der Reihenfolge des Korpus -
+    `staemme` nennt jede Aufnahme des Auftrags mit ihrem Stamm, in dieser
+    Reihenfolge. Die Faltungen des Manifests taugen dafür nicht: Sie sind über
+    alle Aufnahmen verteilt, und nach der Wahl trüge die eine Faltung 28
+    Kernaufnahmen und die andere 40.
+    """
+    im_kern = set(kern)
+    gruppen: dict[str, list[str]] = {}
+    for kennung, stamm in staemme.items():
+        if kennung in im_kern:
+            gruppen.setdefault(stamm, []).append(kennung)
+    vergeben = verteile(len(gruppe) for gruppe in gruppen.values())
+    return {
+        kennung: faltung
+        for gruppe, faltung in zip(gruppen.values(), vergeben, strict=True)
+        for kennung in gruppe
+    }
+
+
+def mit_kern(inhalt: dict[str, Any]) -> dict[str, Any]:
+    """Die Kernauswahl mit gewähltem Kern - aus ihren Werten, ohne `offen`.
+
+    Eine Stelle für Server und Trainer: Wer wählt, wählt nach denselben Werten
+    dasselbe und verteilt es gleich.
+    """
+    wer = {str(kennung): float(wert) for kennung, wert in dict(inhalt.get("wer") or {}).items()}
+    kern = waehle_kern(wer)
+    ergebnis = {schluessel: wert for schluessel, wert in inhalt.items() if schluessel != "offen"}
+    ergebnis.update(
+        anzahl=len(kern),
+        wer=wer,
+        kern=kern,
+        schwelle=max((wer[kennung] for kennung in kern), default=0.0),
+        faltungen=verteile_kern(kern, dict(inhalt.get("staemme") or {})),
+    )
+    return ergebnis
+
+
 def kern_aus(verzeichnis: Path, auftrag: dict[str, Any]) -> set[str] | None:
     """Die Aufnahmen des Kerns - `None`, wenn auf allen gelernt wird.
 
@@ -295,6 +342,30 @@ def kern_aus(verzeichnis: Path, auftrag: dict[str, Any]) -> set[str] | None:
     if "kern" not in inhalt:
         raise RuntimeError(f"Der Kern ist noch nicht gewählt ({KERNAUSWAHL}).")
     return {str(kennung) for kennung in inhalt.get("kern", [])}
+
+
+def kernfaltungen_aus(verzeichnis: Path, auftrag: dict[str, Any]) -> dict[str, int] | None:
+    """Jede Kernaufnahme mit ihrer Faltung - `None`, wenn auf allen gelernt wird.
+
+    Eine Kernauswahl von vor den eigenen Faltungen (27. September 2026) hat
+    keine; dann gelten die des Manifests, eingeschränkt auf den Kern. Das ist
+    ungleichmäßiger, aber ehrlich: Verwandte teilen sich auch dort eine Faltung.
+    """
+    kern = kern_aus(verzeichnis, auftrag)
+    if kern is None:
+        return None
+    inhalt = lies_json(verzeichnis / KERNAUSWAHL) or {}
+    if inhalt.get("faltungen"):
+        return {
+            str(kennung): int(faltung)
+            for kennung, faltung in dict(inhalt["faltungen"]).items()
+            if kennung in kern
+        }
+    return {
+        str(zeile["recording_id"]): int(zeile.get("faltung", -1))
+        for zeile in manifestzeilen(verzeichnis)
+        if str(zeile.get("recording_id")) in kern
+    }
 
 # ── Die Geschwindigkeit ─────────────────────────────────────────────────────
 #

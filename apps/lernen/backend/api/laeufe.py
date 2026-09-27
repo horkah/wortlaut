@@ -146,8 +146,8 @@ AUSWAHLEN = [
         name="Kernauswahl",
         erklaerung=(
             f"Gelernt nur auf den besten {round(lauf_layout.KERN_ANTEIL * 100)} % "
-            "nach WER des freigegebenen Modells, gemessen auf allen. Was es noch "
-            "nicht gehört hat, misst der Trainer vorher nach."
+            "nach WER des freigegebenen Modells. Die übrigen sieht der Lauf nicht; "
+            "sie hört erst das Endmodell in der Auswertung von „hören“."
         ),
         code=lauf_layout.CODE_AUSWAHL[lauf_layout.AUSWAHL_KERN],
     ),

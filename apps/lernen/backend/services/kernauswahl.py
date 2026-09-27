@@ -1,7 +1,7 @@
 """Der Kern: die Aufnahmen, die das freigegebene Modell am besten verstanden hat.
 
-Wofür es ihn gibt und warum nur auf ihm gelernt, aber auf allem gemessen wird,
-steht bei der Achse selbst (`wortlaut/laeufe.py`, „Die Auswahl"). Hier steht,
+Wofür es ihn gibt und warum ein Kernlauf die übrigen Aufnahmen gar nicht
+sieht, steht bei der Achse selbst (`wortlaut/laeufe.py`, „Die Auswahl"). Hier steht,
 wie er gewählt wird.
 
 **Nach dem freigegebenen Modell.** Das ist das Modell, mit dem dieser Mensch
@@ -76,16 +76,15 @@ class Kernauswahl:
     geerbt: list[str] = field(default_factory=list)
     # Die Aufnahmen ohne Wert: Der Trainer misst sie, bevor er wählt.
     offen: list[str] = field(default_factory=list)
+    # Jede Aufnahme des Auftrags mit ihrem Stamm, in der Reihenfolge des
+    # Korpus - danach wird der Kern auf seine eigenen Faltungen verteilt
+    # (`laeufe.verteile_kern`).
+    staemme: dict[str, str] = field(default_factory=dict)
 
     @property
     def anzahl(self) -> int:
         """Wie viele Aufnahmen der Kern haben wird - schon bevor er gewählt ist."""
         return laeufe.kern_anzahl(len(self.wer) + len(self.offen))
-
-    @property
-    def kern(self) -> list[str] | None:
-        """Der Kern - `None`, solange noch Werte fehlen."""
-        return None if self.offen else laeufe.waehle_kern(self.wer)
 
     def als_dict(self) -> dict[str, Any]:
         inhalt: dict[str, Any] = {
@@ -95,22 +94,13 @@ class Kernauswahl:
             "tempo": self.tempo,
             "geerbt": self.geerbt,
             "wer": self.wer,
+            "staemme": self.staemme,
+            "offen": self.offen,
         }
-        # Die beiden Schlüssel schließen sich aus: Solange etwas offen ist,
-        # gibt es keinen Kern, und ein Trainer, der `kern` liest, soll dann
-        # keinen finden (`laeufe.kern_aus`).
-        kern = self.kern
-        if kern is None:
-            inhalt["offen"] = self.offen
-        else:
-            inhalt["kern"] = kern
-            inhalt["schwelle"] = schwelle(self.wer, kern)
-        return inhalt
-
-
-def schwelle(wer: dict[str, float], kern: list[str]) -> float:
-    """Die WER der schlechtesten Aufnahme, die noch zum Kern gehört."""
-    return max((wer[kennung] for kennung in kern), default=0.0)
+        # Solange etwas offen ist, gibt es keinen Kern, und ein Trainer, der
+        # `kern` liest, soll dann keinen finden (`laeufe.kern_aus`). Fehlt
+        # nichts, wird hier gewählt - nach derselben Regel wie im Trainer.
+        return inhalt if self.offen else laeufe.mit_kern(inhalt)
 
 
 def _tempo(datenverzeichnis: Path, ref: str) -> float:
@@ -195,4 +185,5 @@ def waehle(
         wer=wer,
         geerbt=sorted(geerbt),
         offen=sorted(offen),
+        staemme=staemme,
     )

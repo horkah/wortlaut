@@ -266,7 +266,7 @@ Trainer lässt sie von genau diesem Modell hören, bevor die erste Faltung
 beginnt: auf dem Original und mit dem Tempo des Modells, wie in der
 Auswertung von „hören". Die Oberfläche zeigt diese Stufe als „Kernauswahl".
 Erst danach wird gewählt, nach derselben Regel wie beim Server
-(`laeufe.waehle_kern`), und erst dann gelernt. Abgewiesen wird ein Auftrag
+(`laeufe.mit_kern`), und erst dann gelernt. Abgewiesen wird ein Auftrag
 nur noch, wenn kein Modell freigegeben ist oder die Gewichte des
 freigegebenen Standes fehlen.
 
@@ -275,25 +275,34 @@ aufgerundet (`laeufe.kern_anzahl`). Die Übersicht zeigt deshalb vom ersten
 Augenblick an, worauf gelernt wird, etwa „205 von 292 Aufnahmen · 410 von 584
 Proben", auch bevor gewählt ist.
 
-**Gelernt wird auf dem Kern, gemessen auf allem.** Jede Faltung lernt nur
-auf den Kernaufnahmen ihrer fünf Sechstel und misst weiter an allen
-Aufnahmen ihres Sechstels, auch an den schweren. So bleibt die Zahl mit
-jedem anderen Lauf vergleichbar und sagt, ob das Kernmodell über den Kern
-hinaus trägt. Das Endmodell lernt auf dem ganzen Kern, und seine
-Plausibilitätsprüfung zieht ihre Stichprobe nur aus dem Kern: Er ist alles,
-was es kennt.
+**Der Kern ist für den Lauf der ganze Korpus.** Die übrigen 30 % kommen in
+ihm nicht vor: nicht zum Lernen, nicht zum Steuern des Trainings (Early
+Stopping, bester Checkpoint) und nicht in der Messung der Faltungen. Die
+Kreuzvalidierung läuft über den Kern allein, auf eigens über ihn verteilten
+Faltungen (`laeufe.verteile_kern`, dieselbe Regel wie beim Auftrag: je Stamm,
+in der Reihenfolge des Korpus). Die Faltungen des Manifests taugen dafür
+nicht, weil sie über alle Aufnahmen verteilt sind und nach der Wahl
+ungleich viel Kern trügen. Das Endmodell lernt auf dem ganzen Kern, und seine
+Plausibilitätsprüfung zieht ihre Stichprobe ebenfalls nur aus dem Kern.
 
-**Die 30 % außerhalb des Kerns haben trotzdem einen Wert.** Jede Faltung
-misst alle Aufnahmen ihres Sechstels, also auch die außerhalb des Kerns. Ihre
-Messung kommt von einem Modell, das sie nie gelernt hat, und landet wie jede
-Faltungsmessung in der Modelltafel und in der Auswertung von „hören". Eine
-eigene Auswertung braucht es dafür nicht.
+**Die übrigen 30 % hört erst das Endmodell, in der Auswertung von „hören".**
+Für einen Kernstand gelten dort nur die Kernaufnahmen als gehört
+(`auswertung._gehoert_im_lauf`). Für sie werden die Messungen der Faltungen
+übernommen, alles andere rechnet der ausgelieferte Stand selbst, wie jede
+Aufnahme, die nach seinem Training dazukam. Ausgenommen sind Teile und
+Kopien einer Kernaufnahme, deren Ton er kennt (`auswertung.verwandte`).
+
+Das heißt auch: Solange die Auswertung nicht gelaufen ist, hat ein Kernstand
+Werte nur für den Kern, und die Modelltafel vergleicht ihn mit den anderen
+nur dort, wo alle gemessen haben. Danach stammen seine Werte aus zwei Quellen:
+für den Kern aus den Faltungen, für den Rest vom Endmodell.
 
 Festgehalten wird alles in `kernauswahl.json` neben dem Manifest. Der Server
 schreibt dort beim Auftrag das Modell, sein Tempo, die Anzahl, jede Aufnahme
-mit ihrer WER und die offenen. Der Trainer ergänzt die nachgemessenen Werte
-(`training/bewerten.vervollstaendige_kern`) und schreibt den Kern samt der
-Schwelle dazu. Beim Lernen liest er nur die Liste (`laeufe.kern_aus`). Der
+mit ihrer WER und ihrem Stamm und die offenen. Der Trainer ergänzt die
+nachgemessenen Werte (`training/bewerten.vervollstaendige_kern`) und schreibt
+den Kern, die Schwelle und die Faltungen des Kerns dazu (`laeufe.mit_kern`).
+Beim Lernen liest er nur Kern und Faltungen (`laeufe.kernfaltungen_aus`). Der
 Steckbrief nennt, wie viele Aufnahmen im Kern liegen, nach welchem Modell,
 bis zu welcher WER und wie viele davon nachgemessen wurden.
 
