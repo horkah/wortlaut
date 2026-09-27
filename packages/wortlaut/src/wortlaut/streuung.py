@@ -1,46 +1,26 @@
 """Wie sicher ist eine gemessene Zahl? - Vertrauensbereiche über Messreihen.
 
-`metriken.py` beantwortet die Frage „wie gut war dieses eine Paar aus Vorlage
-und erkanntem Text". Diese Datei beantwortet die zweite, die immer danach
-kommt und die das Projekt bisher nicht gestellt hat: **Wie weit trägt der
-Mittelwert über sechzig solcher Paare?**
+`metriken.py` bewertet ein Paar aus Vorlage und erkanntem Text; diese Datei
+sagt, wie weit der Mittelwert über viele solcher Paare trägt. Bei sechzig
+Aufnahmen ist das 95-%-Intervall einer WER mehrere Prozentpunkte breit -
+breiter als die meisten Unterschiede, um die es geht.
 
-Ohne eine Antwort darauf ist jeder Vergleich zweier Modelle eine Rangfolge von
-Rauschen. Bei sechzig Testaufnahmen ist das 95-%-Intervall einer Wortfehlerrate
-mehrere Prozentpunkte breit - breiter als fast jeder Unterschied, um den es in
-dieser App geht. Eine Tabelle, die 0,142 neben 0,138 stellt und die bessere
-Zahl hervorhebt, behauptet dann etwas, das sie nicht gemessen hat.
+**Bootstrap statt Formel.** Die Einzelwerte sind weder normalverteilt noch
+unabhängig noch gleich schwer (eine WER über drei Wörter springt in
+Dritteln); der Bootstrap braucht nichts davon (Bisani/Ney, ICASSP 2004).
 
-**Warum Bootstrap und keine Formel.** Für den Mittelwert einer Fehlerrate gibt
-es keine brauchbare geschlossene Form: Die Einzelwerte sind weder
-normalverteilt noch unabhängig noch gleich schwer (eine WER über drei Wörter
-springt in Dritteln). Der Bootstrap braucht davon nichts - er zieht aus den
-vorhandenen Messungen neue Stichproben und liest die Streuung an ihnen ab
-(Bisani/Ney, ICASSP 2004).
+**Blockweise.** Die Fassungen einer Aufnahme sind Messungen an einem
+Gegenstand; einzeln gezogen ergäben sie ein zu schmales Intervall. Gezogen
+wird deshalb je Aufnahme (Liu u. a., Interspeech 2020). Die Ziehung je
+Einheit bleibt als `BLOCK_EINHEIT` wählbar, weil die Literatur sie rechnet.
 
-**Warum blockweise.** Vier Fassungen derselben Aufnahme (Original,
-wie gesprochen und mit Rauschen) sind mehrere Messungen an *einem* Gegenstand.
-Wer sie einzeln zieht, tut so, als lägen vier unabhängige Auskünfte vor, und
-bekommt ein Intervall heraus, das deutlich zu schmal ist. Gezogen wird deshalb
-je Aufnahme, mit allen ihren Fassungen zusammen - der blockweise Bootstrap
-(Liu u. a., Interspeech 2020). Die naive Ziehung je Einheit bleibt als
-`BLOCK_EINHEIT` wählbar: Sie ist das, was die meiste Literatur rechnet, und
-ohne sie wären die Zahlen dieses Projekts mit ihr nicht vergleichbar.
+**Fester Keim.** Die Ziehungen hängen allein an der Anzahl der Blöcke:
+dieselbe Messreihe, derselbe Bereich, auf jeder Maschine. Gleich viele Blöcke
+bekommen dieselben Ziehungen - die Voraussetzung für den gepaarten
+`unterschied`.
 
-**Warum ein Keim und keine Zufallszahl.** Ein Vertrauensbereich, der bei jedem
-Aufruf ein wenig anders ausfällt, ist eine schlechte Auskunft: Zwei Blicke auf
-dieselbe Tabelle ergäben zwei Zahlen, und niemand wüsste, ob sich das Modell
-oder der Würfel geändert hat. Der Keim steht fest, die Ziehungen hängen allein
-an der **Anzahl** der Blöcke - dieselbe Messreihe ergibt auf jeder Maschine
-und zu jeder Zeit denselben Bereich. Dass zwei Modelle mit gleich vielen
-Blöcken dieselben Ziehungen bekommen, ist dabei kein Mangel, sondern die
-Voraussetzung für `unterschied`: Nur wer beide Modelle an denselben gezogenen
-Aufnahmen misst, vergleicht gepaart.
-
-**Was diese Datei nicht tut.** Sie ändert keine gemessene Zahl. Jeder
-Mittelwert, den die App vorher zeigte, kommt hier unverändert wieder heraus
-(`Intervall.mittel`); das Intervall steht daneben, nicht an seiner Stelle.
-Alles hier ist eine zusätzliche Auskunft und keine andere.
+Keine gemessene Zahl ändert sich: `Intervall.mittel` ist der gewöhnliche
+Mittelwert, der Bereich steht daneben.
 """
 
 from __future__ import annotations
@@ -52,9 +32,7 @@ from functools import lru_cache
 
 # ── Die Wahl ────────────────────────────────────────────────────────────────
 #
-# Was der Aufrufer einstellen darf. `AUS` ist die Vorgabe überall dort, wo
-# vorher nichts stand: Diese Datei ist eine Erweiterung, und eine Erweiterung
-# schaltet sich nicht selbst ein.
+# Was der Aufrufer einstellen darf; `AUS` ist überall die Vorgabe.
 AUS = "aus"
 
 # Je Aufnahme ziehen, mit allen ihren Fassungen. Die richtige Wahl, wenn die
@@ -70,23 +48,19 @@ BLOCKARTEN = (AUS, BLOCK_AUFNAHME, BLOCK_EINHEIT)
 
 # ── Die Zahlen des Verfahrens ───────────────────────────────────────────────
 #
-# Sie stehen hier als Konstanten und nicht in der Konfiguration: Wer sie
-# ändert, ändert jede Zahl, die je damit gerechnet wurde, und dann sind alte
-# und neue Bereiche nicht mehr dieselbe Größe. Geändert werden darf das - aber
-# sichtbar, in einem Commit, und mit einer neuen `marke` (siehe `Verfahren`).
+# Konstanten, keine Konfiguration: Wer sie ändert, ändert jede damit gerechnete
+# Zahl - und die `marke` (siehe `Verfahren`).
 KEIM = 20260913
 
-# Zweitausend Ziehungen. Darunter wackeln die Perzentile selbst sichtbar,
-# darüber wird es langsam, ohne genauer zu werden: Der Fehler des Bootstraps
-# fällt mit der Wurzel, der Aufwand steigt linear.
+# Darunter wackeln die Perzentile sichtbar; der Fehler fällt mit der Wurzel,
+# der Aufwand steigt linear.
 ZIEHUNGEN = 2000
 
 # Das übliche Niveau. 0,95 heißt: der Bereich zwischen dem 2,5- und dem
 # 97,5-Perzentil der Ziehungen.
 NIVEAU = 0.95
 
-# Unter zwei Blöcken gibt es nichts zu ziehen - ein „Vertrauensbereich" über
-# eine einzige Aufnahme wäre eine Zahl ohne Inhalt.
+# Unter zwei Blöcken gibt es nichts zu ziehen.
 MINDESTENS = 2
 
 # Nachkommastellen der ausgegebenen Zahlen - dieselbe Rundung wie bei den
@@ -98,10 +72,8 @@ STELLEN = 6
 class Verfahren:
     """Womit gerechnet wurde - gehört zu jedem Ergebnis dazu.
 
-    Ein Vertrauensbereich ohne seine Parameter ist nicht nachvollziehbar: 2,5 %
-    bis 97,5 % über zweitausend blockweise Ziehungen ist etwas anderes als 5 %
-    bis 95 % über zweihundert. Die `marke` fasst das in eine Zeichenkette, die
-    sich neben jeden gespeicherten Wert legen lässt.
+    Ohne seine Parameter ist ein Bereich nicht nachvollziehbar; die `marke`
+    steht neben jedem gespeicherten Wert.
     """
 
     blockart: str = BLOCK_AUFNAHME
@@ -157,12 +129,9 @@ class Intervall:
 class Unterschied:
     """Zwei Messreihen an denselben Einheiten - gepaart verglichen.
 
-    **Warum gepaart und nicht zwei Bereiche nebeneinander.** Beide Modelle
-    haben dieselben Aufnahmen gehört. Eine schwer verständliche Aufnahme zieht
-    beide herunter, eine leichte hebt beide - dieser gemeinsame Anteil fällt
-    in der Differenz heraus. Zwei getrennte Bereiche tragen ihn dagegen beide
-    mit und überlappen sich deshalb oft, obwohl der Unterschied belastbar ist.
-    Der gepaarte Vergleich ist die schärfere und die ehrlichere Auskunft.
+    Eine schwere Aufnahme zieht beide Modelle herunter; in der Differenz fällt
+    dieser gemeinsame Anteil heraus. Zwei getrennte Bereiche tragen ihn beide
+    und überlappen oft, obwohl der Unterschied belastbar ist.
     """
 
     # `a` minus `b`. Ob das gut ist, hängt am Maß und entscheidet der Aufrufer:
@@ -201,10 +170,7 @@ class Unterschied:
 def zuege(anzahl: int, wie_oft: int = ZIEHUNGEN, keim: int = KEIM) -> tuple[tuple[int, ...], ...]:
     """`wie_oft` Ziehungen von `anzahl` Blöcken mit Zurücklegen - immer dieselben.
 
-    Gemerkt, weil dieselbe Blockzahl in einer Tabelle dutzendfach vorkommt: Ein
-    Dutzend Modelle mal die Fassungen mal vier Maße greifen alle auf dieselben
-    Ziehungen zu. Sie einmal zu würfeln spart nicht nur Zeit - es ist zugleich
-    das, was `unterschied` gepaart macht.
+    Gemerkt, weil eine Tafel dieselbe Blockzahl dutzendfach braucht.
     """
     wuerfel = random.Random(f"{keim}:{anzahl}:{wie_oft}")
     stellen = range(anzahl)
@@ -237,10 +203,8 @@ def bilde(paare: Iterable[tuple[str, float]], blockart: str = BLOCK_AUFNAHME) ->
     """Werte zu Blöcken bündeln - nach dem Schlüssel, den der Aufrufer mitgibt.
 
     Der Schlüssel ist die Kennung der Aufnahme; bei `BLOCK_EINHEIT` bekommt
-    jeder Wert seinen eigenen Block. Sortiert wird nach dem Schlüssel, damit
-    die Reihenfolge der Blöcke nicht davon abhängt, in welcher Reihenfolge
-    jemand die Zeilen gelesen hat - sonst wären die Ziehungen zwar dieselben,
-    träfen aber andere Werte.
+    jeder Wert seinen Block. Sortiert nach Schlüssel, damit dieselben
+    Ziehungen dieselben Werte treffen.
     """
     if blockart == BLOCK_EINHEIT:
         return [[wert] for _schluessel, wert in sorted(paare, key=lambda eintrag: eintrag[0])]
@@ -273,10 +237,8 @@ def intervall(
 ) -> Intervall | None:
     """Der Vertrauensbereich des Mittelwerts über alle Werte aller Blöcke.
 
-    `None`, wenn zu wenige Blöcke da sind - lieber keine Auskunft als eine, die
-    aussieht wie eine. Der Mittelwert selbst ist **exakt** der, den auch die
-    schlichte Mittelung liefert: Der Bootstrap schätzt nur seine Streuung, er
-    ersetzt ihn nicht.
+    `None` bei zu wenigen Blöcken. Der Mittelwert ist exakt der gewöhnliche;
+    der Bootstrap schätzt nur seine Streuung.
     """
     art = verfahren or Verfahren()
     summen = [sum(block) for block in bloecke]
@@ -310,13 +272,9 @@ def unterschied(
 ) -> Unterschied | None:
     """Der gepaarte Vergleich zweier Reihen: Bereich und p-Wert der Differenz.
 
-    Gezogen wird **einmal**, und beide Reihen werden an derselben Ziehung
-    gemessen - daher gepaart. Der p-Wert ist der übliche zweiseitige
-    Bootstrap-Wert: der Anteil der Ziehungen, der auf der anderen Seite der
-    Null liegt, verdoppelt. Die Eins im Zähler und im Nenner ist keine
-    Kosmetik: Ohne sie käme bei zweitausend Ziehungen ein p von genau null
-    heraus, und das behauptete Gewissheit, wo nur „kleiner als 1/2000" gemessen
-    wurde.
+    Beide Reihen an derselben Ziehung. Der p-Wert ist der zweiseitige
+    Bootstrap-Wert; die Eins in Zähler und Nenner verhindert ein p von genau
+    null, wo nur „kleiner als 1/2000" gemessen ist.
     """
     art = verfahren or Verfahren()
     differenzen = [[links - rechts for links, rechts in block] for block in bloecke]

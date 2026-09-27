@@ -7,27 +7,15 @@ und was es dort sucht, liegt weiter auseinander, als es je gesehen hat. Ob
 Vorspulen das näher an Bekanntes rückt oder bloß Information wegwirft, ist
 keine Meinungsfrage, sondern eine Messung.
 
-Dieses Modul ist die Rechnung dazu, und zwar die einzige im Projekt: Wer
-vorspult - die Auswertung in „hören", der Trainer, das Diktat in „schreiben" -
-fragt hier. Zwei Rechnungen, die sich um ein Promille unterschieden, wären der
-unauffälligste denkbare Fehler: Ein Modell, das auf vorgespulter Sprache
-gelernt hat, bekäme beim Diktieren etwas minimal anderes zu hören, und niemand
-sähe je, woran es lag.
+Die einzige Rechnung dafür im Projekt: Auswertung, Trainer und Diktat fragen
+hier. Ein Modell, das auf vorgespulter Sprache gelernt hat, muss beim Diktieren
+genau dasselbe hören.
 
-**Warum die Tonhöhe bleibt.** Schneller abspielen im naiven Sinn - jeden
-zweiten Abtastwert nehmen - hebt die Stimme mit an. Dann sind zwei Dinge
-zugleich anders, und die Messung sagt nicht mehr, welches gewirkt hat.
-Gerechnet wird deshalb mit `atempo` von ffmpeg, einem Phasenvokoder: Dauer
-ändert sich, Tonhöhe nicht.
-
-(Das naive Verfahren gibt es in diesem Projekt auch, im Trainer als
-Würfelgriff - dort ist die mitwandernde Tonhöhe erwünscht, weil sie einen
-Sprecher erfindet, den es geben könnte: `apps/lernen/training/klangwandel.py`.
-Hier wäre sie ein Störfaktor.)
-
-**Warum ffmpeg und nicht numpy.** Einen Phasenvokoder selbst zu schreiben wäre
-viel Mathematik für ein Werkzeug, das ohnehin im Abbild liegt - ohne ffmpeg
-käme nicht eine einzige Aufnahme herein (`audio.py`).
+**Die Tonhöhe bleibt.** Gerechnet wird mit `atempo` von ffmpeg, einem
+Phasenvokoder: Die Dauer ändert sich, die Stimme nicht - sonst wären zwei Dinge
+zugleich anders. (Die Tempo-Augmentierung im Trainer verschiebt die Tonhöhe
+absichtlich mit, `apps/lernen/training/klangwandel.py`.) ffmpeg liegt ohnehin
+im Abbild (`audio.py`).
 """
 
 from __future__ import annotations
@@ -37,37 +25,22 @@ from pathlib import Path
 
 from .audio import ABTASTRATE, AudioFehler
 
-# Was zur Wahl steht. Keine freie Zahl: Jeder Wert verdreifacht im
-# schlimmsten Fall die Messzeilen eines Sprechers (siehe unten), und ein
-# Schieberegler lüde dazu ein, sieben Zwischenwerte auszuprobieren, von denen
-# keiner je wieder zusammenpasst.
-FAKTOREN = (1.0, 2.0, 3.0)
 VORGABE = 1.0
 
-# Die Grenzen, innerhalb derer gesucht werden darf (siehe
-# `apps/lernen/training/tempowahl.py`). Unter 1,0 wird gedehnt statt
-# vorgespult - das kann helfen, wenn jemand sehr schnell spricht.
-#
-# Nach oben stand hier lange 3,0, und das war zu eng: An einem echten Korpus
-# fiel die Fehlerkurve bis zur obersten Stützstelle und hörte dort auf, weil
-# das Raster aufhörte. Ein Optimum am Rand ist keines - es ist die Aussage,
-# dass man zu kurz gesucht hat. Bei 4,0 ist Schluss, weil von einer kurzen
-# Silbe dann noch ein knappes Dutzend Spektrogrammrahmen übrig bleibt.
+# Wo gesucht werden darf (`apps/lernen/training/tempowahl.py`). Unter 1,0 wird
+# gedehnt. Bei 4,0 bleibt von einer kurzen Silbe noch ein knappes Dutzend
+# Spektrogrammrahmen.
 SPANNE = (0.75, 4.0)
 
-# Was ein einzelner `atempo` verträgt. Darüber hinaus werden mehrere
-# hintereinandergehängt; das ist die von ffmpeg vorgesehene Art und keine
-# Krücke.
+# Was ein einzelner `atempo` verträgt; darüber werden mehrere verkettet.
 _JE_STUFE = (0.5, 2.0)
 
 
 def filterkette(faktor: float) -> str:
     """Die ffmpeg-Filterkette für diesen Faktor.
 
-    Ein `atempo` schafft höchstens das Doppelte, also wird der Faktor auf
-    mehrere aufgeteilt: 3,0 wird zu zweimal ~1,732. Gleichmäßig aufgeteilt und
-    nicht `2,0 · 1,5` - jede Stufe rechnet neu, und zwei gleich große Schritte
-    verteilen den Fehler besser als ein großer und ein kleiner.
+    Gleichmäßig auf Stufen verteilt - 3,0 wird zweimal ~1,732, nicht 2,0 · 1,5;
+    gleich große Schritte verteilen den Fehler besser.
     """
     stufen = 1
     while faktor ** (1 / stufen) > _JE_STUFE[1] or faktor ** (1 / stufen) < _JE_STUFE[0]:
@@ -78,33 +51,14 @@ def filterkette(faktor: float) -> str:
     return ",".join([f"atempo={einzeln:.6f}"] * stufen)
 
 
-def pruefe(faktor: float) -> float:
-    """Der bestellte Faktor, oder ein Fehler - sofort statt nach Stunden."""
-    if faktor not in FAKTOREN:
-        raise AudioFehler(
-            f"Kein Tempofaktor: {faktor}. Zur Wahl stehen: "
-            + ", ".join(f"{f:g}" for f in FAKTOREN)
-        )
-    return faktor
-
-
 def marke(faktor: float) -> str:
-    """Wie ein Faktor neben einer Messung steht: `1x`, `2x`, `3x`.
-
-    Eine Zeichenkette und keine Kommazahl, aus demselben Grund wie beim
-    Rechenwerk (`rechenwerk.marke`): Sie wird nur verglichen und nie gerechnet,
-    und ein Fließkommawert als Schlüssel ist eine Einladung, dass `2.0` und
-    `2.0000001` einmal verschiedene Messreihen werden.
-    """
+    """Wie ein Faktor in Namen steht: `1x`, `2.25x`."""
     return f"{faktor:g}x"
 
 
 def vorspulen_noetig(faktor: float) -> bool:
-    """Ob überhaupt etwas zu tun ist. Bei 1,0 ist es das nicht.
-
-    Mit einer kleinen Toleranz, weil der Faktor aus einer Suche kommen kann
-    und 0,9999999 kein Vorspulen ist, sondern eine Kommastelle.
-    """
+    """Ob überhaupt etwas zu tun ist - mit Toleranz, weil der Faktor aus einer
+    Rechnung kommen kann."""
     return abs(faktor - VORGABE) > 1e-6
 
 
@@ -116,10 +70,8 @@ def in_spanne(faktor: float) -> float:
 def spule_vor(quelle: Path, ziel: Path, faktor: float) -> None:
     """Dieselbe Aufnahme schneller, bei gleicher Tonhöhe.
 
-    Ausgeschrieben wird wieder 16 kHz, mono, PCM 16 bit - dasselbe Format wie
-    überall (`audio.py`). Das ist nicht selbstverständlich: ffmpeg richtet sich
-    sonst nach der Endung, und eine vorgespulte Datei in einem anderen Format
-    wäre für den Trainer kein Audio mehr, sondern ein Fehler zur Unzeit.
+    Ausgeschrieben ausdrücklich als 16 kHz mono PCM 16 bit wie überall
+    (`audio.py`); ffmpeg richtete sich sonst nach der Endung.
     """
     if not vorspulen_noetig(faktor):
         raise AudioFehler(f"Bei Faktor {faktor:g} ist nichts vorzuspulen.")

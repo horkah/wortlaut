@@ -1,11 +1,8 @@
 """Textquelle „LLM": Thema und Altersspanne → Vorlesetext.
 
-Ein Adapter, ein Anbieter. Weitere Anbieter kommen als weitere Funktion in
-`_ANBIETER` dazu; der Rest des Systems sieht nur `erzeuge_text()`.
-
-Wichtig für den Datenschutz: Hier verlässt nur das *Thema* den Server, nie
-Stimm- oder Personendaten. Der Schalter ist trotzdem bewusst gesetzt - ohne
-`WORTLAUT_LLM_PROVIDER` bleibt die Quelle abgeschaltet.
+Je Anbieter eine Funktion in `_ANBIETER`; der Rest sieht nur `erzeuge_text()`.
+Den Server verlassen nur Thema und Altersspanne, nie Stimm- oder
+Personendaten; ohne `WORTLAUT_LLM_PROVIDER` ist die Quelle aus.
 """
 
 from __future__ import annotations
@@ -14,10 +11,7 @@ from dataclasses import dataclass
 
 from .. import sprachen
 
-# Die Anweisung selbst bleibt deutsch - sie richtet sich an das Sprachmodell,
-# nicht an den Menschen. Was sich ändert, ist die Sprache, in der es schreiben
-# soll: Ein englisches Profil bekommt englische Vorlagen, sonst liest jemand
-# Sätze vor, die nicht seine sind (`wortlaut/sprachen.py`).
+# Die Anweisung ist deutsch, der Text entsteht in der Sprache des Profils.
 def systemanweisung(sprache: str) -> str:
     return (
         f"Du schreibst Vorlesetexte für Sprachaufnahmen in dieser Sprache: "
@@ -110,13 +104,9 @@ def _openai(auftrag: Auftrag, *, api_schluessel: str, modell: str, basis_url: st
 
 
 def _anthropic(auftrag: Auftrag, *, api_schluessel: str, modell: str, basis_url: str = "") -> str:
-    # `basis_url` bleibt hier ungenutzt: Alle Adapter haben dieselbe Signatur,
-    # damit `erzeuge_text` sie ohne Sonderfall aufrufen kann. Die Adresse von
-    # Claude steht fest.
+    # `basis_url` ungenutzt - alle Adapter teilen eine Signatur.
     if not api_schluessel:
         raise ValueError("WORTLAUT_LLM_API_KEY fehlt.")
-    # Erst hier importieren: wer die LLM-Quelle nicht nutzt, braucht das Paket
-    # zur Laufzeit nicht zu laden.
     import anthropic
 
     klient = anthropic.Anthropic(api_key=api_schluessel)

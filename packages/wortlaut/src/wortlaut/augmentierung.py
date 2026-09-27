@@ -1,53 +1,24 @@
-"""Dieselbe Aufnahme, unter veränderten Bedingungen gehört.
+"""Dieselbe Aufnahme, unter veränderten Bedingungen gehört - die gemessenen Fassungen.
 
-Eine Aufnahme im Korpus ist ein einzelner Fall: diese Stimme, dieses Mikrofon,
-dieser Abstand, dieser Raum. Was die Auswertung daraus lernt, gilt streng
-genommen nur für genau diesen Fall. Ob ein Modell den Sprecher *versteht* oder
-bloß diese eine Aufnahmesituation gut verträgt, lässt sich daran nicht
-ablesen - und das ist die Frage, auf die es ankommt, denn die nächste Aufnahme
-entsteht mit anderem Pegel und anderem Grundgeräusch.
+Eine Aufnahme ist ein einzelner Fall: diese Stimme, dieses Mikrofon, dieser
+Raum. Ob ein Modell den Sprecher versteht oder nur diese Aufnahmesituation
+verträgt, zeigt erst eine Abwandlung:
 
-Deshalb bekommt jede Aufnahme eine Abwandlung, und zwar eine bewusst schlichte:
+* **`rauschen`** - hörbares Grundrauschen in festem Abstand zur Lautstärke der
+  Aufnahme: der Lüfter, die Straße, das billige Mikrofon. Rauschen ändert das
+  Spektrogramm an jeder Stelle; eine bloße Verstärkung dagegen verschiebt im
+  normierten Log-Mel-Spektrogramm kaum mehr als einen Summanden.
 
-* **`rauschen`** - ein kleines, hörbares Grundrauschen darüber, in festem
-  Abstand zur Lautstärke der Aufnahme selbst. Das ist der Lüfter, die Straße,
-  das billige Mikrofon.
+**Fester Abstand statt festem Pegel**, damit die Störung für eine leise und
+eine laute Aufnahme gleich schwer wiegt. **Gewürfelt und wiederholbar**: Der
+Keim ist die Kennung der Aufnahme, dieselbe Aufnahme ergibt auf jeder Maschine
+dasselbe Rauschen.
 
-**Warum nur noch eine.** Hier standen bis September 2026 zwei weitere:
-`pegel` (lauter gerechnet bis knapp unter den Anschlag) und `lauter` (alles
-mal 1,15). Beide sind gemessen worden, und beide sind an Whisper nahezu
-wirkungslos: Das Modell hört kein Wellenfeld, sondern ein Log-Mel-Spektrogramm,
-und eine gleichmäßige Verstärkung verschiebt darin im Wesentlichen einen
-Summanden. Was zwei Drittel der Rechenzeit einer Auswertung kostete, trennte
-keine zwei Modelle voneinander - und eine Fassung, die nichts unterscheidet,
-ist keine Messung, sondern eine Spalte. Sie sind samt ihren Dateien und
-Datenbankzeilen verworfen (`009_ohne_pegelvarianten.sql`).
+Dies sind die Fassungen, in denen **gemessen** wird - wenige und fest, damit
+Modelle vergleichbar bleiben. Womit **trainiert** wird, steht in
+`apps/lernen/training/klangwandel.py`: breit, zufällig, je Durchgang anders.
 
-Was blieb, ist die eine, die wirklich etwas anderes verlangt: Rauschen ändert
-das Spektrogramm an jeder Stelle und nicht nur seine Höhe.
-
-**Warum fester Abstand und nicht fester Pegel.** Ein absoluter Rauschpegel
-träfe eine leise Aufnahme viel härter als eine laute - die Abwandlung wäre für
-jede Aufnahme eine andere, und der Vergleich zwischen zwei Aufnahmen sagte
-dann mehr über deren Aussteuerung als über das Modell. Mit einem festen
-Rauschabstand ist die Störung überall gleich schwer zu überhören.
-
-**Warum gewürfelt und trotzdem wiederholbar.** Rauschen ist Zufall, aber eine
-Messung, die sich nicht wiederholen lässt, ist keine. Der Würfel bekommt
-deshalb die Kennung der Aufnahme als Keim: Dieselbe Aufnahme ergibt bei jedem
-Lauf, auf jeder Maschine, dasselbe Rauschen. Eine gelöschte und neu gerechnete
-Datei ist Byte für Byte dieselbe wie vorher.
-
-**Wovon das hier zu unterscheiden ist.** Dies sind die Fassungen, in denen
-**gemessen** wird - dieselben für jedes Modell, seit Monaten vergleichbar, und
-deshalb absichtlich wenige. Womit **trainiert** wird, ist eine andere Frage und
-steht woanders (`apps/lernen/training/klangwandel.py`): Dort darf die
-Abwandlung breit, zufällig und je Durchgang verschieden sein, denn dort soll
-sie nichts vergleichbar machen, sondern ein Modell härter.
-
-Gerechnet wird ohne numpy, allein mit der Standardbibliothek - wie in
-`audio.py` und aus demselben Grund: Bei Ausschnitten von wenigen Sekunden ist
-das schnell genug und spart eine schwere Abhängigkeit im Web-Prozess.
+Gerechnet wird mit der Standardbibliothek, ohne numpy im Webprozess.
 """
 
 from __future__ import annotations
@@ -62,9 +33,7 @@ from pathlib import Path
 
 from .audio import AudioFehler
 
-# Die unabgewandelte Aufnahme. Sie ist keine Abwandlung und wird nirgends
-# erzeugt - sie liegt schon da. Der Name steht hier, damit er an einer Stelle
-# steht und nicht als Zeichenkette in jeder Abfrage.
+# Die unabgewandelte Aufnahme - keine Abwandlung, sie liegt schon da.
 ORIGINAL = "original"
 
 # Die Grenzen eines 16-Bit-Abtastwerts. Was darüber hinausginge, wird
@@ -90,15 +59,12 @@ def _rms(werte: array.array) -> float:
 def mit_rauschen(werte: array.array, keim: str) -> array.array:
     """Weißes Rauschen darüber, `RAUSCHABSTAND_DB` unter der Aufnahme.
 
-    Normalverteilt und nicht gleichverteilt: So klingt es nach Grundgeräusch
-    und nicht nach einem Defekt. Der Keim macht das Ergebnis wiederholbar
-    (siehe Kopfkommentar).
+    Normalverteilt, damit es nach Grundgeräusch klingt und nicht nach einem
+    Defekt.
     """
     streuung = _rms(werte) * 10 ** (-RAUSCHABSTAND_DB / 20)
     if streuung < 1.0:
-        # Unter einem Abtastwert Streuung bliebe nach dem Runden fast nichts
-        # übrig - bei einer (fast) stillen Aufnahme käme eine Abwandlung
-        # heraus, die keine ist. Dann lieber das kleinste hörbare Rauschen.
+        # Darunter bliebe nach dem Runden bei einer fast stillen Aufnahme nichts.
         streuung = 1.0
     wuerfel = random.Random(keim)
     return array.array("h", (_begrenzt(wert + wuerfel.gauss(0.0, streuung)) for wert in werte))
@@ -123,9 +89,7 @@ ABWANDLUNGEN = (
     ),
 )
 
-# Die Reihenfolge, in der überall gezählt und angezeigt wird: das Original
-# zuerst, dann die Abwandlungen. Eine Stelle, damit Lauf, Auskunft und Ansicht
-# nicht drei verschiedene Reihenfolgen haben.
+# Die Reihenfolge, in der überall gezählt und angezeigt wird.
 VARIANTEN = (ORIGINAL, *(abwandlung.name for abwandlung in ABWANDLUNGEN))
 
 _NACH_NAME = {abwandlung.name: abwandlung for abwandlung in ABWANDLUNGEN}
@@ -141,9 +105,8 @@ def abwandlung(name: str) -> Abwandlung:
 def wandle_ab(quelle: Path, ziel: Path, name: str, keim: str) -> None:
     """Liest eine WAV-Datei, wandelt sie ab und schreibt das Ergebnis.
 
-    Länge, Abtastrate und Format bleiben, was sie waren - abgewandelt werden
-    die Abtastwerte, nicht die Datei. Nur so ist die Abwandlung zur Aufnahme
-    Punkt für Punkt dieselbe Stelle.
+    Länge, Abtastrate und Format bleiben; abgewandelt werden nur die
+    Abtastwerte.
     """
     with wave.open(str(quelle), "rb") as datei:
         if datei.getsampwidth() != 2 or datei.getnchannels() != 1:

@@ -184,39 +184,16 @@ class Guete:
 def genauigkeit(wer: float, cer: float, mer: float, wil: float) -> float:
     """Eine Zahl von 0 bis 100 aus den vier Fehlerraten - das geometrische Mittel.
 
-    Gesucht war ein Wert, den man über Aufnahmen und Modelle hinweg vergleichen
-    kann, ohne vier Kurven nebeneinander zu legen. Drei Entscheidungen stecken
-    darin:
+    * **WER und CER werden gebogen, nicht gekappt** (`1/(1+x)`): Sie können
+      über 1 steigen, wenn Whisper bei Stille denselben Satz wiederholt, und
+      „jedes Wort falsch" soll von „dreimal richtig geliefert" unterscheidbar
+      bleiben. Monoton, glatt, nie ganz null.
+    * **Null ist der Boden von MER und WIL**: Beide erreichen 1 genau dann,
+      wenn kein Wort getroffen wurde - Genauigkeit 0 heißt „nichts richtig".
+    * **Geometrisch**, damit ein durchgefallenes Maß nicht von zwei guten
+      aufgerechnet wird.
 
-    **Die unbeschränkten Raten werden gebogen, nicht gekappt.** WER und CER
-    können über 1 hinausgehen, wenn ein Modell mehr ausgibt, als gesprochen
-    wurde - Whisper neigt bei Stille dazu, denselben Satz mehrfach zu
-    wiederholen. Ein Deckel bei 1 wäre naheliegend und wäre falsch: Er machte
-    „jedes Wort daneben" und „den Satz dreimal geliefert" ununterscheidbar,
-    obwohl im zweiten Fall jedes Wort richtig erkannt wurde. Stattdessen
-    `1/(1+x)`: bei 0 Fehlern 1, bei WER 1 genau ½, darüber fallend und nie
-    ganz null. Monoton, glatt und ohne Sprungstelle - was für eine Kurve über
-    hunderte Aufnahmen zählt.
-
-    **Null bleibt der Boden, den MER und WIL setzen.** Die beiden sind von
-    Haus aus auf [0, 1] beschränkt und erreichen die 1 genau dann, wenn kein
-    einziges Wort getroffen wurde. Damit ist die Gesamtnote 0 gleichbedeutend
-    mit „nichts davon war richtig" - und nicht mit „irgendeine Rate ist eben
-    über den Deckel gerutscht".
-
-    **Gemittelt wird geometrisch, nicht arithmetisch.** Das arithmetische
-    Mittel lässt sich mit zwei guten Werten gegen einen katastrophalen
-    aufrechnen: Ein Modell, das die Zeichen ungefähr trifft, aber kein einziges
-    Wort, bekäme eine mittlere Note. Das geometrische Mittel kann das nicht -
-    fällt ein Faktor auf null, fällt das Ergebnis mit. Genau das ist hier
-    gewollt: Die vier Maße sind vier Blickwinkel auf dieselbe Frage, und wer
-    aus einem davon durchfällt, hat nicht verstanden, was gesagt wurde.
-
-    Alle vier zählen gleich. Eine Gewichtung wäre eine Behauptung darüber,
-    welcher Fehler schwerer wiegt - die hängt am Zweck (Vorlesen, Diktat,
-    Suche) und nicht am Modell. Solange dieser Zweck nicht feststeht, ist
-    gleiches Gewicht die ehrlichere Vorgabe. Wer es anders braucht, sieht die
-    Einzelmaße daneben; gespeichert werden sie alle.
+    Alle vier zählen gleich; eine Gewichtung hinge am Zweck, nicht am Modell.
     """
     faktoren = (
         1.0 / (1.0 + max(wer, 0.0)),

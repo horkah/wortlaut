@@ -7,25 +7,20 @@
     │   │   └── <aufnahme_id>.<variante>.wav     abgewandelte Fassungen
     │   └── zuschnitt/
     │       └── <aufnahme_id>.wav                beschnitten, wenn jemand schnitt
-    └── hoeren.sqlite                            Vorlagen, Aufnahmen, Sitzungen
+    ├── hoeren.sqlite                            Vorlagen, Aufnahmen, Sitzungen
 
-Je Sprecher eine Datenbank: „lernen" liest damit genau eine Datei, und die
-vollständige Löschung eines Sprechers ist das Entfernen eines Verzeichnisses.
-Diese Datei ist die einzige Stelle, die das Layout kennt.
+    └── vorlesen/<vorlage>.<stimme>.wav          vom Server vorgelesen
 
-**Warum die Varianten ein Stockwerk tiefer liegen.** Abgewandelte Fassungen
-(`wortlaut/augmentierung.py`) sind gerechnet und nicht gesprochen. Lägen sie
-neben den Aufnahmen, hieße `audio/` plötzlich „Aufnahmen und was daraus
-gerechnet wurde", und jedes Werkzeug, das über das Verzeichnis läuft, müsste
-den Unterschied am Dateinamen erraten - beim vierten würde es jemand
-vergessen. So bleibt `audio/` genau das, was die Datenbank in `recordings.blob`
-stehen hat, und `audio/varianten/` ist das Abgeleitete, das sich jederzeit neu
-rechnen lässt.
+Je Sprecher eine Datenbank: „lernen" liest genau eine Datei, eine Löschung
+entfernt ein Verzeichnis. Diese Datei ist die einzige Stelle, die das Layout
+kennt.
 
-Der Name trägt beides: erst die Aufnahme, dann die Variante. Ein sortiertes
-Verzeichnis liegt damit nach Aufnahmen geordnet da, und keine Variante kann
-mit einer Aufnahme verwechselt werden - Aufnahmekennungen enthalten keinen
-Punkt.
+In `audio/` liegt genau, was `recordings.blob` nennt - was ein Mensch
+gesprochen hat. Alles Abgeleitete liegt darunter oder daneben und lässt sich
+neu rechnen; kein Werkzeug muss den Unterschied am Dateinamen erraten. Pfade
+abgeleiteter Dateien folgen aus Kennung und Name und stehen in keiner Tabelle.
+Aufnahmekennungen enthalten keinen Punkt, also bleibt `<aufnahme>.<variante>`
+eindeutig und sortiert nach Aufnahmen.
 """
 
 from __future__ import annotations
@@ -46,23 +41,13 @@ def audio_relpfad(sprecher_id: str, aufnahme_id: str) -> str:
 
 
 def varianten_relpfad(sprecher_id: str) -> str:
-    """Wo alle abgewandelten Fassungen eines Sprechers liegen.
-
-    Ein eigener Name für das Verzeichnis, weil es als Ganzes angesprochen wird:
-    Es ist das Abgeleitete am Korpus, und eine Sicherung lässt es draußen
-    (`wortlaut/sicherung.py`).
-    """
+    """Wo alle abgewandelten Fassungen eines Sprechers liegen - die Sicherung
+    lässt das Verzeichnis draußen."""
     return f"{KORPUS}/{sprecher_id}/{VARIANTENORDNER}"
 
 
 def variante_relpfad(sprecher_id: str, aufnahme_id: str, variante: str) -> str:
-    """Wo die abgewandelte Fassung einer Aufnahme liegt.
-
-    Aus Kennung und Variantenname allein zu berechnen, und das ist Absicht:
-    Die Datei ist abgeleitet und jederzeit neu zu rechnen. Stünde ihr Pfad in
-    einer Tabelle, gäbe es zwei Wahrheiten darüber, wo sie liegt - und
-    irgendwann eine Zeile, zu der keine Datei mehr gehört.
-    """
+    """Wo die abgewandelte Fassung einer Aufnahme liegt."""
     return f"{KORPUS}/{sprecher_id}/{VARIANTENORDNER}/{aufnahme_id}.{variante}.wav"
 
 
@@ -70,34 +55,16 @@ ZUSCHNITTORDNER = "audio/zuschnitt"
 
 
 def zuschnitte_relpfad(sprecher_id: str) -> str:
-    """Wo alle zugeschnittenen Fassungen eines Sprechers liegen.
-
-    Ein eigener Name für das Verzeichnis als Ganzes, wie bei den Varianten:
-    Es wird am Stück angesprochen - beim Löschen eines Sprechers und beim
-    Nachsehen, was an Zuschnitten dasteht.
-    """
+    """Wo alle zugeschnittenen Fassungen eines Sprechers liegen."""
     return f"{KORPUS}/{sprecher_id}/{ZUSCHNITTORDNER}"
 
 
 def zuschnitt_relpfad(sprecher_id: str, aufnahme_id: str) -> str:
     """Wo die zugeschnittene Fassung einer Aufnahme liegt.
 
-    Ein Stockwerk tiefer als `audio/`, aus demselben Grund wie die Varianten:
-    In `audio/` liegt genau das, was `recordings.blob` nennt - der Ton, wie er
-    gesprochen wurde. Ein Zuschnitt ist daraus geschnitten, und zwar
-    verlustfrei: Bei 16 kHz mono PCM ist ein Schnitt das Kopieren eines
-    Byte-Bereichs, also steht in dieser Datei Abtastwert für Abtastwert
-    dasselbe wie im Original - nur ohne die Stille an den Rändern.
-
-    Aus Kennung allein zu berechnen und nicht in einer Spalte, ebenfalls wie
-    bei den Varianten. Was in der Zeile steht, sind die **Grenzen**
-    (`zuschnitt_start_s`, `zuschnitt_ende_s`); der Pfad folgt daraus. Stünde er
-    daneben, gäbe es zwei Wahrheiten darüber, wo die Datei liegt.
-
-    Ein Zuschnitt je Aufnahme, nicht mehr: Ein zweiter Schnitt ersetzt den
-    ersten. Eine Kette von Fassungen wäre eine Versionsgeschichte, und die
-    gehört nicht in ein Verzeichnis, das jede andere App als „die Arbeitsdatei"
-    liest.
+    Verlustfrei aus dem Original geschnitten; die Grenzen stehen in der Zeile
+    (`zuschnitt_start_s`, `zuschnitt_ende_s`). Ein Zuschnitt je Aufnahme - ein
+    zweiter ersetzt den ersten.
     """
     return f"{KORPUS}/{sprecher_id}/{ZUSCHNITTORDNER}/{aufnahme_id}.wav"
 
@@ -106,37 +73,21 @@ VORLESENORDNER = "vorlesen"
 
 
 def vorlesen_relpfad(sprecher_id: str) -> str:
-    """Wo die vorgelesenen Vorlagen eines Sprechers liegen.
-
-    Ein eigener Ordner neben `audio/`, und das ist dieselbe Trennung wie bei
-    den Varianten: In `audio/` liegt, was ein Mensch gesprochen hat, hier liegt,
-    was eine Maschine gesprochen hat. Sie zu vermischen hieße, dass jedes
-    Werkzeug, das über den Korpus läuft, den Unterschied am Dateinamen erraten
-    müsste - beim vierten würde es jemand vergessen.
-
-    Abgeleitet wie die Varianten: jederzeit neu zu rechnen, nicht in der
-    Sicherung (`wortlaut/sicherung.py`), und mit dem Sprecher gelöscht.
-    """
+    """Wo die vorgelesenen Vorlagen eines Sprechers liegen - was eine Maschine
+    gesprochen hat, neben `audio/`; nicht in der Sicherung."""
     return f"{KORPUS}/{sprecher_id}/{VORLESENORDNER}"
 
 
 def vorlesung_relpfad(sprecher_id: str, vorlage_id: str, stimme: str) -> str:
-    """Wo die vorgelesene Fassung einer Vorlage liegt - je Stimme eine Datei.
-
-    Der Stimmenname steht im Dateinamen und nicht in einer Tabelle: Die Datei
-    ist abgeleitet, und zwei Wahrheiten darüber, welche Stimme sie spricht,
-    wären eine zu viel. Er wird dafür auf das beschränkt, was in einen
-    Dateinamen gehört (siehe `stimmenname`).
-    """
+    """Wo die vorgelesene Fassung einer Vorlage liegt - je Stimme eine Datei."""
     return f"{KORPUS}/{sprecher_id}/{VORLESENORDNER}/{vorlage_id}.{stimmenname(stimme)}.wav"
 
 
 def stimmenname(stimme: str) -> str:
     """Ein Stimmenschlüssel als Teil eines Dateinamens.
 
-    `piper/de_DE-thorsten-high` wird zu `piper-de_DE-thorsten-high`. Der
-    Schrägstrich trennt Motor und Stimme und darf in keinen Pfad; der Punkt
-    trennt im Dateinamen die Vorlage von der Stimme und darf es ebenso wenig.
+    `piper/de_DE-thorsten-high` wird zu `piper-de_DE-thorsten-high`: Weder der
+    Schrägstrich noch der Punkt, der Vorlage und Stimme trennt, darf hinein.
     """
     return stimme.replace("/", "-").replace(".", "-")
 
