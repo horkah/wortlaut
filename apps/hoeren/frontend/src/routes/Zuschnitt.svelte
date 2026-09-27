@@ -2,7 +2,7 @@
   // Welche Seite gerade offen ist - über die Ansicht hinaus gemerkt. Wer aus
   // „Editieren" zurückkommt, soll dort weiterarbeiten, wo er die Karte
   // verlassen hat, und nicht auf Seite 1 von vorn suchen. Nur für diesen
-  // Reiter und diese Sitzung: Ein Neuladen fängt vorn an, wie bisher.
+  // Reiter und diese Sitzung: Ein Neuladen fängt vorn an.
   const gemerkt = { seite: 1, proSeite: 0 };
 </script>
 
@@ -10,25 +10,17 @@
   /**
    * Zuschnitt: die Stille an den Rändern der eigenen Aufnahmen wegschneiden.
    *
-   * Erreichbar aus „Meine Daten" und nur von dort - kein Reiter, kein
-   * Menüpunkt. Das ist dieselbe Stellung, die die Einsicht der Aufsicht hat
-   * (`Einsicht.svelte`): eine Werkbank, zu der ein Weg führt und derselbe
-   * zurück. In der Reiterreihe stünde sie neben „Aufnehmen" und „Fortschritt",
-   * also zwischen Dingen, die ein Sprecher täglich tut - und wäre damit
-   * genauso oft ein Fehlgriff wie eine Hilfe (Grundentscheidung 7).
+   * Eine Werkbank, erreichbar nur aus „Meine Daten" - wie die Einsicht der
+   * Aufsicht, nicht zwischen den täglichen Reitern (Grundentscheidung 7).
    *
-   * **Was hier passiert.** Je Aufnahme eine Karte: der Lautstärkeverlauf, zwei
-   * orange Linien darin, die Vorlage darunter, zwei Knöpfe zum Hören. Die
-   * Linien stehen anfangs dort, wo der Server die Stimme vermutet
-   * (`audio.stimmgrenzen`) - oder dort, wo schon einmal geschnitten wurde.
-   * Verschoben werden sie mit Finger, Maus oder Pfeiltasten.
+   * Je Aufnahme eine Karte: Lautstärkeverlauf mit zwei Linien, Vorlage, zwei
+   * Knöpfe zum Hören. Die Linien stehen, wo der Server die Stimme vermutet
+   * (`audio.stimmgrenzen`) oder ein Zuschnitt schon sitzt; verschoben mit
+   * Finger, Maus oder Pfeiltasten.
    *
-   * **Und was hier nicht passiert.** Geschrieben wird nichts, solange niemand
-   * unten auf den Knopf drückt und die Rückfrage bestätigt. Bis dahin ist der
-   * Ausschnitt eine Zahl in diesem Browser; auch der Ausschnitt-Knopf spielt
-   * nur einen Bereich der geladenen Datei ab (`$ui/ausschnitt`). Es gibt keine
-   * vorläufigen Dateien auf dem Server - eine angefangene Bearbeitung, die
-   * jemand wegklickt, hinterlässt nichts.
+   * Geschrieben wird erst nach Knopf und Rückfrage. Bis dahin ist der
+   * Ausschnitt eine Zahl im Browser und wird aus der geladenen Datei
+   * abgespielt (`$ui/ausschnitt`) - keine vorläufigen Dateien auf dem Server.
    */
   import Pager from '$ui/Pager.svelte';
   import Pegelverlauf from '$ui/Pegelverlauf.svelte';

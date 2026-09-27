@@ -2,30 +2,17 @@
  * Die Diagrammbibliothek, einmal eingerichtet - und die einzige Stelle, die
  * sie kennt.
  *
- * **Warum ECharts.** Die erste Kurve (Auswertung in „hören") käme mit weniger
- * aus. Kommen sollen aber mehrere, die voneinander wissen: derselbe
- * Zoomausschnitt, derselbe Zeiger, ein Klick, der in allen dasselbe markiert.
- * Das ist der Punkt, an dem die meisten schlanken Bibliotheken aufhören und an
- * dem man sie ersetzen müsste - also lieber gleich die, die es kann. ECharts
- * bringt mit, was gebraucht wird: Zeigen, Ziehen und Zwei-Finger-Zoom auf dem
- * Telefon genauso wie mit der Maus, gemischte Reihen in einem Bild (Balken und
- * Punkte), und `verbinde` unten koppelt mehrere Diagramme aneinander.
+ * **Warum ECharts.** Die Kurven wissen voneinander - derselbe Zoom, derselbe
+ * Zeiger, ein Klick markiert überall dasselbe (`verbinde`). Dazu Zeigen,
+ * Ziehen und Zwei-Finger-Zoom auf dem Telefon und gemischte Reihen in einem
+ * Bild.
  *
  * **Warum diese Datei.** Die Bausteine werden hier **namentlich** eingeführt
- * und nicht als ganzes Bündel. Das ist kein Stil, sondern der Unterschied
- * zwischen 90 und 370 Kilobyte im Browser: Ein `import * as charts` und ein
- * Zugriff darauf zur Laufzeit lässt dem Bündler keine Wahl, als jede Kurvenart
- * mitzunehmen, die ECharts kennt - Landkarten, Baumdiagramme, Kerzencharts.
- * Wer eine neue Art braucht, trägt sie hier ein; das ist zugleich die Liste
- * dessen, was diese Oberfläche überhaupt zeichnet.
+ * und nicht als ganzes Bündel - 90 statt 370 Kilobyte. Wer eine neue Art
+ * braucht, trägt sie hier ein.
  *
- * **Warum in dieser App und nicht in `packages/ui`.** Die geteilten
- * Komponenten kommen bisher ohne eine einzige fremde Bibliothek aus - sie
- * haben kein eigenes `node_modules` und werden aus dem der jeweiligen App
- * gebaut. Ein `import 'echarts'` dort fände nichts. Solange nur „hören"
- * zeichnet, ist das der ehrlichere Ort; braucht eine zweite App Diagramme,
- * ist der Umzug nach `packages/ui` ein npm-Arbeitsbereich und diese Datei
- * unverändert.
+ * In der App und nicht in `packages/ui`, das kein eigenes `node_modules` hat;
+ * „lernen" hat seine eigene Fassung mit anderen Bausteinen.
  *
  * Geladen wird das Ganze erst, wenn eine Ansicht es braucht
  * (`await import('./diagramm')`) - die Aufnahmeseite schleppt es nicht mit.

@@ -145,11 +145,8 @@
       return;
     }
 
-    // Wer zum ersten Mal eine PIN einrichtet, bekommt die Seite gleich wieder
-    // zugesperrt und muss sie einmal eingeben. Nicht als Schikane: Eine PIN,
-    // die man setzt und nie tippt, merkt man sich nicht - und wer sich hier
-    // vertippt hat, erfährt es in derselben Minute, statt beim nächsten
-    // Besuch vor einer Seite zu stehen, die ihn nicht mehr hereinlässt.
+    // Nach dem Einrichten sperrt die Seite gleich wieder: Wer die PIN einmal
+    // tippt, merkt sie sich - und ein Vertipper fällt sofort auf.
     const ersteinrichtung = !meinePin;
 
     await tue(

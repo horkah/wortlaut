@@ -2,18 +2,13 @@
   /**
    * Die Verwaltung: Profile anlegen und Zugänge ausgeben.
    *
-   * Hier wird nicht mehr ausgewählt, wer man ist - das entscheidet der Zugang,
-   * mit dem der Browser ruft. Was hier passiert, ist die Übergabe: Für jeden
-   * Sprecher wird einmal ein Link erzeugt, und den bekommt die Person als
-   * Lesezeichen. Danach nie wieder etwas merken oder tippen.
+   * Wer man ist, entscheidet der Zugang. Hier wird er übergeben: je Sprecher
+   * ein Link als Lesezeichen, danach nichts mehr merken oder tippen. Der Link
+   * ist genau einmal zu sehen, gespeichert ist nur sein Prüfwert; verloren
+   * heißt: einen neuen ausgeben.
    *
-   * Den Link gibt es genau einmal zu sehen; gespeichert ist nur sein Prüfwert.
-   * Verloren heißt deshalb: einen neuen ausgeben - und damit ist der alte tot.
-   *
-   * Dieselbe Seite sieht die Aufsicht, nur mit mehr darauf: Zu jedem Sprecher
-   * steht dann, wie viel er gesammelt hat, und ein Weg in seine Daten
-   * (`Einsicht.svelte`). Zwei getrennte Seiten wären zwei Listen derselben
-   * Sprecher - eine davon immer die falsche.
+   * Die Aufsicht sieht dieselbe Seite mit mehr: Umfang je Sprecher und einen
+   * Weg in seine Daten (`Einsicht.svelte`).
    */
   import { dauer } from '$ui/zeit';
   import { ApiFehler } from '$ui/api';
@@ -112,9 +107,7 @@
 
   async function kopiere() {
     if (!frisch) return;
-    // Über den gemeinsamen Weg, seit „schreiben" denselben Knopf hat: Ein
-    // nacktes `navigator.clipboard` gibt es nicht überall, und ein `await`
-    // darauf warf hier einen Fehler, den niemand sah (`$ui/zwischenablage`).
+    // `navigator.clipboard` gibt es nicht überall (`$ui/zwischenablage`).
     kopiert = await inDieZwischenablage(frisch.link);
     if (!kopiert) fehler = 'Das Kopieren hat nicht geklappt - der Link steht oben zum Auswählen.';
   }
