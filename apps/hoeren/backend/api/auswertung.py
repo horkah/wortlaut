@@ -144,6 +144,9 @@ class AuswertungAntwort(BaseModel):
     modelle: list[str]
     # Ein Stand heißt nach seiner Kurzkennung.
     beschriftungen: dict[str, str] = {}
+    # Stand -> der Lauf, aus dem er kam: der Weg in seine Einzelansicht in
+    # „lernen". Ein Grundmodell hat keinen.
+    laeufe: dict[str, str] = {}
     varianten: list[VarianteAntwort]
     metriken: list[MetrikAntwort]
     stand: StandAntwort
@@ -187,6 +190,15 @@ def _namen(sprecher: str) -> list[str]:
 def _beschriftungen(namen: list[str]) -> dict[str, str]:
     """`small` bleibt `small`, ein Stand wird zu `K7M2Q` (`wortlaut/registry.py`)."""
     return {name: registry.beschriftung(name) for name in namen}
+
+
+def _laeufe(sprecher: str) -> dict[str, str]:
+    """Zu jedem Stand die Kennung seines Laufs, aus dem Manifest."""
+    return {
+        str(manifest["id"]): str(manifest["job_id"])
+        for manifest in registry.alle_staende(einstellungen().data_dir, sprecher)
+        if manifest.get("id") and manifest.get("job_id")
+    }
 
 
 def _werk() -> str:
@@ -253,6 +265,7 @@ def uebersicht(db: Datenbank, sprecher: SprecherId) -> AuswertungAntwort:
     return AuswertungAntwort(
         modelle=namen,
         beschriftungen=_beschriftungen(namen),
+        laeufe=_laeufe(sprecher),
         varianten=VARIANTEN,
         metriken=METRIKEN,
         stand=_stand(db, sprecher),
