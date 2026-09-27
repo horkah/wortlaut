@@ -1257,6 +1257,12 @@ sechs Messungen je Aufnahme. Vier Eigenschaften sind Absicht:
   Prozessor, knapp drei in `int8_float16` auf der Karte. Das ist der Grund für
   die halbe Darstellung: In `float16` wären es gut sechs, und die Karte teilt
   sich die Auswertung mit dem Training und dem Sprachmodell.
+* **Nach dem Lauf ist die Karte wieder frei.** Endet ein Lauf - fertig,
+  abgebrochen oder gescheitert -, nimmt die Auswertung alle ihre Erkenner
+  herunter (`gib_karte_frei`). Bis September 2026 behielt sie sie, samt der
+  trainierten Stände gut fünf Gigabyte, und Trainingsläufe scheiterten gleich
+  beim ersten Schritt am Speicher. Der nächste Lauf lädt sie neu; das kostet
+  Sekunden.
 * **Wiederaufnehmbar.** Fertig ist, was in `erkennungen` steht
   (`005_auswertung.sql`, `007_varianten.sql`). Ein zweiter Lauf rechnet nur,
   was fehlt - nach einem Neustart, nach neuen Aufnahmen, nach einem

@@ -25,7 +25,16 @@ Kurve dann lange Zeit eine einzige Reihe, und verglichen werden soll gerade.
 Also andersherum: Aufnahme für Aufnahme durch alle Modelle, damit die ersten
 Punkte sofort vollständig sind. Bezahlt wird das damit, dass alle Erkenner
 gleichzeitig im Speicher liegen (`_transkriptoren`) - bei small, medium und
-large-v3 in `int8` gut zweieinhalb Gigabyte.
+large-v3 in `int8` gut zweieinhalb Gigabyte, und jeder trainierte Stand, der
+mit antritt, legt noch etwas dazu.
+
+**Warum sie nach dem Lauf gehen.** Die Karte gehört nicht der Auswertung
+allein: Der Trainer will sie ganz, und er fragt nicht, wer sie hält. Ein
+Webdienst, der nach einem Lauf seine Erkenner behielt, band still mehr als
+fünf der elf Gigabyte der Karte, und Trainingsläufe scheiterten gleich beim
+ersten Schritt am Speicher (September 2026). Endet ein Lauf - fertig, abgebrochen
+oder gescheitert -, nimmt `gib_karte_frei` sie herunter. Der nächste Lauf
+lädt sie neu; das kostet Sekunden.
 
 **Warum mehrfach je Aufnahme und Modell.** Eine Aufnahme ist ein einzelner
 Fall: dieser Pegel, dieses Mikrofon, dieser Raum. Ein Modell, das damit
@@ -123,8 +132,9 @@ class _Lauf:
 # langsamer als nacheinander.
 _lauf: _Lauf | None = None
 
-# Einmal geladen, dann wiederverwendet - das Laden eines Modells kostet
-# Sekunden, das Erkennen eines Satzes ebenso. Siehe Kopfkommentar.
+# Einmal geladen, dann für die Dauer eines Laufs wiederverwendet - das Laden
+# eines Modells kostet Sekunden, das Erkennen eines Satzes ebenso. Nach dem
+# Lauf geht alles herunter (`gib_karte_frei`). Siehe Kopfkommentar.
 _transkriptoren: dict[str, Transkriptor] = {}
 
 
@@ -247,6 +257,19 @@ def transkriptor_fuer(
             quelle, geraet=geraet, rechenart=rechenart
         )
     return _transkriptoren[modell]
+
+
+def gib_karte_frei() -> None:
+    """Alle Erkenner der Auswertung herunternehmen - die Karte wird wieder frei.
+
+    Nur wer ein Modell geladen hat, hat etwas zu entladen: Ein entfernter
+    Erkenner hält nichts auf dieser Karte und kennt `entlade` nicht.
+    """
+    for erkenner in _transkriptoren.values():
+        entlade = getattr(erkenner, "entlade", None)
+        if entlade is not None:
+            entlade()
+    _transkriptoren.clear()
 
 
 @dataclass(frozen=True)
@@ -881,6 +904,19 @@ async def _arbeite(
             db.commit()
 
 
+async def _mit_freier_karte_danach(*argumente) -> None:
+    """`_arbeite`, und danach die Karte frei - auch bei Abbruch und Fehler.
+
+    In der Aufgabe selbst und nicht in ihrem Rückruf: Der läuft erst, wenn
+    die Aufgabe schon als beendet gilt, und wer in diesem Augenblick fragt,
+    fände einen fertigen Lauf, der die Karte noch hält.
+    """
+    try:
+        await _arbeite(*argumente)
+    finally:
+        gib_karte_frei()
+
+
 def gleiche_ab(db: Session, datenverzeichnis: Path, sprecher_id: str) -> None:
     """Die Tabelle mit dem in Einklang bringen, was an Ständen dasteht.
 
@@ -963,7 +999,7 @@ def starte(
     stand_neu = Stand(laeuft=True, sprecher_id=sprecher_id)
     uebersprungen: set[tuple[str, str, str]] = set()
     aufgabe = asyncio.create_task(
-        _arbeite(
+        _mit_freier_karte_danach(
             engine,
             ablage,
             namen,

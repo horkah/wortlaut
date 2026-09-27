@@ -338,6 +338,59 @@ class TestLauf:
         assert "small" not in werte
 
 
+class EntladbarerErkenner:
+    """Steht für einen geladenen Erkenner und merkt sich, ob er herunter muss."""
+
+    def __init__(self) -> None:
+        self.entladen = False
+
+    def entlade(self) -> None:
+        self.entladen = True
+
+
+class TestKarte:
+    """Nach dem Lauf hält die Auswertung nichts mehr auf der Karte.
+
+    Sonst bliebe dem Trainer die Hälfte, und er scheiterte am ersten Schritt.
+    """
+
+    def test_nach_dem_lauf_sind_die_erkenner_entladen(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict
+    ) -> None:
+        antworten.update({"small": sprich(), "medium": "irgendwas"})
+        geladen = EntladbarerErkenner()
+        auswertung._transkriptoren["small"] = geladen
+
+        _laufe_bis_fertig(klient)
+
+        assert geladen.entladen
+        assert auswertung._transkriptoren == {}
+
+    def test_auch_nach_einem_abbruch(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict
+    ) -> None:
+        antworten.update({"small": sprich(), "medium": "irgendwas"})
+        geladen = EntladbarerErkenner()
+        auswertung._transkriptoren["small"] = geladen
+
+        assert klient.post("/api/auswertung/start").status_code == 200
+        assert klient.post("/api/auswertung/stopp").status_code == 200
+        ende = time.monotonic() + 10.0
+        while klient.get("/api/auswertung").json()["stand"]["laeuft"]:
+            assert time.monotonic() < ende, "Der Lauf hielt nicht an."
+
+        assert geladen.entladen
+        assert auswertung._transkriptoren == {}
+
+    def test_ein_erkenner_ohne_modell_wird_nur_vergessen(self) -> None:
+        # Ein entfernter Erkenner hält nichts auf dieser Karte.
+        auswertung._transkriptoren["fern"] = PlatzhalterErkenner("fern", {})
+
+        auswertung.gib_karte_frei()
+
+        assert auswertung._transkriptoren == {}
+
+
 class TestNachtraeglich:
     """Aufnahmen, die vor der Einführung der Fassungen im Korpus lagen.
 
