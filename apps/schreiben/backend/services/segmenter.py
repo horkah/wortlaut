@@ -6,21 +6,10 @@ geht einzeln als Audio-Text-Paar an „hören". Damit das geht, wird die Aufnahm
 an den gemeldeten Zeitmarken zerschnitten und je Abschnitt eine WAV-Datei
 abgelegt.
 
-Die zusammenhängende Aufnahme wird dabei nicht behalten. Sie wäre eine zweite
-Kopie derselben Stimmdaten, und gebraucht wird sie nach dem Schnitt nicht mehr.
-
-**Was Whisper hört, ist die Aufnahme selbst.** Hier stand bis September 2026
-eine Aufbereitung dazwischen: Das Diktat wurde vor dem Erkennen lauter
-gerechnet, bis seine Spitze knapp unter dem Anschlag stand. Sie ist weg, und
-zwar aus demselben Grund, aus dem in „hören" die Abwandlung `pegel` gefallen
-ist - Whisper hört ein Log-Mel-Spektrogramm, und eine gleichmäßige Verstärkung
-verschiebt darin kaum mehr als einen Summanden. Was sie kostete, waren eine
-zweite Datei je Diktat, ein Schalter, eine Tabelle und eine Erklärung; was sie
-brachte, war nicht zu messen.
-
-Geschnitten und abgelegt wird aus der Aufnahme, wie sie gesprochen wurde - das
-galt vorher und gilt weiter. Aus einer bestätigten Korrektur wird in „hören"
-eine Aufnahme im Korpus, und die soll dort so liegen, wie sie entstanden ist.
+Die zusammenhängende Aufnahme wird nicht behalten - eine zweite Kopie
+derselben Stimmdaten. Whisper hört die Aufnahme, wie sie gesprochen wurde, und
+so wird sie auch geschnitten: Aus einer bestätigten Korrektur wird in „hören"
+eine Aufnahme im Korpus.
 """
 
 from __future__ import annotations
@@ -60,21 +49,12 @@ def zerlege(
     verstandenes Wort ergibt eine leere Liste - das ist kein Fehler, sondern
     eine Antwort, mit der die Oberfläche umgehen kann.
 
-    **Vorgespult wird nur, was das Modell hört.** Gespeichert und geschnitten
-    wird die echte Aufnahme. Das ist kein Feinschliff, sondern die Bedingung
-    dafür, dass hinterher noch etwas stimmt: Im Korpus liegt die Stimme dieses
-    Menschen, nicht eine beschleunigte Fassung davon, und die Dauer eines
-    Abschnitts ist die Zeit, die er wirklich gesprochen hat.
+    Vorgespult wird nur, was das Modell hört; gespeichert und geschnitten wird
+    die echte Aufnahme. Die Zeitmarken meldet Whisper in gehörter Zeit und
+    werden deshalb mit dem Faktor zurückgerechnet.
 
-    **Und deshalb müssen die Zeitmarken zurückgerechnet werden.** Whisper
-    meldet sie in der Zeit, die es gehört hat - bei Faktor 2 also in halber.
-    Ungerechnet geschnitten ergäbe das Abschnitte, die bei der Hälfte der
-    Aufnahme enden, und niemand sähe daran, woran es liegt.
-
-    **Was hinter dem Ende der Aufnahme liegt, fällt weg.** Whisper meldet
-    gelegentlich Segmente, die erst nach dem letzten Abtastwert beginnen - es
-    hört ein aufgefülltes Fenster und findet in der Stille Sprache. Ein solcher
-    Abschnitt hat kein Audio und wird übergangen, wie ein stummes Segment auch.
+    Segmente hinter dem letzten Abtastwert - Whisper findet in der Auffüllung
+    manchmal Sprache - haben kein Audio und fallen weg.
     """
     with tempfile.TemporaryDirectory() as verzeichnis:
         wav = _als_wav(eingang, Path(verzeichnis))
@@ -94,15 +74,8 @@ def zerlege(
             start_s = abschnitt.start_s * faktor
             ende_s = min(abschnitt.ende_s * faktor, aufnahmedauer)
             if start_s >= aufnahmedauer:
-                # Ein Abschnitt, der erst hinter dem Ende der Aufnahme beginnt.
-                # Dazu gibt es kein Audio - also auch keinen Satz, den jemand
-                # gesprochen hätte; das ist eine Erfindung aus der Stille.
-                #
-                # Er wird übergangen wie ein stummes Segment und nicht als
-                # Fehler behandelt. Vorher scheiterte am leeren Schnitt das
-                # **ganze** Diktat mit „Leerer Ausschnitt 13,00-15,00 s" - alles
-                # richtig Verstandene ging mit, und auf dem Telefon stand ein
-                # Satz, mit dem niemand etwas anfangen kann.
+                # Beginnt hinter dem Ende der Aufnahme: eine Erfindung aus der
+                # Stille. Übergangen, damit das übrige Diktat nicht mitscheitert.
                 continue
             kennung = ids.neue_id("seg")
             ausschnitt = Path(verzeichnis) / f"{nummer}.wav"
@@ -140,8 +113,7 @@ def sprich_neu_ein(
     """
     with tempfile.TemporaryDirectory() as verzeichnis:
         wav = _als_wav(eingang, Path(verzeichnis))
-        # Hier wird nicht geschnitten, also braucht auch nichts zurückgerechnet
-        # zu werden - der Befund gilt der echten Aufnahme wie eh und je.
+        # Ohne Schnitt nichts zurückzurechnen; der Befund gilt der echten Aufnahme.
         transkript = transkriptor.transkribiere(
             _vorgespult(wav, Path(verzeichnis), faktor), sprache
         )

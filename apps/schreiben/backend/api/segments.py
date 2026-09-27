@@ -111,8 +111,8 @@ async def sprich_neu(
     except klang.AudioFehler as fehler:
         raise HTTPException(status_code=400, detail=str(fehler)) from fehler
     if not roh.text:
-        # Die alte Fassung steht noch; das neue Audio liegt schon unter
-        # derselben Kennung - beides zusammen wäre eine Lüge. Also zurück.
+        # Der Text steht noch, das neue Audio schon unter derselben Kennung -
+        # also zurück.
         raise HTTPException(status_code=422, detail="Aus der Aufnahme wurde kein Wort verstanden.")
 
     abschnitt.text = roh.text

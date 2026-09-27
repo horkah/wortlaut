@@ -2,10 +2,8 @@
 
 Bestätigt die Person ihren Text, wird jeder Abschnitt zu einem Korrekturpaar
 (Audio + Text) und geht an `POST /api/korpus/intake` von „hören". Dass diese
-App und „hören" beide erreichbar sind, ist nicht garantiert - deshalb liegt
-zwischen beiden eine Tabelle und kein direkter Aufruf.
-
-Zwei Zusagen halten das einfach:
+App und „hören" nicht immer beide erreichbar sind, liegt eine Tabelle
+dazwischen. Zwei Zusagen halten das einfach:
 
 * **Wiederholen ist gefahrlos.** Jede Lieferung nennt die Abschnittskennung
   als `externe_id`; „hören" erkennt daran eine Wiederholung und legt nichts
@@ -78,11 +76,8 @@ def sende_offene(
     Ohne `WORTLAUT_INTAKE_URL` wird nichts gesendet und nichts als gescheitert
     gezählt: Der Postausgang ist dann ein Puffer, der auf seine Adresse wartet.
 
-    `sprecher_id` und `token` sind der Zugang dessen, der gerade bestätigt oder
-    einen zweiten Versuch angestoßen hat. Sie werden durchgereicht und nicht
-    gespeichert: Ein Geheimnis, das in dieser Datenbank läge, wäre eines mehr,
-    das dort verloren gehen kann - und ein Sendelauf ohne Menschen davor gibt
-    es nicht.
+    `sprecher_id` und `token` sind der Zugang dessen, der den Versand
+    anstößt - durchgereicht, nie gespeichert.
     """
     offene = list(
         db.scalars(
@@ -139,15 +134,9 @@ def liefere_ein(
 ) -> None:
     """Eine Korrektur an „hören" übergeben. Wirft, wenn es nicht geklappt hat.
 
-    Eigene Funktion, damit der Weg nach draußen an genau einer Stelle steht -
-    und damit ein Test ihn ersetzen kann, ohne einen Server zu starten.
-
-    Der Token ist der Zugang des Sprechers, der diesen Text bestätigt hat; er
-    bestimmt bei „hören", in welchen Korpus geschrieben wird. `sprecher` geht
-    trotzdem mit: nicht als Wahl, sondern als Behauptung, die „hören" gegen den
-    Zugang hält. Beide stammen hier aus derselben Anfrage und können deshalb
-    gar nicht mehr auseinanderfallen - die 403 von drüben bleibt als Netz für
-    den Fall, dass doch einmal jemand daran vorbeibaut.
+    Eine Stelle für den Weg nach draußen, die Tests ersetzen können. Der Token
+    bestimmt bei „hören" den Korpus; `sprecher` geht als Behauptung mit, die
+    „hören" gegen den Zugang hält (sonst 403).
     """
     import httpx
 
