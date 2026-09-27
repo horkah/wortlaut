@@ -283,8 +283,14 @@ def bewerte_faltung(
 
     sprecher_id = str(auftrag["sprecher_id"])
     korpuswurzel = datenverzeichnis / corpus.sprecher_relpfad(sprecher_id)
+    # Beim Kern nur seine Aufnahmen, auf seinen Faltungen - dieselben, an denen
+    # das Training dieser Faltung gesteuert wurde. Die übrigen misst erst die
+    # Auswertung in „hören", am Endmodell (`wortlaut/laeufe.py`, „Die Auswahl").
     _lern, zeilen = zeilen_fuer_faltung(
-        verzeichnis, faltung, str(auftrag.get("daten") or laeufe.NUR_ORIGINAL)
+        verzeichnis,
+        faltung,
+        str(auftrag.get("daten") or laeufe.NUR_ORIGINAL),
+        kern=laeufe.kernfaltungen_aus(verzeichnis, auftrag),
     )
 
     bericht.stufe("bewerten", test_zeilen=len(zeilen))
@@ -337,8 +343,8 @@ def vervollstaendige_kern(
     noch nie gehört hat, stehen in der Kernauswahl als `offen`. Sie hört es
     hier, bevor die erste Faltung beginnt, auf ihrem Original und mit seinem
     Tempo - dieselbe Messung, die „hören" in seiner Auswertung anstellen
-    würde. Danach wird nach derselben Regel gewählt wie beim Server
-    (`laeufe.waehle_kern`), und erst dann gelernt.
+    würde. Danach wird nach derselben Regel gewählt und auf eigene Faltungen
+    verteilt wie beim Server (`laeufe.mit_kern`), und erst dann gelernt.
 
     Was schon gewählt ist, bleibt gewählt: Ein neu gestarteter Lauf übernimmt
     die Kernauswahl seines Vorgängers (`services/auftraege.UEBERNOMMEN`), und
@@ -401,23 +407,13 @@ def vervollstaendige_kern(
             if eigener:
                 erkenner.entlade()
 
-    kern = laeufe.waehle_kern(wer)
-    nachgemessen = sorted(str(zeile["recording_id"]) for zeile in zeilen)
-    inhalt = {key: wert for key, wert in inhalt.items() if key != "offen"}
-    laeufe.schreibe_json(
-        pfad,
-        {
-            **inhalt,
-            "anzahl": len(kern),
-            "wer": wer,
-            "nachgemessen": nachgemessen,
-            "kern": kern,
-            "schwelle": max((wer[kennung] for kennung in kern), default=0.0),
-        },
+    gewaehlt = laeufe.mit_kern(
+        {**inhalt, "wer": wer, "nachgemessen": sorted(str(zeile["recording_id"]) for zeile in zeilen)}
     )
+    laeufe.schreibe_json(pfad, gewaehlt)
     bericht.sage(
-        f"Kernauswahl: {len(kern)} von {len(wer)} Aufnahmen, WER bis "
-        f"{max((wer[kennung] for kennung in kern), default=0.0):.2f}"
+        f"Kernauswahl: {len(gewaehlt['kern'])} von {len(wer)} Aufnahmen, "
+        f"WER bis {gewaehlt['schwelle']:.2f}"
     )
 
 

@@ -168,17 +168,47 @@ class TestWahl:
             laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]), auftrag
         ) == set(aufnahmen[:anzahl])
 
-    def test_gemessen_wird_weiter_an_allen(
+    def test_der_lauf_sieht_nur_den_kern(
         self, klient: TestClient, aufnahmen: list[str], datenverzeichnis: Path, sprecher: str
     ) -> None:
-        # Das Manifest ist derselbe Schnappschuss wie ohne Kern: Welche Zeilen
-        # gelernt werden, entscheidet erst der Trainer (`daten.zeilen_fuer_faltung`).
-        _stand_mit_werten(
-            klient, datenverzeichnis, sprecher, {kennung: 0.1 for kennung in aufnahmen}
-        )
+        # Das Manifest bleibt der ganze Schnappschuss. Die Faltungen des Laufs
+        # aber liegen allein über dem Kern - gleichmäßig verteilt, und keine
+        # Aufnahme außerhalb kommt in einer davon vor, auch nicht zum Messen.
+        wer = {kennung: stelle / 10 for stelle, kennung in enumerate(aufnahmen)}
+        _stand_mit_werten(klient, datenverzeichnis, sprecher, wer)
         lauf = klient.post("/lernen/api/laeufe", json=KERN).json()
-        zeilen = laeufe.manifestzeilen(laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]))
+        verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"])
+        zeilen = laeufe.manifestzeilen(verzeichnis)
         assert {zeile["recording_id"] for zeile in zeilen} == set(aufnahmen)
+
+        auftrag = laeufe.lies_json(verzeichnis / laeufe.AUFTRAG)
+        faltungen = laeufe.kernfaltungen_aus(verzeichnis, auftrag)
+        anzahl = math.ceil(len(aufnahmen) * laeufe.KERN_ANTEIL)
+        assert set(faltungen) == set(aufnahmen[:anzahl])
+        groessen = [list(faltungen.values()).count(nummer) for nummer in range(laeufe.FALTUNGEN)]
+        assert max(groessen) - min(groessen) <= 1
+
+    def test_hoeren_misst_das_endmodell_auf_dem_rest(
+        self, klient: TestClient, aufnahmen: list[str], datenverzeichnis: Path, sprecher: str
+    ) -> None:
+        # Für einen Kernstand gilt nur der Kern als gehört - die übrigen
+        # rechnet der ausgelieferte Stand in der Auswertung selbst.
+        wer = {kennung: stelle / 10 for stelle, kennung in enumerate(aufnahmen)}
+        _stand_mit_werten(klient, datenverzeichnis, sprecher, wer)
+        lauf = klient.post("/lernen/api/laeufe", json=KERN).json()
+        ref = f"{sprecher}/20260927T1300-lora-original-kern"
+        registry.schreibe_stand(
+            datenverzeichnis,
+            {
+                "id": ref,
+                "sprecher_id": sprecher,
+                "basismodell": "openai/whisper-small",
+                "job_id": lauf["job_id"],
+                "status": "fertig",
+            },
+        )
+        anzahl = math.ceil(len(aufnahmen) * laeufe.KERN_ANTEIL)
+        assert set(auswertung.gehoert(datenverzeichnis, [ref])[ref]) == set(aufnahmen[:anzahl])
 
     def test_der_steckbrief_nennt_den_kern(
         self, klient: TestClient, aufnahmen: list[str], datenverzeichnis: Path, sprecher: str
@@ -375,4 +405,4 @@ class TestVerwandte:
         assert auswahl.wer["rec_TEIL"] == pytest.approx(wer[original])
         assert auswahl.geerbt == ["rec_TEIL"]
         # Das Original war das schlechteste - sein Teil gehört mit ihm nicht dazu.
-        assert "rec_TEIL" not in auswahl.kern
+        assert "rec_TEIL" not in auswahl.als_dict()["kern"]

@@ -268,6 +268,25 @@ class TestKern:
         with pytest.raises(RuntimeError, match="noch nicht gewählt"):
             laeufe.kern_aus(tmp_path, {"auswahl": "kern"})
 
+    def test_verwandte_bleiben_im_kern_zusammen(self) -> None:
+        # rec_b ist ein Teil von rec_a: Beide müssen in dieselbe Faltung.
+        staemme = {"rec_a": "rec_a", "rec_b": "rec_a", "rec_c": "rec_c", "rec_x": "rec_x"}
+        faltungen = laeufe.verteile_kern(["rec_a", "rec_b", "rec_c"], staemme)
+        assert set(faltungen) == {"rec_a", "rec_b", "rec_c"}
+        assert faltungen["rec_a"] == faltungen["rec_b"] != faltungen["rec_c"]
+
+    def test_ohne_eigene_faltungen_gelten_die_des_manifests(self, tmp_path: Path) -> None:
+        # Eine Kernauswahl von vorher: eingeschränkt auf den Kern, sonst unverändert.
+        (tmp_path / laeufe.MANIFEST).write_text(
+            "\n".join(
+                json.dumps({"recording_id": kennung, "faltung": faltung})
+                for kennung, faltung in (("rec_a", 0), ("rec_b", 3), ("rec_c", 1))
+            ),
+            encoding="utf-8",
+        )
+        laeufe.schreibe_json(tmp_path / laeufe.KERNAUSWAHL, {"kern": ["rec_a", "rec_b"]})
+        assert laeufe.kernfaltungen_aus(tmp_path, {"auswahl": "kern"}) == {"rec_a": 0, "rec_b": 3}
+
     def test_aufgerundet_und_bei_gleichstand_nach_kennung(self) -> None:
         assert laeufe.kern_anzahl(10) == 7
         assert laeufe.kern_anzahl(9) == 7

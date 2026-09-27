@@ -164,7 +164,7 @@ def zeilen_fuer_faltung(
     faltung: int | None,
     daten: str,
     korpus: Path | None = None,
-    kern: set[str] | None = None,
+    kern: dict[str, int] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Was in dieser Faltung gelernt und was daran gemessen wird.
 
@@ -184,9 +184,13 @@ def zeilen_fuer_faltung(
     unterscheiden sich in ihren Trainingsdaten und in nichts sonst - schon gar
     nicht in dem, woran sie gemessen werden.
 
-    Aus demselben Grund wirkt der **Kern** (`kern`, die Aufnahmen aus
-    `laeufe.kern_aus`) nur auf die Lernzeilen: Gelernt wird nur auf ihm,
-    gemessen weiter an jeder Aufnahme der Faltung. `None` heißt: alle.
+    Beim **Kern** (`kern`, jede Kernaufnahme mit ihrer Faltung aus
+    `laeufe.kernfaltungen_aus`) ist er der ganze Korpus: Was nicht zu ihm
+    gehört, kommt weder in die Lern- noch in die Messzeilen - die Messzeilen
+    steuern auch das Training (`finetune.trainiere`), und ein Kernmodell soll
+    die übrigen Aufnahmen nicht einmal dort zu hören bekommen. Die Faltungen
+    kommen dann aus der Kernauswahl und nicht aus dem Manifest. `None` heißt:
+    alle Aufnahmen, auf den Faltungen des Manifests.
     """
     lern: list[dict[str, Any]] = []
     mess: list[dict[str, Any]] = []
@@ -200,11 +204,14 @@ def zeilen_fuer_faltung(
         # und an einer fehlenden Datei scheitern.
         if korpus is not None and not (korpus / str(zeile["audio"])).is_file():
             continue
-        eigene = faltung is not None and int(zeile.get("faltung", -1)) == faltung
-        if eigene:
-            mess.append(zeile)
+        if kern is None:
+            ihre = int(zeile.get("faltung", -1))
+        elif (kennung := str(zeile.get("recording_id"))) in kern:
+            ihre = kern[kennung]
+        else:
             continue
-        if kern is not None and str(zeile.get("recording_id")) not in kern:
+        if faltung is not None and ihre == faltung:
+            mess.append(zeile)
             continue
         if daten == laeufe.MIT_VARIANTEN or str(zeile.get("variante")) == ORIGINAL:
             lern.append(zeile)

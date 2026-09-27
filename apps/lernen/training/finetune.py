@@ -487,7 +487,7 @@ def trainiere(
         einstellungen=klangwandel.einstellungen_aus(rezept),
         keim=KEIM + (faltung or 0),
     )
-    kern = laeufe.kern_aus(verzeichnis, auftrag)
+    kern = laeufe.kernfaltungen_aus(verzeichnis, auftrag)
     lernzeilen, messzeilen = zeilen_fuer_faltung(
         verzeichnis,
         faltung,
@@ -497,8 +497,8 @@ def trainiere(
     )
     if kern is not None:
         bericht.sage(
-            f"Kernauswahl: gelernt auf {len(lernzeilen)} Proben aus dem Kern "
-            f"({len(kern)} Aufnahmen), gemessen auf allen {len(messzeilen)}"
+            f"Kernauswahl: nur der Kern ({len(kern)} Aufnahmen) - "
+            f"{len(lernzeilen)} Proben zum Lernen, {len(messzeilen)} zum Steuern und Messen"
         )
     # Der Tempofaktor steht im Auftrag und nicht im Rezept: Er ist kein
     # Verfahrensparameter, sondern der Zustand, in dem der Korpus betrachtet

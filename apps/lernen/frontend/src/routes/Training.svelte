@@ -478,13 +478,13 @@
           </span>
         </div>
 
-        <!-- Beim Kern steht, worauf gelernt wird, vor dem Ganzen: Die volle
-             Zahl allein las sich, als lerne der Lauf auf allem. Gemessen wird
-             trotzdem an allen - deshalb „von" und nicht nur die kleinere Zahl. -->
+        <!-- Beim Kern steht, worauf der Lauf rechnet, vor dem Ganzen: Die volle
+             Zahl allein las sich, als lerne er auf allem. Das „von" sagt, dass
+             es noch einen Rest gibt - den hört erst das Endmodell. -->
         <p class="gedaempft klein">
           {zeitpunkt(lauf.erstellt)} ·
           {#if lauf.kern_aufnahmen !== null}
-            <span title="Kernauswahl: gelernt nur auf diesen, gemessen an allen">
+            <span title="Kernauswahl: gelernt und gemessen nur auf diesen - die übrigen hört erst das Endmodell, in der Auswertung von „hören“">
               {lauf.kern_aufnahmen} von {lauf.aufnahmen} Aufnahmen ·
               {lauf.kern_proben} von {lauf.zeilen.gesamt ?? 0} Proben
             </span>
@@ -615,9 +615,9 @@
         {/each}
       </fieldset>
 
-      <!-- Wirkt nur aufs Lernen: Gemessen wird jede Faltung weiter an allen
-           ihren Aufnahmen, sonst wäre kein Lauf mehr mit einem anderen zu
-           vergleichen (`wortlaut/laeufe.py`, „Die Auswahl"). -->
+      <!-- Beim Kern ist er der ganze Korpus des Laufs: Die übrigen Aufnahmen
+           sieht erst das Endmodell, in der Auswertung von „hören"
+           (`wortlaut/laeufe.py`, „Die Auswahl"). -->
       <fieldset>
         <legend>Auswahl</legend>
         {#each daten.auswahlen as wahl (wahl.schluessel)}

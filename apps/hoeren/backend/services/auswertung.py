@@ -328,12 +328,27 @@ def _gehoert_im_lauf(verzeichnis: Path) -> dict[str, Ton]:
     in den übrigen fünf Lernstoff). Das Zweite steht hier mit, weil ein Lauf
     sein Manifest verlieren kann, seine Bewertung aber nicht - sie ist das,
     was übernommen wird.
+
+    **Ein Kernlauf kannte nur seinen Kern.** Sein Manifest ist der ganze
+    Schnappschuss, aber gelernt, gesteuert und gemessen hat er allein auf den
+    Kernaufnahmen (`wortlaut/laeufe.py`, „Die Auswahl"). Die übrigen hat er nie
+    gehört - für ihn sind sie, was für jeden Stand eine später dazugekommene
+    Aufnahme ist: Der ausgelieferte Stand rechnet sie hier selbst.
     """
     manifest, bewertung = verzeichnis / laeufe.MANIFEST, verzeichnis / laeufe.BEWERTUNG
-    stempel = (_mtime(manifest), _mtime(bewertung))
+    auswahl = verzeichnis / laeufe.KERNAUSWAHL
+    stempel = (_mtime(manifest), _mtime(bewertung), _mtime(auswahl))
     zwischen = _gehoert_zwischen.get(verzeichnis)
     if zwischen is not None and zwischen[0] == stempel:
         return zwischen[1]
+
+    try:
+        kern = laeufe.kern_aus(verzeichnis, laeufe.lies_json(verzeichnis / laeufe.AUFTRAG) or {})
+    except RuntimeError:
+        # Ein Kernlauf, der nie bis zur Wahl kam, hat auch keinen Stand - und
+        # wer hier trotzdem nach ihm fragt, bekommt die vorsichtige Antwort:
+        # alles aus dem Manifest gilt als gehört.
+        kern = None
 
     gehoert: dict[str, Ton] = {}
     for zeile in laeufe.lies_zeilen(bewertung):
@@ -342,6 +357,8 @@ def _gehoert_im_lauf(verzeichnis: Path) -> dict[str, Ton]:
     for zeile in laeufe.manifestzeilen(verzeichnis):
         kennung = str(zeile.get("recording_id") or "")
         if not kennung or zeile.get("variante", augmentierung.ORIGINAL) != augmentierung.ORIGINAL:
+            continue
+        if kern is not None and kennung not in kern:
             continue
         gehoert[kennung] = (str(zeile.get("audio") or ""), float(zeile.get("dauer_s") or 0.0))
     _gehoert_zwischen[verzeichnis] = (stempel, gehoert)
