@@ -34,7 +34,7 @@ from wortlaut import laeufe as lauf_layout, registry, streuung
 
 from ..config import einstellungen
 from ..deps import Korpus, Sprache, SprecherId, korpus_engine
-from ..services import aufteilung, auftraege, vergleich
+from ..services import aufteilung, auftraege, kernauswahl, vergleich
 
 router = APIRouter(prefix="/lernen/api/laeufe", tags=["Läufe"])
 
@@ -126,6 +126,25 @@ DATENSAETZE = [
         name="Mit Abwandlungen",
         erklaerung="Dazu jede abgelegte Abwandlung als eigene Probe.",
         code=lauf_layout.CODE_DATENSATZ[lauf_layout.MIT_VARIANTEN],
+    ),
+]
+
+
+AUSWAHLEN = [
+    WahlAntwort(
+        schluessel=lauf_layout.AUSWAHL_ALLE,
+        name="Alle Aufnahmen",
+        erklaerung="",
+        code=lauf_layout.CODE_AUSWAHL[lauf_layout.AUSWAHL_ALLE],
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.AUSWAHL_KERN,
+        name="Kernauswahl",
+        erklaerung=(
+            f"Gelernt nur auf den besten {round(lauf_layout.KERN_ANTEIL * 100)} % "
+            "nach WER des freigegebenen Modells, gemessen auf allen."
+        ),
+        code=lauf_layout.CODE_AUSWAHL[lauf_layout.AUSWAHL_KERN],
     ),
 ]
 
@@ -290,6 +309,8 @@ class Bestellung(BaseModel):
     # Worauf trainiert wird. Leer heißt: die Vorgabe des Servers - ein Auftrag
     # von einem Aufrufer, der diese Achse nicht kennt, bleibt derselbe Auftrag.
     grundmodell: str = ""
+    # Alle Aufnahmen oder nur der Kern - mit Vorgabe wie die übrigen Achsen.
+    auswahl: str = lauf_layout.AUSWAHL_ALLE
 
 
 class StandHinweis(BaseModel):
@@ -312,6 +333,9 @@ class LaufAntwort(BaseModel):
     code: str
     methode: str
     daten: str
+    # Alle Aufnahmen oder nur der Kern. Ein Lauf von vor dieser Achse heißt
+    # `alle` - genau das, was damals gerechnet wurde.
+    auswahl: str = lauf_layout.AUSWAHL_ALLE
     # Was am Ende mit den Gewichten geschah. Ein Lauf von vor dieser Achse hat
     # das Feld nicht im Auftrag stehen und heißt hier `bester` - das ist keine
     # Annahme, sondern genau das, was damals gerechnet wurde.
@@ -408,6 +432,7 @@ class EinzelAntwort(BaseModel):
     steckbrief: list[SteckbriefZeile]
     methoden: list[WahlAntwort]
     datensaetze: list[WahlAntwort]
+    auswahlen: list[WahlAntwort]
     abschluesse: list[WahlAntwort]
     augmentierungen: list[WahlAntwort]
     dauern: list[WahlAntwort]
@@ -427,6 +452,7 @@ class ListeAntwort(BaseModel):
     laeufe: list[LaufAntwort]
     methoden: list[WahlAntwort]
     datensaetze: list[WahlAntwort]
+    auswahlen: list[WahlAntwort]
     abschluesse: list[WahlAntwort]
     augmentierungen: list[WahlAntwort]
     dauern: list[WahlAntwort]
@@ -573,6 +599,7 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         code=lauf_layout.titel(lauf.auftrag),
         methode=str(lauf.auftrag.get("methode", "")),
         daten=str(lauf.auftrag.get("daten", "")),
+        auswahl=lauf_layout.auswahl_aus(lauf.auftrag),
         abschluss=str(lauf.auftrag.get("abschluss") or lauf_layout.ABSCHLUSS_BESTER),
         augmentierung=str(lauf.auftrag.get("augmentierung") or lauf_layout.AUG_KEINE),
         dauer=str(lauf.auftrag.get("dauer") or lauf_layout.DAUER_FEST),
@@ -704,6 +731,24 @@ def _abschlusstext(manifest: dict) -> str:
     return ", ".join(teile) or _wahlname(ABSCHLUESSE, art)
 
 
+def _auswahl_im_steckbrief(lauf: lauf_layout.Lauf) -> tuple[str, str]:
+    """Die Auswahl als Wert und Hinweis: beim Kern wie viele, nach wem, bis wohin."""
+    auswahl = lauf_layout.auswahl_aus(lauf.auftrag)
+    name = _wahlname(AUSWAHLEN, auswahl)
+    if auswahl != lauf_layout.AUSWAHL_KERN:
+        return name, ""
+    inhalt = lauf_layout.lies_json(lauf.verzeichnis / lauf_layout.KERNAUSWAHL) or {}
+    kern = list(inhalt.get("kern") or [])
+    alle = dict(inhalt.get("wer") or {})
+    modell = str(inhalt.get("modell") or "")
+    teile = [
+        f"{len(kern)} von {len(alle)} Aufnahmen" if alle else "",
+        f"nach {registry.beschriftung(modell)}" if modell else "",
+        f"WER bis {_zahl(inhalt['schwelle'])}" if inhalt.get("schwelle") is not None else "",
+    ]
+    return name, " · ".join(teil for teil in teile if teil)
+
+
 def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
     """Was diesen Lauf ausmacht - in Zahlen, nicht in Sätzen.
 
@@ -764,6 +809,7 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
     proben = dict(auftrag.get("zeilen") or {}).get("gesamt")
     umfang = f"{proben} Proben aus {aufnahmen} Aufnahmen" if proben and aufnahmen else ""
     dazu("Datensatz", _wahlname(DATENSAETZE, str(auftrag.get("daten", ""))), umfang)
+    dazu("Auswahl", *_auswahl_im_steckbrief(lauf))
 
     stufe = str(auftrag.get("augmentierung") or lauf_layout.AUG_KEINE)
     dazu(
@@ -919,6 +965,7 @@ def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         aufnahmen_neu=max(0, len(proben) - zuletzt),
         methoden=METHODEN,
         datensaetze=DATENSAETZE,
+        auswahlen=AUSWAHLEN,
         abschluesse=ABSCHLUESSE,
         augmentierungen=AUGMENTIERUNGEN,
         dauern=DAUERN,
@@ -961,6 +1008,8 @@ def beauftrage(
         raise HTTPException(status_code=400, detail=f"Unbekannte Methode: {bestellung.methode}")
     if bestellung.daten not in lauf_layout.DATENSAETZE:
         raise HTTPException(status_code=400, detail=f"Unbekannter Datensatz: {bestellung.daten}")
+    if bestellung.auswahl not in lauf_layout.AUSWAHLEN:
+        raise HTTPException(status_code=400, detail=f"Unbekannte Auswahl: {bestellung.auswahl}")
     if bestellung.abschluss not in lauf_layout.ABSCHLUESSE:
         raise HTTPException(
             status_code=400, detail=f"Unbekannter Abschluss: {bestellung.abschluss}"
@@ -1010,6 +1059,13 @@ def beauftrage(
             ),
         )
 
+    kern = None
+    if bestellung.auswahl == lauf_layout.AUSWAHL_KERN:
+        try:
+            kern = kernauswahl.waehle(konfiguration.data_dir, korpus, sprecher, proben)
+        except kernauswahl.KeinKern as ursache:
+            raise HTTPException(status_code=409, detail=str(ursache)) from ursache
+
     lauf = auftraege.beauftrage(
         konfiguration.data_dir,
         korpus,
@@ -1018,6 +1074,7 @@ def beauftrage(
             sprecher_id=sprecher,
             methode=bestellung.methode,
             daten=bestellung.daten,
+            auswahl=bestellung.auswahl,
             abschluss=bestellung.abschluss,
             augmentierung=bestellung.augmentierung,
             dauer=bestellung.dauer,
@@ -1028,6 +1085,7 @@ def beauftrage(
             # derselben Sprache (`wortlaut/sprachen.py`).
             sprache=sprache,
         ),
+        kernauswahl=kern,
     )
     return _als_antwort(lauf)
 
@@ -1056,6 +1114,7 @@ def einzeln(
         steckbrief=steckbrief(lauf),
         methoden=METHODEN,
         datensaetze=DATENSAETZE,
+        auswahlen=AUSWAHLEN,
         abschluesse=ABSCHLUESSE,
         augmentierungen=AUGMENTIERUNGEN,
         dauern=DAUERN,

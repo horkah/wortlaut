@@ -137,6 +137,10 @@ def _version(auftrag: dict[str, Any], faktor: float | None = None) -> str:
     if ausgang:
         marke = f"{marke}-{registry.beschriftung(ausgang)}"
     name = f"{marke}-{auftrag.get('methode', '?')}-{auftrag.get('daten', '?')}"
+    # Der Kern direkt hinter dem Datensatz, wie im Optionscode. Nur wenn er
+    # gewählt ist: Ein Stand von früher heißt heute wie damals.
+    if laeufe.auswahl_aus(auftrag) == laeufe.AUSWAHL_KERN:
+        name = f"{name}-kern"
     art = str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER)
     if art != laeufe.ABSCHLUSS_BESTER:
         name = f"{name}-{art}"
@@ -460,6 +464,9 @@ def pruefe_endmodell(
     sprecher_id = str(auftrag["sprecher_id"])
     korpuswurzel = datenverzeichnis / corpus.sprecher_relpfad(sprecher_id)
     sprache = str(auftrag.get("sprache") or sprachen.VORGABE)
+    # Beim Kern kennt das Endmodell nur ihn. Eine Stichprobe daneben mäße
+    # Aufnahmen, die es nie gehört hat, und hielte ihm das als Gedächtnis vor.
+    kern = laeufe.kern_aus(verzeichnis, auftrag)
     alle = [
         zeile
         for zeile in laeufe.manifestzeilen(verzeichnis)
@@ -470,6 +477,7 @@ def pruefe_endmodell(
         # Stunde Rechenzeit.
         if str(zeile.get("variante")) == augmentierung.ORIGINAL
         and (korpuswurzel / str(zeile["audio"])).is_file()
+        and (kern is None or str(zeile.get("recording_id")) in kern)
     ]
     if not alle:
         return {}
@@ -668,6 +676,7 @@ def gib_frei(
             laeufe.AUSGANGSSTAND: auftrag.get(laeufe.AUSGANGSSTAND) or "",
             "methode": auftrag.get("methode"),
             "daten": auftrag.get("daten"),
+            "auswahl": laeufe.auswahl_aus(auftrag),
             # Die Achsen des Auftrags, als schlichte Zeichenketten - und
             # daneben, was dabei herauskam. Ein Stand, dessen α niemand mehr
             # nachsehen kann, ist mit keinem anderen zu vergleichen.

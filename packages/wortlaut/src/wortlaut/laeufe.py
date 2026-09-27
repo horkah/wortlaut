@@ -214,6 +214,52 @@ NUR_ORIGINAL = "original"
 MIT_VARIANTEN = "augmentiert"
 DATENSAETZE = (NUR_ORIGINAL, MIT_VARIANTEN)
 
+# ── Die Auswahl ─────────────────────────────────────────────────────────────
+#
+# Worauf gelernt wird: auf allen Aufnahmen - oder nur auf dem **Kern**, den
+# Aufnahmen, die das freigegebene Modell am besten verstanden hat. Gedacht
+# für einen Korpus, in dem viele Aufnahmen fehlerhaft oder verrauscht sind:
+# Ein Modell, das nur auf dem sauberen Teil lernt, soll ein stabiler Kern
+# werden, auf dem sich später aufbauen lässt.
+#
+# **Nur gelernt wird auf dem Kern, gemessen wird auf allem.** Jede Faltung
+# misst weiter an allen ihren Aufnahmen, auch an denen außerhalb des Kerns.
+# Sonst verschwänden gerade die schweren Aufnahmen aus der Messung, die Zahl
+# sähe besser aus, und kein Lauf wäre mehr mit einem anderen zu vergleichen.
+#
+# Welche Aufnahmen zum Kern gehören, entscheidet der Server beim Auftrag
+# (`apps/lernen/backend/services/kernauswahl.py`) und schreibt es neben das
+# Manifest (`KERNAUSWAHL`). Der Trainer liest es nur und wählt nicht selbst:
+# Er kennt weder die Freigabe noch die Messungen von „hören".
+AUSWAHL_ALLE = "alle"
+AUSWAHL_KERN = "kern"
+AUSWAHLEN = (AUSWAHL_ALLE, AUSWAHL_KERN)
+# Welcher Anteil der Aufnahmen den Kern bildet, gezählt vom besten Wert an.
+KERN_ANTEIL = 0.7
+# Die Kernauswahl eines Laufs: welche Aufnahmen, nach welchem Modell, mit
+# welchem Wert - jede Aufnahme mit ihrer WER, auch die außerhalb des Kerns.
+KERNAUSWAHL = "kernauswahl.json"
+
+
+def auswahl_aus(auftrag: dict[str, Any]) -> str:
+    """Die Auswahl eines Auftrags - `alle` bei einem von vor dieser Achse."""
+    return str(auftrag.get("auswahl") or AUSWAHL_ALLE)
+
+
+def kern_aus(verzeichnis: Path, auftrag: dict[str, Any]) -> set[str] | None:
+    """Die Aufnahmen des Kerns - `None`, wenn auf allen gelernt wird.
+
+    Fehlt die Datei bei einem Auftrag, der den Kern verlangt, ist das ein
+    Fehler und kein Rückfall auf alle Aufnahmen: Ein Lauf, der still auf allem
+    lernt, hieße trotzdem `K` und wäre ein anderes Modell als sein Name.
+    """
+    if auswahl_aus(auftrag) != AUSWAHL_KERN:
+        return None
+    inhalt = lies_json(verzeichnis / KERNAUSWAHL)
+    if inhalt is None:
+        raise RuntimeError(f"Der Auftrag verlangt den Kern, aber {KERNAUSWAHL} fehlt.")
+    return {str(kennung) for kennung in inhalt.get("kern", [])}
+
 # ── Die Geschwindigkeit ─────────────────────────────────────────────────────
 #
 # Dysarthrische Sprache ist oft stark verlangsamt, und Whisper versteht sie
@@ -345,7 +391,7 @@ DAUERN = (DAUER_FEST, DAUER_GEDULDIG)
 
 # ── Der Optionscode ─────────────────────────────────────────────────────────
 #
-# Alle sieben Achsen eines Auftrags in einer Zeichenkette, etwa `ML-A-SRP-Ts-C`.
+# Alle Achsen eines Auftrags in einer Zeichenkette, etwa `ML-A-K-SRP-Ts-C`.
 # Mit der Folge dahinter (`titel`, siehe unten) ist er der Titel eines Laufs und
 # eines Standes - in „Training", in der Modelltafel und in der Einzelansicht.
 #
@@ -355,6 +401,7 @@ DAUERN = (DAUER_FEST, DAUER_GEDULDIG)
 # untereinander verschieden, damit sich jedes für sich lesen lässt.
 CODE_METHODE = {VOLL: "V", LORA: "L"}
 CODE_DATENSATZ = {NUR_ORIGINAL: "", MIT_VARIANTEN: "A"}
+CODE_AUSWAHL = {AUSWAHL_ALLE: "", AUSWAHL_KERN: "K"}
 CODE_DAUER = {DAUER_FEST: "", DAUER_GEDULDIG: "E"}
 # Kumulativ: S = SpecAugment, R = Raum + Rauschen, P = Tempo-Perturbation.
 CODE_AUGMENTIERUNG = {AUG_KEINE: "", AUG_MASKEN: "S", AUG_UMGEBUNG: "SR", AUG_VOLL: "SRP"}
@@ -400,6 +447,7 @@ def optionscode(auftrag: dict[str, Any]) -> str:
     )
     glieder = (
         glied(CODE_DATENSATZ, auftrag.get("daten"), NUR_ORIGINAL),
+        glied(CODE_AUSWAHL, auftrag.get("auswahl"), AUSWAHL_ALLE),
         glied(CODE_DAUER, auftrag.get("dauer"), DAUER_FEST),
         glied(CODE_AUGMENTIERUNG, auftrag.get("augmentierung"), AUG_KEINE),
         CODE_TEMPO[tempowahl_aus(auftrag)],

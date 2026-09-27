@@ -242,13 +242,50 @@ wartete (`training/karte.py`). Hält nach dem Aufräumen niemand sonst etwas
 auf der Karte, wartet er nicht: Dann passt das Training nicht, und das wird
 auch in zehn Minuten nicht anders.
 
+### Die Kernauswahl
+
+Gedacht für einen Korpus, in dem viele Aufnahmen fehlerhaft oder verrauscht
+sind: Ein Lauf mit **Kernauswahl** (`K`) lernt nur auf den besten 70 % der
+Aufnahmen und soll so ein stabiles Kernmodell werden. Der Anteil steht in
+`wortlaut/laeufe.KERN_ANTEIL`.
+
+**Die besten nach dem freigegebenen Modell.** Das Modell, mit dem dieser
+Mensch diktiert, ist das beste Urteil darüber, welche Aufnahmen verständlich
+sind. Gezählt wird die WER des Originals, und zwar aus denselben Quellen wie
+in der Modelltafel: bei einem trainierten Stand aus der Kreuzvalidierung
+seines Laufs und für Aufnahmen, die danach dazukamen, aus der Auswertung in
+„hören"; bei einem freigegebenen Grundmodell allein aus „hören". Teile und
+Kopien aus „Editieren" misst ein Stand nicht, weil er ihren Ton schon kennt;
+sie erben den Wert ihres Originals. Bei gleicher WER entscheidet die Kennung,
+damit derselbe Korpus immer denselben Kern ergibt.
+
+**Ohne Werte kein Kern.** Ist kein Modell freigegeben oder hat es eine
+Aufnahme noch nicht gehört, wird der Auftrag abgewiesen: Ob sie in den Kern
+gehört, lässt sich dann nicht sagen. Der Weg ist die Auswertung in „hören",
+die das freigegebene Modell auf allem misst, was ihm fehlt.
+
+**Gelernt wird auf dem Kern, gemessen auf allem.** Jede Faltung lernt nur
+auf den Kernaufnahmen ihrer fünf Sechstel und misst weiter an allen
+Aufnahmen ihres Sechstels, auch an den schweren. So bleibt die Zahl mit
+jedem anderen Lauf vergleichbar und sagt, ob das Kernmodell über den Kern
+hinaus trägt. Das Endmodell lernt auf dem ganzen Kern, und seine
+Plausibilitätsprüfung zieht ihre Stichprobe nur aus dem Kern: Er ist alles,
+was es kennt.
+
+Gewählt wird beim Auftrag, vom Server (`services/kernauswahl.py`), und
+festgehalten in `kernauswahl.json` neben dem Manifest: jede Aufnahme mit
+ihrer WER, das Modell, nach dem gewählt wurde, und der Kern selbst. Der
+Trainer liest nur die Liste (`laeufe.kern_aus`). Der Steckbrief nennt, wie
+viele Aufnahmen im Kern liegen, nach welchem Modell und bis zu welcher WER.
+
 ### Der Optionscode
 
 Ein Lauf und der Stand, der aus ihm entsteht, heißen nach ihren Optionen - in
 „Training", in der Modelltafel und in der Einzelansicht mit demselben Code,
 gebildet an einer Stelle (`wortlaut/laeufe.optionscode`). Beispiel:
 `ML-A-SRP-Ts-C` ist whisper-medium mit LoRA, mit Abwandlungen, voller
-Augmentierung, gesuchtem Tempo und Checkpoint-Mittel.
+Augmentierung, gesuchtem Tempo und Checkpoint-Mittel; `ML-A-K-SRP-Ts-C`
+dasselbe, gelernt nur auf dem Kern.
 
 Vorn stehen immer Grundmodell und Methode. Dahinter folgt je Achse ein Glied,
 wenn sie nicht auf ihrer Vorgabe steht, in dieser Reihenfolge:
@@ -258,6 +295,7 @@ wenn sie nicht auf ihrer Vorgabe steht, in dieser Reihenfolge:
 | Grundmodell | whisper-small, whisper-medium, whisper-large-v3 | `S`, `M`, `L3` |
 | Methode | Volles Feintuning, LoRA | `V`, `L` |
 | Datensatz | Nur Originale, Mit Abwandlungen | –, `A` |
+| Auswahl | Alle Aufnahmen, Kernauswahl | –, `K` |
 | Epochen | Feste Epochenzahl, Early Stopping | –, `E` |
 | Augmentierung | keine, SpecAugment, + Raum + Rauschen, + Tempo-Perturbation | –, `S`, `SR`, `SRP` |
 | Tempo | aus, geschätzt, gesucht | –, `Tg`, `Ts` |

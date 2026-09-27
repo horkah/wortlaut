@@ -47,6 +47,7 @@ from wortlaut import augmentierung, corpus, ids, laeufe, registry
 from apps.hoeren.backend.db.models import Textquelle
 from apps.hoeren.backend.services import zuschnitt
 from apps.lernen.backend.services.aufteilung import Probe
+from apps.lernen.backend.services.kernauswahl import Kernauswahl
 
 # Womit eine Probe zählt. Korrekturen stammen aus „schreiben": Ihr Text ist
 # keine Vorgabe, sondern eine vom Menschen abgenickte Maschinenausgabe. Wer sie
@@ -89,6 +90,9 @@ class Auftrag:
     # Der trainierte Stand, mit dessen Gewichten begonnen wird - leer heißt
     # wie bisher: das unveränderte `basismodell` (`wortlaut/laeufe.py`).
     ausgangsstand: str = ""
+    # Ob auf allen Aufnahmen gelernt wird oder nur auf dem Kern
+    # (`wortlaut/laeufe.py`). `alle` ist das Verfahren von vorher.
+    auswahl: str = laeufe.AUSWAHL_ALLE
 
 
 def _quelle_von(korpus: Session, probe: Probe) -> str:
@@ -157,8 +161,12 @@ def beauftrage(
     korpus: Session,
     proben: list[Probe],
     auftrag: Auftrag,
+    kernauswahl: Kernauswahl | None = None,
 ) -> laeufe.Lauf:
     """Einen Lauf anlegen: Verzeichnis, Marke, Manifest, Auftrag - in dieser Reihenfolge.
+
+    Beim Kern kommt die Kernauswahl dazu, vor dem Auftrag wie das Manifest:
+    Der Trainer liest beides, sobald er den Auftrag sieht.
 
     Der Auftrag zuletzt, und das ist die ganze Verriegelung: Der Trainer
     erkennt einen offenen Lauf an `auftrag.json`. Läge die Datei zuerst da,
@@ -178,11 +186,17 @@ def beauftrage(
         verzeichnis / laeufe.MANIFEST, korpus, proben, auftrag.sprecher_id, auftrag.daten
     )
 
+    if auftrag.auswahl == laeufe.AUSWAHL_KERN:
+        if kernauswahl is None:
+            raise ValueError("Der Kern verlangt eine Kernauswahl.")
+        laeufe.schreibe_json(verzeichnis / laeufe.KERNAUSWAHL, kernauswahl.als_dict())
+
     inhalt = {
         "job_id": job_id,
         "sprecher_id": auftrag.sprecher_id,
         "methode": auftrag.methode,
         "daten": auftrag.daten,
+        "auswahl": auftrag.auswahl,
         "abschluss": auftrag.abschluss,
         "augmentierung": auftrag.augmentierung,
         "dauer": auftrag.dauer,
