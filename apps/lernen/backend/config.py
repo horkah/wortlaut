@@ -74,17 +74,6 @@ class Einstellungen(Grundeinstellungen):
     # Jedes hier genannte Modell muss in `auswertung_modelle` stehen, sonst hat
     # sein trainierter Stand keine Baseline, gegen die er antreten könnte.
     lernen_grundmodelle: str = "openai/whisper-small,openai/whisper-medium"
-    # Trainierte Stände, die jedem Sprecher als Ausgangspunkt zur Wahl stehen -
-    # neben den Grundmodellen und ausdrücklich für alle, nicht nur für den,
-    # dem der Stand gehört. Kommagetrennt in der Form `<sprecher_id>/<version>`,
-    # wie sie in `freigabe.json` steht. Leer ist die Vorgabe: Ein fremder Stand
-    # trägt eine fremde Stimme in sich, und das wählt die Konfiguration
-    # ausdrücklich und nicht der Zufall (Grundentscheidung 3).
-    #
-    # Gemeint ist ein bestimmter Stand und nicht „was X gerade freigegeben
-    # hat": Ein Ausgangspunkt, der sich unter einer Reihe von Läufen still
-    # austauscht, machte sie unvergleichbar.
-    lernen_ausgangsstaende: str = ""
     # Welche unveränderten Modelle in der Modellübersicht gegen die eigenen
     # Stände antreten. Dieselbe Liste wie in der Auswertung von „hören"
     # (`WORTLAUT_AUSWERTUNG_MODELLE`), und das ist kein Zufall: Von dort
@@ -117,14 +106,6 @@ class Einstellungen(Grundeinstellungen):
         return [self.lernen_basismodell] + [
             modell for modell in genannt if modell != self.lernen_basismodell
         ]
-
-    def ausgangsstaende(self) -> list[str]:
-        """Die wählbaren trainierten Stände, in der Reihenfolge der Konfiguration."""
-        return list(
-            dict.fromkeys(
-                teil.strip() for teil in self.lernen_ausgangsstaende.split(",") if teil.strip()
-            )
-        )
 
 
 @lru_cache

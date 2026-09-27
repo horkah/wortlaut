@@ -135,7 +135,6 @@ Viertelstunde ist der Ausgleich.
 | `WORTLAUT_VORLESEN_MOTOR` | `piper` | welcher Motor spricht. Heute gibt es einen; der zweite kommt daneben |
 | `WORTLAUT_LERNEN_BASISMODELL` | `openai/whisper-small` | die **Vorgabe**, worauf trainiert wird |
 | `WORTLAUT_LERNEN_GRUNDMODELLE` | `openai/whisper-small,openai/whisper-medium` | was darüber hinaus zur Wahl steht. Jedes davon muss in `WORTLAUT_AUSWERTUNG_MODELLE` stehen, sonst fehlt seinem Stand die Baseline. `medium` und größer lassen sich nur mit LoRA trainieren |
-| `WORTLAUT_LERNEN_AUSGANGSSTAENDE` | leer | trainierte Stände, auf denen **jeder** Sprecher weiterlernen kann, kommagetrennt als `<sprecher_id>/<version>`. Ein bestimmter Stand, nicht „was X gerade freigegeben hat". Leer heißt: keine (siehe `docs/lernen.md`) |
 | `WORTLAUT_AUSWERTUNG_MODELLE` | `small,medium,large-v3` | welche Grundmodelle in der Modelltabelle gegen die eigenen Stände antreten; dieselbe Variable wie oben, und das ist Absicht |
 | `WORTLAUT_LERNEN_GERAET` | `cuda` | worauf **trainiert** wird; auf einem Prozessor dauert ein Feintuning Tage statt Stunden. Etwas anderes als `WORTLAUT_GERAET` oben: Dort geht es ums Erkennen, hier ums Lernen, und nur das Erkennen darf ausweichen |
 | `WORTLAUT_LERNEN_TAKT_S` | `5` | wie oft der Läufer nach neuen Aufträgen sieht |

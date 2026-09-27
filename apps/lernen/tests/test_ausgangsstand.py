@@ -1,10 +1,10 @@
-"""Auf einem trainierten Stand aufsetzen: die Wahl, der Auftrag - und das Zurückrechnen.
+"""Auf einem trainierten Stand aufsetzen: vorbereitet, aber nicht angeboten.
 
-Ob die zurückgerechneten Gewichte wirklich die des Standes sind, lässt sich
-nur mit torch und CTranslate2 prüfen, und die gibt es nur im Abbild des
-Trainers. Hier geprüft wird alles davor: das Dateiformat, die Zuordnung der
-Namen, und dass die API den Stand anbietet und richtig in den Auftrag
-schreibt.
+Die Wahl kennt nur die Whisper-Modelle; das Zurückrechnen im Trainer bleibt
+für später. Ob die zurückgerechneten Gewichte wirklich die des Standes sind,
+lässt sich nur mit torch und CTranslate2 prüfen, und die gibt es nur im
+Abbild des Trainers. Hier geprüft wird alles davor: das Dateiformat und die
+Zuordnung der Namen - und dass die API keinen Stand anbietet.
 """
 
 from __future__ import annotations
@@ -17,7 +17,6 @@ import pytest
 from fastapi.testclient import TestClient
 from wortlaut import laeufe, registry
 
-from apps.lernen.backend.config import einstellungen
 from apps.lernen.training import ausgangsstand
 
 FREMD = "spr_01FREMDERSPRECHER0000000000"
@@ -41,38 +40,11 @@ def _lege_stand_an(datenverzeichnis: Path, ref: str = REF) -> None:
     registry.ct2_verzeichnis(datenverzeichnis, ref).mkdir(parents=True)
 
 
-@pytest.fixture
-def mit_staenden(monkeypatch: pytest.MonkeyPatch, datenverzeichnis: Path, klient: TestClient):
-    _lege_stand_an(datenverzeichnis)
-    monkeypatch.setenv("WORTLAUT_LERNEN_AUSGANGSSTAENDE", f"{REF}, {FREMD}/gibt-es-nicht")
-    einstellungen.cache_clear()
-    yield
-    einstellungen.cache_clear()
-
-
 class TestWahl:
-    def test_der_stand_steht_mit_seiner_kennung_zur_wahl(
-        self, mit_staenden, klient: TestClient, quelle: str, sprich
-    ) -> None:
-        sprich(6)
-        wahlen = {g["schluessel"]: g for g in klient.get("/lernen/api/laeufe").json()["grundmodelle"]}
-        stand = wahlen[REF]
-        assert stand["name"] == "C6G67"
-        assert stand["code"] == "C6G67"
-        # Auf `medium` gewachsen - und darum wie `medium` nur mit LoRA.
-        assert stand["methoden"] == ["lora"]
-
-    def test_ein_fehlender_stand_steht_nicht_zur_wahl(
-        self, mit_staenden, klient: TestClient, quelle: str, sprich
-    ) -> None:
-        sprich(6)
-        schluessel = [g["schluessel"] for g in klient.get("/lernen/api/laeufe").json()["grundmodelle"]]
-        assert f"{FREMD}/gibt-es-nicht" not in schluessel
-
-    def test_ohne_konfiguration_kein_stand(
+    def test_kein_stand_steht_zur_wahl(
         self, klient: TestClient, datenverzeichnis: Path, quelle: str, sprich
     ) -> None:
-        # Auch wenn es ihn gibt: Einen fremden Stand bietet nur an, wer ihn nennt.
+        # Auch wenn es ihn gibt: Weiterlernen auf einem Stand wird nicht angeboten.
         _lege_stand_an(datenverzeichnis)
         sprich(6)
         schluessel = [g["schluessel"] for g in klient.get("/lernen/api/laeufe").json()["grundmodelle"]]
@@ -82,45 +54,15 @@ class TestWahl:
         )
         assert antwort.status_code == 400
 
-
-class TestAuftrag:
-    def test_der_auftrag_nennt_stand_und_grundmodell(
-        self, mit_staenden, klient: TestClient, datenverzeichnis: Path, quelle: str, sprich
+    def test_ein_auftrag_hat_keinen_ausgangsstand(
+        self, klient: TestClient, datenverzeichnis: Path, quelle: str, sprich
     ) -> None:
-        sprich(6)
-        antwort = klient.post(
-            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original", "grundmodell": REF}
-        )
-        assert antwort.status_code == 201, antwort.text
-        lauf = antwort.json()
-        assert lauf["grundmodell"] == REF
-        assert lauf["basismodell"] == "openai/whisper-medium"
-        assert lauf["code"].startswith("C6G67-L")
-
-        verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"])
-        auftrag = json.loads((verzeichnis / laeufe.AUFTRAG).read_text(encoding="utf-8"))
-        assert auftrag["basismodell"] == "openai/whisper-medium"
-        assert auftrag["ausgangsstand"] == REF
-
-    def test_ohne_stand_kein_feld(
-        self, mit_staenden, klient: TestClient, datenverzeichnis: Path, quelle: str, sprich
-    ) -> None:
-        # Ein Auftrag auf einem Grundmodell ist derselbe wie vor dieser Achse.
         sprich(6)
         lauf = klient.post("/lernen/api/laeufe", json={"methode": "lora", "daten": "original"}).json()
         verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"])
         auftrag = json.loads((verzeichnis / laeufe.AUFTRAG).read_text(encoding="utf-8"))
         assert "ausgangsstand" not in auftrag
         assert lauf["grundmodell"] == auftrag["basismodell"]
-
-    def test_volles_training_geht_auf_einem_medium_stand_nicht(
-        self, mit_staenden, klient: TestClient, quelle: str, sprich
-    ) -> None:
-        sprich(6)
-        antwort = klient.post(
-            "/lernen/api/laeufe", json={"methode": "full", "daten": "original", "grundmodell": REF}
-        )
-        assert antwort.status_code == 400
 
 
 # ── Das Dateiformat ─────────────────────────────────────────────────────────
