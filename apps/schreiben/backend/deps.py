@@ -1,26 +1,11 @@
 """Gemeinsame Abhängigkeiten der Endpunkte: Zugang, Datenbank, Ablage, Whisper.
 
-Hier hängt die Bindung zwischen Aufrufer und Verzeichnis - dieselbe Aufgabe
-wie in `apps/hoeren/backend/deps.py` und aus demselben Grund: Der Sprecher wird
-aus dem vorgelegten Zugang **abgeleitet** und nirgends behauptet. Wer diktiert,
-legt denselben Zugang vor, den „hören" für ihn ausgegeben hat
-(`<sprecher_id>.<geheimnis>`, siehe `wortlaut.zugang`); geprüft wird er lesend
-gegen den Korpus.
+Der Sprecher wird aus dem Zugang abgeleitet, den „hören" ausgegeben hat
+(`wortlaut.zugang`), geprüft lesend gegen den Korpus. Er bestimmt Modell und
+Korpus, in den Korrekturen zurückfließen. Der Zugang liegt nach dem
+persönlichen Link im Browser (gemeinsame Domain, gemeinsamer `localStorage`).
 
-Dass diese App überhaupt einen Sprecher führt, ist neu. Sie war einmal auf
-genau eine Person konfiguriert. Zwei Dinge haben das aufgehoben: Jeder Sprecher
-bekommt aus „lernen" sein eigenes Modell, und was er hier diktiert, fließt als
-Korrektur in *seinen* Korpus zurück. Beides braucht die Kennung zur Laufzeit -
-eine Instanz je Person wäre eine Instanz je Modell und je Korpus gewesen.
-
-Ohne gültigen Zugang gibt es hier nichts: keine Sitzung, kein Diktat, keine
-Ablage. Das ist kein Anmeldeformular vor der Tür - der Zugang kommt über
-denselben persönlichen Link wie bei „hören" und liegt danach im Browser
-(beide Apps teilen sich eine Domain und damit den `localStorage`). Wer schlecht
-liest, muss also weiterhin nichts tippen.
-
-Alle Bausteine sind absichtlich Abhängigkeiten und keine Importe: So kann ein
-Test die Transkription ersetzen, ohne faster-whisper zu installieren.
+Abhängigkeiten statt Importe, damit Tests die Transkription ersetzen können.
 """
 
 from __future__ import annotations
@@ -38,16 +23,9 @@ from wortlaut.whisper import Transkriptor
 
 from .config import Einstellungen, einstellungen
 
-# Engines und Transkriptoren sind teuer im Aufbau und wiederverwendbar. Ein
-# Modell bleibt nach dem ersten Diktat im Speicher; ein Neuladen je Anfrage
-# würde jede Antwort um Sekunden verzögern - auf der Karte kämen dabei noch
-# das Belegen und Freigeben ihres Speichers dazu.
-#
-# Der Schlüssel der Transkriptoren ist das **Modell** und nicht der Sprecher:
-# Seit sich das Modell zur Laufzeit freigeben lässt (`wortlaut/registry.py`),
-# gäbe ein Zwischenspeicher je Sprecher nach einem Wechsel weiter das alte
-# Modell heraus - ein Fehler, den niemand als Fehler erkennte, weil einfach
-# der gewohnte Text herauskäme.
+# Teuer im Aufbau, also zwischengespeichert. Transkriptoren nach Modell, nicht
+# nach Sprecher - eine neue Freigabe (`wortlaut/registry.py`) lädt so wirklich
+# ein anderes.
 _engines: dict[str, Engine] = {}
 _transkriptoren: dict[str, Transkriptor] = {}
 
@@ -55,10 +33,7 @@ _transkriptoren: dict[str, Transkriptor] = {}
 def engine_fuer(sprecher_id: str) -> Engine:
     """Die Diktatdatenbank eines Sprechers; legt sie beim ersten Zugriff an.
 
-    „hören" wendet seine Migrationen beim Anlegen eines Sprechers an - diesen
-    Zeitpunkt gibt es hier nicht, also geschieht es beim ersten Zugriff. Anlegen
-    ist hier unbedenklich: Es ist die eigene Ablage dieser App und nicht der
-    Korpus, den allein „hören" schreibt (Grundentscheidung 6).
+    Die eigene Ablage, nicht der Korpus - anlegen ist unbedenklich.
     """
     if sprecher_id not in _engines:
         konfiguration = einstellungen()
@@ -71,9 +46,7 @@ def engine_fuer(sprecher_id: str) -> Engine:
 def transkriptor_fuer(sprecher_id: str) -> Transkriptor:
     """Die Whisper-Umsetzung für das Modell, das dieser Mensch benutzt.
 
-    Zwischengespeichert wird nach dem, was tatsächlich geladen wird - zwei
-    Sprecher auf demselben Grundmodell teilen es sich, und eine neue Freigabe
-    lädt wirklich ein anderes.
+    Zwei Sprecher auf demselben Modell teilen sich den Erkenner.
     """
     konfiguration = einstellungen()
     schluessel = str(modellpfad(konfiguration, sprecher_id))
@@ -90,11 +63,7 @@ def transkriptor_fuer(sprecher_id: str) -> Transkriptor:
         else:
             from wortlaut.whisper.local import LokalerTranskriptor
 
-            # Gerät und Rechenart kommen aus der Konfiguration und damit aus
-            # derselben Quelle wie bei der Auswertung in „hören" und beim
-            # Trainer (`wortlaut/rechenwerk.py`). Das ist nicht nur Ordnung:
-            # Nur so misst die Modellübersicht Rechenzeiten, die zu dem passen,
-            # was hier tatsächlich geschieht.
+            # Wie in Auswertung und Trainer (`wortlaut/rechenwerk.py`).
             _transkriptoren[schluessel] = LokalerTranskriptor(
                 schluessel,
                 geraet=konfiguration.geraet,
@@ -106,14 +75,11 @@ def transkriptor_fuer(sprecher_id: str) -> Transkriptor:
 def aktive_ref(konfiguration: Einstellungen, sprecher_id: str) -> str:
     """Was für diesen Menschen gilt - eine Standkennung oder ein Grundmodellname.
 
-    Die Rangfolge steht in `api/model.py`; hier wird sie ausgeführt:
-
     1. `WORTLAUT_MODELL_REF` - der eine Stand für alle, zum Erproben.
-    2. Die Freigabe *dieses* Sprechers (`wortlaut/registry.py`). Sie entsteht
-       in der Modellübersicht von „lernen" und kann seit deren Zusammenlegung
-       auch ein unverändertes Grundmodell benennen.
+    2. Die Freigabe dieses Sprechers aus „lernen" (`wortlaut/registry.py`),
+       Stand oder Grundmodell.
 
-    Leer heißt: nichts freigegeben - dann gilt `WORTLAUT_ASR_MODELL`.
+    Leer: `WORTLAUT_ASR_MODELL`.
     """
     if konfiguration.modell_ref:
         return konfiguration.modell_ref
@@ -132,30 +98,16 @@ def modellstand(
     try:
         return ref, registry.lies_stand(konfiguration.data_dir, ref_sprecher, version)
     except (OSError, ValueError):
-        # Ein Stand, den es nicht gibt - falsch gesetzte Umgebung oder ein
-        # gelöschter Stand, der noch freigegeben ist. Sehen soll man das, nicht
-        # raten müssen: Die Auskunft in `api/model.py` sagt es ausdrücklich.
+        # Fehlt der Stand, sagt `api/model.py` es ausdrücklich.
         return ref, {}
 
 
 def tempo_fuer(konfiguration: Einstellungen, sprecher_id: str) -> float:
     """Mit welchem Faktor vorgespult wird, bevor das Modell zuhört.
 
-    **Mit einem Stand: der Faktor, auf dem er gelernt hat.** Ein Modell, das
-    nur vorgespulte Sprache gehört hat, muss sie auch hier bekommen. Bekäme es
-    ungespulte, träfe ein Modell für schnelle Sprache auf einen langsamen
-    Sprecher - und das Ergebnis wäre schlechter als ganz ohne Training, ohne
-    dass irgendwo ein Fehler stünde. Der Faktor steht im Manifest des Standes
-    (`apps/lernen/training/bewerten.py`), also wird er dort gelesen und nicht
-    geraten.
-
-    **Ohne Stand: gar nicht.** Dann rechnet ein unverändertes Grundmodell, und
-    das ist genau das, was die Auswertung in „hören" als Baseline misst - dort
-    wird seit `012_ohne_profiltempo.sql` ebenfalls nicht mehr vorgespult.
-
-    Hier stand einmal ein Rückgriff auf einen Tempofaktor am Sprecherprofil.
-    Den gibt es nicht mehr: Was das Vorspulen bringt, sucht der Trainer selbst
-    und trägt es im Stand mit sich.
+    Mit einem Stand der Faktor aus seinem Manifest, auf dem er gelernt hat
+    (`apps/lernen/training/bewerten.py`). Ohne Stand keiner - wie die Baseline
+    in der Auswertung von „hören".
     """
     stand = modellstand(konfiguration, sprecher_id)
     if stand is None:
@@ -166,18 +118,12 @@ def tempo_fuer(konfiguration: Einstellungen, sprecher_id: str) -> float:
 def modellpfad(konfiguration: Einstellungen, sprecher_id: str) -> Path | str:
     """Was faster-whisper geladen bekommt: Registry-Verzeichnis oder Modellname.
 
-    Mit einem Stand ist es dessen `ct2/`-Ordner. Ohne ihn ist es ein bloßer
-    Name - das freigegebene Grundmodell oder `WORTLAUT_ASR_MODELL`, mit dem
-    eine Installation anfängt, solange „lernen" nichts freigegeben hat.
+    Mit einem Stand dessen `ct2/`, sonst ein Modellname.
     """
     stand = modellstand(konfiguration, sprecher_id)
     if stand is None:
         return aktive_ref(konfiguration, sprecher_id) or konfiguration.asr_modell
-    # Auch dann das Verzeichnis, wenn das Manifest nicht zu lesen war: Was
-    # verlangt wurde, soll versucht werden. Still auf das Grundmodell
-    # auszuweichen hieße, einen Fehlgriff in der Konfiguration als gutes
-    # Ergebnis auszugeben - die Kopfzeile sagt stattdessen, dass der Stand
-    # fehlt (siehe `api/model.py`).
+    # Auch ohne lesbares Manifest: kein stilles Ausweichen aufs Grundmodell.
     ref_sprecher, version = stand[0].split("/", 1)
     return registry.stand_verzeichnis(konfiguration.data_dir, ref_sprecher, version) / "ct2"
 
@@ -193,8 +139,7 @@ def zwischenspeicher_leeren() -> None:
 def _vorgelegt(authorization: Annotated[str | None, Header()] = None) -> str:
     """Der rohe Zugang aus dem Kopf der Anfrage.
 
-    Er wird durchgereicht bis in den Postausgang: Was an „hören" geht, geht mit
-    dem Zugang dessen, der es bestätigt hat (siehe `services/outbox.py`).
+    Durchgereicht bis in den Postausgang (`services/outbox.py`).
     """
     return (authorization or "").removeprefix("Bearer ")
 
@@ -202,9 +147,7 @@ def _vorgelegt(authorization: Annotated[str | None, Header()] = None) -> str:
 def _wer_ruft(vorgelegt: Annotated[str, Depends(_vorgelegt)]) -> zugangsdienst.Sprecherzugang:
     """Die Kennung aus dem Vorgelegten ableiten - die einzige Stelle, die das tut.
 
-    Ein Verwalter- oder Aufsichtstoken kommt hier bewusst nicht durch: Diese App
-    hat nichts zu verwalten, sie spricht für einen Menschen. Wer keinen
-    Sprecherzugang hat, hat hier auch keine Diktate.
+    Nur der Sprecherzugang - diese App spricht für einen Menschen.
     """
     wer = zugangsdienst.pruefe(einstellungen().data_dir, vorgelegt)
     if wer is None:
@@ -220,15 +163,7 @@ def _sprecher_id(wer: Annotated[zugangsdienst.Sprecherzugang, Depends(_wer_ruft)
 
 
 def _sprache(wer: Annotated[zugangsdienst.Sprecherzugang, Depends(_wer_ruft)]) -> str:
-    """Die Sprache dieses Menschen - aus seinem Profil, nicht aus der Umgebung.
-
-    Hier stand einmal `WORTLAUT_SPRACHE`, eine serverweite Einstellung. Bei
-    einer Sprache je Profil (`wortlaut/sprachen.py`) ist das von Bauart falsch:
-    Sobald zwei Menschen mit verschiedenen Sprachen auf demselben Server
-    diktieren, bekommt einer von beiden die des anderen an Whisper gereicht -
-    und merkt es an einem Text, der aussieht, als hätte das Modell ihn nicht
-    verstanden.
-    """
+    """Die Sprache aus dem Profil (`wortlaut/sprachen.py`)."""
     return wer.sprache
 
 
@@ -244,9 +179,7 @@ def _ablage() -> storage.Ablage:
 def _transkriptor(sprecher_id: Annotated[str, Depends(_sprecher_id)]) -> Transkriptor:
     """Der Erkenner mit dem Modell, das für diesen Menschen freigegeben ist.
 
-    Gelesen wird die Freigabe bei jeder Anfrage und nicht beim Start: Das ist
-    der Preis dafür, dass eine neue Freigabe in „lernen" sofort gilt, ohne
-    einen Container neu zu starten.
+    Die Freigabe wird je Anfrage gelesen und gilt so sofort.
     """
     return transkriptor_fuer(sprecher_id)
 

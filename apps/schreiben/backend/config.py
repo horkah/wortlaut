@@ -3,16 +3,8 @@
 Die Feldnamen entsprechen den Variablen mit dem Präfix `WORTLAUT_`,
 `modell_ref` also `WORTLAUT_MODELL_REF`.
 
-Wer hier spricht, steht **nicht** mehr in der Konfiguration: Diese App führt
-denselben Sprecher wie „hören", und den bringt der Aufrufer als Zugang mit
-(siehe `deps.py`). Eine Instanz bedient damit so viele Sprecher, wie Zugänge
-vorgelegt werden - nötig geworden, weil jeder Sprecher sein eigenes,
-feingetuntes Modell bekommt und weil seine Diktate als Korrekturen in seinen
-Korpus zurückfließen. Beides braucht die Kennung, und geraten werden darf sie
-nicht.
-
-Was bleibt, gehört der Maschine und nicht der Person: wo die Daten liegen, wie
-Whisper läuft und wohin die Korrekturen gehen.
+Wer spricht, bringt der Zugang mit (`deps.py`); hier steht nur, was der
+Maschine gehört: Ablage, Whisper, Ziel der Korrekturen.
 """
 
 from __future__ import annotations
@@ -22,18 +14,15 @@ from pathlib import Path
 
 from wortlaut.einstellungen import Grundeinstellungen
 
-# Ablage dieser App - bewusst neben und nicht im Korpus: „hören" ist dessen
-# einziger Schreiber (Grundentscheidung 6). Was hier liegt, ist Arbeitsstand;
-# was bleiben soll, geht als Korrektur an „hören".
+# Ablage neben dem Korpus, dessen einziger Schreiber „hören" ist
+# (Grundentscheidung 6). Was bleiben soll, geht als Korrektur dorthin.
 #
 #     data/diktate/<sprecher_id>/
 #     ├── audio/<abschnitt_id>.wav     16 kHz mono, je ein Abschnitt
 #     └── schreiben.sqlite             Sitzungen, Abschnitte, Postausgang
 #
-# Nach Sprecher gegliedert wie der Korpus: Jeder Mensch hat hier seine eigene
-# Datei, und `scripts/purge_speaker.py` löscht mit dem Verzeichnis alles, was
-# von ihm da war. Eine gemeinsame Datenbank mit einer Spalte „sprecher" wäre
-# ein Filter, den man vergessen kann - ein Verzeichnis nicht.
+# Je Sprecher ein Verzeichnis - die Löschung nimmt es ganz
+# (`scripts/purge_speaker.py`).
 DIKTATE = "diktate"
 DATENBANKNAME = "schreiben.sqlite"
 
@@ -50,17 +39,10 @@ def audio_relpfad(sprecher_id: str, abschnitt_id: str) -> str:
 class Einstellungen(Grundeinstellungen):
     storage: str = "local"
 
-    # Ein fest vorgegebener Modellstand, Form `<sprecher_id>/<version>`. Leer
-    # ist der Normalfall: Dann bekommt jeder Sprecher den Stand, den „lernen"
-    # für ihn freigegeben hat (`registry.freigegeben`), und solange es keine
-    # Freigabe gibt, das unveränderte `asr_modell`. Gesetzt gilt der eine Stand für
-    # jeden, der hier ruft - gedacht zum Erproben eines Standes, nicht für den
-    # Betrieb.
+    # Ein fester Stand `<sprecher_id>/<version>` für alle - zum Erproben. Leer:
+    # die Freigabe aus „lernen" (`registry.freigegeben`), sonst `asr_modell`.
     modell_ref: str = ""
-    # Das unveränderte Grundmodell, wenn kein Stand da ist. `small` ist die
-    # kleinste Stufe, die noch ganze Sätze trifft; kleiner zu werden spart
-    # Rechenzeit, liefert aber Text, an dem niemand ablesen kann, ob das
-    # Diktat angekommen ist.
+    # Ohne Freigabe; `small` ist die kleinste Stufe, die ganze Sätze trifft.
     asr_modell: str = "small"
 
     # local = faster-whisper im eigenen Prozess, remote = fremder Endpunkt.
@@ -69,13 +51,8 @@ class Einstellungen(Grundeinstellungen):
     asr_endpoint: str = ""
     asr_api_key: str = ""
 
-    # Wohin die bestätigten Korrekturen gehen. Leer heißt: sie bleiben im
-    # Postausgang liegen, statt verloren zu gehen.
-    #
-    # Einen Token braucht es hier nicht mehr: Gesendet wird mit dem Zugang, den
-    # der Sprecher gerade vorgelegt hat (siehe `services/outbox.py`). Damit
-    # liegt kein fremdes Geheimnis in der Umgebung, und die Korrektur landet
-    # zwingend im Korpus dessen, der sie bestätigt hat.
+    # Wohin bestätigte Korrekturen gehen; leer: Sie bleiben im Postausgang.
+    # Gesendet wird mit dem Zugang des Sprechers (`services/outbox.py`).
     intake_url: str = ""
 
     @property

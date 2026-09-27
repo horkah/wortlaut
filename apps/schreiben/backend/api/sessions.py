@@ -78,9 +78,8 @@ async def bestaetige(
     Eingestellt wird immer, gesendet wird gleich versucht. Klappt das Senden
     nicht, bleibt der Eintrag im Postausgang und die Antwort sagt, warum.
 
-    Gesendet wird mit dem Zugang, mit dem hier bestätigt wurde: Die Korrektur
-    landet damit zwingend im Korpus dessen, der sie abgenickt hat, und nicht in
-    dem, den eine Konfiguration einmal genannt hat.
+    Gesendet wird mit dem Zugang, mit dem bestätigt wurde - die Korrektur
+    landet im Korpus dessen, der sie abgenickt hat.
     """
     sitzung = hole(db, sitzung_id)
     abschnitte = abschnitte_von(db, sitzung_id)
