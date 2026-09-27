@@ -32,10 +32,9 @@ class Ausschnitt:
 def aus_aktiven_quellen(sprecher_id: str):
     """Kennungen der Vorlagen eines Sprechers, deren Quelle nicht stillgelegt ist.
 
-    Die eine Stelle, an der „was zählt überhaupt mit" festgelegt ist - auch der
-    Fortschritt fragt hier. Eine stillgelegte Quelle verschwindet damit aus der
-    Warteschlange, ohne dass an ihren Einheiten etwas geändert würde: Wird sie
-    wieder aufgenommen, stehen sie an derselben Stelle wie zuvor.
+    Die eine Stelle für „was zählt mit" - auch der Fortschritt fragt hier. Eine
+    abgestellte Quelle verschwindet aus der Warteschlange und steht, wieder
+    aufgenommen, an derselben Stelle.
     """
     return (
         select(Vorlage.id)

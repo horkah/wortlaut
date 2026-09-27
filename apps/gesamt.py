@@ -4,33 +4,17 @@ Gestartet wird das so:
 
     uvicorn apps.gesamt:app --host 0.0.0.0 --port 8000
 
-Was sonst der Reverse Proxy tut, tut hier ein Verteiler von dreißig Zeilen:
 `/schreiben/…` geht an „schreiben", `/lernen/…` an „lernen", alles andere an
-„hören". Der Pfad bleibt dabei unverändert - jede App hängt ihre Wege schon
-selbst dorthin, wo sie liegen sollen (`BASIS` in „schreiben" und „lernen").
-Draußen genügt darum eine einzige Regel, die auf diesen einen Port zeigt.
+„hören" - unverändert, denn jede App hängt ihre Wege selbst unter ihren Pfad
+(`BASIS`). Draußen genügt eine Regel auf diesen Port. Geteilt wird nur der
+Prozess; Datenbanken, Ablagen und Zugangsregeln bleiben je App.
 
-Die Trennung, die sonst drei Container leisten, bleibt in der Sache bestehen:
-Jede App behält ihre eigene Datenbank und ihre eigene Ablage. Die Zugangsregeln
-sind dieselben - alle drei hängen hinter dem Zugang **eines** Sprechers und
-leiten seine Kennung daraus ab; es ist derselbe Zugang, weil es derselbe Mensch
-ist. Geteilt wird nur der Prozess.
+Der Trainer läuft nicht mit: Er hängt am Datenverzeichnis, dieser Prozess darf
+also neu starten, während trainiert wird. Die Korrekturen von „schreiben"
+gehen auch hier über die API (Grundentscheidung 6), an `127.0.0.1`; der
+Postausgang sendet im Arbeitsfaden, verklemmen kann das nicht.
 
-**Was hier nicht mitläuft: der Trainer.** „lernen" liefert eine Oberfläche aus
-und legt Aufträge an; gerechnet wird in einem eigenen Container mit einer
-Karte (`apps/lernen/training/`). Er hängt an keinem dieser Wege, sondern am
-geteilten Datenverzeichnis - deshalb kann dieser Prozess neu starten, während
-ein Training läuft.
-
-Der Weg von „schreiben" zurück in den Korpus führt auch hier über die API und
-nicht am Modell vorbei (Grundentscheidung 6); er zeigt lediglich auf
-`127.0.0.1` statt in ein Containernetz. Verklemmen kann das nicht: Der
-Postausgang sendet in einem Arbeitsfaden (`run_in_threadpool`), während der
-Ereignisschleife die eingehende Lieferung offensteht.
-
-Wer die Apps getrennt betreiben will - eigene Container, eigene Neustarts -,
-nimmt weiterhin die Module `apps/<app>/backend/main.py` einzeln. Dieses Modul
-fügt nur zusammen, es ändert an ihnen nichts.
+Getrennt betrieben werden die Apps über `apps/<app>/backend/main.py`.
 """
 
 from __future__ import annotations
@@ -54,9 +38,7 @@ UNTERAPPS = ((SCHREIBEN, schreiben), (LERNEN, lernen))
 def _zustaendig(pfad: str) -> FastAPI:
     """Wer diesen Pfad bedient - der Pfad der App und alles darunter.
 
-    Die Gleichheit steht mit Absicht daneben: Ohne sie träfe `/schreibendes`
-    dieselbe App wie `/schreiben/…`, und ein Tippfehler landete in einer
-    fremden Oberfläche statt in einem 404.
+    Nicht bloß das Präfix: `/schreibendes` gehört nicht zu `/schreiben`.
     """
     for basis, app_teil in UNTERAPPS:
         if pfad == basis or pfad.startswith(f"{basis}/"):
@@ -65,12 +47,8 @@ def _zustaendig(pfad: str) -> FastAPI:
 
 
 async def _lebenszyklus(receive, send) -> None:
-    """Start und Ende an beide Apps weitergeben.
-
-    Heute hat keine der drei einen Handler dafür. Bekäme eine später einen
-    und dieser Verteiler reichte ihn nicht durch, bliebe er unbemerkt aus -
-    ein Fehler, den niemand sähe, bis etwas fehlt.
-    """
+    """Start und Ende an alle drei Apps weitergeben, damit ein Handler dafür
+    nicht unbemerkt ausfällt."""
     await receive()  # lifespan.startup
     async with AsyncExitStack() as stapel:
         try:

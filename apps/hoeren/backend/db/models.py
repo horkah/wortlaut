@@ -29,9 +29,8 @@ class Sprecher(Basis):
     name: Mapped[str]
     sprache: Mapped[str]
     erstellt: Mapped[str]
-    # Um welchen Faktor die Aufnahmen dieses Sprechers vorgespult werden,
-    # bevor irgendein Modell sie hört (siehe `011_tempo.sql` und
-    # `wortlaut/tempo.py`). 1,0 heißt: gar nicht - der Normalfall.
+    # Ungenutzt und immer 1,0: Vorgespult wird je Modellstand, nicht je
+    # Sprecher (`012_ohne_profiltempo.sql`).
     tempo: Mapped[float] = mapped_column(default=1.0)
     # Prüfwert des Sprecherzugangs, siehe `wortlaut.zugang`. NULL heißt:
     # zurückgezogen - dann kommt niemand an diesen Korpus heran.
@@ -50,8 +49,7 @@ class Textquelle(Basis):
     art: Mapped[str]  # llm | upload | korrektur
     titel: Mapped[str]
     parameter: Mapped[str]  # JSON
-    # Stillgelegt heißt: keine neuen Einheiten mehr in der Warteschlange.
-    # Was schon aufgenommen wurde, bleibt im Korpus.
+    # Abgestellt: keine neuen Einheiten in der Warteschlange; Aufgenommenes bleibt.
     aktiv: Mapped[bool] = mapped_column(default=True)
     erstellt: Mapped[str]
 
@@ -95,16 +93,11 @@ class Aufnahme(Basis):
     status: Mapped[str]  # ok | verworfen
     hinweise: Mapped[str]  # JSON-Liste
     externe_id: Mapped[str | None]
-    # Wo der Zuschnitt dieser Aufnahme anfängt und aufhört, in Sekunden vom
-    # Anfang des Originals (siehe `016_zuschnitt.sql`). NULL heißt: nicht
-    # zugeschnitten, es gilt die ganze Datei. Der Pfad der zugeschnittenen
-    # Fassung steht nicht daneben - er folgt aus der Kennung
-    # (`corpus.zuschnitt_relpfad`), wie bei den abgewandelten Fassungen.
+    # Grenzen des Zuschnitts in Sekunden vom Anfang des Originals; NULL heißt
+    # ungeschnitten. Der Pfad folgt aus der Kennung (`corpus.zuschnitt_relpfad`).
     zuschnitt_start_s: Mapped[float | None] = mapped_column(default=None)
     zuschnitt_ende_s: Mapped[float | None] = mapped_column(default=None)
-    # Wo ein Teil unter gleichzeitigen Aufnahmen steht (siehe
-    # `017_teilen.sql`): leer bei gewöhnlichen Aufnahmen, bei einem Teil der
-    # Schlüssel des Originals mit angehängter Nummer.
+    # Leer, außer bei Teilen: Kennung des Originals mit angehängter Nummer.
     sortierschluessel: Mapped[str | None] = mapped_column(default=None)
     erstellt: Mapped[str]
 
@@ -112,10 +105,8 @@ class Aufnahme(Basis):
 class Erkennung(Basis):
     """Was ein Modell aus einer Aufnahme gemacht hat, samt Maßen dagegen.
 
-    Je Aufnahme, Modell und Fassung eine Zeile (siehe `005_auswertung.sql`
-    und `007_varianten.sql`). Die Fehlerraten sind Maße gegen die Vorlage,
-    `genauigkeit` fasst sie zu einer Zahl zusammen - beides gerechnet in
-    `wortlaut/metriken.py`, hier nur aufbewahrt.
+    Je Aufnahme, Modell und Fassung eine Zeile; gerechnet in
+    `wortlaut/metriken.py`.
     """
 
     __tablename__ = "erkennungen"
@@ -123,8 +114,7 @@ class Erkennung(Basis):
     id: Mapped[str] = mapped_column(primary_key=True)
     recording_id: Mapped[str] = mapped_column(ForeignKey("recordings.id"))
     modell: Mapped[str]
-    # Welche Fassung der Aufnahme gemessen wurde: `original` oder eine der
-    # Abwandlungen aus `wortlaut/augmentierung.py` (siehe `007_varianten.sql`).
+    # `original` oder eine Abwandlung aus `wortlaut/augmentierung.py`.
     variante: Mapped[str]
     text: Mapped[str]
     wer: Mapped[float]
@@ -133,21 +123,16 @@ class Erkennung(Basis):
     wil: Mapped[float]
     genauigkeit: Mapped[float]
     rechenzeit_s: Mapped[float]
-    # Worauf diese Zeile gerechnet wurde: `cuda/int8_float16` oder `cpu/int8`
-    # (siehe `008_rechenwerk.sql` und `wortlaut/rechenwerk.py`). Ohne diese
-    # Angabe ist die Rechenzeit daneben keine Auskunft, sondern eine Zahl.
-    # Leer heißt „unbekannt" - gemessen, bevor es die Spalte gab.
+    # Worauf gerechnet wurde, etwa `cuda/int8_float16` (`wortlaut/rechenwerk.py`);
+    # erst damit ist die Rechenzeit eine Auskunft. Leer heißt unbekannt.
     rechenwerk: Mapped[str]
-    # Mit welchem Faktor vorgespult war, was hier gemessen wurde. Teil des
-    # Schlüssels wie `rechenwerk`: Eine Zahl aus vorgespulter Sprache ist mit
-    # einer aus ungespulter nicht zu vergleichen (siehe `011_tempo.sql`).
+    # Mit welchem Faktor vorgespult war - bei einem Stand der seine.
     tempo: Mapped[float] = mapped_column(default=1.0)
-    # Woher diese Messung stammt (siehe `014_erkennungen_aus_faltungen.sql`):
+    # Woher die Messung stammt - beide Male von einem Modell, das die Aufnahme
+    # nicht kannte:
     #
-    # * `gemessen` - hier gerechnet, von einem Modell, das die Aufnahme nie
-    #   gehört hatte. Der Normalfall und die Vorgabe.
-    # * `faltung`  - aus der Kreuzvalidierung eines Trainingslaufs übernommen.
-    #   Ebenfalls von einem Modell, das die Aufnahme nicht kannte - nur ist es
-    #   inzwischen gelöscht, also lässt sich diese Zeile nie neu rechnen.
+    # * `gemessen` - hier gerechnet.
+    # * `faltung`  - aus der Kreuzvalidierung eines Laufs übernommen; das
+    #   Faltungsmodell gibt es nicht mehr, neu rechnen lässt sich die Zeile nie.
     herkunft: Mapped[str] = mapped_column(default="gemessen")
     erstellt: Mapped[str]

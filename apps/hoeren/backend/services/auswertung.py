@@ -1,81 +1,31 @@
 """Die Auswertung: Wie gut hören verschiedene Modelle diesem Sprecher zu?
 
-Der Korpus weiß, was gesprochen wurde, und er weiß, was gesprochen werden
-sollte - die Vorlage steht daneben. Damit ist jede Aufnahme eine fertige
-Prüfaufgabe: Man schickt sie durch einen Erkenner und vergleicht, was
-herauskommt, mit dem, was dastand. Genau das tut diese Datei, für jedes
-konfigurierte Modell und jede brauchbare Aufnahme.
+Zu jeder Aufnahme steht die Vorlage daneben; jede ist damit eine Prüfaufgabe.
+Diese Datei schickt jede brauchbare Aufnahme in jeder Fassung
+(`wortlaut/augmentierung.py`) durch jedes Modell und misst gegen die Vorlage.
 
-**Warum im Hintergrund.** Ein Modell über hundert Aufnahmen laufen zu lassen
-dauert Minuten bis Stunden, je nach Modell und Maschine. Eine Anfrage, die so
-lange offen steht, ist keine Anfrage mehr. Der Lauf hängt deshalb an keiner:
-Er wird angestoßen, arbeitet weiter, wenn die Seite längst geschlossen ist,
-und die Oberfläche fragt den Stand ab.
+* **Im Hintergrund**, denn ein Lauf dauert Minuten bis Stunden; die
+  Oberfläche fragt den Stand ab.
+* **Von Hand angestoßen**, nie beim Hochfahren - ein Neustart bände sonst
+  ungefragt Rechenzeit.
+* **Aufnahmeweise, nicht modellweise**, damit die ersten Punkte sofort
+  vergleichen. Alle Erkenner liegen dafür gleichzeitig im Speicher
+  (`_transkriptoren`).
+* **Danach ist die Karte frei.** Endet ein Lauf, nimmt `gib_karte_frei` alle
+  Erkenner herunter - der Trainer will die ganze Karte und fragt nicht, wer
+  sie hält.
+* **Wiederholbar.** Fertig ist, was in `erkennungen` steht; ein zweiter Lauf
+  rechnet nur, was fehlt, und fehlende Fassungen entstehen unterwegs
+  (`services/augmentierung.py`).
 
-**Warum von Hand angestoßen.** Der Lauf startet nicht beim Hochfahren des
-Servers. Whisper rechnet, und zwar auf derselben Maschine, auf der jemand
-gerade aufnimmt (Grundentscheidung 5 gilt für das Training, nicht für dieses
-Messen - aber die CPU ist dieselbe). Ein Neustart des Containers würde sonst
-jedes Mal ungefragt Stunden Rechenzeit binden. Wer messen will, sagt es.
-
-**Warum aufnahmeweise und nicht modellweise.** Die naheliegende Reihenfolge
-wäre, erst alle Aufnahmen durch `small` zu schicken, dann durch `medium`, dann
-durch `large-v3`. Sie wäre auch sparsamer: je Modell einmal laden. Nur zeigt die
-Kurve dann lange Zeit eine einzige Reihe, und verglichen werden soll gerade.
-Also andersherum: Aufnahme für Aufnahme durch alle Modelle, damit die ersten
-Punkte sofort vollständig sind. Bezahlt wird das damit, dass alle Erkenner
-gleichzeitig im Speicher liegen (`_transkriptoren`) - bei small, medium und
-large-v3 in `int8` gut zweieinhalb Gigabyte, und jeder trainierte Stand, der
-mit antritt, legt noch etwas dazu.
-
-**Warum sie nach dem Lauf gehen.** Die Karte gehört nicht der Auswertung
-allein: Der Trainer will sie ganz, und er fragt nicht, wer sie hält. Ein
-Webdienst, der nach einem Lauf seine Erkenner behielt, band still mehr als
-fünf der elf Gigabyte der Karte, und Trainingsläufe scheiterten gleich beim
-ersten Schritt am Speicher (September 2026). Endet ein Lauf - fertig, abgebrochen
-oder gescheitert -, nimmt `gib_karte_frei` sie herunter. Der nächste Lauf
-lädt sie neu; das kostet Sekunden.
-
-**Warum mehrfach je Aufnahme und Modell.** Eine Aufnahme ist ein einzelner
-Fall: dieser Pegel, dieses Mikrofon, dieser Raum. Ein Modell, das damit
-zurechtkommt, muss den Sprecher noch nicht verstanden haben. Gemessen wird
-deshalb nicht die Aufnahme allein, sondern die Aufnahme und ihre Abwandlungen
-(`wortlaut/augmentierung.py`) - seit September 2026 ist das eine: Rauschen.
-Zwei Zahlen je Modell und Aufnahme, und erst ihr Zusammenhang sagt, ob ein
-Ergebnis hielt oder an der Aufnahmesituation hing.
-
-Die fehlenden Fassungen entstehen dabei von selbst, kurz bevor sie gebraucht
-werden - so kommt auch jede Aufnahme, die vor dieser Änderung im Korpus lag,
-zu ihren Dateien, ohne dass jemand ein Skript anstoßen muss
-(`services/augmentierung.py`).
-
-**Was wiederholbar ist.** Fertig ist, was in `erkennungen` steht (siehe
-`005_auswertung.sql`, `007_varianten.sql`). Ein zweiter Lauf rechnet deshalb
-nur, was fehlt: nach einem Neustart, nach neuen Aufnahmen, nach einem
-hinzugefügten Modell - und nach einer hinzugefügten Fassung. Nichts wird
-doppelt gerechnet, und nichts geht verloren, wenn der Lauf mitten darin
-abbricht.
-
-**Wer antritt.** Die Grundmodelle aus der Konfiguration - und seit September
-2026 jeder trainierte Stand dieses Sprechers, dessen Gewichte dastehen. Damit
-steht in dieser Ansicht dasselbe Feld wie in „lernen", nur über den ganzen
-Korpus statt über einen Lauf.
-
-Ein Stand wird dabei nicht durchweg gerechnet. Die Aufnahmen, die es zur Zeit
-seines Trainings schon gab, hat er gehört; ihn darauf loszulassen ergäbe eine
-Zahl über sein Gedächtnis und keine über sein Können. Für genau sie liegt die
-Messung der Kreuzvalidierung vor - dort war jede Aufnahme einmal in der
-Prüffalte, also von einem Modell gehört, das sie nicht kannte. Diese Zeilen
-werden übernommen (`uebernimm_faltungen`, `herkunft = 'faltung'`, siehe
-`014_erkennungen_aus_faltungen.sql`). Was danach dazugekommen ist, rechnet der
-ausgelieferte Stand selbst - für ihn ist eine neue Aufnahme dasselbe
-unbekannte Prüfstück wie für ein Grundmodell.
-
-Dass eine Zeile eines Standes damit aus zwei Quellen stammen kann, ist die
-Absicht und nicht die Unsauberkeit: Beide Male misst sie denselben Satz, wie
-gut dieser Stand etwas hört, das er nie gelernt hat. Der Preis ist, dass
-`rechenzeit_s` einer übernommenen Zeile von der Trainingsmaschine kommt; die
-Auswertung behandelt sie deshalb nie als offen (siehe `_fertig`).
+**Wer antritt:** die Grundmodelle aus der Konfiguration und jeder trainierte
+Stand dieses Sprechers mit Gewichten. Ein Stand misst nie, was er gelernt hat
+- das wäre eine Zahl über sein Gedächtnis. Für diese Aufnahmen gilt die
+Messung seiner Kreuzvalidierung (`uebernimm_faltungen`, `herkunft =
+'faltung'`); alles andere rechnet der ausgelieferte Stand selbst, wie ein
+Grundmodell. Beide Male misst die Zeile, wie gut er etwas hört, das er nicht
+kannte. Übernommene Zeilen tragen das Rechenwerk des Trainers und gelten nie
+als offen (`_fertig`).
 """
 
 from __future__ import annotations
@@ -120,25 +70,19 @@ class _Lauf:
     sprecher_id: str
     aufgabe: asyncio.Task[None]
     stand: Stand
-    # Was in diesem Lauf nicht ging, damit es nicht endlos wiederholt wird.
-    # Bewusst nur im Speicher: Ein fehlendes Audio kann beim nächsten Anlauf
-    # wieder da sein, und ein Fehlschlag ist kein Ergebnis, das in den Korpus
-    # gehört.
+    # Was in diesem Lauf nicht ging - nur im Speicher, beim nächsten Lauf
+    # wird es neu versucht.
     uebersprungen: set[tuple[str, str, str]] = field(default_factory=set)
 
 
-# Ein Lauf zur Zeit, über alle Sprecher. Nicht aus Bequemlichkeit: Zwei Läufe
-# teilten sich eine CPU und dieselben Modelle im Speicher und wären zusammen
-# langsamer als nacheinander.
+# Ein Lauf zur Zeit, über alle Sprecher - zwei wären zusammen langsamer.
 _lauf: _Lauf | None = None
 
-# Einmal geladen, dann für die Dauer eines Laufs wiederverwendet - das Laden
-# eines Modells kostet Sekunden, das Erkennen eines Satzes ebenso. Nach dem
-# Lauf geht alles herunter (`gib_karte_frei`). Siehe Kopfkommentar.
+# Für die Dauer eines Laufs geladen, danach frei (`gib_karte_frei`).
 _transkriptoren: dict[str, Transkriptor] = {}
 
 
-# Woher eine Zeile stammt (siehe `014_erkennungen_aus_faltungen.sql`).
+# Woher eine Zeile stammt.
 GEMESSEN = "gemessen"
 FALTUNG = "faltung"
 
@@ -151,10 +95,8 @@ def modelle(liste: str) -> list[str]:
 def staende(datenverzeichnis: Path, sprecher_id: str) -> list[str]:
     """Die trainierten Stände dieses Sprechers, jüngster zuletzt.
 
-    Nur die, deren Gewichte wirklich dastehen: Ein Stand ohne `ct2` ließe sich
-    zwar aus seinen Faltungen übernehmen, aber nicht auf neuere Aufnahmen
-    anwenden - und eine Zeile, die nach dem halben Korpus aufhört, ist keine
-    Zeile, die man neben die übrigen stellen kann.
+    Nur mit Gewichten: Ohne `ct2` hörte er keine neue Aufnahme, und seine
+    Reihe hörte nach dem halben Korpus auf.
     """
     return [
         ref
@@ -167,16 +109,8 @@ def staende(datenverzeichnis: Path, sprecher_id: str) -> list[str]:
 def noch_da(datenverzeichnis: Path, namen: list[str]) -> list[str]:
     """Von einer Modellreihe das, was in diesem Augenblick zu rechnen ist.
 
-    Ein Lauf dauert Minuten bis Stunden, und in dieser Zeit kann ein Stand
-    verschwinden: Jemand löscht ihn in „lernen", oder ein Training gibt
-    denselben Lauf unter einem anderen Namen frei. Der Lauf hielte sonst an
-    einer Liste fest, die beim Anstoßen stimmte, und liefe je Aufnahme und
-    Fassung in denselben Fehler - bei einem mittleren Korpus einige hundert
-    Mal, und am Ende stünde eine große Zahl „übersprungen" ohne einen Grund,
-    den jemand lesen kann.
-
-    Ein Grundmodell bleibt immer drin: Es liegt im Modellspeicher und wird
-    notfalls geladen.
+    Während eines Laufs kann ein Stand verschwinden; er fällt dann heraus,
+    statt je Posten in denselben Fehler zu laufen. Ein Grundmodell bleibt.
     """
     return [
         name
@@ -189,10 +123,7 @@ def noch_da(datenverzeichnis: Path, namen: list[str]) -> list[str]:
 def messbare_modelle(datenverzeichnis: Path, sprecher_id: str, liste: str) -> list[str]:
     """Alles, was in dieser Auswertung gegeneinander antritt.
 
-    Die Grundmodelle aus der Konfiguration **und** die trainierten Stände
-    dieses Menschen. Dass beide in derselben Spalte stehen, war von Anfang an
-    vorgesehen (`005_auswertung.sql`); erst seit den Faltungen ist es auch
-    ehrlich möglich.
+    Die Grundmodelle aus der Konfiguration und die Stände dieses Menschen.
     """
     return modelle(liste) + staende(datenverzeichnis, sprecher_id)
 
@@ -200,15 +131,8 @@ def messbare_modelle(datenverzeichnis: Path, sprecher_id: str, liste: str) -> li
 def tempo_fuer(datenverzeichnis: Path, modell: str) -> float:
     """Mit welchem Faktor vorgespult wird, bevor dieses Modell zuhört.
 
-    **Für ein Grundmodell nie.** Die Auswertung ist die Baseline und misst den
-    Ausgangszustand (`012_ohne_profiltempo.sql`).
-
-    **Für einen Stand der Faktor, auf dem er gelernt hat.** Er steht in seinem
-    Manifest, „schreiben" spult beim Diktieren genauso vor
-    (`apps/schreiben/backend/deps.py`), und seine Faltungen wurden ebenso
-    gemessen (`apps/lernen/training/bewerten.py`). Ein Modell für schnelle
-    Sprache an langsamer zu messen, ergäbe eine Zahl über eine Lage, die es
-    nie gibt.
+    Ein Grundmodell nie - die Auswertung ist die Baseline. Ein Stand mit dem
+    Faktor aus seinem Manifest, wie beim Diktieren und in seinen Faltungen.
     """
     if not registry.ist_stand(modell):
         return tempo.VORGABE
@@ -223,11 +147,8 @@ def tempo_fuer(datenverzeichnis: Path, modell: str) -> float:
 def gewichte(datenverzeichnis: Path, modell: str) -> Path:
     """Das Verzeichnis, aus dem faster-whisper einen Stand lädt.
 
-    Fehlt es, sagt es das hier. Sonst hielte faster-whisper den Pfad für einen
-    Namen auf dem Hugging-Face-Hub und meldete „Repo id must be in the form
-    'namespace/repo_name'" - eine Auskunft über eine Bibliothek, die mit dem
-    Fall nichts zu tun hat, samt einem Pfad, den auf dieser Seite niemand
-    lesen will.
+    Fehlt es, sagt es das hier - faster-whisper hielte den Pfad sonst für einen
+    Namen auf dem Hub und meldete etwas Unverständliches.
     """
     verzeichnis = registry.ct2_verzeichnis(datenverzeichnis, modell)
     if not verzeichnis.is_dir():
@@ -242,10 +163,7 @@ def transkriptor_fuer(
 ) -> Transkriptor:
     """Der Erkenner zu einem Namen - oder zu einem Stand.
 
-    Ein Grundmodell lädt faster-whisper über seinen Namen, einen Stand über
-    das Verzeichnis seiner Gewichte. Denselben Unterschied macht „schreiben"
-    an derselben Stelle; hier steht er, weil die Auswertung seit den
-    Faltungen beide misst.
+    Ein Grundmodell über seinen Namen, ein Stand über seine Gewichte.
     """
     if modell not in _transkriptoren:
         from wortlaut.whisper.local import LokalerTranskriptor
@@ -262,8 +180,7 @@ def transkriptor_fuer(
 def gib_karte_frei() -> None:
     """Alle Erkenner der Auswertung herunternehmen - die Karte wird wieder frei.
 
-    Nur wer ein Modell geladen hat, hat etwas zu entladen: Ein entfernter
-    Erkenner hält nichts auf dieser Karte und kennt `entlade` nicht.
+    Ein entfernter Erkenner hält nichts und kennt `entlade` nicht.
     """
     for erkenner in _transkriptoren.values():
         entlade = getattr(erkenner, "entlade", None)
@@ -296,20 +213,15 @@ class Posten:
         return (self.aufnahme_id, self.modell, self.variante)
 
 
-# Die Maße, die eine übernommene Faltungszeile mitbringen muss. Fehlt eines,
-# ist die Zeile unbrauchbar - eine halbe Messung ist keine.
+# Was eine übernommene Faltungszeile mitbringen muss.
 _MASSE = ("wer", "cer", "mer", "wil", "genauigkeit")
 
-# Was ein Lauf über eine Aufnahme weiß: den Ton, auf dem er gelernt und
-# gemessen hat - Pfad im Korpus des Sprechers und Dauer, wie sie im Manifest
-# stehen. `None` heißt, das Manifest sagt es nicht (ein Lauf ohne Manifest);
-# dann war es das Original, denn Zuschnitte gab es vor den Manifesten nicht.
+# Der Ton, auf dem ein Lauf eine Aufnahme kannte: Pfad und Dauer aus dem
+# Manifest. `None`, wenn das Manifest fehlt - dann das Original.
 Ton = tuple[str, float] | None
 
-# Je Laufverzeichnis das Gelesene, samt dem Stand der Dateien, aus dem es
-# stammt. Die Auswertung fragt bei jedem Posten und jeder Abfrage des
-# Fortschritts - ein Manifest über den ganzen Korpus jedes Mal neu zu lesen,
-# wäre die teuerste Zeile des Laufs.
+# Je Laufverzeichnis das Gelesene samt dem Stand der Dateien - gefragt wird
+# bei jedem Posten und jeder Abfrage des Fortschritts.
 _gehoert_zwischen: dict[Path, tuple[tuple[float, float], dict[str, Ton]]] = {}
 
 
@@ -323,17 +235,11 @@ def _mtime(pfad: Path) -> float:
 def _gehoert_im_lauf(verzeichnis: Path) -> dict[str, Ton]:
     """Welche Aufnahmen ein Lauf kannte - und auf welchem Ton.
 
-    Gekannt hat er, was in seinem Manifest steht, und was seine Faltungen
-    gemessen haben (jede Aufnahme war in genau einer davon die Prüfaufgabe und
-    in den übrigen fünf Lernstoff). Das Zweite steht hier mit, weil ein Lauf
-    sein Manifest verlieren kann, seine Bewertung aber nicht - sie ist das,
-    was übernommen wird.
+    Was im Manifest steht und was seine Faltungen gemessen haben - Letzteres,
+    weil die Bewertung übernommen wird, auch wenn das Manifest fehlt.
 
-    **Ein Kernlauf kannte nur seinen Kern.** Sein Manifest ist der ganze
-    Schnappschuss, aber gelernt, gesteuert und gemessen hat er allein auf den
-    Kernaufnahmen (`wortlaut/laeufe.py`, „Die Auswahl"). Die übrigen hat er nie
-    gehört - für ihn sind sie, was für jeden Stand eine später dazugekommene
-    Aufnahme ist: Der ausgelieferte Stand rechnet sie hier selbst.
+    Ein Kernlauf kannte nur seinen Kern (`wortlaut/laeufe.py`, „Die Auswahl");
+    die übrigen Aufnahmen rechnet der ausgelieferte Stand hier selbst.
     """
     manifest, bewertung = verzeichnis / laeufe.MANIFEST, verzeichnis / laeufe.BEWERTUNG
     auswahl = verzeichnis / laeufe.KERNAUSWAHL
@@ -345,9 +251,7 @@ def _gehoert_im_lauf(verzeichnis: Path) -> dict[str, Ton]:
     try:
         kern = laeufe.kern_aus(verzeichnis, laeufe.lies_json(verzeichnis / laeufe.AUFTRAG) or {})
     except RuntimeError:
-        # Ein Kernlauf, der nie bis zur Wahl kam, hat auch keinen Stand - und
-        # wer hier trotzdem nach ihm fragt, bekommt die vorsichtige Antwort:
-        # alles aus dem Manifest gilt als gehört.
+        # Ohne gewählten Kern gibt es keinen Stand; vorsichtig gilt alles als gehört.
         kern = None
 
     gehoert: dict[str, Ton] = {}
@@ -368,9 +272,8 @@ def _gehoert_im_lauf(verzeichnis: Path) -> dict[str, Ton]:
 def gehoert(datenverzeichnis: Path, namen: list[str]) -> dict[str, dict[str, Ton]]:
     """Je trainiertem Stand unter `namen` die Aufnahmen, die er im Training hatte.
 
-    Auf genau sie wird ein Stand **nie** selbst angesetzt: Eine Zahl darüber
-    wäre eine über sein Gedächtnis, nicht über sein Hören. Für sie gilt die
-    Messung seiner Faltungen - oder keine (`derselbe_ton`).
+    Auf sie wird ein Stand nie selbst angesetzt; für sie gilt die Messung
+    seiner Faltungen oder keine (`derselbe_ton`).
     """
     ergebnis: dict[str, dict[str, Ton]] = {}
     for name in namen:
@@ -389,24 +292,16 @@ def gehoert(datenverzeichnis: Path, namen: list[str]) -> dict[str, dict[str, Ton
 def verwandte(db: Session, bekannt: dict[str, dict[str, Ton]]) -> dict[str, set[str]]:
     """Je Stand alle Aufnahmen, die er kennt - die gehörten **und** ihre Verwandten.
 
-    Ein Teil oder eine Kopie aus „Editieren" ist eine neue Aufnahme, aber
-    derselbe Ton (`zuschnitt.stamm`). Hatte ein Stand das Original im
-    Training, kennt er den Teil, auch wenn dessen Kennung nie in seinem
-    Manifest stand; hatte er einen Teil, kennt er das Original zur Hälfte.
-    Eine Messung daran wäre keine unabhängige Prüfung, sondern wieder eine
-    über sein Gedächtnis.
-
-    Anders als eine gehörte Aufnahme bringt ein Verwandter keine Faltung mit:
-    Seine Kennung gab es im Lauf nicht. Die Stelle bleibt leer, bis ein neuer
-    Lauf ihn in seiner Kreuzvalidierung gemessen hat.
+    Teile und Kopien aus „Editieren" sind derselbe Ton (`zuschnitt.stamm`):
+    Wer das Original kannte, kennt den Teil, und umgekehrt. Ein Verwandter
+    bringt keine Faltung mit; die Stelle bleibt leer, bis ein Lauf ihn misst.
     """
     if not bekannt:
         return {}
     staemme = {aufnahme.id: zuschnitt.stamm(aufnahme) for aufnahme in db.scalars(select(Aufnahme))}
     ergebnis: dict[str, set[str]] = {}
     for modell, gehoerte in bekannt.items():
-        # Eine gehörte Aufnahme, die es nicht mehr gibt, ist ihr eigener Stamm -
-        # ihre Teile verweisen mit dem Sortierschlüssel weiter auf sie.
+        # Eine gelöschte gehörte Aufnahme ist ihr eigener Stamm.
         gehoerte_staemme = {staemme.get(kennung, kennung) for kennung in gehoerte}
         ergebnis[modell] = set(gehoerte) | {
             kennung for kennung, stamm in staemme.items() if stamm in gehoerte_staemme
@@ -417,15 +312,9 @@ def verwandte(db: Session, bekannt: dict[str, dict[str, Ton]]) -> dict[str, set[
 def derselbe_ton(aufnahme: Aufnahme, damals: Ton) -> bool:
     """Ob ein Lauf diese Aufnahme so kannte, wie sie heute gilt.
 
-    Seit es Zuschnitte gibt, ist das nicht mehr selbstverständlich. Eine
-    Faltungsmessung am ungeschnittenen Ton beschreibt eine Datei, mit der
-    niemand mehr arbeitet - sie stehen zu lassen oder nach dem Schnitt wieder
-    zu übernehmen, hieße, eine Zahl über den alten Ton in den Vergleich über
-    den neuen zu stellen. Gefragt wird nach Pfad **und** Dauer: Ein zweiter
-    Schnitt liegt unter demselben Pfad wie der erste.
-
-    Nimmt jemand den Zuschnitt zurück, stimmt es wieder, und die Faltung kommt
-    zurück - sie war nie falsch, sie gehörte nur zu einem anderen Ton.
+    Eine Faltung am ungeschnittenen Ton beschreibt eine Datei, mit der niemand
+    mehr arbeitet. Gefragt wird nach Pfad und Dauer, denn ein zweiter Schnitt
+    liegt unter demselben Pfad. Ohne Zuschnitt gilt die Faltung wieder.
     """
     if damals is None:
         return not zuschnitt.hat_zuschnitt(aufnahme)
@@ -439,18 +328,10 @@ def derselbe_ton(aufnahme: Aufnahme, damals: Ton) -> bool:
 def vergiss_ueberholte_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -> int:
     """Die Zeilen eines Standes wegräumen, die nicht mehr den geltenden Ton messen.
 
-    Der Zuschnitt löscht beim Schreiben alle Messungen einer Aufnahme
-    (`api/zuschnitt.py`). Das genügt für die Grundmodelle - die rechnen neu.
-    Für einen Stand genügt es nicht: Seine Faltungen standen bis zum nächsten
-    Abgleich wieder da, übernommen aus einem Lauf, der den alten Ton gehört
-    hatte. Hier werden sie deshalb nicht nur nicht übernommen
-    (`uebernimm_faltungen`), sondern auch weggeräumt, wo sie schon stehen -
-    der Bestand von vor dieser Regel eingeschlossen.
-
-    Mit ihnen geht jede gerechnete Zeile eines Standes über eine Aufnahme, die
-    er im Training hatte - oder über einen Teil oder eine Kopie davon
-    (`verwandte`). Die gibt es nach dieser Regel nicht mehr (`offene_posten`);
-    was davon noch dasteht, ist eine Zahl über sein Gedächtnis.
+    Der Zuschnitt löscht die Messungen einer Aufnahme (`api/zuschnitt.py`),
+    der Abgleich übernähme die Faltung aber wieder - also wird sie hier
+    weggeräumt und nicht übernommen. Ebenso jede selbst gerechnete Zeile
+    eines Standes über etwas, das er kannte (`verwandte`).
     """
     namen = [
         str(manifest.get("id", ""))
@@ -482,17 +363,10 @@ def vergiss_ueberholte_faltungen(db: Session, datenverzeichnis: Path, sprecher_i
 def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -> int:
     """Die Kreuzvalidierung jedes Standes in `erkennungen` übernehmen.
 
-    **Warum übernehmen und nicht rechnen.** Ein trainierter Stand hat die
-    meisten Aufnahmen dieses Korpus im Training gehört. Ihn darauf loszulassen
-    ergäbe eine Zahl über sein Gedächtnis und nicht über sein Hörvermögen. Für
-    genau diese Aufnahmen liegt die ehrliche Messung längst vor: Jede von ihnen
-    wurde in einer der sechs Faltungen von einem Modell gehört, das sie
-    zurückgehalten bekommen hatte (`apps/lernen/training/bewerten.py`).
-
-    **Warum hier und nicht am Ende des Trainings.** Weil es dann einmal
-    geschähe und für die Läufe von gestern nie. So geschieht es vor jedem
-    Auswertungslauf, ist in sich wiederholbar - was schon steht, wird nicht
-    noch einmal geschrieben - und holt alte Läufe von selbst nach.
+    Für die Aufnahmen, die ein Stand gelernt hat, liegt die ehrliche Messung
+    vor: Jede wurde von der Faltung gehört, die sie zurückhielt
+    (`apps/lernen/training/bewerten.py`). Übernommen bei jedem Abgleich,
+    wiederholbar - was steht, wird nicht noch einmal geschrieben.
 
     Gibt zurück, wie viele Zeilen neu dazukamen.
     """
@@ -518,14 +392,10 @@ def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -
         for zeile in laeufe.lies_zeilen(verzeichnis / laeufe.BEWERTUNG):
             kennung = str(zeile.get("recording_id") or "")
             fassung = str(zeile.get("variante") or augmentierung.ORIGINAL)
-            # Eine Aufnahme, die es nicht mehr gibt oder die verworfen wurde,
-            # ist kein Prüfstück mehr - der gemeinsame Boden ist der Korpus von
-            # heute und nicht der von damals.
+            # Nur was heute gilt - gelöschte und verworfene Aufnahmen nicht.
             if not kennung or kennung not in gueltig:
                 continue
-            # Gemessen am Ton von damals. Ist die Aufnahme seither
-            # zugeschnitten worden, misst die Zeile eine Datei, mit der niemand
-            # mehr arbeitet (`derselbe_ton`).
+            # Nur auf dem Ton, der heute gilt (`derselbe_ton`).
             if not derselbe_ton(gueltig[kennung], damals.get(kennung)):
                 continue
             if (kennung, ref, fassung) in vorhanden:
@@ -541,10 +411,8 @@ def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -
                     text=str(zeile.get("text") or ""),
                     **{mass: float(zeile[mass]) for mass in _MASSE},
                     rechenzeit_s=float(zeile.get("rechenzeit_s") or 0.0),
-                    # Das Rechenwerk des Trainers, nicht das dieser Maschine.
-                    # Es steht da, damit die Ansicht die Rechenzeit **nicht**
-                    # neben die übrigen stellt (siehe `zeit_vergleichbar` in
-                    # `apps/lernen/backend/api/modelle.py`).
+                    # Das Rechenwerk des Trainers - die Rechenzeit ist dann nicht
+                    # vergleichbar (`zeit_vergleichbar` in „lernen").
                     rechenwerk=str(zeile.get("rechenwerk") or ""),
                     tempo=faktor,
                     herkunft=FALTUNG,
@@ -561,19 +429,10 @@ def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -
 def vergiss_verschwundene_staende(db: Session, datenverzeichnis: Path, sprecher_id: str) -> int:
     """Zeilen von Ständen wegräumen, die es nicht mehr gibt.
 
-    Wer einen Lauf löscht, löscht alles, was aus ihm hervorging
-    (`apps/lernen/backend/services/auftraege.py`). Seine Messungen stehen aber
-    hier, in der Tabelle von „hören" - und bis September 2026 gab es in dieser
-    Tabelle nichts, was ein Lauf hinterlassen konnte.
-
-    Aufgeräumt wird hier und nicht dort, weil diese Tabelle hierher gehört: Ein
-    Löschvorgang in „lernen", der in den Korpus greift, wäre ein zweiter
-    Schreiber darauf (Grundentscheidung 6).
-
-    Gemessen wird am **Manifest** und nicht an den Gewichten: Ein Stand, dessen
-    `ct2` fehlt, kann keine neue Aufnahme mehr hören, aber seine Faltungen
-    beschreiben nach wie vor, was er konnte. Sie wegzuwerfen hieße, eine
-    Messung zu verlieren, die niemand wiederherstellen kann.
+    Ein gelöschter Lauf nimmt seinen Stand mit, dessen Zeilen stehen aber
+    hier - aufgeräumt von „hören", dem einzigen Schreiber (Grundentscheidung
+    6). Gemessen am Manifest, nicht an den Gewichten: Die Faltungen eines
+    Standes ohne `ct2` beschreiben weiter, was er konnte.
     """
     vorhanden = {
         str(manifest.get("id", ""))
@@ -600,9 +459,7 @@ def vergiss_verschwundene_staende(db: Session, datenverzeichnis: Path, sprecher_
 def gueltige_aufnahmen(db: Session) -> list[tuple[Aufnahme, Vorlage]]:
     """Alle brauchbaren Aufnahmen mit ihrer Vorlage, älteste zuerst.
 
-    Die Reihenfolge ist zugleich die Nummerierung der Kurve: Aufnahme 1 ist
-    die erste, die dieser Sprecher gemacht hat. Ohne Lücken und stabil, denn
-    sie hängt am Zeitpunkt und nicht an einer Kennung.
+    Die Reihenfolge ist die Nummerierung der Kurve.
     """
     return list(
         db.execute(
@@ -617,13 +474,8 @@ def gueltige_aufnahmen(db: Session) -> list[tuple[Aufnahme, Vorlage]]:
 def _geltende():
     """Die Kennungen der brauchbaren Aufnahmen - als Unterabfrage.
 
-    **Wozu die Einschränkung an jeder Zählung.** Eine verworfene Aufnahme
-    zählt in `gesamt` nicht mehr mit; ihre Messzeilen zählten in `erledigt`
-    aber weiter, und der Balken stand über 100 %. Das Verwerfen räumt sie
-    inzwischen weg (`api/recordings.py`, `015_erkennungen_verworfener_…`) -
-    hier steht es trotzdem, weil es hier eine Rechnung richtig macht und dort
-    nur Daten aufräumt: Was gezählt wird, soll nicht davon abhängen, dass ein
-    anderer Weg sauber gearbeitet hat.
+    An jeder Zählung, damit `erledigt` nie Zeilen verworfener Aufnahmen
+    mitzählt - unabhängig davon, dass das Verwerfen sie wegräumt.
     """
     return select(Aufnahme.id).where(Aufnahme.status == GUELTIG)
 
@@ -631,22 +483,10 @@ def _geltende():
 def _fertig(db: Session, werk: str) -> set[tuple[str, str, str]]:
     """Was schon gemessen ist - **auf dem Rechenwerk, das gerade gilt**.
 
-    Die Einschränkung ist neu und sie ist der Preis der Vergleichbarkeit. Eine
-    Zeile, die auf dem Prozessor entstand, während jetzt die Karte rechnet,
-    trägt eine Rechenzeit, die mit den übrigen nichts zu tun hat - und das
-    zehnfach. Sie stehen zu lassen hieße, in einer Spalte zwei Maßstäbe zu
-    mischen; genau das war der Fehler, gegen den diese Änderung antritt.
-
-    Neu gerechnet wird deshalb, was aus einem anderen Rechenwerk stammt oder
-    aus keinem bekannten (die Zeilen von vor `008_rechenwerk.sql`). Das kostet
-    einmal einen vollen Lauf - auf der Karte sind das Minuten statt Stunden.
-
-    **Ausgenommen sind die übernommenen Faltungszeilen.** Sie lassen sich nicht
-    neu rechnen: Die sechs Modelle, die sie gemessen haben, sind nach ihrem
-    Lauf gelöscht, und der siebte kennt diese Aufnahmen auswendig. Sie bei
-    einem Wechsel der Karte für offen zu erklären hieße, sie durch eine
-    Messung zu ersetzen, die schlechter ist - oder die Zeile ganz zu verlieren
-    (siehe `014_erkennungen_aus_faltungen.sql`).
+    Eine Zeile aus einem anderen oder unbekannten Rechenwerk gilt als offen:
+    Ihre Rechenzeit passte nicht neben die übrigen. Ausgenommen sind
+    übernommene Faltungen - die Faltungsmodelle gibt es nicht mehr, und der
+    Stand kennt diese Aufnahmen.
     """
     return {
         (zeile.recording_id, zeile.modell, zeile.variante)
@@ -667,17 +507,11 @@ def offene_posten(
 ) -> list[Posten]:
     """Was noch zu rechnen ist, in der Reihenfolge, in der gerechnet wird.
 
-    Die Schachtelung ist die Reihenfolge des Laufs: Aufnahme, dann Modell,
-    dann Fassung. Die vier Fassungen eines Modells liegen damit nebeneinander,
-    und genau nebeneinander werden sie später gelesen - eine halb gerechnete
-    Aufnahme zeigt lieber ein vollständiges Modell als vier angefangene.
+    Aufnahme, dann Modell, dann Fassung - so ist eine halb gerechnete Aufnahme
+    für jedes fertige Modell vollständig.
 
-    **Kein Stand über eine Aufnahme, die er im Training hatte** (`bekannt`,
-    aus `gehoert`), und über keinen Teil und keine Kopie davon (`verwandte`).
-    Für sie gilt seine Faltung; fehlt die - weil die Aufnahme seither
-    zugeschnitten oder aus ihr etwas Neues geschnitten wurde -, bleibt die
-    Stelle leer, bis ein neuer Lauf sie auf dem neuen Ton gemessen hat. Ihn
-    selbst darauf anzusetzen, ergäbe eine Zahl über sein Gedächtnis.
+    Kein Stand über eine Aufnahme, die er kannte (`bekannt`, `verwandte`);
+    fehlt dort die Faltung, bleibt die Stelle leer.
     """
     erledigt = _fertig(db, werk)
     gesperrt = verwandte(db, bekannt or {})
@@ -709,20 +543,11 @@ def zaehle(
 ) -> tuple[int, int]:
     """(erledigt, gesamt) - beides aus der Datenbank, nie aus einem Zähler.
 
-    Ein mitlaufender Zähler wäre nach jedem Neustart falsch, und genau ein
-    Neustart mitten im Lauf ist der Fall, für den diese Auswertung
-    wiederaufnehmbar gebaut ist.
-
-    `gesamt` ist, was erledigt ist, und was noch offen ist - und nicht mehr
-    Aufnahmen mal Modelle mal Fassungen. Seit ein Stand Aufnahmen aus seinem
-    Training nicht selbst misst (`offene_posten`), gibt es Stellen, die weder
-    das eine noch das andere sind; mitgezählt, stünde der Balken für immer
-    unter 100 %.
+    Ein mitlaufender Zähler wäre nach einem Neustart falsch. `gesamt` ist
+    erledigt plus offen, nicht Aufnahmen mal Modelle mal Fassungen - leere
+    Stellen eines Standes zählen weder als das eine noch als das andere.
     """
-    # Gezählt wird nur, was zu den derzeit konfigurierten Modellen und
-    # Fassungen gehört: Wer ein Modell aus der Liste nimmt, soll nicht
-    # plötzlich über 100 % stehen - und die Zeilen einer abgeschafften Fassung
-    # sollen den Balken nicht vollmachen, ohne dass es etwas zu sehen gäbe.
+    # Nur konfigurierte Modelle und Fassungen, sonst stünde der Balken über 100 %.
     erledigt = (
         db.scalar(
             select(func.count())
@@ -730,16 +555,9 @@ def zaehle(
             .where(
                 Erkennung.modell.in_(namen),
                 Erkennung.variante.in_(augmentierung.VARIANTEN),
-                # Verworfene Aufnahmen zählen in `gesamt` nicht mehr mit;
-                # zählten ihre Zeilen hier weiter, stünde der Balken über
-                # 100 % (siehe `_geltende`).
+                # Siehe `_geltende`.
                 Erkennung.recording_id.in_(_geltende()),
-                # Dieselbe Einschränkung wie in `_fertig`, samt derselben
-                # Ausnahme: Was auf einem anderen Rechenwerk entstand, ist
-                # offen und nicht erledigt - sonst stünde der Balken bei 100 %,
-                # während der Lauf noch rechnet. Eine übernommene
-                # Faltungsmessung zählt dagegen immer als erledigt, denn sie
-                # kann gar nicht neu entstehen.
+                # Wie in `_fertig`.
                 (Erkennung.rechenwerk == werk) | (Erkennung.herkunft == FALTUNG),
             )
         )
@@ -758,16 +576,7 @@ def _rechne(
 ) -> Erkennung:
     """Erkennen und messen - der Teil, der rechnet und keine Datenbank anfasst.
 
-    **Ein Grundmodell hört bei einfacher Geschwindigkeit.** Hier stand einmal
-    ein Vorspulen nach dem Profilfaktor des Sprechers; er ist im September 2026
-    gefallen (`012_ohne_profiltempo.sql`). Die Auswertung ist die Baseline und
-    misst den Ausgangszustand.
-
-    **Ein trainierter Stand hört so, wie er gelernt hat.** Sein Faktor steht in
-    seinem Manifest; die Faltungen desselben Laufs wurden damit gemessen, und
-    „schreiben" spult beim Diktieren ebenso vor. Ein Modell für schnelle
-    Sprache an langsamer zu messen, ergäbe eine Zahl über eine Lage, die es
-    nie gibt (`tempo_fuer`).
+    Vorgespult mit dem Faktor des Modells (`tempo_fuer`).
     """
     with tempfile.TemporaryDirectory() as zwischen:
         if tempo.vorspulen_noetig(faktor):
@@ -777,15 +586,9 @@ def _rechne(
         begonnen = time.monotonic()
         transkript = transkriptor.transkribiere(wav, sprache=sprache)
         dauer = time.monotonic() - begonnen
-    # **Nach** dem Erkennen gefragt und nicht davor: Ob die Karte den Platz
-    # hergab, zeigt sich beim Laden. Wich der Transkriptor auf den Prozessor
-    # aus, steht das hier - und die Zeile daneben ist als das lesbar, was sie
-    # ist, statt wie ein plötzlich langsam gewordenes Modell auszusehen.
-    #
-    # Wer nichts zu melden hat, bekommt das Rechenwerk des Laufs: Ein
-    # entfernter Endpunkt weiß nicht, worauf er rechnet, und ein Ersatz im Test
-    # erst recht nicht. Eine leere Angabe wäre schlimmer als eine
-    # angenommene - sie ließe die Zeile bei jedem Lauf aufs Neue offen gelten.
+    # Nach dem Erkennen gefragt: Ob die Karte den Platz hergab, zeigt sich
+    # beim Laden. Wer nichts meldet (entfernt, Test), bekommt das Rechenwerk
+    # des Laufs - leer gälte die Zeile immer wieder als offen.
     werk = getattr(transkriptor, "marke", "") or werk
 
     guete = metriken.bewerte(posten.referenz, transkript.text)
@@ -821,25 +624,15 @@ async def _arbeite(
 ) -> None:
     """Der Lauf selbst: einen Posten nach dem anderen, bis nichts mehr offen ist.
 
-    Zustand und Merkliste kommen als Argument und nicht aus `_lauf`: Diese
-    Aufgabe wird angelegt, bevor `_lauf` steht, und eine Reihenfolge, auf die
-    man sich verlassen muss, ist eine Reihenfolge, die irgendwann jemand
-    umstellt.
-
-    Je Posten eine eigene Sitzung. Eine über den ganzen Lauf offene hielte eine
-    Schreibsperre über Stunden - und währenddessen nimmt derselbe Sprecher
-    womöglich weiter auf.
+    Zustand und Merkliste kommen als Argument, denn die Aufgabe entsteht vor
+    `_lauf`. Je Posten eine eigene Sitzung - eine offene hielte stundenlang
+    eine Schreibsperre, während womöglich aufgenommen wird.
     """
-    # Das Rechenwerk, unter dem dieser Lauf misst, und zugleich der Maßstab
-    # dafür, was als erledigt gilt (siehe `_fertig`). Einmal aufgelöst und
-    # danach fest: Ein Lauf, der auf halber Strecke die Maschine wechselte,
-    # hinterließe eine Spalte mit zwei Maßstäben.
+    # Einmal aufgelöst und fest - der Maßstab für „erledigt" (`_fertig`).
     werk = rechenwerk.marke(*rechenwerk.waehle(geraet, rechenart))
 
     while True:
-        # Je Durchgang neu: Ein Stand, der mitten im Lauf verschwindet, fällt
-        # damit aus der Rechnung und aus der Summe, statt sie zu verstopfen
-        # (`noch_da`).
+        # Je Durchgang neu (`noch_da`).
         antretende = noch_da(datenverzeichnis, namen)
         with Session(engine) as db:
             bekannt = gehoert(datenverzeichnis, antretende)
@@ -858,19 +651,13 @@ async def _arbeite(
         zustand.aktuell = f"{registry.beschriftung(posten.modell)} · {posten.variante}"
 
         if not ablage.pfad(posten.blob).is_file():
-            # Kein Grund, den ganzen Lauf hinzuwerfen: Die übrigen Aufnahmen
-            # sind davon unberührt.
+            # Die übrigen Aufnahmen sind davon unberührt.
             uebersprungen.add(posten.marke)
             zustand.fehler = f"Audio fehlt: {posten.blob}"
             continue
 
         try:
-            # Die abgewandelte Fassung entsteht hier, kurz bevor sie gebraucht
-            # wird - und nur, wenn sie fehlt. Damit kommt auch jede Aufnahme,
-            # die vor der Einführung der Fassungen im Korpus lag, zu ihren
-            # Dateien, ohne dass jemand ein Skript anstoßen muss. Im
-            # Arbeitsfaden wie das Erkennen selbst: Es liest und schreibt eine
-            # Datei und rechnet über jeden Abtastwert.
+            # Eine fehlende Fassung entsteht hier, im Arbeitsfaden.
             await asyncio.to_thread(
                 augmentierung.stelle_her,
                 ablage,
@@ -880,10 +667,7 @@ async def _arbeite(
                 keim=posten.aufnahme_id,
             )
 
-            # In einem Arbeitsfaden: Whisper rechnet sekunden- bis minutenlang
-            # und blockierte sonst die Ereignisschleife - der Server nähme in
-            # dieser Zeit keine einzige Anfrage mehr an, auch nicht die nach
-            # dem Fortschritt.
+            # Im Arbeitsfaden, sonst stünde die Ereignisschleife.
             erkennung = await asyncio.to_thread(
                 _rechne,
                 posten,
@@ -903,13 +687,8 @@ async def _arbeite(
             continue
 
         with Session(engine) as db:
-            # Die alte Zeile weicht, falls es eine gibt. Je Aufnahme, Modell
-            # und Fassung darf genau eine dastehen (`007_varianten.sql`) - und
-            # seit eine Messung aus einem anderen Rechenwerk als offen gilt,
-            # kommt der Lauf an Stellen vorbei, an denen schon etwas steht. Ein
-            # blindes Einfügen scheiterte dort am Index, der Posten landete
-            # unter „übersprungen", und die veraltete Zeile bliebe für immer
-            # stehen: Der Lauf käme nie zum Ende.
+            # Eine Zeile aus einem anderen Rechenwerk weicht - je Aufnahme,
+            # Modell und Fassung steht genau eine da.
             db.execute(
                 delete(Erkennung).where(
                     Erkennung.recording_id == posten.aufnahme_id,
@@ -924,9 +703,8 @@ async def _arbeite(
 async def _mit_freier_karte_danach(*argumente) -> None:
     """`_arbeite`, und danach die Karte frei - auch bei Abbruch und Fehler.
 
-    In der Aufgabe selbst und nicht in ihrem Rückruf: Der läuft erst, wenn
-    die Aufgabe schon als beendet gilt, und wer in diesem Augenblick fragt,
-    fände einen fertigen Lauf, der die Karte noch hält.
+    In der Aufgabe, nicht im Rückruf - sonst gälte der Lauf als beendet,
+    während er die Karte noch hält.
     """
     try:
         await _arbeite(*argumente)
@@ -937,13 +715,9 @@ async def _mit_freier_karte_danach(*argumente) -> None:
 def gleiche_ab(db: Session, datenverzeichnis: Path, sprecher_id: str) -> None:
     """Die Tabelle mit dem in Einklang bringen, was an Ständen dasteht.
 
-    **Nicht erst beim Anstoßen eines Laufs.** Die Messungen der
-    Kreuzvalidierung liegen fertig da; sie zu übernehmen kostet keine
-    Rechenzeit, sondern ein paar Zeilen aus einer Datei. Erst danach stimmt,
-    was die Ansicht zeigt: der Vergleich, den es schon gibt, und die Zahl
-    dessen, was wirklich noch zu rechnen ist. Wer das an den Startknopf
-    hängte, zeigte bis zum ersten Druck zu wenige fertige und zu viele offene
-    Posten - und verlangte eine Rechnung für etwas, das längst gemessen ist.
+    Beim Öffnen der Ansicht, nicht erst beim Start: Die Faltungen zu
+    übernehmen kostet nichts, und erst danach stimmen Vergleich und offene
+    Posten.
     """
     vergiss_verschwundene_staende(db, datenverzeichnis, sprecher_id)
     vergiss_ueberholte_faltungen(db, datenverzeichnis, sprecher_id)
@@ -981,22 +755,10 @@ def starte(
 ) -> Stand:
     """Einen Lauf anstoßen. Läuft schon einer, bleibt es bei ihm.
 
-    **Zuerst werden die Faltungen übernommen.** Erst danach steht fest, was
-    wirklich offen ist: Ein trainierter Stand bringt für die meisten Aufnahmen
-    schon eine Messung mit, und nur die Aufnahmen, die es beim Training noch
-    nicht gab, muss er selbst hören (`uebernimm_faltungen`).
-
-    **Ist nichts offen, läuft auch nichts.** Der Lauf rechnet, was fehlt, und
-    nichts sonst - steht schon alles, wäre er fertig, bevor er anfängt. Eine
-    Aufgabe dafür anzulegen kostet nichts, hinterließe aber für einen
-    Augenblick einen Zustand, der `laeuft` sagt und nicht läuft. Die Oberfläche
-    fragt genau in diesem Augenblick nach und bekäme eine Auskunft, auf die sie
-    sich nicht verlassen kann: Sie könnte „rechnet gerade" anzeigen und im
-    nächsten Takt wieder „alles gerechnet", ohne dass etwas geschehen wäre.
-
-    Stattdessen kommt der unveränderte Stand zurück, und `laeuft` ist falsch.
-    Daran erkennt die Ansicht, dass es nichts zu tun gab, und sagt es - sonst
-    federt der Knopf zurück und sieht aus, als sei er kaputt.
+    Zuerst werden die Faltungen übernommen; erst dann steht fest, was offen
+    ist. Ist nichts offen, entsteht keine Aufgabe - sie sagte sonst kurz
+    `laeuft`, ohne zu laufen. Zurück kommt der Stand mit `laeuft = False`, und
+    die Ansicht sagt, dass es nichts zu rechnen gab.
     """
     global _lauf
 

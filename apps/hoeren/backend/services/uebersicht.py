@@ -1,11 +1,8 @@
 """Was ein Sprecher an Daten hat - Profil, Textquellen, Sitzungen, Aufnahmen.
 
-Zwei Wege lesen dasselbe: `api/admin.py`, wo die Aufsicht einen fremden
-Sprecher ansieht, und `api/konto.py`, wo ein Sprecher seine eigenen Daten
-ansieht. Beide zeigen dieselben Zahlen über dieselbe Datenbank - nur wer
-fragen darf, unterscheidet sich, und das entscheiden die Wächter der beiden
-Router, nicht diese Datei. Sie kennt keinen Zugang und keinen Token, nur eine
-offene `Session` und, wo nötig, die `Sprecher`-Zeile selbst.
+Die Aufsicht (`api/admin.py`) und der Sprecher selbst (`api/konto.py`) lesen
+hier dasselbe. Wer fragen darf, entscheiden ihre Wächter; diese Datei kennt
+nur eine offene `Session`.
 """
 
 from __future__ import annotations
@@ -20,17 +17,12 @@ from wortlaut import storage
 from ..db.models import Aufnahme, Sitzung, Sprecher, Textquelle, Vorlage
 from . import zuschnitt
 
-# Ein Auszug ohne Grenze wäre bei zehntausend Aufnahmen eine Antwort, die
-# niemand liest und kein Browser gern darstellt.
+# Höchstens so viele Zeilen je Seite.
 SEITE = 200
 
-# Eine Sitzung ohne Aufnahme ist nichts weiter als ein geöffneter Reiter: Sie
-# entsteht schon beim Aufrufen der Aufnahmeseite (`Aufnahme.svelte: beginne`),
-# bevor irgendjemand gesprochen hat. In der eigenen Ansicht (`api/konto.py`)
-# steht sie darum nur zwischen den Sitzungen, in denen wirklich etwas
-# entstanden ist, und lässt den eigenen Fleiß kleiner aussehen, als er war.
-# Der Aufsicht (`api/admin.py`) bleibt sie erhalten: Dort ist gerade der leere
-# Anlauf eine Auskunft - jemand hat es versucht und nichts aufgenommen.
+# Eine Sitzung entsteht beim Öffnen der Aufnahmeseite, vor dem ersten Wort.
+# Die eigene Ansicht zeigt nur Sitzungen mit Aufnahmen; die Aufsicht alle -
+# dort ist der leere Anlauf eine Auskunft.
 _HAT_AUFNAHMEN = select(1).where(Aufnahme.session_id == Sitzung.id).exists()
 
 
@@ -45,36 +37,19 @@ class Kennzahlen(BaseModel):
 
 
 class ProfilAntwort(BaseModel):
-    """Ein Sprecherprofil, wie es überall ausgeliefert wird.
-
-    **Die eine Beschreibung dieses Dings.** Es gab sie zweimal: einmal hier für
-    die Aufsicht und einmal in `api/speakers.py` für die Verwaltung. Zwei
-    Klassen mit denselben Feldern sind so lange harmlos, wie niemand ein Feld
-    hinzufügt - und genau das geschah im September 2026 mit `tempo`. Die
-    Verwaltung zeigte „2-fach", die Aufsicht „normal", und beide lasen
-    dieselbe Datenbankzeile. Kein Fehler im Code, der die Zahl ausrechnet;
-    einer in der Buchführung darüber, was ein Profil überhaupt ist.
-
-    Wer hier ein Feld ergänzt, ergänzt es für alle. Das ist der ganze Zweck
-    dieser Klasse.
-    """
+    """Ein Sprecherprofil, wie es überall ausgeliefert wird - die eine
+    Beschreibung für Verwaltung und Aufsicht; ein neues Feld erreicht beide."""
 
     id: str
     name: str
     sprache: str
     erstellt: str
-    # Wann der geltende Zugang ausgegeben wurde; None heißt: keiner da. Der
-    # Zugang selbst steht hier nie - er ist nur beim Ausgeben zu sehen.
+    # Wann der geltende Zugang ausgegeben wurde; None heißt keiner.
     zugang_erneuert: str | None = None
 
 
 def profilfelder(sprecher) -> dict:
-    """Die Profilfelder eines Sprechers - die eine Stelle, die sie abliest.
-
-    Dasselbe Argument wie bei `ProfilAntwort`: Zwei Stellen, die ein Objekt in
-    dieselben sechs Felder übersetzen, sind zwei Gelegenheiten, eines zu
-    vergessen.
-    """
+    """Die Profilfelder eines Sprechers - die eine Stelle, die sie abliest."""
     return {
         "id": sprecher.id,
         "name": sprecher.name,
@@ -87,8 +62,7 @@ def profilfelder(sprecher) -> dict:
 class UebersichtAntwort(ProfilAntwort):
     """Ein Sprecher mit dem Umfang seiner Daten - Profil plus Kennzahlen."""
 
-    # Nie die PIN selbst oder ihr Prüfwert - nur, ob eine gesetzt ist (siehe
-    # `services/pin.py`).
+    # Nur, ob eine PIN gesetzt ist.
     pin_gesetzt: bool
     kennzahlen: Kennzahlen
 
@@ -101,7 +75,7 @@ class Umbenennung(BaseModel):
     @field_validator("name")
     @classmethod
     def _nicht_nur_leerzeichen(cls, wert: str) -> str:
-        """Sonst käme ein Sprecher namens „ " heraus - eine leere Zeile in der Liste."""
+        """Kein Name aus Leerzeichen."""
         if not wert.strip():
             raise ValueError("Der Name darf nicht leer sein.")
         return wert.strip()
@@ -161,9 +135,8 @@ def profil(
 ) -> UebersichtAntwort:
     """Profil und Kennzahlen eines Sprechers.
 
-    `nur_sitzungen_mit_aufnahmen` zählt die Sitzungen so, wie `sitzungen_seite`
-    sie mit `nur_mit_aufnahmen` auflistet - sonst nennte die Kennzahl eine Zahl,
-    die sich in der Liste darunter nicht wiederfinden lässt.
+    `nur_sitzungen_mit_aufnahmen` zählt wie `sitzungen_seite` mit
+    `nur_mit_aufnahmen` auflistet.
     """
     gueltig = Aufnahme.status == "ok"
     sitzungsfilter = (_HAT_AUFNAHMEN,) if nur_sitzungen_mit_aufnahmen else ()
@@ -214,9 +187,7 @@ def sitzungen_seite(
 ) -> SitzungenAntwort:
     """Die Sitzungen eines Sprechers, jüngste zuerst, seitenweise.
 
-    Mit `nur_mit_aufnahmen` bleiben die leeren Sitzungen draußen - Zeilen wie
-    Gesamtzahl, sonst zeigte der Pager Seiten, auf denen nichts steht (siehe
-    `_HAT_AUFNAHMEN`).
+    `nur_mit_aufnahmen` lässt die leeren draußen, auch aus der Gesamtzahl.
     """
     gesamt_abfrage = select(func.count()).select_from(Sitzung)
     aufnahmen_pro_sitzung = (

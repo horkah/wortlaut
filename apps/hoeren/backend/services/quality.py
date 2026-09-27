@@ -1,10 +1,8 @@
 """Serverseitige Prüfung: Pegel, Clipping, Randstille, Dauerplausibilität.
 
-Wichtig ist, was diese Datei *nicht* tut: Sie lehnt nichts ab. Bei
-Sprechstörungen sind Ausreißer normal - ungewöhnlich langsam, ungewöhnlich
-leise, mit langen Pausen. Wer das wegautomatisiert, wirft genau die Daten weg,
-für die das Projekt existiert. Es entstehen Hinweise, mehr nicht; die
-Entscheidung trifft der Mensch vor dem Mikrofon.
+Sie lehnt nichts ab: Bei Sprechstörungen sind Ausreißer normal - langsam,
+leise, mit langen Pausen -, und genau diese Daten braucht das Projekt. Es
+entstehen Hinweise; entscheiden tut der Mensch vor dem Mikrofon.
 """
 
 from __future__ import annotations

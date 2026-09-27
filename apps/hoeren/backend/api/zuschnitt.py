@@ -1,59 +1,22 @@
 """Die Zuschnittansicht: Stille an den Rändern sehen, hören und wegschneiden.
 
-Aufgenommen wird äußerungsweise, mit einem Knopf davor und einem danach.
-Zwischen dem Druck und dem ersten Laut liegt regelmäßig eine Sekunde, hinten
-oft mehr - und bei jemandem, der langsam spricht und den Knopf schlecht
-trifft, deutlich mehr. Das wird mittrainiert und mitgemessen, obwohl niemand
-es gesprochen hat.
+Diese Wege zeigen den Lautstärkeverlauf jeder Aufnahme, schlagen die Grenzen
+der Stimme vor und schreiben, was ein Mensch daraus macht; was mit den Dateien
+geschieht, steht in `services/zuschnitt.py`.
 
-Diese Wege zeigen den Lautstärkeverlauf jeder Aufnahme, schlagen Anfang und
-Ende der Stimme vor und schreiben, was ein Mensch daraus gemacht hat. Was mit
-den Dateien geschieht, steht in `services/zuschnitt.py`; hier steht, wer das
-darf und in welcher Reihenfolge es passiert.
+**Der Schlüssel** (`WORTLAUT_EDITOR_KEY`, `X-Editor-Key`) steht vor allen Wegen,
+auch den lesenden: Der Zuschnitt entscheidet für jede folgende Messung und
+jedes Training, welcher Ton gilt - das trägt der Sprecherzugang auf einem
+Telefon nicht -, und schon die Ansicht ist die Werkbank.
 
-## Der Schlüssel
+**Beim Schreiben**, je Aufnahme: die Datei aus dem Original, die Grenzen in
+die Zeile, die Abwandlungen neu, die Messwerte weg - auch übernommene
+Faltungen, wie beim Verwerfen (`api/recordings.py`). Der nächste
+Auswertungslauf rechnet neu.
 
-Vor dem Schreiben steht ein zweites Geheimnis (`WORTLAUT_EDITOR_KEY`,
-Kopfzeile `X-Editor-Key`) - dieselbe Bauart wie der Trainerschlüssel in
-„lernen" und aus demselben Grund. Der Zugang eines Sprechers beantwortet
-„wessen Aufnahmen?"; er ist an jeden ausgegeben, der aufnimmt, und liegt auf
-einem Telefon. Er beantwortet nicht „wer darf in den Bestand greifen?" - und
-genau das tut ein Zuschnitt: Er entscheidet für jede folgende Messung und
-jedes folgende Training, welcher Ton gilt, und er wirft die vorhandenen
-Messwerte weg.
-
-Anders als in „lernen" hängt der Schlüssel hier vor **allen** Wegen dieser
-Datei, auch den lesenden. Dort ist Zusehen das, was jeder darf, und nur das
-Rechnenlassen kostet; hier ist auch das Ansehen schon die Werkbank - eine
-Liste mit Kurven, Reglern und einem Knopf „Schreiben" darunter. Sie jemandem
-zu zeigen, der sie nicht bedienen darf, wäre keine Offenheit, sondern eine
-Einladung zum Fehlgriff.
-
-## Die Reihenfolge beim Schreiben
-
-Zuerst der Schnitt, dann die Zeile, dann das Abgeleitete:
-
-1. Die zugeschnittene Datei entsteht aus dem **Original** (`zuschnitt.schneide`).
-2. Die Grenzen kommen in die Zeile - ab hier gilt der Zuschnitt überall.
-3. Die abgewandelten Fassungen werden verworfen und neu gerechnet: Sie sind
-   aus der Arbeitsdatei abgeleitet, und die ist eine andere geworden.
-4. Die Messwerte dieser Aufnahme werden gelöscht. Sie wurden am ungeschnittenen
-   Ton gemessen und beschreiben eine Datei, mit der von nun an niemand mehr
-   arbeitet. Der nächste Auswertungslauf rechnet sie neu - er rechnet ohnehin
-   nur, was fehlt (`services/auswertung.py`).
-
-Punkt 4 ist derselbe Griff wie beim Verwerfen einer Aufnahme
-(`api/recordings.py`): Wer den Ton ändert, wirft weg, was Modelle aus dem
-alten gemacht haben. Übernommene Faltungsmessungen gehen mit und kommen nicht
-wieder - was der Korpus nicht mehr führt, holt die Auswertung nicht zurück.
-
-## Warum das Abspielen des Ausschnitts nichts kostet
-
-Es gibt hier keinen Weg, der eine vorläufige Datei schreibt. Der Browser hat
-die ganze Aufnahme ohnehin geladen, um die Kurve zu zeichnen; den Ausschnitt
-daraus spielt er selbst ab (`packages/ui/Pegelverlauf.svelte`). Temporäre
-Dateien auf dem Server wären Gesundheitsdaten mit ungeklärter Lebensdauer -
-für ein Ergebnis, das ohne sie schneller da ist.
+Den Ausschnitt spielt der Browser aus der geladenen Datei ab
+(`packages/ui/Pegelverlauf.svelte`); vorläufige Dateien auf dem Server gibt es
+nicht.
 """
 
 from __future__ import annotations
@@ -78,16 +41,10 @@ from ..services.prompt_queue import naechste_position
 
 router = APIRouter(prefix="/api/zuschnitt", tags=["Zuschnitt"])
 
-# Der Kopf, in dem der Schlüssel steht. Nicht `Authorization`: Dort liegt schon
-# der Sprecherzugang, und aus ihm leitet der Server ab, wessen Aufnahmen das
-# sind (`deps.py`). Zwei Geheimnisse in einem Kopf hießen, das eine gegen das
-# andere zu tauschen - dieselbe Überlegung wie bei `X-Trainer-Key`.
+# Ein eigener Kopf - in `Authorization` liegt der Sprecherzugang.
 SCHLUESSEL_KOPF = "X-Editor-Key"
 
-# Wie viele Aufnahmen eine Seite höchstens trägt. Zehn ist die Vorgabe der
-# Oberfläche; darüber hinaus darf sie mehr anfordern, aber nicht beliebig
-# viel - je Aufnahme geht ein Lautstärkeverlauf mit, und der wird aus der
-# Datei gerechnet.
+# Höchstens so viele Aufnahmen je Seite - jede bringt einen gerechneten Verlauf mit.
 SEITE_MAX = 100
 
 
@@ -96,14 +53,8 @@ def _pruefe_schluessel(
 ) -> None:
     """Wächter aller Wege dieser Datei.
 
-    Nicht gesetzt heißt abgeschaltet - kein Zuschneiden für niemanden, auch
-    nicht in der Entwicklung (die Begründung steht bei `editor_key` in der
-    `config.py`). Die Oberfläche fragt `GET .../stand` vorher ab und zeigt den
-    Punkt dann gar nicht erst.
-
-    Zeitkonstant verglichen und über die UTF-8-Bytes, wie überall in diesem
-    Projekt: Sonst verriete die Antwortzeit den Anfang des Schlüssels, und ein
-    Umlaut darin ergäbe einen 500er statt eines sauberen 401.
+    Nicht gesetzt heißt abgeschaltet. Zeitkonstant über die UTF-8-Bytes
+    verglichen.
     """
     erwartet = einstellungen().editor_key
     if not erwartet:
@@ -137,18 +88,14 @@ class ZuschnittAntwort(BaseModel):
     id: str
     text: str
     erstellt: str
-    # Die Dauer des Originals. Sie ist die Breite der Kurve und der Maßstab
-    # für jede Zeitmarke darin - auch dann, wenn schon zugeschnitten wurde:
-    # Geschnitten wird immer wieder aus dem Original (`zuschnitt.schneide`).
+    # Die Dauer des Originals - geschnitten wird immer aus ihm.
     dauer_s: float
     # Der Lautstärkeverlauf, ein Wert je Fenster, bezogen auf Vollausschlag.
     verlauf: list[float]
     fenster_s: float
-    # Ab welchem Wert ein Fenster als Stimme zählt - die Ansicht zeichnet sie
-    # als blasse Linie, damit sichtbar wird, woher der Vorschlag kommt.
+    # Ab wann ein Fenster als Stimme zählt - als blasse Linie gezeichnet.
     schwelle: float
-    # Wo die Stimme nach dem Pegel anfängt und aufhört. Ein Vorschlag, keine
-    # Festlegung (siehe `audio.stimmgrenzen`).
+    # Der Vorschlag nach dem Pegel (`audio.stimmgrenzen`).
     vorschlag_start_s: float
     vorschlag_ende_s: float
     # Was in der Zeile steht - `null`, solange niemand geschnitten hat.
@@ -181,8 +128,7 @@ class Teilung(BaseModel):
     start_s: float
     teilung_s: float
     ende_s: float
-    # Die Texte der beiden Teile - aus der Vorlage geteilt und womöglich von
-    # Hand berichtigt. Leer darf nur der Text eines Teils ohne Länge sein.
+    # Die Texte der Teile, womöglich berichtigt; leer nur bei einem Teil ohne Länge.
     text_vorn: str = ""
     text_hinten: str = ""
 
@@ -195,8 +141,7 @@ class Teile(BaseModel):
 
 class Ergebnis(BaseModel):
     geschrieben: int
-    # Was nicht ging, je Aufnahme ein Satz. Ein Fehlgriff bei einer von zwanzig
-    # soll die anderen neunzehn nicht zurücknehmen - er soll nur dastehen.
+    # Was nicht ging, je Aufnahme ein Satz; die übrigen gelten.
     fehler: dict[str, str]
 
 
@@ -204,10 +149,7 @@ class Ergebnis(BaseModel):
 def stand() -> StandAntwort:
     """Ob zugeschnitten werden kann - ohne Wächter, denn davon hängt ab, ob gefragt wird.
 
-    Dieselbe Rolle wie `GET /api/konto/pin`: Die Oberfläche muss wissen, ob sie
-    nach einem Schlüssel fragen soll, bevor sie danach fragen kann. Ausgegeben
-    wird dabei nichts als ein Ja oder Nein - der Schlüssel selbst steht hier
-    nicht, und auch nicht seine Länge.
+    Wie `GET /api/konto/pin`: nur ein Ja oder Nein.
     """
     if einstellungen().editor_key:
         return StandAntwort(bereit=True, hinweis="")
@@ -226,22 +168,10 @@ def aufnahmen(
 ) -> Seite:
     """Die eigenen Aufnahmen mit Kurve, Vorschlag und bisherigem Zuschnitt.
 
-    Älteste zuerst, und das ist der Unterschied zu „Meine Daten", wo die
-    neueste oben steht. Hier wird eine Liste **abgearbeitet**, nicht
-    nachgesehen: Wer sich durch seinen Korpus schneidet, will beim nächsten Mal
-    dort weitermachen, wo er aufgehört hat, und nicht von einer Seite begrüßt
-    werden, die sich durch jede neue Aufnahme verschiebt.
-
-    Gerechnet wird je Zeile ein Lautstärkeverlauf - das ist ein Durchgang über
-    die Abtastwerte einer Datei von wenigen Sekunden, für eine Seite von zehn
-    also Millisekunden. Nur für die Seite, die gerade gezeigt wird: Über einen
-    ganzen Korpus wäre es eine Wartezeit, und niemand sieht tausend Kurven auf
-    einmal an.
-
-    Fehlt zu einer Aufnahme das Audio (verworfen), entfällt sie - es gibt
-    nichts zu schneiden. Fehlt die zugeschnittene Datei, während die Zeile
-    einen Zuschnitt führt, entsteht sie hier neu (`zuschnitt.stelle_her`); das
-    ist der eine Ort, an dem so ein Bestand sich selbst einholt.
+    Älteste zuerst - hier wird eine Liste abgearbeitet, und neue Aufnahmen
+    sollen sie nicht verschieben. Der Verlauf wird nur für die gezeigte Seite
+    gerechnet. Ohne Audio entfällt eine Aufnahme; eine fehlende
+    Zuschnittdatei entsteht hier neu (`zuschnitt.stelle_her`).
     """
     gueltig = Aufnahme.status == "ok"
     gesamt = db.scalar(select(func.count()).select_from(Aufnahme).where(gueltig)) or 0
@@ -256,8 +186,7 @@ def aufnahmen(
 
     zeilen = []
     for aufnahme, vorlage in treffer:
-        # Eine unlesbare Datei ist ein Befund und kein Grund, die Seite
-        # hinzuwerfen - die übrigen Aufnahmen sind davon unberührt.
+        # Eine unlesbare Datei kostet nur ihre Zeile.
         if (zeile := _zeile(ablage, aufnahme, vorlage)) is not None:
             zeilen.append(zeile)
     if db.dirty:
@@ -326,16 +255,9 @@ def original(
 ) -> FileResponse:
     """Das ungeschnittene Original - die eine Stelle, die es ausdrücklich liefert.
 
-    Überall sonst liefert `GET /api/recordings/{id}/audio` die **Arbeitsdatei**
-    (`services/zuschnitt.py`), und das soll auch so bleiben: Wer eine Aufnahme
-    anhört, soll hören, was gilt.
-
-    Hier ist es umgekehrt, und zwar notwendig: Diese Ansicht zeichnet die Kurve
-    des Originals und setzt zwei Linien hinein. Bekäme sie den Zuschnitt, wäre
-    die Kurve so breit wie das letzte Ergebnis, und die Grenzen ließen sich nur
-    noch nach innen schieben - ein zweiter Durchgang könnte einen zu engen
-    Schnitt nicht mehr aufmachen. Geschnitten wird immer aus dem Original, also
-    wird auch immer das Original gezeigt.
+    Überall sonst gilt die Arbeitsdatei. Die Ansicht zeichnet aber die Kurve
+    des Originals, sonst ließe sich ein zu enger Schnitt nicht wieder
+    aufmachen.
     """
     aufnahme = _eigene(db, sprecher, aufnahme_id)
     pfad = ablage.pfad(aufnahme.blob)
@@ -378,27 +300,15 @@ def schreiben(auftrag: Auftrag, sprecher: SprecherId, db: Datenbank, ablage: Abl
             fehler[grenze.id] = str(ursache)
             continue
 
-        # Die Abwandlungen sind aus der Arbeitsdatei abgeleitet, und die ist
-        # eine andere geworden: erst wegräumen, dann neu rechnen. Ohne das
-        # erste passiert das zweite nicht - `stelle_her` lässt eine vorhandene
-        # Datei stehen (`services/augmentierung.py`).
+        # Die Abwandlungen weg - `stelle_her` ließe vorhandene stehen.
         augmentierung.loesche(ablage, aufnahme)
 
-        # Und mit dem Ton gehen die Messwerte. Sie entstanden am
-        # ungeschnittenen Klang und beschreiben eine Datei, mit der von nun an
-        # niemand mehr arbeitet; stehen zu bleiben hieße, dass die Auswertung
-        # sie für erledigt hält und nie neu rechnet (`_fertig` in
-        # `services/auswertung.py`). Derselbe Griff wie beim Verwerfen einer
-        # Aufnahme - übernommene Faltungsmessungen gehen mit und kommen nicht
-        # wieder.
+        # Die Messwerte am alten Ton weg, sonst gälten sie als erledigt.
         db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme.id))
         db.commit()
         geschrieben += 1
 
-        # Nach dem Commit und nicht davor, wie beim Hochladen einer Aufnahme:
-        # Die Fassungen sind abgeleitet und jederzeit neu zu rechnen, der
-        # Zuschnitt ist es nicht mehr, sobald er in der Zeile steht. Scheitert
-        # das Rechnen, holt der nächste Auswertungslauf es ohnehin nach.
+        # Die Fassungen nach dem Commit; scheitern sie, holt die Auswertung sie nach.
         try:
             augmentierung.stelle_alle_her(ablage, aufnahme)
         except klang.AudioFehler:
@@ -411,18 +321,9 @@ def schreiben(auftrag: Auftrag, sprecher: SprecherId, db: Datenbank, ablage: Abl
 def zuruecknehmen(auftrag: Auftrag, sprecher: SprecherId, db: Datenbank, ablage: Ablage) -> Ergebnis:
     """Zuschnitte verwerfen; ab dann gelten wieder die Originale.
 
-    Der Rückweg zu `schreiben`, und er ist kein Luxus: Ein Zuschnitt ist eine
-    Entscheidung über den ganzen folgenden Bestand, und eine Entscheidung ohne
-    Rückweg ist ein Unfall mit Bedenkzeit. Möglich ist er, weil das Original
-    liegen bleibt - es ist nie überschrieben worden.
-
-    Dieselben drei Schritte wie beim Schreiben, in derselben Reihenfolge und
-    mit derselben Begründung: Datei und Zeile zurück, Abwandlungen neu, Zahlen
-    weg. Auch das Zurücknehmen ändert die Arbeitsdatei.
-
-    `grenzen` trägt hier nur Kennungen; `start_s` und `ende_s` werden nicht
-    gelesen. Eine eigene Form für eine Liste von Kennungen wäre eine zweite
-    Gestalt derselben Auswahl - die Ansicht schickt schlicht, was markiert ist.
+    Das Original liegt unverändert da. Dieselben Schritte wie beim Schreiben -
+    auch das Zurücknehmen ändert die Arbeitsdatei. `grenzen` trägt hier nur
+    Kennungen.
     """
     geschrieben = 0
     fehler: dict[str, str] = {}
@@ -455,16 +356,9 @@ def _woerter(text: str) -> list[str]:
 def _stuecke(teilung: Teilung) -> list[tuple[int, str]]:
     """Welche Teile entstehen: `(nummer, text)`, 1 für vorn, 2 für hinten.
 
-    Liegt die Teilung auf dem Anfang, hat Teil 1 keine Länge, und es entsteht
-    nur Teil 2 - eine Kopie des Ausschnitts, mit eigenem Text. Auf dem Ende
-    ebenso umgekehrt. So wird aus derselben Ansicht auch „diese Aufnahme mit
-    berichtigtem Text", ohne dass das Original angefasst wird.
-
-    **Der Text darf abweichen.** Gesprochen wird nicht immer, was dasteht, und
-    die Vorlage ist das, wogegen jede Messung rechnet - eine Aufnahme mit dem
-    falschen Prüftext misst das Modell an etwas, das niemand gesagt hat.
-    Geändert wird dabei nur die Vorlage der **neuen** Aufnahme; die des
-    Originals bleibt, wie sie war.
+    Liegt die Teilung auf Anfang oder Ende, entsteht nur der andere Teil -
+    eine Kopie mit eigenem Text. Der Text darf von der Vorlage abweichen, denn
+    gemessen wird gegen ihn; geändert wird nur die Vorlage der neuen Aufnahme.
     """
     if not teilung.start_s <= teilung.teilung_s <= teilung.ende_s:
         raise HTTPException(
@@ -510,28 +404,11 @@ def teilen(
 ) -> Teile:
     """Eine Aufnahme in zwei neue zerlegen - Ton und Text. Oder in eine.
 
-    Gedacht für die Aufnahme, in der zwei Sätze stecken: zu lang für eine
-    Trainingsprobe, oder eine Vorlage, die sich beim Sprechen als zwei
-    Äußerungen erwies. Entstehen zwei **neue** Aufnahmen, jede mit ihrer
-    eigenen Datei und ihrer eigenen Vorlage. Das Original bleibt, wie es war;
-    wer es nicht mehr will, löscht es danach (`loeschen`).
-
-    **Neue Vorlagen, in derselben Quelle.** Eine Aufnahme gehört zu genau
-    einer Vorlage, und die Vorlage ist ihr Prüftext. Zwei Teile brauchen zwei
-    Prüftexte. In derselben Quelle, damit sie zählen wie das Original - eine
-    Korrektur bleibt eine Korrektur (`lernen/services/auftraege.py`). Sie
-    hängen hinten an die Warteschlange an und sind dort sofort erledigt.
-
-    **Datum und Art vom Original.** Gesprochen wurden die Teile, als das
-    Original gesprochen wurde. Und damit sie in jeder Liste direkt darunter
-    stehen, bekommen sie einen Sortierschlüssel (`017_teilen.sql`).
-
-    **Oder nur ein Teil.** Liegt die Teilung auf Anfang oder Ende, entsteht
-    nur der andere Teil, als Kopie mit eigenem Text (`_stuecke`).
-
-    **Gemessen wird neu.** Die Teile sind neue Aufnahmen ohne Messwerte; die
-    nächste Auswertung rechnet sie. Die Pegelwerte und Hinweise kommen aus
-    ihren eigenen Dateien, nicht vom Original.
+    Für eine Aufnahme mit zwei Äußerungen. Jeder Teil bekommt eigene Datei
+    und eigene Vorlage in derselben Quelle, damit er zählt wie das Original,
+    dazu dessen Datum und einen Sortierschlüssel darunter. Das Original
+    bleibt, bis es jemand löscht (`loeschen`). Pegel und Hinweise kommen aus
+    den neuen Dateien; gemessen wird beim nächsten Auswertungslauf.
     """
     original = _eigene(db, sprecher, teilung.id)
     vorlage = db.get(Vorlage, original.prompt_id)
@@ -598,8 +475,7 @@ def teilen(
         teile.append(teil)
     db.commit()
 
-    # Wie beim Hochladen: nach dem Commit, und ein Fehlschlag holt der nächste
-    # Auswertungslauf nach.
+    # Wie beim Hochladen: nach dem Commit.
     for teil in teile:
         try:
             augmentierung.stelle_alle_her(ablage, teil)
@@ -613,21 +489,10 @@ def teilen(
 def loeschen(auftrag: Auftrag, sprecher: SprecherId, db: Datenbank, ablage: Ablage) -> Ergebnis:
     """Aufnahmen ganz aus dem Bestand nehmen - Zeile, Dateien, Messwerte.
 
-    Anders als das Verwerfen in „Meine Daten" (`api/recordings.py`). Dort
-    bleibt die Zeile als `verworfen` stehen, und die Vorlage wird wieder offen:
-    Verwerfen heißt „noch einmal sprechen". Hier ist gemeint, dass es diese
-    Aufnahme nicht gegeben haben soll - typisch nach dem Teilen, wenn das
-    Original neben seinen beiden Teilen nichts mehr zu suchen hat.
-
-    **Die Vorlage geht mit, wenn an ihr nichts mehr hängt.** Bliebe sie, stünde
-    ihr Text wieder in der Warteschlange, und nach einem Teilen hieße das, den
-    ganzen Satz noch einmal zu sprechen, der längst in zwei Teilen daliegt.
-    Hängt noch eine andere Aufnahme an ihr - auch eine verworfene -, bleibt sie.
-
-    Mit dem Ton gehen Abwandlungen, Zuschnitt und alle Messungen, auch die
-    übernommenen Faltungen; wie beim Verwerfen, und aus demselben Grund.
-
-    `grenzen` trägt nur Kennungen, wie beim Zurücknehmen.
+    Anders als Verwerfen („noch einmal sprechen") soll es die Aufnahme nicht
+    gegeben haben - typisch für das Original nach dem Teilen. Die Vorlage geht
+    mit, wenn keine andere Aufnahme mehr an ihr hängt, sonst stünde der Satz
+    wieder in der Warteschlange. `grenzen` trägt nur Kennungen.
     """
     geloescht = 0
     fehler: dict[str, str] = {}

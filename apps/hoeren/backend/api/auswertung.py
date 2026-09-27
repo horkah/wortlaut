@@ -1,21 +1,12 @@
 """Die Auswertung: Modelle gegeneinander, gemessen an den eigenen Aufnahmen.
 
-Vier Wege, und sie teilen sich die Arbeit nach dem, wie oft sie gebraucht
-werden:
+* `GET /api/auswertung` - die Kurve, ohne Texte, denn sie wird im Takt
+  abgefragt.
+* `GET /api/auswertung/{aufnahme}` - die Texte einer Aufnahme.
+* `POST /api/auswertung/start` und `…/stopp`.
 
-* `GET /api/auswertung` liefert die Kurve - je Aufnahme eine Nummer und je
-  Modell und Fassung die Maße dazu. **Ohne Texte.** Diese Auskunft wird abgefragt, solange
-  die Seite offen ist; die erkannten Texte je Modell und Aufnahme
-  mitzuschicken hieße, bei jeder Abfrage ein Vielfaches der Zahlen über die
-  Leitung zu schicken, die sie eigentlich meint.
-* `GET /api/auswertung/{aufnahme}` liefert genau diese Texte, für eine
-  einzelne Aufnahme - der Klick auf einen Balken.
-* `POST /api/auswertung/start` stößt den Lauf an, `…/stopp` bricht ihn ab.
-
-Alles hängt am Zugang eines Sprechers und misst dessen eigenen Korpus. Eine
-Auswertung über alle Sprecher hinweg gibt es bewusst nicht: Wie gut ein Modell
-hört, hängt an der Stimme, und der Mittelwert über mehrere Menschen wäre eine
-Zahl, die für keinen von ihnen gilt.
+Gemessen wird der Korpus des Zugangs; ein Mittel über mehrere Stimmen gälte
+für keine.
 """
 
 from __future__ import annotations
@@ -34,23 +25,15 @@ router = APIRouter(prefix="/api/auswertung", tags=["Auswertung"])
 
 
 class MetrikAntwort(BaseModel):
-    """Ein wählbares Maß - die Oberfläche baut daraus ihre Auswahlliste.
-
-    Sie kommt vom Server und steht nicht im Frontend, weil der Server sie
-    rechnet: Ein Maß dazu ist eine Spalte, eine Zeile in `metriken.py` und ein
-    Eintrag hier - und nicht zusätzlich eine Liste im Browser, die jemand
-    nachzupflegen vergisst.
-    """
+    """Ein wählbares Maß - die Liste kommt vom Server, der rechnet."""
 
     schluessel: str
     name: str
     erklaerung: str
-    # Ob ein hoher Wert der bessere ist. Die Fehlerraten sind andersherum, und
-    # ohne diese Angabe zeigte die Kurve nach oben, wo es schlechter wird.
+    # Bei den Fehlerraten ist niedrig besser.
     hoch_ist_gut: bool
     einheit: str
-    # Die feste Obergrenze der Achse, falls es eine gibt. `null` heißt: Die
-    # Achse richtet sich nach den Daten - WER und CER können über 1 steigen.
+    # Feste Achsengrenze; `null` bei WER und CER, die über 1 steigen können.
     obergrenze: float | None
 
 
@@ -107,12 +90,7 @@ METRIKEN = [
 
 
 class VarianteAntwort(BaseModel):
-    """Eine Fassung der Aufnahme - die Oberfläche beschriftet damit ihre Zeilen.
-
-    Wie bei den Maßen kommt die Liste vom Server: Was es an Fassungen gibt,
-    entscheidet `wortlaut/augmentierung.py`, und eine zweite Liste im Browser
-    wäre eine, die jemand nachzupflegen vergisst.
-    """
+    """Eine Fassung der Aufnahme, aus `wortlaut/augmentierung.py`."""
 
     schluessel: str
     name: str
@@ -143,36 +121,28 @@ class StandAntwort(BaseModel):
     uebersprungen: int
     aktuell: str
     fehler: str | None
-    # Ob gerade für einen **anderen** Sprecher gerechnet wird. Es läuft immer
-    # nur einer (siehe `services/auswertung.py`); ohne diese Auskunft sähe die
-    # Seite bloß einen Startknopf, der nichts tut.
+    # Ob gerade für einen anderen Sprecher gerechnet wird - es läuft einer zur Zeit.
     fremder_lauf: bool
 
 
 class PunktAntwort(BaseModel):
     """Eine Aufnahme in der Kurve: ihre Nummer und die Maße je Modell und Fassung.
 
-    Ausgerechnet wird hier nichts. Die Kurve zeigt je Modell nur eine Zahl,
-    aber welche, hängt am gewählten Maß - und die Tabelle darunter zeigt
-    ohnehin jede. Der Server schickt deshalb, was gemessen wurde,
-    und die Ansicht sucht sich heraus, was sie gerade braucht; sonst wäre bei
-    jedem Wechsel des Maßes eine neue Anfrage fällig, für die kein Byte fehlt.
+    Alles Gemessene; die Ansicht wählt, sodass ein Maßwechsel keine Anfrage
+    braucht.
     """
 
     nummer: int
     aufnahme_id: str
     dauer_s: float
     erstellt: str
-    # modell -> fassung -> maß -> Wert. Fehlt ein Eintrag, ist er noch nicht
-    # gerechnet - die Kurve lässt die Stelle dann frei, statt eine Null zu
-    # behaupten.
+    # modell -> fassung -> maß -> Wert; ein fehlender Eintrag ist nicht gerechnet.
     werte: dict[str, dict[str, dict[str, float]]]
 
 
 class AuswertungAntwort(BaseModel):
     modelle: list[str]
-    # Wie jedes davon in der Ansicht heißen soll - ein Stand trägt eine
-    # Kennung, keinen Whisper-Namen.
+    # Ein Stand heißt nach seiner Kurzkennung.
     beschriftungen: dict[str, str] = {}
     varianten: list[VarianteAntwort]
     metriken: list[MetrikAntwort]
@@ -205,9 +175,8 @@ class VergleichAntwort(BaseModel):
 def _namen(sprecher: str) -> list[str]:
     """Wogegen hier gemessen wird: die Grundmodelle **und** die eigenen Stände.
 
-    Die Stände kommen je Sprecher dazu, denn ein Modell gehört einem Menschen
-    (Grundentscheidung 3). Für sie wird nur gerechnet, was ihre Faltungen nicht
-    schon abdecken (`services/auswertung.py`).
+    Für einen Stand wird nur gerechnet, was er nicht kannte
+    (`services/auswertung.py`).
     """
     konfiguration = einstellungen()
     return auswertung.messbare_modelle(
@@ -216,18 +185,14 @@ def _namen(sprecher: str) -> list[str]:
 
 
 def _beschriftungen(namen: list[str]) -> dict[str, str]:
-    """Wie ein Modell in der Ansicht heißt - `small` bleibt `small`, ein Stand
-    wird zu `K7M2Q`. Die Kennung ist dieselbe, die in „lernen" daneben steht
-    (`wortlaut/registry.py`)."""
+    """`small` bleibt `small`, ein Stand wird zu `K7M2Q` (`wortlaut/registry.py`)."""
     return {name: registry.beschriftung(name) for name in namen}
 
 
 def _werk() -> str:
     """Das Rechenwerk, unter dem hier gemessen wird - `cuda/int8_float16` o. Ä.
 
-    Es entscheidet mit, was als gerechnet gilt: Eine Zeile, die auf einem
-    anderen entstand, trägt eine Rechenzeit, die nicht neben die übrigen passt
-    (siehe `services/auswertung.py`).
+    Eine Zeile von einem anderen Rechenwerk gilt als offen.
     """
     return rechenwerk.marke(*einstellungen().rechenwerk())
 
@@ -249,9 +214,7 @@ def _stand(db: Datenbank, sprecher: str) -> StandAntwort:
 def _nummeriert(db: Datenbank) -> list[tuple[int, Aufnahme, Vorlage]]:
     """Die brauchbaren Aufnahmen, von 1 an durchgezählt, älteste zuerst.
 
-    Die Nummer ist die x-Achse der Kurve. Sie steht in keiner Tabelle, und das
-    ist Absicht: Wer eine Aufnahme verwirft, soll keine Lücke in der Achse
-    hinterlassen - die Zählung ergibt sich aus dem, was gerade gilt.
+    Die Nummer ist die x-Achse, gezählt aus dem, was gilt - ohne Lücken.
     """
     return [
         (nummer, aufnahme, vorlage)
@@ -265,10 +228,8 @@ def _nummeriert(db: Datenbank) -> list[tuple[int, Aufnahme, Vorlage]]:
 def uebersicht(db: Datenbank, sprecher: SprecherId) -> AuswertungAntwort:
     """Die Kurve und der Stand des Laufs - die Auskunft, die die Seite abfragt.
 
-    Zuerst der Abgleich mit den Ständen auf der Platte: Deren Faltungen sind
-    gemessen, bevor hier jemand einen Knopf drückt, und sie gehören in den
-    Vergleich und in die Zählung, nicht hinter einen Startknopf
-    (`auswertung.gleiche_ab`).
+    Zuerst der Abgleich mit den Ständen (`auswertung.gleiche_ab`): Ihre
+    Faltungen gehören sofort in Vergleich und Zählung.
     """
     auswertung.gleiche_ab(db, einstellungen().data_dir, sprecher)
     namen = _namen(sprecher)
@@ -312,11 +273,8 @@ def uebersicht(db: Datenbank, sprecher: SprecherId) -> AuswertungAntwort:
 async def start(db: Datenbank, sprecher: SprecherId, ablage: Ablage) -> StandAntwort:
     """Den Lauf anstoßen. Läuft schon einer, ändert sich nichts.
 
-    `async`, und das ist keine Geschmacksfrage: Der Lauf ist eine
-    `asyncio`-Aufgabe, und die lässt sich nur dort anlegen, wo eine
-    Ereignisschleife läuft. Ein `def`-Endpunkt läge in einem Arbeitsfaden des
-    Servers und scheiterte mit „no running event loop" - erst zur Laufzeit und
-    nur auf diesem einen Weg.
+    `async`, weil der Lauf eine `asyncio`-Aufgabe ist; ein `def`-Endpunkt
+    liefe im Arbeitsfaden ohne Ereignisschleife.
     """
     laeuft_fuer = auswertung.laeuft_fuer()
     if laeuft_fuer and laeuft_fuer != sprecher:
@@ -345,8 +303,7 @@ async def start(db: Datenbank, sprecher: SprecherId, ablage: Ablage) -> StandAnt
 async def stopp(db: Datenbank, sprecher: SprecherId) -> StandAntwort:
     """Abbrechen. Was fertig gerechnet ist, bleibt stehen und wird nicht wiederholt.
 
-    `async` aus demselben Grund wie `start`: Eine Aufgabe abzubrechen gehört
-    auf die Schleife, auf der sie läuft, nicht in einen fremden Faden.
+    `async` wie `start` - abgebrochen wird auf der Schleife der Aufgabe.
     """
     if auswertung.laeuft_fuer() == sprecher:
         auswertung.stoppe()
@@ -372,11 +329,7 @@ def vergleich(aufnahme_id: str, db: Datenbank, sprecher: SprecherId) -> Vergleic
             aufnahme_id=aufnahme.id,
             referenz=vorlage.text,
             dauer_s=aufnahme.dauer_s,
-            # In der Reihenfolge der Konfiguration, nicht in der der Datenbank:
-            # Die Ansicht legt die Fassungen untereinander, und sie sollen bei
-            # jeder Aufnahme in derselben Reihenfolge stehen. Fassung innen,
-            # Modell außen - wer eine Fassung liest, vergleicht die Modelle
-            # darin, und nicht dasselbe Modell mit sich selbst.
+            # In der Reihenfolge der Konfiguration, Modell außen, Fassung innen.
             erkennungen=[
                 ErkennungAntwort(
                     modell=name,

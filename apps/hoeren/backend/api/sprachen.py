@@ -1,14 +1,8 @@
 """Welche Sprachen dieses System anbietet - eine Auskunft, kein Zustand.
 
-Die Liste steht in `wortlaut/sprachen.py`; hier wird sie nur herausgereicht,
-damit die Verwaltung beim Anlegen eines Profils nicht raten muss. Vorher stand
-im Auswahlfeld eine fest eingetragene Sprache, und das hieß: Wer eine zweite
-hinzufügt, ändert die Bibliothek, den Endpunkt **und** die Oberfläche. Jetzt
-ändert er die Bibliothek.
-
-Kein Wächter, so wie bei `GET /api/zugang`: Was dieses System an Sprachen kann,
-ist keine Auskunft über einen Menschen. Wer damit etwas anfangen will, braucht
-ohnehin den Verwalterzugang, der am Anlegen selbst hängt.
+Die Liste steht in `wortlaut/sprachen.py`; die Oberfläche bietet sie beim
+Anlegen eines Profils an. Kein Wächter: Welche Sprachen das System kann, sagt
+nichts über einen Menschen.
 """
 
 from __future__ import annotations
@@ -23,8 +17,7 @@ router = APIRouter(tags=["Sprachen"])
 class SpracheAntwort(BaseModel):
     kuerzel: str
     name: str
-    # Was ein Profil bekommt, wenn niemand etwas wählt - damit die Oberfläche
-    # dieselbe Vorauswahl trifft wie der Server und nicht ihre eigene.
+    # Die Vorauswahl - dieselbe wie auf dem Server.
     vorgabe: bool
 
 

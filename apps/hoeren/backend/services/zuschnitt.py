@@ -1,52 +1,19 @@
 """Der Zuschnitt einer Aufnahme - und die eine Regel, welche Datei gilt.
 
-Aufgenommen wird äußerungsweise: Jemand liest einen Satz vor, drückt vorher
-auf einen Knopf und nachher noch einmal. Zwischen dem ersten Druck und dem
-ersten Laut liegt eine Sekunde, zwischen dem letzten Laut und dem zweiten
-Druck oft zwei - und bei jemandem, der langsam spricht und schlecht trifft,
-auch mehr. Über einen Korpus von anderthalb Stunden summiert sich das auf eine
-halbe Stunde Stille, die mittrainiert und mitgemessen wird.
+Zwischen Knopfdruck und Stimme liegt Stille, die mittrainiert und mitgemessen
+würde. Was geschnitten wird, entscheidet ein Mensch (`api/zuschnitt.py`); hier
+steht, was mit den Dateien geschieht.
 
-Diese Datei schneidet sie weg, und zwar **nicht** von selbst: Was wirklich
-geschnitten wird, entscheidet ein Mensch in der Zuschnittansicht
-(`api/zuschnitt.py`). Hier steht, was dabei mit den Dateien geschieht.
+**Die Regel** (`arbeitsblob`): Gibt es einen Zuschnitt, gilt er, sonst das
+Original. Jeder Weg, der Audio anfasst, fragt hier - Anhören, Abwandlungen,
+Auswertung, Trainingsmanifest, Datensatz. Ein Schalter daneben ließe jemanden
+auf einer Datei trainieren, die er in der Ansicht nicht hört.
 
-## Die Regel
-
-    Gibt es zu einer Aufnahme einen Zuschnitt, gilt der Zuschnitt.
-    Sonst gilt das Original.
-
-Das ist `arbeitsblob`, und es ist die **einzige** Stelle, an der diese Frage
-beantwortet wird. Jeder Weg, der Audio anfasst, geht über sie: das Anhören in
-„Meine Daten", die Abwandlungen, die Auswertung, das Manifest eines
-Trainingslaufs, der Datensatz zum Mitnehmen. Ein Schalter „Zuschnitt
-benutzen" daneben wäre eine zweite Frage zu derselben Sache - und irgendwann
-trainierte jemand auf einer Datei, die er in der Ansicht nicht hört.
-
-## Was bleibt
-
-Das Original bleibt liegen und unverändert. `recordings.blob` zeigt weiter
-darauf, die Sicherung trägt es weg, und ein Zuschnitt lässt sich zurücknehmen,
-ohne dass jemand noch einmal sprechen muss. Eine Aufnahme ist das, was ein
-Mensch gesprochen hat; ein Zuschnitt ist eine Entscheidung darüber.
-
-## Verlustfrei
-
-Der Korpus liegt in 16 kHz mono PCM 16 bit (`wortlaut/audio.py`). Ein Rahmen
-ist dort zwei Byte und zugleich der kleinste Block, an dem sich schneiden
-lässt - ein Schnitt ist das Kopieren eines Byte-Bereichs, und was dabei
-herauskommt, ist Abtastwert für Abtastwert dasselbe wie im Original.
-
-Es braucht dafür weder ffmpeg noch `-c copy` noch eine Rundung auf
-Blockgrenzen: Bei PCM gibt es keine Blöcke, die größer wären als ein
-Abtastwert. Gerundet wird trotzdem, nämlich **nach außen** - Anfang abwärts,
-Ende aufwärts (`audio.schneide_ausschnitt`, `nach_aussen=True`). Ein Rahmen zu
-viel sind 62 Mikrosekunden Stille, ein Rahmen zu wenig wäre ein
-angeschnittener Abtastwert.
-
-Eine Ein- und Ausblendung gegen Knackser gibt es aus demselben Grund nicht:
-Sie würde Abtastwerte verändern, und geschnitten wird ohnehin in der Stille,
-wo nichts knackst.
+**Das Original bleibt**, `recordings.blob` zeigt darauf, und ein Zuschnitt
+lässt sich zurücknehmen. Geschnitten wird verlustfrei: In 16 kHz mono PCM ist
+ein Schnitt das Kopieren eines Byte-Bereichs, nach außen gerundet
+(`audio.schneide_ausschnitt`, `nach_aussen=True`), ohne Blenden - geschnitten
+wird in der Stille.
 """
 
 from __future__ import annotations
@@ -75,10 +42,8 @@ def zuschnitt_blob(aufnahme: Aufnahme) -> str:
 def arbeitsblob(aufnahme: Aufnahme) -> str:
     """**Die Regel.** Die Datei, mit der überall gearbeitet wird.
 
-    Ohne Ablage und ohne Blick ins Dateisystem: Was gilt, steht in der Zeile,
-    nicht auf der Platte. Fehlt die eingetragene Datei, ist das ein Fehler und
-    kein stiller Rückfall auf das Original - sonst träte an die Stelle einer
-    Entscheidung ein Zufall, und niemand sähe es der Zahl danach an.
+    Aus der Zeile, nicht von der Platte. Fehlt die eingetragene Datei, ist
+    das ein Fehler und kein stiller Rückfall auf das Original.
     """
     return zuschnitt_blob(aufnahme) if hat_zuschnitt(aufnahme) else aufnahme.blob
 
@@ -86,9 +51,7 @@ def arbeitsblob(aufnahme: Aufnahme) -> str:
 def arbeitsdauer(aufnahme: Aufnahme) -> float:
     """Wie lang die Arbeitsdatei ist - gerechnet, nicht gespeichert.
 
-    `recordings.dauer_s` bleibt die Dauer des Originals; sie ist ein Messwert
-    und soll einer bleiben. Eine dritte Spalte für die Dauer des Zuschnitts
-    wäre eine Zahl, die mit den beiden Grenzen daneben auseinanderlaufen kann.
+    `recordings.dauer_s` bleibt die Dauer des Originals.
     """
     if not hat_zuschnitt(aufnahme):
         return aufnahme.dauer_s
@@ -100,20 +63,9 @@ def schneide(
 ) -> tuple[float, float]:
     """Den Zuschnitt schreiben und die Grenzen in die Zeile eintragen.
 
-    Ein zweiter Schnitt ersetzt den ersten: Es liegt je Aufnahme genau eine
-    zugeschnittene Datei, und die Grenzen in der Zeile beschreiben immer sie.
-    Eine Kette von Fassungen wäre eine Versionsgeschichte in einem Verzeichnis,
-    das jede andere App als „die Arbeitsdatei" liest.
-
-    Geschrieben wird aus dem **Original**, nie aus einem vorherigen Zuschnitt.
-    Sonst wanderte die Grenze mit jedem Durchgang nach innen, und nach dem
-    dritten Mal wäre der erste Laut weg - unwiederbringlich, denn was der
-    Schnitt weglässt, steht danach in keiner Arbeitsdatei mehr.
-
-    Eingetragen werden die Grenzen, die der Schnitt wirklich erreicht hat, und
-    nicht die gewünschten. Sie sind auf Rahmen gerundet und auf die Datei
-    zurechtgestutzt; was in der Zeile steht, soll beschreiben, was in der Datei
-    steht.
+    Ein zweiter Schnitt ersetzt den ersten. Geschnitten wird immer aus dem
+    Original, sonst wanderte die Grenze nach innen. Eingetragen werden die
+    tatsächlich erreichten Grenzen.
     """
     quelle = ablage.pfad(aufnahme.blob)
     if not quelle.is_file():
@@ -123,9 +75,7 @@ def schneide(
             f"Das Ende muss hinter dem Anfang liegen ({start_s:.2f} bis {ende_s:.2f} s)."
         )
 
-    # Erst daneben schreiben, dann ablegen: `lege_ab` verschiebt, und eine halb
-    # geschriebene Datei am Zielort sähe für den nächsten Blick fertig aus -
-    # genau wie bei den abgewandelten Fassungen (`services/augmentierung.py`).
+    # Erst daneben schreiben, dann ablegen.
     with tempfile.TemporaryDirectory() as verzeichnis:
         entwurf = Path(verzeichnis) / "zuschnitt.wav"
         erreicht = klang.schneide_ausschnitt(quelle, entwurf, start_s, ende_s, nach_aussen=True)
@@ -138,9 +88,7 @@ def schneide(
 def nimm_zurueck(ablage: storage.Ablage, aufnahme: Aufnahme) -> bool:
     """Den Zuschnitt verwerfen; ab dann gilt wieder das Original.
 
-    Gibt zurück, ob es etwas zurückzunehmen gab. Die Datei geht mit: Sie ist
-    abgeleitet, und eine liegengebliebene Datei ohne Zeile wäre dasselbe
-    Durcheinander wie eine Zeile ohne Datei.
+    Gibt zurück, ob es etwas zurückzunehmen gab; die Datei geht mit.
     """
     if not hat_zuschnitt(aufnahme):
         return False
@@ -153,16 +101,9 @@ def nimm_zurueck(ablage: storage.Ablage, aufnahme: Aufnahme) -> bool:
 def stelle_her(ablage: storage.Ablage, aufnahme: Aufnahme) -> bool:
     """Eine fehlende Zuschnittdatei aus dem Original und den Grenzen nachrechnen.
 
-    Der Regelfall ist, dass sie da ist: Anders als die abgewandelten Fassungen
-    wird der Zuschnitt **mitgesichert** (`services/ausleitung.py`). Gebraucht
-    wird das hier trotzdem, und zwar für den Bestand, in dem doch einmal eine
-    Datei fehlt - ein halb kopiertes Verzeichnis, eine Sicherung von vor der
-    Regel. Die Zuschnittansicht ruft es beim Auflisten; dort ist es ein Blick
-    ins Dateisystem je Zeile einer Seite und kostet nichts.
-
-    Was dabei entsteht, ist Byte für Byte dasselbe wie vorher: Der Schnitt
-    liest dieselbe Quelle und dieselben Grenzen, und er rechnet nicht, er
-    kopiert.
+    Der Zuschnitt wird mitgesichert und ist gewöhnlich da; für ein halb
+    kopiertes Verzeichnis ruft die Zuschnittansicht dies beim Auflisten. Das
+    Ergebnis ist Byte für Byte dasselbe.
     """
     if not hat_zuschnitt(aufnahme) or ablage.pfad(zuschnitt_blob(aufnahme)).is_file():
         return False
@@ -173,10 +114,7 @@ def stelle_her(ablage: storage.Ablage, aufnahme: Aufnahme) -> bool:
 def loesche(ablage: storage.Ablage, aufnahme: Aufnahme) -> None:
     """Die zugeschnittene Fassung entfernen. Das Original bleibt unangetastet.
 
-    Für die Löschwege (`api/recordings.py`, `api/admin.py`), die den Blob
-    selbst schon anfassen - dieselbe Aufteilung wie bei
-    `augmentierung.loesche`. Ein Zuschnitt ist dieselbe Stimme, nur kürzer,
-    und damit derselbe Gesundheitsdatensatz wie das Original.
+    Für die Löschwege, die das Original selbst anfassen.
     """
     ablage.loesche(zuschnitt_blob(aufnahme))
 
@@ -185,9 +123,8 @@ def reihenfolge() -> tuple:
     """Wie Aufnahmen der Reihe nach stehen: nach Datum, und bei gleichem Datum
     das Original vor seinen Teilen (`017_teilen.sql`).
 
-    Für `order_by(*zuschnitt.reihenfolge())`. Absteigend - wie in „Meine
-    Daten" - kehrt sich beides um, und die Teile stehen dann vor dem Original;
-    beieinander bleiben sie trotzdem.
+    Für `order_by(*zuschnitt.reihenfolge())`; absteigend stehen die Teile vor
+    dem Original, aber beieinander.
     """
     return (Aufnahme.erstellt, func.coalesce(Aufnahme.sortierschluessel, Aufnahme.id))
 
@@ -195,16 +132,10 @@ def reihenfolge() -> tuple:
 def stamm(aufnahme: Aufnahme) -> str:
     """Die Aufnahme, aus der diese hervorging - bei einer gewöhnlichen sie selbst.
 
-    Ein Teil und eine Kopie aus „Editieren" sind neue Aufnahmen mit eigener
-    Kennung, aber kein neues Gesprochenes: Es ist derselbe Ton, ganz oder in
-    Stücken. Wer das Original gehört hat, hat auch sie gehört - und
-    umgekehrt. Wo es um unabhängige Prüfstücke geht (die Faltungen in
-    „lernen", die Auswertung eines trainierten Standes), zählt deshalb die
-    ganze Verwandtschaft als eine.
-
-    Abzulesen am Sortierschlüssel (`017_teilen.sql`): `rec_A.1.2` stammt aus
-    `rec_A`. Kennungen selbst tragen keinen Punkt (`wortlaut/ids.py`). Die
-    Angabe hält auch dann, wenn das Original längst gelöscht ist.
+    Teile und Kopien aus „Editieren" sind derselbe Ton; wo es um unabhängige
+    Prüfstücke geht - Faltungen, die Auswertung eines Standes -, zählt die
+    Verwandtschaft als eine. Abzulesen am Sortierschlüssel: `rec_A.1.2`
+    stammt aus `rec_A`, auch wenn `rec_A` gelöscht ist.
     """
     return (aufnahme.sortierschluessel or aufnahme.id).split(".", 1)[0]
 
@@ -220,18 +151,10 @@ def teile(
 ) -> tuple[klang.Befund, klang.Befund]:
     """Aus dem Original zwei Dateien schneiden: [start, teilung) und [teilung, ende).
 
-    Aus dem **Original** wie jeder Schnitt hier - die Ansicht zeigt dessen
-    Kurve, und in ihr stehen die drei Linien. Ein Zuschnitt, der auf der
-    Aufnahme liegt, geht die Teile nichts an: Ihre Ränder sind die beiden
-    äußeren Linien.
-
-    **Die Teilung sitzt auf genau einem Rahmen.** Außen wird nach außen
-    gerundet, wie beim Zuschneiden. Innen darf das nicht sein: Der eine Teil
-    endete einen Rahmen später, als der andere beginnt, und ein Abtastwert
-    stünde in beiden. Die Teilung wird deshalb zuerst auf einen Rahmen gelegt
-    und dann so übergeben, dass beide Rundungen auf ihm landen - der vordere
-    Teil schneidet dort ab, der hintere rundet dorthin ab. Aneinandergelegt
-    sind die beiden Byte für Byte der Bereich des Originals.
+    Aus dem Original, dessen Kurve die Ansicht zeigt; ein vorhandener Zuschnitt
+    spielt keine Rolle. Außen wird nach außen gerundet, die Teilung sitzt auf
+    genau einem Rahmen - aneinandergelegt ergeben die Teile Byte für Byte den
+    Bereich des Originals.
 
     Gibt die Befunde beider Teile zurück; abgelegt ist danach beides.
     """
@@ -245,10 +168,8 @@ def teile(
         )
     with wave.open(str(quelle), "rb") as datei:
         rate = datei.getframerate()
-    # Ein Viertelrahmen hinter der Rahmengrenze: `int` schneidet ihn für den
-    # vorderen Teil ab, `floor` rundet ihn für den hinteren ebenfalls ab -
-    # beide landen auf demselben Rahmen, und keine Gleitkommazahl kann einen
-    # der beiden auf den Nachbarn kippen lassen.
+    # Ein Viertelrahmen hinter der Grenze: `int` und `floor` landen beide auf
+    # demselben Rahmen, keine Gleitkommazahl kippt einen auf den Nachbarn.
     innen = (round(teilung_s * rate) + 0.25) / rate
 
     with tempfile.TemporaryDirectory() as verzeichnis:
@@ -267,9 +188,7 @@ def kopiere(
 ) -> klang.Befund:
     """Einen Ausschnitt des Originals als eigene Datei ablegen - ein Teil allein.
 
-    Für „Editieren", wenn die Teilung auf Anfang oder Ende liegt: Dann gibt
-    es nur einen Teil, und der ist der Ausschnitt. Nach außen gerundet wie
-    jeder Zuschnitt.
+    Für „Editieren", wenn die Teilung auf Anfang oder Ende liegt.
     """
     quelle = ablage.pfad(aufnahme.blob)
     if not quelle.is_file():

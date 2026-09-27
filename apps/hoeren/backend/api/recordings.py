@@ -1,9 +1,7 @@
 """Upload, Prüfung, Verwerfen.
 
-Ablauf einer Aufnahme: Browser schickt Opus → ffmpeg macht 16 kHz Mono-WAV →
-Messung → Ablage → Datensatz. Alles synchron: die Dateien sind Sekunden lang,
-und ein Ergebnis, das erst später eintrudelt, würde die Bedienung nur
-verkomplizieren.
+Opus aus dem Browser → ffmpeg → 16 kHz mono WAV → Messung → Ablage → Zeile.
+Synchron, denn die Dateien sind Sekunden lang.
 """
 
 from __future__ import annotations
@@ -100,11 +98,8 @@ async def nimm_auf(
     db.add(aufnahme)
     db.commit()
 
-    # Die abgewandelten Fassungen gleich mit (`services/augmentierung.py`).
-    # Nach dem Commit und nicht davor: Sie sind abgeleitet und jederzeit neu zu
-    # rechnen, die Aufnahme ist es nicht - scheitert das Rechnen, soll trotzdem
-    # im Korpus stehen, was der Mensch gesprochen hat. Der Lauf der Auswertung
-    # holt eine fehlende Fassung später ohnehin nach.
+    # Die Fassungen nach dem Commit: Scheitern sie, steht die Aufnahme
+    # trotzdem, und der Auswertungslauf holt sie nach.
     try:
         augmentierung.stelle_alle_her(ablage, aufnahme)
     except klang.AudioFehler:
@@ -131,15 +126,8 @@ def hoere_ab(
 ) -> FileResponse:
     """Die eigene Aufnahme anhören - das Original oder eine ihrer Fassungen.
 
-    **Warum auch die Fassungen.** In der Auswertung steht neben jeder Fassung,
-    was die Modelle aus ihr gemacht haben - und die interessanteste Frage dabei
-    ist, ob man selbst noch versteht, was das Modell nicht mehr verstanden hat.
-    Eine Zahl zum Rauschen beantwortet das nicht; das Rauschen selbst schon.
-
-    Gerechnet wird hier nichts: Fehlt die Datei, ist sie noch nicht entstanden
-    (`services/augmentierung.py` legt sie beim Hochladen an, der Auswertungslauf
-    holt sie spätestens nach). Ein Abspieler ist kein Anlass, Rechenzeit zu
-    binden - er bekommt dann eine 404 und bleibt still.
+    Die Fassungen, damit man in der Auswertung selbst hört, was ein Modell
+    nicht verstanden hat. Gerechnet wird hier nichts; fehlt eine, kommt 404.
     """
     aufnahme = db.get(Aufnahme, aufnahme_id)
     if aufnahme is None or aufnahme.speaker_id != sprecher or aufnahme.status != "ok":
@@ -155,24 +143,12 @@ def hoere_ab(
 
 @router.delete("/{aufnahme_id}", status_code=204)
 def verwirf(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage) -> None:
-    """Verwerfen heißt: Audio löschen, Datensatz als `verworfen` behalten.
+    """Verwerfen: Audio, Fassungen, Zuschnitt und Messwerte löschen, die Zeile
+    als `verworfen` behalten. Die Vorlage wird wieder offen.
 
-    Die Vorlage wird dadurch wieder offen (die Warteschlange zählt nur
-    Aufnahmen mit Status `ok`). Das Audio selbst wird wirklich gelöscht -
-    verworfene Stimmaufnahmen werden nicht gebraucht, und weniger
-    Gesundheitsdaten sind besser als mehr.
-
-    **Und mit dem Audio geht, was Modelle daraus gemacht haben.** Der erkannte
-    Text ist dieselbe Äußerung, nur in Schrift; ihn stehen zu lassen, während
-    der Ton gelöscht wird, wäre die halbe Bewegung. Gemessen wird ohnehin nur
-    an brauchbaren Aufnahmen - eine verworfene ist kein Prüfstück, sondern ein
-    Fehlversuch (`services/auswertung.py`).
-
-    Übernommene Faltungsmessungen gehen dabei mit, und sie kommen nicht
-    wieder: Was der Korpus nicht mehr führt, holt die Auswertung auch nicht
-    zurück. **Das trainierte Modell bleibt davon unberührt** - es hat gelernt,
-    was es gelernt hat; nur seine Zahlen stehen von nun an auf dem Korpus von
-    heute (`014_erkennungen_aus_faltungen.sql`).
+    Der erkannte Text ist dieselbe Äußerung in Schrift und geht mit, auch
+    übernommene Faltungen. Ein trainiertes Modell bleibt unberührt; seine
+    Zahlen stehen auf dem Korpus, wie er ist.
     """
     aufnahme = db.get(Aufnahme, aufnahme_id)
     if aufnahme is None or aufnahme.speaker_id != sprecher:
@@ -180,10 +156,7 @@ def verwirf(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablag
 
     if aufnahme.status == "ok":
         ablage.loesche(aufnahme.blob)
-        # Eine abgewandelte Fassung ist dieselbe Stimme, nur
-        # verrauscht - und damit derselbe Gesundheitsdatensatz. Wer eine
-        # Aufnahme wegwirft, hat nicht drei Kopien davon gemeint. Für den
-        # Zuschnitt gilt dasselbe: dieselbe Stimme, nur kürzer.
+        # Fassungen und Zuschnitt sind dieselbe Stimme.
         augmentierung.loesche(ablage, aufnahme)
         zuschnitt.loesche(ablage, aufnahme)
         db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme_id))

@@ -4,16 +4,11 @@ Start in der Entwicklung (aus dem Repository-Wurzelverzeichnis):
 
     uv run uvicorn apps.hoeren.backend.main:app --reload
 
-Die Wege teilen sich nach dem, was sie brauchen: Sprecherprofile anzulegen und
-Zugänge auszugeben ist Sache der Verwaltung (`WORTLAUT_AUTH_TOKEN`), über alle
-Korpora hinweg sehen und löschen darf allein die Aufsicht
-(`WORTLAUT_ADMIN_TOKEN`, siehe `api/admin.py`), alles Übrige verlangt den
-Zugang **eines** Sprechers und leitet dessen Kennung daraus ab (siehe
-`deps.py`). Im Browser erreichbar ist außerdem das gebaute Frontend,
-sofern es vorliegt. Ein CORS-Regelwerk
-braucht es nicht: in der Entwicklung leitet Vite `/api` an dieses Backend
-weiter (siehe `frontend/vite.config.ts`), im Betrieb liefert dieser Prozess
-beides aus.
+Profile und Zugänge gehören der Verwaltung (`WORTLAUT_AUTH_TOKEN`), der Blick
+über alle Korpora der Aufsicht (`WORTLAUT_ADMIN_TOKEN`, `api/admin.py`), alles
+Übrige verlangt den Zugang eines Sprechers und leitet dessen Kennung daraus ab
+(`deps.py`). CORS braucht es nicht: In der Entwicklung leitet Vite `/api`
+hierher, im Betrieb liefert dieser Prozess auch das Frontend aus.
 """
 
 from __future__ import annotations
@@ -43,27 +38,19 @@ from .deps import Verwaltung
 
 app = FastAPI(title="wortlaut · hören", version="0.1.0")
 
-# Die Verwaltung: Profile anlegen und ansehen. Sie kommt an keine Aufnahme
-# heran - dafür braucht auch sie den Zugang des jeweiligen Sprechers.
+# Die Verwaltung: Profile anlegen und ansehen, keine Aufnahme.
 app.include_router(speakers.router, dependencies=[Verwaltung])
 
-# Die Aufsicht: der eine Zugang, der über alle Korpora sieht - einsehen,
-# sichern, umbenennen, löschen. Sie trägt ihren Wächter selbst
-# (`WORTLAUT_ADMIN_TOKEN`) und ist ohne gesetzten Token vollständig zu.
+# Die Aufsicht trägt ihren Wächter selbst und ist ohne Token zu.
 app.include_router(admin.router)
 
-# Zugänge ausgeben und zurückziehen; die Auskunft „wer bin ich hier" darin
-# hat bewusst keinen Wächter (siehe `api/zugang.py`).
+# Zugänge ausgeben und zurückziehen, dazu „wer bin ich hier".
 app.include_router(zugang.router)
 
-# Welche Sprachen dieses System kennt - eine Auskunft ohne Wächter.
 app.include_router(sprachen.router)
-
-# Worauf das alles läuft - für jeden gültigen Zugang (siehe `api/system.py`).
 app.include_router(system.router)
 
-# Alles, was Daten berührt. Der Wächter steckt in `SprecherId`/`Datenbank`:
-# ohne Sprecherzugang gibt es keine Datenbank, die sich öffnen ließe.
+# Alles, was Daten berührt. Der Wächter steckt in `SprecherId`/`Datenbank`.
 for router in (
     sources.router,
     prompts.router,
@@ -72,9 +59,7 @@ for router in (
     intake.router,
     konto.router,
     auswertung.router,
-    # Der Zuschnitt trägt über den Sprecherzugang hinaus einen eigenen
-    # Wächter (`WORTLAUT_EDITOR_KEY`) und ist ohne gesetzten Schlüssel
-    # vollständig zu - wie das Training in „lernen" und aus demselben Grund.
+    # Dazu `WORTLAUT_EDITOR_KEY`.
     zuschnitt.router,
 ):
     app.include_router(router)
@@ -82,21 +67,13 @@ for router in (
 
 @app.get("/gesundheit", tags=["Betrieb"])
 def gesundheit() -> dict[str, str]:
-    """Ohne Token erreichbar, damit Proxy und Compose den Dienst prüfen können.
-
-    `stand` sagt dazu, wann das laufende Abbild gebaut wurde. Er steht hier und
-    nicht im JavaScript-Bündel, weil er sonst nur bei Frontend-Änderungen neu
-    entsteht: Wird allein das Backend angefasst, kommen die Frontend-Stufen aus
-    dem Zwischenspeicher - samt des Datums darin (siehe `Dockerfile`). Diese
-    Auskunft kommt vom laufenden Prozess und kann deshalb nicht veralten.
-    """
+    """Ohne Token, für Proxy und Healthcheck. `stand` nennt, wann das laufende
+    Abbild gebaut wurde - vom Prozess und nicht aus dem Frontend-Bündel, dessen
+    Schicht aus dem Bauspeicher kommen kann."""
     return {"status": "ok", "stand": web.stand()}
 
 
-# Das gebaute Frontend, falls vorhanden. `html=True` liefert für unbekannte
-# Pfade die index.html aus, damit die Routen im Browser direkt aufrufbar sind.
-# `FrontendDateien` setzt dazu die Cache-Regeln - ohne die zeigt ein Browser
-# nach dem Ausrollen weiter die alte App (siehe `wortlaut/web.py`).
+# Das gebaute Frontend, falls vorhanden, mit Cache-Regeln (`wortlaut/web.py`).
 _frontend = Path(__file__).parents[1] / "frontend" / "dist"
 if _frontend.is_dir():
     app.mount("/", FrontendDateien(directory=_frontend, html=True), name="frontend")
