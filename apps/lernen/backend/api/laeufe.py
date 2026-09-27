@@ -1,28 +1,14 @@
 """Läufe beauftragen und ihnen zusehen.
 
-Vier Wege, und sie teilen sich die Arbeit nach dem, wie oft sie gebraucht
-werden - dieselbe Aufteilung wie in der Auswertung von „hören":
+* `GET  /lernen/api/laeufe`          die Liste, abgefragt im Takt - ohne Kurven.
+* `GET  /lernen/api/laeufe/{id}`     ein Lauf: Kurven, Bewertung, Baseline.
+* `POST /lernen/api/laeufe`          beauftragen - mit Trainerschlüssel.
+* `POST /lernen/api/laeufe/{id}/abbruch`  anhalten.
+* `POST /lernen/api/laeufe/{id}/neustart` neu starten - mit Trainerschlüssel.
+* `DELETE /lernen/api/laeufe/{id}`   löschen, samt Stand.
 
-* `GET  /lernen/api/laeufe`          die Liste: je Lauf Auftrag und Stand.
-  Sie wird abgefragt, solange die Seite offen ist, und trägt deshalb **keine**
-  Kurven: Bei zwölf Läufen mit je tausend Schritten wäre das bei jedem Takt ein
-  Vielfaches dessen, was gemeint ist.
-* `GET  /lernen/api/laeufe/{id}`     ein Lauf im Einzelnen: Kurven, Bewertung,
-  Vergleich mit der Baseline.
-* `POST /lernen/api/laeufe`          einen Lauf beauftragen. **Einer von zwei
-  Wegen hier, die ein zweites Geheimnis verlangen** - den Trainerschlüssel,
-  siehe `_pruefe_trainerschluessel`. Der andere ist der Neustart.
-* `POST /lernen/api/laeufe/{id}/abbruch`  einen Lauf anhalten - einen
-  wartenden sofort, einen rechnenden über den Trainer.
-* `POST /lernen/api/laeufe/{id}/neustart` einen gescheiterten oder
-  angehaltenen noch einmal rechnen lassen; er ersetzt den alten. Verlangt wie
-  das Beauftragen den Trainerschlüssel.
-* `DELETE /lernen/api/laeufe/{id}`   einen Lauf ersatzlos entfernen, samt dem
-  Modell, das aus ihm entstand.
-
-Gerechnet wird in keinem davon. Der Trainer ist ein anderer Container mit einer
-Karte darin; hier entsteht nur das Verzeichnis, an dem er ihn erkennt (siehe
-`wortlaut/laeufe.py`).
+Gerechnet wird im Trainer-Container; hier entsteht nur das Verzeichnis
+(`wortlaut/laeufe.py`).
 """
 
 from __future__ import annotations
@@ -42,39 +28,24 @@ from ..services import aufteilung, auftraege, kernauswahl, vergleich
 
 router = APIRouter(prefix="/lernen/api/laeufe", tags=["Läufe"])
 
-# Der Kopf, in dem der Trainerschlüssel steht. Nicht `Authorization`: Dort
-# liegt schon der Sprecherzugang, und aus ihm leitet der Server ab, wessen
-# Modell entsteht (`deps.py`). Zwei Geheimnisse in einem Kopf hießen, das eine
-# gegen das andere zu tauschen - und dann trainierte der Schlüssel für
-# niemanden oder der Zugang ohne Erlaubnis.
+# Nicht `Authorization`: Dort liegt der Sprecherzugang, der sagt, wessen
+# Modell entsteht (`deps.py`).
 SCHLUESSEL_KOPF = "X-Trainer-Key"
 
 
 def _pruefe_trainerschluessel(
     x_trainer_key: Annotated[str | None, Header()] = None,
 ) -> None:
-    """Wächter des einen teuren Weges: einen Lauf beauftragen.
+    """Wächter der Wege, die die Karte belegen.
 
-    Ein Lauf belegt die Karte für Minuten bis Stunden, und er kostet Strom,
-    Wärme und die Wartezeit aller anderen. Der Sprecherzugang allein reicht
-    dafür nicht: Er ist an jeden ausgegeben, der aufnimmt, und er ist die
-    Antwort auf „wessen Modell?", nicht auf „wer darf rechnen lassen?".
-
-    Nicht gesetzt heißt abgeschaltet - kein Training für niemanden, auch nicht
-    in der Entwicklung (die Begründung steht bei `trainer_key` in der
-    `config.py`). Die Oberfläche fragt das vorher ab und zeigt den Knopf dann
-    gar nicht erst (`bereit` und `hinweis` in der Liste).
-
-    Zeitkonstant verglichen und über die UTF-8-Bytes, wie in „hören": Sonst
-    verriete die Antwortzeit den Anfang des Schlüssels, und ein Umlaut darin
-    ergäbe einen 500er statt eines sauberen 401.
+    Der Sprecherzugang sagt „wessen Modell", nicht „wer darf rechnen lassen".
+    Nicht gesetzt heißt abgeschaltet (`config.trainer_key`); die Oberfläche
+    zeigt den Knopf dann nicht (`bereit`, `hinweis`). Zeitkonstant über die
+    UTF-8-Bytes verglichen, wie in „hören".
     """
     erwartet = einstellungen().trainer_key
     if not erwartet:
-        # 401 und nicht 403, weil „hören" es bei Verwaltung und Aufsicht
-        # genauso hält: Eine abgeschaltete Tür ist eine, an der niemand
-        # angemeldet ist. Zwei Fassungen derselben Absage wären zwei Wege
-        # durch die Oberfläche.
+        # 401 wie in „hören": An einer abgeschalteten Tür ist niemand angemeldet.
         raise HTTPException(
             status_code=401,
             detail=(
@@ -251,10 +222,8 @@ TEMPI = [
 class GrundmodellAntwort(BaseModel):
     """Ein Grundmodell zur Wahl - und was es verträgt.
 
-    `methoden` steht dabei, damit die Oberfläche die unmögliche Kombination
-    gar nicht erst anbietet: Volles Feintuning von `medium` sprengt den
-    Speicher der Karte, und es nach zwei Stunden am Speicher scheitern zu
-    lassen wäre die schlechtere Auskunft.
+    `methoden`, damit die Oberfläche nichts anbietet, was am Speicher der
+    Karte scheitert (volles Feintuning von `medium`).
     """
 
     schluessel: str
@@ -302,29 +271,18 @@ def _sprechername(sprecher_id: str) -> str:
 class Bestellung(BaseModel):
     methode: str
     daten: str
-    # Die dritte Achse, mit Vorgabe: Eine Bestellung ohne dieses Feld ist
-    # dieselbe Bestellung wie vor September 2026.
+    # Die übrigen Achsen mit ihren Vorgaben.
     abschluss: str = lauf_layout.ABSCHLUSS_BESTER
-    # Die vierte Achse, ebenfalls mit Vorgabe.
     augmentierung: str = lauf_layout.AUG_KEINE
-    # Die fünfte Achse, ebenfalls mit Vorgabe.
     dauer: str = lauf_layout.DAUER_FEST
-    # Die sechste, und die einzige, die etwas sucht statt etwas zu setzen.
     tempowahl: str = lauf_layout.TEMPO_AUS
-    # Worauf trainiert wird. Leer heißt: die Vorgabe des Servers - ein Auftrag
-    # von einem Aufrufer, der diese Achse nicht kennt, bleibt derselbe Auftrag.
+    # Leer: die Vorgabe des Servers.
     grundmodell: str = ""
-    # Alle Aufnahmen oder nur der Kern - mit Vorgabe wie die übrigen Achsen.
     auswahl: str = lauf_layout.AUSWAHL_ALLE
 
 
 class StandHinweis(BaseModel):
-    """Was an einem Lauf hängt, bevor ihn jemand löscht.
-
-    Die Oberfläche fragt damit nicht noch einmal beim Server nach, was
-    verschwinden würde - sie hat es schon, als sie die Liste holte, und kann
-    es in die Sicherheitsabfrage schreiben.
-    """
+    """Was mit einem Lauf verschwände - für die Sicherheitsabfrage, ohne Nachfrage."""
 
     version: str
     freigegeben: bool
@@ -338,85 +296,52 @@ class LaufAntwort(BaseModel):
     code: str
     methode: str
     daten: str
-    # Alle Aufnahmen oder nur der Kern. Ein Lauf von vor dieser Achse heißt
-    # `alle` - genau das, was damals gerechnet wurde.
+    # Die Achsen; fehlt eine im Auftrag, galt ihre Vorgabe.
     auswahl: str = lauf_layout.AUSWAHL_ALLE
-    # Was am Ende mit den Gewichten geschah. Ein Lauf von vor dieser Achse hat
-    # das Feld nicht im Auftrag stehen und heißt hier `bester` - das ist keine
-    # Annahme, sondern genau das, was damals gerechnet wurde.
     abschluss: str
-    # Womit die Trainingsproben abgewandelt wurden. Ein Lauf von vor dieser
-    # Achse heißt hier `keine` - genau das, was damals gerechnet wurde.
     augmentierung: str
-    # Wie lange trainiert wurde. Ein Lauf von vor dieser Achse heißt `fest`.
     dauer: str
-    # Ob die Geschwindigkeit gesucht wurde oder die des Profils galt.
     tempowahl: str = lauf_layout.TEMPO_AUS
-    # Die Geschwindigkeit, mit der dieser Lauf wirklich gerechnet hat. Bei
-    # `optimal` der gefundene Median über die Faltungen, sonst der Wert aus dem
-    # Profil, wie er beim Beauftragen dastand. `null`, solange die Suche noch
-    # läuft - dann ist es schlicht noch nicht entschieden.
+    # Das Tempo, mit dem gerechnet wurde; `null`, solange die Suche läuft.
     tempo: float | None = None
-    # Ob dieser Faktor endgültig ist. Bei `optimal` steht während der
-    # Kreuzvalidierung der Median dessen, was bis dahin gefunden wurde - eine
-    # Zahl, die sich noch ändern kann, ist mehr wert als keine, solange
-    # dransteht, dass sie es kann.
+    # Während der Suche der Median des bisher Gefundenen - dann `false`.
     tempo_endgueltig: bool = True
     basismodell: str
-    # Worauf aufgesetzt wurde, als Schlüssel der Wahl (`GrundmodellAntwort`):
-    # das Grundmodell - oder der trainierte Stand, dessen Gewichte den Anfang
-    # machten. `basismodell` bleibt das Whisper-Modell darunter; gegen das
-    # misst die Baseline.
+    # Worauf aufgesetzt wurde (`GrundmodellAntwort`): Grundmodell oder
+    # Ausgangsstand. Die Baseline misst `basismodell`.
     grundmodell: str = ""
     erstellt: str
     status: str
     # Woran gerade gearbeitet wird: laden, tempowahl, training, abschluss,
     # sichern, umwandeln, bewerten.
     stufe: str
-    # Die Faltung, die gerade rechnet (ab 0), und wie viele es sind. `null`
-    # heißt: das Endmodell - es hat keine. Ohne diese Angabe erschiene
-    # „Modell wird geladen" siebenmal im Lauf, ohne dass zu sehen wäre, dass
-    # es jedes Mal ein anderes Training ist.
+    # Die Faltung, die gerade rechnet (ab 0); `null`: das Endmodell.
     faltung: int | None = None
     faltungen_gesamt: int = lauf_layout.FALTUNGEN
-    # 0 bis 1, aus Schritt und Schrittzahl - `null`, solange der Trainer noch
-    # nicht gesagt hat, wie viele es werden.
+    # 0 bis 1; `null`, solange die Schrittzahl unbekannt ist.
     anteil: float | None
     aufnahmen: int
     zeilen: dict[str, int]
-    # Beim Kern: auf wie vielen Aufnahmen und Proben gelernt wird - schon vor
-    # der Wahl, denn wie viele es sind, steht beim Auftrag fest
-    # (`services/kernauswahl.py`). `null` heißt: auf allen.
+    # Beim Kern: worauf gelernt wird, schon vor der Wahl
+    # (`services/kernauswahl.py`); `null`: auf allen.
     kern_aufnahmen: int | None = None
     kern_proben: int | None = None
-    # Wie viele Aufnahmen der Trainer vor der Wahl noch nachmessen muss - 0,
-    # sobald gewählt ist.
+    # Was der Trainer vor der Wahl nachmessen muss.
     kern_offen: int = 0
     version: str | None
-    # Der kurze Code des Standes, der aus diesem Lauf entstand - dieselbe
-    # Kennung wie in der Modelltafel und in „schreiben"
-    # (`registry.kurzkennung`). `null`, solange kein Stand da ist.
+    # Der kurze Code seines Standes (`registry.kurzkennung`).
     kennung: str | None = None
     fehler: str | None
-    # Der Modellstand, der aus diesem Lauf hervorging - `null`, solange keiner
-    # entstanden ist. Er ginge beim Löschen mit.
+    # Der Stand aus diesem Lauf; ginge beim Löschen mit.
     stand: StandHinweis | None
-    # Ob sich dieser Lauf löschen lässt. Ein rechnender nicht: In sein
-    # Verzeichnis schreibt gerade ein anderer Container. Ein hängender schon -
-    # dort schreibt seit einer Viertelstunde niemand mehr.
+    # Nicht, solange er rechnet; ein hängender schon.
     loeschbar: bool
-    # Sagt `laeuft`, rührt sich aber nicht mehr (`wortlaut/laeufe.py`). Die
-    # Ansicht zeigt das statt eines Fortschrittsbalkens, der so tut, als käme
-    # gleich der nächste Schritt.
+    # Sagt `laeuft`, rührt sich aber nicht (`wortlaut/laeufe.py`).
     haengt: bool
-    # Seit wann nichts mehr geschrieben wurde, in Sekunden - nur bei `laeuft`
-    # eine Auskunft, sonst `null`. Damit die Ansicht „seit 20 Minuten" sagen
-    # kann und nicht bloß „hängt".
+    # Sekunden ohne Schreiben, nur bei `laeuft`.
     stillstand_s: float | None
-    # Angehalten verlangt, aber der Trainer hat den Prozess noch nicht
-    # beendet. Bis dahin sagt der Zustand weiter `laeuft`.
+    # Anhalten verlangt, der Prozess läuft noch.
     wird_angehalten: bool = False
-    # Gescheitert oder angehalten - dann lässt er sich neu starten.
     neu_startbar: bool = False
 
 
@@ -434,10 +359,7 @@ class GegenueberAntwort(BaseModel):
     trainiert: float | None
     besser: bool | None
     anzahl: int
-    # Alles Weitere nur, wenn `?intervall=` es angefordert hat. `besser` sagt,
-    # wer vorn liegt; `unterschied` sagt, ob das mehr ist als Zufall - Differenz
-    # (trainiert minus Baseline) mit Bereich und p-Wert, gepaart auf denselben
-    # Aufnahmen gerechnet.
+    # Nur mit `?intervall=` (`services/vergleich.Gegenueber`).
     unterschied: dict | None = None
     bereich_baseline: dict | None = None
     bereich_trainiert: dict | None = None
@@ -445,8 +367,7 @@ class GegenueberAntwort(BaseModel):
 
 class EinzelAntwort(BaseModel):
     lauf: LaufAntwort
-    # Der Steckbrief dieses Laufs: jede Achse benannt, auch die auf Vorgabe
-    # (siehe `steckbrief`). Vom Server, damit die Namen an einer Stelle stehen.
+    # Jede Achse benannt, auch die auf Vorgabe (`steckbrief`).
     steckbrief: list[SteckbriefZeile]
     methoden: list[WahlAntwort]
     datensaetze: list[WahlAntwort]
@@ -458,10 +379,10 @@ class EinzelAntwort(BaseModel):
     grundmodelle: list[GrundmodellAntwort]
     kurve_training: list[PunktAntwort]
     kurve_validierung: list[PunktAntwort]
-    # fassung -> die Maße, jeweils vorher und nachher
+    # fassung -> die Maße, Baseline und trainiert
     vergleich: dict[str, list[GegenueberAntwort]]
     protokoll: str
-    # Welche Blockart gerechnet wurde: `aus`, `aufnahme` oder `einheit`.
+    # `aus`, `aufnahme` oder `einheit`.
     intervall: str = streuung.AUS
     streuung_marke: str = ""
 
@@ -477,43 +398,23 @@ class ListeAntwort(BaseModel):
     tempi: list[WahlAntwort]
     grundmodelle: list[GrundmodellAntwort]
     basismodell: str
-    # Wie viele Faltungen ein Lauf rechnet. Vom Server, damit die Oberfläche
-    # die Sechs nicht ein zweites Mal kennt.
+    # Vom Server, damit die Oberfläche die Zahl nicht selbst kennt.
     faltungen: int
-    # Ob überhaupt beauftragt werden kann, und wenn nicht, warum. Es sind zwei
-    # Gründe, aus denen nicht: zu wenige Aufnahmen - oder kein hinterlegter
-    # Trainerschlüssel, dann kann es auf diesem Server niemand.
+    # Ob beauftragt werden kann, sonst warum nicht: zu wenige Aufnahmen oder
+    # kein Trainerschlüssel.
     bereit: bool
     hinweis: str
-    # Ob die Oberfläche nach dem Trainerschlüssel fragen muss. Der Server sagt
-    # es, statt dass die Seite es errät: Sonst stünde die Regel zweimal da, und
-    # die Kopie in der Oberfläche wäre die, die niemand prüft.
+    # Ob die Oberfläche nach dem Trainerschlüssel fragen muss.
     schluessel_noetig: bool
-    # Wie viele brauchbare Aufnahmen es inzwischen gibt, und wie viele davon
-    # der jüngste durchgelaufene Lauf noch nicht kannte.
-    #
-    # Es gibt hier ausdrücklich **keine** Automatik, die daraufhin selbst
-    # trainiert: Ein Lauf belegt die Karte für Minuten bis Stunden und
-    # entsteht aus einem Schnappschuss, der festhalten soll, worauf ein Modell
-    # gelernt hat. Von selbst angestoßen wüsste hinterher niemand mehr, welche
-    # Aufnahmen in welchem Stand stecken - und zwei Läufe, die sich eine Karte
-    # teilen, wären zusammen langsamer als nacheinander. Dieselbe Überlegung
-    # wie beim Lauf der Auswertung in „hören": Wer messen will, sagt es.
-    #
-    # Was die Zahl stattdessen tut: Sie macht sichtbar, wann es sich lohnt.
+    # Brauchbare Aufnahmen, und wie viele der jüngste fertige Lauf nicht
+    # kannte - zeigt, wann ein Lauf sich lohnt. Von selbst trainiert wird nie:
+    # Wer rechnen lassen will, sagt es.
     aufnahmen_jetzt: int
     aufnahmen_neu: int
 
 
-# Grobe Anteile der Stufen an **einem** Training, in der Reihenfolge, in der
-# sie durchlaufen werden.
-#
-# Geschätzt und nicht gemessen - absichtlich. Wie lange eine Faltung braucht,
-# hängt am Korpus, am Grundmodell und an der Karte; eine Zahl, die das alles
-# nachrechnete, wäre genauer und nicht besser. Gefragt ist ein Balken, der
-# gleichmäßig läuft, und dafür genügen Größenordnungen: Das Training ist die
-# Hälfte, die Tempowahl kostet eine Minute, alles andere sind Sekunden bis
-# wenige Minuten.
+# Grobe Anteile der Stufen an einem Training, in ihrer Reihenfolge -
+# geschätzt: Für einen gleichmäßigen Balken genügen Größenordnungen.
 STUFENFOLGE: tuple[tuple[str, float], ...] = (
     ("laden", 0.10),
     ("tempowahl", 0.15),
@@ -524,30 +425,20 @@ STUFENFOLGE: tuple[tuple[str, float], ...] = (
     ("bewerten", 0.07),
 )
 
-# Welche Stufen ein Schrittwerk haben, also innerhalb ihrer selbst
-# weiterzählen. Bei allen anderen bleibt der Balken auf dem Anfang der Stufe
-# stehen - das ist ehrlicher als eine erfundene Bewegung.
+# Stufen, die in sich weiterzählen; bei den übrigen steht der Balken am Anfang der Stufe.
 MIT_SCHRITTEN = frozenset({"training", "tempowahl"})
 
 
 def _anteil(lauf: lauf_layout.Lauf) -> float | None:
     """Wie weit der **ganze Lauf** ist - von 0 bis 1, und nie rückwärts.
 
-    **Warum das nicht der Schrittzähler ist.** Ein Lauf rechnet sieben
-    Trainings: sechs Faltungen und das Endmodell. Jedes zählt seine Schritte
-    von vorn, und der Balken stand deshalb siebenmal bei null und siebenmal bei
-    hundert Prozent. Er sprang zusätzlich innerhalb einer Faltung, seit die
-    Tempowahl ihre acht Stützstellen mitzählt.
+    Ein Lauf rechnet sechs Faltungen und das Endmodell, jedes mit eigenem
+    Schrittzähler. Jedes Training bekommt denselben Anteil, darin die Stufen
+    nach `STUFENFOLGE`; was es nicht durchläuft (Tempowahl, Bewertung beim
+    Endmodell), fällt heraus, damit der Balken nicht springt.
 
-    Gerechnet wird deshalb kaskadiert: Jedes der sieben Trainings bekommt
-    denselben Anteil am Ganzen, und innerhalb eines Trainings verteilen sich
-    die Stufen nach `STUFENFOLGE`. Was ein Lauf nicht durchläuft - keine
-    Tempowahl, keine Bewertung beim Endmodell -, wird vorher herausgerechnet,
-    sonst bliebe an dieser Stelle eine Lücke, über die der Balken springt.
-
-    **Monoton, solange die Stufen in dieser Reihenfolge kommen.** Sie tun es;
-    `finetune.py` ruft sie so auf. Ein unbekannter Stufenname zählt als „noch
-    nicht begonnen" und hält den Balken, statt ihn zurückzuwerfen.
+    Monoton, weil `finetune.py` die Stufen in dieser Reihenfolge aufruft. Ein
+    unbekannter Stufenname zählt als „noch nicht begonnen".
     """
     zustand = lauf.zustand
     if lauf.status == lauf_layout.FERTIG:
@@ -556,13 +447,11 @@ def _anteil(lauf: lauf_layout.Lauf) -> float | None:
         return None
 
     trainings = lauf_layout.FALTUNGEN + 1
-    # Ohne den Schlüssel hat noch keine Faltung begonnen; mit dem Schlüssel und
-    # `None` ist es das Endmodell - das siebte und letzte Training.
+    # Ohne Schlüssel hat keine Faltung begonnen; `None` ist das Endmodell.
     endmodell = "faltung" in zustand and zustand.get("faltung") is None
     nummer = trainings - 1 if endmodell else int(zustand.get("faltung") or 0)
 
-    # Welche Stufen in **diesem** Training vorkommen. Das Endmodell sucht kein
-    # Tempo (es übernimmt den Median) und wird an nichts gemessen.
+    # Das Endmodell übernimmt den Tempomedian und wird an nichts gemessen.
     sucht = (
         lauf_layout.tempowahl_aus(lauf.auftrag) == lauf_layout.TEMPO_OPTIMAL
         and not endmodell
@@ -587,8 +476,7 @@ def _anteil(lauf: lauf_layout.Lauf) -> float | None:
             innen = gewicht * min(1.0, schritt / gesamt) if gesamt else 0.0
         break
     else:
-        # Ein Name, den diese Liste nicht kennt („vorbereiten" etwa): Dann
-        # steht dieses Training noch am Anfang.
+        # Unbekannte Stufe („vorbereiten" etwa): am Anfang.
         davor = 0.0
 
     im_training = (davor + innen) / summe if summe else 0.0
@@ -602,9 +490,7 @@ def _stand_zu(lauf: lauf_layout.Lauf) -> StandHinweis | None:
         return None
     return StandHinweis(
         version=str(stand.get("id", "/")).split("/", 1)[-1],
-        # Aus der Freigabe und nicht aus dem `status` des Manifests: Seit auch
-        # ein Grundmodell freigegeben sein kann, ist die Freigabedatei die
-        # Auskunft darüber, was gilt (siehe `wortlaut/registry.py`).
+        # Die Freigabedatei sagt, was gilt (`wortlaut/registry.py`).
         freigegeben=registry.freigegeben(datenverzeichnis, lauf.sprecher_id)
         == str(stand.get("id", "")),
     )
@@ -613,9 +499,8 @@ def _stand_zu(lauf: lauf_layout.Lauf) -> StandHinweis | None:
 def _kernumfang(lauf: lauf_layout.Lauf) -> dict[str, int]:
     """Auf wie vielen Aufnahmen und Proben ein Kernlauf lernt - leer bei allen.
 
-    Die Proben werden nicht gezählt, sondern gerechnet: Jede Aufnahme steht mit
-    allen Fassungen im Manifest (`services/auftraege.schreibe_manifest`), also
-    mit gleich vielen Zeilen. So steht die Zahl auch da, bevor gewählt ist.
+    Die Proben gerechnet statt gezählt - jede Aufnahme hat gleich viele Zeilen
+    (`services/auftraege.schreibe_manifest`) -, damit die Zahl vor der Wahl dasteht.
     """
     if lauf_layout.auswahl_aus(lauf.auftrag) != lauf_layout.AUSWAHL_KERN:
         return {}
@@ -682,13 +567,10 @@ class SteckbriefZeile(BaseModel):
 
     begriff: str
     wert: str
-    # Was den Wert einordnet - die Einheit, die Herkunft, der Vorbehalt. Leer,
-    # wo der Wert für sich steht.
+    # Einheit, Herkunft oder Vorbehalt.
     hinweis: str = ""
-    # `zeit` heißt: `wert` ist ein ISO-8601-Zeitstempel und wird von der
-    # Ansicht formatiert. Der Server tut es nicht - er kennt die Zeitzone des
-    # Lesers nicht, und derselbe Augenblick stand deshalb in der Liste als
-    # 14:38 und hier als 12:34 (`packages/ui/zeit.ts`).
+    # `zeit`: `wert` ist ISO 8601, die Ansicht formatiert in der Zeitzone des
+    # Lesers (`packages/ui/zeit.ts`).
     art: str = ""
 
 
@@ -708,17 +590,16 @@ def _dauer_lesbar(von: str, bis: str) -> str:
 
 
 def _wahlname(liste: list[WahlAntwort], schluessel: str) -> str:
-    """Der Name einer Achsenwahl, oder der Schlüssel, wenn es ihn nicht mehr gibt."""
+    """Der Name einer Achsenwahl, sonst der Schlüssel."""
     for wahl in liste:
         if wahl.schluessel == schluessel:
             return wahl.name
     return schluessel
 
 
-# Was eine Augmentierungsstufe wirklich tut. Die Namen der Achse („Dazu
-# Tempo") sagen, wie sich eine Stufe von der darunter unterscheidet - richtig
-# im Wahlfeld, wo man sie untereinander sieht, und nichtssagend im Steckbrief,
-# wo eine allein steht. Die Griffe stehen in `training/klangwandel.py`.
+# Was eine Augmentierungsstufe tut. Die Wahlnamen („+ Tempo") beschreiben den
+# Schritt zur Stufe darunter; im Steckbrief steht eine allein
+# (`training/klangwandel.py`).
 AUGMENTIERUNG_GRIFFE = {
     lauf_layout.AUG_KEINE: "keine",
     lauf_layout.AUG_MASKEN: "SpecAugment",
@@ -730,10 +611,7 @@ AUGMENTIERUNG_GRIFFE = {
 def _manifest_zu(lauf: lauf_layout.Lauf) -> dict:
     """Das Manifest des Standes, der aus diesem Lauf entstand - oder leer.
 
-    Dort stehen die Zahlen, mit denen wirklich gerechnet wurde; im Lauf selbst
-    steht nur, was bestellt war. Solange kein Stand da ist (der Lauf wartet
-    oder scheiterte), bleibt der Steckbrief auf das Bestellte beschränkt - und
-    sagt damit immer noch alles, was zu diesem Zeitpunkt wahr ist.
+    Dort steht, womit gerechnet wurde; im Lauf nur, was bestellt war.
     """
     version = str(lauf.zustand.get("version") or "")
     if not version:
@@ -755,9 +633,7 @@ def _zahl(wert: float | int | None, stellen: int = 2) -> str:
 def _abschlusstext(manifest: dict) -> str:
     """Was der Abschluss **getan** hat - nicht, wie die Achse heißt.
 
-    „Beides" ist der Name einer Wahl und kein Ergebnis. Hier steht, was daraus
-    wurde: über wie viele Stände gemittelt, welches α die Validierung gewählt
-    hat, oder dass der Abschluss zurückgenommen wurde, weil er nicht half.
+    Über wie viele Stände gemittelt, welches α gewählt, oder zurückgenommen.
     """
     bericht = manifest.get("abschluss_bericht") or {}
     art = str(bericht.get("art") or manifest.get("abschluss") or lauf_layout.ABSCHLUSS_BESTER)
@@ -804,19 +680,8 @@ def _auswahl_im_steckbrief(lauf: lauf_layout.Lauf) -> tuple[str, str]:
 def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
     """Was diesen Lauf ausmacht - in Zahlen, nicht in Sätzen.
 
-    Der Steckbrief nennt jede Achse, auch die auf Vorgabe: „steht nicht da"
-    hieße sonst für die Hälfte der Einstellungen „war die Vorgabe" und nicht
-    „unbekannt", und diesen Schluss soll niemand ziehen müssen.
-
-    **Was hier nicht steht: Erklärungen.** Ein Hinweis kommt nur dazu, wenn er
-    eine Angabe trägt, die im Wert selbst nicht steckt - die Herkunft eines
-    Faktors etwa, oder dass gemessen wurde, was das Modell nie gehört hat.
-    „Grundmodell: openai/whisper-medium - worauf feingetunt wurde" ist kein
-    Hinweis, sondern das Etikett ein zweites Mal.
-
-    **Für alte Läufe geht das, ohne zu raten.** Was im Auftrag fehlt, ist eine
-    Achse, die es damals nicht gab - und dann galt ihre Vorgabe, weil nichts
-    anderes gelten konnte. Ein fehlendes `abschluss` heißt `bester`.
+    Jede Achse steht da, auch die auf Vorgabe; fehlt sie im Auftrag, galt die
+    Vorgabe. Ein Hinweis nur, wo er etwas trägt, das nicht im Wert steckt.
     """
     auftrag = lauf.auftrag
     zustand = lauf.zustand
@@ -921,11 +786,8 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
     )
     geduldig = str(auftrag.get("dauer")) == lauf_layout.DAUER_GEDULDIG
     if gelaufen is not None:
-        # Die gelaufenen Durchgänge stehen in der Kreuzvalidierung und damit
-        # auch bei Ständen, die das Rezept noch nicht mitschrieben. Die
-        # Obergrenze kommt nur dazu, wenn sie bekannt ist - geraten wird sie
-        # nicht: Ein Rezept ist eine Datei, die sich seit dem Lauf geändert
-        # haben kann.
+        # Die Obergrenze nur aus dem Manifest - die Rezeptdatei kann sich
+        # seit dem Lauf geändert haben.
         grenze = f" von höchstens {obergrenze}" if obergrenze else ""
         geduld = rezept.get("geduld")
         dazu(
@@ -948,8 +810,7 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
     )
     dazu("Rechenwerk", gemessen.get("rechenwerk"))
 
-    # Ein Zeitpunkt steht immer da: solange nicht gerechnet wurde, der der
-    # Bestellung - sonst trüge ein wartender Lauf gar kein Datum.
+    # Vor dem Rechnen der Zeitpunkt der Bestellung.
     begonnen = str(zustand.get("begonnen", ""))
     if begonnen:
         spanne = _dauer_lesbar(begonnen, str(zustand.get("beendet", "")))
@@ -967,15 +828,9 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
 def _tempo_des_laufs(lauf: lauf_layout.Lauf) -> float | None:
     """Mit welcher Geschwindigkeit dieser Lauf wirklich gerechnet hat.
 
-    Bei `wie_eingestellt` ist es der Wert, der beim Beauftragen im Profil
-    stand - eingefroren im Auftrag, damit ein späteres Umstellen des Profils
-    nicht rückwirkend behauptet, dieser Lauf sei ein anderer gewesen.
-
-    Bei `optimal` ist es der Median der Faktoren, die die sechs Faltungen
-    gefunden haben - dieselbe Art, wie das Endmodell auch die Durchgänge und
-    das α mitnimmt. Solange die Faltungen laufen, steht er noch nicht fest;
-    dann ist es `None`, und die Ansicht sagt „wird gesucht" statt einer Zahl,
-    die sie noch gar nicht hat.
+    Ohne Tempowahl der Wert des Profils, eingefroren im Auftrag. Mit Tempowahl
+    der Median der Faltungen (wie Durchgänge und α); `None`, solange keiner
+    feststeht.
     """
     gewaehlt = lauf.zustand.get("tempo")
     if gewaehlt is not None:
@@ -987,9 +842,7 @@ def _tempo_des_laufs(lauf: lauf_layout.Lauf) -> float | None:
 
 def _hole(sprecher: str, job_id: str) -> lauf_layout.Lauf:
     lauf = lauf_layout.lies_lauf(einstellungen().data_dir, job_id)
-    # Ein fremder Lauf ist hier schlicht unbekannt: Die Kennung stammt aus dem
-    # Zugang, und wer nach einem anderen Verzeichnis fragt, hat dort nichts
-    # verloren - auch nicht die Auskunft, dass es existiert.
+    # Ein fremder Lauf ist unbekannt - nicht einmal seine Existenz wird verraten.
     if lauf is None or lauf.sprecher_id != sprecher:
         raise HTTPException(status_code=404, detail="Unbekannter Lauf.")
     return lauf
@@ -1000,20 +853,18 @@ def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
     konfiguration = einstellungen()
     proben = aufteilung.proben(korpus)
     genug = aufteilung.genug(proben)
-    # Ohne hinterlegten Schlüssel ist diese Seite eine Leseseite: Die Läufe von
-    # früher bleiben sichtbar, beauftragen kann hier niemand mehr.
+    # Ohne Schlüssel eine Leseseite.
     erlaubt = bool(konfiguration.trainer_key)
     alle = lauf_layout.alle_laeufe(konfiguration.data_dir, sprecher)
 
-    # Der jüngste Lauf, der wirklich durchgelaufen ist. Ein abgebrochener oder
-    # gescheiterter sagt nichts darüber, was ein Modell kennt.
+    # Nur ein fertiger Lauf sagt, was ein Modell kennt.
     fertige = [lauf for lauf in alle if lauf.status == lauf_layout.FERTIG]
     zuletzt = int(fertige[-1].auftrag.get("aufnahmen", 0)) if fertige else 0
 
     return ListeAntwort(
         laeufe=[_als_antwort(lauf) for lauf in reversed(alle)],
         aufnahmen_jetzt=len(proben),
-        # Nie negativ: Wer Aufnahmen löscht, hat nicht „minus drei neue".
+        # Nie negativ, auch nach Löschungen.
         aufnahmen_neu=max(0, len(proben) - zuletzt),
         methoden=METHODEN,
         datensaetze=DATENSAETZE,

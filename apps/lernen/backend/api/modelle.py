@@ -1,25 +1,13 @@
 """Alle Modelle eines Sprechers an einem Ort - gemessen, verglichen, freigegeben.
 
-Dieser eine Weg beantwortet die ganze Frage „womit spreche ich?": Er stellt die
-unveränderten Grundmodelle und die selbst trainierten Stände nebeneinander,
-misst sie an denselben Aufnahmen (siehe `services/messwerte.py`) und sagt,
-welches davon freigegeben ist. Freigegeben heißt: Damit diktiert „schreiben".
+Grundmodelle und trainierte Stände in einer Tabelle, gemessen an denselben
+Aufnahmen (`services/messwerte.py`) - wer wissen will, ob sein Modell `medium`
+schlägt, braucht beide nebeneinander. Mit dem freigegebenen diktiert
+„schreiben".
 
-**Warum beide Sorten in einer Liste.** Weil die Frage eine ist. Früher stand
-das Freigeben in „lernen" und die Auswahl der Grundmodelle in „schreiben" -
-zwei Ansichten, zwei Listen, zwei Begriffe für dieselbe Entscheidung, und
-keine von beiden zeigte, ob sich das Training überhaupt gelohnt hat. Wer
-wissen will, ob sein eigenes Modell `medium` schlägt, braucht beide in einer
-Tabelle.
-
-**Warum Freigeben ein eigener Schritt bleibt.** Ein durchgelaufenes Training
-ist noch kein Modell, das jemand benutzen soll. Zwischen „hat gerechnet" und
-„damit diktiere ich" liegt der Blick auf die Zahlen, und den nimmt einem
-nichts ab. Deshalb entsteht ein Stand mit `status: fertig` und nicht `active`.
-
-**Warum trotzdem alle stehen bleiben.** Vier Läufe ergeben vier Stände, und
-welcher der beste ist, beantwortet man nicht, indem man drei wegwirft.
-Freigegeben ist höchstens einer; die übrigen bleiben messbar daneben stehen.
+**Freigeben ist ein eigener Schritt:** Zwischen „hat gerechnet" und „damit
+diktiere ich" liegt der Blick auf die Zahlen; ein Stand entsteht als `fertig`.
+Freigegeben ist höchstens einer, die übrigen bleiben messbar daneben.
 """
 
 from __future__ import annotations
@@ -38,12 +26,7 @@ GRUNDMODELL = "grundmodell"
 TRAINIERT = "trainiert"
 
 class MassAntwort(BaseModel):
-    """Ein Maß, wie die Tabelle es beschriftet - die Liste kommt vom Server.
-
-    Aus demselben Grund wie in „hören": Ein Maß dazu ist eine Zeile in
-    `metriken.py` und ein Eintrag hier, und nicht zusätzlich eine Liste im
-    Browser, die jemand nachzupflegen vergisst.
-    """
+    """Ein Maß, wie die Tabelle es beschriftet - die Liste kommt vom Server."""
 
     schluessel: str
     name: str
@@ -51,8 +34,7 @@ class MassAntwort(BaseModel):
     erklaerung: str
     hoch_ist_gut: bool
     einheit: str
-    # Nachkommastellen in der Tabelle. Eine Wortfehlerrate von „0,1" ist keine
-    # Auskunft; eine Genauigkeit von „91,3421 %" auch nicht.
+    # Nachkommastellen in der Tabelle.
     stellen: int
 
 
@@ -89,10 +71,9 @@ MASSE = [
         name="Rechenzeit",
         kurz="Zeit",
         erklaerung=(
-            "Sekunden je Aufnahme - die andere Hälfte jeder Modellwahl. "
-            "Sie hängt an der Maschine und nicht am Modell: Zwischen Karte und "
-            "Prozessor liegt das Zehn- bis Zwanzigfache. Verglichen wird sie "
-            "deshalb nur, wenn alle Zeilen dasselbe Rechenwerk nennen."
+            "Sekunden je Aufnahme. Sie hängt an der Maschine: Zwischen Karte und "
+            "Prozessor liegt das Zehn- bis Zwanzigfache. Vergleichbar nur, wenn "
+            "alle Zeilen dasselbe Rechenwerk nennen."
         ),
         hoch_ist_gut=False,
         einheit=" s",
@@ -132,11 +113,9 @@ FASSUNGEN = [
 def _vorbehalt(manifest: dict) -> str:
     """Was gegen diesen Stand spricht - in einem Satz, sonst leer.
 
-    Die Prüfung bei der Freigabe lässt das Endmodell Aufnahmen hören, die es
-    **gelernt** hat. Kommt es dort nicht einmal an das heran, was seine
-    Faltungen auf Ungehörtem erreicht haben, taugt der Stand nicht - und die
-    guten Zahlen in seiner Zeile sagen darüber nichts, denn sie stammen von den
-    Faltungen (`training/bewerten.py`).
+    Die Prüfung lässt das Endmodell gelernte Aufnahmen hören. Bleibt es hinter
+    seinen Faltungen auf Ungehörtem zurück, taugt es nicht - und die Zahlen
+    seiner Zeile stammen von den Faltungen (`training/bewerten.py`).
     """
     pruefung = manifest.get("pruefung") or {}
     if not pruefung.get("auffaellig"):
@@ -169,34 +148,22 @@ class ModellAntwort(BaseModel):
     daten: str | None
     erstellt: str | None
     version: str | None
-    # Der kurze Code dieses Standes (`K7M2Q`) - dieselbe Kennung in „lernen"
-    # und „schreiben", gerechnet aus der Version (`registry.kurzkennung`).
-    # `null` bei einem Grundmodell: Das heißt schon kurz.
+    # Der kurze Code (`K7M2Q`, `registry.kurzkennung`); `null` bei einem Grundmodell.
     kennung: str | None
-    # Ein Satz, wenn mit diesem Stand etwas nicht stimmt - sonst leer. Heute
-    # gibt es genau einen Grund dafür: Der Stand hat die Plausibilitätsprüfung
-    # bei seiner Freigabe nicht bestanden (`training/bewerten.py`). Der Satz
-    # kommt vom Server, weil die Schwelle dahinter dort steht; eine zweite im
-    # Browser wäre eine, die jemand nachzupflegen vergisst.
+    # Ein Satz, wenn der Stand die Prüfung nicht bestand (`_vorbehalt`), sonst leer.
     vorbehalt: str
     job_id: str | None
     freigegeben: bool
-    # Worauf die Zahlen dieser Zeile gemessen wurden - `cuda/int8_float16`,
-    # `cpu/int8`, leer bei Unbekanntem oder Gemischtem. Nur die **Rechenzeit**
-    # hängt daran; Genauigkeit und Fehlerraten ändern sich mit der Maschine
-    # nicht nennenswert.
+    # Worauf gemessen wurde; leer bei Unbekanntem oder Gemischtem. Betrifft nur
+    # die Rechenzeit.
     rechenwerk: str
-    # fassung -> maß -> Wert. Leer heißt: für dieses Modell liegt auf den
-    # gemeinsamen Aufnahmen nichts vor.
+    # fassung -> maß -> Wert.
     werte: dict[str, dict[str, float]]
     # fassung -> wie viele Einheiten in diesem Mittel stecken.
     einheiten: dict[str, int]
-    # fassung -> maß -> Vertrauensbereich. Leer, solange keiner angefordert
-    # wurde (`?intervall=aus`, die Vorgabe) - die Werte darüber sind dieselben
-    # mit oder ohne.
+    # fassung -> maß -> Vertrauensbereich; leer bei `?intervall=aus`.
     intervalle: dict[str, dict[str, dict]] = {}
-    # fassung -> maß -> der gepaarte Abstand zu dem Modell aus `vergleich_mit`.
-    # Leer, solange keines genannt wurde.
+    # fassung -> maß -> gepaarter Abstand zu `vergleich_mit`.
     unterschied: dict[str, dict[str, dict]] = {}
 
 
@@ -204,30 +171,22 @@ class UebersichtAntwort(BaseModel):
     modelle: list[ModellAntwort]
     masse: list[MassAntwort]
     fassungen: list[FassungAntwort]
-    # Was gerade gilt; leer heißt: es gilt, womit die Installation anfängt.
+    # Leer: die Vorgabe der Installation.
     freigegeben: str
-    # Wie viele Aufnahmen es gibt und wie viele Einheiten (Aufnahme mal
-    # Fassung) wirklich von allen gemessen wurden. Seit der Kreuzvalidierung
-    # sind das alle: Jede Aufnahme ist einmal von einem Modell gehört worden,
-    # das sie nicht kannte (`training/bewerten.py`).
+    # Aufnahmen, und Einheiten (Aufnahme mal Fassung), die alle gemessen haben.
     messaufnahmen: int
     gemeinsame_einheiten: int
-    # Ob alle Zahlen auf demselben Boden stehen. `false` heißt: Es gibt keine
-    # Einheit, die jedes messende Modell hat - jede Zeile rechnet dann auf dem,
-    # was sie hat, und die Ansicht sagt es dazu.
+    # `false`: Jede Zeile rechnet auf ihrem eigenen Boden.
     vergleichbar: bool
-    # Ob die **Rechenzeiten** untereinander etwas aussagen: Sie tun es nur,
-    # wenn alle messenden Modelle dasselbe Rechenwerk nennen. Ein Prozessor
-    # und eine Karte trennen sie um eine Größenordnung, und das sagt nichts
-    # über das Modell.
+    # Ob alle messenden Modelle dasselbe Rechenwerk nennen.
     zeit_vergleichbar: bool
     hinweis: str
-    # Welche Blockart angefordert wurde: `aus`, `aufnahme` oder `einheit`.
+    # `aus`, `aufnahme` oder `einheit`.
     intervall: str = streuung.AUS
-    # Gegen welches Modell gepaart verglichen wurde; leer heißt: gegen keines.
+    # Gegen welches Modell gepaart verglichen wurde.
     vergleich_mit: str = ""
-    # Womit gerechnet wurde, in einer Zeichenkette - damit eine Zahl, die
-    # jemand herausschreibt, ihr Verfahren bei sich trägt. Leer bei `aus`.
+    # Das Verfahren in einer Zeichenkette, damit es herausgeschriebene Zahlen
+    # begleitet. Leer bei `aus`.
     streuung_marke: str = ""
 
 
@@ -242,8 +201,7 @@ def _grundmodellnamen() -> list[str]:
     namen = [
         teil.strip() for teil in konfiguration.auswertung_modelle.split(",") if teil.strip()
     ]
-    # Das Grundmodell, auf das trainiert wird, steht immer dabei - sonst fehlte
-    # ausgerechnet die Baseline, gegen die jeder Stand antritt.
+    # Das trainierte Grundmodell immer - es ist die Baseline.
     kurz = lauf_layout.kurzname(konfiguration.lernen_basismodell)
     if kurz not in namen:
         namen.append(kurz)
@@ -253,8 +211,7 @@ def _grundmodellnamen() -> list[str]:
 def _stand_name(manifest: dict) -> str:
     """Der Titel einer Zeile: Optionscode und Folge des Laufs, aus dem der Stand kam.
 
-    Aus dem Auftrag, solange es ihn gibt - ein Manifest von vor September 2026
-    kennt die Tempowahl nicht.
+    Aus dem Auftrag, solange es ihn gibt, sonst aus dem Manifest.
     """
     job_id = str(manifest.get("job_id") or "")
     lauf = lauf_layout.lies_lauf(einstellungen().data_dir, job_id) if job_id else None
@@ -264,34 +221,25 @@ def _stand_name(manifest: dict) -> str:
 def _abschluss_befund(manifest: dict) -> str:
     """Was beim Abschluss herauskam - α, oder dass er zurückgenommen wurde.
 
-    Das gehört in die Nebenzeile und nicht in den Titel: Es unterscheidet zwei
-    Zeilen nicht, es erklärt eine.
+    Nebenzeile statt Titel: Es erklärt eine Zeile, statt zwei zu unterscheiden.
     """
     if str(manifest.get("abschluss") or "") in ("", lauf_layout.ABSCHLUSS_BESTER):
         return ""
-    # Zurückgenommen heißt: Der Abschluss hat auf der Validierung nicht
-    # geholfen, ausgeliefert wurde der beste Durchgang. Das als „gemittelt" zu
-    # beschriften wäre die Behauptung eines Gewinns, den es nicht gab.
+    # Der Abschluss half auf der Validierung nicht; ausgeliefert wurde der
+    # beste Durchgang.
     if (manifest.get("abschluss_bericht") or {}).get("zurueckgenommen"):
         return "zurückgenommen"
     alpha = (manifest.get("abschluss_bericht") or {}).get("alpha")
     if alpha is None:
         return ""
-    # Auch die Null: α = 0 heißt, dass die Wahl auf der Validierung den
-    # feingetunten Stand behalten hat - eine Auskunft über diesen Lauf, und
-    # nicht dasselbe wie ein Stand, bei dem nie interpoliert wurde.
+    # Auch α = 0: gewählt, nicht nie interpoliert.
     return f"α={float(alpha):.2f}".replace(".", ",")
 
 
 def _tempo_befund(manifest: dict) -> str:
     """Bei welcher Geschwindigkeit dieser Stand gelernt hat - wenn nicht 1,0.
 
-    Neben dem α und aus demselben Grund: Es unterscheidet zwei Zeilen nicht,
-    es erklärt eine. Und es ist die Angabe, ohne die niemand versteht, warum
-    ein Stand plötzlich deutlich besser dasteht als seine Nachbarn.
-
-    Bei 1,0 steht hier nichts - jeder Stand von vor dieser Spalte hat so
-    gerechnet, und eine Zeile „normal" an jedem einzelnen wäre Lärm.
+    Neben dem α: Es erklärt, warum ein Stand deutlich besser dastehen kann.
     """
     faktor = float(manifest.get("tempo", 1.0) or 1.0)
     if faktor == 1.0:
@@ -302,10 +250,7 @@ def _tempo_befund(manifest: dict) -> str:
 def _stand_herkunft(manifest: dict) -> str:
     """Die Nebenzeile: woher der Stand kommt.
 
-    **Ohne den Zeitstempel.** Er stand hier, abgeschnitten aus der
-    ISO-Zeichenkette - und damit in UTC. Ein Stand von 14:38 deutscher Zeit
-    las sich als 12:38. Die Zeit steht als `erstellt` in der Antwort und wird
-    von der Ansicht formatiert, die als einzige die Zeitzone des Lesers kennt
+    Ohne Zeit: `erstellt` formatiert die Ansicht in der Zeitzone des Lesers
     (`packages/ui/zeit.ts`).
     """
     grund = f"whisper-{lauf_layout.kurzname(str(manifest.get('basismodell', '?')))}"
@@ -328,26 +273,13 @@ def uebersicht(
 ) -> UebersichtAntwort:
     """Alle Modelle mit ihren Zahlen auf den gemeinsamen Aufnahmen.
 
-    **Was `intervall` tut - und was es ausdrücklich nicht tut.** Es legt neben
-    jede Zahl den Bereich, in dem sie liegen dürfte (`wortlaut/streuung.py`).
-    Die Zahl selbst ändert sich dadurch nicht um eine Stelle; wer den
-    Parameter wegläßt, bekommt Byte für Byte die Antwort von vorher. Das ist
-    hier keine Bequemlichkeit, sondern Bedingung: Diese Tabelle ist der Ort,
-    an dem Modelle verglichen werden, und ein Vergleich taugt nur, solange
-    dieselbe Messung bei jedem Aufruf dieselbe Zahl ergibt.
+    `intervall` legt neben jede Zahl ihren Bereich (`wortlaut/streuung.py`);
+    die Zahlen selbst bleiben dieselben. `aufnahme` ist richtig, sobald mehrere
+    Fassungen einer Aufnahme in der Reihe stehen; `einheit` zieht naiv je
+    Einheit - etwa halb so breit, aber das in der Literatur übliche Verfahren.
 
-    `aufnahme` ist die statistisch richtige Wahl, sobald mehrere Fassungen
-    derselben Aufnahme in der Reihe stehen - also immer, wenn die Fassung
-    „alle" gezeigt wird. `einheit` zieht naiv je Messeinheit; der Bereich fällt
-    dann etwa halb so breit aus. Wählbar ist es trotzdem, weil es das in der
-    Literatur übliche Verfahren ist und die Zahlen dieses Projekts sonst mit
-    keiner Veröffentlichung vergleichbar wären.
-
-    **`vergleich_mit`** nennt ein Modell, gegen das jede andere Zeile gepaart
-    antritt: auf denselben Aufnahmen, Differenz mit Bereich und p-Wert. Das ist
-    die schärfere Frage - „ist mein Stand besser als `small`?" - und sie ist
-    mit zwei einzelnen Bereichen nicht zu beantworten, weil diese sich auch
-    dann überlappen, wenn der Abstand belastbar ist.
+    `vergleich_mit` paart jede andere Zeile gegen ein Modell: Differenz mit
+    Bereich und p-Wert - schärfer als zwei überlappende Bereiche.
     """
     if intervall not in streuung.BLOCKARTEN:
         raise HTTPException(
@@ -367,52 +299,27 @@ def uebersicht(
             else None
         )
         ref = str(manifest.get("id", ""))
-        # Der Korpus kommt dazu, seit die Auswertung in „hören" auch
-        # trainierte Stände misst: Was nach dem Training aufgenommen wurde,
-        # steht dort und nicht in der `bewertung.jsonl` des Laufs
-        # (`services/messwerte.py`).
+        # Später Aufgenommenes steht im Korpus (`services/messwerte.stand`).
         reihen[ref] = (
             messwerte.stand(lauf, aufnahmen, korpus, ref)
             if lauf is not None
             else messwerte.Messreihe()
         )
 
-    # **Die Geschwindigkeit trennt hier nichts mehr.**
-    #
-    # Eine Weile standen Stände mit abweichendem Tempo außerhalb des
-    # Vergleichs, grau und ohne gemeinsamen Boden - aus Sorge, ihre Zahlen
-    # seien mit den übrigen nicht zu halten. Die Sorge war unbegründet, und
-    # zwar aus einem Grund, der erst beim Nachsehen klar wurde: Ein Stand
-    # **bringt sein Tempo mit**. „schreiben" liest es aus seinem Manifest und
-    # spult beim Diktieren genauso vor (`schreiben/deps.tempo_fuer`, geprüft).
-    #
-    # Damit ist das Vorspulen kein Teil der Prüfbedingungen, sondern ein Teil
-    # des Modells. Jede Zeile dieser Tafel beantwortet dieselbe Frage - was
-    # macht dieses Ding aus dieser Aufnahme? -, und das ist genau die Frage,
-    # für die eine Vergleichstafel da ist.
+    # Das Tempo trennt nichts: Ein Stand bringt es mit, „schreiben" spult
+    # beim Diktieren genauso vor (`schreiben/deps.tempo_fuer`). Es gehört zum
+    # Modell, nicht zu den Prüfbedingungen.
     gemeinsam = messwerte.gemeinsame_einheiten(list(reihen.values()))
-    # Vergleichbar heißt: Es gibt mindestens zwei Modelle mit Zahlen, und diese
-    # Zahlen stehen auf denselben Messeinheiten. Ein einzelnes gemessenes
-    # Modell ergibt zwar eine Schnittmenge mit sich selbst, aber keinen
-    # Vergleich - und die Ansicht soll nicht so tun, als gäbe es einen.
-    #
-    # Ohne gemeinsamen Boden rechnet jede Zeile auf dem, was sie hat. Eine
-    # leere Tabelle verschwiege, dass überhaupt gemessen wurde; der Vorbehalt
-    # steht stattdessen als Hinweis darüber.
+    # Mindestens zwei gemessene Modelle auf denselben Einheiten. Sonst rechnet
+    # jede Zeile auf ihrem, und der Hinweis sagt es.
     messende = [ref for ref, reihe in reihen.items() if reihe.werte]
     vergleichbar = len(messende) > 1 and bool(gemeinsam)
-    # Die Rechenzeit ist eine Eigenschaft der Maschine, nicht des Modells:
-    # Dasselbe whisper-small braucht auf einem Prozessor das Zehn- bis
-    # Zwanzigfache dessen, was es auf einer Karte braucht. Verglichen werden
-    # darf die Spalte nur, wenn alle dasselbe Rechenwerk nennen - und ein
-    # unbekanntes zählt nicht als dasselbe.
+    # Ein unbekanntes Rechenwerk zählt nicht als dasselbe.
     werke = {reihen[ref].werk for ref in messende}
     zeit_vergleichbar = len(werke) == 1 and "" not in werke
     freigegeben = registry.freigegeben(konfiguration.data_dir, sprecher)
 
-    # Gegen wen gepaart verglichen wird. Ein Name, den die Tabelle nicht führt,
-    # wird stillschweigend zu „gegen keinen": Der Vergleich ist eine Zugabe,
-    # und eine Zugabe soll die Auskunft nicht mit einem Fehler ersetzen.
+    # Ein unbekannter Name heißt „gegen keinen" - eine Zugabe, kein Fehler.
     gegen = reihen.get(vergleich_mit) if vergleich_mit else None
 
     def zeile(ref: str, art: str, name: str, herkunft: str, manifest: dict) -> ModellAntwort:
@@ -440,8 +347,7 @@ def uebersicht(
             werte=reihe.mittel(boden),
             einheiten=reihe.einheiten_je_fassung(boden),
             intervalle=reihe.intervalle(boden, intervall),
-            # Gegen sich selbst zu vergleichen ergäbe eine Spalte Nullen mit
-            # einem p-Wert von 1 - richtig, aber keine Auskunft.
+            # Nicht gegen sich selbst.
             unterschied=(
                 reihe.unterschied_zu(gegen, boden, intervall)
                 if gegen is not None and ref != vergleich_mit
@@ -453,8 +359,7 @@ def uebersicht(
         zeile(name, GRUNDMODELL, f"whisper-{name}", "unverändert, so wie Whisper es ausliefert", {})
         for name in namen
     ]
-    # Jüngster Stand zuerst: Wer hierherkommt, sucht meist den, der gerade
-    # fertig wurde. Die Grundmodelle stehen darüber - sie sind die Baseline.
+    # Unter der Baseline der jüngste Stand zuerst.
     modelle += [
         zeile(
             str(manifest.get("id", "")),
@@ -487,24 +392,12 @@ def uebersicht(
 def bodenbegrenzer(reihen: dict[str, messwerte.Messreihe]) -> tuple[str, int, int]:
     """Welche Zeile den gemeinsamen Boden schmal hält - und wie breit er ohne sie wäre.
 
-    **Warum das gesagt werden muss.** Die Tabelle rechnet jede Zahl über die
-    Einheiten, die **alle** Modelle gemessen haben. Das ist der Sinn der Sache:
-    Zwei Wortfehlerraten über verschiedene Aufnahmen sind kein Vergleich.
+    Jede Zahl läuft über die Einheiten, die alle gemessen haben - also ändert
+    das Verschwinden einer Zeile jede andere Zahl, bei einem Stand mit wenig
+    gehörten Aufnahmen um ein Zehntel WER und mehr. Die Ansicht sagt das vor
+    dem Löschen.
 
-    Es hat aber eine Folge, die niemand erwartet, solange sie nicht dasteht:
-    Die Zahl eines Modells ist damit keine Eigenschaft dieses Modells allein.
-    Verschwindet eine Zeile, wächst der Boden - und **jede** andere Zahl ändert
-    sich. Gemessen an einem echten Korpus im September 2026 waren das 0,15 WER
-    auf einen Schlag, nachdem ein alter Stand gelöscht wurde, der nur ein
-    Sechstel der heutigen Aufnahmen gehört hatte.
-
-    Das ist kein Fehler in der Rechnung, sondern eine Eigenschaft, die man
-    kennen muss, bevor man löscht. Diese Funktion beantwortet die Frage
-    „welche Zeile kostet mich wie viel Boden" - und die Ansicht sagt es
-    vorher, statt es hinterher geschehen zu lassen.
-
-    Gibt `("", boden, boden)` zurück, wenn keine einzelne Zeile den Boden
-    nennenswert schmälert.
+    `("", boden, boden)`, wenn keine Zeile den Boden nennenswert schmälert.
     """
     messende = {ref: reihe for ref, reihe in reihen.items() if reihe.werte}
     jetzt = len(messwerte.gemeinsame_einheiten(list(messende.values())))
@@ -517,9 +410,7 @@ def bodenbegrenzer(reihen: dict[str, messwerte.Messreihe]) -> tuple[str, int, in
         breite = len(messwerte.gemeinsame_einheiten(ohne))
         if breite > breiteste:
             begrenzer, breiteste = ref, breite
-    # Ein Viertel mehr Boden ist der Unterschied zwischen „ungefähr dasselbe"
-    # und „andere Zahlen". Darunter zu warnen hieße, bei jedem Rundungsrest zu
-    # warnen - und eine Warnung, die immer angeht, liest bald niemand mehr.
+    # Erst ab einem Viertel mehr Boden - eine Warnung, die immer angeht, liest niemand.
     if breiteste < jetzt * 1.25:
         return "", jetzt, jetzt
     return begrenzer, jetzt, breiteste
@@ -533,9 +424,7 @@ def _hinweis(
 ) -> str:
     """Was fehlt, damit die Tabelle etwas taugt - höchstens eine Zeile davon.
 
-    In der Reihenfolge, in der es fehlt: erst Aufnahmen, dann die Messung der
-    Grundmodelle, dann ein eigenes Modell. Alle drei auf einmal zu nennen wäre
-    eine Mängelliste; gefragt ist der nächste Schritt.
+    Der nächste Schritt, keine Mängelliste.
     """
     if not aufnahmen:
         return (
@@ -589,10 +478,8 @@ def gib_frei(
 ) -> UebersichtAntwort:
     """Dieses Modell freigeben - und damit jedes andere zurückziehen.
 
-    Geprüft wird gegen die Liste, die dieser Weg selbst anbietet, und nicht
-    gegen das Dateisystem: Ein beliebiger Pfad im Feld wäre sonst ein Weg,
-    fremde Verzeichnisse laden zu lassen - und der Stand eines anderen
-    Sprechers ist fremde Stimme.
+    Geprüft gegen die eigene Liste, nicht das Dateisystem - sonst ließe ein
+    Pfad fremde Stände laden.
     """
     konfiguration = einstellungen()
     erlaubt = {
@@ -606,7 +493,5 @@ def gib_frei(
         raise HTTPException(status_code=404, detail="Dieses Modell steht hier nicht zur Wahl.")
 
     registry.gib_frei(konfiguration.data_dir, sprecher, freigabe.ref)
-    # Dieselben Parameter zurückgegeben, mit denen die Tabelle gerade angezeigt
-    # wird: Sonst verlöre sie beim Freigeben ihre Bereiche und die Ansicht
-    # müsste ein zweites Mal fragen.
+    # Mit denselben Parametern, damit die Tabelle ihre Bereiche behält.
     return uebersicht(korpus, sprecher, intervall, vergleich_mit)

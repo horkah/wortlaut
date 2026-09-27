@@ -4,20 +4,12 @@ Start in der Entwicklung (aus dem Repository-Wurzelverzeichnis):
 
     uv run uvicorn apps.lernen.backend.main:app --reload --port 8002
 
-Alles unter `/lernen` - dem Ort dieser App unter der gemeinsamen Domain. Nur
-`/gesundheit` bleibt auf der Wurzel: Eine Überwachung spricht den Container
-unmittelbar an.
+Alles unter `/lernen`, nur `/gesundheit` auf der Wurzel. Jeder Weg sonst
+verlangt den Sprecherzugang und leitet die Kennung daraus ab.
 
-Jeder Weg außer `/gesundheit` verlangt den Sprecherzugang aus „hören" und
-leitet die Kennung daraus ab - dieselbe Regel wie in den beiden anderen Apps,
-aus demselben Grund (die Bindung zieht der Server, nicht der Aufrufer).
-
-**Was diese App nicht tut: rechnen.** Ein Feintuning braucht torch, CUDA und
-einige Gigabyte Abbild. Dieser Prozess liefert eine Oberfläche aus und soll in
-Sekunden neu starten. Er legt deshalb nur das Verzeichnis an, an dem der
-Trainer einen Auftrag erkennt (`wortlaut/laeufe.py`), und liest, was dieser
-hineinschreibt. Der Trainer ist ein eigener Dienst mit einer Karte - siehe
-`apps/lernen/training/`.
+Gerechnet wird hier nicht: Diese App legt das Laufverzeichnis an
+(`wortlaut/laeufe.py`) und liest, was der Trainer hineinschreibt
+(`apps/lernen/training/`).
 """
 
 from __future__ import annotations
@@ -29,9 +21,7 @@ from wortlaut.web import FrontendDateien
 
 from .api import aufteilung, laeufe, modelle
 
-# Wo diese App unter der gemeinsamen Domain liegt. Derselbe Wert steht im
-# `base` der Vite-Konfiguration und in `packages/ui/apps.ts`; alle drei müssen
-# zusammenpassen, sonst führt der Reiter ins Leere.
+# Derselbe Pfad wie `base` in der Vite-Konfiguration und in `packages/ui/apps.ts`.
 BASIS = "/lernen"
 
 app = FastAPI(title="wortlaut · lernen", version="0.1.0")

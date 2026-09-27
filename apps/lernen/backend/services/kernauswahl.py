@@ -1,42 +1,28 @@
 """Der Kern: die Aufnahmen, die das freigegebene Modell am besten verstanden hat.
 
-Wofür es ihn gibt und warum ein Kernlauf die übrigen Aufnahmen gar nicht
-sieht, steht bei der Achse selbst (`wortlaut/laeufe.py`, „Die Auswahl"). Hier steht,
-wie er gewählt wird.
+Wofür es ihn gibt, steht bei der Achse (`wortlaut/laeufe.py`, „Die Auswahl");
+hier, wie er gewählt wird.
 
-**Nach dem freigegebenen Modell.** Das ist das Modell, mit dem dieser Mensch
-diktiert - und damit das beste Urteil darüber, welche Aufnahmen verständlich
-sind. Seine Werte kommen von dort, wo die Modelltafel sie auch holt
+**Nach dem freigegebenen Modell** - mit dem dieser Mensch diktiert. Seine
+Werte kommen von dort, wo die Modelltafel sie holt
 (`messwerte.py`): bei einem trainierten Stand aus der Kreuzvalidierung seines
 Laufs, für später dazugekommene Aufnahmen aus der Auswertung in „hören"; bei
 einem freigegebenen Grundmodell allein aus „hören". Gezählt wird die WER des
 Originals - die Aufnahme, wie sie gesprochen wurde, nicht ihre Abwandlung.
 
 **Teile und Kopien erben den Wert ihres Originals.** Ein trainierter Stand
-misst sie nicht: Es ist derselbe Ton wie eine Aufnahme, die er gelernt hat
-(`hoeren/services/auswertung.verwandte`). Sein Wert für das Original stammt aus
-der Faltung, die es zurückgehalten hatte, und gilt damit auch für sie.
+misst sie nicht - derselbe Ton wie eine gelernte Aufnahme
+(`hoeren/services/auswertung.verwandte`); der Wert des Originals stammt aus
+der Faltung, die es zurückhielt.
 
-**Fehlt ein Wert, wird er nachgemessen - vor dem Training.** Hat das Modell
-eine Aufnahme weder gehört noch einen Wert für ihr Original, lässt sich nicht
-sagen, ob sie hineingehört - sie wegzulassen verwürfe womöglich die besten,
-sie hineinzunehmen machte den Kern zu etwas anderem als dem, was er
-verspricht. Bis September 2026 wurde der Auftrag dann abgewiesen, mit dem
-Hinweis auf die Auswertung in „hören". Seitdem steht die Aufnahme als `offen`
-in der Kernauswahl, samt dem Modell und seinem Tempo, und der Trainer lässt
-sie von genau diesem Modell hören, bevor die erste Faltung beginnt
-(`training/bewerten.vervollstaendige_kern`). Erst danach wird gewählt, nach
-derselben Regel (`laeufe.waehle_kern`).
+**Fehlende Werte misst der Trainer nach, vor der ersten Faltung.** Solche
+Aufnahmen stehen als `offen` in der Kernauswahl, samt Modell und Tempo
+(`training/bewerten.vervollstaendige_kern`); gewählt wird danach nach
+derselben Regel (`laeufe.waehle_kern`). Der Trainer, weil diese App nicht in
+den Korpus schreibt (Grundentscheidung 6) und ein Lauf anders als ein
+Webprozess Neustarts übersteht.
 
-Warum der Trainer und nicht die Auswertung in „hören": Diese App schreibt
-nicht in den Korpus (Grundentscheidung 6), und der Trainer hat die Karte, auf
-der er die Aufnahmen ohnehin gleich hört. Ein Auftrag, der auf eine Auswertung
-im Webdienst wartete, hinge außerdem an dessen Prozess und überlebte keinen
-Neustart; ein Lauf überlebt ihn, lässt sich anhalten und neu starten.
-
-**Wie viele, steht trotzdem sofort fest.** `anzahl` ist der Anteil an allen
-Aufnahmen des Auftrags, aufgerundet (`laeufe.kern_anzahl`) - die Übersicht
-zeigt ihn vom ersten Augenblick an und nicht erst, wenn gewählt ist.
+**Wie viele, steht sofort fest:** `anzahl` (`laeufe.kern_anzahl`).
 """
 
 from __future__ import annotations
@@ -65,10 +51,8 @@ class Kernauswahl:
     # ein Grundmodellname wie `small`).
     modell: str
     anteil: float
-    # Mit welchem Faktor vorgespult wird, bevor das Modell zuhört - bei einem
-    # Stand der, auf dem er gelernt hat, bei einem Grundmodell keiner
-    # (`hoeren/services/auswertung.tempo_fuer`). Gebraucht, wenn nachgemessen
-    # wird.
+    # Fürs Nachmessen: bei einem Stand sein Lerntempo, bei einem Grundmodell
+    # keins (`hoeren/services/auswertung.tempo_fuer`).
     tempo: float = tempo.VORGABE
     # Jede Aufnahme mit ihrer WER, die außerhalb des Kerns eingeschlossen.
     wer: dict[str, float] = field(default_factory=dict)
@@ -76,9 +60,8 @@ class Kernauswahl:
     geerbt: list[str] = field(default_factory=list)
     # Die Aufnahmen ohne Wert: Der Trainer misst sie, bevor er wählt.
     offen: list[str] = field(default_factory=list)
-    # Jede Aufnahme des Auftrags mit ihrem Stamm, in der Reihenfolge des
-    # Korpus - danach wird der Kern auf seine eigenen Faltungen verteilt
-    # (`laeufe.verteile_kern`).
+    # Jede Aufnahme mit ihrem Stamm, in Korpusreihenfolge - für die Faltungen
+    # des Kerns (`laeufe.verteile_kern`).
     staemme: dict[str, str] = field(default_factory=dict)
 
     @property
@@ -97,9 +80,7 @@ class Kernauswahl:
             "staemme": self.staemme,
             "offen": self.offen,
         }
-        # Solange etwas offen ist, gibt es keinen Kern, und ein Trainer, der
-        # `kern` liest, soll dann keinen finden (`laeufe.kern_aus`). Fehlt
-        # nichts, wird hier gewählt - nach derselben Regel wie im Trainer.
+        # Solange etwas offen ist, gibt es keinen `kern` (`laeufe.kern_aus`).
         return inhalt if self.offen else laeufe.mit_kern(inhalt)
 
 
@@ -129,8 +110,7 @@ def _werte(
         lauf = laeufe.lies_lauf(datenverzeichnis, job_id) if job_id else None
         if lauf is not None:
             return messwerte.stand(lauf, aufnahmen, korpus, ref)
-    # Ein Grundmodell - oder ein Stand, dessen Lauf nicht mehr dasteht: Dann
-    # bleibt, was „hören" unter seinem Namen gemessen hat.
+    # Grundmodell oder Stand ohne Lauf: was „hören" unter dem Namen gemessen hat.
     return messwerte.grundmodelle(korpus, [ref], aufnahmen)[ref]
 
 
@@ -166,9 +146,7 @@ def waehle(
         else:
             wer[kennung] = eigen
 
-    # Nachmessen kann der Trainer nur, was er laden kann. Ein Stand, dessen
-    # Gewichte nicht mehr dastehen, fiele sonst erst auf der Karte auf - nach
-    # dem Warten in der Schlange und mit einer Meldung über faster-whisper.
+    # Fehlende Gewichte fielen sonst erst auf der Karte auf, nach der Schlange.
     if offen and registry.ist_stand(ref) and not registry.ct2_verzeichnis(
         datenverzeichnis, ref
     ).is_dir():

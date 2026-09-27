@@ -1,22 +1,10 @@
 """Gemeinsame Abhängigkeiten der Endpunkte: Zugang und Korpus.
 
-Dieselbe Aufgabe wie in `apps/hoeren/backend/deps.py` und `apps/schreiben/…`
-und aus demselben Grund: Der Sprecher wird aus dem vorgelegten Zugang
-**abgeleitet** und nirgends behauptet. Wer hier ein Modell trainiert,
-trainiert sein eigenes; die Bindung zieht der Server, nicht der Aufrufer.
+Der Sprecher wird aus dem Zugang abgeleitet, wie in den anderen Apps. Eine
+eigene Datenbank hat „lernen" nicht: Läufe und Stände sind Verzeichnisse.
 
-**Diese App hat keine eigene Datenbank mehr.** Sie hatte eine, und darin stand
-genau eine Sache: die Aufteilung in Lernen und Prüfen. Mit dem Testdrittel ist
-sie im September 2026 weggefallen - die Faltungen der Kreuzvalidierung folgen
-der Reihenfolge des Korpus und stehen im Schnappschuss jedes Laufs
-(`services/aufteilung.py`). Was bleibt, liegt in Verzeichnissen: die Läufe
-unter `data/snapshots/`, die Modellstände in der Registry.
-
-Der **Korpus** (`hoeren.sqlite`) wird hier nur gelesen. Er gehört „hören"
-(Grundentscheidung 6); daraus kommen die Aufnahmen, ihre Vorlagen und die
-Baseline. Dass er nur lesend vorkommt, ist keine Zusage auf Papier: Es gibt
-in dieser App keinen Weg, der in ihn schreibt - und seit dem Wegfall der
-eigenen Datenbank auch keinen, der überhaupt irgendwo schreibt.
+Der Korpus (`hoeren.sqlite`) gehört „hören" (Grundentscheidung 6) und wird
+hier nur gelesen - es gibt keinen Weg, der in ihn schreibt.
 """
 
 from __future__ import annotations
@@ -38,10 +26,8 @@ _korpus_engines: dict[str, Engine] = {}
 def korpus_engine(sprecher_id: str) -> Engine:
     """Der Korpus dieses Sprechers - lesend.
 
-    Ohne Migrationen und ohne Anlegen: Beides ist Sache von „hören". Fehlt die
-    Datei, ist der Sprecher hier unbekannt, und das ist ein 404 und kein
-    frisch angelegter, leerer Korpus. Genau diese Reihenfolge verhindert, dass
-    ein Tippfehler in einer Kennung einen Korpus erzeugt.
+    Ohne Migrationen und ohne Anlegen: Eine fehlende Datei ist ein 404, kein
+    leerer Korpus aus einem Tippfehler.
     """
     if sprecher_id not in _korpus_engines:
         pfad = corpus.datenbank_pfad(einstellungen().data_dir, sprecher_id)
@@ -52,11 +38,7 @@ def korpus_engine(sprecher_id: str) -> Engine:
 
 
 def vergiss_engines(sprecher_id: str = "") -> None:
-    """Nach dem Löschen eines Sprechers - und zwischen zwei Tests.
-
-    Nur noch ein Zwischenspeicher, seit diese App keine eigene Datenbank mehr
-    hat: der lesende Zugriff auf den Korpus.
-    """
+    """Nach dem Löschen eines Sprechers - und zwischen zwei Tests."""
     namen = [sprecher_id] if sprecher_id else list(_korpus_engines)
     for name in namen:
         engine = _korpus_engines.pop(name, None)
@@ -67,32 +49,15 @@ def vergiss_engines(sprecher_id: str = "") -> None:
 def _zugang(
     authorization: Annotated[str | None, Header()] = None,
 ) -> zugangsdienst.Sprecherzugang:
-    """Der geprüfte Zugang - die einzige Stelle, die ihn hier auflöst.
+    """Der geprüfte Zugang, samt Sprache des Profils.
 
-    Nur der Sprecherzugang gilt. Verwaltung und Aufsicht kommen hier nicht
-    durch, und das ist kein Versehen: Ein Modell gehört einem Menschen, und
-    wer keines hat, hat hier nichts zu sehen. Wer über alle Korpora schauen
-    will, tut das in „hören", wo die Aufsicht zu Hause ist.
-
-    Geprüft wird über `wortlaut.zugang.pruefe` und nicht mehr von Hand. Hier
-    stand einmal derselbe Ablauf noch einmal ausgeschrieben - zerlegen, die
-    Korpusdatei suchen, das Sprechermodell von „hören" über eine eigene Sitzung
-    laden, den Prüfwert vergleichen. Das war die dritte Fassung derselben
-    sicherheitsrelevanten Regel, und sie brachte als einzige einen Import der
-    ORM-Modelle einer fremden App mit. Der Weg der Bibliothek öffnet den Korpus
-    ausdrücklich lesend (`mode=ro`) - er ist damit auch der richtigere: Diese
-    App schreibt nicht in den Korpus (Grundentscheidung 6).
-
-    Herausgereicht wird der ganze Zugang und nicht mehr nur die Kennung: Er
-    trägt seit `wortlaut/zugang.py` auch die Sprache des Profils, und die
-    braucht der Trainingsauftrag. Zweimal zu prüfen, um zwei Felder derselben
-    Zeile zu bekommen, wäre zweimal dieselbe Arbeit.
+    Nur der Sprecherzugang gilt: Ein Modell gehört einem Menschen. Verwaltung
+    und Aufsicht schauen in „hören". `wortlaut.zugang.pruefe` öffnet den Korpus
+    lesend (`mode=ro`).
     """
     vorgelegt = (authorization or "").removeprefix("Bearer ")
-    # Zwei Lagen, zwei Sätze: Was gar kein Sprecherzugang ist - ein Verwalter-
-    # oder Aufsichtstoken - soll nicht so klingen, als sei der persönliche Link
-    # abgelaufen. Die Form entscheidet das, ohne irgendeine Datenbank zu
-    # befragen.
+    # Ein Verwalter- oder Aufsichtstoken soll nicht wie ein abgelaufener
+    # persönlicher Link klingen; die Form entscheidet das ohne Datenbank.
     if zugangsdienst.zerlege(vorgelegt) is None:
         raise HTTPException(
             status_code=401, detail="Für diesen Weg braucht es den Zugang eines Sprechers."
@@ -109,13 +74,7 @@ def _sprecher_id(wer: Annotated[zugangsdienst.Sprecherzugang, Depends(_zugang)])
 
 
 def _sprache(wer: Annotated[zugangsdienst.Sprecherzugang, Depends(_zugang)]) -> str:
-    """Die Sprache des Profils, für den Trainingsauftrag.
-
-    Sie kommt aus derselben Prüfung wie die Kennung und kostet keine zweite
-    Abfrage (`wortlaut/zugang.py`). Der Auftrag trägt sie danach selbst, damit
-    der Trainer sie nicht aus der Umgebung nehmen muss - und damit in
-    `auftrag.json` steht, wofür trainiert wurde.
-    """
+    """Für den Trainingsauftrag: `auftrag.json` hält fest, wofür trainiert wurde."""
     return wer.sprache
 
 
