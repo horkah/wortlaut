@@ -6,9 +6,9 @@
  * setzt einen sicheren Kontext voraus (HTTPS oder localhost) und eine frische
  * Nutzerhandlung - unter `http://192.168.…:5173` beim Entwickeln gibt es ihn
  * gar nicht, und ein `await` darauf wirft dann einen Fehler, den niemand
- * sieht. Hier stand er zweimal ohne Absicherung.
+ * sieht.
  *
- * Der Rückfall ist der alte Weg: ein Textfeld anlegen, auswählen,
+ * Der Rückfall: ein Textfeld anlegen, auswählen,
  * `execCommand('copy')`. Er ist abgekündigt und funktioniert überall, auch in
  * Safari - und für diese App ist „abgekündigt, tut es aber" allemal besser als
  * „sauber, tut nichts".
