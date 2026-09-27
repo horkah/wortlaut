@@ -1,11 +1,8 @@
 """Das Manifest als Datensatz - Audio hinein, Merkmale und Marken heraus.
 
-Bewusst ohne torchaudio, librosa oder `datasets`: Eine WAV-Datei mit 16 kHz,
-mono, 16 bit ist genau das, was der Merkmalsausleser von Whisper erwartet, und
-sie zu lesen kann die Standardbibliothek. Jede dieser Bibliotheken brächte
-eigene Abhängigkeiten und eigene Meinungen über Abtastraten mit; hier gibt es
-darüber nichts zu meinen, weil „hören" schon beim Aufnehmen umwandelt
-(`wortlaut/audio.py`).
+Ohne torchaudio, librosa oder `datasets`: „hören" legt 16 kHz, mono, 16 bit
+ab (`wortlaut/audio.py`), genau was Whispers Merkmalsausleser erwartet - das
+liest die Standardbibliothek.
 """
 
 from __future__ import annotations
@@ -44,12 +41,8 @@ class Probe:
 class Proben(torch.utils.data.Dataset):
     """Die Zeilen eines Teils des Manifests, beim Zugriff in Merkmale verwandelt.
 
-    Beim Zugriff und nicht im Voraus: Ein Log-Mel-Spektrogramm von Whisper ist
-    immer 30 Sekunden lang, also 80×3000 Fließkommazahlen - knapp ein Megabyte
-    je Probe. Bei vierhundert Aufnahmen mal ihren Fassungen wären das über ein
-    Gigabyte im Arbeitsspeicher, für Daten, die ohnehin nur einmal je Durchgang
-    gebraucht werden. Das Lesen einer kurzen WAV-Datei kostet dagegen nichts,
-    was neben einem Trainingsschritt auffiele.
+    Nicht im Voraus: Ein Spektrogramm (80×3000) wiegt knapp ein Megabyte, und
+    eine kurze WAV-Datei zu lesen fällt neben einem Trainingsschritt nicht auf.
     """
 
     def __init__(
@@ -68,10 +61,8 @@ class Proben(torch.utils.data.Dataset):
         self.zwischenlager = zwischenlager
         self.ausleser = ausleser
         self.zerteiler = zerteiler
-        # Ohne Wandler bleibt jede Probe, was sie war - das ist die Vorgabe und
-        # zugleich das, was die Validierung immer bekommt (siehe
-        # `klangwandel.py`: Eine Validierung, die in jedem Durchgang anders
-        # klingt, misst den Würfel und nicht das Modell).
+        # Ohne Wandler bleibt jede Probe, wie sie ist - so auch immer die
+        # Validierung (`klangwandel.py`).
         self.wandler = wandler or Wandler()
 
     def __len__(self) -> int:
@@ -80,16 +71,9 @@ class Proben(torch.utils.data.Dataset):
     def _pfad(self, relpfad: str) -> Path:
         """Die Datei, aus der diese Probe gelesen wird - vorgespult, falls verlangt.
 
-        **Einmal gerechnet und nicht je Durchgang.** Vorspulen kostet gemessen
-        80 ms - das ist neben einer Erkennung nichts, aber neben einem
-        Trainingsschritt alles: Die Merkmalsextraktion braucht 9 ms, und bei
-        sechzig Durchgängen über zweihundert Proben wären es anderthalb
-        Stunden allein fürs Vorspulen. Die vorgespulte Fassung ist zudem jedes
-        Mal dieselbe - anders als die gewürfelte Abwandlung nebenan, die genau
-        deshalb **nicht** abgelegt wird (`klangwandel.py`).
-
-        Abgelegt wird im Lauf und nicht im Korpus: Diese Dateien gehören zu
-        diesem Lauf, gehen mit ihm und haben im Korpus nichts zu suchen.
+        Einmal gerechnet und im Lauf abgelegt: Vorspulen kostet 80 ms, die
+        Merkmale 9 ms, und das Ergebnis ist jedes Mal dasselbe - anders als die
+        gewürfelte Abwandlung (`klangwandel.py`).
         """
         quelle = self.korpus / relpfad
         if not tempo.vorspulen_noetig(self.faktor) or self.zwischenlager is None:
@@ -104,16 +88,12 @@ class Proben(torch.utils.data.Dataset):
         zeile = self.zeilen[stelle]
         klang = lies_wav(self._pfad(str(zeile["audio"])))
 
-        # Erst die Welle, dann das Spektrogramm - in dieser Reihenfolge, weil
-        # Raum und Tempo nur an der Welle zu haben sind und die Masken nur am
-        # fertigen Spektrogramm. Dazwischen liegt der Merkmalsausleser, und der
-        # ist unverändert derselbe.
+        # Raum und Tempo wirken auf die Welle, Masken aufs Spektrogramm.
         klang = self.wandler.welle(klang)
         merkmale = self.ausleser(
             klang, sampling_rate=16_000, return_tensors="np"
         ).input_features[0]
-        # Wie weit der Ton in den 3000 aufgefüllten Rahmen reicht. Ohne diese
-        # Zahl träfe ein Zeitbalken meist die Stille dahinter.
+        # Wie weit der Ton reicht - sonst träfe ein Zeitbalken meist die Stille.
         rahmen = min(merkmale.shape[1], len(klang) // RAHMENSCHRITT)
         merkmale = self.wandler.merkmale(merkmale, rahmen)
 
@@ -128,11 +108,8 @@ class Proben(torch.utils.data.Dataset):
 class Stapler:
     """Fasst Proben zu einem Stapel zusammen und füllt die Marken auf.
 
-    Die Merkmale brauchen kein Auffüllen - Whisper schneidet und füllt jede
-    Aufnahme auf dieselben 30 Sekunden. Die Marken schon, und die Füllstellen
-    bekommen -100: Das ist der Wert, den die Verlustfunktion von PyTorch
-    überspringt. Ohne ihn lernte das Modell, nach dem Satz noch Füllzeichen
-    vorherzusagen.
+    Die Merkmale sind schon 30 Sekunden lang. Die Füllstellen der Marken
+    bekommen -100, den Wert, den PyTorchs Verlust überspringt.
     """
 
     zerteiler: Any
@@ -143,8 +120,7 @@ class Stapler:
         )
         maskiert = marken["input_ids"].masked_fill(marken.attention_mask.ne(1), -100)
 
-        # Whisper setzt die Anfangsmarke beim Erzeugen selbst davor. Steht sie
-        # schon in den Marken, lernte das Modell sie zweimal.
+        # Die Anfangsmarke setzt Whisper beim Erzeugen selbst.
         if (maskiert[:, 0] == self.zerteiler.bos_token_id).all().item():
             maskiert = maskiert[:, 1:]
 
@@ -168,40 +144,24 @@ def zeilen_fuer_faltung(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Was in dieser Faltung gelernt und was daran gemessen wird.
 
-    Gibt zwei Listen zurück: die Lernzeilen und die Messzeilen. Eine Stelle für
-    beides, weil hier die eine Zusage der Kreuzvalidierung hängt - **kein
-    Modell hört die Aufnahmen, an denen es gemessen wird**. Stünde die
-    Bedingung an zwei Orten, könnte einer davon einmal falsch sein, und niemand
-    sähe es am Ergebnis: Ein Modell, das seine Prüfung kennt, sieht schlicht
-    gut aus.
+    Lernzeilen und Messzeilen an einer Stelle, denn hier hängt die Zusage der
+    Kreuzvalidierung: Kein Modell hört, woran es gemessen wird.
 
-    `faltung = None` heißt: das Endmodell. Es lernt auf allem und wird an
-    nichts gemessen - die Zahlen des Laufs stammen aus den sechs Faltungen
-    davor (siehe `finetune.py`).
+    `faltung = None` ist das Endmodell: lernt auf allem, misst nichts
+    (`finetune.py`). Gemessen wird auf allen Fassungen, gelernt je nach
+    `daten` - Modelle unterscheiden sich nur in ihren Trainingsdaten.
 
-    **Gemessen wird immer auf allen Fassungen**, gelernt je nach `daten`. Das
-    ist kein Versehen, sondern der Punkt: Die zu vergleichenden Modelle
-    unterscheiden sich in ihren Trainingsdaten und in nichts sonst - schon gar
-    nicht in dem, woran sie gemessen werden.
-
-    Beim **Kern** (`kern`, jede Kernaufnahme mit ihrer Faltung aus
-    `laeufe.kernfaltungen_aus`) ist er der ganze Korpus: Was nicht zu ihm
-    gehört, kommt weder in die Lern- noch in die Messzeilen - die Messzeilen
-    steuern auch das Training (`finetune.trainiere`), und ein Kernmodell soll
-    die übrigen Aufnahmen nicht einmal dort zu hören bekommen. Die Faltungen
-    kommen dann aus der Kernauswahl und nicht aus dem Manifest. `None` heißt:
-    alle Aufnahmen, auf den Faltungen des Manifests.
+    Mit `kern` (Kernaufnahme → Faltung, `laeufe.kernfaltungen_aus`) ist der
+    Kern der ganze Korpus: Der Rest fehlt in Lern- und Messzeilen, die auch
+    das Training steuern (`finetune.trainiere`). Ohne `kern` alle Aufnahmen
+    auf den Faltungen des Manifests.
     """
     lern: list[dict[str, Any]] = []
     mess: list[dict[str, Any]] = []
     for zeile in laeufe.manifestzeilen(verzeichnis):
-        # **Was nicht mehr dasteht, wird nicht gelernt.** Ein Manifest ist der
-        # Schnappschuss eines Korpus zu einer Stunde; wer danach eine Aufnahme
-        # verwirft, löscht ihr Audio (`apps/hoeren/backend/api/recordings.py`).
-        # Für einen frischen Lauf ändert das nichts - sein Manifest ist eben
-        # geschrieben worden. Für einen, der ein altes Manifest noch einmal
-        # aufnimmt (`nachziehen.py`), ist es der Unterschied zwischen laufen
-        # und an einer fehlenden Datei scheitern.
+        # Seit dem Schnappschuss verworfene Aufnahmen haben kein Audio
+        # (`apps/hoeren/backend/api/recordings.py`) - wichtig bei Neustart und
+        # `nachziehen.py`.
         if korpus is not None and not (korpus / str(zeile["audio"])).is_file():
             continue
         if kern is None:

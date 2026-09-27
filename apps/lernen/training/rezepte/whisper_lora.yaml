@@ -1,22 +1,15 @@
 # Feintuning mit LoRA: das Grundmodell bleibt, gelernt wird ein kleiner Zusatz.
 #
-# Statt aller 244 Millionen Gewichte werden zwei kleine Matrizen je
-# Aufmerksamkeitsschicht trainiert - ein knappes Prozent davon. Das hat drei
-# Folgen, und alle drei sind hier der Grund für die Wahl: Es passt bequem in
-# den Speicher, es geht schneller, und es kann das Grundmodell nicht verderben,
-# weil es es nicht anfasst.
+# Zwei kleine Matrizen je Aufmerksamkeitsschicht, ein knappes Prozent der
+# Gewichte: passt in den Speicher, geht schneller, verdirbt das Grundmodell nicht.
 name: Feintuning (LoRA)
 
-# Hundertmal so groß wie beim vollen Training, und das ist kein Tippfehler: Die
-# Zusatzmatrizen starten bei null und müssen erst etwas werden. Mit 1e-5 bliebe
-# nach acht Durchgängen fast das Grundmodell stehen.
+# Hundertmal so groß wie beim vollen Training: Die Zusatzmatrizen starten bei null.
 lernrate: 1.0e-3
 warmlauf_schritte: 50
 
-# Mehr Durchgänge als beim vollen Training: Es wird weniger gelernt, also
-# dauert es länger, bis es gelernt ist - und die Gefahr, dabei etwas kaputt zu
-# machen, ist kleiner. Auch das ist eine Obergrenze; ausgeliefert wird der
-# beste Durchgang, nicht der letzte (siehe `whisper_full.yaml`).
+# Mehr als beim vollen Training, weil weniger je Durchgang gelernt wird.
+# Ebenfalls eine Obergrenze (`whisper_full.yaml`).
 epochen: 12
 
 stapel: 8
@@ -27,96 +20,55 @@ fp16: true
 gradientenbegrenzung: 1.0
 
 lora:
-  # Der Rang der Zusatzmatrizen - wie viel Freiheit der Zusatz bekommt. 32 ist
-  # für eine einzelne Stimme reichlich; kleiner lernt zu wenig, größer nähert
-  # sich dem vollen Training samt seinen Nachteilen.
+  # Für eine Stimme reichlich; größer nähert sich dem vollen Training.
   rang: 32
   alpha: 64
   ausfall: 0.05
-  # Nur die Projektionen der Aufmerksamkeit. Sie entscheiden, worauf das Modell
-  # hört; dort sitzt die Anpassung an eine abweichende Aussprache.
+  # Dort sitzt die Anpassung an eine abweichende Aussprache.
   ziele: [q_proj, v_proj]
 
-# Der Abschluss - was am Ende mit den Gewichten geschieht. Gerechnet wird nur,
-# was der Auftrag bestellt (`bester`, `mittel`, `interpoliert`, `beides`); hier
-# stehen die Zahlen dazu.
+# Die Zahlen zum Abschluss, den der Auftrag bestellt.
 abschluss:
-  # Wie viele der besten Zwischenstände gemittelt werden. Drei ist die untere
-  # Kante dessen, was als „Model Soup" beschrieben ist; mehr kostet hier nur
-  # Platz auf der Platte, denn ein LoRA-Zwischenstand wiegt wenige Megabyte.
+  # Wie viele der besten Zwischenstände gemittelt werden (Model Soup).
   staende: 3
-  # Welche Anteile des Grundmodells versucht werden (WiSE-FT). Gewählt wird auf
-  # der Validierung, und die Null gehört dazu: Mit ihr kann die Interpolation
-  # nicht verlieren - im schlechtesten Fall bleibt der feingetunte Stand.
-  #
-  # Bei LoRA ist das eine Multiplikation am Zusatz und kostet nichts; das
-  # Raster darf deshalb feiner sein als beim vollen Training.
+  # Die Anteile des Grundmodells (WiSE-FT), gewählt auf der Validierung. Mit
+  # der Null kann die Interpolation nicht verlieren.
+  # Bei LoRA nur eine Multiplikation am Zusatz, daher feiner.
   alphas: [0.0, 0.05, 0.1, 0.2, 0.3, 0.5]
 
-# Wie lange trainiert wird, wenn der Auftrag `geduldig` bestellt (sonst gilt
-# `epochen` oben). Die Obergrenze ist mit Absicht weit: Ausgeliefert wird der
-# beste Durchgang, zu hoch angesetzt kostet sie also Rechenzeit und keine Güte.
-# Bei einem kleinen Korpus sind 60 Durchgänge eine Frage von Minuten.
+# Für `geduldig` (sonst `epochen`). Weit, weil der beste Durchgang ausgeliefert wird.
 epochen_hoechstens: 60
-# Nach wie vielen Prüfungen ohne Verbesserung Schluss ist. Fünf und nicht zwei:
-# Bei einer Validierung über wenige Aufnahmen ist der Verlust selbst eine
-# Zufallsgröße, und zwei Ausreißer nach oben sind kein Ende der Fahnenstange.
+# Prüfungen ohne Verbesserung bis Schluss - bei kleiner Validierung streut der Verlust.
 geduld: 5
-# Was als Verbesserung zählt. Alles darunter ist Rauschen und verlängert den
-# Lauf nur.
+# Was als Verbesserung zählt.
 mindestgewinn: 0.001
 
-# Die Augmentierung während des Trainings. Welche Stufe gilt, bestellt der
-# Auftrag (`keine`, `masken`, `umgebung`, `voll`); hier stehen ihre Zahlen.
-# Gerechnet wird beim Laden jeder Probe und nichts davon abgelegt - was
-# gewürfelt ist, soll in jedem Durchgang ein anderes sein
-# (`training/klangwandel.py`).
+# Die Zahlen zur Augmentierungsstufe des Auftrags - je Probe und Durchgang
+# neu gewürfelt, nichts abgelegt (`training/klangwandel.py`).
 augmentierung:
-  # SpecAugment, die kleine Einstellung aus der Literatur. Bei wenigen hundert
-  # kurzen Sätzen verdeckt die große Einstellung den Satz selbst.
+  # SpecAugment, die kleine Einstellung - die große verdeckt kurze Sätze ganz.
   zeitmasken: 2
   zeitmaske_anteil: 0.12
   frequenzmasken: 2
   frequenzmaske_baender: 16
-  # Nachhall, wie ihn ein Wohnzimmer und ein gefliester Flur haben. Darüber
-  # klingt es nach Kirche, und dort diktiert niemand.
+  # Nachhall von Wohnzimmer bis gefliestem Flur.
   raum_wahrscheinlichkeit: 0.5
   raum_nachhall_s: [0.05, 0.35]
-  # Von „kaum zu hören" bis „stört deutlich". Die gemessene Fassung `rauschen`
-  # liegt mit ihren festen 20 dB mitten darin - hier ist der Abstand jedes Mal
-  # ein anderer, damit das Modell keinen bestimmten auswendig lernt.
+  # Von „kaum zu hören" bis „stört deutlich"; die gemessene Fassung `rauschen`
+  # (fest 20 dB) liegt darin.
   rausch_wahrscheinlichkeit: 0.5
   rausch_abstand_db: [10.0, 35.0]
-  # Nur in der Stufe `voll`. Bei dysarthrischer Sprache ist das Sprechtempo
-  # ein Merkmal des Sprechers - es zu verwürfeln kann helfen oder schaden.
+  # Nur in `voll`. Bei dysarthrischer Sprache ist das Tempo ein Merkmal des
+  # Sprechers - es zu verwürfeln kann helfen oder schaden.
   tempo_wahrscheinlichkeit: 0.5
   tempo_faktor: [0.9, 1.1]
 
-# Was sich je Grundmodell ändert. Alles, was hier nicht steht, gilt für alle.
-#
-# Der einzige Grund für Abweichungen ist der Platz auf der Karte: Lernrate,
-# Durchgänge und LoRA-Rang hängen daran, *wie* trainiert wird, nicht *woran*.
+# Abweichungen je Grundmodell - nur des Speichers wegen.
 je_grundmodell:
   medium:
-    # `medium` hat 769 Millionen Gewichte statt 244. Eingefroren liegen sie in
-    # halber Genauigkeit auf der Karte, dazu kommen die Aktivierungen - und die
-    # sind das Problem, nicht die Gewichte.
-    #
-    # Der erste Versuch war, den Stapel zu halbieren (vier mal zwei statt acht
-    # mal eins, dieselbe wirksame Größe in zwei Griffen). Das reichte nicht:
-    # Gemessen blieben 9,3 GB belegt, von 10,75 GB nutzbaren. Trainieren ging
-    # damit gerade noch - aber danach will der Erkenner auf dieselbe Karte,
-    # und der findet nichts mehr vor. Genau daran ist im September 2026 ein
-    # Lauf gescheitert, mitten in der Auswertung der ersten Faltung.
-    #
-    # Der richtige Griff ist stattdessen, die Aktivierungen nicht aufzuheben,
-    # sondern beim Rückwärtsgang neu zu rechnen. Dieselben Gradienten, ein
-    # Viertel des Platzes - gemessen 2,3 GB statt 9,3 GB bei Stapel 8. Damit
-    # braucht `medium` überhaupt keinen kleineren Stapel mehr und läuft mit
-    # derselben Einstellung wie `small`; nur diese eine Zeile weicht ab.
-    #
-    # Dass es dabei auch noch schneller wurde (68 statt 125 ms je Probe), ist
-    # kein Schreibfehler: Ein Vorrat, der an die Decke stößt, kostet mehr als
-    # die zweite Rechnung. Bei `small` gilt das nicht, und dort steht es
-    # deshalb auch nicht.
+    # 769 statt 244 Millionen Gewichte; eng wird es durch die Aktivierungen.
+    # Sie werden beim Rückwärtsgang neu gerechnet statt aufgehoben: gemessen
+    # 2,3 statt 9,3 GB bei Stapel 8 - genug Platz, damit danach der Erkenner
+    # auf dieselbe Karte passt - und sogar schneller (68 statt 125 ms je
+    # Probe), weil ein volles Gedächtnis mehr kostet als die zweite Rechnung.
     gradientensparsam: true
