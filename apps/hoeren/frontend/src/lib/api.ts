@@ -98,8 +98,7 @@ export type Sprachwahl = {
 /**
  * Welche Sprachen zur Wahl stehen - vom Server und nicht aus einer Liste hier.
  *
- * Im Auswahlfeld stand einmal eine fest eingetragene Sprache. Wer eine zweite
- * hinzufügt, sollte dafür die Bibliothek ändern und nicht drei Dateien.
+ * Eine neue Sprache ist eine Änderung der Bibliothek, nicht der Oberfläche.
  */
 export const sprachen = () => anfrage<Sprachwahl[]>('/sprachen');
 
@@ -224,13 +223,10 @@ export const meineAufnahmeAudio = (aufnahme: string, fassung?: string) =>
  *
  * Die Adresse nennt Vorlage und Stimme, nicht aber, wann gerechnet wurde. Wird
  * eine Stimme neu gesprochen, bleibt sie dieselbe und der Inhalt ist ein
- * anderer. Der Server sagt das mit `Cache-Control: no-cache`; für alles, was
- * ein Browser **vorher** abgelegt hat, gilt aber noch die alte Regel - und die
- * hat er sich selbst geraten. `cache: 'no-cache'` an der Anfrage räumt auch
- * das ab: Nachgefragt wird in jedem Fall, übertragen nur, was neu ist.
- *
- * Ohne das spielte Safari auf dem iPhone eine alte Aufnahme weiter, über das
- * Neuladen der Seite hinweg, und die Anfrage kam am Server gar nicht erst an.
+ * anderer. Der Server sagt `Cache-Control: no-cache`, doch ein Browser rät für
+ * schon Abgelegtes selbst - Safari auf dem iPhone spielte sonst über Neuladen
+ * hinweg die alte Aufnahme. `cache: 'no-cache'` fragt immer nach und
+ * überträgt nur Neues.
  */
 const FRISCH: RequestInit = { cache: 'no-cache' };
 

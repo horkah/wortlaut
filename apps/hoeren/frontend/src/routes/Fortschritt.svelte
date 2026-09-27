@@ -3,13 +3,9 @@
    * Gesammelte Sprechzeit gegen zwei Marken: ab etwa 1,5 Stunden wird ein
    * Modell brauchbar, ab etwa 20 Stunden gut. Danach flacht der Gewinn ab.
    *
-   * Die Zeit steht als Stunden, Minuten und Sekunden und nicht als
-   * Dezimalstunden. Hier stand einmal „0,43 Stunden" - richtig gerechnet und
-   * für die Zielperson keine Auskunft: Niemand weiß aus dem Stand, wie viele
-   * Minuten das sind, und niemand sollte es ausrechnen müssen, um zu sehen,
-   * wie weit er heute gekommen ist (Grundentscheidung 7). Gerechnet wird das
-   * in `$ui/zeit`, damit dieselbe Zahl in „Meine Daten" und in der
-   * Sprecherliste genauso dasteht.
+   * Stunden, Minuten und Sekunden statt Dezimalstunden - „0,43 Stunden" muss
+   * niemand umrechnen (Grundentscheidung 7). Gerechnet in `$ui/zeit`, wie in
+   * „Meine Daten" und der Sprecherliste.
    */
   import { dauer } from '$ui/zeit';
   import { fortschritt, type Fortschritt } from '../lib/api';

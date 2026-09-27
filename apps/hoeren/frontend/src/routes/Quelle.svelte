@@ -79,8 +79,7 @@
         bildformate = antwort.moeglich ? ',' + antwort.formate.join(',') : '';
       })
       .catch(() => {
-        // Eine Auskunft, die nicht kommt, ist keine Fehlermeldung wert: Dann
-        // bleibt es beim Hochladen von Text, so wie vorher.
+        // Keine Auskunft, keine Meldung: Dann bleibt es beim Hochladen von Text.
       });
   });
 
@@ -105,14 +104,9 @@
   /**
    * Welche Dateien vor dem Anlegen zur Ansicht kommen.
    *
-   * Bilder immer - sie sind geraten. PDFs auch, und das ist eine Entscheidung
-   * über den bisherigen Stand hinaus: Ein PDF trägt Kopfzeilen, Fußnoten und
-   * Seitenzahlen, die niemand vorlesen will, und ob überhaupt eine Textebene
-   * darin steckt, weiß man vorher nicht. Wer es sieht, streicht es weg.
-   *
-   * `txt`, `md`, `epub` und `docx` gehen weiterhin unmittelbar: Dort steht der
-   * Text schon so da, wie ihn jemand geschrieben hat, und ein Prüfschritt wäre
-   * ein Klick ohne Anlass.
+   * Bilder - sie sind geraten - und PDFs: Kopfzeilen, Fußnoten und
+   * Seitenzahlen will niemand vorlesen, und ob eine Textebene darin steckt,
+   * zeigt erst die Ansicht. `txt`, `md`, `epub` und `docx` gehen unmittelbar.
    */
   const ZUR_ANSICHT = /\.(pdf|png|jpe?g|webp|gif|bmp|tiff?|heic|heif)$/i;
 

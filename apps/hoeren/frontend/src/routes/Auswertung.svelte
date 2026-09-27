@@ -8,37 +8,18 @@
    * `wortlaut/metriken.py`); diese Seite zeigt das Ergebnis und stößt den Lauf
    * an.
    *
-   * **Warum ein Diagramm und nicht eine Tabelle.** Gefragt ist nicht die
-   * einzelne Zahl, sondern ob sie sich über den Korpus hinweg hält: Ein Modell,
-   * das im Mittel gut ist und bei jeder fünften Aufnahme einbricht, ist ein
-   * anderes Modell als eines, das gleichmäßig etwas schlechter liegt. Der
-   * Mittelwert zeigt beide gleich; die Kurve zeigt den Unterschied sofort.
+   * **Ein Diagramm**, denn gefragt ist, ob eine Zahl sich über den Korpus
+   * hält: Ein Modell, das bei jeder fünften Aufnahme einbricht, hat dasselbe
+   * Mittel wie eines, das gleichmäßig etwas schlechter liegt. **Darunter
+   * Median und Mittel** (`kennzahlen`) - ihr Auseinanderfallen ist der
+   * Einbruch als Zahl.
    *
-   * **Warum trotzdem Zahlen darunter.** Weil die Kurve die andere Hälfte
-   * offen lässt: Sie zeigt, *dass* eine Reihe tiefer liegt, aber nicht, um wie
-   * viel. Deshalb steht unter dem Bild je Modell Median und Mittel (siehe
-   * `kennzahlen`) - und gerade das Auseinanderfallen der beiden ist dieselbe
-   * Auskunft wie der Einbruch in der Kurve, nur als Zahl.
+   * **Im Bild je Modell der beste Wert** über die Fassungen
+   * (`wortlaut/augmentierung.py`) - was das Modell herausholt, wenn der Ton
+   * stimmt; „am besten" je nach Maß größer oder kleiner. Jede Fassung steht in
+   * der Tabelle.
    *
-   * **Warum im Bild nur eine Zahl je Modell steht.** Gemessen wird jede
-   * Aufnahme in jeder Fassung: einmal, wie sie gesprochen wurde, und einmal
-   * je Abwandlung (heute nur noch `rauschen` - siehe
-   * `wortlaut/augmentierung.py`). Alle in die Kurve zu legen ergäbe bei vier
-   * Modellen ein Vielfaches an Reihen über denselben Aufnahmen; man sähe
-   * nichts mehr. Die Kurve zeigt deshalb je Modell den **besten** Wert -
-   * was das Modell aus dieser Aufnahme herausholen kann, wenn der Ton stimmt.
-   * „Am besten" heißt dabei je nach Maß größer oder kleiner: Bei den
-   * Fehlerraten ist der kleinste Wert der beste, und eine Kurve, die beim
-   * Wechsel des Maßes stillschweigend die Bedeutung tauschte, wäre eine Falle.
-   * Die Zahlen zu jeder einzelnen Fassung stehen in der Tabelle darunter.
-   *
-   * **Warum ECharts.** Diese eine Kurve käme mit weniger aus. Kommen sollen
-   * aber mehrere, die sich gegenseitig folgen - und dafür ist die Wahl schon
-   * jetzt zu treffen, weil ein Wechsel später jede Ansicht anfasst. ECharts
-   * bringt mit, was das braucht: Zeigen und Zoomen mit dem Finger wie mit der
-   * Maus, gemischte Reihen (Balken und Punkte in einem Bild), und
-   * `echarts.connect`, das mehrere Diagramme aneinanderkoppelt. Geladen wird es
-   * erst hier (`await import`), damit die Aufnahmeseite es nicht mitschleppt.
+   * ECharts (`lib/diagramm.ts`) wird erst hier geladen.
    */
   import { onMount } from 'svelte';
   import AudioPlayer from '$ui/AudioPlayer.svelte';
@@ -56,25 +37,18 @@
     type Vergleich,
   } from '../lib/api';
 
-  // Wie oft nachgefragt wird. Während gerechnet wird, soll die Kurve mitwachsen
-  // - aber ein Takt von einer Sekunde brächte nichts: Eine Aufnahme durch ein
-  // Modell dauert länger. Im Ruhezustand bleibt ein langsamer Takt, damit ein
-  // Lauf, der in einem anderen Reiter angestoßen wurde, hier ankommt.
+  // Während gerechnet wird, wächst die Kurve mit; im Ruhezustand kommt ein
+  // Lauf aus einem anderen Reiter trotzdem an.
   const TAKT_LAEUFT = 2500;
   const TAKT_RUHT = 20000;
 
-  // Farben und Formen der Punktreihen. Fest und nicht aus der Darstellung:
-  // Die Reihen müssen sich voneinander unterscheiden, und ein Sprecher, der
-  // unter „Darstellung" alles auf Grüntöne stellt, hätte sonst drei gleiche
-  // Reihen. Gewählt aus einer Palette, die auch bei Rot-Grün-Schwäche
-  // auseinanderzuhalten ist - zusätzlich trägt jede Reihe eine eigene Form.
+  // Fest, nicht aus der Darstellung, damit die Reihen unterscheidbar bleiben -
+  // auch bei Rot-Grün-Schwäche, zusätzlich mit eigener Form.
   const PUNKTFARBEN = ['#d55e00', '#0072b2', '#009e73', '#cc79a7', '#8a5aa8'];
   const PUNKTFORMEN = ['circle', 'diamond', 'triangle', 'rect', 'pin'];
 
-  // Der Schlüssel der Zeile, die nicht zu einer Fassung gehört, sondern zur
-  // Kurve: der Bestwert über alle Fassungen. Kein Name, den der Server je
-  // schickt - deshalb
-  // ein Zeichen, das in keiner Kennung vorkommt.
+  // Die Zeile zur Kurve (Bestwert über alle Fassungen) - ein Zeichen, das in
+  // keiner Kennung vorkommt.
   const BESTE = '*';
 
   let daten = $state<Auswertung | null>(null);
@@ -99,18 +73,9 @@
   /**
    * Die Aufnahme zum Mithören - genau die Fassung, deren Texte darunter stehen.
    *
-   * **Warum ohne Knopf davor.** In „Meine Daten" steht ein „▶ Hören", weil dort
-   * eine lange Liste von Aufnahmen untereinander liegt und der Browser sonst
-   * Dutzende davon in den Speicher zöge. Hier ist es eine einzige, und man ist
-   * schon zweimal hingekommen: einmal auf die Spalte getippt, einmal die
-   * Fassung gewählt. Ein dritter Klick, um zu hören, worüber man gerade liest,
-   * wäre einer zu viel.
-   *
-   * **Warum als Blob und nicht als Adresse.** Die Datei hängt am Zugang des
-   * Sprechers, und ein `<audio src>` schickt keine Kopfzeilen mit.
-   *
-   * Die Kennung steht mit dabei, damit ein spätes Laden nicht eine Aufnahme
-   * übertönt, zu der inzwischen weitergeklickt wurde.
+   * Ohne Knopf davor - es ist eine einzige, anders als die Liste in „Meine
+   * Daten". Als Blob, weil `<audio src>` den Zugang nicht mitschickt. Die
+   * Kennung verhindert, dass ein spätes Laden eine neuere Wahl übertönt.
    */
   let hoerprobe = $state<{ schluessel: string; adresse: string } | null>(null);
 
@@ -131,9 +96,7 @@
         hoerprobe = { schluessel, adresse: URL.createObjectURL(inhalt) };
       }
     } catch {
-      // Eine Fassung, die noch nicht gerechnet ist, gibt es schlicht nicht -
-      // dann steht kein Abspieler da. Eine Fehlermeldung wäre hier eine
-      // Warnung vor nichts: Die Texte darunter fehlen dann ohnehin auch.
+      // Noch nicht gerechnet: kein Abspieler, keine Meldung.
       vergissHoerprobe();
     }
   }
@@ -153,21 +116,12 @@
 
   $effect(() => () => vergissHoerprobe());
 
-  // Ob die Fassungen ihre Abweichungen von der Vorlage ausgezeichnet tragen.
-  // An als Vorgabe - das ist die Frage, mit der man herkommt. Aus, sobald es
-  // um den Wortlaut selbst geht: Bei einem Modell, das viel danebenliegt,
-  // zerfällt der Satz in Schnipsel aus Gestrichenem und Fettem, und
-  // ausgerechnet die interessanteste Fassung liest sich am schlechtesten.
-  //
-  // Hier und nicht unter „Darstellung": Das ist keine Vorliebe, die für jede
-  // Ansicht gilt, sondern ein Griff zwischen zwei Blicken auf dieselbe
-  // Aufnahme - man schaltet hin und her, nicht einmal um.
+  // Abweichungen von der Vorlage auszeichnen - an als Vorgabe, aus für den
+  // Wortlaut, wenn ein Satz sonst in Schnipsel zerfällt. Ein Griff zwischen
+  // zwei Blicken, keine Vorliebe unter „Darstellung".
   let hervorheben = $state(true);
 
-  // Welche Fassung im Textvergleich gelesen wird. Alle sechzehn Texte
-  // untereinander wären keine Ansicht mehr, sondern eine Liste; gefragt ist
-  // beim Lesen immer „was haben die Modelle aus *dieser* Aufnahme gemacht?".
-  // Vorgabe ist das Original - die Aufnahme, wie sie gesprochen wurde.
+  // Welche Fassung im Textvergleich gelesen wird - eine, Vorgabe das Original.
   let gewaehlteFassung = $state('original');
 
   let huelle = $state<HTMLDivElement | null>(null);
@@ -179,19 +133,14 @@
   const aktuelleMetrik = $derived(metriken.find((m) => m.schluessel === metrik) ?? metriken[0]);
   const modelle = $derived(daten?.modelle ?? []);
   /**
-   * Der Name, der dasteht. Ein Grundmodell heißt, wie es heißt; ein
-   * trainierter Stand trägt seine Kennung statt einer Kennung samt Sprecher
-   * und Zeitmarke, die keine Achse der Welt trägt.
+   * Der Name, der dasteht: Grundmodellname oder Kurzkennung des Standes.
    */
   const benannt = $derived((modell: string) => daten?.beschriftungen?.[modell] ?? modell);
   const varianten = $derived(daten?.varianten ?? []);
 
   /**
-   * Welches Modell den Balken bekommt. Die Vorgabe ist das, womit „schreiben"
-   * diktiert - das unter „Modelle" freigegebene: Es ist der Alltagsfall, und
-   * gegen ihn sind die übrigen zu vergleichen. Wird es hier nicht gemessen
-   * (oder ist „schreiben" nicht zu erreichen), steht `small` da; fehlt auch
-   * das, die Mitte der Liste, und bei nur einem Modell dieses.
+   * Welches Modell den Balken bekommt: das, womit „schreiben" diktiert -
+   * sonst `small`, sonst die Mitte der Liste.
    */
   const balkenmodell = $derived(
     gewaehlterBalken && modelle.includes(gewaehlterBalken)
@@ -203,7 +152,7 @@
           : (modelle[Math.floor((modelle.length - 1) / 2)] ?? ''),
   );
 
-  // Die Fassungen sind je Modell viermal da; gelesen wird immer eine.
+  // Je Modell stehen alle Fassungen da; gelesen wird eine.
   const gelesen = $derived(
     (gewaehlt?.erkennungen ?? []).filter(
       (erkennung) => erkennung.variante === gewaehlteFassung,
@@ -211,15 +160,11 @@
   );
 
   const stand = $derived(daten?.stand ?? null);
-  // Die gewählten Farben als **ein** Wert. `einstellungen.farben` selbst zu
-  // lesen genügt nicht: Das meldet nur an, dass es das Feld gibt, nicht seinen
-  // Inhalt - eine geänderte Akzentfarbe käme im Diagramm erst an, wenn man die
-  // Seite verlässt und zurückkommt. Hier wird jeder Wert angefasst und damit
-  // jeder einzelne beobachtet.
+  // Die Farben als ein Wert, damit jede einzeln beobachtet wird - sonst käme
+  // eine neue Akzentfarbe erst nach einem Seitenwechsel an.
   const farbstand = $derived(Object.values(einstellungen.farben).join('|'));
   const anteil = $derived(stand && stand.gesamt ? stand.erledigt / stand.gesamt : 0);
-  // Ob überhaupt schon etwas zu sehen ist. Ein leeres Diagramm mit Achsen wäre
-  // eine Behauptung; solange nichts gerechnet ist, sagt die Seite das lieber.
+  // Solange nichts gerechnet ist, sagt die Seite es, statt leere Achsen zu zeigen.
   const hatWerte = $derived(
     (daten?.punkte ?? []).some((punkt) => Object.keys(punkt.werte).length > 0),
   );
@@ -232,8 +177,7 @@
   type Werte = Record<string, Record<string, Record<string, number>>>;
 
   function wertVon(punkt: { werte: Werte }, modell: string, variante: string) {
-    // `null` und nicht `0`: Was nicht gerechnet ist, ist keine Null, und eine
-    // Null in der Kurve wäre ein Modell, das nichts verstanden hat.
+    // `null`, nicht `0`: Nicht gerechnet ist nicht nichts verstanden.
     const gemessen = punkt.werte[modell]?.[variante]?.[metrik];
     return gemessen === undefined ? null : gemessen;
   }
@@ -241,14 +185,8 @@
   /**
    * Der Bestwert eines Modells über alle Fassungen - die Zahl in der Kurve.
    *
-   * Welcher der beste ist, sagt das Maß und nicht diese Funktion: Bei der
-   * Genauigkeit der größte, bei jeder Fehlerrate und bei der Rechenzeit der
-   * kleinste. Ohne diese Unterscheidung zeigte dieselbe Kurve beim Wechsel des
-   * Maßes einmal den besten und einmal den schlechtesten Fall, ohne es zu
-   * sagen.
-   *
-   * Gezählt wird nur, was gerechnet ist: Während ein Lauf läuft, steht hier
-   * vielleicht das Beste aus zweien. Das ist richtig so - es wächst mit.
+   * Bei der Genauigkeit der größte, sonst der kleinste. Gezählt wird, was
+   * gerechnet ist - während eines Laufs wächst es mit.
    */
   function bestesVon(punkt: { werte: Werte }, modell: string) {
     const gemessen = Object.values(punkt.werte[modell] ?? {})
@@ -261,10 +199,7 @@
   }
 
   /**
-   * Ein Wert im gewählten Maß, so geschrieben, wie er gelesen werden soll.
-   * Prozente auf eine Stelle - mehr behauptete eine Genauigkeit, die die
-   * Messung nicht hat -, die Raten auf drei, weil sie klein sind und der
-   * Unterschied zwischen zwei Modellen in der dritten Stelle stehen kann.
+   * Ein Wert im gewählten Maß: Prozente auf eine Stelle, Raten auf drei.
    */
   function zeige(wert: number): string {
     const einheit = aktuelleMetrik?.einheit ?? '';
@@ -272,10 +207,8 @@
   }
 
   /**
-   * Die Farbe einer Reihe. Eine Stelle für beides - Diagramm und Tabelle -,
-   * damit die Zeile unter dem Bild dieselbe Farbe trägt wie die Punkte darin.
-   * Der Akzent kommt als Argument, weil ECharts eine fertige Farbe braucht
-   * und die Tabelle mit `var(--akzent)` auskommt.
+   * Die Farbe einer Reihe, für Diagramm und Tabelle. Der Akzent als Argument:
+   * ECharts braucht eine fertige Farbe, die Tabelle nimmt `var(--akzent)`.
    */
   function reihenfarbe(modell: string, nummer: number, akzent: string): string {
     return modell === balkenmodell ? akzent : PUNKTFARBEN[nummer % PUNKTFARBEN.length];
@@ -319,28 +252,11 @@
   /**
    * Median und Mittel je Modell und Fassung, im gerade gewählten Maß.
    *
-   * **Warum beide Zahlen.** Das Mittel nimmt jeden Ausreißer mit: Eine
-   * Aufnahme, bei der Whisper in eine Wiederholungsschleife gerät, zieht es
-   * über den ganzen Korpus hinweg. Der Median sagt dagegen den Normalfall -
-   * die Aufnahme in der Mitte. Stehen die beiden weit auseinander, liegt genau
-   * darin die Auskunft: Das Modell ist nicht gleichmäßig schlechter, es
-   * verreißt einzelne Aufnahmen. Deshalb beide nebeneinander und keine der
-   * beiden allein.
-   *
-   * **Warum je Fassung eine Zeile.** Weil erst ihr Vergleich die Frage
-   * beantwortet, für die sie gerechnet wurden: Bricht dieses Modell ein,
-   * sobald etwas Rauschen dazukommt? Zeilen, die dicht beieinanderliegen,
-   * sagen „dieses Modell versteht den Sprecher"; Zeilen, die auseinander-
-   * fallen, sagen „es verträgt diese eine Aufnahmesituation".
-   *
-   * **Warum der Bestwert obendrüber.** Er ist die Zeile zur Kurve. Ohne ihn
-   * stünde im Bild eine Reihe, zu der unten keine Zahl gehört - und man
-   * suchte sie in den Zeilen darunter, wo sie nicht steht: Der Median der
-   * besten Werte ist nicht der beste der Mediane.
-   *
-   * **Warum im Browser gerechnet.** Die Zahlen stehen schon da - die Kurve
-   * bringt sie ohnehin mit. Sie beim Wechsel des Maßes erneut beim Server zu
-   * holen hieße, auf eine Antwort zu warten, für die kein Byte fehlt.
+   * Das Mittel nimmt jeden Ausreißer mit, der Median zeigt den Normalfall -
+   * weit auseinander heißt: Das Modell verreißt einzelne Aufnahmen. Je
+   * Fassung eine Zeile, denn ihr Abstand zeigt, ob ein Modell beim Rauschen
+   * einbricht. Obendrüber die Zeile zur Kurve: Der Median der Bestwerte ist
+   * nicht der beste der Mediane. Im Browser gerechnet - die Daten sind da.
    */
   const kennzahlen = $derived<Modellzahlen[]>(
     modelle
@@ -367,8 +283,7 @@
           ],
         };
       })
-      // Ein Modell ohne eine einzige Erkennung bekommt keine Zeile: Zwei
-      // Nullen wären eine Behauptung über ein Modell, das nichts gerechnet hat.
+      // Ohne Erkennung keine Zeile.
       .filter((gruppe) => gruppe.zeilen[0].anzahl > 0),
   );
 
@@ -473,10 +388,7 @@
 
   function zeichne() {
     if (!diagramm) return;
-    // `replaceMerge` statt `notMerge`: Es ersetzt die Reihen vollständig (sonst
-    // bliebe ein abgewähltes Modell als Leiche stehen), lässt aber den
-    // Zoomausschnitt, wo er ist. Ohne das spränge die Ansicht bei jedem Takt
-    // zurück, während man gerade etwas anschaut.
+    // `replaceMerge`: ersetzt die Reihen, lässt aber den Zoomausschnitt stehen.
     diagramm.setOption(option(), { replaceMerge: ['series'] });
   }
 
@@ -488,9 +400,7 @@
     const { init } = await import('../lib/diagramm');
     diagramm = init(huelle, undefined, { renderer: 'canvas' });
 
-    // Ein Klick irgendwo in der Spalte, nicht nur auf den Balken: Auf einem
-    // Telefon ist ein 20 Pixel breiter Balken kein Ziel, und ein Punkt erst
-    // recht nicht.
+    // Ein Klick irgendwo in der Spalte - auf dem Telefon ist ein Balken kein Ziel.
     diagramm.getZr().on('click', (ereignis: { offsetX: number; offsetY: number }) => {
       if (!diagramm) return;
       const ort = [ereignis.offsetX, ereignis.offsetY];
@@ -532,15 +442,8 @@
   /**
    * Den Lauf anstoßen - und sagen, wenn dabei nichts zu tun war.
    *
-   * Der Lauf ist wiederaufnehmbar: Er rechnet, was fehlt, und nichts sonst
-   * (siehe `services/auswertung.py`). Steht schon alles, ist er fertig, bevor
-   * er anfängt - der Fortschritt bleibt, wo er war, der Knopf federt zurück,
-   * und für den Menschen davor sieht das aus wie ein Knopf, der kaputt ist.
-   *
-   * Deshalb diese Meldung. Sie ist kein Fehler und steht darum nicht in
-   * `fehler`: Nichts zu rechnen ist die richtige Antwort auf „erneut prüfen",
-   * wenn seit dem letzten Mal nichts dazugekommen ist. Gesagt werden muss sie
-   * trotzdem.
+   * Der Lauf rechnet nur, was fehlt (`services/auswertung.py`). Steht alles,
+   * sähe der Knopf kaputt aus - deshalb eine Quittung, kein Fehler.
    */
   async function starte() {
     laeuftGerade = 'start';
@@ -606,10 +509,7 @@
     };
   });
 
-  // Neu zeichnen, wenn sich die Daten, das gewählte Maß, das Balkenmodell oder
-  // die Darstellung geändert haben. Die Farben stehen absichtlich in der
-  // Abhängigkeitsliste: Ein Diagramm, das nach dem Umstellen der Akzentfarbe
-  // die alte behielte, sähe aus wie ein Fehler.
+  // Neu zeichnen bei neuen Daten, Maß, Balkenmodell oder Darstellung.
   $effect(() => {
     void daten;
     void metrik;
@@ -715,11 +615,7 @@
     {#if modelle.length > 1}
       <label>
         <span>Als Balken</span>
-        <!-- Gezeigt wird `balkenmodell` und nicht `gewaehlterBalken`: Solange
-             niemand gewählt hat, ist das Zweite leer, und ein leerer Wert
-             passt auf keine der Optionen - der Browser zeigt dann ein leeres
-             Feld, während im Bild längst ein Modell als Balken steht. Was
-             gilt, soll dastehen, auch wenn es die Vorgabe ist. -->
+        <!-- `balkenmodell`, nicht `gewaehlterBalken`: Auch die Vorgabe soll dastehen. -->
         <select
           value={balkenmodell}
           onchange={(ereignis) => (gewaehlterBalken = ereignis.currentTarget.value)}
@@ -744,10 +640,7 @@
   {/if}
 
   {#if kennzahlen.length}
-    <!-- Die Kurve zeigt den Verlauf, diese Zeile die Bilanz. Beides steht
-         nebeneinander und nicht das eine statt des anderen: Eine Zahl je
-         Modell wäre zu wenig, eine Kurve ohne Zahl ließe „um wie viel?"
-         offen. -->
+    <!-- Die Kurve zeigt den Verlauf, diese Zeilen die Bilanz. -->
     <table class="kennzahlen">
       <thead>
         <tr>
@@ -758,9 +651,7 @@
           <th scope="col">Aufnahmen</th>
         </tr>
       </thead>
-      <!-- Je Modell ein eigener Rumpf: Die fünf Zeilen gehören zusammen, und
-           ein `tbody` sagt das auch einer Vorlesestimme - nicht nur der Linie
-           dazwischen. -->
+      <!-- Je Modell ein `tbody` - die Zeilen gehören zusammen, auch für Vorlesestimmen. -->
       {#each kennzahlen as gruppe (gruppe.modell)}
         <tbody>
           {#each gruppe.zeilen as zeile, stelle (zeile.schluessel)}
@@ -821,9 +712,7 @@
 {:else if gewaehlt}
   <div class="kopfzeile">
     <h2>Aufnahme {gewaehlt.nummer}</h2>
-    <!-- Der Schalter steht bei den Texten und nicht oben bei den
-         Auswahllisten: Er ändert nichts an der Messung, nur daran, wie die
-         Fassungen darunter zu lesen sind. -->
+    <!-- Bei den Texten: Der Schalter ändert nur, wie sie zu lesen sind. -->
     <label class="umschalter">
       <span>Unterschiede hervorheben</span>
       <input type="checkbox" role="switch" bind:checked={hervorheben} />
@@ -832,10 +721,7 @@
   <div class="karte">
     <p class="marke">Vorlage</p>
     <p class="vorlage">{gewaehlt.referenz}</p>
-    <!-- Was dastand, und gleich darunter, was daraus wurde: Wer beurteilt, ob
-         ein Modell danebengegriffen hat, hört zuerst selbst hin. Der Abspieler
-         folgt der Fassungswahl darunter - beim Rauschen ist gerade das die
-         Frage, ob man selbst noch versteht, was das Modell nicht verstand. -->
+    <!-- Erst selbst hinhören; der Abspieler folgt der Fassungswahl. -->
     {#if hoerprobe}
       <AudioPlayer
         quelle={hoerprobe.adresse}
@@ -847,9 +733,7 @@
   </div>
 
   {#if varianten.length > 1}
-    <!-- Die Fassungen als Reihe von Schaltern und nicht als Auswahlliste: Es
-         sind vier, sie stehen nebeneinander, und man springt zwischen ihnen
-         hin und her, statt einmal eine auszusuchen. -->
+    <!-- Schalter statt Auswahlliste - man springt zwischen den Fassungen. -->
     <div class="fassungen" role="group" aria-label="Fassung der Aufnahme">
       {#each varianten as variante (variante.schluessel)}
         <button
