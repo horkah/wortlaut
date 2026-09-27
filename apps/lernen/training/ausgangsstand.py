@@ -1,16 +1,9 @@
 """Auf einem trainierten Stand weiterlernen statt auf einem Grundmodell.
 
-**Was das Problem ist.** Ein Stand liegt in der Registry nur als CTranslate2
-vor (`ct2/model.bin`) - das Format, das faster-whisper lädt und sonst niemand.
-Die Rohgewichte, aus denen er umgewandelt wurde, räumt der Lauf danach weg
-(`wortlaut/laeufe.py`, `ZWISCHENSTAENDE`), und das zu Recht: Ein Gigabyte und
-mehr je Stand, gebraucht bis hierhin von niemandem. transformers aber kann
-eine `model.bin` nicht lesen.
-
-**Warum zurückrechnen und nicht die Rohgewichte aufheben.** Aufheben hülfe
-nur künftigen Ständen, und es kostete jeden von ihnen den Platz, auch die
-vielen, auf denen nie jemand aufsetzt. Die Umwandlung nach CTranslate2 ist
-dagegen verlustfrei umkehrbar - sie legt nur um und fügt zusammen:
+Ein Stand liegt nur als CTranslate2 vor (`ct2/model.bin`), das transformers
+nicht liest; die Rohgewichte räumt der Lauf weg (`laeufe.ZWISCHENSTAENDE`) -
+ein Gigabyte je Stand. Die Umwandlung ist verlustfrei umkehrbar, sie legt nur
+um und fügt zusammen:
 
 * `q_proj`, `k_proj` und `v_proj` der Selbstaufmerksamkeit stehen als eine
   Matrix übereinander (`linear_0`), die der Kreuzaufmerksamkeit als `q` für
@@ -19,17 +12,11 @@ dagegen verlustfrei umkehrbar - sie legt nur um und fügt zusammen:
 * Schichtnormen heißen `gamma`/`beta` statt `weight`/`bias`.
 * `proj_out` ist mit den Einbettungen verbunden und steht nur als Verweis da.
 
-Verloren geht allein, was die Umwandlung selbst verliert: Die Stände sind in
-halber Genauigkeit gespeichert (`float16`), und mit genau diesen Zahlen
-diktiert „schreiben" auch. Weitergelernt wird also auf dem Modell, das
-wirklich im Einsatz ist.
+Die Stände sind `float16` - dieselben Zahlen, mit denen „schreiben" diktiert.
 
-**Einmal je Lauf.** Gerechnet wird beim ersten Training des Laufs, abgelegt im
-Laufverzeichnis (`ausgang/`), gelesen von allen sieben Trainings und dem
-Abschluss, und am Ende mit den übrigen Zwischenständen weggeräumt.
-
-Das Lesen des Formats und die Zuordnung der Namen kommen ohne numpy und torch
-aus - beides lässt sich so auch dort prüfen, wo nicht trainiert wird.
+Einmal je Lauf gerechnet, im Laufverzeichnis abgelegt (`ausgang/`) und mit
+den Zwischenständen weggeräumt. Format und Namenszuordnung kommen ohne numpy
+und torch aus, damit sie sich ohne Trainerabbild prüfen lassen.
 """
 
 from __future__ import annotations
@@ -46,14 +33,11 @@ from wortlaut import laeufe, registry
 _ARTEN = ("float32", "int8", "int16", "int32", "float16", "bfloat16")
 _GLEITKOMMA = ("float32", "float16")
 
-# Die Fassung des Dateiformats, die hier gelesen wird. Eine andere ist kein
-# Grund zu raten.
+# Die gelesene Fassung des Dateiformats; bei einer anderen wird nicht geraten.
 _FASSUNG = 6
 _SPEZIFIKATION = "WhisperSpec"
 
-# Liegt im Ausgangsverzeichnis erst, wenn alles geschrieben ist. Ein Lauf, der
-# beim Zurückrechnen abbrach, fängt damit von vorn an, statt halbe Gewichte zu
-# laden.
+# Liegt erst da, wenn alles geschrieben ist - sonst wird neu gerechnet.
 _FERTIG = "model.safetensors"
 
 
@@ -267,8 +251,7 @@ def quelle(verzeichnis: Path, datenverzeichnis: Path, auftrag: dict[str, Any], b
     # für die Zeitmarken -, die Zahlen darin alle vom Stand.
     modell = WhisperForConditionalGeneration.from_pretrained(basismodell)
     lade_in(modell, model_bin)
-    # In halber Genauigkeit: Genauer waren die Zahlen nie, und so ist es die
-    # Hälfte an Platte. Geladen wird wieder in voller (`from_pretrained`).
+    # Halbe Genauigkeit - genauer waren die Zahlen nie. Geladen wird in voller.
     modell.to(torch.float16).save_pretrained(ziel, safe_serialization=True)
     del modell
     return str(ziel)

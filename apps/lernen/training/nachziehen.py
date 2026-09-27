@@ -1,33 +1,15 @@
-"""Das Endmodell eines fertigen Laufs mit dem heutigen Verfahren neu rechnen.
+"""Das Endmodell eines fertigen Laufs neu rechnen - nur das siebte Training.
 
-**Wozu.** Bis September 2026 übernahm das Endmodell aus den Faltungen nur die
-Durchgangszahl und baute seinen Lernratenverlauf in diesen Horizont neu - ein
-anderer Lauf als der, aus dem die Zahl stammte, und das Ergebnis franste aus
-(siehe `finetune.trainiere` und `docs/lernen.md`). Die Faltungen selbst waren
-davon nie betroffen: Sie liefen auf ihrem eigenen Plan und wurden auf ihrem
-besten Stand gemessen. Deshalb genügt es, das **siebte** Training zu
-wiederholen - ein Training statt sieben.
+Das Endmodell übernimmt aus den Faltungen Durchgänge, α, Tempo
+(`kreuzvalidierung` im Manifest des Standes) und ihren Lernratenplan
+(`finetune.trainiere`, `docs/lernen.md`); den Plan liest `plan_aus_dem_lauf`
+aus dem Fortschritt. Alles Übrige liegt im Schnappschuss.
 
-**Was dafür dastehen muss.** Alles liegt im Schnappschuss des Laufs: das
-Manifest mit den Aufnahmen und ihren Faltungen, der Auftrag mit den Achsen, die
-Bewertung der sechs Faltungen. Was daraus mitgenommen wird - Durchgänge, α,
-Tempo -, steht im Manifest des Standes unter `kreuzvalidierung`. Einzig der
-**Plan** ist neu und stand dort noch nicht; er lässt sich aus dem Fortschritt
-des Laufs zurücklesen, wo jede Faltung beim Start ihre geplanten Durchgänge
-gemeldet hat.
-
-**Was sich ändert und was nicht.** Ersetzt werden die Gewichte des Standes -
-das Modell also, mit dem diktiert wird. Die Zahlen in „lernen" und „hören"
-ändern sich dadurch **nicht**: Sie stammen aus den sechs Faltungen und messen
-nicht dieses Modell. Was sich ändert, sind die Zeilen, die das alte Endmodell
-in der Auswertung selbst gerechnet hat - sie gehören zu Gewichten, die es nicht
-mehr gibt, und werden weggeräumt, damit der nächste Lauf sie neu misst.
-
-**Was verloren ist, bleibt verloren.** Aufnahmen, die seit dem Lauf verworfen
-wurden, sind nicht wiederherstellbar; das neue Endmodell lernt ohne sie
-(`daten.zeilen_fuer_faltung`). Es ist damit nicht Zeile für Zeile dasselbe
-Training wie damals - aber es ist dasselbe Verfahren auf demselben Rezept, und
-das ist der Punkt.
+Ersetzt werden die Gewichte, mit denen diktiert wird. Die Zahlen in „lernen"
+und „hören" stammen aus den Faltungen und bleiben; nur die Zeilen, die das
+Endmodell in der Auswertung selbst gerechnet hat, gehen, damit sie neu
+gemessen werden. Seit dem Lauf verworfene Aufnahmen fehlen
+(`daten.zeilen_fuer_faltung`).
 
 Aufruf im Trainingscontainer, der die Karte hat:
 
@@ -61,8 +43,8 @@ def plan_aus_dem_lauf(verzeichnis: Path) -> float:
     (`finetune._rueckmeldung`). Die erste Meldung genügt: Alle sechs planen
     gleich, sie unterscheiden sich nur darin, wann die Geduld aufgebraucht war.
 
-    Null heißt: nicht zu ermitteln. Dann bleibt es beim alten Verhalten, und
-    das ist die ehrlichere Antwort als ein geratener Horizont.
+    Null: nicht zu ermitteln - dann plant das Endmodell über seine
+    Durchgänge, statt einen Horizont zu raten.
     """
     for zeile in laeufe.lies_zeilen(verzeichnis / laeufe.FORTSCHRITT):
         if zeile.get("art") == "start" and zeile.get("epochen"):
@@ -71,16 +53,11 @@ def plan_aus_dem_lauf(verzeichnis: Path) -> float:
 
 
 def _vergiss_eigene_messungen(datenverzeichnis: Path, ref: str) -> int:
-    """Die Zeilen wegräumen, die das **alte** Endmodell selbst gerechnet hat.
+    """Die Zeilen wegräumen, die das ersetzte Endmodell selbst gerechnet hat.
 
-    Sie stehen in der Auswertung von „hören" (`herkunft = 'gemessen'`) und
-    gehören zu Gewichten, die es nicht mehr gibt. Die übernommenen
-    Faltungszeilen bleiben: Sie stammen von den sechs Modellen und sind von
-    dieser Änderung unberührt.
-
-    Unmittelbar über SQL und nicht über die Modelle von „hören": Dieses Abbild
-    trägt `apps/hoeren` nicht (siehe `Dockerfile`), und eine Abhängigkeit dazu
-    einzuführen, um eine Zeile zu löschen, wäre der teurere Weg.
+    `herkunft = 'gemessen'` in der Auswertung von „hören"; die übernommenen
+    Faltungszeilen bleiben. Über SQL, weil dieses Abbild `apps/hoeren` nicht
+    trägt (`Dockerfile`).
     """
     sprecher_id = ref.split(registry.TRENNER, 1)[0]
     datei = datenverzeichnis / corpus.sprecher_relpfad(sprecher_id) / "hoeren.sqlite"
@@ -114,33 +91,22 @@ def ziehe_nach(datenverzeichnis: Path, ref: str) -> str:
         mitgenommen["plan"] = plan
     zeilen = list(laeufe.lies_zeilen(verzeichnis / laeufe.BEWERTUNG))
 
-    # Ein Bericht ohne Spuren: Der alte Lauf ist fertig und bleibt es. Gesagt
-    # wird trotzdem alles - der Läufer hört hier nicht mit, dafür ein Mensch.
+    # Ohne Spuren: Der Lauf ist fertig und bleibt es. Mit liest ein Mensch.
     bericht = Bericht(verzeichnis, spuren=False)
 
-    # **Erst den alten Stand ansehen, dann rechnen** - und zwar hier, solange
-    # seine Gewichte noch an ihrem Platz liegen. Das neue Verfahren ist nicht
-    # in jedem Fall das bessere: Wo die Faltungen sehr früh am besten standen,
-    # hält der geerbte Plan das Endmodell auf der Spitze der Lernrate an - eine
-    # heikle Stelle, und ohne Validierung fängt sie niemand auf. Gemessen an
-    # `G9YH3`: der alte Stand bei WER 0,06, der nachgezogene bei 1,00. Wer hier
-    # bloß ersetzt, tauscht manchmal ein gutes Modell gegen ein schlechtes.
-    # Also wird verglichen und das bessere behalten.
+    # Erst den bestehenden Stand prüfen: Standen die Faltungen sehr früh am
+    # besten, hält der geerbte Plan das Endmodell auf der Spitze der Lernrate
+    # an, und ohne Validierung fängt das niemand auf. Das bessere bleibt.
     vorher = pruefe_nur(datenverzeichnis, ref, bericht)
 
-    # **Die alten Gewichte gehen zur Seite, nicht weg.** Was hier entsteht,
-    # ersetzt ein Modell, mit dem vielleicht gerade diktiert wird. Erst wenn
-    # der neue Stand die Prüfung bei seiner Freigabe besteht, fällt der alte;
-    # besteht er sie nicht, kommt der alte zurück, und es hat sich nichts
-    # geändert außer einer Stunde Rechenzeit.
+    # Die bisherigen Gewichte gehen zur Seite; sie fallen erst, wenn der neue
+    # Stand seine Prüfung besteht.
     gewichte_alt = registry.ct2_verzeichnis(datenverzeichnis, ref)
     beiseite = gewichte_alt.with_name("ct2-vorher")
     shutil.rmtree(beiseite, ignore_errors=True)
     if gewichte_alt.is_dir():
         gewichte_alt.rename(beiseite)
-    # Das Manifest geht mit zur Seite. Es beschreibt **diese** Gewichte - kommen
-    # sie zurück, muss auch ihr Steckbrief zurück, sonst stünde neben einem
-    # Modell der Befund über ein anderes.
+    # Ihr Manifest geht mit - es beschreibt diese Gewichte.
     steckbrief = gewichte_alt.parent / registry.MANIFEST
     steckbrief_alt = steckbrief.read_bytes() if steckbrief.is_file() else b""
 
@@ -199,9 +165,7 @@ def ziehe_nach(datenverzeichnis: Path, ref: str) -> str:
 def pruefe_nur(datenverzeichnis: Path, ref: str, bericht=None) -> dict[str, Any]:
     """Den Stand ansehen, der dasteht - ohne ihn anzufassen.
 
-    Stände von vor September 2026 sind nie geprüft worden; ob ihr
-    ausgeliefertes Modell zuhört oder faselt, weiß niemand. Der Befund wandert
-    ins Manifest und steht danach in „Modelle" neben dem Modell.
+    Für Stände ohne Befund. Er wandert ins Manifest und steht in „Modelle".
     """
     from .bewerten import pruefe_endmodell
     from .finetune import Bericht
@@ -213,9 +177,8 @@ def pruefe_nur(datenverzeichnis: Path, ref: str, bericht=None) -> dict[str, Any]
         raise SystemExit(f"{ref}: Der Schnappschuss liegt nicht mehr da.")
 
     auftrag = json.loads((verzeichnis / laeufe.AUFTRAG).read_text(encoding="utf-8"))
-    # Ohne eigenen Bericht steht diese Prüfung für sich und hält ihren Befund
-    # fest. Mit einem gereichten ist sie der erste Schritt eines Nachzugs - dann
-    # gehört der Befund dem Stand, der am Ende dasteht, und nicht diesem hier.
+    # Mit gereichtem Bericht der erste Schritt von `ziehe_nach` - dann gehört
+    # der Befund dem Stand, der am Ende dasteht.
     allein = bericht is None
     bericht = bericht or Bericht(verzeichnis, spuren=False)
     bericht.sage(f"── {registry.beschriftung(ref)}: {'nur prüfen' if allein else 'erst ansehen'}")

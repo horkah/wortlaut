@@ -1,91 +1,63 @@
 # Volles Training: alle Gewichte von whisper-small werden angepasst.
 #
-# Die Zahlen hier sind auf den Fall dieses Projekts eingestellt und nicht auf
-# einen Datensatz: ein einzelner Mensch, wenige hundert kurze Sätze, eine
-# einzelne Karte mit 11 GB. Wer mehr hat, darf sie ändern - sie stehen in
-# dieser Datei und nicht im Quelltext, damit genau das ohne Neubau geht.
+# Eingestellt auf einen Menschen, wenige hundert kurze Sätze und eine Karte
+# mit 11 GB; änderbar ohne Neubau.
 name: Volles Training
 
-# Klein, und das ist der Kern dieses Rezepts. Bei einem vollen Training zieht
-# eine zu hohe Lernrate dem Modell in wenigen hundert Schritten alles aus, was
-# es vorher konnte ("katastrophales Vergessen") - es versteht dann diesen einen
-# Sprecher und sonst niemanden mehr, und bei fünfzig Aufnahmen nicht einmal ihn.
+# Klein: Eine höhere Lernrate löscht in wenigen hundert Schritten, was das
+# Modell konnte ("katastrophales Vergessen").
 lernrate: 1.0e-5
 warmlauf_schritte: 50
 
-# Acht Durchgänge - und das ist eine **Obergrenze**, keine Vorgabe. Die
-# Validierungskurve dreht bei so wenig Sprache meist im Bereich vier bis acht;
-# danach lernt das Modell die Trainingssätze auswendig. Ausgeliefert wird
-# deshalb nicht der letzte Durchgang, sondern der mit dem besten
-# Validierungsverlust (`load_best_model_at_end` in `finetune.py`). Zu hoch
-# angesetzt kostet die Zahl hier also Rechenzeit, aber keine Güte - zu niedrig
-# angesetzt kostet sie Güte. Im Zweifel lieber zu hoch.
+# Eine Obergrenze: Die Validierung dreht meist bei vier bis acht, und
+# ausgeliefert wird der beste Durchgang (`load_best_model_at_end` in
+# `finetune.py`). Zu hoch kostet Rechenzeit, zu niedrig Güte.
 epochen: 8
 
-# Zwei mal vier statt acht auf einmal: whisper-small mit Adam braucht im vollen
-# Training gut 8 GB, und die Aktivierungen kommen obendrauf. Die
-# Gradientenakkumulation hält die wirksame Stapelgröße bei acht, ohne den
-# Speicher zu sprengen.
+# Zwei mal vier: whisper-small mit Adam braucht voll gut 8 GB plus
+# Aktivierungen; wirksam bleiben es acht.
 stapel: 4
 akkumulation: 2
 
 gewichtsverfall: 0.01
-# Halbe Genauigkeit. Auf Turing (RTX 2080 Ti) gibt es kein bfloat16, also
-# float16 - mit Verlustskalierung, die der Trainer selbst mitbringt.
+# float16 mit Verlustskalierung - Turing (RTX 2080 Ti) kann kein bfloat16.
 fp16: true
-# Gegen Ausreißer in einzelnen Stapeln, die bei kleinen Datensätzen häufiger
-# vorkommen als bei großen.
+# Gegen Ausreißer einzelner Stapel.
 gradientenbegrenzung: 1.0
 
-# Der Abschluss - was am Ende mit den Gewichten geschieht. Gerechnet wird nur,
-# was der Auftrag bestellt (`bester`, `mittel`, `interpoliert`, `beides`); hier
-# stehen die Zahlen dazu.
+# Die Zahlen zum Abschluss, den der Auftrag bestellt.
 abschluss:
-  # Wie viele der besten Zwischenstände gemittelt werden. Drei und nicht fünf,
-  # und das ist eine Platzfrage: Beim vollen Training wiegt ein Zwischenstand
-  # knapp ein Gigabyte (ohne Optimierer, siehe `save_only_model` in
-  # `finetune.py`). Wer Platz hat, darf hier höher gehen.
+  # Wie viele der besten Zwischenstände gemittelt werden - drei, weil einer
+  # knapp ein Gigabyte wiegt (`save_only_model` in `finetune.py`).
   staende: 3
-  # Welche Anteile des Grundmodells versucht werden (WiSE-FT). Gewählt wird auf
-  # der Validierung, und die Null gehört dazu: Mit ihr kann die Interpolation
-  # nicht verlieren - im schlechtesten Fall bleibt der feingetunte Stand.
-  #
-  # Fünf Werte und kein feineres Raster: Jeder kostet einen Durchgang durch die
-  # Validierung und ein Umschreiben aller Gewichte. Bei dreißig Aufnahmen sind
-  # das Sekunden, aber die Schrittweite darunter unterscheidet ohnehin nichts,
-  # was eine Validierung dieser Größe noch trennen könnte.
+  # Die Anteile des Grundmodells (WiSE-FT), gewählt auf der Validierung. Mit
+  # der Null kann die Interpolation nicht verlieren.
+  # Jeder Wert kostet eine Validierung und ein Umschreiben aller Gewichte;
+  # feiner trennt eine so kleine Validierung ohnehin nicht.
   alphas: [0.0, 0.1, 0.2, 0.3, 0.5]
 
-# Wie lange trainiert wird, wenn der Auftrag `geduldig` bestellt (sonst gilt
-# `epochen` oben). Niedriger als bei LoRA, und das ist keine Willkür: Ein
-# Durchgang des vollen Trainings kostet ein Vielfaches, und die Gefahr des
-# Auswendiglernens ist hier die größere.
+# Für `geduldig` (sonst `epochen`). Niedriger als bei LoRA: Ein Durchgang
+# kostet ein Vielfaches, und Auswendiglernen droht eher.
 epochen_hoechstens: 40
 geduld: 4
 mindestgewinn: 0.001
 
-# Die Augmentierung während des Trainings. Welche Stufe gilt, bestellt der
-# Auftrag (`keine`, `masken`, `umgebung`, `voll`); hier stehen ihre Zahlen.
-# Gerechnet wird beim Laden jeder Probe und nichts davon abgelegt - was
-# gewürfelt ist, soll in jedem Durchgang ein anderes sein
-# (`training/klangwandel.py`).
+# Die Zahlen zur Augmentierungsstufe des Auftrags - je Probe und Durchgang
+# neu gewürfelt, nichts abgelegt (`training/klangwandel.py`).
 augmentierung:
-  # SpecAugment, die kleine Einstellung aus der Literatur. Bei wenigen hundert
-  # kurzen Sätzen verdeckt die große Einstellung den Satz selbst.
+  # SpecAugment, die kleine Einstellung - die große verdeckt kurze Sätze ganz.
   zeitmasken: 2
   zeitmaske_anteil: 0.12
   frequenzmasken: 2
   frequenzmaske_baender: 16
-  # Nachhall, wie ihn ein Wohnzimmer und ein gefliester Flur haben. Darüber
-  # klingt es nach Kirche, und dort diktiert niemand.
+  # Nachhall von Wohnzimmer bis gefliestem Flur.
   raum_wahrscheinlichkeit: 0.5
   raum_nachhall_s: [0.05, 0.35]
-  # Von „kaum zu hören" bis „stört deutlich". Die gemessene Fassung `rauschen`
-  # liegt mit ihren festen 20 dB mitten darin - hier ist der Abstand jedes Mal
-  # ein anderer, damit das Modell keinen bestimmten auswendig lernt.
+  # Von „kaum zu hören" bis „stört deutlich"; die gemessene Fassung `rauschen`
+  # (fest 20 dB) liegt darin.
   rausch_wahrscheinlichkeit: 0.5
   rausch_abstand_db: [10.0, 35.0]
-  # Nur in der Stufe `voll`. Bei dysarthrischer Sprache ist das Sprechtempo
-  # ein Merkmal des Sprechers - es zu verwürfeln kann helfen oder schaden.
+  # Nur in `voll`. Bei dysarthrischer Sprache ist das Tempo ein Merkmal des
+  # Sprechers - es zu verwürfeln kann helfen oder schaden.
   tempo_wahrscheinlichkeit: 0.5
   tempo_faktor: [0.9, 1.1]

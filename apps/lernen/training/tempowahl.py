@@ -1,41 +1,20 @@
 """Die Geschwindigkeit suchen, bei der dieser Sprecher am besten verstanden wird.
 
-**Woher die Frage kommt.** Dysarthrische Sprache ist oft stark verlangsamt.
-Vorgespult versteht Whisper sie messbar besser - gemessen an einem echten
-Korpus im September 2026, deutlich, wenn auch nicht dramatisch. Nur ist „2,0"
-dabei kein Naturgesetz, sondern der erste Wert, den jemand ausprobiert hat.
-Das Optimum hängt am Sprecher, und es zu raten wäre schade um die Messung.
+Dysarthrische Sprache ist oft stark verlangsamt, und vorgespult versteht
+Whisper sie messbar besser. Das Optimum hängt am Sprecher.
 
-**Warum nicht einfach je Faktor einmal trainieren.** Das wäre die ehrliche
-Antwort und die teuerste: Bei acht Faktoren und sechs Faltungen sind es
-achtundvierzig Trainings statt sechs. Ein Lauf von einer Stunde würde zu acht.
+**Gemessen am Grundmodell**, auf einer Stichprobe der Lernzeilen der Faltung,
+je Faktor ein Dekodierdurchgang - etwa eine Minute je Faltung statt acht
+Trainings je Faktor. Ein Stellvertreter: Gesucht ist das Tempo des
+*feingetunten* Modells, angenommen wird, dass ein besserer Ausgangspunkt
+besser bleibt. Zwei Läufe mit festen Faktoren prüfen das in der Tafel.
 
-**Was stattdessen gemessen wird.** Das unveränderte Grundmodell, auf einer
-Stichprobe der Lernzeilen dieser Faltung, bei jedem Faktor des Rasters. Das
-kostet je Faktor einen Dekodierdurchgang über wenige Dutzend Aufnahmen - auf
-der Karte zusammen etwa eine Minute je Faltung.
+**Je Faltung**, auf deren Lernzeilen - die Wahl sieht nichts, woran gemessen
+wird. Das Endmodell nimmt das Minimum der zusammengelegten Kurven
+(`zusammengelegt`, `finetune.kreuzvalidiere`).
 
-**Und was das ist: ein Stellvertreter, kein Beweis.** Gemessen wird, wie gut
-das Grundmodell diesen Sprecher bei Tempo x versteht; gesucht ist, bei welchem
-Tempo das *feingetunte* Modell ihn am besten versteht. Das ist nicht
-dasselbe. Die Annahme dahinter ist, dass ein besserer Ausgangspunkt auch nach
-dem Feintuning besser bleibt - plausibel, weil das Feintuning an denselben
-Gewichten ansetzt, aber nicht bewiesen. Wer es genau wissen will, beauftragt
-zwei Läufe mit festen Faktoren und vergleicht sie in der Tafel; dafür ist die
-Tafel da.
-
-**Warum je Faltung und nicht einmal für den ganzen Lauf.** Weil die Wahl sonst
-Daten sähe, an denen später gemessen wird. Ein einziger Zahlenwert aus acht
-Möglichkeiten ist wenig Leck, aber „wenig Leck" ist keine Kategorie, die
-dieses Projekt führt. Je Faltung gewählt, auf deren eigenen Lernzeilen, ist es
-gar keins - und das Endmodell nimmt den Median der sechs mit, genau wie bei
-den Durchgängen und beim α (`finetune.kreuzvalidiere`).
-
-**Warum ein grobes Raster und keine feine Suche.** Über zwei Dutzend Aufnahmen
-ist der WER selbst eine Zufallsgröße. Eine Suche, die auf 0,05 genau optimiert,
-optimiert das Rauschen - sie fände bei einer zweiten Stichprobe einen anderen
-Wert und sähe dabei genauso überzeugt aus. Acht Stützstellen sagen, in welcher
-Gegend das Optimum liegt, und mehr ist ehrlicherweise nicht drin.
+**Ein grobes Raster:** Über zwei Dutzend Aufnahmen ist der WER selbst eine
+Zufallsgröße; feiner optimierte das Rauschen.
 """
 
 from __future__ import annotations
@@ -52,30 +31,17 @@ from wortlaut import metriken, tempo
 from wortlaut.text import chunker
 from wortlaut.augmentierung import ORIGINAL
 
-# Die Stützstellen. Unten dicht, oben weit: Zwischen 1,0 und 2,0 entscheidet
-# sich erfahrungsgemäß alles, darüber wird es schnell schlechter, und dort
-# genügt es zu wissen, *dass* es schlechter wird.
+# Unten dicht, oben weit: Zwischen 1,0 und 2,0 entscheidet sich das meiste.
 RASTER = (0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0)
 
-# Was dazukommt, **wenn** der Sieger ganz oben steht.
-#
-# Ein Optimum am Rand des Rasters ist keines - es ist die Auskunft, dass zu
-# kurz gesucht wurde. Genau das war im September 2026 der Fall: Die Kurve fiel
-# über alle acht Stützstellen bis 3,0 durch und hörte dort auf, weil das
-# Raster aufhörte. Nachgelegt wird deshalb, solange der Rand gewinnt - und
-# höchstens bis zur Grenze, die `wortlaut/tempo.py` zieht.
-#
-# Das kostet im Regelfall nichts: Nur wer wirklich am Rand landet, zahlt zwei
-# weitere Dekodierdurchgänge.
+# Nachgelegt, solange der oberste Faktor gewinnt - ein Optimum am Rand ist
+# keines. Höchstens bis `tempo.SPANNE`.
 ERWEITERUNG = (3.5, 4.0)
 
-# Wie viele Aufnahmen je Faktor gehört werden. Zwei Dutzend sind genug, um
-# eine Gegend zu erkennen, und wenig genug, dass acht Faktoren zusammen unter
-# einer Minute bleiben. Sind weniger da, werden eben alle genommen.
+# Aufnahmen je Faktor: genug für eine Gegend, wenig genug für eine Minute.
 PROBEN = 24
 
-# Der Würfel ist fest: Dieselbe Faltung zieht auf jeder Maschine dieselbe
-# Stichprobe. Ohne das wäre ein wiederholter Lauf keine Wiederholung.
+# Fest, damit eine Faltung überall dieselbe Stichprobe zieht.
 KEIM = 8_1_2026
 
 
@@ -90,13 +56,11 @@ class Ergebnis:
     ton_s: float | None = None
     text_s: float | None = None
     roh: float | None = None
-    # Je Faktor sein WER - die Kurve hinter der Wahl. Ohne sie ist die Zahl
-    # oben nicht zu beurteilen: Ein Optimum, das sich vom Nachbarn um ein
-    # Promille unterscheidet, ist keines.
+    # Je Faktor sein WER - die Kurve hinter der Wahl.
     versuche: tuple[tuple[float, float], ...] = ()
     # Wie viele Aufnahmen je Faktor gehört wurden.
     proben: int = 0
-    # Warum weniger passiert ist als vorgesehen. Leer heißt: alles wie geplant.
+    # Warum weniger geschah als vorgesehen.
     hinweis: str = ""
 
     def als_dict(self) -> dict[str, Any]:
@@ -112,11 +76,7 @@ class Ergebnis:
         }
 
 
-# Was für Anfang und Ende jeder Aufnahme dazugerechnet wird: Luftholen,
-# Ansetzen, das Stück Stille vor dem ersten Laut und nach dem letzten. Eine
-# Sekunde ist grob und genügt - bei Sätzen von fünf bis fünfzehn Sekunden
-# verschiebt sie den Faktor um weniger als eine Viertelstufe, und feiner wäre
-# eine Genauigkeit, die die Schätzung nicht hergibt.
+# Luftholen und Stille an den Rändern - grob, verschiebt aber weniger als eine Viertelstufe.
 ZUSCHLAG_S = 1.0
 
 # Auf welches Raster der geschätzte Faktor gerundet wird.
@@ -132,23 +92,10 @@ def auf_stufe(faktor: float) -> float:
 def aus_dauern(zeilen: list[dict[str, Any]], bericht) -> Ergebnis:
     """Den Faktor aus Textlänge und Aufnahmedauer rechnen - ohne eine Erkennung.
 
-    **Die Idee.** Ein Text braucht bei gewöhnlichem Sprechtempo eine bestimmte
-    Zeit; wie lange, weiß dieses Projekt längst - `chunker.dauer()` schätzt es
-    aus der Zeichenzahl und schneidet damit die Vorlagen zu. Wie lange der
-    Mensch wirklich gebraucht hat, steht in jeder Manifestzeile. Das Verhältnis
-    aus beidem **ist** sein Tempo: Wer für einen Text doppelt so lange braucht
-    wie vorgesehen, spricht halb so schnell - und vorgespult um genau diesen
-    Faktor klingt er wie jemand, den Whisper kennt.
-
-    Gerechnet über die **Summen** einer Faltung und nicht je Aufnahme: Ein
-    einzelner Satz kann eine lange Pause enthalten oder einen Versprecher, und
-    ein Mittel über Quotienten gewichtete kurze Aufnahmen genauso stark wie
-    lange. Die Summe tut das nicht.
-
-    **Was das nicht ist.** Es misst nicht, was Whisper versteht, sondern wie
-    weit dieser Mensch von der Norm abweicht. Ob der so gefundene Faktor auch
-    der beste für die Erkennung ist, sagt erst der Vergleich in der Tafel -
-    dafür steht `optimal` daneben.
+    Aufnahmedauer durch geschätzte Sprechdauer (`chunker.dauer`) ist das
+    Tempo. Über die Summen der Faltung, damit Pausen einzelner Sätze und kurze
+    Aufnahmen nicht überwiegen. Misst die Abweichung von der Norm, nicht das
+    Verstehen - das sucht `optimal`.
 
     Kostet nichts: keine Erkennung, kein Modell, keine Karte. Nur Arithmetik
     über Zeilen, die ohnehin gelesen sind.
@@ -184,22 +131,10 @@ def aus_dauern(zeilen: list[dict[str, Any]], bericht) -> Ergebnis:
 def zusammengelegt(faltungen: list[dict[str, Any]]) -> tuple[float | None, list[dict[str, Any]]]:
     """Aus den Kurven aller Faltungen **eine** machen - und daraus den Faktor.
 
-    **Warum nicht der Median der Sieger.** So war es zuerst, und es verschenkte
-    die Daten. Eine einzelne Faltung hört sechzehn bis zwei Dutzend Aufnahmen;
-    ihr Sieger ist damit weitgehend Zufall. An einem echten Korpus im September
-    2026 wählten die sechs Faltungen 2,0 · 3,0 · 3,0 · 3,0 · 2,5 · 3,0, Median
-    also 2,75 - ein Wert, den keine Faltung je gemessen hatte. Legt man
-    dieselben sechs Kurven übereinander, fällt die gemittelte Kurve glatt und
-    ohne Ausreißer bis zum Rand durch, und das Minimum liegt eindeutig bei 3,0.
-
-    Die Zahlen liegen ohnehin vor. Sie wurden nur falsch verdichtet.
-
-    **Die Streuung steht dabei.** Der Abstand zwischen den beiden besten
-    Faktoren betrug dort 4,8 %, die Streuung derselben Stützstelle zwischen den
-    Faltungen 6,8 % - der Sieger war also von seinem Nachbarn nicht zu
-    unterscheiden. Wer das nicht danebenstehen hat, hält eine Zufallszahl für
-    ein Ergebnis. Als `unklar` markiert ist jeder Faktor, der innerhalb eines
-    Standardfehlers des besten liegt.
+    Der Sieger einer Faltung über zwei Dutzend Aufnahmen ist weitgehend
+    Zufall, und ein Median der Sieger kann ein nie gemessener Wert sein. Die
+    gemittelte Kurve ist glatter. `unklar` ist jeder Faktor innerhalb eines
+    Standardfehlers des besten - von ihm nicht zu unterscheiden.
     """
     kurven: list[dict[float, float]] = []
     for faltung in faltungen:
@@ -209,9 +144,7 @@ def zusammengelegt(faltungen: list[dict[str, Any]]) -> tuple[float | None, list[
     if not kurven:
         return None, []
 
-    # Nur Stützstellen, die **jede** Kurve hat: Die Erweiterung wird nur dort
-    # gemessen, wo der Rand gewann, und ein Mittel über verschieden viele
-    # Faltungen wäre kein Mittel.
+    # Nur Stützstellen jeder Kurve - die Erweiterung fehlt manchen.
     gemeinsam = sorted(set.intersection(*(set(kurve) for kurve in kurven)))
     if not gemeinsam:
         return None, []
@@ -236,9 +169,7 @@ def zusammengelegt(faltungen: list[dict[str, Any]]) -> tuple[float | None, list[
 def stichprobe(zeilen: list[dict[str, Any]], faltung: int | None) -> list[dict[str, Any]]:
     """Ein paar Lernzeilen dieser Faltung - im Original und gewürfelt, aber fest.
 
-    **Nur das Original.** Die abgewandelten Fassungen beantworten eine andere
-    Frage (verträgt das Modell Rauschen?) und würden hier nur die Stichprobe
-    verdünnen.
+    Nur Originale - Abwandlungen fragen etwas anderes.
     """
     original = [zeile for zeile in zeilen if str(zeile.get("variante")) == ORIGINAL]
     if len(original) <= PROBEN:
@@ -261,10 +192,7 @@ def waehle(
     Grundmodells oder das Verzeichnis eines Ausgangsstands
     (`ausgangsstand.erkenner`).
 
-    Scheitert die Suche - kein Audio, kein Modell, keine Karte -, ist das kein
-    Grund, den Lauf hinzuwerfen: Dann gilt 1,0, der Stand von immer, und der
-    Hinweis sagt, warum. Ein Training, das an der Vorbereitung einer Wahl
-    stirbt, die es auch ohne täte, wäre die schlechteste aller Antworten.
+    Scheitert die Suche, gilt 1,0 und der Hinweis sagt warum - der Lauf geht weiter.
     """
     from wortlaut.whisper.local import LokalerTranskriptor
 
@@ -277,18 +205,10 @@ def waehle(
     from apps.lernen.backend.config import einstellungen
 
     geraet, rechenart = einstellungen().rechenwerk()
-    # Das **unveränderte** Grundmodell unter seinem kurzen Namen - genau das,
-    # was `hören` in der Auswertung misst und was am Anfang jedes Feintunings
-    # steht. Setzt der Lauf auf einem Stand auf, steht der am Anfang.
+    # Das Modell am Anfang des Feintunings: Grundmodell oder Ausgangsstand.
     erkenner = LokalerTranskriptor(modell, geraet=geraet, rechenart=rechenart)
 
-    # Eine eigene Stufe, und nicht mehr stillschweigend unter „laden".
-    #
-    # Die Suche dauert rund eine Minute je Faltung - acht Dekodierdurchgänge
-    # über zwei Dutzend Aufnahmen. Solange stand in der Übersicht „Modell wird
-    # geladen", und das war schlicht falsch: Das Modell war längst geladen, es
-    # rechnete nur etwas anderes. Eine Stufe, die eine Minute lang das Falsche
-    # behauptet, ist schlimmer als gar keine.
+    # Eine eigene Stufe, damit die Übersicht sagt, was die Minute füllt.
     bericht.stufe("tempowahl")
     bericht.sage(f"  Tempowahl: {len(proben)} Aufnahmen × {len(RASTER)} Faktoren")
     versuche: list[tuple[float, float]] = []
@@ -312,13 +232,10 @@ def waehle(
         while offen:
             faktor = offen.pop(0)
             erledigt += 1
-            # Der Balken bewegt sich auch hier. Acht Schritte sind wenige, aber
-            # sie sind gezählt - und ein Balken, der eine Minute lang stillsteht,
-            # sieht aus wie ein Lauf, der hängt (`laeufe.Lauf.haengt`).
+            # Gezählt, damit der Balken nicht hängend aussieht.
             bericht.schritt(erledigt, erledigt + len(offen))
             miss(faktor)
-            # Nachlegen, solange der Rand gewinnt: Ein Minimum an der obersten
-            # Stützstelle sagt nichts über das Minimum, sondern über das Raster.
+            # Nachlegen, solange der Rand gewinnt (`ERWEITERUNG`).
             if not offen and versuche:
                 bester = min(versuche, key=lambda paar: paar[1])[0]
                 gemessen = {paar[0] for paar in versuche}

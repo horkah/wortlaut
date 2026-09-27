@@ -1,24 +1,15 @@
 """Ein Training, das auf die Karte wartet, statt an ihr zu scheitern.
 
-**Der Fall.** Am 27. September 2026 scheiterten drei Läufe binnen einer Minute
-am ersten Schritt mit `CUDA out of memory`. Die Karte war nicht zu klein für
-sie - der Webdienst hielt gut fünf ihrer elf Gigabyte, Erkenner einer
-Auswertung, die längst vorbei war. Beim Laden eines Erkenners wartete der
-Trainer da schon (`bewerten._hole_karte`); beim Lernen nicht.
+Die Karte teilt sich der Trainer mit dem Webdienst, dessen Erkenner sie
+zeitweise halten. Scheitert ein Training am Speicher, wird aufgeräumt - der
+Arbeitsstand der Faltung und was torch hält -, gewartet und die Faltung neu
+begonnen, im Takt des Ladens (`bewerten.WARTEZEITEN_S`).
 
-**Was hier geschieht.** Scheitert ein Training am Speicher, wird aufgeräumt -
-der Arbeitsstand dieser Faltung und was torch noch hält -, gewartet und die
-Faltung von vorn begonnen. Derselbe Takt wie beim Laden (`WARTEZEITEN_S`),
-aus demselben Grund: Die kurzen Belegungen sind in zehn Minuten vorbei, und
-eine Auswertung über Stunden auszusitzen hieße, die Karte zu blockieren statt
-zu teilen.
+Hält nach dem Aufräumen niemand sonst etwas, passt das Training nicht, und
+der Fehler steht sofort da.
 
-**Wann nicht gewartet wird.** Wenn nach dem Aufräumen niemand sonst etwas auf
-der Karte hält. Dann passt das Training nicht, und das wird in zehn Minuten
-nicht anders - der Fehler soll sofort dastehen.
-
-Ohne torch geschrieben, damit es sich ohne das Abbild des Trainers prüfen
-lässt: Was die Karte angeht, kommt von außen herein (`finetune.py`).
+Ohne torch, damit es sich ohne das Trainerabbild prüfen lässt; was die Karte
+angeht, kommt von außen (`finetune.py`).
 """
 
 from __future__ import annotations
@@ -31,18 +22,15 @@ from .bewerten import WARTEZEITEN_S
 
 Ergebnis = TypeVar("Ergebnis")
 
-# Was andere auf der Karte halten müssen, damit sich Warten lohnt. Nicht null:
-# Der eigene Prozess hält seinen CUDA-Kontext, ein paar hundert Megabyte, die
-# kein Aufräumen zurückgibt und die von außen aussehen wie die eines anderen.
+# Ab wann Warten lohnt. Nicht null: Der eigene CUDA-Kontext hält ein paar
+# hundert Megabyte, die von außen wie fremde aussehen.
 FREMD_AB_MB = 1000.0
 
 
 def ist_speichermangel(ursache: BaseException) -> bool:
     """Ob ein Fehler heißt: Die Karte ist voll.
 
-    Am Text und nicht an der Klasse: torch wirft `OutOfMemoryError`,
-    CTranslate2 beim Laden eines Erkenners in der Tempowahl einen nackten
-    `RuntimeError` - beide sagen „out of memory".
+    Am Text: torch wirft `OutOfMemoryError`, CTranslate2 einen `RuntimeError`.
     """
     return "out of memory" in str(ursache).lower()
 
@@ -74,9 +62,7 @@ def mit_geduld(
                 bericht.sage(f"  Karte frei nach {nummer} vergeblichen Versuchen.")
             return ergebnis
 
-        # Außerhalb des `except`: Solange die Ausnahme lebt, hält ihr
-        # Traceback die Rahmen des Trainings fest - samt Modell und
-        # Optimierer auf der Karte. Aufräumen ginge dort ins Leere.
+        # Außerhalb des `except`: Der Traceback hielte Modell und Optimierer fest.
         aufraeumen()
         fremd = fremd_belegt_mb()
         if fremd < FREMD_AB_MB:
