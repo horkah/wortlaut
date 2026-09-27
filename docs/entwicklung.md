@@ -1,16 +1,15 @@
 # Entwicklung
 
-Voraussetzungen: Python 3.12 mit [uv](https://docs.astral.sh/uv/), Node 20 oder
-neuer für das Frontend - und **ffmpeg im Pfad**, sonst schlägt jeder
-Aufnahme-Upload fehl.
+Python 3.12 mit [uv](https://docs.astral.sh/uv/), Node 20 oder neuer und
+**ffmpeg im Pfad** - ohne ffmpeg scheitert jeder Aufnahme-Upload.
 
 ```bash
 cp .env.example .env
 uv sync                      # Abhängigkeiten und die Bibliothek `wortlaut`
-make test                    # Testlauf, je nach Hardware 5-50 Sekunden
+make test
 ```
 
-`make install APP=<app>` holt die Frontend-Abhängigkeiten; `make dev APP=<app>`
+`make install APP=<app>` holt die Frontend-Abhängigkeiten, `make dev APP=<app>`
 startet Backend und Vite nebeneinander. Alle drei dürfen gleichzeitig laufen:
 
 | App | Backend | Vite | aufgerufen wird |
@@ -19,138 +18,78 @@ startet Backend und Vite nebeneinander. Alle drei dürfen gleichzeitig laufen:
 | `schreiben` | `:8001` | `:5174` | `http://localhost:5174/schreiben/` |
 | `lernen` | `:8002` | `:5175` | `http://localhost:5175/lernen/` |
 
-```bash
-make install APP=hoeren
-make dev APP=hoeren
-```
+Der Pfad gehört zur Adresse, weil die App dort liegt; ohne ihn bleibt die
+Seite leer. Vite leitet die API an das eigene Backend weiter, es braucht also
+keine CORS-Regeln. `schreiben` und `lernen` reichen `/api` an `hören` durch
+(Zugang, PIN), `lernen` dazu `/schreiben/api` (was geladen ist), und `hören`
+reicht `/schreiben` an dessen Vite.
 
-Die Pfade stehen mit in der Adresse, weil die Apps dort liegen - in der
-Entwicklung wie im Betrieb. Vite leitet `/api` an das jeweilige Backend weiter,
-deshalb gibt es keine CORS-Regeln; `lernen` reicht zusätzlich `/api` an `hören`
-durch (der Zugang und die PIN stehen im Korpus) und `/schreiben/api` an
-`schreiben` (die Modellübersicht zeigt, was dort geladen ist).
-
-Für `schreiben` braucht es einmal mehr:
+Für `schreiben`:
 
 ```bash
-uv sync --extra asr          # zusätzlich faster-whisper (nur für WORTLAUT_ASR=local)
+uv sync --extra asr               # faster-whisper
+uv sync --extra asr --extra gpu   # dazu die CUDA-Bibliotheken für CTranslate2
 ```
 
-Beim ersten Diktat lädt faster-whisper sein Modell herunter; das dauert einmalig
-und braucht Netz.
+Ohne Karte erkennt faster-whisper auf dem Prozessor. Das erste Diktat lädt
+das Modell herunter. `WORTLAUT_INTAKE_URL` zeigt in der Entwicklung auf
+`http://localhost:8000/api/korpus/intake`.
 
-Erkannt wird auf der Karte, wenn eine da ist - `uv sync --extra asr --extra gpu`
-legt die CUDA-Bibliotheken dazu, die CTranslate2 dafür braucht. Ohne sie
-(oder ohne Karte) fällt die Erkennung auf den Prozessor zurück, und alles
-funktioniert unverändert, nur langsamer. Welche Einstellung das steuert, steht
-in [Konfiguration](konfiguration.md#rechenwerk---worauf-erkannt-wird).
+Für Vorlagen vom Foto: `uv sync --extra ocr` und Tesseract im Pfad (siehe
+[Betrieb](betrieb.md#voraussetzungen)).
 
-`make migrate` schreibt alle Korpora auf einmal fort. Es ist kein erster
-Schritt: Neue Sprecher bekommen ihre Datenbank beim Anlegen, bestehende werden
-beim ersten Zugriff fortgeschrieben. Es ist der Weg, das für alle auf einmal und
-vor dem ersten Aufruf zu tun - etwa um zu sehen, was ein Update am Schema
-ändert.
+`make migrate` schreibt alle Korpora auf einmal fort; nötig ist es nicht, jede
+Datenbank holt sich ihr Schema beim ersten Zugriff.
 
 ---
 
-## Wie hier benannt wird
+## Konventionen
 
-Alles ist deutsch: Bezeichner, Kommentare, Commits, Oberfläche. Das ist keine
-Marotte, sondern folgt aus dem Gegenstand - die Menschen, für die diese App
-gebaut ist, lesen deutsch, und ein Feld, das in der Ansicht anders heißt als im
-Code, ist eine Stelle, an der jemand suchen muss.
+**Alles ist deutsch:** Bezeichner, Kommentare, Commits, Oberfläche. Die
+Menschen, für die die App gebaut ist, lesen deutsch, und ein Feld, das in der
+Ansicht anders heißt als im Code, ist eine Stelle, an der jemand suchen muss.
 
-**Zwei Ausnahmen, und sie sind beide erlebt.**
-
-**Kein erfundenes Deutsch, wo das englische Wort hier gebräuchlich ist.**
-„Basislinie" oder „Grundlinie" für das, was jeder Baseline nennt, ist keine
-Übersetzung, sondern eine zweite Vokabel, die der Leser erst auf die erste
-zurückführen muss. Dasselbe gälte für LoRA, Token, Commit oder Cache. Die Probe
-ist nicht, ob sich ein deutsches Wort bilden lässt - das lässt es sich immer -,
-sondern ob es draußen jemand benutzt. Im September 2026 fiel „Grundlinie"
-deshalb an 82 Stellen zugunsten von „Baseline".
+**Kein erfundenes Deutsch.** Wo ein englisches Wort gebräuchlich ist, bleibt
+es: Baseline, LoRA, Token, Commit, Cache. Die Probe ist, ob draußen jemand das
+deutsche Wort benutzt.
 
 **Zeitstempel formatiert nur der Browser.** Der Server legt sie als ISO-8601
-in UTC ab und schickt sie genauso hinaus; lesbar gemacht werden sie in
-`packages/ui/zeit.ts`. Er kennt die Zeitzone des Lesers nicht - auch dann
-nicht, wenn er zufällig im selben Land steht. Im September 2026 stand derselbe
-Augenblick in der Trainingsliste als 14:38 und im Steckbrief als 12:38, weil
-der eine Wert im Browser gerechnet und der andere im Server mit `strftime`
-geschrieben wurde. Über Mitternacht springt dabei sogar das Datum.
+in UTC ab und schickt sie so hinaus; lesbar werden sie in `packages/ui/zeit.ts`.
+Der Server kennt die Zeitzone des Lesers nicht.
 
-**Keine Beschriftung, die eine Anzahl festschreibt.** „Beste der vier" stand
-über einer Spalte, weil es einmal vier Fassungen einer Aufnahme gab. Dann
-fielen zwei Abwandlungen weg, und die Überschrift log - ohne dass ein Test
-darauf ansprang, denn sie war richtiger Text an falscher Stelle. Eine
-Beschriftung soll sagen, **was** dort steht, nicht wie viele es sind:
-„Bestwert". Wo die Zahl wirklich gebraucht wird, kommt sie aus den Daten und
-nicht aus dem Satz.
+**Keine Beschriftung, die eine Anzahl festschreibt.** „Bestwert", nicht „Beste
+der vier" - die Zahl ändert sich, und die Überschrift lügt dann, ohne dass ein
+Test anschlägt. Wo eine Zahl gebraucht wird, kommt sie aus den Daten.
 
----
+**Nur der aktuelle Stand.** Code, Kommentare, Doku und Oberfläche beschreiben,
+was gilt und warum - nicht, wie es vorher war. Die Geschichte steht in der
+Commit-History; ausgenommen sind datierte Berichte.
 
-## Was allen drei Apps gemeinsam ist
-
-Die drei Oberflächen teilen sich `packages/ui/`. Dort liegt, was in allen
-dreien gleich aussehen und gleich heißen muss - und zwar als **eine**
-Definition und nicht als drei gleichlautende:
-
-* **Das ganze Menü** (`menuePunkte` in `apps.ts`). „Meine Daten" oder
-  „Sprecher", je nachdem wer angemeldet ist, immer die „Zugangsdaten", dann
-  Audio, Darstellung und System. Welche Adresse ein Punkt bekommt, rechnet die
-  Funktion aus: In „hören" sind es Hash-Routen, von außen volle Adressen, denn
-  diese Ansichten liegen in „hören".
-* **Die Ansichten hinter dem Menü** (`Rahmen.svelte`). Audio, Darstellung,
-  System und Zugangsdaten zeigt der Rahmen selbst, und er liest dafür
-  denselben Zustand wie jede App (`lage.svelte.ts`: Route und Zugang). Eine
-  App reicht nichts davon herein - weder die Sprache noch die Stimmen vom
-  Server noch, wohin es nach einem angenommenen Zugang weitergeht.
-* **Die Reiter** (`REITER` in `apps.ts`). Eine App ordnet jedem Pfad nur ihre
-  Ansicht zu; welcher offen ist und welcher beim nächsten Öffnen gilt, rechnet
-  der Rahmen.
-* **Die Regel für „kein Zugang"**. Weist der Browser nichts vor, steht
-  überall derselbe eine Satz statt einer Ansicht, deren Anfragen sämtlich
-  abgewiesen würden - ausgenommen die Ansichten hinter dem Menü, denn zu den
-  Zugangsdaten führt der Hinweis.
-
-**Warum das hier steht.** Bis September 2026 baute sich jede App diese Listen
-selbst, und sie waren verschieden: „hören" führte für die Aufsicht „Sprecher",
-die anderen beiden nichts; „Meine Daten" hatte in zweien ein `href` und im
-dritten nicht; und den Hinweis auf die Zugangsdaten kannten nur zwei - in
-„hören" landete man ohne Zugang auf der Verwaltung, deren Anfragen alle
-scheiterten. Danach reichte noch jede App ihrem Rahmen einzeln herein, was
-das Menü zeigen sollte, und wieder ungleich: Die Stimmen vom Server standen
-unter „Audio" nur zur Wahl, wenn man es aus „hören" öffnete.
-
-Keine dieser Abweichungen war je entschieden worden. Sie waren entstanden,
-weil dieselbe Überlegung dreimal angestellt wurde und zweimal etwas anders
-ausfiel. Das ist die Art Redundanz, die dieses Verzeichnis verhindern soll:
-nicht doppelter Code, sondern doppelte **Entscheidungen**.
+**Eine Entscheidung, ein Ort.** Die drei Oberflächen teilen `packages/ui/`:
+das Menü (`menuePunkte` in `apps.ts`), die Ansichten dahinter
+(`Rahmen.svelte`), die Reiter (`REITER` in `apps.ts`) und die Regel für „kein
+Zugang". Eine App ordnet ihren Pfaden nur ihre Ansichten zu; was sonst in
+jeder App gleich sein muss, steht einmal da. Doppelter Code ist lästig,
+doppelte Entscheidungen fallen auseinander.
 
 ---
 
 ## Der Trainer
 
-Die Oberfläche von `lernen` teilt zu, beauftragt und zeigt - gerechnet wird
-dort nicht. Dafür braucht es den Trainer, und der braucht eine Karte:
+Die Oberfläche von `lernen` beauftragt und zeigt; gerechnet wird im Trainer,
+und der braucht eine Karte:
 
 ```bash
 docker compose --profile training up -d training   # im Betrieb
 make trainer                                       # auf dieser Maschine
+make train JOB=job_01J8…                           # einen Auftrag ohne Warteschlange
 ```
 
-`make trainer` setzt voraus, dass `torch`, `transformers`, `peft` und
-`accelerate` installiert sind. Sie stehen absichtlich **nicht** in den
-Abhängigkeiten dieses Projekts: Drei Gigabyte CUDA in jedem `uv sync`, damit
-eine App eine Oberfläche ausliefern kann, wäre der falsche Handel. Sie stehen
-im Abbild unter `apps/lernen/training/Dockerfile`.
-
-Ohne Karte lässt sich alles außer dem Rechnen benutzen: Die Aufteilung steht,
-Aufträge sammeln sich in der Warteschlange und gehen nicht verloren.
-
-`make train JOB=job_01J8…` rechnet einen einzelnen Auftrag ohne Warteschlange -
-zum Nachsehen, woran ein gescheiterter gescheitert ist.
-
-Betrieb, Reverse Proxy und Fehlersuche stehen in [`betrieb.md`](betrieb.md).
+`make trainer` setzt `torch`, `transformers`, `peft` und `accelerate` voraus.
+Sie stehen nicht in den Abhängigkeiten des Projekts, sondern im Abbild
+`apps/lernen/training/Dockerfile` - Gigabyte an CUDA gehören nicht in jedes
+`uv sync`. Ohne Karte lässt sich alles außer dem Rechnen benutzen; Aufträge
+sammeln sich und gehen nicht verloren.
 
 ---
 
@@ -158,36 +97,26 @@ Betrieb, Reverse Proxy und Fehlersuche stehen in [`betrieb.md`](betrieb.md).
 
 ```bash
 make test
+cd apps/<app>/frontend && npm run check      # Typen im Frontend
 ```
 
-Läuft in gut einer Sekunde: ohne GPU, ohne Netz, ohne Mikrofon.
+Ohne GPU, ohne Netz, ohne Mikrofon.
 
-| Ort | Prüft |
+| Ort | prüft |
 |---|---|
-| `packages/wortlaut/tests/` | Chunker, Textformate, Audiomessung und -schnitt, Ablage, Migrationen, Registry, Fehlerraten |
-| `apps/hoeren/tests/` | Endpunkte gegen eine echte SQLite-Datei im Temporärverzeichnis; dazu die Trennung: Der Zugang des einen öffnet den Korpus des anderen nicht, und eine fremde Kennung im Parameter endet mit 403 statt mit einem Schreibvorgang. Für die Aufsicht: dass sie ohne Token zu ist, dass ihre Sicherung sich wirklich zurückspielen lässt, und dass es keinen Weg gibt, der mehr als einen Sprecher löscht. Und: dass ein Korpus im ältesten Schemastand beim ersten Zugriff eingeholt wird, statt die Ansicht stillzulegen |
-| `apps/hoeren/tests/test_auswertung.py` | Der Auswertungslauf ohne Whisper: was offen ist, was ein Fehlschlag anrichtet, dass ein zweiter Lauf nichts doppelt tut |
-| `apps/lernen/tests/` | Aufteilung und ihre Beständigkeit, Aufträge, der Vergleich mit der Baseline, die Modelltabelle auf gemeinsamen Testaufnahmen, die Freigabe - und dass diese App keinen Weg hat, der in den Korpus schreibt |
+| `packages/wortlaut/tests/` | Chunker, Textformate, Zeichenerkennung, Audio, Ablage, Migrationen, Registry, Laufverzeichnis, Fehlerraten, Streuung |
+| `apps/hoeren/tests/` | Endpunkte gegen echte SQLite-Dateien; die Trennung der Korpora; Aufsicht, Sicherung und Wiederherstellung; Zuschnitt; der Auswertungslauf ohne Whisper |
+| `apps/lernen/tests/` | Faltungen, Aufträge, Kernauswahl, Vergleich mit der Baseline, Modelltafel, Freigabe, Anhalten - und dass diese App nicht in den Korpus schreibt |
 | `apps/schreiben/tests/` | Diktat und Abschnittsersatz, Postausgang, welches Modell geladen wird |
+| `tests/` | was keine einzelne App betrifft, etwa `apps/gesamt.py` |
 
-Zwei Regeln halten den Aufwand klein und die Aussagekraft hoch:
+**Nachgebaut wird so wenig wie möglich.** Echte SQLite-Dateien, echte Dateien,
+echte Endpunkte. Ersetzt ist nur, was Geld, Netz oder eine GPU kostet: der
+LLM-Anbieter, Whisper, der Weg von `schreiben` zurück zu `hören`.
 
-**Nachgebaut wird so wenig wie möglich.** Die Tests sprechen mit echtem SQLite,
-echten Dateien und den echten Endpunkten. Ersetzt ist nur, was Geld, Netz oder
-eine GPU kosten würde: der LLM-Anbieter, ffmpeg, Whisper und der Weg von
-`schreiben` zurück zu `hören`.
+**ffmpeg wird einmal wirklich benutzt:** Ein Test schickt eine Opus-Datei wie
+aus dem Browser an `POST /api/recordings` und prüft 16 kHz mono im Korpus.
+Fehlt ffmpeg, werden diese Tests übersprungen. Dasselbe gilt für Tesseract.
 
-**ffmpeg wird trotzdem einmal wirklich benutzt.** Ein Test erzeugt eine
-Opus-Datei, wie sie ein Browser liefert, schickt sie an `POST /api/recordings`
-und prüft, dass im Korpus 16 kHz Mono liegen. Damit ist der Weg vom Browser bis
-zur Datei einmal vollständig durchlaufen; die übrigen Aufnahmetests kommen
-ohne externes Programm aus. Fehlt ffmpeg, werden diese drei Tests übersprungen
-statt zu scheitern.
-
-Was noch fehlt: das Frontend hat keine eigenen Tests. `npm run check`
-(svelte-check) prüft dort bislang nur die Typen.
-
-Den kompletten Weg im Browser - Sprecher anlegen, Textquelle, Aufnehmen,
-Fortschritt - deckt kein automatisierter Test ab. Dafür gibt es eine
-Schritt-für-Schritt-Anleitung zum Selbst-Durchklicken:
-[`manueller-test.md`](manueller-test.md).
+Das Frontend hat keine eigenen Tests; den Weg im Browser deckt der
+[manuelle Test](manueller-test.md) ab.

@@ -2,506 +2,166 @@
 
 ## Voraussetzungen
 
-- Python 3.12 mit [uv](https://docs.astral.sh/uv/)
-- Node 20 oder neuer (nur für das Frontend)
-- **ffmpeg** im Pfad - ohne das schlägt jeder Aufnahme-Upload fehl
-- **tesseract** im Pfad, wenn Vorlagen fotografiert werden sollen - ohne das
-  fehlt nur dieser Weg, alles andere läuft (`wortlaut/text/ocr.py`)
+- **ffmpeg** im Pfad - ohne ffmpeg scheitert jeder Aufnahme-Upload
+- **tesseract** mit den Sprachdateien des Profils, wenn Vorlagen fotografiert
+  werden - sonst fehlt nur dieser Weg (`wortlaut/text/ocr.py`)
+- für den Trainer eine NVIDIA-Karte und das NVIDIA Container Toolkit
+
+Im Abbild steht beides. Von Hand, auf Debian oder Ubuntu:
 
 ```bash
-ffmpeg -version          # muss etwas ausgeben
-tesseract --list-langs   # freiwillig; „deu" sollte dabeistehen
-```
-
-Im Abbild dieses Projekts stehen beide drin. Von Hand, auf Debian oder Ubuntu:
-
-```bash
-sudo apt install ffmpeg tesseract-ocr tesseract-ocr-deu
+sudo apt install ffmpeg tesseract-ocr tesseract-ocr-deu tesseract-ocr-eng
 uv sync --extra ocr      # pytesseract, pillow, pypdfium2, pillow-heif
 ```
 
-Die Sprachdateien werden einzeln installiert und nicht als `tesseract-ocr-all`:
-Zwei wiegen wenige Megabyte, alle zusammen über ein Gigabyte. Wer eine dritte
-Sprache führt, trägt sie hier und im `Dockerfile` nach - dieselbe Liste wie in
-`sprachen.UNTERSTUETZT`.
+Die Sprachdateien einzeln, nicht `tesseract-ocr-all` (über ein Gigabyte); es
+sind dieselben wie in `sprachen.UNTERSTUETZT` und im `Dockerfile`. Lokale
+Entwicklung und Tests stehen in [Entwicklung](entwicklung.md).
 
-## Entwicklung
-
-```bash
-cp .env.example .env
-uv sync                      # Abhängigkeiten und die Bibliothek `wortlaut`
-cd apps/hoeren/frontend && npm install && cd -
-make dev APP=hoeren          # Backend auf :8000, Vite auf :5173
-```
-
-Aufgerufen wird `http://localhost:5173`. Vite leitet alles unter `/api` an das
-Backend weiter, deshalb gibt es keine CORS-Regeln.
-
-Für „schreiben" dasselbe mit eigenen Ports - beide dürfen nebeneinander laufen:
-
-```bash
-uv sync --extra asr          # zusätzlich faster-whisper (nur bei WORTLAUT_ASR=local)
-cd apps/schreiben/frontend && npm install && cd -
-make dev APP=schreiben       # Backend auf :8001, Vite auf :5174
-```
-
-Aufgerufen wird `http://localhost:5174/schreiben/` - **mit Pfad**, weil die App
-dort liegt, in der Entwicklung wie im Betrieb (`base` in ihrer
-`vite.config.ts`, `BASIS` in ihrer `main.py`). Ohne den Pfad antwortet Vite mit
-einer leeren Seite, das ist kein Fehler der App.
-
-Laufen beide Apps, führt auch der Reiter „schreiben" auf `http://localhost:5173`
-hinüber: Vite von „hören" reicht `/schreiben` an den Nachbarn auf 5174 durch,
-wie im Betrieb der Reverse Proxy. Läuft „schreiben" nicht, steht dort ein
-Verbindungsfehler - dann fehlt `make dev APP=schreiben`.
-
-Beim ersten Diktat lädt faster-whisper sein Modell aus dem Netz; das dauert
-einmalig und landet im Cache von huggingface. `WORTLAUT_ASR_MODELL=small` ist
-die Vorgabe: die kleinste Stufe, die ohne GPU noch ganze Sätze trifft.
-
-Damit die Korrekturen ankommen, muss in der `.env` `WORTLAUT_INTAKE_URL` auf
-die laufende „hören"-Instanz zeigen (in der Entwicklung
-`http://localhost:8000/api/korpus/intake`). Einen Token braucht es dafür nicht
-mehr: Gesendet wird mit dem Zugang dessen, der den Text bestätigt hat. Fehlt
-die Adresse, sammelt der Postausgang die Korrekturen, statt sie zu verwerfen.
-
-Diktieren kann in „schreiben", wer seinen persönlichen Link einmal geöffnet
-hat - denselben wie in „hören". Ohne ihn zeigt die App „Kein Zugang" statt
-eines Aufnahmeknopfes, der ins Leere liefe.
-
-Für „lernen" ebenso, mit den nächsten freien Ports:
-
-```bash
-cd apps/lernen/frontend && npm install && cd -
-make dev APP=lernen          # Backend auf :8002, Vite auf :5175
-```
-
-Aufgerufen wird `http://localhost:5175/lernen/` - **mit Pfad**, aus demselben
-Grund wie bei „schreiben".
-
-Diese App rechnet nicht. Sie teilt die Aufnahmen in Lernen und Prüfen, legt
-Aufträge an und zeigt, was daraus wird; das Training selbst läuft im Container
-`training` (siehe unten) oder, auf einer Maschine mit Karte, über
-`make trainer`. Letzteres setzt `torch`, `transformers`, `peft` und
-`accelerate` voraus - sie stehen absichtlich nicht in `uv sync`, denn drei
-Gigabyte CUDA für eine Oberfläche wären der falsche Handel.
-
-Ohne Karte lässt sich alles außer dem Rechnen ansehen: Die Faltungen stehen,
-Aufträge sammeln sich und gehen nicht verloren.
-
-`make migrate` schreibt alle Korpora auf einmal fort. Nötig ist es dafür
-nicht: Neue Sprecher bekommen ihre Datenbank beim Anlegen, bestehende werden
-beim ersten Zugriff fortgeschrieben - ein Update braucht deshalb keinen
-zusätzlichen Schritt und keine Erinnerung daran. Wer es dennoch aufruft,
-verschiebt das bloß nach vorn und sieht in der Ausgabe, was offen war.
-
-## Tests
-
-```bash
-make test                    # oder: uv run pytest
-cd apps/hoeren/frontend && npm run check      # Typen im Frontend
-cd apps/schreiben/frontend && npm run check   # dasselbe für „schreiben"
-```
-
-Der Testlauf braucht weder Netz noch GPU noch Mikrofon. Ohne ffmpeg im Pfad
-werden drei Tests übersprungen statt zu scheitern - die übrigen laufen
-vollständig durch. Was geprüft wird, steht im
-[Entwicklung](entwicklung.md#tests).
-
-Den Weg im Browser deckt das nicht ab - dafür gibt es
-[`docs/manueller-test.md`](manueller-test.md), zum Durchklicken nach jeder
-Änderung an Frontend oder Endpunkten.
+---
 
 ## Betrieb mit Compose
 
 ```bash
 docker compose up -d --build
+docker compose --profile training up -d --build training
 ```
 
-**Was ein Neubau kostet.** Das `--build` ist billig, solange die Schichten
-stimmen - und sie sind darauf eingerichtet (siehe die Begründungen im
-`Dockerfile`):
+**Ein Container für alle drei Apps** (`wortlaut`): ein uvicorn, `hören` auf
+der Wurzel, `lernen` unter `/lernen`, `schreiben` unter `/schreiben` -
+zusammengesetzt in `apps/gesamt.py`, gebaut vom `Dockerfile` im
+Wurzelverzeichnis. Geteilt wird der Prozess, sonst nichts: Jede App behält
+Datenbank, Ablage und Zugangsregeln, und die Korrekturen gehen über die API
+(`WORTLAUT_INTAKE_URL` auf `http://127.0.0.1:8000/api/korpus/intake`). Die
+Frontends werden beim Bauen gebaut und mit ausgeliefert.
 
-| Geändert | Dauer |
-|---|---|
-| nur `apps/**` (Backend) | ~1 s |
-| ein Frontend | ~6 s - die anderen beiden bleiben stehen |
-| `packages/ui` (geteilte Oberfläche) | ~7 s - alle drei, aber nebeneinander gebaut |
-| `packages/wortlaut/**` | ~3 s |
-| `pyproject.toml` (neue Abhängigkeit) | Minuten - aber ohne Netz, aus dem pip-Speicher |
+**Der Trainer** (`training`) steht hinter `profiles: [training]`: Ohne das
+Profil wird er weder gebaut noch gestartet noch gestoppt.
+`COMPOSE_PROFILES=training` in der `.env` nimmt ihn immer mit. Er hängt an
+keinem Netz und spricht nur mit dem Datenverzeichnis.
 
-Bis September 2026 kostete die dritte Zeile **234 Sekunden**: Die Bibliothek
-stand über `pip install`, also lud jede geänderte Zeile darin 1,35 GB cuBLAS
-und cuDNN neu. Jetzt hängt die teure Schicht allein an `pyproject.toml` - an
-der Datei, in der die Abhängigkeiten wirklich stehen. Die Räder liegen zudem in
-einem BuildKit-Cache außerhalb des Abbilds; auch eine neue Abhängigkeit holt
-danach nur noch das eine neue Rad aus dem Netz.
+**Ollama** (`ollama`) liefert die Textquelle, im internen Netz, auf derselben
+Karte.
 
-Wer am Quelltext nichts geändert hat, braucht das `--build` ohnehin nicht:
-`docker compose up -d` genügt.
+**Neubauen ist billig**, solange die Schichten stimmen: Backend ~1 s, ein
+Frontend ~6 s, `packages/ui` ~7 s, `packages/wortlaut` ~3 s. Nur eine
+geänderte `pyproject.toml` baut die Abhängigkeiten neu, aus dem BuildKit-Cache.
+`docker buildx du` zeigt den Bauspeicher, `docker buildx prune` räumt ihn.
 
-**Der Trainer ist in all dem nicht enthalten.** Er steht hinter `profiles:
-[training]`, und ein `docker compose up -d --build` ohne das Profil übergeht
-ihn vollständig: Er wird nicht gebaut, nicht gestartet - und auch nicht
-gestoppt. Wer beides will, nennt ihn:
+### Was wo liegt
+
+| Im Container | Auf dem Wirt | Inhalt |
+|---|---|---|
+| `/srv/wortlaut/data` | Volume `wortlaut-data` | Korpora, Diktate - unersetzlich |
+| `/srv/wortlaut/data/modelle`, `…/snapshots` | `WORTLAUT_TRAININGSABLAGE/{modelle,snapshots}` | Stände und Läufe - aus dem Korpus neu zu rechnen |
+| `/srv/wortlaut/modellcache` | `WORTLAUT_MODELLCACHE` | Grundmodelle, Stimmen - neu zu laden |
+| `/root/.ollama` (Dienst `ollama`) | `WORTLAUT_OLLAMACACHE` | Modelle von Ollama - `ollama pull` |
+
+Im Volume bleibt nur, was sich nicht wiederbeschaffen lässt; alles andere
+gehört auf die große Platte. Gesichert wird über die Aufsicht, nicht durch
+Kopieren des Volumes (siehe [Sichern](#sichern-und-wiederherstellen)). Der
+erste Start lädt Grundmodelle nach; darauf nimmt die `start_period` des
+Healthchecks Rücksicht.
+
+**Die Ablagen des Wirts von Hand anlegen.** Die Mounts tragen
+`create_host_path: false`: Fehlt die Quelle, startet der Container nicht,
+statt still zwanzig Gigabyte auf die Systemplatte zu legen, weil die große
+Platte gerade nicht eingehängt ist.
 
 ```bash
-docker compose --profile training up -d --build
+mkdir -p /pfad/zur/grossen/platte/wortlaut/{huggingface,ollama,training/{modelle,snapshots}}
 ```
 
-Dass er in `docker compose ps` trotzdem auftaucht, ist kein Widerspruch: Die
-Liste zeigt, was läuft, das Profil entscheidet, was angefasst wird. Wer ihn auf
-diesem Wirt immer dabeihaben will, setzt `COMPOSE_PROFILES=training` in die
-`.env` - dann genügt wieder der Befehl ohne Schalter.
+Die Platte gehört vor Docker in den Systemstart, in der `/etc/fstab` über
+`LABEL=` oder `UUID=` und mit `x-systemd.before=docker.service`:
 
-Der Preis dafür steht auf der Platte: `docker buildx du` zeigt, was der
-Bauspeicher belegt - die Radspeicher von pip und npm sind darin gut anderthalb
-Gigabyte, die übrigen Schichten wachsen über die Monate auf ein Vielfaches
-davon. `docker buildx prune` räumt auf; der nächste Bau dauert dann wieder
-einmalig seine vier Minuten.
+```
+LABEL=backup  /backup  ext4  defaults,x-systemd.before=docker.service  0  2
+```
 
-**Ein Container für alles.** Darin ein uvicorn für beide Apps: „hören" auf der
-Wurzel, „schreiben" unter `/schreiben` - zusammengesetzt in `apps/gesamt.py`,
-gebaut vom `Dockerfile` im Wurzelverzeichnis. Compose bindet ihn an
-`127.0.0.1:8000`; aus dem Netz erreichbar ist allein der Reverse Proxy des
-Wirts, und der braucht genau eine Regel auf diesen Port.
+### Migrationen und Varianten
 
-Geteilt wird der Prozess, sonst nichts: Jede App behält ihre Datenbank, ihre
-Ablage und ihre Zugangsregeln - die `/api`-Wege von „hören" hinter dem Token,
-„schreiben" ohne (Grundentscheidung 7). Auch der Weg der Korrekturen bleibt die
-API und nicht das Dateisystem (Grundentscheidung 6); er zeigt nur auf
-`127.0.0.1` statt in ein Containernetz, deshalb steht `WORTLAUT_INTAKE_URL` in
-der `compose.yaml` auf `http://127.0.0.1:8000/api/korpus/intake`. Verklemmen
-kann das nicht: Der Postausgang sendet in einem Arbeitsfaden, während die
-Ereignisschleife die eingehende Lieferung annimmt.
-
-Die Daten liegen im Volume `wortlaut-data` - `korpus/` gehört „hören",
-`diktate/` gehört „schreiben". Zwei Verzeichnisse darin liegen auf dem Wirt
-woanders, siehe unten: `modelle/` und `snapshots/`. Gesichert wird nicht durch Kopieren dieses
-Volumes, sondern über die Aufsicht: Sie zieht ein Archiv, das den laufenden
-Dienst nicht anhält und trotzdem einen in sich stimmigen Stand enthält (siehe
-[Sichern und Wiederherstellen](#sichern-und-wiederherstellen)). Wer das Volume
-doch von Hand kopiert, hält den Dienst vorher an - SQLite im WAL-Modus mag
-keine Kopie mitten im Schreibvorgang.
-
-Die Grundmodelle liegen **nicht** in diesem Volume. Sie kommen von Hugging
-Face, wiegen zusammen mehrere Gigabyte und sind jederzeit neu zu holen - das
-Gegenteil des Korpus, der klein und unersetzlich ist. Deshalb ein eigener
-Pfad: Im Container immer `/srv/wortlaut/modellcache` (`HF_HOME` in den
-Dockerfiles), auf dem Wirt das, was `WORTLAUT_MODELLCACHE` in der `.env`
-sagt - hier `/backup/wortlaut/huggingface`, also die große Platte statt der
-SSD. Ohne den Eintrag landet es in `./data/modellcache` neben den Daten.
-Ein Sicherungsplan braucht diesen Pfad nicht; wer ihn löscht, verliert eine
-Wartezeit und keine Daten. Ohne ihn lüde jeder Neustart erneut herunter - der
-erste Start dauert deshalb einige Minuten, worauf die `start_period` der
-Healthcheck-Prüfung Rücksicht nimmt. Liegt er auf einer langsamen Platte,
-dauert das Laden etwas länger; gerechnet wird danach ohnehin auf der Karte.
-
-Für Ollama gilt dasselbe und aus demselben Grund: Sein Verzeichnis
-`/root/.ollama` - fünf Gigabyte Sprachmodell, dazu sein Schlüsselpaar - liegt
-nicht mehr in einem Volume, sondern unter `WORTLAUT_OLLAMACACHE`, hier
-`/backup/wortlaut/ollama`. Was dort fehlt, holt ein `ollama pull` zurück.
-
-Dasselbe gilt zuletzt für das, was ein Training hervorbringt - und hier ist
-die Begründung eine andere, weil diese Dateien niemand nachlädt: Ein
-Modellstand unter `modelle/<sprecher>/<version>/` wiegt knapp ein Gigabyte, ein
-Laufverzeichnis unter `snapshots/<job_id>/` trägt Auftrag, Manifest, Protokoll
-und Bewertung. Beides ist **aus dem Korpus** neu zu rechnen. Das kostet eine
-Stunde auf der Karte und keine einzige Aufnahme, und es ist keine neue
-Entscheidung: Die Sicherung lässt beides seit jeher draußen
-(`wortlaut/sicherung.py`, und `loeschung.datenverzeichnisse` sagt es in einem
-Satz - „ein Schnappschuss ist eine Kopie, und eine Kopie sichert man nicht
-mit").
-
-Nach derselben Regel bleiben zwei weitere Dinge draußen, die im Volume sehr
-wohl liegen: die abgewandelten Fassungen unter `korpus/…/audio/varianten/` und
-die Messwerte der Auswertung in der Tabelle `erkennungen`. Sie sind im Betrieb
-nützlich und in einer Sicherung nur schwer - drei Viertel des Audios im Archiv
-wären dann nie gesprochen worden. Was das für den Wiederanlauf heißt, steht
-unter [Sichern und Wiederherstellen](#sichern-und-wiederherstellen).
-
-Das greift ineinander: In `erkennungen` stehen seit September 2026 auch die
-Messwerte der Kreuzvalidierung zu jedem trainierten Stand
-(`014_erkennungen_aus_faltungen.sql`). Sie fallen mit der Tabelle weg - aber
-ebenso fallen die Laufverzeichnisse und die Stände selbst weg, aus denen sie
-stammen. Ein wiederhergestellter Korpus hat also keine Stände, zu denen eine
-Zahl fehlen könnte, und der nächste Auswertungslauf misst die Grundmodelle neu.
-
-Im Container bleiben sie deshalb genau dort, wo der Quelltext sie sucht -
-`data/modelle/` und `data/snapshots/` unter `WORTLAUT_DATA_DIR`; keine Zeile
-Python weiß von dieser Änderung. Auf dem Wirt kommen sie aus
-`WORTLAUT_TRAININGSABLAGE`, hier `/backup/wortlaut/training`, und werden als
-zwei Unterverzeichnisse in das Datenverzeichnis hineingehängt.
-
-Damit bleibt im Volume nur noch, was sich nicht wiederbeschaffen lässt: die
-Aufnahmen, die Datenbanken, der Arbeitsstand von „schreiben". Was gesichert
-werden muss, ist keine Frage der Auswahl mehr, sondern eine des Ortes.
-
-Ein Vorbehalt gehört dazu. `/backup` ist eine zweite Platte in derselben
-Maschine, keine zweite Maschine - für die Modellstände ist das eine Frage der
-Rechenzeit und nicht der Daten, für den Korpus wäre es zu wenig. Der bleibt
-deshalb auf der SSD und wird über die Aufsicht gesichert.
-
-Vite läuft nicht mit - es ist reines Entwicklungswerkzeug. Beide Frontends
-werden beim `docker build` einmal gebaut und vom Prozess mit ausgeliefert.
-
-### Migrationen im Container
-
-Ein Update braucht dafür keinen Schritt. Neue Sprecher bekommen ihre
-Migrationen beim Anlegen, bestehende beim ersten Zugriff auf ihre Datenbank
-(`deps.engine_fuer`) - ein `docker compose up -d --build` genügt, die Korpora
-holen sich das neue Schema selbst.
-
-Das war einmal anders, und der Fehler ist die Erklärung für diesen Abschnitt:
-`004_pin.sql` brachte eine Spalte mit, bestehende Korpora bekamen sie nie, und
-weil die Modelle sie schon abfragten, scheiterte danach jedes `SELECT` auf
-`speakers` - kein Sprecher mehr in der Aufsicht, und niemand mehr herein, denn
-die Zugangsprüfung liest dieselbe Tabelle.
-
-Von Hand geht es weiterhin: um vor dem ersten Aufruf alle Korpora auf einmal
-fortzuschreiben, oder um zu sehen, was ein Update am Schema ändert.
+Ein Update braucht keinen Handgriff: Jede Datenbank holt sich ihr Schema beim
+ersten Zugriff. Für alle auf einmal, oder um zu sehen, was offen war:
 
 ```bash
 docker compose exec wortlaut python scripts/migrate.py
-# spr_…: 004_pin      ← war offen, ist jetzt eingespielt
-# spr_…: aktuell      ← nichts zu tun
 ```
 
-**`make migrate` gibt es im Container nicht.** Das Abbild trägt weder den
-Makefile noch `uv` - nur Python und `scripts/` (siehe `Dockerfile`); die
-Kurzform ist dem Wirt vorbehalten. Pfade oder Umgebung braucht der Aufruf
-nicht: `WORKDIR` steht auf `/srv/wortlaut`, `WORTLAUT_DATA_DIR` kommt aus der
-`compose.yaml`. Zweimal aufgerufen tut er beim zweiten Mal nichts - was
-gelaufen ist, steht in `schema_migrations`.
+Im Container gibt es weder `make` noch `uv`. Daneben:
 
-Daneben steht `scripts/augmentieren.py`. Es rechnet die abgewandelte Fassung
-aller Aufnahmen - verrauscht; jede Aufnahme wird damit zweimal gemessen (siehe
-[hören](hoeren.md#zwei-fassungen-je-aufnahme)). Nötig ist es nicht: Die Fassung
-entsteht beim Hochladen einer Aufnahme und spätestens dann, wenn die Auswertung
-sie braucht. Es ist der Weg, das für alle Korpora auf einmal und **vor** einem
-Lauf zu tun - oder vor einer Sicherung, die den vollständigen Datensatz
-enthalten soll.
-
-```bash
-docker compose exec wortlaut python scripts/augmentieren.py
-# spr_…: 42 Aufnahmen, 42 Fassungen neu gerechnet
-# spr_…: 12 Aufnahmen, 0 Fassungen neu gerechnet   ← war schon vollständig
-```
-
-Auf dem Wirt heißt dasselbe `make augmentieren`. Ein zweiter Lauf rechnet
-nichts neu, und er kostet Platz: Der Korpus wird dadurch etwa doppelt so groß.
-
-Das Gegenstück dazu ist `scripts/varianten_aufraeumen.py`. Es entfernt
-Fassungen, die es **nicht mehr** gibt - Dateien einer abgeschafften Abwandlung
-stehen in keiner Tabelle, also räumt sie auch keine Migration weg. Es kennt
-keine Namensliste, sondern vergleicht, was auf der Platte liegt, mit dem, was
-`augmentierung.VARIANTEN` heute nennt. Ohne `--wirklich` zeigt es nur, was
-wegginge:
-
-```bash
-docker compose exec wortlaut python scripts/varianten_aufraeumen.py
-docker compose exec wortlaut python scripts/varianten_aufraeumen.py --wirklich
-```
-
-Anlass war der September 2026: `pegel` und `lauter` sind verworfen worden, weil
-sie an Whisper nahezu wirkungslos sind.
+| Skript | Zweck |
+|---|---|
+| `scripts/augmentieren.py` | die Variante `rauschen` aller Aufnahmen vorab rechnen (`make augmentieren`) |
+| `scripts/varianten_aufraeumen.py` | Dateien von Fassungen entfernen, die `augmentierung.VARIANTEN` nicht mehr nennt; `--wirklich` löscht |
+| `scripts/vorlesen.py` | Stimmen holen (`--hole <stimme>`), alle Vorlagen vorab sprechen |
+| `scripts/importieren.py` | Paare aus Ton und Text von außerhalb als Textquelle übernehmen |
+| `scripts/paare_teilen.py` | zu lange Paare aus Ton und Text vor dem Import an Pausen in Stücke von 15–29 s teilen |
+| `scripts/folge_nachtragen.py` | die Folge hinter dem Optionscode für Läufe ohne sie vergeben |
+| `scripts/restore.py`, `scripts/purge_speaker.py` | siehe unten |
 
 ### Stimmen fürs Vorlesen
 
-„hören" liest einen Satz vor, damit ihn jemand nachsprechen kann. Ohne
-abgelegte Stimme tut das der Browser - und unter Linux klingt das blechern.
-Eine Serverstimme behebt das für **alle** Geräte auf einmal, weil der Satz dann
-als Datei kommt (siehe [hören](hoeren.md#vorlesen-vom-server-sonst-vom-browser)).
-
 ```bash
-# Eine Stimme holen - einmalig, einige Dutzend Megabyte
 docker compose exec wortlaut python scripts/vorlesen.py --hole de_DE-thorsten-high
-
-# Alle Vorlagen vorab sprechen lassen, damit in einer Sitzung niemand wartet
 docker compose exec wortlaut python scripts/vorlesen.py
 ```
 
-Die Stimmen landen unter `WORTLAUT_STIMMEN_DIR`, das in den Modellspeicher
-zeigt - dasselbe Volume wie die Whisper-Modelle, also kein zusätzlicher Mount.
-`de_DE-thorsten-high` wiegt 114 MB.
-
-**Wie lange das dauert**, gemessen mit genau dieser Stimme auf dieser Maschine:
-
-| | |
-|---|---|
-| Sprechen | 31 ms je Zeichen, also 1,7× Echtzeit |
-| Durchsatz | rund 24 Sätze je Minute |
-| Ein Korpus von 265 Vorlagen | **etwa 11 Minuten**, danach ~35 MB auf der Platte |
-
-Der erste Aufruf holt zuerst die kleine Beschreibungsdatei und dann das Modell,
-und beide mit Wiederholung. Bricht etwas ab, holt ein erneuter Aufruf nur, was
-noch fehlt.
-
-Mehrere Stimmen nebeneinander sind erlaubt und gedacht: Wer sie vergleichen
-will, legt zwei ab und wählt unter „Audio". Welche Stimme jemand gut
-nachsprechen kann, ist individuell.
-
-Nötig ist nichts davon. Ohne Stimme, ohne Piper im Abbild oder bei einem Fehler
-liest der Browser vor wie bisher.
+Die Stimmen liegen unter `WORTLAUT_STIMMEN_DIR` im Modellspeicher
+(`de_DE-thorsten-high` 114 MB). Gemessen mit dieser Stimme: 1,7-fache
+Echtzeit, rund 24 Sätze je Minute, 265 Vorlagen in etwa 11 Minuten und ~35 MB.
+Ein abgebrochener Aufruf holt beim nächsten nur, was fehlt. Mehrere Stimmen
+nebeneinander stehen unter „Audio" zur Wahl.
 
 ### Der Trainer
-
-„lernen" liefert seine Oberfläche im selben Prozess aus wie die anderen Apps.
-Gerechnet wird in einem eigenen Container, denn torch mit CUDA wiegt gut drei
-Gigabyte und verlangt eine Karte. Er startet nicht von selbst:
 
 ```bash
 docker compose --profile training up -d training
 docker compose logs -f training
 ```
 
-Das Profil ist Absicht: Wer keine Karte hat, soll `docker compose up` nicht an
-einem Dienst scheitern sehen, den er nie benutzt. Ohne ihn steht die
-Oberfläche von „lernen" trotzdem - Aufträge sammeln sich in
-`data/snapshots/` und gehen nicht verloren; sie werden gerechnet, sobald der
-Trainer läuft.
-
-Der erste Lauf lädt `whisper-small` von Hugging Face herunter (knapp ein
-Gigabyte) und legt es im Modellcache ab (`HF_HOME`, siehe
-[Betrieb mit Compose](#betrieb-mit-compose)); danach startet er ohne Netz.
-
-**Woran ein Lauf hängt, steht in seinem Verzeichnis.** `zustand.json` sagt, was
-er gerade tut, `protokoll.txt` sagt, warum er es nicht mehr tut:
+Der erste Lauf lädt das Grundmodell in den Modellcache. Woran ein Lauf hängt,
+steht in seinem Verzeichnis: `zustand.json` sagt, was er tut, `protokoll.txt`,
+warum er es nicht mehr tut.
 
 ```bash
-docker compose exec wortlaut sh -c 'cat data/snapshots/job_*/zustand.json'
 docker compose exec wortlaut tail -40 data/snapshots/job_01J8…/protokoll.txt
 ```
 
-Ein Lauf, der mit „CUDA out of memory" endet, hat eine von zwei Ursachen.
-Hält jemand anderes die Karte - die Auswertung in „hören", ein Diktat, das
-Sprachmodell -, wartet der Trainer bis zu zehn Minuten und beginnt die Faltung
-von vorn (`training/karte.py`); scheitert er danach, war sie so lange belegt,
-und `nvidia-smi` zeigt, von wem. Hält niemand sonst etwas, bricht er sofort
-ab mit „Es passt nicht darauf": Dann ist die Stapelgröße zu groß für diese
-Karte - `stapel` in `apps/lernen/training/rezepte/whisper_full.yaml`
-herunter, `akkumulation` hinauf; die wirksame Stapelgröße bleibt dann
-dieselbe.
+Endet ein Lauf mit „CUDA out of memory", hielt entweder jemand anderes die
+Karte länger als zehn Minuten (`nvidia-smi` zeigt, wer), oder das Training
+passt nicht auf die Karte - dann `stapel` im Rezept herunter und
+`akkumulation` hinauf. Den Trainer neu zu starten kostet nur den laufenden
+Lauf.
 
-Der Trainer beantwortet keine Anfrage und hängt an keinem Netz. Ihn neu zu
-starten kostet nur den laufenden Lauf; die Warteschlange bleibt, und ein
-abgebrochener Lauf lässt sich neu beauftragen.
+---
 
-### Bevor die Korrekturen ankommen: der Sprecher
+## Reverse Proxy und Domain
 
-„schreiben" gehört zu genau einer Person. Ihre Kennung vergibt „hören" beim
-Anlegen des Sprechers, und ihren Zugang gibt „hören" gesondert aus. Beim ersten
-Aufbau also erst den Sprecher anlegen, dann beides in die `.env` schreiben und
-den Container neu starten:
+Eine Adresse für alle drei Apps. Der Proxy reicht jeden Pfad unverändert an
+Port 8000 des Containers; die Apps hängen selbst unter ihren Pfaden, eine
+Regel, die `/schreiben/` abschneidet, macht die App unerreichbar. Wer eine App
+verschiebt, ändert `BASIS` im Backend, `base` in der `vite.config.ts` und den
+Pfad in `packages/ui/apps.ts`.
 
-```bash
-curl -X POST https://wortlaut.example.org/api/speakers \
-  -H "Authorization: Bearer $WORTLAUT_AUTH_TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"Vorname","sprache":"de"}'
-# → {"id":"spr_…"}
+1. **DNS**: A- (und AAAA-)Eintrag auf die Maschine, vor dem ersten Start.
+2. **Geheimnisse** in der `.env`, mit `openssl rand -base64 33`, verschieden:
+   `WORTLAUT_AUTH_TOKEN`, `WORTLAUT_ADMIN_TOKEN`, bei Bedarf
+   `WORTLAUT_TRAINER_KEY` und `WORTLAUT_EDITOR_KEY`.
+3. **Ablagen des Wirts** anlegen und in die `.env` (siehe oben).
+4. **Proxy.** Die `compose.yaml` hängt den Dienst an das externe Netz `caddy`
+   und beschreibt ihn mit Labels für caddy-docker-proxy:
 
-curl -X POST https://wortlaut.example.org/api/speakers/spr_…/zugang \
-  -H "Authorization: Bearer $WORTLAUT_AUTH_TOKEN"
-# → {"zugang":"spr_….…"}  wird zum Link …/#/zugang/<zugang> und geht an
-#    die Person. Er öffnet beide Apps; in die .env gehört er nicht.
-docker compose up -d
-```
-
-Der Zugang ist nur in dieser Antwort im Klartext zu sehen; gespeichert ist nur
-sein Prüfwert. Wer ihn verliert, gibt einen neuen aus - der alte gilt dann
-nicht mehr, und die `.env` von „schreiben" braucht den neuen.
-
-Fehlt eines von beiden oder passen sie nicht zusammen, sammelt der Postausgang
-die Korrekturen, statt sie zu verwerfen - nachzuholen mit „Noch einmal senden"
-in der Oberfläche.
-
-### Getrennte Container
-
-Wer die Apps auseinanderhalten will - eigene Neustarts, ein schlankes Abbild
-für „hören" ohne CTranslate2 -, nimmt statt dessen die beiden Dockerfiles
-unter `apps/`, je einen Dienst daraus, und gibt dem Proxy zwei Regeln
-(`/schreiben/` → „schreiben", `/` → „hören"). Am Code ändert das nichts: Die
-Pfade bringen die Apps selbst mit, `apps/gesamt.py` fügt sie nur zusammen.
-
-### Auf eine Subdomain stellen
-
-Eine Adresse für alle drei Apps, nicht eine je App: `wortlaut.example.org`.
-`hören` ist der Einstieg und liegt auf der Wurzel, `schreiben` unter
-`/schreiben/`. Für `lernen` kommt später ein weiterer Pfad nach demselben
-Muster dazu.
-
-**Der Proxy schneidet nichts ab.** Jede App hängt selbst unter ihrem Pfad -
-Oberfläche *und* API (`BASIS` in `apps/schreiben/backend/main.py`, `base` in
-ihrer `vite.config.ts`). Der Proxy reicht den Weg unverändert weiter; eine
-Regel, die `/schreiben/` entfernt, macht die App unerreichbar.
-
-Wer eine App verschiebt, ändert drei Stellen zusammen: `BASIS` im Backend, das
-`base` in der `vite.config.ts` und den Pfad in `packages/ui/apps.ts`.
-
-1. **DNS**: einen A-Eintrag (bei IPv6 zusätzlich AAAA) von der Subdomain auf
-   die öffentliche Adresse der Maschine. Vor dem ersten Start prüfen, sonst
-   scheitert die Zertifikatsausstellung und Let's Encrypt drosselt Wiederholungen.
-
-2. **`.env` auf dem Wirt**:
-
-   ```
-   WORTLAUT_AUTH_TOKEN=<lange Zufallszeichenkette>
-   WORTLAUT_ADMIN_TOKEN=<eine andere lange Zufallszeichenkette>
+   ```yaml
+   labels:
+     caddy: wortlaut.example.org
+     caddy.reverse_proxy: "{{upstreams 8000}}"
    ```
 
-   Beide mit `openssl rand -base64 33` erzeugen, und zwei verschiedene.
-   **Ohne den ersten steht die Verwaltung offen im Netz** - jeder mit der
-   Adresse kann Sprecher anlegen, deren Zugänge ausgeben und die LLM-Textquelle
-   auf deine Rechnung benutzen. An die Aufnahmen kommt er damit nicht: Dorthin
-   führt allein der Zugang des jeweiligen Sprechers.
-
-   Der zweite ist der Zugang zur Aufsicht - Einsicht in jeden Korpus,
-   Sicherungen und Löschungen. Bleibt er leer, ist die Aufsicht abgeschaltet;
-   Sichern geht dann nur noch über das Dateisystem des Wirts.
-
-3. **Die Ablagen des Wirts anlegen**, bevor zum ersten Mal gestartet wird:
-
-   ```bash
-   mkdir -p /pfad/zur/grossen/platte/wortlaut/{huggingface,ollama,training/{modelle,snapshots}}
-   ```
-
-   Und die drei Pfade in die `.env`:
-
-   ```
-   WORTLAUT_MODELLCACHE=/pfad/zur/grossen/platte/wortlaut/huggingface
-   WORTLAUT_OLLAMACACHE=/pfad/zur/grossen/platte/wortlaut/ollama
-   WORTLAUT_TRAININGSABLAGE=/pfad/zur/grossen/platte/wortlaut/training
-   ```
-
-   Diese drei liegen mit Absicht nicht im Volume: Grundmodelle, Ollamas
-   Modelle und alles, was ein Training hervorbringt, sind zusammen gut zwanzig
-   Gigabyte und jederzeit neu zu holen oder neu zu rechnen. Das Unersetzliche -
-   Aufnahmen, Datenbanken, der Arbeitsstand von „schreiben" - bleibt im
-   Volume.
-
-   **Von Hand, und nicht von Docker.** Die `compose.yaml` trägt an diesen
-   Mounts `create_host_path: false`. Ohne das legt Docker eine fehlende
-   Bind-Quelle stillschweigend an - und wenn die Platte gerade nicht
-   eingehängt ist, sammeln sich zwanzig Gigabyte auf der Systemplatte, ohne
-   dass irgendwo ein Fehler steht. So startet der Container statt dessen gar
-   nicht und sagt, welcher Pfad fehlt.
-
-   **Die Platte gehört in den Systemstart**, damit sie vor Docker da ist. In
-   der `/etc/fstab` genügt dafür der Zusatz `x-systemd.before=docker.service`
-   in der Optionsspalte:
-
-   ```
-   LABEL=backup  /backup  ext4  defaults,x-systemd.before=docker.service  0  2
-   ```
-
-   Danach einmal `systemctl daemon-reload`. Die Platte über `LABEL=` oder
-   `UUID=` ansprechen und nicht über `/dev/sdX1`: Die Namen hängen an der
-   Reihenfolge, in der der Kernel die Platten findet, und die kann sich
-   ändern.
-
-4. **Den Reverse Proxy** auf `127.0.0.1:8000` zeigen lassen - eine Regel für
-   die ganze Domain, die Verteilung macht die App selbst. Mit Caddy:
+   Andere containerisierte Proxys (nginx-proxy, Traefik) kommen genauso über
+   ein gemeinsames Netz und ihre eigenen Labels. Läuft der Proxy auf dem Wirt,
+   veröffentlicht der Dienst stattdessen `127.0.0.1:8000:8000`, und der Proxy
+   zeigt darauf:
 
    ```caddyfile
    wortlaut.example.org {
@@ -510,329 +170,79 @@ Wer eine App verschiebt, ändert drei Stellen zusammen: `BASIS` im Backend, das
    }
    ```
 
-   Mit nginx:
-
    ```nginx
    location / {
        proxy_pass http://127.0.0.1:8000;
        proxy_set_header Host $host;
        proxy_set_header X-Forwarded-Proto $scheme;
-       client_max_body_size 64m;   # Aufnahmen sind größer als die Vorgabe
+       client_max_body_size 64m;
    }
    ```
 
-   **Läuft der Proxy selbst als Container** (nginx-proxy, Traefik und
-   Verwandte), dann nicht auf `127.0.0.1` veröffentlichen, sondern beide in ein
-   gemeinsames Docker-Netz stellen - sonst sieht der Proxy den Dienst nicht.
-   In der `compose.yaml` die `ports` streichen und statt dessen:
-
-   ```yaml
-   services:
-     wortlaut:
-       networks: [proxy]
-       environment:
-         # nginx-proxy/acme-companion lesen das; bei Traefik sind es Labels.
-         VIRTUAL_HOST: wortlaut.example.org
-         VIRTUAL_PORT: "8000"
-         LETSENCRYPT_HOST: wortlaut.example.org
-
-   networks:
-     proxy:
-       external: true
-   ```
-
-   Der Name `proxy` ist der des vorhandenen Netzes (`docker network ls`).
-
-5. **Starten und nachsehen:**
+5. **Prüfen:**
 
    ```bash
-   docker compose up -d --build
-   docker compose ps                            # „healthy"
-   curl http://127.0.0.1:8000/gesundheit
+   docker compose ps                              # „healthy"
+   curl -I https://wortlaut.example.org/gesundheit
    curl -I https://wortlaut.example.org/schreiben/
    ```
 
-   Die letzte Zeile ist die Probe auf die Verteilung: Kommt dort die Seite von
-   „hören" statt der von „schreiben", zeigt der Proxy nicht auf diesen Port
-   oder schneidet den Pfad ab.
+   Kommt unter `/schreiben/` die Seite von „hören", schneidet der Proxy den
+   Pfad ab.
 
-`/gesundheit` verlangt bewusst keinen Zugang und eignet sich als Prüfpunkt für
-eine Überwachung.
+**HTTPS ist Pflicht.** `MediaRecorder` gibt der Browser nur in einem sicheren
+Kontext frei. `/gesundheit` verlangt keinen Zugang und dient der Überwachung.
 
-**HTTPS ist nicht optional.** Der Aufnahmeknopf benutzt `MediaRecorder`, und
-das gibt der Browser nur in einem sicheren Kontext frei - über eine
-IP-Adresse oder blankes HTTP bleibt die App unbenutzbar.
+**Getrennte Container** gehen auch: die Dockerfiles unter `apps/hoeren/` und
+`apps/schreiben/`, je ein Dienst, je eine Proxy-Regel. Am Code ändert das
+nichts.
 
-## Endpunkte
+---
 
-App „lernen" - alles unter `/lernen`, jeder Weg außer `/gesundheit` verlangt
-`Authorization: Bearer <sprecher_id>.<geheimnis>`. Verwaltung und Aufsicht
-kommen hier nicht durch: Ein Modell gehört einem Menschen.
+## Der erste Sprecher
 
-```
-GET    /lernen/api/aufteilung                     die Faltungen in Zahlen
-GET    /lernen/api/laeufe                         die Liste, ohne Kurven
-POST   /lernen/api/laeufe                         { methode, daten, abschluss? }
-GET    /lernen/api/laeufe/{id}                    Kurven, Vergleich, Protokoll
-POST   /lernen/api/laeufe/{id}/abbruch            anhalten, wartend oder rechnend
-POST   /lernen/api/laeufe/{id}/neustart           neu starten, ersetzt den alten
-DELETE /lernen/api/laeufe/{id}                    ersatzlos löschen, samt Modell
-GET    /lernen/api/modelle                        die fertigen Stände
-POST   /lernen/api/modelle/{version}/freigabe     freigeben, andere zurückziehen
+```bash
+curl -X POST https://wortlaut.example.org/api/speakers \
+  -H "Authorization: Bearer $WORTLAUT_AUTH_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Vorname","sprache":"de"}'
+# → {"id":"spr_…", …}
+
+curl -X POST https://wortlaut.example.org/api/speakers/spr_…/zugang \
+  -H "Authorization: Bearer $WORTLAUT_AUTH_TOKEN"
+# → {"zugang":"spr_….…"} - wird zum Link …/#/zugang/<zugang> für die Person
 ```
 
-App „hören":
+Dasselbe geht in der Oberfläche unter „Sprecher". Der Zugang ist nur in
+dieser Antwort im Klartext zu sehen und öffnet alle drei Apps.
 
-```
-Verwaltung - `Authorization: Bearer $WORTLAUT_AUTH_TOKEN`:
-
-```
-POST   /api/speakers                              { name, sprache }
-GET    /api/speakers
-GET    /api/speakers/{id}
-POST   /api/speakers/{id}/zugang                  neuen Zugang ausgeben
-DELETE /api/speakers/{id}/zugang                  Zugang zurückziehen
-```
-
-Daten - `Authorization: Bearer <sprecher_id>.<geheimnis>`; der Sprecher steht
-im Zugang und in keinem Parameter:
-
-```
-POST   /api/sources/llm                           { thema, altersspanne, umfang }
-POST   /api/sources/upload                        multipart: datei
-POST   /api/sources/erkennen                      multipart: datei - liest, legt nichts an
-POST   /api/sources/text                          { text, titel, herkunft }
-GET    /api/sources/erkennung                     ob Bilder gelesen werden können
-GET    /api/sources
-GET    /api/sources/{id}/text                     Klartext, eine Einheit je Absatz
-PATCH  /api/sources/{id}                          { aktiv }  - abstellen/aufnehmen
-DELETE /api/sources/{id}                          409, wenn Aufnahmen daran hängen
-POST   /api/sessions
-GET    /api/prompts/next?session=…
-POST   /api/recordings                            multipart: audio, prompt_id, modus, session
-GET    /api/recordings/{id}/audio
-DELETE /api/recordings/{id}
-GET    /api/progress
-POST   /api/korpus/intake                         multipart: audio, text, externe_id
-```
-
-Aufsicht - `Authorization: Bearer $WORTLAUT_ADMIN_TOKEN`. Als einzige Wege
-dieser App nennen sie ihren Sprecher in der Adresse: Die Aufsicht hat keinen
-eigenen, sie sieht über alle hinweg.
-
-```
-GET    /api/admin/speakers                        alle Sprecher mit Kennzahlen
-GET    /api/admin/speakers/{id}                   Quellen, Sitzungen, Umfang
-GET    /api/admin/speakers/{id}/recordings?ab=0   Aufnahmen mit ihrem Text
-GET    /api/admin/speakers/{id}/recordings/{r}/audio
-PATCH  /api/admin/speakers/{id}                   { name }  - umbenennen
-GET    /api/admin/speakers/{id}/sicherung         .tgz, wiederherstellbar
-GET    /api/admin/speakers/{id}/datensatz         .zip, Text-Audio-Paare
-GET    /api/admin/sicherung                       .tgz über alle Sprecher
-DELETE /api/admin/speakers/{id}/recordings/{r}    eine Aufnahme
-DELETE /api/admin/speakers/{id}/recordings?bestaetigung={id}
-DELETE /api/admin/speakers/{id}?bestaetigung={id}
-```
-
-Es gibt hier **keinen** Weg, der mehr als einen Sprecher löscht, und die beiden
-löschenden Wege verlangen die Kennung ein zweites Mal als `bestaetigung`. Ein
-Versehen soll höchstens eine Person kosten.
-
-Mit jedem der drei erreichbar, weil er die Frage beantwortet, welchen man
-vorgelegt hat:
-
-```
-GET    /api/zugang                                { art, sprecher_id, name, sprache }
-GET    /gesundheit                                ohne alles
-```
-
-App „schreiben" (kein Token, kein Sprecherparameter - beides steht in der
-Konfiguration der Instanz):
-
-```
-POST   /schreiben/api/sessions                    neue Diktiersitzung
-GET    /schreiben/api/sessions/{id}
-POST   /schreiben/api/sessions/{id}/segments      multipart: audio → Abschnitte
-POST   /schreiben/api/sessions/{id}/bestaetigen   → Postausgang, sofort senden
-POST   /schreiben/api/segments/{id}/neu           multipart: audio
-GET    /schreiben/api/segments/{id}/audio
-GET    /schreiben/api/model                       Modellstand samt Auswahl
-GET    /schreiben/api/outbox
-POST   /schreiben/api/outbox/senden               noch einmal versuchen
-GET    /gesundheit                                auf der Wurzel, für die Überwachung
-```
-
-Der Pfad `/schreiben` gehört zur App und nicht zum Proxy: Er steht als `BASIS`
-in ihrer `main.py`, damit vor dem Container eine Regel genügt, die den Weg
-unverändert durchreicht.
-
-Im gemeinsamen Container (`apps/gesamt.py`) gibt es nur eine Wurzel, also auch
-nur ein `/gesundheit` - das von „hören". Für eine Überwachung genügt es: Der
-Prozess ist derselbe.
-
-**Warum kein `sprecher=…` mehr:** Das Korpus hat je Sprecher eine eigene
-Datenbank (`data/korpus/<sprecher_id>/hoeren.sqlite`), und der Server muss
-wissen, welche Datei er öffnen soll. Früher stand die Kennung als Parameter da
-- eine Behauptung, die jeder mit dem Token beliebig setzen konnte, versehentlich
-auch aus einem alten Reiter. Jetzt trägt der Zugang die Kennung, und der Server
-leitet sie daraus ab.
-
-Der Parameter wird trotzdem noch angenommen, aber nur als Behauptung, die
-stimmen muss: Weicht sie ab, antwortet der Server mit 403 und nennt beide
-Kennungen. Genau davon lebt die Absicherung von „schreiben" - es schickt die
-abgeleitete Kennung mit dem Zugang mit, mit dem sie abgeleitet wurde.
-
-Die interaktive API-Dokumentation liegt unter `/docs`.
-
-## Authentifizierung
-
-Drei Arten von Zugang, alle als `Authorization: Bearer …`:
-
-**Der Verwaltertoken** ist `WORTLAUT_AUTH_TOKEN`. Er legt Sprecherprofile an
-und gibt deren Zugänge aus. Leer → die Verwaltung ist **zu**, auch in der
-Entwicklung: Ohne gesetzten Token legt niemand ein Profil an und zieht niemand
-einen Zugang zurück. An die Aufnahmen kommt er nicht.
-
-**Der Sprecherzugang** hat die Form `<sprecher_id>.<geheimnis>` und ist
-zugleich die Kennung: „hören" spaltet ihn am Punkt, öffnet die Datenbank dieses
-Sprechers und prüft dort den Prüfwert des Geheimnisses. Er ist der einzige Weg
-zu den Daten - auch für die Verwaltung.
-
-Ausgegeben wird ein Zugang in der Oberfläche unter „Sprecher"; dabei entsteht
-ein Link der Form `https://…/#/zugang/<zugang>`. Den öffnet die Person einmal
-auf ihrem Gerät und legt ihn als Lesezeichen ab; danach ist nichts mehr zu
-merken und nichts zu tippen (Grundentscheidung 7). Das Geheimnis steht im
-Fragment und geht deshalb nie an den Server, landet also in keinem
-Zugriffsprotokoll.
-
-Im Klartext gibt es einen Zugang nur genau einmal, beim Ausgeben; gespeichert
-ist nur sein Prüfwert (`speakers.zugang_hash`). Ein verlorener Zugang wird
-deshalb nicht wiederhergestellt, sondern ersetzt - und damit ist er
-zurückgezogen. „Zurückziehen" ohne Ersatz gibt es auch; dann kommt niemand mehr
-an diesen Korpus, bis ein neuer Zugang ausgegeben wird.
-
-**Der Aufsichtstoken** ist `WORTLAUT_ADMIN_TOKEN`. Er ist der eine Zugang, der
-über allen Korpora steht: einsehen, umbenennen, sichern, ausleiten, löschen. Er
-darf zusätzlich alles, was der Verwaltertoken darf - wer jeden Korpus löschen
-kann, hätte an einem zweiten Token fürs Anlegen eines Profils nichts gewonnen.
-
-Erreichbar ist die Aufsicht aus **jedem** Browser: Der Token wird unter
-„Menü → Zugangsdaten" in dasselbe Feld eingetragen wie ein Verwaltertoken,
-und der Server sieht am Vorgelegten, welches von beidem es ist. Eine zweite
-Adresse oder eine zweite Anmeldung gibt es nicht. Ein Browser trägt allerdings
-immer nur einen Zugang: Wer dort vorher den Link eines Sprechers geöffnet
-hatte, öffnet ihn danach einmal wieder.
-
-Leer heißt hier - anders als beim Verwaltertoken - **abgeschaltet** und nicht
-„offen". Ohne gesetzten Token antwortet jeder Weg unter `/api/admin/…` mit 401,
-auch in der Entwicklung: Ein Zugang, der löschen darf, soll nicht
-versehentlich offenstehen. Erzeugt wird er wie der andere, etwa mit
-`openssl rand -base64 33`. Mit dem Verwaltertoken darf er nicht
-übereinstimmen - dann wäre jeder Verwalter zugleich Aufsicht, und der Dienst
-bricht beim Start mit einer Meldung ab, statt still mehr zu erlauben.
-
-In der Kopfzeile steht dauerhaft, für wen der Browser gerade eingestellt ist -
-und zwar der Name, den der Server zum vorgelegten Zugang nennt, nicht der, den
-sich der Browser gemerkt hat. Bei der Aufsicht steht dort „Aufsicht"; sie sieht
-in fremde Korpora, und das soll nicht nur dann dastehen, wenn gerade gelöscht
-wird.
-
-„schreiben" hat bewusst keinen Zugang (Grundentscheidung 7): Die Zielperson
-kann schlecht lesen und schreiben, ein Anmeldefeld wäre eine unüberwindbare
-Hürde. Eine solche Instanz gehört deshalb ins private Netz oder hinter einen
-Zugang, den jemand anderes einrichtet - etwa eine
-Basisauthentifizierung im `/schreiben/`-Block des Proxys oder eine
-Beschränkung auf das eigene Netz. In
-umgekehrter Richtung braucht „schreiben" den Sprecherzugang von „hören", um
-seine Korrekturen abliefern zu dürfen - und zwar denselben, mit dem der Mensch
-dort gerade bestätigt hat.
+---
 
 ## Sichern und Wiederherstellen
 
-Es gibt zwei Formate, und sie beantworten zwei verschiedene Fragen.
-
 | | Sicherung `.tgz` | Datensatz `.zip` |
 |---|---|---|
-| Frage | „Der Server ist weg, ich will den Stand zurück." | „Ich will die Paare aus Text und Audio ansehen oder trainieren." |
-| Inhalt | Datenbank und Aufnahmen, wie sie auf der Platte liegen - ohne das Gerechnete | WAV-Dateien, je Aufnahme ihr Text, `metadaten.csv`/`.jsonl` |
-| Umfang | ein Sprecher oder alle | immer genau ein Sprecher |
-| Zurückspielbar | ja | **nein** |
+| Frage | „Der Server ist weg, ich will den Stand zurück." | „Ich will die Paare aus Text und Audio." |
+| Inhalt | Datenbanken und Aufnahmen, ohne Gerechnetes | WAV, je Aufnahme ihr Text, `metadaten.csv`/`.jsonl` |
+| Umfang | ein Sprecher oder alle | ein Sprecher |
+| Zurückspielbar | ja | nein |
 
-Zum Wegtragen also immer die `.tgz`.
+Aufbau und Auslassungen beider Formate stehen in
+[hören](hoeren.md#zwei-formate-zwei-fragen).
 
-### Eine Sicherung ziehen
-
-In der Oberfläche als Aufsicht: unter „Sprecher" der Knopf
-**Gesamtsicherung** für alles, oder bei einem Sprecher „Ansehen" →
-**Sicherung (.tgz)**. Der Browser hält die Datei dabei kurz im Speicher; bei
-einem sehr großen Bestand deshalb lieber über die Kommandozeile:
+**Ziehen** in der Oberfläche als Aufsicht - „Gesamtsicherung" oder bei einem
+Sprecher „Sicherung (.tgz)" -, bei großen Beständen besser mit `curl`:
 
 ```bash
 curl -OJ https://wortlaut.example.org/api/admin/sicherung \
   -H "Authorization: Bearer $WORTLAUT_ADMIN_TOKEN"
-
-curl -OJ https://wortlaut.example.org/api/admin/speakers/spr_…/sicherung \
-  -H "Authorization: Bearer $WORTLAUT_ADMIN_TOKEN"
 ```
 
-`-OJ` übernimmt den Dateinamen, den der Server nennt - er trägt die Zeitmarke.
+Der Dienst darf dabei laufen; die Datenbanken kommen über die
+Online-Backup-Schnittstelle von SQLite. Nach dem Zurückspielen sind die Kurven
+der Auswertung leer, bis ein Lauf sie füllt.
 
-**Der Dienst darf dabei laufen.** Die Datenbanken werden nicht kopiert, sondern
-über die Online-Backup-Schnittstelle von SQLite gezogen; das Ergebnis ist ein
-in sich stimmiger Stand, auch wenn gerade jemand aufnimmt. Ein schlichtes `cp`
-der `.sqlite`-Datei wäre das nicht: Im WAL-Modus steht ein Teil der Daten
-daneben in `…-wal`.
-
-### Was drin ist
-
-```
-wortlaut-gesamt-20260822-174500.tgz
-├── sicherung.json               Zeitpunkt, Sprecher, Ausgelassenes, je Datei Größe und SHA-256
-└── daten/
-    ├── korpus/spr_…/hoeren.sqlite
-    ├── korpus/spr_…/audio/rec_….wav
-    └── diktate/spr_…/…               Arbeitsstand von „schreiben"
-```
-
-`daten/` bildet `WORTLAUT_DATA_DIR` ab. Das ist Absicht: Eine Sicherung, die
-ein laufendes Programm zum Lesen braucht, ist im Ernstfall keine.
-
-### Was bewusst nicht drin ist
-
-Die Sicherung trägt weg, was ein Mensch hervorgebracht hat, und lässt liegen,
-was eine Maschine daraus gerechnet hat:
-
-| | Größe | Kommt zurück durch |
-|---|---|---|
-| `data/modelle/` | ~1 GB je Stand | einen Trainingslauf |
-| `data/snapshots/` | je Lauf ein Verzeichnis | einen Trainingslauf |
-| `korpus/…/audio/varianten/` | drei Viertel des Audios | den nächsten Auswertungslauf; entsteht auch beim nächsten Hochladen von selbst |
-| Tabelle `erkennungen` | wächst mit jedem Modell | denselben Lauf - er rechnet ohnehin nur, was fehlt |
-
-Wer die Modellstände trotzdem will, kopiert das Verzeichnis dazu. Für die
-anderen drei lohnt das nicht: Sie sind billiger neu gerechnet als übertragen.
-
-Die Datenbanken kommen dabei **vollständig** mit - Schema, Migrationsstand und
-jede andere Zeile. Geleert wird in der Sicherungskopie nur `erkennungen`, nie
-im laufenden Bestand. Was ausgelassen wurde, steht als eigener Abschnitt
-`ausgelassen` im Manifest:
-
-```json
-"ausgelassen": {
-  "verzeichnisse": ["korpus/spr_…/audio/varianten"],
-  "tabellen": { "hoeren.sqlite": ["erkennungen"] }
-}
-```
-
-Nach dem Zurückspielen sind die Kurven der Auswertung also zunächst leer. Ein
-Lauf über „Auswertung" füllt sie wieder; die Fassungen dafür entstehen dabei
-von selbst, `make augmentieren` zieht es vor.
-
-### Zurückspielen
-
-**Erst den Dienst anhalten.** SQLite hält eine laufende Datenbank offen; wer
-sie unter dem Prozess austauscht, bekommt einen Mischmasch aus altem
-Zwischenspeicher und neuer Datei.
+**Zurückspielen** bei angehaltenem Dienst:
 
 ```bash
 docker compose stop
@@ -840,178 +250,90 @@ uv run python scripts/restore.py wortlaut-gesamt-20260822-174500.tgz --ueberschr
 docker compose start
 ```
 
-Ist die Sicherung älter als das Schema, wird sie beim ersten Zugriff
-fortgeschrieben. Wer nicht warten mag, zieht es vor - im Container, wo
-`make` fehlt (siehe [Migrationen im Container](#migrationen-im-container)):
+Ohne `--ueberschreiben` bricht das Skript ab, bevor es etwas schreibt, wenn
+eine Datei schon dasteht; `--nur-ansehen` zeigt den Inhalt. Ohne wortlaut geht
+es auch: `tar xzf …` und `cp -a daten/. /srv/wortlaut/data/`. Eine ältere
+Sicherung holt ihr Schema beim ersten Zugriff nach.
 
-```bash
-docker compose exec wortlaut python scripts/migrate.py
-```
-
-Ohne `--ueberschreiben` bricht das Skript ab, sobald eine Datei schon dasteht -
-und zwar bevor irgendetwas geschrieben wurde. `--nur-ansehen` zeigt nur, was in
-der Sicherung steht.
-
-Auf einer Maschine, auf der wortlaut gar nicht installiert ist, geht es auch
-ohne das Skript:
-
-```bash
-tar xzf wortlaut-gesamt-20260822-174500.tgz
-cp -a daten/. /srv/wortlaut/data/
-```
-
-### Datensatz zum Arbeiten
-
-Je Sprecher, in der Oberfläche unter „Ansehen" → **Datensatz (.zip)**:
-
-```
-spr_…/
-├── LIESMICH.txt
-├── metadaten.csv        file_name, transcription, dauer_s, modus, quelle, …
-├── metadaten.jsonl      dieselben Zeilen als JSON
-└── audio/
-    ├── rec_….wav        16 kHz mono, PCM 16 bit
-    └── rec_….txt        der gesprochene Text zu genau dieser Datei
-```
-
-Die Spalten `file_name` und `transcription` heißen so, weil das
-`audiofolder`-Format von Hugging Face genau diese Namen erwartet - der
-Datensatz lädt damit ohne eine Zeile Anpassungscode. Der Text steht doppelt
-darin: in der Tabelle fürs Training, als `.txt` neben dem Audio für jedes
-Werkzeug, das nur ein Verzeichnis sieht.
-
-Enthalten sind nur Aufnahmen mit Status `ok`. Verworfene haben kein Audio mehr.
-
-### Löschen
-
-Ebenfalls Sache der Aufsicht, in drei Stufen - jede enger als die vorige:
-
-| | Was verschwindet | Was bleibt |
-|---|---|---|
-| eine Aufnahme | Audio und Datensatz; die Einheit wird wieder offen | alles andere |
-| alle Aufnahmen eines Sprechers | jedes Audio, jede Aufnahmezeile | Profil, Textquellen, Warteschlange |
-| ein Sprecher | Korpus, Diktate, Modellstände, Schnappschüsse | nichts |
-
-Eine vierte Stufe „alle Sprecher" gibt es nicht, weder in der Oberfläche noch
-in der API. Sie wäre ein Knopf, der einmal im Leben gedrückt wird - und dann
-versehentlich. Wer zwei Personen löschen will, tut es zweimal.
-
-Beide großen Stufen verlangen zweimal eine Bestätigung: einen Klick und das
-Abschreiben des Namens. Ein zweites „Wirklich?" klickt man weg, ohne es gelesen
-zu haben; einen Namen abzuschreiben zwingt dazu hinzusehen, wen es trifft.
-
-Dasselbe geht auf der Kommandozeile, mit demselben Umfang
-(`apps/hoeren/backend/services/loeschung.py` ist für beide die eine Wahrheit
-darüber, was zu einer Person gehört):
+**Löschen** in drei Stufen, als Aufsicht oder auf der Kommandozeile mit
+demselben Umfang ([hören](hoeren.md#löschen-drei-stufen)):
 
 ```bash
 uv run python scripts/purge_speaker.py spr_7f2a               # Probelauf
 uv run python scripts/purge_speaker.py spr_7f2a --ja-wirklich
 ```
 
+---
+
 ## Wenn etwas klemmt
 
 | Symptom | Ursache |
 |---|---|
-| `ffmpeg ist gescheitert` beim Upload | ffmpeg fehlt oder das Format ist kaputt |
-| `Unbekannter Sprecher` (404) | falsche `sprecher`-ID, oder Korpus liegt unter einem anderen `WORTLAUT_DATA_DIR` |
-| `Keine Textquelle konfiguriert` | `WORTLAUT_LLM_PROVIDER` ist leer - Textupload nutzen oder Anbieter setzen |
-| `Textquelle nicht erreichbar` | Bei `openai`: `WORTLAUT_LLM_BASE_URL` zeigt ins Leere. Lokal prüfen mit `docker compose ps` (läuft „ollama"?) und `docker exec wortlaut-ollama-1 ollama list` (ist das Modell geladen?). |
-| `Textquelle antwortete mit 404` | Das Modell aus `WORTLAUT_LLM_MODEL` ist dort nicht geladen - `docker exec wortlaut-ollama-1 ollama pull <modell>` |
+| `ffmpeg ist gescheitert` beim Upload | ffmpeg fehlt, oder das Format ist kaputt |
+| `Unbekannter Sprecher` (404) | Korpus liegt unter einem anderen `WORTLAUT_DATA_DIR` |
+| `Keine Textquelle konfiguriert` | `WORTLAUT_LLM_PROVIDER` ist leer - Upload nutzen oder Anbieter setzen |
+| `Textquelle nicht erreichbar` | `WORTLAUT_LLM_BASE_URL` zeigt ins Leere; `docker compose ps` (läuft „ollama"?), `docker compose exec ollama ollama list` |
+| `Textquelle antwortete mit 404` | das Modell ist nicht geladen - `docker compose exec ollama ollama pull <modell>` |
 | Aufnahmeknopf ohne Wirkung | `MediaRecorder` braucht HTTPS oder `localhost` |
-| Aufnahmen sind durchweg sehr leise (Hinweis „Sehr leise") | Erst unter „Audio → Mikrofon" **Automatisch einmessen** laufen lassen; das hebt den Pegel im Browser an. Bleibt es leise, siehe „Leises Mikrofon unter Linux" unten. |
-| Der Pegelbalken im Mikrofontest bleibt auf „still" | Der Browser hat ein anderes Gerät geöffnet als erwartet - im Test das Mikrofon ausdrücklich auswählen. Steht dort nur „Mikrofon 1", war der Test noch nie an; die echten Namen gibt der Browser erst nach erteilter Erlaubnis heraus. |
-| „Vorlesen" ohne Stimme | Browser ohne deutsche Stimme für die Web Speech API |
-| Vorgelesene Stimme klingt blechern | Siehe „Bessere Vorlesestimme unter Linux" unten. Die Web Speech API nutzt die Stimmen des Betriebssystems; unter Linux ist das per Vorgabe espeak-ng. |
-| „schreiben": erstes Diktat hängt lange | faster-whisper lädt beim ersten Aufruf sein Modell herunter. Danach kommt es aus dem Cache. Ohne Netz schlägt es fehl - dann `WORTLAUT_ASR_MODELL` auf ein bereits geladenes Modell setzen. |
-| „schreiben": `ModuleNotFoundError: faster_whisper` | `uv sync --extra asr` vergessen (oder `WORTLAUT_ASR=remote` setzen) |
-| „schreiben": „Aus der Aufnahme wurde kein Wort verstanden" | Whisper hat nichts erkannt. Bei leiser Aufnahme oder starker Sprechstörung ist das auch mit `small` der Normalfall - erst Mikrofon einmessen (Menüknopf oben rechts → Audio; die Werte gelten für beide Apps), dann ein größeres Modell versuchen. |
-| „schreiben": Postausgang bleibt offen | `WORTLAUT_INTAKE_URL` fehlt oder zeigt ins Leere; oder der Zugang des Sprechers gilt bei „hören" nicht mehr (401), weil dort inzwischen ein neuer ausgegeben wurde. Nichts geht verloren: „Noch einmal senden" nach dem Richten genügt - nötigenfalls nach dem Öffnen des neuen Links. |
-| `localhost:5174` zeigt eine leere Seite | Der Pfad fehlt: `http://localhost:5174/schreiben/` aufrufen. |
-| Der Reiter „schreiben" landet wieder in „hören" | Im Betrieb: Der Proxy schneidet `/schreiben/` ab oder zeigt auf den falschen Port. Probe: `curl -I https://<domain>/schreiben/`. In der Entwicklung: „schreiben" läuft nicht mit - `make dev APP=schreiben`. |
-| `Address already in use` beim `make dev` | Der Port ist noch belegt, meist von einem älteren Lauf. Nachsehen mit `ss -tlnp \| grep -E "8000\|8001"`, dann die PID beenden. |
-| „schreiben" zeigt „Kein Zugang" | In diesem Browser wurde noch kein persönlicher Link geöffnet, oder der Zugang wurde in „hören" zurückgezogen. Ein neuer Link, einmal geöffnet, genügt; beide Apps lesen denselben Eintrag. |
-| Nach einem Update ist in der Aufsicht kein Sprecher mehr zu sehen, und keiner kommt mehr herein | Für bestehende Korpora steht eine Migration offen, während die Modelle die neue Spalte schon abfragen - dann scheitert jedes `SELECT` auf `speakers`, die Liste wie die Zugangsprüfung. Seit `deps.engine_fuer` beim ersten Zugriff migriert, sollte das nicht mehr vorkommen; auf einem älteren Stand hilft `docker compose exec wortlaut python scripts/migrate.py` - dessen Ausgabe nennt auch, was offen war. |
-| Aufsicht: jeder Weg unter `/api/admin/…` antwortet 401 | `WORTLAUT_ADMIN_TOKEN` ist nicht gesetzt - dann ist die Aufsicht abgeschaltet, absichtlich auch in der Entwicklung. Nach dem Setzen den Dienst neu starten. |
-| Aufsicht: Token eingetragen, aber die Oberfläche zeigt weiter die Verwaltung | Der Token stimmt nicht mit dem des Servers überein; der Server fällt dann auf die Verwaltung zurück. Unter „Menü → Zugangsdaten" prüft „Speichern und prüfen", was der Server tatsächlich sieht. |
-| „schreiben": ein zweiter Mensch am selben Gerät sieht fremde Diktate | Kann nicht sein - die Diktate hängen am Zugang, und ein Browser trägt genau einen. Wer das Gerät teilt, gibt den Zugang mit; dann öffnet die andere Person einmal ihren eigenen Link. |
-| „lernen" zeigt endlos „wartet auf den Trainer", der Trainer meldet nur „Läufer bereit" | Trainer und App sehen verschiedene `snapshots`-Verzeichnisse - die Bind-Mounts des Trainers waren beim Start nicht wirksam, `docker inspect` listet sie trotzdem auf. Nachweisen mit `docker exec wortlaut-training-1 stat -c '%d:%i' /srv/wortlaut/data/snapshots` gegen `stat -c '%d:%i' $WORTLAUT_TRAININGSABLAGE/snapshots` auf dem Wirt: verschiedene Nummern, verschiedene Verzeichnisse. Abhilfe: `docker compose --profile training up -d --force-recreate training`. Der wartende Auftrag geht nicht verloren, er wird beim nächsten Takt geholt. |
-| Der Download einer großen Sicherung bricht ab | Der Browser hält die Datei im Speicher. Über `curl -OJ` mit dem Aufsichtstoken holen (siehe „Sichern und Wiederherstellen"). |
-| Nach dem Zurückspielen fehlen Daten oder die Datenbank ist kaputt | Der Dienst lief dabei. Anhalten, noch einmal einspielen, starten - SQLite hält die alte Datei sonst offen. |
-| `make frontend` startet ohne Fehlermeldung, aber `localhost:5173` bleibt unerreichbar | `node_modules` fehlt (`npm install` in `apps/hoeren/frontend` vergessen). `npm run dev` sucht `vite` dann über `$PATH` - auf manchen Systemen (z. B. Ubuntu/Debian) existiert dort ein gleichnamiges, aber völlig anderes Paket namens `vite` (ViTE, ein Trace-Viewer), das kommentarlos ein leeres GUI-Fenster statt des Dev-Servers öffnet. Prüfen mit `command -v vite` - zeigt der Pfad nicht auf `apps/hoeren/frontend/node_modules/.bin/vite`, fehlt die Installation. Abhilfe: `npm install` nachholen. |
+| Aufnahmen durchweg sehr leise | unter „Audio → Mikrofon" **Automatisch einmessen**; sonst [Leises Mikrofon](#leises-mikrofon-unter-linux) |
+| Pegelbalken bleibt auf „still" | anderes Gerät geöffnet - im Test ausdrücklich wählen; echte Namen gibt der Browser erst nach der Erlaubnis heraus |
+| Vorlesestimme blechern oder stumm | eine Serverstimme holen, oder [Bessere Vorlesestimme](#bessere-vorlesestimme-unter-linux) |
+| „schreiben": erstes Diktat hängt | faster-whisper lädt sein Modell; ohne Netz ein schon geladenes in `WORTLAUT_ASR_MODELL` setzen |
+| „schreiben": `ModuleNotFoundError: faster_whisper` | `uv sync --extra asr` fehlt |
+| „schreiben": „kein Wort verstanden" | Mikrofon einmessen, dann ein größeres Modell freigeben |
+| „schreiben": Postausgang bleibt offen | `WORTLAUT_INTAKE_URL` fehlt oder der Zugang wurde ersetzt; nach dem Richten „Noch einmal senden" |
+| eine App zeigt „Kein Zugang" | in diesem Browser wurde kein Link geöffnet, oder der Zugang wurde zurückgezogen |
+| Reiter „schreiben" landet in „hören" | der Proxy schneidet `/schreiben/` ab; in der Entwicklung läuft „schreiben" nicht |
+| `Address already in use` bei `make dev` | ein älterer Lauf hält den Port: `ss -tlnp` |
+| Aufsicht: alles antwortet 401 | `WORTLAUT_ADMIN_TOKEN` ist leer; setzen, neu starten |
+| Aufsicht: Token eingetragen, Oberfläche zeigt Verwaltung | der Token stimmt nicht; „Speichern und prüfen" unter „Zugangsdaten" zeigt, was der Server sieht |
+| „lernen" wartet endlos auf den Trainer | Trainer und App sehen verschiedene `snapshots`-Verzeichnisse - die Bind-Mounts waren beim Start nicht wirksam. `stat -c '%d:%i'` im Container gegen den Wirt vergleichen; `docker compose --profile training up -d --force-recreate training` |
+| Download einer großen Sicherung bricht ab | mit `curl -OJ` holen |
+| nach dem Zurückspielen fehlen Daten | der Dienst lief dabei; anhalten, erneut einspielen |
+| `make frontend` öffnet ein leeres Fenster | `node_modules` fehlt, und `vite` im `$PATH` ist ein fremdes Programm (ViTE, ein Trace-Viewer): `npm install` |
+
+---
 
 ## Leises Mikrofon unter Linux
 
-Eingebaute Mikrofone sind unter Linux oft deutlich leiser als unter macOS oder
-Windows - nicht weil die Hardware schlechter wäre, sondern weil dort im Treiber
-eine Verstärkung sitzt, die es hier nicht gibt. Betroffen sind besonders die
-Mikrofonarrays von Apple-Geräten am `snd-hda-macbookpro`-Treiber (T2).
-
-Erst nachsehen, ob auf Systemebene überhaupt noch Luft ist:
+Eingebaute Mikrofone sind unter Linux oft leiser, weil die Verstärkung des
+Treibers fehlt - besonders die Arrays von Apple-Geräten am
+`snd-hda-macbookpro`-Treiber.
 
 ```bash
-pactl get-default-source
 pactl list sources | grep -A6 'Name: alsa_input'
 ```
 
-Steht dort `Volume: … / 100% / 0,00 dB` bei `Base Volume: … / 100% / 0,00 dB`,
-ist der Regler bereits am Anschlag - der Eingang liefert schlicht wenig. Zwei
-Wege gibt es dann:
-
-```bash
-# 1. Über die Vorgabe hinaus verstärken (PipeWire/PulseAudio können das)
-pactl set-source-volume @DEFAULT_SOURCE@ 200%
-```
-
-Das gilt für alle Programme, nicht nur für wortlaut, und wird bei einigen
-Treibern beim Neustart zurückgesetzt.
-
-2. Oder die **Verstärkung** unter „Audio → Mikrofon" benutzen. Sie
-   wirkt nur in dieser App, überlebt den Neustart und lässt sich mit
-   „Automatisch einmessen" auf die eigene Stimme einstellen.
-
-Beides verstärkt das Rauschen des Raumes mit. Wo Aufnahmen über Stunden
-entstehen sollen, bringt ein Headset oder ein Ansteckmikrofon mehr als jede
-Verstärkung.
+Steht der Regler bei 100 %, liefert der Eingang schlicht wenig. Dann entweder
+systemweit über die Vorgabe hinaus (`pactl set-source-volume @DEFAULT_SOURCE@
+200%`, bei manchen Treibern nach dem Neustart zurückgesetzt) oder die
+**Verstärkung** unter „Audio → Mikrofon", die nur in wortlaut wirkt und bleibt.
+Beides verstärkt auch das Raumrauschen; ein Headset bringt mehr.
 
 ## Bessere Vorlesestimme unter Linux
 
-Die App wählt die Stimme nicht selbst, sie bietet unter „Audio" nur an,
-was der Browser meldet. Unter Linux kommt das aus `speech-dispatcher`, der per
-Vorgabe `espeak-ng` benutzt - verständlich, aber deutlich blechern. Für Deutsch
-gibt es in den Paketquellen von Debian/Ubuntu/Mint keine RHVoice-Stimme; die
-nächstbessere Stufe sind die mbrola-Stimmen.
+Die Browserstimmen kommen aus `speech-dispatcher`, per Vorgabe mit `espeak-ng`.
+Für Deutsch sind die mbrola-Stimmen die nächste Stufe:
 
 ```bash
 sudo apt install espeak-ng mbrola mbrola-de6 mbrola-de7
 ```
 
-`espeak-ng` gehört ausdrücklich dazu: Das Paket `libespeak-ng1` allein genügt
-nicht. Das mbrola-Modul ist ein *generisches* Modul, das eine Shell-Pipeline
-aufruft (`espeak-ng … | mbrola … | paplay`) und deshalb das Kommandozeilen-
-programm braucht, nicht nur die Bibliothek. Fehlt es, bleibt das Modul still,
-obwohl `spd-say -O` es als vorhanden anzeigt.
-
-Danach das Modul in `/etc/speech-dispatcher/speechd.conf` einschalten - dort ist
-es auskommentiert:
+Das Kommandozeilenprogramm `espeak-ng` ist nötig, die Bibliothek allein nicht.
+Dann in `/etc/speech-dispatcher/speechd.conf` einschalten, ohne die
+vorhandenen Module abzuschalten:
 
 ```
 AddModule "espeak-ng-mbrola-generic" "sd_generic"   "espeak-ng-mbrola-generic.conf"
 ```
 
-Zwei Fallen dabei:
-
-* Beim Einschalten müssen die schon genutzten Module (`espeak-ng`) eingeschaltet
-  **bleiben**, sonst ist gar keine Stimme mehr da.
-* Das Modul bringt `DefaultVoice "en1"` mit, eine englische Stimme, die mit den
-  deutschen Paketen nicht installiert wird. Ohne Sprachangabe scheitert es
-  deshalb mit `cannot find file en1`. Zum Prüfen die Sprache mitgeben:
+Das Modul bringt die englische Vorgabestimme `en1` mit, die nicht installiert
+ist; geprüft wird deshalb mit Sprache:
 
 ```bash
-pkill speech-dispatcher                       # lädt die Konfiguration neu
+pkill speech-dispatcher
 spd-say -o espeak-ng-mbrola-generic -l de -y de6 "Ein Satz zur Probe"
 ```
 
-Firefox fragt die Stimmenliste beim Start einmal ab: Nach Änderungen an
-`speech-dispatcher` muss der Browser neu gestartet werden, ein Neuladen der
-Seite genügt nicht.
+Firefox liest die Stimmenliste beim Start; danach neu starten. Eine
+Serverstimme (siehe oben) umgeht all das für jedes Gerät.

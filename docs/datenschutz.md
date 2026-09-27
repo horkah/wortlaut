@@ -1,96 +1,65 @@
 # Datenschutz
 
 Stimmaufnahmen einer Person mit Sprechstörung sind Gesundheitsdaten nach
-Art. 9 DSGVO. Das hat Folgen für den Aufbau, nicht nur für einen Hinweistext.
+Art. 9 DSGVO. Das bestimmt den Aufbau, nicht nur einen Hinweistext.
 
 ## Wo Daten liegen
 
 | Daten | Ort | Anmerkung |
 |---|---|---|
-| Aufnahmen (WAV) | `WORTLAUT_DATA_DIR/korpus/<sprecher_id>/audio/` | nie im Git, nie in Logs |
+| Aufnahmen | `WORTLAUT_DATA_DIR/korpus/<sprecher_id>/audio/` | nie im Git, nie in Logs |
 | Vorlagen, Sitzungen, Messwerte | `…/korpus/<sprecher_id>/hoeren.sqlite` | eine Datei je Sprecher |
-| Modellstände | `WORTLAUT_DATA_DIR/modelle/<sprecher_id>/` | enthalten Stimmcharakteristik |
-| Diktate von „schreiben" | `…/diktate/<sprecher_id>/` | Arbeitsstand: Abschnitte, die noch nicht übergeben sind |
+| Diktate von „schreiben" | `…/diktate/<sprecher_id>/` | Arbeitsstand bis zur Übergabe |
+| Laufverzeichnisse | `…/snapshots/<job_id>/` | Manifest mit Texten, markiert mit `sprecher.txt` |
+| Modellstände | `…/modelle/<sprecher_id>/` | tragen Stimmcharakteristik |
 
-Eine Sprecher-Identität ist damit vollständig unter drei Verzeichnissen
-lokalisiert, alle nach derselben Sprecher-ID benannt. Das ist keine Ordnungsliebe, sondern die Voraussetzung für eine
-Löschung, die man auch nachweisen kann.
+Alles zu einer Person liegt unter Verzeichnissen mit ihrer Kennung - die
+Voraussetzung für eine Löschung, die sich nachweisen lässt.
 
 ## Was den Server verlässt
 
-Voreingestellt: nichts. Zwei Schalter können das ändern, beide bewusst:
+Voreingestellt: nichts. Drei Schalter können das ändern:
 
-- `WORTLAUT_LLM_PROVIDER` - schickt **Thema und Altersspanne** an einen
-  LLM-Anbieter, um Vorlesetexte zu erzeugen. Keine Stimm- und keine
-  Personendaten. Ohne diesen Wert bleibt der Textupload als einzige Quelle.
-- `WORTLAUT_ASR=remote` mit `WORTLAUT_ASR_ENDPOINT` (App „schreiben") -
-  schickt **Stimmaufnahmen** an einen Dritten. Wer diesen Schalter umlegt,
-  verarbeitet Gesundheitsdaten außer Haus und braucht dafür eine
-  Rechtsgrundlage und einen Auftragsverarbeitungsvertrag. Voreingestellt ist
-  `local`: faster-whisper rechnet im eigenen Prozess, es geht nichts hinaus.
-- `WORTLAUT_INTAKE_URL` (App „schreiben") - der Weg zurück zu „hören". Zeigt er
-  auf die eigene Instanz, verlässt nichts den Server; er kann aber auf einen
-  fremden zeigen, und dann tut es das.
+- `WORTLAUT_LLM_PROVIDER` schickt **Thema und Altersspanne** an einen
+  LLM-Anbieter, um Vorlesetexte zu erzeugen - keine Stimm- und keine
+  Personendaten. Voreingestellt ist ein lokales Ollama.
+- `WORTLAUT_ASR=remote` (App „schreiben") schickt **Stimmaufnahmen** an einen
+  Dritten. Wer das einschaltet, verarbeitet Gesundheitsdaten außer Haus und
+  braucht Rechtsgrundlage und Auftragsverarbeitungsvertrag.
+- `WORTLAUT_INTAKE_URL` (App „schreiben") ist der Weg zurück zu „hören". Zeigt
+  er auf einen fremden Server, verlassen Korrekturen das Haus.
 
-**Die Zeichenerkennung gehört ausdrücklich nicht dazu.** Wer eine Vorlage
-fotografiert oder ein gescanntes PDF hochlädt, gibt womöglich das
-Persönlichste herein, was diese App je zu sehen bekommt - einen Brief, einen
-Befund, eine Karte. Gelesen wird deshalb mit Tesseract im eigenen Prozess
-(`wortlaut/text/ocr.py`), ohne Schalter, der daran etwas ändern könnte. Das
-Bild selbst wird nirgends abgelegt: Es geht durch den Arbeitsspeicher, der Text
-kommt zurück, und gespeichert wird erst, was ein Mensch danach übernimmt.
-
-**Beides ist nachgemessen und nicht nur beabsichtigt.** Im Erkennungsweg steht
-kein einziger Netzaufruf - weder in `text/ocr.py` noch in `text/upload.py`.
-Und auf der Platte bleibt nichts liegen, obwohl zwei Stellen dorthin schreiben:
-Starlette lagert einen Anhang über einem Megabyte in eine temporäre Datei aus,
-und pytesseract legt das Bild noch einmal ab, um es dem Programm `tesseract` zu
-übergeben. Während einer Erkennung tauchen so zwei Dutzend Dateien unter `/tmp`
-auf; nach der Antwort ist keine davon mehr da - geprüft mit einer Aufnahme
-unterhalb und einer oberhalb der Auslagerungsgrenze.
-
-Dieselbe Zusage steht in der Oberfläche über dem Auswahlfeld, und zwar dort,
-weil dort gezögert wird: Wer einen Brief abfotografiert hat, entscheidet in
-diesem Augenblick, ob er ihn hochlädt - und nicht beim Lesen einer
-Datenschutzerklärung.
+**Die Zeichenerkennung gehört nicht dazu.** Ein fotografierter Brief ist
+womöglich das Persönlichste, was die App sieht. Gelesen wird mit Tesseract im
+eigenen Prozess (`wortlaut/text/ocr.py`), ohne Schalter. Das Bild wird nirgends
+abgelegt: Starlette und pytesseract schreiben es zwar kurz nach `/tmp`, nach
+der Antwort ist davon nichts mehr da - geprüft unter- und oberhalb der
+Auslagerungsgrenze. Im Erkennungsweg steht kein Netzaufruf. Dieselbe Zusage
+steht in der Oberfläche über dem Auswahlfeld, wo jemand zögert.
 
 ## Datensparsamkeit im Ablauf
 
-- Eine **verworfene** Aufnahme wird sofort gelöscht, nicht nur markiert. In der
-  Datenbank bleibt der Datensatz mit `status = 'verworfen'` als Spur, die
-  Audiodatei ist weg.
-- Es gibt keine Rohaufnahme neben dem WAV: das hochgeladene Opus-Fragment liegt
-  nur im temporären Verzeichnis, bis ffmpeg fertig ist.
-- „schreiben" behält die zusammenhängende Diktataufnahme nicht: Nach dem
-  Schnitt an den Segmentgrenzen bleiben nur die Abschnitte übrig.
-- Ist ein Abschnitt als Korrektur im Korpus angekommen, wird seine Audiodatei
-  in `diktate/` gelöscht. Die Zeile bleibt als Spur, die Aufnahme liegt nur
-  noch an einer Stelle.
-- Fehlermeldungen enthalten Pfade, aber keine Transkripte oder Audioinhalte.
+- Eine **verworfene** Aufnahme verliert sofort ihr Audio; die Zeile bleibt als
+  Spur mit `status = 'verworfen'`.
+- Das hochgeladene Opus liegt nur temporär, bis ffmpeg fertig ist.
+- „schreiben" behält die zusammenhängende Diktataufnahme nicht, und ein
+  Abschnitt verliert seine Datei, sobald er im Korpus angekommen ist.
+- Abgewandelte Fassungen und vorgelesene Sätze gehen mit ihrer Aufnahme und
+  ihrem Sprecher.
+- Fehlermeldungen enthalten Pfade, keine Transkripte oder Audioinhalte.
 
-## Was der Aufbau selbst zusichert
+## Was der Aufbau zusichert
 
-Vier Zusagen hängen nicht an einer Einstellung, sondern daran, wie das Projekt
-gebaut ist - sie lassen sich nicht versehentlich abschalten:
+- **`lernen` schreibt den Korpus nie** - es gibt keinen Weg dafür, und ein
+  Test hält das fest (`apps/lernen/tests/test_trennung.py`).
+- **Der Trainings-Container hängt an keinem Netz**; er spricht nur mit dem
+  Datenverzeichnis.
+- **Kein Korpus öffnet sich über eine behauptete Kennung** - sie wird aus dem
+  Zugang abgeleitet (siehe unten).
 
-- **`lernen` liest den Korpus und schreibt ihn nie.** Das ist keine Zusage auf
-  Papier: Es gibt in dieser App keinen Weg, der in ihn schreibt, und ein Test
-  hält das fest (`apps/lernen/tests/test_trennung.py`).
-- **Der Trainings-Container hängt an keinem Netzweg.** Er spricht mit nichts
-  außer dem Datenverzeichnis. Stimmdaten können ihn auf keinem Weg verlassen,
-  den jemand aus Versehen öffnet.
-- **`schreiben` behält kein Audio, das es losgeworden ist.** Sobald ein
-  Abschnitt im Korpus angekommen ist, wird seine Datei dort gelöscht.
-- **Abgewandelte Fassungen gehen überall mit.** Eine ausgesteuerte oder
-  verrauschte Aufnahme ist dieselbe Stimme und damit derselbe
-  Gesundheitsdatensatz. Wer eine Aufnahme verwirft, hat nicht drei Kopien davon
-  gemeint.
-
-Dazu kommt eine Hürde, die ausdrücklich **kein** zweites Schloss ist: Wer mag -
-die Person selbst oder die Aufsicht an ihrer Stelle - legt eine vierstellige
-**PIN** vor die Ansichten „Meine Daten", „Darstellung" und „Zugangsdaten". Sie
-schützt gegen den Klick aus Versehen, nicht gegen einen Angreifer; die
-eigentliche Kennung bleibt der Zugang.
+Eine vierstellige **PIN** vor „Meine Daten", „Darstellung" und
+„Zugangsdaten" schützt gegen den Klick aus Versehen, nicht gegen einen
+Angreifer; die Kennung bleibt der Zugang.
 
 ## Löschung
 
@@ -99,60 +68,31 @@ uv run python scripts/purge_speaker.py <sprecher_id>               # Probelauf
 uv run python scripts/purge_speaker.py <sprecher_id> --ja-wirklich # löschen
 ```
 
-Entfernt Profil, Aufnahmen, Schnappschüsse, Modellstände und die Diktate von
-„schreiben". Dasselbe geht in der Oberfläche als Aufsicht (siehe unten), mit
-demselben Umfang: Was zu einer Person gehört, steht an einer Stelle
-(`apps/hoeren/backend/services/loeschung.py`), damit Oberfläche und
-Kommandozeile nicht Verschiedenes löschen.
+Entfernt Profil, Aufnahmen, Laufverzeichnisse, Modellstände und Diktate.
+Dasselbe geht in der Oberfläche als Aufsicht, mit demselben Umfang aus
+derselben Quelle (`apps/hoeren/backend/services/loeschung.py`). Feiner geht
+es auch: eine Aufnahme, alle Aufnahmen einer Person. Einen Weg, der mehrere
+Personen löscht, gibt es nicht.
 
-Feiner geht es auch - eine einzelne Aufnahme oder alle Aufnahmen einer Person,
-ohne ihr Profil anzutasten. Einen Weg, der mehrere Personen auf einmal löscht,
-gibt es bewusst nicht.
-
-**Sicherungen sind Kopien und müssen mitgelöscht werden.** Die Aufsicht kann
-Korpora als `.tgz` ausleiten; was einmal heruntergeladen ist, weiß dieses
-Projekt nicht mehr. Solche Archive enthalten vollständige Stimmaufnahmen und
-gehören damit in die Löschroutine des Betriebs - ebenso wie ausgeleitete
-Datensätze (`.zip`) und jede Sicherung außerhalb von `WORTLAUT_DATA_DIR`.
-Aufbewahrungsfrist und Ablageort dafür festzulegen ist eine organisatorische
-Entscheidung, die kein Skript abnehmen kann.
+**Sicherungen sind Kopien.** Was als `.tgz` oder `.zip` heruntergeladen wurde,
+kennt das Projekt nicht mehr; solche Archive enthalten vollständige
+Stimmaufnahmen und gehören in die Löschroutine des Betriebs. Frist und Ablage
+dafür sind eine organisatorische Entscheidung.
 
 ## Zugang
 
-In `hören` hat jeder Sprecher seinen eigenen Zugang, und dieser Zugang ist
-zugleich seine Kennung: Der Server liest aus ihm ab, welches Korpusverzeichnis
-er öffnet, statt sich die Kennung sagen zu lassen. Nutzen mehrere Personen
-dieselbe Instanz, kommt damit keine an die Stimmaufnahmen einer anderen - auch
-nicht aus Versehen, denn eine Anfrage, die eine fremde Kennung behauptet, wird
-mit 403 abgewiesen statt still ausgeführt. Ein verlorener Zugang wird
-zurückgezogen, indem ein neuer ausgegeben wird; Einzelheiten in
-[`betrieb.md`](betrieb.md#authentifizierung).
+Jeder Sprecher hat einen eigenen Zugang, der zugleich seine Kennung ist: Der
+Server liest daraus ab, welchen Korpus er öffnet. Eine Anfrage, die eine
+fremde Kennung behauptet, endet mit 403. Ein verlorener Zugang wird ersetzt
+und ist damit zurückgezogen ([hören](hoeren.md#der-zugang-ist-die-kennung)).
+Ein Link ist ein Lesezeichen: Wer ein Gerät weitergibt, gibt den Zugang mit.
 
-`WORTLAUT_AUTH_TOKEN` schützt daneben nur noch die Verwaltung - Profile
-anlegen, Zugänge ausgeben - und öffnet selbst kein Korpus. Ist er nicht
-gesetzt, ist die Verwaltung zu und nicht offen.
+`schreiben` und `lernen` leiten den Sprecher aus demselben Zugang ab. Was in
+`schreiben` bestätigt wird, geht mit diesem Zugang in genau seinen Korpus.
 
-`WORTLAUT_ADMIN_TOKEN` dagegen schon: Er ist der Zugang der **Aufsicht**, die
-in jedes Korpus sieht, Aufnahmen abhört, sichert und löscht. Damit ist er der
-einzige Schlüssel, der an die Stimmaufnahmen aller Personen kommt, und
-entsprechend zu behandeln - lang und zufällig, nicht in einem geteilten
-Dokument, und getrennt vom Verwaltertoken. Ist er nicht gesetzt, ist die
-Aufsicht abgeschaltet; das ist die Voreinstellung. Wer eine Instanz für andere
-betreibt, sollte ihnen sagen, dass es diese Rolle gibt und wer sie hat: Für die
-betroffenen Personen ist das eine Auskunft nach Art. 13/14 DSGVO und keine
-technische Fußnote.
-
-`schreiben` verlangt kein Anmeldeformular, weil die Zielperson schlecht lesen
-und schreiben kann - aber offen steht es deshalb nicht mehr: Jede Anfrage trägt
-denselben Sprecherzugang wie `hören`, und der Server leitet daraus ab, wessen
-Diktate er öffnet. Zwei Menschen an derselben Instanz sehen die Diktate des
-anderen nicht.
-
-Der Zugang kommt dabei nicht über ein Feld, sondern über den persönlichen Link,
-der einmal geöffnet wird; beide Apps liegen unter derselben Domain und lesen
-denselben Eintrag im `localStorage`. Ein Browser trägt weiterhin genau einen
-Zugang - wer ein Gerät weitergibt, gibt den Zugang mit.
-
-Mit demselben Zugang geht auch der Rückweg in den Korpus: Was jemand bestätigt,
-wird mit *seinem* Zugang eingeliefert und landet in genau dem Korpus, zu dem er
-gehört. Der Rückweg steht damit offen, der Hinweg nicht.
+`WORTLAUT_AUTH_TOKEN` schützt nur die Verwaltung und öffnet keinen Korpus.
+`WORTLAUT_ADMIN_TOKEN` ist der Zugang der **Aufsicht** und der einzige
+Schlüssel zu den Aufnahmen aller Personen - lang, zufällig, getrennt vom
+Verwaltertoken, nicht in geteilten Dokumenten. Leer ist die Aufsicht
+abgeschaltet. Wer eine Instanz für andere betreibt, sagt ihnen, dass es diese
+Rolle gibt und wer sie hat: eine Auskunft nach Art. 13/14 DSGVO.

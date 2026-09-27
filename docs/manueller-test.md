@@ -13,7 +13,7 @@ Dauer: etwa 10 Minuten für „hören", 5 für die Aufsicht (6b), 10 weitere fü
 ## Voraussetzungen
 
 - Server läuft: `make dev APP=hoeren` (Backend `:8000`, Vite `:5173`) -
-  siehe [`docs/betrieb.md`](betrieb.md#entwicklung)
+  siehe [Entwicklung](entwicklung.md)
 - Browser mit Mikrofonzugriff, aufgerufen über **`http://localhost:5173`**
   (nicht `:8000` - das Backend liefert dort nur `/api/…` und `/gesundheit`,
   ein `404` auf `/` davor ist normal, kein Fehler)
@@ -38,9 +38,7 @@ gemacht, und was dabei herauskommt, ist ein Link.
    Punkt steht auch im Menü (☰) rechts oben, und zwar immer - auch ohne
    gültigen Zugang, denn genau dann braucht man ihn.
 2. Unter „Neues Profil“: Namen eintragen, Sprache stehen lassen, **Anlegen
-   und Zugang ausgeben**. Ein Basismodell wird hier nicht mehr gewählt: Das
-   Feld gab es einmal, es entschied nie etwas, und welches Grundmodell
-   trainiert wird, steht in der Bestellung des Laufs in `lernen`.
+   und Zugang ausgeben**.
 3. Erwartet: Oben erscheint der Kasten „Zugang ausgegeben“ mit einem Link der
    Form `http://localhost:5173/#/zugang/spr_….…`, darunter das Profil in der
    Liste mit „Zugang ausgegeben am …“. **Link kopieren**.
@@ -50,27 +48,23 @@ gemacht, und was dabei herauskommt, ist ein Link.
    Adresse springt sofort zurück auf `.../#/` - das Geheimnis steht nicht mehr
    dort. Die App zeigt die Ansicht „Textquelle“, in der Kopfzeile steht eine
    zweite Reihe (Textquelle, Aufnehmen, Fortschritt, Auswertung) mit „Textquelle“ hell
-   hinterlegt, und vor dem Menüknopf steht der eingetragene Name. Weder
-   „Sprecher“ noch „Audio“ stehen in der Reiterreihe - die
-   Einstellungen hängen hinter dem Menüknopf (☰) rechts oben, einen Punkt
-   „Sprecher“ gibt es hier nicht mehr: Wer man ist, steht im Zugang. Der Punkt
-   „Zugangsdaten“ steht auch hier im Menü; er zeigt dann nicht sofort ein
-   Eingabefeld, sondern zuerst, wessen Zugang in diesem Browser liegt -
-   darunter **Zugang wechseln** für Verwaltung und Aufsicht (Abschnitt 6).
+   hinterlegt, und vor dem Menüknopf steht der eingetragene Name. Die
+   Einstellungen hängen hinter dem Menüknopf (☰) rechts oben; statt
+   „Sprecher“ steht dort „Meine Daten“. „Zugangsdaten“ zeigt zuerst, wessen
+   Zugang in diesem Browser liegt, darunter **Zugang wechseln** für
+   Verwaltung und Aufsicht (Abschnitt 6b).
 2. Seite neu laden. Erwartet: Es bleibt alles, wie es war - der Zugang liegt
    in diesem Browser. Genau das ist der Alltag: einmal einrichten, danach nie
    wieder etwas eintragen.
-3. Probe auf den Fehlgriff: `#/fortschritt` öffnen und in der Adresszeile
-   `?sprecher=spr_irgendwas` anhängen - das geht nur über die Entwicklerkonsole
-   oder `curl`, denn die App hängt nichts mehr an. Mit `curl`:
+3. Probe auf den Fehlgriff - eine fremde Kennung, die die App selbst nie
+   anhängt, also mit `curl`:
 
    ```bash
    curl -i "http://localhost:8000/api/progress?sprecher=spr_falsch" \
      -H "Authorization: Bearer <der Zugang aus dem Link>"
    ```
 
-   Erwartet: `403` und eine Meldung, die beide Kennungen nennt. Früher wäre
-   hier still der fremde Korpus geöffnet worden.
+   Erwartet: `403` und eine Meldung, die beide Kennungen nennt.
 
 ## 2. Textquelle
 
@@ -293,10 +287,8 @@ sogar. Vorher in der `.env` genügt eine Zeile:
 WORTLAUT_INTAKE_URL=http://localhost:8000/api/korpus/intake
 ```
 
-Kein Sprecher und kein Token mehr in der Konfiguration: Diese App führt
-denselben Sprecher wie „hören“ und leitet ihn aus dem Zugang ab, den der
-Browser vorlegt. Gesendet wird später mit genau diesem Zugang - die
-Korrekturen können damit gar nicht mehr im falschen Korpus landen.
+Den Sprecher leitet die App aus dem Zugang ab, den der Browser vorlegt, und
+mit genau diesem Zugang sendet sie die Korrekturen.
 
 Aufgerufen wird **`http://localhost:5174/schreiben/`** - mit Pfad; ohne ihn
 bleibt die Seite leer, das ist kein Fehler.

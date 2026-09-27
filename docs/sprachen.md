@@ -1,332 +1,127 @@
 # Andere Sprachen - a blueprint
 
-**Kurz auf Deutsch, der Rest auf Englisch.** Diese Notiz beschreibt, was zu tun
-ist, um wortlaut in einer anderen Sprache als Deutsch zu betreiben - Spanisch
-und Englisch sind die naheliegenden ersten Fälle. Sie ist bewusst englisch
-geschrieben, anders als alles übrige hier: Wer diese Arbeit macht, arbeitet
-vermutlich nicht auf Deutsch, und eine Anleitung zum Übersetzen sollte nicht
-selbst erst übersetzt werden müssen.
-
-Die Grundannahme steht am Anfang und gilt durchgehend: **Ein Profil, eine
-Sprache.** Wer wortlaut in zwei Sprachen nutzen will, bekommt zwei Profile. Das
-ist keine Einschränkung, die wegverhandelt werden sollte - siehe
-[One profile, one language](#one-profile-one-language).
+**Kurz auf Deutsch, der Rest auf Englisch.** Was zu tun ist, um wortlaut in
+einer weiteren Sprache zu betreiben. Englisch geschrieben, weil wer diese
+Arbeit macht, vermutlich nicht auf Deutsch arbeitet. Die Grundannahme gilt
+durchgehend: **Ein Profil, eine Sprache.**
 
 ---
 
 ## One profile, one language
 
-A speaker profile fixes one language for its entire life. Everything hanging
-off the profile inherits it: the prompt corpus, the recordings, the fine-tuned
-model, the evaluation, the dictation. A person who wants wortlaut in German and
-in Spanish gets two profiles, two corpora, two models.
+A speaker profile fixes one language for its entire life. The prompt corpus,
+the recordings, the fine-tuned model, the evaluation and the dictation all
+inherit it. A person who wants wortlaut in German and in Spanish gets two
+profiles, two corpora, two models.
 
-This is not a simplification to be undone later. It falls out of what the
-project is for. A fine-tune is a model that has learned *this one person's*
-speech; Whisper is told the language up front rather than guessing it
-(`training/finetune.py:349`), because on short utterances a model that has to
-detect the language first spends part of its budget on that instead of on
-listening. Mixing two languages into one profile would mean either detecting
-per utterance — giving away exactly the advantage — or training one adapter on
-two phoneme inventories with a few hundred utterances, which is a good way to
-get a model that is worse at both.
-
-It also keeps the corpus honest. WER is computed against the prompt; a corpus
-with two languages in it produces one number that describes neither.
-
-The column already exists. `Sprecher.sprache` is in the schema
-(`apps/hoeren/backend/db/models.py:30`), the create endpoint accepts it
-(`apps/hoeren/backend/api/speakers.py:29`), the datasheet prints it
-(`services/export.py:146`), and three of the four views display it. What is
-missing is everything that should *read* it.
+This falls out of what the project is for. Whisper is told the language up
+front rather than detecting it, because on short utterances detection spends
+part of the budget that should go to listening. Mixing two languages into one
+profile would mean either detecting per utterance - giving that advantage
+away - or training one adapter on two phoneme inventories from a few hundred
+utterances. And WER is computed against the prompt; a corpus in two languages
+produces one number that describes neither.
 
 ---
 
-## What already works
+## What is in place
 
-More than you would expect. The language is threaded through the recognition
-path already; it is the surrounding machinery that assumes German.
+German (`de`) and English (`en`) are supported. **One place defines the
+languages**, their labels and the default: `wortlaut/sprachen.py`
+(`UNTERSTUETZT`, `VORGABE`). Everything else reads the profile.
 
-| Already language-agnostic | Where |
+| Language-aware | Where |
 |---|---|
-| Whisper adapters take a language argument and pass it straight through | `wortlaut/whisper/__init__.py:35`, `local.py:120`, `remote.py:20` |
-| Base models are the **multilingual** checkpoints, not the `.en` variants | `whisper-small`, `whisper-medium`, `whisper-large-v3` (`apps/lernen/backend/config.py:68`) |
-| Evaluation in „hören" reads the speaker's language and uses it | `apps/hoeren/backend/api/auswertung.py:309` → `services/auswertung.py:254` |
-| Error metrics normalise Unicode-aware (`\w` with `re.UNICODE`) | `wortlaut/metriken.py` |
-| The TTS engine interface knows nothing about German | `wortlaut/vorlesen.py` — the voice key is `<engine>/<locale>-<voice>-<quality>` |
-| Piper voice downloads parse any locale out of the voice name | `scripts/vorlesen.py:_pfadteile` |
-| Timestamps are stored in UTC and formatted client-side | `packages/ui/zeit.ts` |
-| The corpus layout is per speaker, so two profiles never collide | Grundentscheidung 6 |
-| **One place defines the languages**, their labels and the default | `wortlaut/sprachen.py` |
-| The checked access token carries the speaker's language, so every app has it without a second query | `wortlaut/zugang.py` → `Sprecherzugang.sprache` |
-| The profile-creation form offers the supported languages, served by the backend | `GET /api/sprachen`, `Verwaltung.svelte` |
-| The training job records its language in `auftrag.json`; trainer and evaluator read it | `services/auftraege.py` → `finetune.py`, `bewerten.py` |
-| Dictation uses the speaker's language, not a server-wide setting | `apps/schreiben/backend/deps.py:_sprache` |
-| The browser passes the profile language to the Web Speech API and to the voice list | `packages/ui/speak.ts`, `wer.ts`, `Audio.svelte` |
+| Profile creation offers the supported languages, served by the backend; `de-DE` is stored as `de`, an unknown code is a 422 | `GET /api/sprachen`, `Verwaltung.svelte`, `api/speakers.py` |
+| The checked access token carries the language, so every app has it without a second query | `wortlaut/zugang.py` → `Sprecherzugang.sprache` |
+| Whisper adapters take the language and pass it through; base models are the multilingual checkpoints | `wortlaut/whisper/` |
+| The training job records its language; trainer and evaluator read it | `services/auftraege.py` → `finetune.py`, `bewerten.py` |
+| Evaluation and dictation use the speaker's language | `hoeren/services/auswertung.py`, `schreiben/backend/deps.py` |
+| The chunker has a per-language measure: characters per second and the abbreviations whose full stop is no sentence end | `wortlaut/text/chunker.py` (`MASSE`) |
+| The LLM instruction names the language it must write in | `wortlaut/text/llm.py` |
+| OCR reads with the profile's dictionary | `wortlaut/text/ocr.py` |
+| Probe sentences exist per language | `apps/hoeren/backend/api/prompts.py`, `packages/ui/Audio.svelte` |
+| Server and browser voices are filtered by the profile language; without one the browser sets none | `wortlaut/vorlesen.py`, `packages/ui/speak.ts` |
+| Error metrics normalise Unicode-aware | `wortlaut/metriken.py` |
+| Timestamps are stored in UTC and formatted in the browser | `packages/ui/zeit.ts` |
 
-So the recogniser, the trainer and the storage layer are ready. The work is in
-the layers above and beside them.
-
-**Since the first version of this note, §1 to §3 below have been closed** and
-the hard-coded `"de"` has been removed from the code: the default now lives in
-`wortlaut/sprachen.py` and everything else reads the profile.
-
-**English has since been switched on**, and doing so exercised the rest of this
-list: §4 (the chunker now carries a per-language measure - characters per
-second and the abbreviations whose full stop is not a sentence end), §5 (the
-LLM instruction names the language it must write in) and the probe sentences.
-Two `high`-quality English voices are installed. What remains open is §7, the
-interface itself - it is German, in both languages.
+The voice list arrives with `/api/zugang` after the first render, so it has to
+be `$derived`; a `$state` initialised once keeps the unfiltered list.
 
 ---
 
-## What has to change
+## Adding a language
 
-Ordered roughly by effort. File references are the starting points, not an
-exhaustive diff.
+For a new language, in this order - each step makes the next testable:
 
-### 1. Let someone actually choose the language — **done**
+1. **Add the code** to `sprachen.UNTERSTUETZT`. Profile form, job,
+   evaluation and dictation follow.
+2. **A voice.** `scripts/vorlesen.py --hole <voice>` and a label in
+   `vorlesen.PiperMotor.BESCHREIBUNG`. Synthesize a sentence with the
+   language's awkward sounds and check stderr for `Missing phoneme from id
+   map` - current espeak-ng emits some letters decomposed where older models
+   list only the precomposed form (`vorlesen._zusammengesetzt` repairs `ç`;
+   Turkish, Czech or Vietnamese can hit the same). Silence there is the test.
+3. **Chunker measure** in `chunker.MASSE`: characters per second and
+   abbreviations. It affects prompt length only; approximately right is
+   enough.
+4. **Probe sentences** in `prompts.PROBESAETZE` and `Audio.svelte`, and the
+   Tesseract dictionary (`tesseract-ocr-<lang>` in the `Dockerfile`).
+5. **A first prompt text**, generated or uploaded. Good prompts - idiomatic,
+   common vocabulary, phonetically varied - are editorial work in every
+   language; budget time for a native speaker to review them.
+6. **Create a profile, record ten utterances, run the baseline evaluation.
+   Stop and read the number.** The cheapest honest answer to whether the
+   language is viable.
+7. **Translate the interface** (below).
 
-*Closed. `GET /api/sprachen` serves what `wortlaut/sprachen.py` supports, the
-creation form renders it, and `NeuerSprecher` validates and normalises the
-value (`de-DE` is stored as `de`). An unsupported code is a 422 rather than a
-silent German profile. The original finding follows.*
+### Still German
 
-The API accepts `sprache`; the UI never sends it. `sprecherAnlegen` takes
-`{ name, basismodell }` (`apps/hoeren/frontend/src/lib/api.ts:90`) and
-`Verwaltung.svelte:65` calls it with exactly those two. Every profile ever
-created on this server is therefore `de`, whatever the docs say —
-`docs/hoeren.md` already claims the creation form asks for a language, and it
-does not.
-
-Add the field to the form, the type and the call. Offer a short curated list,
-not all hundred codes: the languages this installation has prompts and a voice
-for.
-
-### 2. Carry the language into the training job — **done**
-
-*Closed. `Auftrag` now has a `sprache` field without a default, it is filled
-from the access token at job creation, and it is written into `auftrag.json` —
-adding the dataclass field alone was not enough, because the job file is
-serialised key by key, and a test now covers exactly that. The fallback in the
-trainer stayed, pointing at `sprachen.VORGABE`: jobs created before the field
-existed still have to run. The original finding follows.*
-
-`finetune.py:352` and `bewerten.py:246` both read `auftrag.get("sprache") or
-"de"`. Nothing ever writes that key. `auftraege.Auftrag`
-(`apps/lernen/backend/services/auftraege.py:57`) has no such field, and
-`api/laeufe.py:1004` constructs the job without one.
-
-The consequence is not subtle. A Spanish profile would train with German forced
-decoder tokens (`modell.generation_config.language = sprache`,
-`finetune.py:367`) and be evaluated as German. The model would emit German
-spellings of Spanish sounds and the WER would be garbage — and nothing anywhere
-would report an error.
-
-Add `sprache` to `Auftrag`, fill it from the speaker profile at job creation,
-and it flows to both the trainer and the evaluator, which already read it.
-This is a handful of lines and it is the single most important one in this
-list.
-
-### 3. Make „schreiben" ask the speaker, not the config — **done**
-
-*Closed, by the second route below but without the manifest: the access check
-already reads the speaker's corpus row, so `Sprecherzugang` carries the
-language and `deps._sprache` hands it to both dictation endpoints. No extra
-query, no corpus write, app boundary intact. `WORTLAUT_SPRACHE` is gone — a
-server-wide language is wrong by construction once a second one exists, so
-there is nothing left for it to fall back to. The original finding follows.*
-
-Dictation uses a server-wide setting: `Einstellungen.sprache = "de"`
-(`apps/schreiben/backend/config.py:71`), passed at `api/segments.py:54` and
-`:104`. With one language per profile this is wrong by construction as soon as
-a second language exists on the server.
-
-The speaker id is already in hand at both call sites. Two options:
-
-* Look the speaker up, the way `tempo_fuer` already looks up a model state
-  (`apps/schreiben/backend/deps.py:141`).
-* Better: put the language in the released model's manifest, next to the tempo
-  factor that already lives there. Then „schreiben" needs no access to
-  „hören"'s corpus database, which keeps the app boundary intact — and a model
-  state carries the language it was trained for, which is the truthful place
-  for it.
-
-Keep `WORTLAUT_SPRACHE` as the fallback for a speaker with no model yet.
-
-### 4. Retune the chunker — medium, and genuinely per-language
-
-`wortlaut/text/chunker.py` cuts prompt text into 3–12 second speakable units.
-Three things in it are German:
-
-* `ZEICHEN_PRO_SEKUNDE = 13.0` — characters per second of clear reading. This
-  is a property of the language's orthography, not a universal. Spanish runs
-  faster per character, English is somewhere near German, and for Chinese or
-  Japanese a character is a whole syllable or morpheme, so the constant is off
-  by a factor of several.
-* `_ABKUERZUNG` — a regex of German abbreviations (`z. B.`, `bzw.`, `Abb.`)
-  whose full stop is not a sentence end.
-* `_SATZENDE` and `_TEILSATZ` — fine for Latin and Cyrillic punctuation, wrong
-  for Chinese/Japanese full stops (`。`), Arabic (`؟`, `،`), Greek question
-  marks (`;`), Armenian, Ethiopic.
-
-Turn the three into a per-language table with German as one entry. For any
-language without spaces the unit-length estimate needs a different basis
-entirely — see the restrictions table at the end.
-
-This affects prompt length only, not scoring, so a rough value is tolerable and
-a missing one is not fatal. Get it approximately right and move on.
-
-### 5. Parametrise the prompt generator — trivial, plus editorial work
-
-`wortlaut/text/llm.py:15` hard-codes a German system instruction
-(„Du schreibst deutsche Vorlesetexte…"). `Auftrag` carries topic, age range and
-length but no language.
-
-Adding the language to the instruction is a five-line change. Producing prompts
-that are actually *good* in the target language is not a code problem: the
-sentences have to be idiomatic, common-vocabulary, and phonetically varied
-enough to be worth recording. Budget real time for reviewing what the model
-writes, in every language you add.
-
-The upload route (`text/upload.py`) needs one fix: the Latin-1 fallback at
-line 52 is a German-specific guess and will silently mangle Greek, Cyrillic or
-Turkish legacy files. Either detect the encoding or refuse non-UTF-8.
-
-### 6. Voices — medium, and the catalogue decides for you
-
-Server-side TTS is the good path and it is already language-agnostic in
-structure. What is German is the label table (`vorlesen.PiperMotor.BESCHREIBUNG`)
-and the known-voices list in `scripts/vorlesen.py`.
-
-Piper's catalogue covers **52 language families**. English has 38 voices and
-Spanish 9, and both reach `high` quality — better coverage than German, which
-has exactly one `high` voice. So for the two languages in the question, this
-step is: run `--hole`, add a label, done.
-
-Two traps:
-
-* **The phoneme-table mismatch is not German-specific.** The repair in
-  `vorlesen._zusammengesetzt` exists because current espeak-ng emits `ç`
-  decomposed while older models only list the precomposed form. The same class
-  of mismatch will hit other languages with precomposed letters — Turkish,
-  Czech, Vietnamese, anything with stacked diacritics. When adding a voice,
-  synthesize a sentence that exercises the language's awkward sounds and check
-  stderr for `Missing phoneme from id map`. Silence there is the test.
-* ~~**Browser fallback defaults to German.**~~ *Done.* `stimmen()` and
-  `stimmeVerfuegbar()` now require the language and treat `null` as "unknown,
-  do not filter" rather than as German; `sprich()` sets no language at all when
-  it has none, instead of inventing `de-DE`. Server voices are filtered by the
-  profile language too. One subtlety worth knowing if you touch this again: the
-  language arrives from `/api/zugang` *after* the first render, so the voice
-  list has to be `$derived` — a `$state` initialised once keeps the unfiltered
-  list forever, which is invisible while only one language exists.
-
-Both probe sentences are German and need a per-language equivalent:
-`PROBESATZ` (`apps/hoeren/backend/api/prompts.py:126`) and `PROBE`
-(`packages/ui/Audio.svelte:39`).
-
-### 7. Translate the interface — the big one
-
-35 Svelte files, roughly 8,700 lines, and **no i18n scaffolding of any kind**.
-Every string is a German literal in markup. Two locale-specific formatters sit
-beside them, and both are helpfully single-source:
-
-* `packages/ui/zeit.ts` — `14.09.2026, 14:38`. Already documented as the only
-  place that formats a timestamp for humans. Swap for `Intl.DateTimeFormat`.
-* `_zahl` (`apps/lernen/backend/api/laeufe.py:677`) — decimal comma. This one
-  formats on the *server*, which is the wrong side for a locale decision; the
-  same argument the project already made for timestamps applies. Send numbers
-  and format them in the browser. (The browser-side `toLocaleString('de-DE')`
-  calls have since been collected into `ANZEIGE_GEBIET` in
-  `packages/ui/sprache.ts` — deliberately *not* the profile language: a Spanish
-  profile on a German-language server should be recognised and read aloud in
-  Spanish while the table next to it keeps German decimals. That constant is
-  where the interface locale becomes a per-viewer value once §7 happens.)
-
-The mechanical part — extract strings, add a catalogue, wire a store — is a
-known quantity. The part that will actually cost you is that this project's
-German is *written*, not generated: it argues, it uses em-dashes and
-subordinate clauses, it addresses the reader. Translating it into flat UI
-English loses something real, and translating it well is a writing job, not a
-string swap. Decide early whether the other language gets the same voice or a
-plainer one, and say so in the style guide, because otherwise every contributor
-will decide differently.
-
-Two smaller notes while translating: several error messages name German
-concepts that only make sense with the German UI, and the API itself uses
-German nouns on the wire (`sprache`, `vorlage`, `aufnahme`) and in its route
-names. **Leave the wire format alone.** It is the project's internal vocabulary,
-it is consistent, and renaming it would touch every file for no user-visible
-gain.
+* **The interface.** 35 Svelte files, roughly 8,700 lines, no i18n
+  scaffolding; every string is a German literal. The mechanical part -
+  extract, catalogue, store - is known. What costs is that this German is
+  written, not generated; decide early whether the other language gets the
+  same voice or a plainer one. **Leave the wire format alone**: German nouns
+  in routes and fields are the internal vocabulary.
+* **Number formatting on the server.** `_zahl` in
+  `apps/lernen/backend/api/laeufe.py` writes decimal commas; send numbers and
+  format them in the browser. The browser side is collected in
+  `ANZEIGE_GEBIET` (`packages/ui/sprache.ts`) - deliberately the interface
+  locale, not the profile language: a Spanish profile on a German interface
+  is read aloud in Spanish, with German decimals in the table.
+* **Legacy encodings.** `text/upload.py` falls back to Latin-1 for non-UTF-8
+  files - a German guess that mangles Greek, Cyrillic or Turkish legacy files.
+  Detect the encoding or refuse non-UTF-8.
+* **Punctuation.** The chunker's sentence and clause patterns fit Latin and
+  Cyrillic, not `。`, `؟`, `،`, the Greek `;`, Armenian or Ethiopic.
 
 ---
 
 ## What is genuinely hard
 
-Everything above is bounded work. These are not.
+**Prompt corpora worth recording.** A person with dysarthria records a few
+hundred utterances, once, and it is tiring. They have to cover the language's
+sounds well enough for the fine-tune to generalise. That needs a native
+speaker in the loop - a staffing problem, not an engineering one.
 
-**Prompt corpora that are worth recording.** A person with dysarthria will
-record a few hundred utterances, once, and it is tiring. Those utterances have
-to cover the language's sounds well enough that a fine-tune generalises. In
-German this was solved by having someone read and judge the text. There is no
-shortcut in a language you do not speak — you need a native speaker in the
-loop, and that is a staffing problem rather than an engineering one.
+**Dysarthria in a low-resource language.** The effects multiply: a worse
+baseline, and the same few hundred utterances to close a larger gap. Below
+Tier 1, run the baseline evaluation before promising anything.
 
-**Dysarthria in a low-resource language.** The two effects multiply. Whisper's
-baseline for, say, Telugu is already far worse than for Spanish; a speaker with
-impaired articulation starts from that worse baseline, and the fine-tune has to
-close a much larger gap with the same few hundred utterances. For anything
-below Tier 1 in the table, run the baseline evaluation in „hören" *before*
-promising anyone that this will work. The evaluation exists precisely so that
-this question can be answered with a number instead of a hope.
-
-**Word error rate in languages without spaces.** Chinese, Japanese, Thai, Lao,
-Khmer, Burmese and Cantonese have no word boundaries in the orthography. WER,
-MER and WIL as computed in `metriken.py` split on whitespace and become
-meaningless — typically reporting near-100% error for a perfect transcript. CER
-stays valid. This is not a bug to fix in an afternoon: it needs either a
-per-language tokeniser or a decision to score those languages on CER alone,
-and the composite `genauigkeit()` and every chart and threshold built on it
-would have to follow. Until then, treat those languages as CER-only and say so
-in the UI.
+**Word error rate without spaces.** Chinese, Japanese, Thai, Lao, Khmer,
+Burmese and Cantonese have no word boundaries. WER, MER and WIL split on
+whitespace and become meaningless; CER stays valid. It needs a per-language
+tokeniser or CER-only scoring, and `genauigkeit()` and everything built on it
+would follow.
 
 **Right-to-left scripts.** Arabic, Hebrew, Persian, Urdu, Pashto, Sindhi and
-Yiddish need `dir="rtl"`, mirrored layout, and care wherever text and numbers
-mix — the prompt display in „hören" and the segment editor in „schreiben" are
-the exposed places. Nothing in the current CSS anticipates this.
+Yiddish need `dir="rtl"` and mirrored layout, with care where text and numbers
+mix - the prompt display in „hören" and the segment list in „schreiben". The
+CSS does not anticipate this.
 
-**Model size.** German works acceptably from `whisper-small`. For a language
-Whisper knows less well, the smallest checkpoint that still produces usable
-text may be `medium` or `large-v3` — which changes GPU memory, training time
-and the shared-card arithmetic in `compose.yaml`. Check this before planning
-capacity, not after.
-
----
-
-## Order of work
-
-For a new language, in this order, because each step makes the next one
-testable:
-
-1. ~~Add `sprache` to `Auftrag` and fill it at job creation *(§2)*.~~ **Done** —
-   and with it the whole plumbing: add the new code to
-   `sprachen.UNTERSTUETZT`, and the profile form, the job, the evaluation and
-   the dictation follow on their own.
-2. ~~Add the language picker to profile creation *(§1)*.~~ **Done.**
-3. Download a Piper voice, add its label, verify no missing phonemes *(§6)*.
-4. Set the chunker constants for the language *(§4)*.
-5. Parametrise the LLM instruction; write or upload a first prompt text *(§5)*.
-6. Create a profile, record ten utterances, run the baseline evaluation. **Stop
-   here and read the number.** This is the cheapest honest answer to whether
-   the language is viable at all.
-7. ~~Point „schreiben" at the profile's language *(§3)*.~~ **Done.**
-8. Translate the interface *(§7)*.
-
-With 1, 2, 3 and 7 closed, adding a language is now: one entry in
-`sprachen.UNTERSTUETZT`, a voice, chunker constants, a prompt text — then step
-6, the baseline measurement, before anything is promised to anyone. Step 8 is
-still the project.
+**Model size.** German works from `whisper-small`. For a language Whisper knows
+less well, the smallest usable checkpoint may be `medium` or `large-v3` - GPU
+memory, training time and the shared card change with it.
 
 ---
 
@@ -347,8 +142,7 @@ whatever the browser offers.
 ### Tier 1 — Whisper is reliable here
 
 Large share of the training data; the base model is usable before any
-fine-tuning. Both languages in the original question are here, both with
-`high`-quality voices.
+fine-tuning.
 
 | Language | Code | Voice |
 |---|---|---|
@@ -480,7 +274,7 @@ Whisper's accuracy.
 
 | Restriction | Languages | Consequence |
 |---|---|---|
-| No word boundaries | `zh`, `yue`, `ja`, `th`, `lo`, `km`, `my`, `bo` | WER/MER/WIL invalid; score on CER only *(see above)* |
+| No word boundaries | `zh`, `yue`, `ja`, `th`, `lo`, `km`, `my`, `bo` | WER/MER/WIL invalid; score on CER only |
 | Right-to-left script | `ar`, `he`, `fa`, `ur`, `ps`, `sd`, `yi` | UI needs `dir="rtl"` and mirrored layout |
 | Non-Latin punctuation | `zh`, `ja`, `ar`, `el`, `hy`, `am`, `th` | Chunker sentence/clause regexes need per-language sets |
 | No Piper voice | 49 of the 100 | Prompts fall back to the browser voice — on iOS that is the compact system voice only *(see `packages/ui/speak.ts`)* |

@@ -7,132 +7,94 @@
 
 **Spracherkennung, die *diesen einen Menschen* versteht.**
 
-Aus dem Laut wird das Wort, und zwar der Wortlaut: was die Person gesagt hat -
+Aus dem Laut wird das Wort, und zwar der Wortlaut: was die Person gesagt hat,
 nicht das, was ein Sprachmodell für plausibel hält.
+
+> **Dieses Repository beschreibt nur den aktuellen Stand.** Code, Kommentare,
+> Doku und Oberfläche sagen, was gilt und warum - nie, wie es vorher war. Die
+> Geschichte steht allein in der Commit-History. Ausgenommen sind datierte
+> Berichte wie der [Modellbericht](docs/modellbericht.md).
 
 ---
 
 ## Das Problem
 
-Diktieren funktioniert. Für die meisten.
+Diktieren funktioniert, für die meisten. Wer mit Dysarthrie spricht, nach einem
+Schlaganfall, mit Zerebralparese, Parkinson, Multipler Sklerose oder breitem
+Dialekt, erlebt anderes: Das Diktierfeld schreibt Unsinn, die
+Sprachassistentin schweigt. Die Modelle sind auf Millionen Stunden
+durchschnittlicher Sprache trainiert, und diese Stimme kommt darin nicht vor.
 
-Wer mit Dysarthrie spricht, nach einem Schlaganfall, mit Zerebralparese, mit
-starkem Akzent oder breitem Dialekt, erlebt etwas anderes: Das Telefon
-antwortet nicht, das Diktierfeld schreibt Unsinn, die Sprachassistentin
-schweigt. Nicht weil die Technik schlecht wäre - sondern weil sie auf
-Millionen Stunden durchschnittlicher Sprache trainiert wurde und diese Stimme
-darin nicht vorkommt.
+Oft können die Betroffenen auch schlecht schreiben. Ihnen fehlt damit
+ausgerechnet der Ausweg „Dann tippen Sie es halt".
 
-Die Betroffenen können oft auch schlecht schreiben. Ihnen fehlt damit
-ausgerechnet der Ausweg, auf den alle anderen verwiesen werden: „Dann tippen
-Sie es halt."
-
-Ein Nischenproblem ist das nicht: Dysarthrie ist eine der häufigsten Folgen
-von Schlaganfall, Parkinson, Multipler Sklerose und Zerebralparese, und dazu
-kommt jeder, dessen Dialekt oder Akzent weit genug von der Norm abweicht, um an
-einem Standardmodell zu scheitern.
-
-Was diesen Menschen fehlt, ist kein besseres Allgemeinmodell. Größer trainierte
-Modelle verschieben die Grenze nur nach hinten, sie heben sie nicht auf. Was
-fehlt, ist ein Modell, das **sie** kennt.
+Größere Allgemeinmodelle verschieben die Grenze nur. Was fehlt, ist ein
+Modell, das **diese Person** kennt.
 
 ---
 
 ## Was wortlaut tut
 
-wortlaut baut dieses Modell. Gebraucht werden dafür etwa anderthalb Stunden
-Sprachaufnahmen, eine einzelne Grafikkarte und ein Nachmittag Rechenzeit. Drei
-Apps, die ineinandergreifen:
+wortlaut baut dieses Modell - aus etwa anderthalb Stunden Aufnahmen, auf einer
+einzelnen Grafikkarte. Drei Apps greifen ineinander:
 
 | | | |
 |---|---|---|
-| **hören** | Sprachproben sammeln | Die App zeigt einen kurzen Satz, die Person spricht ihn. Ein Satz, eine Aufnahme, ein fertiges Paar aus Text und Ton. Wer nicht flüssig liest, lässt sich den Satz vorher vorlesen und spricht ihn nach. |
-| **lernen** | ein eigenes Modell trainieren | Aus den Proben entsteht ein feingetuntes Whisper für genau diese Stimme. Vier Varianten laufen gegeneinander, gemessen an Aufnahmen, die keines davon je gesehen hat. |
-| **schreiben** | diktieren | Ein großer Knopf. Sprechen, zuhören, einen misslungenen Abschnitt neu einsprechen, fertig. Kein Anmeldefeld, nichts zu tippen. |
+| **hören** | Sprachproben sammeln | Ein kurzer Satz, eine Aufnahme, ein fertiges Paar aus Text und Ton. Wer nicht flüssig liest, lässt sich den Satz vorlesen und spricht ihn nach. |
+| **lernen** | ein eigenes Modell trainieren | Feintuning von Whisper für genau diese Stimme, gemessen per sechsfacher Kreuzvalidierung und neben den unveränderten Grundmodellen in einer Tafel. |
+| **schreiben** | diktieren | Ein großer Knopf: sprechen, zuhören, einen Abschnitt neu einsprechen, fertig. Kein Anmeldefeld. |
 
-Und dann schließt sich der Kreis: Jeder Text, den jemand in **schreiben**
-bestätigt, geht als Korrektur zurück in den Korpus von **hören** - mit dem
-Audio, das dazugehört. Der Korpus wächst also im Gebrauch weiter, ohne dass
-jemand dafür eine Übung machen müsste, und das nächste Training nimmt ihn mit.
+Jeder in **schreiben** bestätigte Text geht mit seinem Audio als Korrektur in
+den Korpus von **hören** zurück. Der Korpus wächst im Gebrauch, und das nächste
+Training nimmt ihn mit.
 
 ---
 
 ## Warum es funktioniert
 
 **Jede Aufnahme ist von Haus aus ausgerichtet.** Aufgenommen wird
-äußerungsweise, nie am Stück. Damit entfallen Forced Alignment,
-Segmentierungsheuristiken und Zeitmarken-Drift - die drei Stellen, an denen
-Sprachdatensätze üblicherweise unsauber werden. Das ist der größte
-Vereinfachungsgewinn im ganzen Entwurf und der Grund, warum zwei Stunden
-Material hier weiter tragen als anderswo.
+äußerungsweise. Forced Alignment, Segmentierung und Zeitmarken-Drift entfallen
+- die Stellen, an denen Sprachdatensätze sonst unsauber werden.
 
-**Nichts wird behauptet, alles wird gemessen.** Der Korpus weiß, was gesprochen
-werden *sollte* - die Vorlage steht daneben. Jede Aufnahme ist damit eine
-fertige Prüfaufgabe. Ein Drittel davon wird von der ersten Aufnahme an zum
-Prüfen zurückgelegt und nie wieder umsortiert; kein trainiertes Modell sieht es
-je. Auf genau diesen Aufnahmen treten die eigenen Stände gegen `whisper-small`,
-`medium` und `large-v3` an - in einer Tabelle, auf denselben Zahlen, mit
-derselben Rechnung.
+**Gemessen statt behauptet.** Zu jeder Aufnahme steht die Vorlage daneben,
+jede Aufnahme ist also eine Prüfaufgabe. Die Kreuzvalidierung misst jede
+Aufnahme mit einem Modell, das sie nie gesehen hat; die eigenen Stände stehen
+in derselben Tafel wie `whisper-small`, `medium` und `large-v3`, mit
+Vertrauensbereichen. Ist das eigene Modell noch nicht besser als `medium`,
+wird `medium` freigegeben.
 
-Die Antwort darf dabei auch lauten: *Mein eigenes Modell ist noch nicht besser
-als `medium`.* Dann wird `medium` freigegeben. Ein Projekt, das diese Antwort
-nicht geben kann, misst nicht - es wirbt.
+**Die Stimme bleibt im Haus.** Aufnahmen einer Person mit Sprechstörung sind
+Gesundheitsdaten nach Art. 9 DSGVO. Erkennung, Training, Zeichenerkennung und
+Textquelle laufen auf der eigenen Maschine; Adapter für fremde Dienste sind
+Schalter mit lokaler Voreinstellung, und der Trainings-Container hängt an
+keinem Netz.
 
-**Die Stimme bleibt, wo sie ist.** Aufnahmen einer Person mit Sprechstörung
-sind Gesundheitsdaten nach Art. 9 DSGVO. Deshalb läuft alles auf der eigenen
-Maschine - Erkennung, Training und Textquelle, alle drei auf derselben Karte,
-wenn eine da ist. Die Adapter für fremde Dienste sind
-bewusste Schalter mit lokaler Voreinstellung, und der Trainings-Container hängt
-an keinem Netzweg - Stimmdaten können ihn auf keinem Weg verlassen, den jemand
-aus Versehen öffnet.
-
-**Die Oberfläche ist für den gebaut, der sie braucht.** Kein Anmeldefeld,
-sondern ein persönlicher Link, einmal geöffnet. Kein Passwort, sondern
-höchstens eine vierstellige PIN. Schriftgröße, Kontrast, Schriftart und sogar
-die Frage, welche Reiter überhaupt dastehen, sind einstellbar - wer nur
-diktiert, sieht nur den Knopf.
-
----
-
-## Wo es steht
-
-Alle drei Apps laufen, mit Tests, unter einer Adresse, in einem Container.
-
-| | |
-|---|---|
-| **hören** | Textquelle per LLM oder Upload, äußerungsweise aufnehmen, Qualitätsprüfung, Fortschritt, Auswertung gegen drei Grundmodelle, Sicherung, vollständige Löschung |
-| **lernen** | 2:1-Aufteilung mit Bestandsgarantie, vier Trainingsläufe (voll/LoRA × mit/ohne Abwandlungen), Lernkurven, Vergleich gegen die Baseline, eine Modelltabelle mit Freigabe |
-| **schreiben** | diktieren, vorlesen lassen, abschnittsweise neu einsprechen, Korrekturen zurück in den Korpus - gepuffert, wiederholbar, nichts geht verloren |
-
-Was fehlt: eine phonetisch ausgewogene Vorlagenliste, Tests für das Frontend,
-und die Zahlen aus einem echten Einsatz über mehrere Monate. Was bewusst fehlt,
-steht in [Der Entwurf](docs/architektur.md#bewusst-nicht-enthalten).
+**Die Oberfläche ist für den gebaut, der sie braucht.** Ein persönlicher Link
+statt einer Anmeldung, höchstens eine vierstellige PIN. Schrift, Kontrast und
+sogar die sichtbaren Reiter sind einstellbar - wer nur diktiert, sieht nur den
+Knopf.
 
 ---
 
 ## Ausprobieren
 
-Gebraucht werden Python 3.12 mit [uv](https://docs.astral.sh/uv/), Node 20 und
-**ffmpeg im Pfad**. Ohne Grafikkarte läuft alles, nur langsamer: Erkennen
-dauert dann Sekunden statt Sekundenbruchteile, Trainieren Tage statt Stunden.
+Python 3.12 mit [uv](https://docs.astral.sh/uv/), Node 20 und **ffmpeg im
+Pfad**. Ohne Grafikkarte läuft alles, nur langsamer.
 
 ```bash
 cp .env.example .env
 uv sync
-make test                    # läuft ohne GPU, ohne Netz, ohne Mikrofon
+make test                    # ohne GPU, ohne Netz, ohne Mikrofon
 make dev APP=hoeren          # Backend :8000, Oberfläche :5173
 ```
 
-Im Betrieb ist es ein Container für alles drei plus, wer eine Karte hat, ein
-zweiter für das Training:
+Im Betrieb ein Container für alle drei Apps und, mit Karte, einer für das
+Training:
 
 ```bash
 docker compose up -d
 docker compose --profile training up -d training
 ```
-
-Einzelheiten: [Entwicklung](docs/entwicklung.md) ·
-[Betrieb](docs/betrieb.md) · [Konfiguration](docs/konfiguration.md)
 
 ---
 
@@ -140,21 +102,21 @@ Einzelheiten: [Entwicklung](docs/entwicklung.md) ·
 
 | | |
 |---|---|
-| [Der Entwurf](docs/architektur.md) | die Grundentscheidungen, der Aufbau, die Nahtstellen, die Technikwahl |
-| [App „hören"](docs/hoeren.md) | Sammeln, Zugänge, Aufsicht, Auswertung |
-| [App „lernen"](docs/lernen.md) | Aufteilung, Training, Modelltabelle, Freigabe |
-| [Das Trainingsverfahren](docs/trainingsverfahren.md) | was gerechnet wird, in Pseudocode - und was sich daran verbessern lässt |
+| [Der Entwurf](docs/architektur.md) | Grundentscheidungen, Aufbau, Nahtstellen, Technik |
+| [App „hören"](docs/hoeren.md) | Sammeln, Zugänge, Aufsicht, Zuschnitt, Auswertung |
+| [App „lernen"](docs/lernen.md) | Kreuzvalidierung, Aufträge, Modelltafel, Freigabe |
+| [Das Trainingsverfahren](docs/trainingsverfahren.md) | die Rechnung in Pseudocode und die offenen Hebel |
 | [App „schreiben"](docs/schreiben.md) | Diktieren, Abschnitte, Postausgang |
-| [Konfiguration](docs/konfiguration.md) | jede Umgebungsvariable, mit Begründung |
-| [Entwicklung](docs/entwicklung.md) | lokal starten, Trainer, Tests |
-| [Betrieb](docs/betrieb.md) | Reverse Proxy, Sicherungen, Fehlersuche |
-| [Datenschutz](docs/datenschutz.md) | was gespeichert wird, wie lange, und wie es verschwindet |
-| [Manueller Test](docs/manueller-test.md) | der ganze Weg zum Selbst-Durchklicken |
-| [Andere Sprachen](docs/sprachen.md) | was zu tun ist, um wortlaut in einer anderen Sprache zu betreiben (englisch) |
+| [Konfiguration](docs/konfiguration.md) | jede Umgebungsvariable |
+| [Entwicklung](docs/entwicklung.md) | lokal starten, Trainer, Tests, Konventionen |
+| [Betrieb](docs/betrieb.md) | Compose, Reverse Proxy, Sichern, Fehlersuche |
+| [Datenschutz](docs/datenschutz.md) | was gespeichert wird und wie es verschwindet |
+| [Manueller Test](docs/manueller-test.md) | der ganze Weg zum Durchklicken |
+| [Andere Sprachen](docs/sprachen.md) | wortlaut in einer anderen Sprache (englisch) |
+| [Modellbericht](docs/modellbericht.md) | Vergleich aller Stände, Stand 26.09.2026 |
 
 ---
 
 ## Lizenz
 
-[MIT](LICENSE). Whisper steht ebenfalls unter MIT - keine
-Attributionspflicht, keine Nutzungsbeschränkung.
+[MIT](LICENSE). Whisper steht ebenfalls unter MIT.
