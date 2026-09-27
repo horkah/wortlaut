@@ -609,6 +609,9 @@ def teile(
     if erkannt is None:
         _text, erkannt = erkenne(modell, audio, sprache)
         erkannt = nachhoeren(modell, audio, sprache, erkannt, db)
+        # Schon jetzt abgelegt: Ein ausgelassenes Paar behält so, was darin zu hören ist.
+        m4a.with_suffix(".recogn.txt").write_text(" ".join(w.text for w in erkannt) + "\n", encoding="utf-8")
+        schreibe_erkennung(tsv, modellname, erkannt)
 
     # Teilen und die Stücke einzeln erkennen, im Wechsel: Ein Stück unter
     # 30 s, an beiden Enden in Stille, hört Whisper vollständiger als die
@@ -739,19 +742,20 @@ def main() -> int:
             ausgelassen.append(m4a.relative_to(wahl.quelle))
         alle.extend(stuecke)
 
-    with (wahl.ziel / "_bericht.tsv").open("w", encoding="utf-8", newline="") as datei:
-        schreiber = csv.DictWriter(datei, fieldnames=list(alle[0]), delimiter="\t")
-        schreiber.writeheader()
-        schreiber.writerows(alle)
-    dauern = [float(z["dauer_s"]) for z in alle]
-    arten = [z["grenze_danach"] for z in alle if z["grenze_danach"] != "ende"]
-    fremd = sum(1 for z in alle if z["fremd_vorn"] or z["fremd_hinten"])
-    print(
-        f"{len(paare)} Paare, {len(alle)} Stücke → {wahl.ziel}\n"
-        f"Länge {min(dauern):.1f}-{max(dauern):.1f} s, Median {np.median(dauern):.1f} s; "
-        f"Grenzen: {arten.count('satzende')} Satzende, {arten.count('teilsatz')} Teilsatz, "
-        f"{arten.count('wort')} Wort; {fremd} Stücke mit Wörtern der Nachbarn in der Gegenprobe"
-    )
+    print(f"{len(paare)} Paare, {len(alle)} Stücke → {wahl.ziel}")
+    if alle:
+        with (wahl.ziel / "_bericht.tsv").open("w", encoding="utf-8", newline="") as datei:
+            schreiber = csv.DictWriter(datei, fieldnames=list(alle[0]), delimiter="\t")
+            schreiber.writeheader()
+            schreiber.writerows(alle)
+        dauern = [float(z["dauer_s"]) for z in alle]
+        arten = [z["grenze_danach"] for z in alle if z["grenze_danach"] != "ende"]
+        fremd = sum(1 for z in alle if z["fremd_vorn"] or z["fremd_hinten"])
+        print(
+            f"Länge {min(dauern):.1f}-{max(dauern):.1f} s, Median {np.median(dauern):.1f} s; "
+            f"Grenzen: {arten.count('satzende')} Satzende, {arten.count('teilsatz')} Teilsatz, "
+            f"{arten.count('wort')} Wort; {fremd} Stücke mit Wörtern der Nachbarn in der Gegenprobe"
+        )
     if ausgelassen:
         print("Ausgelassen, Aufnahme und Text passen nicht zusammen:\n  " + "\n  ".join(map(str, ausgelassen)))
     return 0
