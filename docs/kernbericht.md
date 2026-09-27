@@ -2,14 +2,14 @@
 
 Ein Lauf mit Kernauswahl (`K`) lernt nur auf den besten 70 % der Aufnahmen
 (siehe [lernen.md](lernen.md#die-kernauswahl)). Dieser Bericht vergleicht das
-erste Kernmodell mit den Läufen auf allen Aufnahmen - und zwar nur dort, wo
-das Kernmodell überhaupt gemessen ist: auf seinem Kern.
+erste Kernmodell mit den Läufen auf allen Aufnahmen: auf dem Kern, auf dem
+aussortierten Rest und auf beidem zusammen.
 
 > **Stand: 27. September 2026.** Sprecher B wie im
 > [Modellbericht](modellbericht.md), 292 Aufnahmen. Grundlage sind
 > `bewertung.jsonl` und `kernauswahl.json` der Läufe und die Tabelle
-> `erkennungen` des Korpus. Namen und Kennungen stehen bewusst nicht im
-> Bericht.
+> `erkennungen` des Korpus, den Rest hat das Kernmodell in der Auswertung von
+> „hören" gehört. Namen und Kennungen stehen bewusst nicht im Bericht.
 
 ---
 
@@ -20,10 +20,13 @@ freigegebenen `ML-A-E-SRP-CI/292` (Original, aus seiner Kreuzvalidierung).
 Die Grenze liegt genau bei WER = 1: Im Kern ist keine Aufnahme schlechter, im
 Rest keine besser. Die übrigen 87 Aufnahmen nennt dieser Bericht den **Rest**.
 
-Verglichen wird auf den 205 Kernaufnahmen, jede gemessen von einer Faltung,
-die sie nicht gelernt hat - beim Kernmodell aus seinen Kernfaltungen, bei den
-Läufen auf allen Aufnahmen aus deren Kreuzvalidierung, bei den unveränderten
-Grundmodellen aus „hören". Maß wie im Modellbericht: WER je Aufnahme als
+Jede Aufnahme ist von einem Modell gemessen, das sie nicht gelernt hat - beim
+Kernmodell auf dem Kern aus seinen Kernfaltungen und auf dem Rest vom
+Endmodell in „hören", bei den Läufen auf allen Aufnahmen aus deren
+Kreuzvalidierung, bei den unveränderten Grundmodellen aus „hören". Vier
+Rest-Aufnahmen sind Teile eines Originals, dessen andere Teile im Kern liegen;
+sie gelten dem Kernmodell als gehört und bleiben ungemessen. Der Rest zählt
+deshalb in allen Vergleichen 83 Aufnahmen, alle zusammen 288. Maß wie im Modellbericht: WER je Aufnahme als
 Mittel der Fassungen `original` und `rauschen`, Vergleiche gepaart, Bootstrap
 über Stämme (Teile und Kopien einer Aufnahme ziehen zusammen), dazu der
 Aufschlag für das Trainingsrauschen (Variationskoeffizient 5,8 %).
@@ -93,29 +96,81 @@ das Kernmodell aus.
 
 ---
 
-## 3. Was „schlecht" hier heißt
+## 3. Auf dem Rest: kein Unterschied
+
+| Stand | vom Rest gelernt | WER Rest [95 %] | Median | WER > 1 |
+|---|---|---|---|---|
+| **`ML-K-E-SRP-CI/205`** | nichts | **1,696** [1,414; 2,055] | 1,30 | 72 % |
+| `ML-E-SRP-CI/292` | rund 69 je Faltung | 1,692 [1,365; 2,096] | 1,25 | 63 % |
+| `ML-A-E-SRP-CI/292` | rund 69 je Faltung | 1,508 [1,371; 1,676] | 1,30 | 80 % |
+| `SV-E-SRP-CI/292` | rund 69 je Faltung | 1,415 [1,213; 1,676] | 1,17 | 60 % |
+| `ML-E-SRP-CI/43` | nichts | 1,659 [1,284; 2,236] | 1,20 | 65 % |
+| `ML-A-E-SRP-CI/43` | nichts | 2,257 [1,867; 2,734] | 1,63 | 89 % |
+| `large-v3` unverändert | - | 1,972 [1,761; 2,195] | 1,70 | 86 % |
+| `small` unverändert | - | 2,218 [1,959; 2,496] | 1,83 | 96 % |
+| `medium` unverändert | - | 2,482 [2,159; 2,866] | 2,10 | 93 % |
+
+![Kernmodell gegen die Läufe auf allen Aufnahmen, auf Kern, Rest und allen](bilder/kernbericht-gesamt.svg)
+
+*Abbildung 3.* Auf dem Rest sind die Intervalle breit. Kein Band mit
+Trainingsrauschen schließt die Null aus.
+
+| Kernmodell gegen | Δ Rest | 95 % mit Training | z | Δ alle | 95 % mit Training | z |
+|---|---|---|---|---|---|---|
+| `ML-E-SRP-CI/292` | +0,004 | [−0,327; +0,335] | 0,0 | +0,040 | [−0,126; +0,206] | 0,5 |
+| `ML-A-E-SRP-CI/292` | +0,187 | [−0,239; +0,614] | 0,9 | +0,123 | [−0,055; +0,302] | 1,4 |
+| `SV-E-SRP-CI/292` | +0,281 | [−0,117; +0,679] | 1,4 | +0,080 | [−0,098; +0,257] | 0,9 |
+| `ML-E-SRP-CI/43` | +0,036 | [−0,482; +0,555] | 0,1 | −0,159 | [−0,373; +0,055] | −1,5 |
+| `ML-A-E-SRP-CI/43` | −0,562 | [−1,066; −0,057] | **−2,2** | −0,387 | [−0,615; −0,158] | **−3,3** |
+
+* **Gegen dasselbe Rezept auf allen Aufnahmen** liegt das Kernmodell auf dem
+  Rest gleichauf: 1,696 gegen 1,692, gleicher Median, 40 Aufnahmen besser,
+  37 schlechter. Die Rest-Aufnahmen zu lernen hat auf den übrigen
+  Rest-Aufnahmen nichts gebracht.
+* **Gegen `SV-E-SRP-CI/292`** fällt es auf dem Rest um 0,28 zurück. Über
+  Aufnahmen ist das knapp (p ≈ 0,05), mit Trainingsrauschen nicht
+  nachweisbar. Auf dem Kern lagen beide gleichauf.
+* **Über alle 288** ist das Kernmodell 0,04 schlechter als dasselbe Rezept,
+  nicht nachweisbar (p ≈ 0,23), und 0,12 schlechter als
+  `ML-A-E-SRP-CI/292`, nachweisbar über Aufnahmen (p ≈ 0,01), nicht über das
+  Trainingsrauschen hinaus. Auf keinem Teil liegt es vor einem Lauf auf allen
+  Aufnahmen.
+
+---
+
+## 4. Was „schlecht" hier heißt
 
 ![Dieselben Modelle auf Kern und Rest](bilder/kernbericht-rest.svg)
 
-*Abbildung 3.* Der Rest ist für jedes Modell schwer, auch für die
-unveränderten und für `ML-E-SRP-CI/43`, das keine dieser Aufnahmen gelernt
-hat.
+*Abbildung 4.* Der Rest ist für jedes Modell schwer, auch für die
+unveränderten und für die beiden Modelle, die keine dieser Aufnahmen gelernt
+haben.
 
 Die Rest-Aufnahmen sind so lang wie die Kernaufnahmen (je rund 20 s), tragen
 aber nur 5,5 statt 9 Wörter: 4,6 statt 2,5 Sekunden je Wort. Das spricht für
 sehr langsames, stockendes Sprechen, lange Pausen oder Aufnahmen, deren Text
 nicht ganz zum Gesprochenen passt. Welcher Anteil davon falsch beschriftet
-und welcher nur schwer verständlich ist, lässt sich aus den Zahlen nicht
-trennen.
+und welcher nur schwer verständlich ist, lässt sich aus Dauer und Wortzahl
+allein nicht trennen.
+
+**Der Rest ist kaum lernbar.** Die feinabgestimmten Stände landen dort bei
+einem Median von 1,2 bis 1,3, nur `ML-A-E-SRP-CI/43` höher - ob sie keine
+Rest-Aufnahme gelernt haben wie das Kernmodell und `ML-E-SRP-CI/43` oder rund
+69 wie die Läufe auf allen Aufnahmen. Was ein Modell aus den anderen Rest-Aufnahmen lernt, hilft
+ihm bei den ungehörten nicht. Das passt eher zu Text, der nicht zum
+Gesprochenen passt, als zu Aufnahmen, die nur schwer zu verstehen sind: An
+schwerer Aussprache sollte ein Modell mit Übung zulegen.
 
 ---
 
-## 4. Grenzen
+## 5. Grenzen
 
-* **Der Rest ist für das Kernmodell noch nicht gemessen.** Die Auswertung in
-  „hören" steht aus; erst sie zeigt, was das Kernmodell auf schweren
-  Aufnahmen kostet. Zu erwarten ist dort ein größerer Rückstand als auf dem
-  Kern.
+* **Der Rest ist klein und streut stark.** 83 Aufnahmen, einzelne mit WER
+  über 10; die Intervalle dort sind rund sechsmal so breit wie auf dem
+  Kern. Ein kleiner Unterschied auf dem Rest ist damit nicht auszuschließen.
+* **Das Kernmodell misst den Rest mit dem Endmodell.** Es hat alle 205
+  Kernaufnahmen gelernt, eine Faltung nur rund 171. Das begünstigt das
+  Kernmodell auf dem Rest leicht - und doch liegt es dort nicht vorn.
 * **Einzelläufe.** Das Trainingsrauschen stammt aus vier Wiederholungen auf
   43 Aufnahmen (Modellbericht, Abschnitt 3). Auf 205 Aufnahmen ist es
   vermutlich kleiner, die Intervalle „mit Training" also eher zu breit.
@@ -127,17 +182,23 @@ trennen.
 
 ---
 
-## 5. Fazit
+## 6. Fazit
 
 **Das Lernverfahren ist robust gegenüber den schlechten Daten dieses
 Korpus.** Die 30 % am schlechtesten erkannten Aufnahmen im Training haben das
 Ergebnis auf den übrigen 70 % nicht verschlechtert; ohne sie ist dasselbe
 Rezept dort 0,055 schlechter, nachweisbar über Aufnahmen, nicht über das
-Trainingsrauschen hinaus. Den großen Gewinn bringt die Menge: Vom Lauf auf den 43 frühen Aufnahmen
-zum Kernmodell sind es 0,24 WER, zum selben Rezept auf allen 292 0,29.
+Trainingsrauschen hinaus. Auf dem Rest selbst ändert das Aussortieren nichts:
+Das Kernmodell liegt dort gleichauf mit demselben Rezept auf allen
+Aufnahmen, und beide bleiben bei einem Median um 1,3. Den großen
+Gewinn bringt die Menge: Vom Lauf auf den 43 frühen Aufnahmen zum Kernmodell
+sind es auf dem Kern 0,24 WER, zum selben Rezept auf allen 292 0,29.
 
 Für die Praxis: **alle Aufnahmen lernen, nicht aussortieren.** Die
-Kernauswahl spart ein Viertel Rechenzeit, bringt auf den guten Daten nichts
-und lässt das Modell die schweren nie hören. Bester Stand auf dem Kern bleibt
-`ML-A-E-SRP-CI/292`, mit dem Vorbehalt, dass sein Vorsprung zum Teil aus der
-Auswahl stammt.
+Kernauswahl spart ein Viertel Rechenzeit, bringt weder auf den guten noch auf
+den schlechten Daten etwas und liegt über alle 288 hinter jedem Lauf auf
+allen Aufnahmen, wenn auch nicht über das Trainingsrauschen hinaus. Bester
+Stand bleibt `ML-A-E-SRP-CI/292`: vorn auf dem Kern, mit dem
+Vorbehalt, dass sein Vorsprung dort zum Teil aus der Auswahl stammt, und über
+alle 288 mit 0,844 gegen 0,967 des Kernmodells. Der Rest verdient
+einen Blick im Zuschnitt: Lernen hilft dort nicht.
