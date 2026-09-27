@@ -96,7 +96,7 @@ def _vergiss_eigene_messungen(datenverzeichnis: Path, ref: str) -> int:
 def ziehe_nach(datenverzeichnis: Path, ref: str) -> str:
     """Einen Stand neu rechnen; gibt zurück, was dabei herauskam."""
     from .bewerten import gib_frei
-    from .finetune import Bericht, trainiere
+    from .finetune import Bericht, trainiere_geduldig
 
     sprecher_id, version = ref.split(registry.TRENNER, 1)
     manifest = registry.lies_stand(datenverzeichnis, sprecher_id, version)
@@ -149,7 +149,7 @@ def ziehe_nach(datenverzeichnis: Path, ref: str) -> str:
         f"{mitgenommen.get('plan', mitgenommen['durchgaenge']):.1f} Durchgänge, "
         f"Schluss nach {float(mitgenommen['durchgaenge']):.1f}"
     )
-    gewichte, ergebnis, _kennzahlen = trainiere(
+    gewichte, ergebnis, _kennzahlen = trainiere_geduldig(
         verzeichnis, datenverzeichnis, bericht, faltung=None, vorgaben=mitgenommen
     )
     neu = gib_frei(

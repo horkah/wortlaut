@@ -229,6 +229,19 @@ wie bei `small` - und es wurde dabei nicht langsamer, sondern schneller
 (68 statt 125 ms je Probe), weil ein Vorrat, der an die Decke stößt, mehr
 kostet als die zweite Rechnung.
 
+**Wenn andere die Karte halten.** Der Trainer ist nicht allein auf ihr: Die
+Auswertung in „hören", das Diktat in „schreiben" und das Sprachmodell der
+Textquelle rechnen ebenfalls dort und sprechen sich nicht mit ihm ab. Am
+27. September 2026 scheiterten drei Läufe binnen einer Minute am ersten
+Schritt, weil der Webdienst noch gut fünf Gigabyte an Erkennern einer
+längst beendeten Auswertung hielt. Seitdem gibt die Auswertung ihre Erkenner
+nach jedem Lauf zurück, und der Trainer wartet: Scheitert ein Training am
+Speicher, räumt er die Faltung weg, wartet und beginnt sie von vorn - bis zu
+zehn Minuten lang, im selben Takt, in dem er schon beim Laden eines Erkenners
+wartete (`training/karte.py`). Hält nach dem Aufräumen niemand sonst etwas
+auf der Karte, wartet er nicht: Dann passt das Training nicht, und das wird
+auch in zehn Minuten nicht anders.
+
 ### Der Optionscode
 
 Ein Lauf und der Stand, der aus ihm entsteht, heißen nach ihren Optionen - in

@@ -373,10 +373,15 @@ docker compose exec wortlaut sh -c 'cat data/snapshots/job_*/zustand.json'
 docker compose exec wortlaut tail -40 data/snapshots/job_01J8…/protokoll.txt
 ```
 
-Ein Lauf, der mit „CUDA out of memory" endet, ist kein Fehler im Aufbau,
-sondern eine zu große Stapelgröße für diese Karte: `stapel` in
-`apps/lernen/training/rezepte/whisper_full.yaml` herunter, `akkumulation`
-hinauf - die wirksame Stapelgröße bleibt dann dieselbe.
+Ein Lauf, der mit „CUDA out of memory" endet, hat eine von zwei Ursachen.
+Hält jemand anderes die Karte - die Auswertung in „hören", ein Diktat, das
+Sprachmodell -, wartet der Trainer bis zu zehn Minuten und beginnt die Faltung
+von vorn (`training/karte.py`); scheitert er danach, war sie so lange belegt,
+und `nvidia-smi` zeigt, von wem. Hält niemand sonst etwas, bricht er sofort
+ab mit „Es passt nicht darauf": Dann ist die Stapelgröße zu groß für diese
+Karte - `stapel` in `apps/lernen/training/rezepte/whisper_full.yaml`
+herunter, `akkumulation` hinauf; die wirksame Stapelgröße bleibt dann
+dieselbe.
 
 Der Trainer beantwortet keine Anfrage und hängt an keinem Netz. Ihn neu zu
 starten kostet nur den laufenden Lauf; die Warteschlange bleibt, und ein
