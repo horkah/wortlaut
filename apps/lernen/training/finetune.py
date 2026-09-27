@@ -42,6 +42,7 @@ from . import abschluss as abschlussrechnung
 from . import ausgangsstand
 from . import tempowahl
 from . import klangwandel
+from . import karte
 from .daten import Proben, Stapler, zeilen_fuer_faltung
 
 REZEPTE = Path(__file__).parent / "rezepte"
@@ -805,6 +806,46 @@ def trainiere(
     return gewichte, ergebnis, kennzahlen
 
 
+def trainiere_geduldig(
+    verzeichnis: Path,
+    datenverzeichnis: Path,
+    bericht: Bericht,
+    faltung: int | None = None,
+    vorgaben: dict[str, Any] | None = None,
+) -> tuple[Path, abschlussrechnung.Ergebnis, dict[str, Any]]:
+    """`trainiere` - und ist die Karte belegt, warten und die Faltung neu beginnen.
+
+    Neu heißt von vorn: Was diese Faltung schon an Zwischenständen und
+    Gewichten hingelegt hat, geht weg, damit der zweite Versuch nicht auf den
+    Resten des ersten aufsetzt (siehe `karte.py`).
+    """
+
+    def aufraeumen() -> None:
+        shutil.rmtree(verzeichnis / laeufe.ARBEITSSTAND / _name_fuer(faltung), ignore_errors=True)
+        shutil.rmtree(verzeichnis / laeufe.GEWICHTE / _name_fuer(faltung), ignore_errors=True)
+        raeume_karte(bericht)
+
+    return karte.mit_geduld(
+        lambda: trainiere(verzeichnis, datenverzeichnis, bericht, faltung, vorgaben),
+        bericht,
+        aufraeumen=aufraeumen,
+        fremd_belegt_mb=fremd_belegt_mb,
+    )
+
+
+def fremd_belegt_mb() -> float:
+    """Was auf der Karte belegt ist und nicht dem torch dieses Prozesses gehört.
+
+    Der eigene CUDA-Kontext zählt mit; dafür hat `karte.FREMD_AB_MB` Spielraum.
+    """
+    import torch
+
+    if not torch.cuda.is_available():
+        return 0.0
+    frei, gesamt = torch.cuda.mem_get_info()
+    return (gesamt - frei - torch.cuda.memory_reserved()) / 1e6
+
+
 # Was neben den umgewandelten Gewichten liegen muss, damit faster-whisper den
 # Stand wirklich laden kann. Der Zerteiler ist der wichtigere der beiden: Fehlt
 # `tokenizer.json`, greift faster-whisper still auf den von `whisper-tiny`
@@ -936,7 +977,7 @@ def kreuzvalidiere(
     for faltung in range(laeufe.FALTUNGEN):
         bericht.faltung(faltung)
         bericht.sage(f"── Faltung {faltung + 1} von {laeufe.FALTUNGEN}")
-        gewichte, ergebnis, kennzahlen = trainiere(
+        gewichte, ergebnis, kennzahlen = trainiere_geduldig(
             verzeichnis, datenverzeichnis, bericht, faltung=faltung
         )
         ct2 = verzeichnis / laeufe.GEWICHTE / f"ct2-faltung-{faltung}"
@@ -1044,7 +1085,7 @@ def main(argumente: list[str]) -> int:
 
         bericht.faltung(None)
         bericht.sage("── Endmodell: lernt auf allem, was da ist")
-        gewichte, ergebnis, _ = trainiere(
+        gewichte, ergebnis, _ = trainiere_geduldig(
             verzeichnis, datenverzeichnis, bericht, faltung=None, vorgaben=mitgenommen
         )
 
