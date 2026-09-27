@@ -235,21 +235,83 @@ def beauftrage(
     return lauf
 
 
-def brich_ab(datenverzeichnis: Path, job_id: str) -> bool:
-    """Einen wartenden Lauf zurücknehmen. Ein laufender bleibt, was er ist.
+def halte_an(datenverzeichnis: Path, job_id: str) -> bool:
+    """Einen Lauf anhalten - einen wartenden sofort, einen rechnenden über den Trainer.
 
-    Einen laufenden abzubrechen hieße, in einen fremden Container hineinzugreifen
-    - das kann diese App nicht, und so zu tun als ob wäre schlimmer als der
-    fehlende Knopf. Wer einen laufenden stoppen will, stoppt den Trainer.
+    **Ein wartender** wird hier und jetzt `abgebrochen`: Noch rechnet niemand
+    an ihm, also gibt es niemanden zu fragen.
+
+    **Ein rechnender** gehört einem anderen Container. Hineingreifen kann
+    diese App nicht; sie legt den Wunsch ins Verzeichnis (`laeufe.HALT`), und
+    der Läufer im Trainer-Container beendet den Prozess
+    (`training/laeufer.py`). Bis dahin sagt der Lauf weiter `laeuft` - die
+    Ansicht zeigt, dass er angehalten wird.
+
+    **Ein hängender** sagt `laeuft`, aber niemand schreibt mehr (`Lauf.haengt`).
+    Auf den Läufer zu warten hieße womöglich, ewig zu warten; er wird hier
+    `abgebrochen`. Lebt der Prozess doch noch, findet ihn der Läufer über
+    denselben Wunsch.
+
+    `False` heißt: Es gab nichts anzuhalten - der Lauf ist schon zu Ende.
     """
     lauf = laeufe.lies_lauf(datenverzeichnis, job_id)
-    if lauf is None or not lauf.offen:
+    if lauf is None or lauf.status not in (laeufe.WARTET, laeufe.LAEUFT):
         return False
-    laeufe.schreibe_json(
-        lauf.verzeichnis / laeufe.ZUSTAND,
-        {"status": laeufe.ABGEBROCHEN, "beendet": laeufe.jetzt()},
-    )
+    laeufe.verlange_anhalten(lauf.verzeichnis)
+    if lauf.offen or lauf.haengt:
+        laeufe.schreibe_json(
+            lauf.verzeichnis / laeufe.ZUSTAND,
+            {**lauf.zustand, "status": laeufe.ABGEBROCHEN, "beendet": laeufe.jetzt()},
+        )
     return True
+
+
+# Was ein neu gestarteter Lauf von seinem Vorgänger übernimmt: den Schnappschuss
+# des Korpus und, beim Kern, dessen Auswahl. Alles andere - Zustand,
+# Fortschritt, Protokoll, Bewertung - gehört zu dem, was schiefging.
+UEBERNOMMEN = (laeufe.SPRECHER_MARKE, laeufe.MANIFEST, laeufe.KERNAUSWAHL)
+NEU_STARTBAR = (laeufe.GESCHEITERT, laeufe.ABGEBROCHEN)
+
+
+def starte_neu(datenverzeichnis: Path, sprecher_id: str, job_id: str) -> laeufe.Lauf:
+    """Einen gescheiterten oder angehaltenen Lauf noch einmal rechnen lassen.
+
+    **Derselbe Auftrag auf demselben Schnappschuss.** Neu gestartet wird, was
+    damals bestellt wurde, und nicht, was heute im Korpus liegt: Wer einen
+    Lauf neu startet, will das Ergebnis, das er verpasst hat. Seither
+    verworfene Aufnahmen fallen dabei heraus, wie bei jedem Lauf
+    (`daten.zeilen_fuer_faltung`). Wer den heutigen Korpus will, beauftragt
+    neu.
+
+    **Der neue ersetzt den alten.** Er bekommt eine eigene Kennung und damit
+    ein leeres Verzeichnis, und der alte geht - samt einem Stand, falls einer
+    entstanden war (`loesche`). Die Folge (`/43b`) nimmt er mit: Es ist
+    derselbe Lauf, nur diesmal zu Ende gerechnet.
+    """
+    alt = laeufe.lies_lauf(datenverzeichnis, job_id)
+    if alt is None or alt.sprecher_id != sprecher_id:
+        raise LookupError(job_id)
+    if alt.status not in NEU_STARTBAR:
+        raise RuntimeError(
+            "Neu starten lässt sich nur ein gescheiterter oder angehaltener Lauf."
+        )
+
+    neu_id = ids.neue_id("job")
+    verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, neu_id)
+    verzeichnis.mkdir(parents=True, exist_ok=True)
+    for name in UEBERNOMMEN:
+        if (alt.verzeichnis / name).is_file():
+            shutil.copy2(alt.verzeichnis / name, verzeichnis / name)
+    # Der Auftrag zuletzt, wie in `beauftrage`: Erst mit ihm ist der Lauf offen.
+    laeufe.schreibe_json(
+        verzeichnis / laeufe.AUFTRAG,
+        {**alt.auftrag, "job_id": neu_id, "erstellt": laeufe.jetzt(), "neu_von": job_id},
+    )
+    loesche(datenverzeichnis, sprecher_id, job_id)
+
+    lauf = laeufe.lies_lauf(datenverzeichnis, neu_id)
+    assert lauf is not None  # gerade selbst geschrieben
+    return lauf
 
 
 @dataclass(frozen=True)

@@ -64,6 +64,13 @@ ZUSTAND = "zustand.json"
 FORTSCHRITT = "fortschritt.jsonl"
 BEWERTUNG = "bewertung.jsonl"
 PROTOKOLL = "protokoll.txt"
+# Der Wunsch, einen Lauf anzuhalten. Die Oberfläche legt die Datei hin, der
+# Läufer im Trainer-Container sieht sie und beendet den rechnenden Prozess -
+# derselbe Weg über das Verzeichnis wie für alles andere zwischen den beiden
+# (`apps/lernen/training/laeufer.py`). Sie bleibt danach liegen: Ein
+# angehaltener Lauf soll nicht wieder anlaufen, nur weil ihn jemand neu
+# einliest.
+HALT = "halt"
 
 # Die beiden Verzeichnisse, die nur während eines Laufs etwas zu sagen haben:
 # der Arbeitsstand des Trainers (Zwischenstände samt Optimierer) und die
@@ -706,6 +713,16 @@ class Lauf:
         Warnung, die auch im Normalfall angeht, liest bald niemand mehr.
         """
         return self.status == LAEUFT and self.stillstand_s > STILLSTAND_S
+
+
+def anhalten_verlangt(verzeichnis: Path) -> bool:
+    """Ob jemand diesen Lauf anhalten will (`HALT`)."""
+    return (verzeichnis / HALT).exists()
+
+
+def verlange_anhalten(verzeichnis: Path) -> None:
+    """Den Wunsch hinlegen. Zweimal ist dasselbe wie einmal."""
+    (verzeichnis / HALT).write_text(f"{jetzt()}\n", encoding="utf-8")
 
 
 def lies_lauf(datenverzeichnis: Path, job_id: str) -> Lauf | None:

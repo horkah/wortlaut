@@ -574,7 +574,8 @@ GET    /lernen/api/aufteilung                     die Faltungen in Zahlen
 GET    /lernen/api/laeufe                         die Liste, ohne Kurven
 POST   /lernen/api/laeufe                         { methode, daten, abschluss? }
 GET    /lernen/api/laeufe/{id}                    Kurven, Vergleich, Protokoll
-POST   /lernen/api/laeufe/{id}/abbruch            einen wartenden zurücknehmen
+POST   /lernen/api/laeufe/{id}/abbruch            anhalten, wartend oder rechnend
+POST   /lernen/api/laeufe/{id}/neustart           neu starten, ersetzt den alten
 DELETE /lernen/api/laeufe/{id}                    ersatzlos löschen, samt Modell
 GET    /lernen/api/modelle                        die fertigen Stände
 POST   /lernen/api/modelle/{version}/freigabe     freigeben, andere zurückziehen

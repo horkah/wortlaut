@@ -452,7 +452,8 @@ Der Schlüssel steht in `WORTLAUT_TRAINER_KEY`, und **leer heißt abgeschaltet**
 - wie bei Verwaltung und Aufsicht in `hören` und aus demselben Grund: Keine
 Installation weiß, ob sie eine Entwicklungsinstallation ist. Dann sagt die
 Ansicht es und zeigt die Wahl gar nicht erst; die Läufe von früher bleiben
-sichtbar. Zusehen, zurücknehmen, löschen und freigeben verlangen ihn nie - das
+sichtbar. Verlangt wird er beim Beauftragen und beim Neustart. Zusehen,
+anhalten, löschen und freigeben verlangen ihn nie - das
 kostet nichts und gehört dem, dessen Stimme im Modell steckt. Der Browser merkt
 sich einen Schlüssel, der funktioniert hat; ein falscher wird nicht gemerkt,
 sonst verdächtigte man ihn beim nächsten Mal nicht mehr.
@@ -470,6 +471,27 @@ Was **nicht** mitgeht, ist der Korpus. Er gehört „hören" und nicht diesem
 Lauf; die Faltungen hängen an seiner Reihenfolge und werden beim nächsten
 Auftrag ohnehin neu gerechnet. Ein rechnender Lauf lässt sich nicht löschen: In sein Verzeichnis schreibt gerade
 ein anderer Container.
+
+**Anhalten.** Ein wartender Lauf wird sofort zurückgenommen. Einen
+rechnenden hält der Trainer an, denn in dessen Container rechnet er: Die
+Ansicht legt `halt` in das Laufverzeichnis, der Läufer sieht es binnen zwei
+Sekunden und schickt dem Trainingsprozess SIGTERM. Der räumt seinen
+Arbeitsstand weg und meldet `abgebrochen`. Antwortet er nicht binnen einer
+Minute, fällt die ganze Prozessgruppe mit SIGKILL, und der Läufer trägt den
+Zustand selbst ein (`training/laeufer.py`). Bis dahin steht auf der Karte
+„Wird angehalten …". Ein hängender Lauf ist sofort angehalten, weil niemand
+mehr an ihm schreibt. Was bis zum Anhalten gerechnet wurde, ist verloren;
+fortsetzen lässt sich ein Lauf nicht.
+
+**Neu starten.** Gescheiterte und angehaltene Läufe bleiben mit ihrem
+Zustand stehen, bis jemand sie neu startet oder löscht. Neu starten rechnet
+denselben Auftrag auf demselben Schnappschuss noch einmal, beim Kern mit
+derselben Kernauswahl: Wer neu startet, will das Ergebnis, das er verpasst
+hat, und nicht einen Lauf über den heutigen Korpus; den gibt es mit einem
+neuen Auftrag. Der neue Lauf bekommt eine eigene Kennung und ein leeres
+Verzeichnis, behält Titel und Folge (`/43b`), und der alte wird dabei
+gelöscht (`services/auftraege.starte_neu`). Wie das Beauftragen belegt ein
+Neustart die Karte für Stunden und verlangt deshalb den Trainerschlüssel.
 
 Ein Klick führt in den **einzelnen Lauf**: zwei Kurven über den Schritten. Die
 durchgezogene ist der Trainingsverlust, die gestrichelte die Validierung. Zwei
@@ -673,11 +695,13 @@ gerade steht -, entfällt die Karte; die Tabelle darunter steht weiterhin.
 GET    /lernen/api/aufteilung               wer lernt, steuert, prüft - teilt dabei zu
 GET    /lernen/api/laeufe                   die Liste, ohne Kurven
 POST   /lernen/api/laeufe                   einen Lauf beauftragen
-                                            + X-Trainer-Key - der einzige Weg,
-                                            der ein zweites Geheimnis verlangt
+                                            + X-Trainer-Key
 GET    /lernen/api/laeufe/{id}              Kurven, Bewertung, Vergleich, Protokoll
                                             ?intervall=aus|aufnahme|einheit
-POST   /lernen/api/laeufe/{id}/abbruch      einen wartenden zurücknehmen
+POST   /lernen/api/laeufe/{id}/abbruch      anhalten: wartend sofort, rechnend
+                                            über den Trainer
+POST   /lernen/api/laeufe/{id}/neustart     gescheitert oder angehalten neu
+                                            starten, ersetzt ihn + X-Trainer-Key
 DELETE /lernen/api/laeufe/{id}              ersatzlos löschen, samt seinem Modell
 GET    /lernen/api/modelle                  alle Modelle mit ihren Zahlen
                                             ?intervall=aus|aufnahme|einheit

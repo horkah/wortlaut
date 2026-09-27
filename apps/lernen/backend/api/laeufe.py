@@ -9,10 +9,14 @@ werden - dieselbe Aufteilung wie in der Auswertung von „hören":
   Vielfaches dessen, was gemeint ist.
 * `GET  /lernen/api/laeufe/{id}`     ein Lauf im Einzelnen: Kurven, Bewertung,
   Vergleich mit der Baseline.
-* `POST /lernen/api/laeufe`          einen Lauf beauftragen. **Der einzige Weg
-  hier, der ein zweites Geheimnis verlangt** - den Trainerschlüssel, siehe
-  `_pruefe_trainerschluessel`.
-* `POST /lernen/api/laeufe/{id}/abbruch`  einen wartenden zurücknehmen.
+* `POST /lernen/api/laeufe`          einen Lauf beauftragen. **Einer von zwei
+  Wegen hier, die ein zweites Geheimnis verlangen** - den Trainerschlüssel,
+  siehe `_pruefe_trainerschluessel`. Der andere ist der Neustart.
+* `POST /lernen/api/laeufe/{id}/abbruch`  einen Lauf anhalten - einen
+  wartenden sofort, einen rechnenden über den Trainer.
+* `POST /lernen/api/laeufe/{id}/neustart` einen gescheiterten oder
+  angehaltenen noch einmal rechnen lassen; er ersetzt den alten. Verlangt wie
+  das Beauftragen den Trainerschlüssel.
 * `DELETE /lernen/api/laeufe/{id}`   einen Lauf ersatzlos entfernen, samt dem
   Modell, das aus ihm entstand.
 
@@ -400,6 +404,11 @@ class LaufAntwort(BaseModel):
     # eine Auskunft, sonst `null`. Damit die Ansicht „seit 20 Minuten" sagen
     # kann und nicht bloß „hängt".
     stillstand_s: float | None
+    # Angehalten verlangt, aber der Trainer hat den Prozess noch nicht
+    # beendet. Bis dahin sagt der Zustand weiter `laeuft`.
+    wird_angehalten: bool = False
+    # Gescheitert oder angehalten - dann lässt er sich neu starten.
+    neu_startbar: bool = False
 
 
 class PunktAntwort(BaseModel):
@@ -625,6 +634,9 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         fehler=lauf.zustand.get("fehler"),
         stand=_stand_zu(lauf),
         loeschbar=lauf.status != lauf_layout.LAEUFT or lauf.haengt,
+        wird_angehalten=lauf.status == lauf_layout.LAEUFT
+        and lauf_layout.anhalten_verlangt(lauf.verzeichnis),
+        neu_startbar=lauf.status in auftraege.NEU_STARTBAR,
         haengt=lauf.haengt,
         stillstand_s=(
             round(lauf.stillstand_s) if lauf.status == lauf_layout.LAEUFT else None
@@ -998,7 +1010,7 @@ def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
 def beauftrage(
     bestellung: Bestellung, korpus: Korpus, sprecher: SprecherId, sprache: Sprache
 ) -> LaufAntwort:
-    """Einen Lauf beauftragen - der einzige Weg, der den Trainerschlüssel verlangt.
+    """Einen Lauf beauftragen - mit dem Neustart der Weg, der den Trainerschlüssel verlangt.
 
     Er steht vor allen anderen Prüfungen, und zwar mit Absicht: Wer nicht
     trainieren darf, soll nicht erfahren, wie viele Aufnahmen im Korpus eines
@@ -1195,10 +1207,39 @@ def loeschen(job_id: str, sprecher: SprecherId) -> GeloeschtAntwort:
 
 @router.post("/{job_id}/abbruch", response_model=LaufAntwort)
 def abbrechen(job_id: str, sprecher: SprecherId) -> LaufAntwort:
-    lauf = _hole(sprecher, job_id)
-    if not auftraege.brich_ab(einstellungen().data_dir, job_id):
+    """Anhalten - einen wartenden sofort, einen rechnenden über den Trainer.
+
+    Ohne Trainerschlüssel, wie das Löschen: Anhalten belegt keine Karte,
+    es gibt sie frei.
+    """
+    _hole(sprecher, job_id)
+    if not auftraege.halte_an(einstellungen().data_dir, job_id):
         raise HTTPException(
             status_code=409,
-            detail="Dieser Lauf wartet nicht mehr - zurücknehmen lässt sich nur ein wartender.",
+            detail="Dieser Lauf ist schon zu Ende - anhalten lässt sich nur ein "
+            "wartender oder rechnender.",
         )
     return _als_antwort(_hole(sprecher, job_id))
+
+
+@router.post(
+    "/{job_id}/neustart",
+    response_model=LaufAntwort,
+    status_code=201,
+    dependencies=[Depends(_pruefe_trainerschluessel)],
+)
+def neu_starten(job_id: str, sprecher: SprecherId) -> LaufAntwort:
+    """Einen gescheiterten oder angehaltenen Lauf noch einmal rechnen lassen.
+
+    Mit Trainerschlüssel, wie das Beauftragen: Es belegt die Karte für Stunden.
+    Was übernommen wird und warum der alte geht, steht in
+    `services/auftraege.starte_neu`.
+    """
+    _hole(sprecher, job_id)
+    try:
+        lauf = auftraege.starte_neu(einstellungen().data_dir, sprecher, job_id)
+    except LookupError as ursache:
+        raise HTTPException(status_code=404, detail="Unbekannter Lauf.") from ursache
+    except RuntimeError as ursache:
+        raise HTTPException(status_code=409, detail=str(ursache)) from ursache
+    return _als_antwort(lauf)

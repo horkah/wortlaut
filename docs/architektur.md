@@ -93,9 +93,10 @@ jemand die Karte für Stunden belegen darf. Ein Training kostet Rechenzeit,
 Strom und die Wartezeit aller anderen, und der Zugang ist an jeden ausgegeben,
 der aufnimmt; wäre er auch die Erlaubnis, wäre jeder Aufnahmelink ein Knopf,
 der Geld kostet, so oft wie jemand darauf drückt. Deshalb steht vor
-`POST /lernen/api/laeufe` ein zweites Geheimnis (`WORTLAUT_TRAINER_KEY`,
-Kopfzeile `X-Trainer-Key`) - und **nur** dort. Zusehen, zurücknehmen, löschen
-und freigeben kosten nichts und bleiben beim Sprecher. Leer heißt abgeschaltet,
+`POST /lernen/api/laeufe` und vor dem Neustart eines Laufs ein zweites
+Geheimnis (`WORTLAUT_TRAINER_KEY`, Kopfzeile `X-Trainer-Key`) - und **nur**
+dort. Zusehen, anhalten, löschen und freigeben kosten nichts und bleiben beim
+Sprecher. Leer heißt abgeschaltet,
 nicht offen, wie bei Verwaltung und Aufsicht.
 
 Dieselbe Trennung, anderer Anlass, steht vor dem **Zuschnitt** in `hören`

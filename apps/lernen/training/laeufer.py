@@ -21,18 +21,57 @@ dieselbe Überlegung wie beim Lauf der Auswertung in „hören".
 PyTorch gibt ihn nach einem Fehler nicht immer zurück. Ein Prozess, der endet,
 gibt alles zurück. Zugleich überlebt der Läufer damit einen Lauf, der sich an
 einem kaputten Modell verschluckt - er nimmt den nächsten.
+
+**Anhalten.** Liegt im Laufverzeichnis `halt` (`laeufe.HALT`), schickt der
+Läufer dem rechnenden Prozess SIGTERM. Der hält an, räumt auf und meldet
+`abgebrochen` (`finetune.main`). Antwortet er nicht binnen `GNADENFRIST_S` -
+etwa weil er in einer Rechnung auf der Karte steckt, die keine Signale
+annimmt -, fällt die ganze Prozessgruppe mit SIGKILL, samt Ladefäden, und der
+Läufer trägt den Zustand selbst ein.
 """
 
 from __future__ import annotations
 
+import os
+import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
 from wortlaut import laeufe
 
 from apps.lernen.backend.config import einstellungen
+
+
+# Wie oft nachgesehen wird, ob jemand anhalten will, und wie lange ein
+# angehaltener Prozess hat, um von selbst zu gehen.
+HALT_TAKT_S = 2.0
+GNADENFRIST_S = 60.0
+
+
+def _wache(lauf: laeufe.Lauf, prozess: subprocess.Popen) -> None:
+    """Neben dem Lauf: anhalten, sobald `halt` daliegt - erst höflich, dann nicht mehr."""
+    angehalten_um: float | None = None
+    while prozess.poll() is None:
+        if angehalten_um is None and laeufe.anhalten_verlangt(lauf.verzeichnis):
+            print(f"Auftrag {lauf.job_id}: wird angehalten", flush=True)
+            prozess.terminate()
+            angehalten_um = time.monotonic()
+        elif angehalten_um is not None and time.monotonic() - angehalten_um > GNADENFRIST_S:
+            print(f"Auftrag {lauf.job_id}: antwortet nicht, wird beendet", flush=True)
+            _beende_gruppe(prozess)
+            return
+        time.sleep(HALT_TAKT_S)
+
+
+def _beende_gruppe(prozess: subprocess.Popen) -> None:
+    """Den Prozess und alles, was er gestartet hat - die Ladefäden von torch etwa."""
+    try:
+        os.killpg(prozess.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
 
 
 def _fuehre_aus(lauf: laeufe.Lauf) -> int:
@@ -52,14 +91,22 @@ def _fuehre_aus(lauf: laeufe.Lauf) -> int:
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
+            # Eine eigene Prozessgruppe, damit sich beim Anhalten alles auf
+            # einmal beenden lässt, was dieser Lauf gestartet hat - und nur das.
+            start_new_session=True,
         ) as prozess,
     ):
+        threading.Thread(target=_wache, args=(lauf, prozess), daemon=True).start()
         assert prozess.stdout is not None
         for zeile in prozess.stdout:
             datei.write(zeile)
             datei.flush()
             print(zeile.rstrip(), flush=True)
-        return prozess.wait()
+        rueckgabe = prozess.wait()
+        if laeufe.anhalten_verlangt(lauf.verzeichnis):
+            # Was der Prozess an Ladefäden hinterlassen hat, geht mit.
+            _beende_gruppe(prozess)
+        return rueckgabe
 
 
 def _nacharbeit(lauf: laeufe.Lauf, rueckgabe: int) -> None:
@@ -73,6 +120,14 @@ def _nacharbeit(lauf: laeufe.Lauf, rueckgabe: int) -> None:
     """
     nachher = laeufe.lies_lauf(einstellungen().data_dir, lauf.job_id)
     if nachher is None or nachher.status not in (laeufe.LAEUFT, laeufe.WARTET):
+        return
+    if laeufe.anhalten_verlangt(nachher.verzeichnis):
+        # Angehalten und nicht mehr dazu gekommen, es selbst zu sagen - der
+        # Prozess fiel mit SIGKILL. Wo er stand, bleibt im Zustand stehen.
+        laeufe.schreibe_json(
+            nachher.verzeichnis / laeufe.ZUSTAND,
+            {**nachher.zustand, "status": laeufe.ABGEBROCHEN, "beendet": laeufe.jetzt()},
+        )
         return
     laeufe.schreibe_json(
         nachher.verzeichnis / laeufe.ZUSTAND,
@@ -134,6 +189,15 @@ def einmal() -> bool:
     lauf = laeufe.naechster_offener(konfiguration.data_dir)
     if lauf is None:
         return False
+
+    if laeufe.anhalten_verlangt(lauf.verzeichnis):
+        # Angehalten, bevor er anfing - zwischen dem Blick der Oberfläche auf
+        # `wartet` und diesem hier.
+        laeufe.schreibe_json(
+            lauf.verzeichnis / laeufe.ZUSTAND,
+            {"status": laeufe.ABGEBROCHEN, "beendet": laeufe.jetzt()},
+        )
+        return True
 
     print(
         f"Auftrag {lauf.job_id}: {lauf.auftrag.get('methode')} · "
