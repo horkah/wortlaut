@@ -13,11 +13,8 @@
   import { diktieren, sitzungBeginnen } from '../lib/api';
   import { gehZu, setzeSitzung, zustand } from '../lib/zustand.svelte';
 
-  // Der Modellstand steht hier, nicht in der Kopfzeile: Wer eine Ausgabe
-  // beurteilt, muss sehen, welcher Stand sie erzeugt hat - direkt bei der
-  // Aufnahme, die ihn erzeugt. Die Zeile ist zugleich der Weg zur
-  // Modellübersicht in „lernen": Wer sie liest, denkt gerade darüber nach,
-  // ob ein anderes Modell besser zuhören würde.
+  // Der Modellstand steht bei der Aufnahme, deren Ausgabe man beurteilt, und
+  // führt zur Modelltafel in „lernen".
   const beschriftung = $derived(zustand.modellstand?.beschriftung ?? '');
   const kennung = $derived(zustand.modellstand?.kennung ?? null);
 
@@ -68,10 +65,8 @@
 
   {#if beschriftung}
     <p class="modellstand gedaempft">
-      <!-- Dieselbe Kurzkennung wie in „lernen". Sie steht hier, weil genau
-           hier die Frage aufkommt, welches der Modelle aus der Tafel gerade
-           zuhört - und der sprechende Titel allein beantwortet sie nicht,
-           wenn zwei Stände dasselbe Rezept haben. -->
+      <!-- Die Kurzkennung wie in „lernen" - der Titel allein unterscheidet
+           Stände mit gleichem Rezept nicht. -->
       <a href={MODELLE_URL}>
         {#if kennung}<code class="kennung">{kennung}</code>{/if}{beschriftung}
       </a>

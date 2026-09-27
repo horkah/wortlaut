@@ -1,12 +1,8 @@
 /**
  * Der einzige Ort, an dem diese App mit ihrem Backend spricht.
  *
- * Jede Anfrage trägt den Zugang des Sprechers - denselben, den „hören" für ihn
- * ausgegeben hat und der in demselben Browser liegt (siehe `$ui/zugang`). Den
- * Sprecher nennt trotzdem keine Anfrage: Der Server leitet ihn aus dem Zugang
- * ab (`backend/deps.py`). So kann diese App gar nicht erst in ein fremdes
- * Verzeichnis schreiben, und der Mensch muss dafür nichts tun - sein Link war
- * einmal zu öffnen, hier oder drüben.
+ * Jede Anfrage trägt den Zugang (`$ui/zugang`); den Sprecher leitet der
+ * Server daraus ab (`backend/deps.py`).
  */
 
 import { alsJson, api } from '$ui/api';
