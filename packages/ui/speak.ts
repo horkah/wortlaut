@@ -10,13 +10,9 @@
  * wie gut er klingt, hängt am Modell und nicht am Betriebssystem
  * (`wortlaut/vorlesen.py`).
  *
- * Der zweite Weg ist die Web Speech API. Sie braucht keine Infrastruktur, und
- * sie bleibt, weil sie immer da ist: Solange keine Servestimme abgelegt wurde
- * oder eine Datei einmal nicht kommt, liest der Browser vor wie bisher. Welche
- * Stimmen es dort gibt und wie gut sie klingen, entscheidet allein das
- * Betriebssystem - dieselbe Seite klingt auf macOS natürlich und unter Linux
- * mit espeak-ng blechern. Von hier aus lässt sich das nicht ändern, nur zur
- * Auswahl stellen.
+ * Der zweite Weg ist die Web Speech API, die immer da ist: ohne Servestimme
+ * oder wenn eine Datei nicht kommt. Ihre Stimmen bestimmt das Betriebssystem -
+ * auf macOS natürlich, unter Linux mit espeak-ng blechern.
  */
 
 import { api } from './api';
@@ -35,10 +31,7 @@ export type Sprechweise = {
 /**
  * Ist überhaupt eine Stimme für diese Sprache da?
  *
- * **`sprache` ohne Vorgabe, und das mit Absicht.** Hier stand `= 'de'`, und
- * damit bekam jeder Aufrufer die deutsche Antwort - auch der, der die Sprache
- * seines Profils gar nicht erst geholt hatte. Wer fragt, sagt jetzt, für wen
- * (`wortlaut/sprachen.py`).
+ * **`sprache` ohne Vorgabe:** Wer fragt, sagt, für wen (`wortlaut/sprachen.py`).
  *
  * **`null` heißt „weiß ich nicht" und nicht „Deutsch".** So lange steht die
  * Antwort des Servers noch aus (`wer.ts`), und ein Verwalter hat gar keine
@@ -69,8 +62,7 @@ export function stimmen(sprache: string | null): SpeechSynthesisVoice[] {
  *
  * `aus` nimmt die Liste entgegen, aus der gewählt wird - nötig für Ansichten,
  * die sie im Zustand halten, weil `getVoices()` selbst nichts meldet, wenn
- * sich etwas ändert. Ohne Vorgabe, seit `stimmen()` die Sprache verlangt: Die
- * bequeme Vorgabe wäre wieder die deutsche Liste gewesen.
+ * sich etwas ändert. Ohne Vorgabe - sie wäre stillschweigend eine Sprache.
  */
 export function stimmeNachUri(
   uri: string | null,
@@ -148,9 +140,7 @@ export function serveSchluessel(uri: string): string {
 
 /**
  * Die Stimmen liegen bei „hören" - auf der Wurzel der gemeinsamen Domain, also
- * aus jeder App derselbe Weg (wie `wer.ts`). Sie standen einmal nur in der API
- * von „hören", und die Stimmwahl unter „Audio" bot sie darum nur dort an: Aus
- * „lernen" und „schreiben" geöffnet, fehlten sie in derselben Ansicht.
+ * aus jeder App derselbe Weg (wie `wer.ts`).
  */
 const hoeren = api('/api');
 

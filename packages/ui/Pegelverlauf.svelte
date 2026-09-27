@@ -16,12 +16,8 @@
    * Zeilen. Die Datei dafür herunterzuladen und ein zweites Mal zu vermessen,
    * nur um eine Bibliothek benutzen zu können, wäre der Umweg.
    *
-   * Dazu kommt der Ort: Diese Komponente liegt in `packages/ui`, und dort gibt
-   * es kein eigenes `node_modules` - die geteilten Komponenten werden aus dem
-   * der jeweiligen App gebaut und kommen bisher ohne eine einzige fremde
-   * Bibliothek aus (siehe `apps/hoeren/frontend/src/lib/diagramm.ts`, wo
-   * dieselbe Überlegung zum umgekehrten Ergebnis führte: ECharts kann, was
-   * niemand nachbaut).
+   * Dazu kommt der Ort: `packages/ui` hat kein eigenes `node_modules` und
+   * kommt ohne fremde Bibliothek aus (anders `apps/hoeren/frontend/src/lib/diagramm.ts`).
    *
    * **Warum SVG und nicht Leinwand.** Es sind ein paar hundert Punkte und zwei
    * Griffe, keine tausend Balken mit Zoom. Als SVG skaliert das Bild mit der

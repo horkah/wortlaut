@@ -10,14 +10,7 @@
    * im Menü steht und keiner einzelnen App gehört - Audio, Darstellung,
    * System, Zugangsdaten -, dazu den Hinweis, wenn kein Zugang da ist.
    *
-   * **Warum so viel hier.** Bis September 2026 reichte jede App das dem Rahmen
-   * einzeln herein, und jede ein wenig anders: Die Stimmen vom Server bekam
-   * nur der Rahmen von „hören" - aus „lernen" und „schreiben" standen sie
-   * unter „Audio" gar nicht zur Wahl -, „lernen" nannte die Aufsicht in der
-   * Kopfzeile nicht, „schreiben" nannte die Verwaltung „kein Zugang", und die
-   * Zugangsdaten hatten in jeder App einen eigenen Umschlag. Keine dieser
-   * Abweichungen war entschieden worden. Was eine App nicht hereinreicht, kann
-   * sie nicht anders hereinreichen.
+   * So viel hier, damit keine App davon abweichen kann.
    *
    * Die App liefert nur, was ihr gehört: die Ansicht zu jedem ihrer Reiter
    * (`ansichten`, die Reiter selbst stehen in `REITER`) und ihre Ansicht für

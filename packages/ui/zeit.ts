@@ -37,17 +37,8 @@ export function tagUndZeit(zeitpunkt: string): string {
 /**
  * Tag und Uhrzeit deutsch, in der Zeitzone des Betrachters (`14.09.2026, 14:38`).
  *
- * **Die einzige Stelle, die einen Zeitstempel für Menschen schreibt.** Es
- * waren drei: diese Datei, ein eigenes `zeit()` in der Trainingsliste und ein
- * `strftime` im Server. Der letzte formatierte in UTC - der Server steht in
- * Deutschland, und derselbe Augenblick stand in der Liste als 14:38 und im
- * Steckbrief als 12:34 daneben.
- *
- * Der Server formatiert deshalb keine Zeitstempel mehr. Er schickt ISO-8601
- * in UTC, so wie er sie ablegt, und hier wird gerechnet - `Date` kennt den
- * Versatz des Betrachters, ein Server kennt ihn nicht. Das gilt auch, wenn er
- * zufällig im selben Land steht: Wer die App aus Zürich oder Wien öffnet,
- * bekäme sonst die Uhrzeit des Rechenzentrums.
+ * **Die einzige Stelle, die einen Zeitstempel für Menschen schreibt.** Der
+ * Server schickt ISO 8601 in UTC; nur `Date` kennt den Versatz des Betrachters.
  */
 export function zeitpunkt(roh: string): string {
   const wann = new Date(roh);
@@ -61,12 +52,8 @@ export function zeitpunkt(roh: string): string {
 /**
  * Eine Zeitspanne in Sekunden, als Stunden, Minuten und Sekunden.
  *
- * **Warum keine Dezimalstunden.** Der Fortschritt stand hier lange als
- * „0,43 Stunden". Das ist richtig gerechnet und für die Zielperson (die
- * schlecht liest, Grundentscheidung 7) keine Auskunft: Niemand weiß aus dem
- * Stand, wie viele Minuten das sind, und niemand sollte es ausrechnen müssen,
- * um zu sehen, wie weit er heute gekommen ist. „25 min 48 s" beantwortet
- * dieselbe Frage ohne Umweg.
+ * **Keine Dezimalstunden:** „0,43 Stunden" muss man umrechnen, „25 min 48 s"
+ * nicht (Grundentscheidung 7).
  *
  * **Warum höchstens zwei Einheiten.** Neben Stunden sind Sekunden Rauschen -
  * wer zwei Stunden Sprache gesammelt hat, interessiert sich nicht für die

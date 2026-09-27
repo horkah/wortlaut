@@ -69,18 +69,9 @@ export interface Menuepunkt {
  * Reiterreihe, sondern hinter dem Menüknopf der Kopfleiste. Eine Konstante,
  * damit Kopfleiste und Apps nicht getrennt voneinander raten.
  *
- * **Der Punkt hieß „Einstellungen", und das war der falsche Name.** Hinter dem
- * Menüknopf sind fast alle Punkte Einstellungen - die Darstellung ist eine,
- * der Zugang ist eine. Einen davon „Einstellungen" zu nennen sagt nicht, was
- * darin steht, sondern nur, dass er zu den anderen gehört. Darin stehen
- * Mikrofon und Stimme, also heißt er „Audio".
- *
- * **Die Route bleibt `/einstellungen`, und das ist kein Versehen.** Aus ihr
- * wird der Schlüssel, unter dem im Browser steht, ob dieser Punkt im Menü
- * sichtbar ist (`menueSchluessel`). Eine neue Route hieße: Jeder, der den
- * Punkt einmal ausgeblendet hat, sieht ihn ohne Ankündigung wieder - und ein
- * Lesezeichen liefe ins Leere. Ein Name, den nur der Quelltext sieht, ist das
- * nicht wert.
+ * „Audio", weil darin Mikrofon und Stimme stehen. Die Route heißt
+ * `/einstellungen`: Aus ihr entsteht der Schlüssel für die Sichtbarkeit im
+ * Menü (`menueSchluessel`), und Lesezeichen führen hin.
  */
 export const AUDIO_PFAD = '/einstellungen';
 
@@ -165,15 +156,9 @@ export const EDITIEREN_ROUTE = `${ZUSCHNITT_PFAD}/editieren/`;
 /**
  * Wo die Grundmodelle über den eigenen Korpus laufen - die Auswertung.
  *
- * Nur „hören" führt sie, und zwar als **Reiter**: Dort liegt der Korpus, dort
- * wird gemessen, und jede Aufnahme ist eine fertige Prüfaufgabe - die Vorlage
- * steht daneben, also lässt sich vergleichen, was ein Erkenner daraus macht.
- *
- * Sie stand lange im Menü, mit der Begründung, Auswerten sei ein Nachsehen und
- * keine Tätigkeit. Das stimmt nicht mehr: Die Auswertung ist der Schritt, der
- * aus einem Korpus Zahlen macht, und ohne sie bleibt die Modellübersicht in
- * „lernen" leer. Sie gehört damit in dieselbe Reihe wie Textquelle, Aufnehmen
- * und Fortschritt - ans Ende, weil sie der letzte Schritt darin ist.
+ * Ein Reiter von „hören", wo der Korpus liegt: Jede Aufnahme ist mit ihrer
+ * Vorlage eine fertige Prüfaufgabe. Der letzte Schritt der Arbeit - ohne ihn
+ * bleibt die Modelltafel in „lernen" leer.
  */
 export const AUSWERTUNG_PFAD = '/auswertung';
 
@@ -185,21 +170,8 @@ export const AUSWERTUNG_PFAD = '/auswertung';
  * denselben Testaufnahmen gemessen, und eines davon wird freigegeben - das,
  * mit dem „schreiben" danach diktiert.
  *
- * Es gab das einmal zweimal: eine Liste der eigenen Stände mit einem
- * Freigabeknopf in „lernen" und daneben in „schreiben" eine zweite Liste, in
- * der sich zusätzlich ein Grundmodell auswählen ließ. Zwei Ansichten, zwei
- * Begriffe, dieselbe Entscheidung - und in keiner von beiden stand, ob sich
- * das Training gelohnt hat. Wer das wissen will, braucht beide Sorten in einer
- * Tabelle, auf denselben Zahlen.
- *
- * Deshalb steht hier auch eine **Adresse**: Aus „schreiben" führt die
- * Modellzeile unter dem Aufnahmeknopf hinüber, und zwar als voller Weg und
- * nicht als Hash-Route dieser App.
- *
- * Im Menü steht der Punkt dagegen nirgends, obwohl das eine Zeitlang so war:
- * Was eine Reiterreihe trägt, steht dort und nicht noch einmal hinter dem
- * Menüknopf. Ein zweiter Weg zu derselben Seite ist keine Bequemlichkeit,
- * sondern eine Stelle, an der jemand zweimal suchen muss.
+ * Dazu die volle **Adresse** für die Modellzeile in „schreiben". Im Menü
+ * steht der Punkt nicht - er steht in der Reiterreihe von „lernen".
  */
 export const MODELLE_PFAD = '/modelle';
 export const MODELLE_URL = `/lernen/#${MODELLE_PFAD}`;
@@ -218,10 +190,8 @@ export const SPRECHER_PFAD = '/sprecher';
 /**
  * Die Reiter jeder App - die zweite Reihe der Kopfleiste, in ihrer Reihenfolge.
  *
- * Sie standen zweimal da: in der `App.svelte` jeder App, wo sie in die Leiste
- * kamen, und in `SCHALTBARE_REITER`, wo sie unter „Darstellung" neben dem
- * Haken stehen - dieselbe Lage wie bei `MENUE_TEXT`. Die App ordnet jedem Pfad
- * hier nur noch ihre Ansicht zu (`Rahmen.svelte`).
+ * Auch Grundlage von `SCHALTBARE_REITER`; die App ordnet jedem Pfad nur ihre
+ * Ansicht zu (`Rahmen.svelte`).
  *
  * „hören": der Weg durch die Arbeit an einem Sprecher - Text holen, aufnehmen,
  * nachsehen, was zusammengekommen ist, und am Ende messen, was die Modelle
@@ -253,17 +223,8 @@ export const REITER: Record<AppSchluessel, Menuepunkt[]> = {
 /**
  * Wie die Punkte hinter dem Menüknopf heißen - einmal, für beide Listen.
  *
- * Der Text stand zweimal da: in `GERAETE_PUNKTE` beziehungsweise
- * `menuePunkte`, wo er ins Menü geschrieben wird, und in
- * `SCHALTBARE_MENUEPUNKTE`, wo er unter „Darstellung" neben dem Haken steht.
- * Zwei Listen, dieselbe Beschriftung, nichts, das sie zusammenhält - und wer
- * einen Punkt umbenennt, benennt ihn erfahrungsgemäß einmal um. Dann heißt
- * derselbe Punkt im Menü anders als in der Liste, die ihn ein- und ausblendet.
- *
- * **Knapp und richtig, in dieser Reihenfolge.** Ein Menüpunkt hat ein Wort
- * Platz, und dieses Wort soll sagen, was dahinter steht - nicht, zu welcher
- * Gattung es gehört. „Einstellungen" tat Letzteres: Hinter dem Menüknopf sind
- * fast alle Punkte Einstellungen.
+ * Für `menuePunkte`/`GERAETE_PUNKTE` und `SCHALTBARE_MENUEPUNKTE`. Ein Wort,
+ * das sagt, was dahinter steht - nicht, zu welcher Gattung es gehört.
  */
 export const MENUE_TEXT: Record<string, string> = {
   [SPRECHER_PFAD]: 'Sprecher',
@@ -298,22 +259,9 @@ export const GERAETE_PUNKTE: Menuepunkt[] = [
  * Das Menü hinter dem Knopf der Kopfleiste - in **jeder** App dasselbe, bis
  * auf den Weg zurück in die App, die gerade offen ist (`Kopfleiste.svelte`).
  *
- * Bis September 2026 baute sich jede der drei ihre eigene Liste, und sie waren
- * verschieden: „hören" führte für die Aufsicht „Sprecher", die beiden anderen
- * gar nichts; „Meine Daten" hatte in zweien ein `href` und im dritten nicht.
- * Keine dieser Abweichungen war je entschieden worden - sie waren entstanden,
- * weil dieselbe Überlegung dreimal neu angestellt wurde.
- *
- * Hier steht sie einmal. Wer einen übergreifenden Punkt hinzufügt, fügt ihn
- * überall hinzu, und wer einen ändert, kann ihn nicht an zwei Stellen
- * vergessen.
- *
- * **Warum `href` von der App abhängt und nicht vom Punkt.** „Meine Daten" und
- * „Sprecher" sind Ansichten von „hören" - dort sind sie Hash-Routen, von
- * außerhalb sind es Adressen, die eine ganze Seite laden. Das ist kein
- * Sonderfall zweier Apps, sondern die Regel „eine Ansicht liegt in genau einer
- * App", und deshalb rechnet sie diese Funktion aus, statt sie jedem Aufrufer
- * zu überlassen.
+ * `href` hängt an der App: „Meine Daten" und „Sprecher" sind Ansichten von
+ * „hören" - dort Hash-Routen, von außerhalb Adressen, die eine Seite laden.
+ * Eine Ansicht liegt in genau einer App.
  */
 export function menuePunkte(art: string, app: AppSchluessel): Menuepunkt[] {
   const inHoeren = app === 'hoeren';
@@ -328,9 +276,7 @@ export function menuePunkte(art: string, app: AppSchluessel): Menuepunkt[] {
       ...nachHoeren(MEINE_DATEN_PFAD),
     });
   } else if (art === 'verwaltung' || art === 'aufsicht') {
-    // Wer verwaltet oder beaufsichtigt, hat keine eigenen Daten - für ihn ist
-    // die Sprecherliste das Gegenstück. Auch aus „lernen" und „schreiben"
-    // heraus: Dass sie dort bisher fehlte, war keine Entscheidung.
+    // Ohne eigene Daten ist die Sprecherliste das Gegenstück - aus jeder App.
     punkte.push({
       pfad: SPRECHER_PFAD,
       text: MENUE_TEXT[SPRECHER_PFAD],
@@ -385,8 +331,8 @@ export interface Schaltbar {
   /**
    * Nicht abschaltbar. Zwei Punkte müssen stehen bleiben, sonst sperrt man
    * sich selbst aus: „Darstellung", weil dort diese Schalter liegen, und
-   * „Meine Daten", weil dort die PIN vergeben wird, die inzwischen vor
-   * „Darstellung" und „Zugangsdaten" steht.
+   * „Meine Daten", weil dort die PIN vergeben wird, die vor „Darstellung" und
+   * „Zugangsdaten" steht.
    */
   fest?: boolean;
   /** Warum dieser Punkt fest ist - die Ansicht schreibt es dazu. */

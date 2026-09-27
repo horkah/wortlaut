@@ -12,17 +12,8 @@
  * Antwort - und geben kann sie nur „hören": Dort liegt der Korpus, dort steht
  * der Name, und dort werden alle drei Arten von Zugang erkannt.
  *
- * Das war einmal Sache jeder App, und genau daran ist es zerbrochen.
- * „schreiben" fragte seine eigene API, und die lässt mit gutem Grund nur einen
- * **Sprecherzugang** durch - sie spricht für einen Menschen und hat nichts zu
- * verwalten. Wer dort seinen Aufsichtstoken eintrug, bekam ihn abgewiesen,
- * obwohl er stimmte; in „hören" nahm ihn dasselbe Feld an. Zwei Wahrheiten
- * über denselben Token, je nachdem, welche Seite gerade offen war.
- *
- * „lernen" hatte das längst richtig und schrieb den Grund sogar dazu: „Eine
- * eigene Auskunft hätte eine zweite Wahrheit über denselben Menschen
- * ergeben." Jetzt steht der Weg einmal hier, und keine App wählt ihn mehr
- * selbst.
+ * Die APIs von „lernen" und „schreiben" lassen nur Sprecherzugänge durch und
+ * könnten Verwaltung und Aufsicht nicht erkennen.
  */
 
 import { ApiFehler, api } from './api';

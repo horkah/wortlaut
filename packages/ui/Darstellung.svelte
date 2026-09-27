@@ -269,9 +269,7 @@
     color: var(--gedaempft);
   }
 
-  /* Wie der Schalter aussieht, steht im gemeinsamen Stylesheet an
-     `[role='switch']` - er steht inzwischen auch in der Auswertung. Hier
-     bleibt nur, wie die Zeile ihn aufstellt. */
+  /* Der Schalter selbst steht in `app.css` an `[role='switch']`. */
 
   h3 {
     font-size: 1rem;

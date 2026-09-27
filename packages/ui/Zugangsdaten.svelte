@@ -2,44 +2,19 @@
   /**
    * Der Zugang dieses Browsers - dieselbe Ansicht in jeder App.
    *
-   * Sie steht hier und nicht in einer App, weil es nur **einen** Zugang gibt:
-   * Alle drei Apps lesen denselben Eintrag desselben Browsers (siehe
-   * `zugang.ts`), und wer ihn hier einträgt, ist damit auch in den anderen
-   * angemeldet. Zwei Formulare für dasselbe Geheimnis wären zwei
-   * Gelegenheiten, es auseinanderlaufen zu lassen.
+   * Es gibt einen Zugang je Browser, den alle Apps lesen (`zugang.ts`); wer
+   * ihn hier einträgt, ist überall angemeldet. Der Rahmen hängt die Ansicht
+   * ein (`Rahmen.svelte`); wohin es nach einem angenommenen Zugang geht, hängt
+   * am Zugang: Ein Sprecher arbeitet weiter, wo er war, Verwaltung und Aufsicht
+   * gehen zu den Sprechern.
    *
-   * **Und deshalb ist die Übergabe hier nicht mehr an eine App gebunden.** Bis
-   * September 2026 zeigte nur „hören" den Abschnitt „Diesen Browser
-   * übergeben"; ein Schalter `verwaltet` gab ihn frei, mit der Begründung, nur
-   * dort gebe es etwas zu verwalten. Das verwechselte zwei Dinge: *Wo* die
-   * Verwaltung arbeitet, und *wo* man sich als Verwaltung ausweist. Wer in
-   * „lernen" oder „schreiben" saß, kam an das Feld gar nicht heran - er musste
-   * erst wissen, dass es in einer dritten App steht. Ein Zugang, der überall
-   * gilt, wird überall eingetragen; wohin es danach geht, sagt das Menü
-   * (`menuePunkte` in `apps.ts`).
+   * Der Menüpunkt steht immer da - ohne gültigen Zugang ist er der einzige Weg
+   * herein. Aus demselben Grund lässt die PIN (`PinSchloss`, `pin.svelte.ts`)
+   * jeden durch, dessen Zugang der Server nicht kennt.
    *
-   * Die Apps unterschied danach nur noch, wohin es nach einem angenommenen
-   * Zugang weitergeht - und das hängt nicht an der App, sondern am Zugang: Ein
-   * Sprecher arbeitet weiter, wo er war; Verwaltung und Aufsicht führt der
-   * nächste Schritt zu den Sprechern. Seitdem hängt der Rahmen diese Ansicht
-   * selbst ein (`Rahmen.svelte`), und keine App hat mehr einen Umschlag dafür.
-   *
-   * Der Menüpunkt dazu steht immer im Menü, gerade auch ohne gültigen Zugang:
-   * Dann ist er der einzige Weg herein, und ein Menü, das ihn erst nach der
-   * Anmeldung zeigte, hätte die Tür hinter das Schloss gelegt. Aus demselben
-   * Grund lässt die PIN vor dieser Ansicht (`PinSchloss`) jeden durch, dessen
-   * Zugang der Server nicht kennt: Ohne Sprecher gibt es keine PIN, nach der
-   * zu fragen wäre, und das Feld hier wäre sonst hinter sich selbst
-   * verschlossen (siehe `pin.svelte.ts`).
-   *
-   * Wer mit dem Zugang eines Sprechers hier ist, sieht zuerst nur, wessen
-   * Zugang in diesem Browser liegt - kein Feld, in das er nichts einzutragen
-   * hat und an dem er seinen Zugang nur kaputtmachen könnte. Zugeklappt ist
-   * aber nicht verschlossen: Ein Browser trägt genau **einen** Zugang, und ihn
-   * gegen den Verwalter- oder Aufsichtstoken zu tauschen, ist der einzige Weg
-   * in die Verwaltung und in die Aufsicht. Wer diesen Rechner gerade zum
-   * Sichern, Umbenennen oder Löschen benutzen will, klappt das Feld hier auf.
-   * Der persönliche Zugang kommt danach mit einem Klick auf den Link zurück.
+   * Ein Sprecher sieht zuerst nur, wessen Zugang hier liegt. Aufgeklappt lässt
+   * er sich gegen einen Verwalter- oder Aufsichtstoken tauschen - der einzige
+   * Weg in Verwaltung und Aufsicht; der persönliche Link holt ihn zurück.
    */
   import PinSchloss from './PinSchloss.svelte';
   import { SPRECHER_PFAD } from './apps';
