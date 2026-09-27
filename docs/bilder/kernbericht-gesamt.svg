@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 418" width="760" height="418" role="img" aria-label="Das Kernmodell gegen die Läufe auf allen Aufnahmen: Kern, Rest, alle">
+<style>
+svg{--surface:#fcfcfb;--t1:#0b0b0b;--t2:#52514e;--t3:#8a8984;--grid:#e6e5e0;--a:#2a78d6;--k:#eb6834;--w:#1baf7a;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){svg{--surface:#1a1a19;--t1:#ffffff;--t2:#c3c2b7;--t3:#8f8e87;--grid:#3a3a37;--a:#3987e5;--k:#d95926;--w:#199e70}}
+.bg{fill:var(--surface)} .t1{fill:var(--t1)} .t2{fill:var(--t2)} .t3{fill:var(--t3)}
+.grid{stroke:var(--grid);stroke-width:1} .axis{stroke:var(--t3);stroke-width:1}
+.cA{stroke:var(--a);fill:var(--a)} .cK{stroke:var(--k);fill:var(--k)} .cW{stroke:var(--w);fill:var(--w)} .cB{stroke:var(--t2);fill:var(--surface)}
+.ring{stroke:var(--surface)}
+</style>
+<rect class="bg" width="760" height="418" rx="6"/>
+<text x="16" y="28" class="t1" font-size="16" font-weight="600">Das Kernmodell gegen die Läufe auf allen Aufnahmen: Kern, Rest, alle</text>
+<text x="16" y="48" class="t2" font-size="12.5">Rechts von null: das Kernmodell ist schlechter. Linie: 95 % über Aufnahmen · Band: mit Trainingsrauschen</text>
+<line x1="300.0" x2="300.0" y1="90" y2="352" class="grid"/><text x="300.0" y="368" text-anchor="middle" class="t3" font-size="11">−0,8</text>
+<line x1="353.8" x2="353.8" y1="90" y2="352" class="grid"/><text x="353.8" y="368" text-anchor="middle" class="t3" font-size="11">−0,6</text>
+<line x1="407.5" x2="407.5" y1="90" y2="352" class="grid"/><text x="407.5" y="368" text-anchor="middle" class="t3" font-size="11">−0,4</text>
+<line x1="461.2" x2="461.2" y1="90" y2="352" class="grid"/><text x="461.2" y="368" text-anchor="middle" class="t3" font-size="11">−0,2</text>
+<line x1="515.0" x2="515.0" y1="90" y2="352" class="axis"/><text x="515.0" y="368" text-anchor="middle" class="t3" font-size="11">0</text>
+<line x1="568.8" x2="568.8" y1="90" y2="352" class="grid"/><text x="568.8" y="368" text-anchor="middle" class="t3" font-size="11">+0,2</text>
+<line x1="622.5" x2="622.5" y1="90" y2="352" class="grid"/><text x="622.5" y="368" text-anchor="middle" class="t3" font-size="11">+0,4</text>
+<line x1="676.2" x2="676.2" y1="90" y2="352" class="grid"/><text x="676.2" y="368" text-anchor="middle" class="t3" font-size="11">+0,6</text>
+<line x1="730.0" x2="730.0" y1="90" y2="352" class="grid"/><text x="730.0" y="368" text-anchor="middle" class="t3" font-size="11">+0,8</text>
+<text x="515.0" y="388" text-anchor="middle" class="t2" font-size="12">Δ WER (Kernmodell minus Vergleich)</text>
+<rect x="498.9" y="98" width="61.5" height="10" rx="3" fill="var(--k)" opacity="0.22"/>
+<line x1="516.7" x2="542.6" y1="103" y2="103" class="cK" stroke-width="2" stroke-linecap="round"/>
+<circle cx="529.7" cy="103" r="5" class="cK ring" stroke-width="2"><title>gegen ML-E-SRP-CI/292, Kern: +0,055</title></circle>
+<text x="200" y="107" text-anchor="end" class="t1" font-size="12.5">gegen ML-E-SRP-CI/292</text>
+<text x="286" y="107" text-anchor="end" class="t2" font-size="12">Kern (205)</text>
+<text x="568.4" y="107" class="t2" font-size="11.5">+0,055</text>
+<rect x="427.2" y="124" width="177.8" height="10" rx="3" fill="var(--k)" opacity="0.22"/>
+<line x1="465.4" x2="566.9" y1="129" y2="129" class="cK" stroke-width="2" stroke-linecap="round"/>
+<circle cx="516.1" cy="129" r="5" class="cK ring" stroke-width="2"><title>gegen ML-E-SRP-CI/292, Rest: +0,004</title></circle>
+<text x="200" y="133" text-anchor="end" class="t1" font-size="12.5"></text>
+<text x="286" y="133" text-anchor="end" class="t2" font-size="12">Rest (83)</text>
+<text x="613.0" y="133" class="t2" font-size="11.5">+0,004</text>
+<rect x="481.3" y="150" width="89.0" height="10" rx="3" fill="var(--k)" opacity="0.22"/>
+<line x1="508.4" x2="543.3" y1="155" y2="155" class="cK" stroke-width="2" stroke-linecap="round"/>
+<circle cx="525.8" cy="155" r="5" class="cK ring" stroke-width="2"><title>gegen ML-E-SRP-CI/292, alle: +0,040</title></circle>
+<text x="200" y="159" text-anchor="end" class="t1" font-size="12.5"></text>
+<text x="286" y="159" text-anchor="end" class="t2" font-size="12">alle (288)</text>
+<text x="578.3" y="159" class="t2" font-size="11.5">+0,040</text>
+<line x1="16" x2="744" y1="174" y2="174" class="grid"/>
+<rect x="511.6" y="188" width="59.2" height="10" rx="3" fill="var(--k)" opacity="0.22"/>
+<line x1="529.5" x2="553.9" y1="193" y2="193" class="cK" stroke-width="2" stroke-linecap="round"/>
+<circle cx="541.2" cy="193" r="5" class="cK ring" stroke-width="2"><title>gegen ML-A-E-SRP-CI/292, Kern: +0,098</title></circle>
+<text x="200" y="197" text-anchor="end" class="t1" font-size="12.5">gegen ML-A-E-SRP-CI/292</text>
+<text x="286" y="197" text-anchor="end" class="t2" font-size="12">Kern (205)</text>
+<text x="578.8" y="197" class="t2" font-size="11.5">+0,098</text>
+<rect x="450.8" y="214" width="229.2" height="10" rx="3" fill="var(--k)" opacity="0.22"/>
+<line x1="480.9" x2="662.6" y1="219" y2="219" class="cK" stroke-width="2" stroke-linecap="round"/>
+<circle cx="565.3" cy="219" r="5" class="cK ring" stroke-width="2"><title>gegen ML-A-E-SRP-CI/292, Rest: +0,187</title></circle>
+<text x="200" y="223" text-anchor="end" class="t1" font-size="12.5"></text>
+<text x="286" y="223" text-anchor="end" class="t2" font-size="12">Rest (83)</text>
+<text x="687.9" y="223" class="t2" font-size="11.5">+0,187</text>
+<rect x="500.3" y="240" width="95.7" height="10" rx="3" fill="var(--k)" opacity="0.22"/>
+<line x1="523.0" x2="577.6" y1="245" y2="245" class="cK" stroke-width="2" stroke-linecap="round"/>
+<circle cx="548.2" cy="245" r="5" class="cK ring" stroke-width="2"><title>gegen ML-A-E-SRP-CI/292, alle: +0,123</title></circle>
+<text x="200" y="249" text-anchor="end" class="t1" font-size="12.5"></text>
+<text x="286" y="249" text-anchor="end" class="t2" font-size="12">alle (288)</text>
+<text x="604.0" y="249" class="t2" font-size="11.5">+0,123</text>
+<line x1="16" x2="744" y1="264" y2="264" class="grid"/>
+<rect x="482.7" y="278" width="63.7" height="10" rx="3" fill="var(--k)" opacity="0.22"/>
+<line x1="502.2" x2="528.2" y1="283" y2="283" class="cK" stroke-width="2" stroke-linecap="round"/>
+<circle cx="514.6" cy="283" r="5" class="cK ring" stroke-width="2"><title>gegen SV-E-SRP-CI/292, Kern: −0,002</title></circle>
+<text x="200" y="287" text-anchor="end" class="t1" font-size="12.5">gegen SV-E-SRP-CI/292</text>
+<text x="286" y="287" text-anchor="end" class="t2" font-size="12">Kern (205)</text>
+<text x="554.4" y="287" class="t2" font-size="11.5">−0,002</text>
+<rect x="483.7" y="304" width="213.7" height="10" rx="3" fill="var(--k)" opacity="0.22"/>
+<line x1="519.9" x2="684.3" y1="309" y2="309" class="cK" stroke-width="2" stroke-linecap="round"/>
+<circle cx="590.5" cy="309" r="5" class="cK ring" stroke-width="2"><title>gegen SV-E-SRP-CI/292, Rest: +0,281</title></circle>
+<text x="200" y="313" text-anchor="end" class="t1" font-size="12.5"></text>
+<text x="286" y="313" text-anchor="end" class="t2" font-size="12">Rest (83)</text>
+<text x="700.0" y="313" class="t2" font-size="11.5">+0,281</text>
+<rect x="488.8" y="330" width="95.4" height="10" rx="3" fill="var(--k)" opacity="0.22"/>
+<line x1="513.8" x2="565.5" y1="335" y2="335" class="cK" stroke-width="2" stroke-linecap="round"/>
+<circle cx="536.5" cy="335" r="5" class="cK ring" stroke-width="2"><title>gegen SV-E-SRP-CI/292, alle: +0,080</title></circle>
+<text x="200" y="339" text-anchor="end" class="t1" font-size="12.5"></text>
+<text x="286" y="339" text-anchor="end" class="t2" font-size="12">alle (288)</text>
+<text x="592.2" y="339" class="t2" font-size="11.5">+0,080</text>
+</svg>

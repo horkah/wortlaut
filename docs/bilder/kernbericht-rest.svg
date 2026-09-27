@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 342" width="760" height="342" role="img" aria-label="Wie schwer der Rest ist: dieselben Modelle auf Kern und Rest">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 368" width="760" height="368" role="img" aria-label="Wie schwer der Rest ist: dieselben Modelle auf Kern und Rest">
 <style>
 svg{--surface:#fcfcfb;--t1:#0b0b0b;--t2:#52514e;--t3:#8a8984;--grid:#e6e5e0;--a:#2a78d6;--k:#eb6834;--w:#1baf7a;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
 @media (prefers-color-scheme:dark){svg{--surface:#1a1a19;--t1:#ffffff;--t2:#c3c2b7;--t3:#8f8e87;--grid:#3a3a37;--a:#3987e5;--k:#d95926;--w:#199e70}}
@@ -7,52 +7,57 @@ svg{--surface:#fcfcfb;--t1:#0b0b0b;--t2:#52514e;--t3:#8a8984;--grid:#e6e5e0;--a:
 .cA{stroke:var(--a);fill:var(--a)} .cK{stroke:var(--k);fill:var(--k)} .cW{stroke:var(--w);fill:var(--w)} .cB{stroke:var(--t2);fill:var(--surface)}
 .ring{stroke:var(--surface)}
 </style>
-<rect class="bg" width="760" height="342" rx="6"/>
+<rect class="bg" width="760" height="368" rx="6"/>
 <text x="16" y="28" class="t1" font-size="16" font-weight="600">Wie schwer der Rest ist: dieselben Modelle auf Kern und Rest</text>
-<text x="16" y="48" class="t2" font-size="12.5">Gefüllt: 205 Kernaufnahmen · hohl: die übrigen 87 · gestrichelt: WER = 1</text>
-<line x1="250.0" x2="250.0" y1="90" y2="276" class="grid"/><text x="250.0" y="292" text-anchor="middle" class="t3" font-size="11">0,0</text>
-<line x1="330.0" x2="330.0" y1="90" y2="276" class="grid"/><text x="330.0" y="292" text-anchor="middle" class="t3" font-size="11">0,5</text>
-<line x1="410.0" x2="410.0" y1="90" y2="276" class="grid"/><text x="410.0" y="292" text-anchor="middle" class="t3" font-size="11">1,0</text>
-<line x1="490.0" x2="490.0" y1="90" y2="276" class="grid"/><text x="490.0" y="292" text-anchor="middle" class="t3" font-size="11">1,5</text>
-<line x1="570.0" x2="570.0" y1="90" y2="276" class="grid"/><text x="570.0" y="292" text-anchor="middle" class="t3" font-size="11">2,0</text>
-<line x1="650.0" x2="650.0" y1="90" y2="276" class="grid"/><text x="650.0" y="292" text-anchor="middle" class="t3" font-size="11">2,5</text>
-<line x1="730.0" x2="730.0" y1="90" y2="276" class="grid"/><text x="730.0" y="292" text-anchor="middle" class="t3" font-size="11">3,0</text>
-<line x1="410.0" x2="410.0" y1="90" y2="276" stroke="var(--t3)" stroke-width="1" stroke-dasharray="4 4"/>
-<text x="490.0" y="312" text-anchor="middle" class="t2" font-size="12">WER, Mittel über Aufnahmen × Fassungen</text>
-<line x1="348.8" x2="518.0" y1="103" y2="103" stroke="var(--a)" stroke-width="2" opacity="0.5"/>
-<circle cx="348.8" cy="103" r="5" fill="var(--a)" stroke="var(--surface)" stroke-width="2"><title>ML-E-SRP-CI/292, Kern: 0,617</title></circle>
-<circle cx="518.0" cy="103" r="5" fill="var(--surface)" stroke="var(--a)" stroke-width="2"><title>ML-E-SRP-CI/292, Rest: 1,675</title></circle>
-<text x="238" y="107" text-anchor="end" class="t1" font-size="12.5">ML-E-SRP-CI/292</text>
-<text x="528.0" y="107" class="t2" font-size="11.5">0,62 → 1,67</text>
-<line x1="341.9" x2="491.6" y1="129" y2="129" stroke="var(--a)" stroke-width="2" opacity="0.5"/>
-<circle cx="341.9" cy="129" r="5" fill="var(--a)" stroke="var(--surface)" stroke-width="2"><title>ML-A-E-SRP-CI/292, Kern: 0,574</title></circle>
-<circle cx="491.6" cy="129" r="5" fill="var(--surface)" stroke="var(--a)" stroke-width="2"><title>ML-A-E-SRP-CI/292, Rest: 1,510</title></circle>
-<text x="238" y="133" text-anchor="end" class="t1" font-size="12.5">ML-A-E-SRP-CI/292</text>
-<text x="501.6" y="133" class="t2" font-size="11.5">0,57 → 1,51</text>
-<line x1="357.8" x2="477.9" y1="155" y2="155" stroke="var(--a)" stroke-width="2" opacity="0.5"/>
-<circle cx="357.8" cy="155" r="5" fill="var(--a)" stroke="var(--surface)" stroke-width="2"><title>SV-E-SRP-CI/292, Kern: 0,674</title></circle>
-<circle cx="477.9" cy="155" r="5" fill="var(--surface)" stroke="var(--a)" stroke-width="2"><title>SV-E-SRP-CI/292, Rest: 1,425</title></circle>
-<text x="238" y="159" text-anchor="end" class="t1" font-size="12.5">SV-E-SRP-CI/292</text>
-<text x="487.9" y="159" class="t2" font-size="11.5">0,67 → 1,42</text>
-<line x1="395.5" x2="513.0" y1="181" y2="181" stroke="var(--w)" stroke-width="2" opacity="0.5"/>
-<circle cx="395.5" cy="181" r="5" fill="var(--w)" stroke="var(--surface)" stroke-width="2"><title>ML-E-SRP-CI/43, Kern: 0,910</title></circle>
-<circle cx="513.0" cy="181" r="5" fill="var(--surface)" stroke="var(--w)" stroke-width="2"><title>ML-E-SRP-CI/43, Rest: 1,644</title></circle>
-<text x="238" y="185" text-anchor="end" class="t1" font-size="12.5">ML-E-SRP-CI/43</text>
-<text x="523.0" y="185" class="t2" font-size="11.5">0,91 → 1,64</text>
-<line x1="16" x2="744" y1="194" y2="194" class="grid"/>
-<line x1="463.2" x2="565.2" y1="207" y2="207" stroke="var(--t2)" stroke-width="2" opacity="0.5"/>
-<circle cx="463.2" cy="207" r="5" fill="var(--t2)" stroke="var(--surface)" stroke-width="2"><title>large-v3, Kern: 1,333</title></circle>
-<circle cx="565.2" cy="207" r="5" fill="var(--surface)" stroke="var(--t2)" stroke-width="2"><title>large-v3, Rest: 1,970</title></circle>
-<text x="238" y="211" text-anchor="end" class="t1" font-size="12.5">large-v3 unverändert</text>
-<text x="575.2" y="211" class="t2" font-size="11.5">1,33 → 1,97</text>
-<line x1="493.2" x2="605.0" y1="233" y2="233" stroke="var(--t2)" stroke-width="2" opacity="0.5"/>
-<circle cx="493.2" cy="233" r="5" fill="var(--t2)" stroke="var(--surface)" stroke-width="2"><title>small, Kern: 1,520</title></circle>
-<circle cx="605.0" cy="233" r="5" fill="var(--surface)" stroke="var(--t2)" stroke-width="2"><title>small, Rest: 2,219</title></circle>
-<text x="238" y="237" text-anchor="end" class="t1" font-size="12.5">small unverändert</text>
-<text x="615.0" y="237" class="t2" font-size="11.5">1,52 → 2,22</text>
-<line x1="510.2" x2="643.9" y1="259" y2="259" stroke="var(--t2)" stroke-width="2" opacity="0.5"/>
-<circle cx="510.2" cy="259" r="5" fill="var(--t2)" stroke="var(--surface)" stroke-width="2"><title>medium, Kern: 1,626</title></circle>
-<circle cx="643.9" cy="259" r="5" fill="var(--surface)" stroke="var(--t2)" stroke-width="2"><title>medium, Rest: 2,462</title></circle>
-<text x="238" y="263" text-anchor="end" class="t1" font-size="12.5">medium unverändert</text>
-<text x="653.9" y="263" class="t2" font-size="11.5">1,63 → 2,46</text>
+<text x="16" y="48" class="t2" font-size="12.5">Gefüllt: 205 Kernaufnahmen · hohl: 83 Restaufnahmen · gestrichelt: WER = 1</text>
+<line x1="250.0" x2="250.0" y1="90" y2="302" class="grid"/><text x="250.0" y="318" text-anchor="middle" class="t3" font-size="11">0,0</text>
+<line x1="330.0" x2="330.0" y1="90" y2="302" class="grid"/><text x="330.0" y="318" text-anchor="middle" class="t3" font-size="11">0,5</text>
+<line x1="410.0" x2="410.0" y1="90" y2="302" class="grid"/><text x="410.0" y="318" text-anchor="middle" class="t3" font-size="11">1,0</text>
+<line x1="490.0" x2="490.0" y1="90" y2="302" class="grid"/><text x="490.0" y="318" text-anchor="middle" class="t3" font-size="11">1,5</text>
+<line x1="570.0" x2="570.0" y1="90" y2="302" class="grid"/><text x="570.0" y="318" text-anchor="middle" class="t3" font-size="11">2,0</text>
+<line x1="650.0" x2="650.0" y1="90" y2="302" class="grid"/><text x="650.0" y="318" text-anchor="middle" class="t3" font-size="11">2,5</text>
+<line x1="730.0" x2="730.0" y1="90" y2="302" class="grid"/><text x="730.0" y="318" text-anchor="middle" class="t3" font-size="11">3,0</text>
+<line x1="410.0" x2="410.0" y1="90" y2="302" stroke="var(--t3)" stroke-width="1" stroke-dasharray="4 4"/>
+<text x="490.0" y="338" text-anchor="middle" class="t2" font-size="12">WER, Mittel über Aufnahmen × Fassungen</text>
+<line x1="357.5" x2="521.3" y1="103" y2="103" stroke="var(--k)" stroke-width="2" opacity="0.5"/>
+<circle cx="357.5" cy="103" r="5" fill="var(--k)" stroke="var(--surface)" stroke-width="2"><title>ML-K-E-SRP-CI/205, Kern: 0,672</title></circle>
+<circle cx="521.3" cy="103" r="5" fill="var(--surface)" stroke="var(--k)" stroke-width="2"><title>ML-K-E-SRP-CI/205, Rest: 1,696</title></circle>
+<text x="238" y="107" text-anchor="end" class="t1" font-size="12.5" font-weight="600">ML-K-E-SRP-CI/205</text>
+<text x="531.3" y="107" class="t2" font-size="11.5">0,67 → 1,70</text>
+<line x1="348.8" x2="520.6" y1="129" y2="129" stroke="var(--a)" stroke-width="2" opacity="0.5"/>
+<circle cx="348.8" cy="129" r="5" fill="var(--a)" stroke="var(--surface)" stroke-width="2"><title>ML-E-SRP-CI/292, Kern: 0,617</title></circle>
+<circle cx="520.6" cy="129" r="5" fill="var(--surface)" stroke="var(--a)" stroke-width="2"><title>ML-E-SRP-CI/292, Rest: 1,692</title></circle>
+<text x="238" y="133" text-anchor="end" class="t1" font-size="12.5" font-weight="400">ML-E-SRP-CI/292</text>
+<text x="530.6" y="133" class="t2" font-size="11.5">0,62 → 1,69</text>
+<line x1="341.9" x2="491.3" y1="155" y2="155" stroke="var(--a)" stroke-width="2" opacity="0.5"/>
+<circle cx="341.9" cy="155" r="5" fill="var(--a)" stroke="var(--surface)" stroke-width="2"><title>ML-A-E-SRP-CI/292, Kern: 0,574</title></circle>
+<circle cx="491.3" cy="155" r="5" fill="var(--surface)" stroke="var(--a)" stroke-width="2"><title>ML-A-E-SRP-CI/292, Rest: 1,508</title></circle>
+<text x="238" y="159" text-anchor="end" class="t1" font-size="12.5" font-weight="400">ML-A-E-SRP-CI/292</text>
+<text x="501.3" y="159" class="t2" font-size="11.5">0,57 → 1,51</text>
+<line x1="357.8" x2="476.3" y1="181" y2="181" stroke="var(--a)" stroke-width="2" opacity="0.5"/>
+<circle cx="357.8" cy="181" r="5" fill="var(--a)" stroke="var(--surface)" stroke-width="2"><title>SV-E-SRP-CI/292, Kern: 0,674</title></circle>
+<circle cx="476.3" cy="181" r="5" fill="var(--surface)" stroke="var(--a)" stroke-width="2"><title>SV-E-SRP-CI/292, Rest: 1,415</title></circle>
+<text x="238" y="185" text-anchor="end" class="t1" font-size="12.5" font-weight="400">SV-E-SRP-CI/292</text>
+<text x="486.3" y="185" class="t2" font-size="11.5">0,67 → 1,41</text>
+<line x1="395.5" x2="515.5" y1="207" y2="207" stroke="var(--w)" stroke-width="2" opacity="0.5"/>
+<circle cx="395.5" cy="207" r="5" fill="var(--w)" stroke="var(--surface)" stroke-width="2"><title>ML-E-SRP-CI/43, Kern: 0,910</title></circle>
+<circle cx="515.5" cy="207" r="5" fill="var(--surface)" stroke="var(--w)" stroke-width="2"><title>ML-E-SRP-CI/43, Rest: 1,659</title></circle>
+<text x="238" y="211" text-anchor="end" class="t1" font-size="12.5" font-weight="400">ML-E-SRP-CI/43</text>
+<text x="525.5" y="211" class="t2" font-size="11.5">0,91 → 1,66</text>
+<line x1="16" x2="744" y1="220" y2="220" class="grid"/>
+<line x1="463.2" x2="565.5" y1="233" y2="233" stroke="var(--t2)" stroke-width="2" opacity="0.5"/>
+<circle cx="463.2" cy="233" r="5" fill="var(--t2)" stroke="var(--surface)" stroke-width="2"><title>large-v3, Kern: 1,333</title></circle>
+<circle cx="565.5" cy="233" r="5" fill="var(--surface)" stroke="var(--t2)" stroke-width="2"><title>large-v3, Rest: 1,972</title></circle>
+<text x="238" y="237" text-anchor="end" class="t1" font-size="12.5" font-weight="400">large-v3 unverändert</text>
+<text x="575.5" y="237" class="t2" font-size="11.5">1,33 → 1,97</text>
+<line x1="493.2" x2="604.8" y1="259" y2="259" stroke="var(--t2)" stroke-width="2" opacity="0.5"/>
+<circle cx="493.2" cy="259" r="5" fill="var(--t2)" stroke="var(--surface)" stroke-width="2"><title>small, Kern: 1,520</title></circle>
+<circle cx="604.8" cy="259" r="5" fill="var(--surface)" stroke="var(--t2)" stroke-width="2"><title>small, Rest: 2,218</title></circle>
+<text x="238" y="263" text-anchor="end" class="t1" font-size="12.5" font-weight="400">small unverändert</text>
+<text x="614.8" y="263" class="t2" font-size="11.5">1,52 → 2,22</text>
+<line x1="510.2" x2="647.1" y1="285" y2="285" stroke="var(--t2)" stroke-width="2" opacity="0.5"/>
+<circle cx="510.2" cy="285" r="5" fill="var(--t2)" stroke="var(--surface)" stroke-width="2"><title>medium, Kern: 1,626</title></circle>
+<circle cx="647.1" cy="285" r="5" fill="var(--surface)" stroke="var(--t2)" stroke-width="2"><title>medium, Rest: 2,482</title></circle>
+<text x="238" y="289" text-anchor="end" class="t1" font-size="12.5" font-weight="400">medium unverändert</text>
+<text x="657.1" y="289" class="t2" font-size="11.5">1,63 → 2,48</text>
 </svg>
