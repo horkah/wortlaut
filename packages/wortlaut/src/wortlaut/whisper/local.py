@@ -4,13 +4,10 @@ Zwei Arten von Modellangaben, beide von faster-whisper selbst unterschieden:
 
 * ein Verzeichnis - der `ct2/`-Ordner eines Modellstands aus der Registry,
   also das feingetunte Modell aus „lernen";
-* ein Name wie `small` oder `medium` - das unveränderte Whisper-Modell, das
-  faster-whisper beim ersten Aufruf herunterlädt. Damit ist „schreiben"
-  benutzbar, bevor es „lernen" gibt.
+* ein Name wie `small` oder `medium` - das unveränderte Modell, das
+  faster-whisper beim ersten Aufruf herunterlädt.
 
-Worauf gerechnet wird, entscheidet dieser Kasten nicht, sondern
-`wortlaut/rechenwerk.py` - dieselbe Antwort für „schreiben", die Auswertung in
-„hören" und den Trainer. Nur so sind ihre Rechenzeiten vergleichbar.
+Worauf gerechnet wird, entscheidet `wortlaut/rechenwerk.py`.
 """
 
 from __future__ import annotations
@@ -26,23 +23,12 @@ _log = logging.getLogger(__name__)
 
 
 class LokalerTranskriptor:
-    """Ein Whisper-Modell, geladen beim ersten Aufruf.
+    """Ein Whisper-Modell, geladen beim ersten Aufruf - ein Webdienst soll in
+    Sekunden starten.
 
-    **Warum erst beim ersten Aufruf.** Ein Modell wiegt hunderte Megabyte bis
-    Gigabyte. Ein Webdienst, der beim Start vier davon lädt, startet nicht in
-    Sekunden - und wer nur die Oberfläche aufruft, braucht keines.
-
-    **Warum der Rückfall auf den Prozessor.** Die Karte kann belegt sein: Ein
-    Training will acht Gigabyte, das Sprachmodell für die Textquelle weitere
-    sechs. Ein Diktat darf daran nicht scheitern - lieber langsam verstanden
-    als gar nicht. Der Rückfall gilt dann für diesen Transkriptor und bleibt;
-    ein Modell, das bei jeder Aufnahme zwischen Karte und Prozessor wechselte,
-    wäre in seinen Rechenzeiten nicht mehr zu lesen.
-
-    Was dabei **nicht** stillschweigend geschieht: ein ausdrücklich verlangtes
-    Gerät zu übergehen. Wer `cuda` in die Konfiguration schreibt, bekommt den
-    Fehler zu sehen - sonst sucht er die verlorene Rechenzeit an der falschen
-    Stelle.
+    Ist die Karte belegt, weicht er auf den Prozessor aus und bleibt dort;
+    ein Wechsel je Aufnahme machte die Rechenzeiten unlesbar. Ein ausdrücklich
+    verlangtes `cuda` wird nie übergangen - dann kommt der Fehler.
     """
 
     def __init__(
@@ -85,35 +71,21 @@ class LokalerTranskriptor:
             )
 
     def entlade(self) -> None:
-        """Das Modell von der Karte nehmen - jetzt und nicht irgendwann.
+        """Das Modell jetzt von der Karte nehmen.
 
-        Gebraucht wird das an genau einer Stelle: im Trainer, wo nach jeder
-        Faltung erst gemessen und dann wieder gelernt wird. Beides will die
-        ganze Karte, und CTranslate2 gibt seinen Speicher zurück, sobald
-        niemand mehr auf das Modell zeigt - nur weiß niemand, wann das ist.
-        Der Aufruf hier macht aus diesem Irgendwann ein Jetzt.
-
-        Wer danach wieder `transkribiere` ruft, bekommt das Modell neu
-        geladen. Das kostet Sekunden und ist kein Fehler: Ein Transkriptor ist
-        ein Name für ein Modell, nicht das Modell selbst.
+        CTranslate2 gibt seinen Speicher frei, sobald niemand mehr auf das
+        Modell zeigt - dieser Aufruf legt den Zeitpunkt fest. Gebraucht vom
+        Trainer, der nach dem Messen wieder die ganze Karte will, und von der
+        Auswertung nach jedem Lauf. Ein späteres `transkribiere` lädt neu.
         """
         if self._geladen is None:
             return
         self._geladen = None
-        # Ohne das bleibt das CTranslate2-Modell hängen, bis der Sammler von
-        # sich aus läuft - und bis dahin ist die Karte belegt.
         gc.collect()
 
     def lade(self) -> None:
-        """Das Modell jetzt auf die Karte holen, statt beim ersten Satz.
-
-        Das Gegenstück zu `entlade`, und es gibt beide aus demselben Grund:
-        Wer sich mit anderen eine Karte teilt, muss den Augenblick kennen, in
-        dem der Platz genommen wird. Von selbst liegt er im ersten Aufruf von
-        `transkribiere` - mitten in einer Schleife also, wo ein Fehlschlag
-        nicht mehr zu beantworten ist. Wer vorher lädt, kann warten
-        (`training/bewerten.py`).
-        """
+        """Das Modell jetzt auf die Karte holen, statt beim ersten Satz - wer
+        sich eine Karte teilt, kann dann auf Platz warten (`training/bewerten.py`)."""
         if self._geladen is None:
             self._geladen = self._lade()
 

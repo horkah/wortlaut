@@ -27,26 +27,17 @@ _LEERRAUM = re.compile(r"\s+")
 
 @dataclass(frozen=True)
 class Sprachmass:
-    """Was am Schneiden von der Sprache abhängt.
+    """Was am Schneiden von der Sprache abhängt: wie viele Zeichen eine
+    Sekunde Vorlesen füllen, und welche Punkte kein Satzende sind.
 
-    **Zwei Dinge, und beide sind es wirklich.** Wie schnell jemand vorliest,
-    hängt an der Orthographie: Ein deutsches Wort ist länger als ein
-    englisches, also stehen hinter derselben Sekunde weniger Zeichen. Und
-    welche Punkte kein Satzende sind, steht in keiner Regel, sondern in einer
-    Liste von Abkürzungen, die jede Sprache anders führt.
-
-    Beides steuert nur die **Länge der Vorlagen**, nicht die Bewertung der
-    Aufnahmen. Eine grobe Näherung genügt deshalb - eine Einheit, die statt
-    sieben Sekunden acht dauert, ist immer noch eine brauchbare Einheit.
+    Beides steuert nur die Länge der Vorlagen; eine Näherung genügt.
     """
 
     zeichen_pro_sekunde: float
     abkuerzung: re.Pattern[str]
 
 
-# Je Sprache ein Maß. Wer eine dritte hinzufügt, trägt sie hier nach; fehlt
-# sie, gilt das Maß der Vorgabesprache - eine Näherung, die daneben liegt, ist
-# besser als ein Schnitt, der gar nicht stattfindet.
+# Je Sprache ein Maß; fehlt eines, gilt das der Vorgabesprache.
 MASSE: dict[str, Sprachmass] = {
     # Deutlich vorgelesenes Deutsch, nachgezählt an den Vorlagen dieses
     # Projekts.
@@ -56,10 +47,7 @@ MASSE: dict[str, Sprachmass] = {
             r"(?:\b[A-Za-zÄÖÜäöü]|\bz|\bd|\bu|\bevtl|\bbzw|\bDr|\bNr|\bAbb)\.$"
         ),
     ),
-    # Englisch läuft schneller durch dieselbe Sekunde, weil seine Wörter kürzer
-    # sind: rund 150 Wörter je Minute bei gut sechs Zeichen je Wort samt
-    # Leerzeichen sind etwa fünfzehn Zeichen. Die deutschen dreizehn kämen aus
-    # denselben 150 Wörtern mit längeren Wörtern.
+    # Rund 150 Wörter je Minute bei gut sechs Zeichen je Wort samt Leerzeichen.
     sprachen.ENGLISCH: Sprachmass(
         zeichen_pro_sekunde=15.0,
         abkuerzung=re.compile(
@@ -84,10 +72,8 @@ class Einheit:
 def dauer(text: str, sprache: str = sprachen.VORGABE) -> float:
     """Wie lange dieser Text gesprochen etwa dauert.
 
-    Mit Vorgabe, anders als beim Erkenner: Diese Schätzung steuert die Länge
-    einer Vorlage und nicht, was ein Modell hört. Wer sie ohne Sprache ruft,
-    bekommt eine Näherung statt eines Fehlers - und die Stellen, die es genau
-    wissen, geben sie mit.
+    Mit Vorgabesprache, anders als beim Erkenner: Die Schätzung steuert nur
+    die Länge einer Vorlage.
     """
     return len(text) / mass(sprache).zeichen_pro_sekunde
 

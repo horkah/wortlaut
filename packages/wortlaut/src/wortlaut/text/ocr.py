@@ -1,24 +1,14 @@
 """Bilder und eingescannte PDFs → Text, auf diesem Rechner.
 
-**Wofür.** Eine Vorlage muss nicht getippt sein. Wer einen Zeitungsausschnitt,
-eine Buchseite oder einen Brief vorlesen will, fotografiert ihn - und genau das
-ist der Weg, der ohne Tastatur auskommt (Grundentscheidung 7). Was hier
-herauskommt, geht **nicht** unmittelbar in den Korpus: Es wird angezeigt,
-berichtigt und erst dann übernommen (`api/sources.py`). Eine Zeichenerkennung
-irrt, und ein Fehler in der Vorlage wandert sonst in die Aufnahme und von dort
-ins Training.
+Eine Vorlage darf ein Foto sein - der Weg ohne Tastatur (Grundentscheidung 7).
+Was hier herauskommt, wird angezeigt und berichtigt, bevor es Vorlage wird
+(`api/sources.py`): Ein Erkennungsfehler wanderte sonst über die Aufnahme ins
+Training.
 
-**Warum Tesseract und kein Dienst.** Aus demselben Grund, aus dem Whisper hier
-läuft und nicht anderswo: Es verlässt die Maschine nichts
-(`docs/datenschutz.md`). Ein fotografierter Brief ist kein Thema, das man
-verschickt - er ist womöglich das Persönlichste, was diese App je zu sehen
-bekommt.
-
-**Warum es fehlen darf.** Tesseract ist eine Systemabhängigkeit. Im Abbild
-dieses Projekts ist es drin; wer die App anders betreibt, hat es vielleicht
-nicht. Dann fehlt genau dieser Weg, und die App sagt das, statt mit einem
-Serverfehler abzubrechen - wie beim Vorlesen, wo eine fehlende Stimme ebenfalls
-kein Fehler ist, sondern ein Weg weniger (`wortlaut/vorlesen.py`).
+Tesseract statt eines Dienstes, weil nichts die Maschine verlässt - ein
+fotografierter Brief ist womöglich das Persönlichste, was die App sieht
+(`docs/datenschutz.md`). Fehlt Tesseract, fehlt nur dieser Weg, und die App
+sagt es.
 """
 
 from __future__ import annotations
@@ -31,31 +21,17 @@ from pathlib import Path
 
 from .. import sprachen
 
-# Ein Hüllskript, das Tesseract mit einem einzigen Rechenfaden startet (siehe
-# `Dockerfile`). Steht es da, werden die Durchgänge nebeneinander gerechnet;
-# fehlt es, nacheinander.
-#
-# **Beides ist nötig, und zwar zusammen.** Vier Durchgänge auf einem Foto
-# dauerten nacheinander 5,7 Sekunden. Nebeneinander, aber mit Tesseracts
-# eigener Parallelität, dauerten sie **8,3** - die vier Ausführungen nahmen
-# einander die Kerne weg. Nebeneinander mit je einem Faden: **1,6 Sekunden**,
-# bei Zeichen für Zeichen demselben Ergebnis.
-#
-# Ohne das Skript wird deshalb nicht parallelisiert: Es wäre langsamer, nicht
-# schneller.
+# Ein Hüllskript, das Tesseract mit einem Rechenfaden startet (`Dockerfile`).
+# Nur damit laufen die Durchgänge nebeneinander: Vier dauerten nacheinander
+# 5,7 s, nebeneinander mit Tesseracts eigener Parallelität 8,3 s, nebeneinander
+# mit je einem Faden 1,6 s - bei gleichem Ergebnis.
 EINFAEDIG = Path("/usr/local/bin/tesseract-einfaedig")
 
-# Was an Bildern hereinkommen darf. `heic` steht dabei nicht aus Vollständigkeit
-# in der Liste, sondern weil iPhones so fotografieren: Safari wandelt beim
-# Hochladen meistens in JPEG, aber eben nicht immer, und ein Foto, das der
-# Server nicht öffnen kann, ist für den Menschen davor kein Formatproblem,
-# sondern ein Knopf, der nicht tut.
+# `heic`, weil iPhones so fotografieren und Safari nicht immer umwandelt.
 UNTERSTUETZT = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".heic", ".heif")
 
-# Wie Tesseract die Sprachen nennt: drei Buchstaben nach ISO 639-2, während
-# dieses Projekt zwei führt (`wortlaut/sprachen.py`). Fehlt eine, wird nichts
-# geraten - `eng` ist Tesseracts eigene Vorgabe und die einzige, die überall
-# mitgeliefert wird.
+# Tesseract nennt Sprachen nach ISO 639-2. Unbekanntes bekommt `eng`, die
+# einzige überall mitgelieferte Sprache.
 _KUERZEL = {"de": "deu", "en": "eng"}
 _RUECKFALL = "eng"
 
@@ -96,10 +72,7 @@ def _alle(arbeiten: list) -> list:
 def verfuegbar() -> bool:
     """Ob auf diesem Rechner erkannt werden kann.
 
-    Zwischengespeichert, weil die Antwort sich zur Laufzeit nicht ändert und
-    die Oberfläche sie bei jedem Aufruf der Textquellen erfragt: Der Aufruf von
-    `tesseract --version` kostet einen Prozess, und zwanzig davon je Seite
-    wären zwanzig zu viel.
+    Gemerkt, weil sich die Antwort zur Laufzeit nicht ändert.
     """
     try:
         import pytesseract
@@ -130,14 +103,8 @@ def _oeffne(inhalt: bytes):
 
 
 def ist_bild(inhalt: bytes) -> bool:
-    """Ob sich diese Bytes als Bild öffnen lassen.
-
-    **Gefragt wird den Inhalt, nicht den Dateinamen.** Der Name war einmal das
-    Kriterium, und daran ist der Weg aus der Zwischenablage gescheitert: Ein
-    Bildschirmfoto kommt als `image.png` an, ein Foto aus der Mediathek des
-    iPhones je nach Browser als `image` ohne Endung oder ganz ohne Namen. Beides
-    ist dasselbe Bild, und ob es eines ist, steht in seinen ersten Bytes.
-    """
+    """Ob sich diese Bytes als Bild öffnen lassen - am Inhalt, nicht am Namen:
+    Aus der Zwischenablage kommt ein Bild oft als `image` ohne Endung."""
     try:
         from PIL import Image
     except ImportError:
@@ -150,58 +117,29 @@ def ist_bild(inhalt: bytes) -> bool:
         return False
 
 
-# Wie Tesseract die Seite aufteilt, in der Reihenfolge, in der es versucht wird.
+# Wie Tesseract die Seite aufteilt, in dieser Reihenfolge versucht:
 #
-# `3` ist die Vorgabe und die richtige Wahl für eine Seite Fließtext: Sie
-# erkennt Spalten und Absätze. Auf einem **Foto** ist sie die falsche - dort
-# steht Text in verstreuten Blöcken, quer, gewölbt, verschieden groß, und die
-# Seitenanalyse wirft das meiste weg. `11` ist für genau diesen Fall gedacht
-# („sparse text"): kein Layout, nur finden, was nach Schrift aussieht.
+#   3   die Vorgabe, für eine Seite Fließtext mit Spalten und Absätzen
+#   6   ein zusammenhängender Block - eine Karte, ein Aufsteller
+#   11  verstreuter Text ohne Layout - das typische Foto
 #
-# Nachgemessen am Foto eines Cremedeckels: `3` fand 77 Punkte, `11` fand 115.
-# Auf einer gerenderten Seite Fließtext fanden beide dieselben 131 - und dort
-# gewinnt `3`, weil es zuerst steht und der Gleichstand für die Vorgabe
-# entschieden wird.
-#
-# `6` kam später dazu: „ein zusammenhängender Block Text" - die Lage bei einer
-# Karte oder einem Aufsteller, auf dem ein Absatz und eine Liste stehen und
-# sonst nichts. Für die Seitenanalyse von `3` ist das zu wenig Seite, für die
-# verstreute Suche von `11` zu viel Zusammenhang. Gemessen an vier Vorlagen
-# holt sie auf einer glänzenden Werbekarte eine Zeile mehr heraus und ändert
-# an den übrigen dreien nichts.
-#
-# Der Preis ist ein halber Durchgang mehr je Fassung, und der kostet fast
-# nichts: Die sechs laufen nebeneinander auf acht Kernen (siehe `EINFAEDIG`).
+# Am Foto eines Cremedeckels fand `3` 77 Punkte, `11` 115; auf einer Seite
+# Fließtext beide 131, und bei Gleichstand gewinnt die Vorgabe. `6` holt auf
+# einer glänzenden Werbekarte eine Zeile mehr. Nebeneinander kostet das kaum
+# Zeit (`EINFAEDIG`).
 SEITENARTEN = (3, 6, 11)
 
 
-# Wie groß ein Bild höchstens in die Erkennung geht - die lange Seite in Pixeln.
-#
-# **Mehr Pixel kaufen nichts.** Nachgemessen am Foto eines Cremedeckels, in der
-# besten von vier Lesarten:
-#
-#     1200 px    96 Punkte     2,2 s
-#     1600 px   103 Punkte     3,5 s
-#     2000 px   118 Punkte     4,9 s
-#     2576 px   119 Punkte     4,8 s   (die Aufnahme selbst)
-#     3200 px   114 Punkte    10,4 s
-#
-# Oberhalb von etwa 2000 steht die Trefferquote still und fällt dann wieder,
-# während die Zeit davonläuft: Tesseract rechnet intern ohnehin auf eine
-# Zeilenhöhe herunter, und ein weicher, großer Buchstabe ist schlechter zu
-# lesen als ein kleiner scharfer. Ein Foto vom iPhone hat 4032 Pixel; ohne
-# diese Grenze dauerten vier Durchgänge 22 Sekunden statt 7, bei gleichem
-# Ergebnis.
+# Die längste Seite, mit der ein Bild in die Erkennung geht. Mehr Pixel lesen
+# nicht besser, nur langsamer (Cremedeckel: 1200 px 96 Punkte, 2000 px 118,
+# 2576 px 119, 3200 px 114 bei doppelter Zeit) - ein weicher großer Buchstabe
+# liest sich schlechter als ein kleiner scharfer.
 MAX_KANTE = 2400
 
 
-# Wie groß die Lageprobe rechnet und wie deutlich sie sein muss.
-#
-# 1200 Pixel genügen, um die vier Lagen sicher zu trennen, und kosten zusammen
-# gut zwei Sekunden. Der Faktor sagt, wie viel besser eine Drehung sein muss,
-# damit gedreht wird: Bei einem Bild ohne Text stehen vier zufällige Zahlen
-# nebeneinander, und die soll keine das Bild verdrehen lassen. Gemessen am
-# Foto eines Cremedeckels lag die richtige Lage um das Vierfache vorn.
+# Die Lageprobe: 1200 px trennen die vier Lagen sicher. Gedreht wird nur mit
+# deutlichem Vorsprung - bei einem Bild ohne Text stehen vier Zufallszahlen
+# nebeneinander. Am Cremedeckel lag die richtige Lage vierfach vorn.
 PROBE_KANTE = 1200
 PROBE_VORSPRUNG = 1.5
 
@@ -211,12 +149,8 @@ _LAGEN = (0, 90, 180, 270)
 def _zuversicht(bild, lang: str) -> float:
     """Wie sicher Tesseract ist, hier Wörter zu sehen - Zuversicht mal Wortlänge.
 
-    **Warum hier nicht `_punkte` zählt.** Um Seitenart und Entrauschen zu
-    wählen, genügt die Menge: Mehr gefundene Zeichen sind mehr gefundener Text.
-    Bei der Lage versagt das. Kopfüber gestellte Schrift sieht immer noch wie
-    Schrift aus - Tesseract findet dort ähnlich viele Zeichen, sie ergeben nur
-    keine Wörter. Nachgemessen: nach Länge lagen aufrecht und kopfüber bei 41
-    zu 42 Punkten, also Gleichstand; nach Zuversicht bei 8324 zu 2075.
+    Nicht `_punkte`: Kopfüber findet Tesseract ähnlich viele Zeichen, nur
+    keine Wörter - nach Länge 41 zu 42, nach Zuversicht 8324 zu 2075.
     """
     import pytesseract
     from pytesseract import Output
@@ -234,27 +168,12 @@ def _zuversicht(bild, lang: str) -> float:
 def _aufgerichtet(bild, lang: str):
     """Das Bild so drehen, dass die Schrift oben ist.
 
-    **Zwei Wege, und der zweite wird gebraucht.** Ein Foto trägt seine Lage
-    gewöhnlich als EXIF-Marke bei sich, und `exif_transpose` richtet es danach
-    auf - das kostet nichts und ist immer richtig, wenn die Marke da ist.
-
-    Aus der **Zwischenablage** ist sie es oft nicht: Wer ein Foto in der
-    Mediathek des iPhones kopiert, bekommt die Bildpunkte in der Lage des
-    Sensors und die Marke bleibt unterwegs liegen. Das Bild sieht in der
-    Mediathek aufrecht aus und kommt hier quer an. Erkannt wurde daraus
-    „3 jgegolor-oig SWSIDYOS EUOYV" - Buchstabenformen ohne Sprache.
-
-    Tesseracts eigene Lageerkennung (OSD) hilft hier nicht: Sie braucht eine
-    Seite Text und scheitert an einem Etikett mit acht Wörtern - nachgemessen,
-    sie meldete auf allen vier Lagen einen Fehler. Also wird geprobt: viermal
-    klein lesen, und die Lage mit der größten Zuversicht gewinnt.
-
-    **Auch die Probe spricht die Sprache des Profils.** Hier stand einmal ein
-    festes `deu`, und das war dieselbe Hartkodierung, die aus dem übrigen
-    Quelltext längst verschwunden ist: Die Zuversicht misst, ob Tesseract hier
-    *Wörter* sieht - und was ein Wort ist, hängt an der Sprache. Mit dem
-    falschen Wörterbuch wären alle vier Lagen gleich unsicher, und die Probe
-    entschiede nach Zufall.
+    Zuerst nach der EXIF-Marke. Aus der Zwischenablage fehlt sie oft - ein
+    kopiertes iPhone-Foto kommt in der Lage des Sensors an. Tesseracts eigene
+    Lageerkennung braucht eine Seite Text und scheitert an einem Etikett.
+    Also wird geprobt: viermal klein lesen, die größte Zuversicht gewinnt -
+    mit dem Wörterbuch des Profils, denn was ein Wort ist, hängt an der
+    Sprache.
     """
     from PIL import Image, ImageOps
 
@@ -268,8 +187,7 @@ def _aufgerichtet(bild, lang: str):
 
     beste = max(_LAGEN, key=lambda lage: werte[lage])
     if beste == 0 or werte[beste] < werte[0] * PROBE_VORSPRUNG:
-        # Kein deutlicher Vorsprung: stehen lassen. Ein Bild ohne Text liefert
-        # vier zufällige Zahlen, und die sollen es nicht verdrehen.
+        # Kein deutlicher Vorsprung: stehen lassen.
         return bild
     return bild.rotate(-beste, expand=True)
 
@@ -277,17 +195,9 @@ def _aufgerichtet(bild, lang: str):
 def _vorbereitet(bild):
     """Auf ein vernünftiges Maß bringen - und eine entrauschte Fassung daneben.
 
-    **Der Medianfilter ist nicht Kosmetik, sondern der Unterschied zwischen
-    lesbar und gar nichts.** Wer einen Bildschirm abfotografiert, bekommt das
-    Gitter der Bildpunkte als feines Muster ins Bild (Moiré), und Tesseract
-    liest darin Schrift, wo keine ist - oder gar nichts mehr. Nachgemessen an
-    einem nachgestellten Bildschirmfoto: **0 Punkte** im Rohbild, **131** nach
-    einem 3×3-Median. Auf dem gewöhnlichen Foto schadet er nicht, er half dort
-    sogar leicht (115 → 119).
-
-    Zurück kommen beide Fassungen, denn welche gewinnt, entscheidet erst der
-    Vergleich: Ein Filter, der einem scharfen Bild kleine Schrift weichzeichnet,
-    soll sich nicht durchsetzen, nur weil er angewandt wurde.
+    Der 3×3-Median entfernt das Moiré abfotografierter Bildschirme: 0 Punkte
+    im Rohbild, 131 danach; auf gewöhnlichen Fotos schadet er nicht. Welche
+    Fassung gilt, entscheidet der Vergleich.
     """
     from PIL import Image, ImageFilter
 
@@ -307,30 +217,11 @@ _WORTHAFT = re.compile(r"[^\W_]{3,}", re.UNICODE)
 def entrausche(text: str) -> str:
     """Zeilen wegnehmen, in denen kein einziges Wort steht.
 
-    **Vorsichtig, nicht gründlich.** Eine Zeichenerkennung findet auf einem Foto
-    auch dort Schrift, wo Muster sind - der Wirbel auf einem Cremedeckel wird zu
-    `| x`, `Ye`, `v,`, `ae`. Solche Zeilen bestehen aus Ein- und
-    Zweizeichen-Brocken; alles, was ein Mensch geschrieben hat, enthält
-    irgendwo drei Zeichen am Stück.
-
-    Die Grenze liegt deshalb bei drei und nicht höher, und sie zählt Ziffern
-    mit: `48h` wäre sonst weg, und `10/2024` auch.
-
-    **Und mindestens die Hälfte der Brocken muss ein Wort sein.** Ein einzelnes
-    genügte anfangs, und damit blieb `k Be #2 I CFrAN` stehen - eine Zeile aus
-    fünf Bruchstücken, von denen eines zufällig fünf Zeichen lang war. Die
-    Mehrheitsregel nimmt sie und lässt alles stehen, was wirklich dasteht:
-    `Bio-Jojobaöl &` hat zwei Brocken und ein Wort, `ZERTIFIZIERT || VEGAN`
-    drei und zwei, `48h` einen und einen.
-
-    Das ist die richtige Richtung: Was hier stehen bleibt, streicht ein Mensch
-    im nächsten Schritt weg - was hier verschwindet, sieht er nie wieder.
-    Gegen Zeilen, die durchweg wie Wörter aussehen und trotzdem keine sind -
-    ein Unterstrich unter einer Überschrift -, hilft das nicht; dagegen steht
-    `MINDESTZUVERSICHT`.
-
-    Angewandt wird das **nur auf Erkanntes**. Ein gelesener Text steht so da,
-    wie ihn jemand geschrieben hat, und daran wird nicht gefiltert.
+    Muster auf einem Foto werden zu Brocken wie `| x`, `Ye`, `v,`. Eine Zeile
+    bleibt, wenn mindestens die Hälfte ihrer Brocken drei Zeichen am Stück
+    hat - Ziffern zählen mit, damit `48h` bleibt. `k Be #2 I CFrAN` fällt,
+    `Bio-Jojobaöl &` bleibt. Vorsichtig, denn was stehen bleibt, streicht ein
+    Mensch; was verschwindet, sieht er nie. Nur für Erkanntes.
     """
     behalten = [z.rstrip() for z in text.splitlines() if not z.strip() or _traegt_text(z)]
     return re.sub(r"\n{3,}", "\n\n", "\n".join(behalten)).strip()
@@ -343,47 +234,18 @@ def _traegt_text(zeile: str) -> bool:
     return worthaft * 2 >= len(brocken)
 
 
-# Wie sicher Tesseract bei einer Zeile mindestens sein muss, damit sie bleibt.
-#
-# **Wogegen das hilft.** Ein Unterstrich unter einer Überschrift ist ein
-# Balken, kein Buchstabe - aber Tesseract muss etwas zurückgeben und liest ihn
-# als Wort. So entstand unter „Birchermüsli zum Frühstück?" die Zeile
-# „a nee heneibneeneschebeißsi": lang genug für den Längenfilter, Unsinn für
-# jeden Menschen. Was fehlt, ist nicht die Länge, sondern die Sicherheit - und
-# die sagt Tesseract selbst, wenn man sie erfragt.
-#
-# **Warum 15 und nicht mehr.** Gemessen an zwei Vorlagen:
-#
-#     Plakat, sauber      Rauschzeile  6,5  ·  echter Text ab 75
-#     Cremedeckel, schwer              ---  ·  echter Text ab 28
-#
-# Die Grenze muss unter das schwächste Echte und über das stärkste Rauschen.
-# 15 liegt in dieser Lücke, mit Abstand nach beiden Seiten: Auf dem schweren
-# Foto wäre `OKO-TEST` (28) und `BIO-JOJOBAÖL` (40) sonst mit weggefallen, und
-# das sind Wörter, die wirklich dastehen.
+# Die mittlere Zuversicht, die eine Zeile mindestens braucht. Gegen Zeilen,
+# die wie Wörter aussehen und keine sind - ein Unterstrich, gelesen als
+# „a nee heneibneeneschebeißsi" (6,5). Echter Text lag ab 28 (`OKO-TEST` auf
+# einem schweren Foto), auf einem sauberen Plakat ab 75.
 MINDESTZUVERSICHT = 15.0
 
-# Dieselbe Frage noch einmal, für **kurze** Zeilen - und dort viel strenger.
-#
-# **Warum zwei Grenzen.** Ein Foto einer Stofffläche oder einer genarbten
-# Kunststoffschale liefert Dreibuchstabenwörter am laufenden Band: `Res`,
-# `RER`, `ber`, `Ser`, `ale`, `STE`. Sie sind lang genug für den Längenfilter
-# und sicher genug für die Grenze oben - gemessen an einem Akku auf einer
-# Hose kamen sie auf bis zu 43.
-#
-# Anheben ließ sich die eine Grenze aber nicht: `OKO-TEST` steht wirklich auf
-# dem Cremedeckel und kommt dort auf 28, `BIO-JOJOBAÖL` auf 40.
-#
-# Was beide trennt, ist nicht die Sicherheit allein, sondern sie **zusammen
-# mit der Länge**. Ein Klassifikator, der acht Formen hintereinander zu einem
-# Wort zusammensetzt, hat etwas gesehen, auch wenn er zögert; drei zufällig
-# passende Formen findet man in jeder Struktur. Gemessen an vier Vorlagen:
+# Strenger für kurze Zeilen: Stoff oder genarbter Kunststoff liefern
+# Dreibuchstabenwörter (`Res`, `RER`, `Ser`) mit Zuversicht bis 43. Drei
+# passende Formen findet man in jeder Struktur, acht hintereinander nicht:
 #
 #     kurz (bis 5 Zeichen)   Rauschen bis 43   ·   echt ab 74
 #     lang (ab 6 Zeichen)    Rauschen bis  6   ·   echt ab  2
-#
-# Die 60 liegen in der Lücke der oberen Zeile. Echt und kurz waren `BOSCH`
-# (96), `ERT` (90) und `sehr gut 5` (74) - alle drei bleiben.
 MINDESTZUVERSICHT_KURZ = 60.0
 
 # Bis hierhin gilt eine Zeile als kurz - gemessen am längsten Wort darin, nicht
@@ -394,13 +256,8 @@ KURZE_ZEILE = 5
 def _gelesen(bild, lang: str, seitenart: int) -> str:
     """Eine Fassung lesen - zeilenweise, und nur was sicher genug ist.
 
-    Gelesen wird über `image_to_data` statt `image_to_string`, weil nur das die
-    Zuversicht je Wort mitliefert. Es ist derselbe Durchgang, nur eine andere
-    Ausgabe; teurer wird es nicht.
-
-    Zusammengesetzt wird entlang der Struktur, die Tesseract selbst meldet:
-    Wörter zu Zeilen, Absätze durch Leerzeilen getrennt - denn genau daran
-    schneidet `text/chunker.py` später die Sprecheinheiten.
+    `image_to_data` liefert die Zuversicht je Wort. Wörter werden zu Zeilen,
+    Absätze durch Leerzeilen getrennt - daran schneidet `text/chunker.py`.
     """
     import pytesseract
     from pytesseract import Output
@@ -442,21 +299,15 @@ def _gelesen(bild, lang: str, seitenart: int) -> str:
 def _punkte(text: str) -> int:
     """Wie viel Schrift hier steht - zum Vergleich zweier Durchgänge.
 
-    Gezählt werden die Zeichen in Wörtern aus mindestens drei Buchstaben. Das
-    trennt Gefundenes von Rauschen: Was eine Zeichenerkennung erfindet, sind
-    Einzelzeichen und Paare (`&®`, `fi`, `wT`), keine Wörter.
+    Die Zeichen in Wörtern ab drei Buchstaben - Erfundenes sind Einzelzeichen
+    und Paare.
     """
     return sum(len(wort) for wort in re.findall(r"[^\W\d_]{3,}", text, re.UNICODE))
 
 
 def aus_bild(inhalt: bytes, sprache: str) -> str:
-    """Den Text eines Bildes erkennen - in zwei Durchgängen, der bessere gilt.
-
-    Zweimal zu lesen kostet die doppelte Zeit, und sie ist hier gut angelegt:
-    Ein Bild ist ein Bild, keine zwanzig Seiten, und ob es ein abfotografiertes
-    Etikett oder eine abfotografierte Seite ist, weiß vorher niemand - auch der
-    Mensch nicht, der es hochlädt (siehe `SEITENARTEN`).
-    """
+    """Den Text eines Bildes erkennen: zwei Fassungen mal drei Seitenarten,
+    der Durchgang mit den meisten `_punkte` gilt."""
     if not verfuegbar():
         raise OcrFehler("Auf diesem Server ist keine Zeichenerkennung eingerichtet.")
 
@@ -473,36 +324,24 @@ def aus_bild(inhalt: bytes, sprache: str) -> str:
         raise
     except Exception as ursache:
         raise OcrFehler(f"Die Zeichenerkennung ist gescheitert: {ursache}") from ursache
-    # `max` gibt bei Gleichstand den ersten zurück - und das ist das Rohbild in
-    # der Vorgabe-Seitenart, also der zurückhaltendste der vier Wege.
+    # Bei Gleichstand der erste: das Rohbild in der Vorgabe-Seitenart.
     return entrausche(max(versuche, key=_punkte))
 
 
-# Wie fein eine PDF-Seite gerastert wird, bevor Tesseract sie liest. Das Maß
-# ist der Faktor auf die 72 dpi, in denen ein PDF seine Seite beschreibt - 2,5
-# sind also 180 dpi. Darunter verliert Tesseract kleine Schrift, darüber wächst
-# die Rechenzeit schneller als die Trefferquote.
+# Rasterfaktor auf 72 dpi, also 180 dpi - darunter geht kleine Schrift
+# verloren, darüber wächst nur die Rechenzeit.
 RASTER = 2.5
 
-# Wie viele Seiten höchstens gelesen werden. Ein gescanntes Buch soll nicht
-# zwanzig Minuten binden: Wer so viel Vorlage braucht, lädt sie als Text hoch.
+# Wer mehr braucht, lädt Text hoch.
 MAX_SEITEN = 20
 
 
 def aus_pdf(inhalt: bytes, sprache: str) -> str:
     """Ein PDF ohne Textebene seitenweise erkennen.
 
-    Jede Seite wird gerastert und einzeln gelesen; die Seiten werden mit
-    Leerzeile getrennt, weil der Schnitt danach an Absätzen arbeitet
-    (`text/chunker.py`).
-
-    **Hier wird einmal gelesen und nicht viermal, anders als bei einem Bild.**
-    Das ist das Maß, das zum Format gehört: Ein Scan ist eine Seite Fließtext,
-    flach ausgeleuchtet und hoch im Kontrast - genau der Fall, für den
-    Tesseracts Vorgabe gemacht ist, und einer ohne Moiré. Ein Bild ist eines;
-    ein PDF sind bis zu zwanzig, und vier Durchgänge je Seite wären achtzig.
-    Wessen Scan schlecht liest, fotografiert die Seite - dann greift der andere
-    Weg mit allem, was er hat.
+    Einmal je Seite in der Vorgabe-Seitenart: Ein Scan ist flach
+    ausgeleuchteter Fließtext ohne Moiré. Wer schlecht liest, fotografiert die
+    Seite.
     """
     if not verfuegbar():
         raise OcrFehler("Auf diesem Server ist keine Zeichenerkennung eingerichtet.")
@@ -514,8 +353,7 @@ def aus_pdf(inhalt: bytes, sprache: str) -> str:
     lang = kuerzel(sprache)
     try:
         dokument = pypdfium2.PdfDocument(inhalt)
-        # Auch die Seiten eines PDFs nebeneinander - hier zahlt es sich am
-        # meisten aus, denn es sind bis zu zwanzig.
+        # Die Seiten nebeneinander.
         bilder = [
             dokument[nummer].render(scale=RASTER).to_pil()
             for nummer in range(min(len(dokument), MAX_SEITEN))

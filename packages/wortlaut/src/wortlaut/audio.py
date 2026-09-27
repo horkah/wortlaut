@@ -37,9 +37,8 @@ class Befund:
     stille_hinten_s: float
 
 
-# Wie viel Luft ein Zuschnitt vor und hinter der Stimme lässt. Lieber ein
-# Zehntel zu viel als eine abgeschnittene Silbe: Ein paar Hundertstel Stille
-# kosten das Training nichts, ein verschluckter Anlaut kostet es das Wort.
+# Luft vor und hinter der Stimme beim Zuschnitt - Stille kostet das Training
+# nichts, ein verschluckter Anlaut das Wort.
 RAND_S = 0.15
 
 
@@ -47,16 +46,10 @@ RAND_S = 0.15
 class Verlauf:
     """Der Lautstärkeverlauf einer Aufnahme - ein Wert je 20-ms-Fenster.
 
-    Dasselbe Raster, mit dem `untersuche` die Randstille misst, nur
-    herausgereicht statt zusammengefasst: Die Zuschnittansicht zeichnet
-    daraus ihre Kurve, und die Stimmgrenzen fallen aus denselben Zahlen ab
-    (`stimmgrenzen`). Zwei Raster für dieselbe Aufnahme hießen, dass die
-    gezeichnete Kurve und die eingezeichnete Grenze aus verschiedenen
-    Rechnungen kämen - und dann liegt die Linie neben dem Ausschlag.
-
-    `werte` und `schwelle` sind auf den Vollausschlag bezogen (0 bis 1) und
-    nicht in dBFS: Eine Kurve wird gezeichnet, nicht gelesen, und eine
-    logarithmische Achse macht aus jeder Aufnahme dasselbe zappelnde Band.
+    Dasselbe Raster, mit dem `untersuche` die Randstille misst - Kurve und
+    vorgeschlagene Grenzen kommen aus denselben Zahlen. `werte` und `schwelle`
+    sind linear auf den Vollausschlag bezogen (0 bis 1): Eine logarithmische
+    Achse machte aus jeder Aufnahme dasselbe zappelnde Band.
     """
 
     fenster_s: float
@@ -166,14 +159,9 @@ def _dbfs(betrag: float) -> float:
 def verlauf(wav: Path) -> Verlauf:
     """Der Lautstärkeverlauf einer Aufnahme, zum Zeichnen und zum Schneiden.
 
-    Dieselbe Rechnung wie in `untersuche`, nur nicht zu vier Zahlen
-    zusammengefasst: Die Zuschnittansicht braucht die Fenster selbst, um daraus
-    eine Kurve zu zeichnen (`packages/ui/Pegelverlauf.svelte`).
-
-    Eine Aufnahme von acht Sekunden ergibt vierhundert Werte. Das ist wenig
-    genug, um es als JSON zu schicken, und fein genug, um eine Sprechpause zu
-    sehen - gröber wäre eine Kurve, in der eine Silbe verschwindet, feiner
-    wären mehr Punkte, als ein Bild breit ist.
+    Dieselbe Rechnung wie in `untersuche`, je Fenster herausgereicht
+    (`packages/ui/Pegelverlauf.svelte`). Acht Sekunden ergeben vierhundert
+    Werte - fein genug für eine Sprechpause, klein genug für JSON.
     """
     werte, abtastrate = _lies(wav)
     spitze = float(max(max(werte), -min(werte)))
@@ -189,25 +177,14 @@ def verlauf(wav: Path) -> Verlauf:
 def stimmgrenzen(kurve: Verlauf, rand_s: float = RAND_S) -> tuple[float, float]:
     """Wo die Stimme anfängt und aufhört - mit etwas Luft an beiden Enden.
 
-    **Warum aus dem Pegel und nicht aus einem Sprachmodell.** Ein VAD wie
-    Silero erkennt Sprache und nicht bloß Lautstärke, und bei einer
-    Tonaufnahme mit Hintergrundgeräuschen wäre das der bessere Weg. Hier ist
-    die Lage eine andere: Aufgenommen wird äußerungsweise, in einem Raum, mit
-    einem Mikrofon vor dem Mund - was zwischen Anfang und Ende laut wird, ist
-    diese eine Person. Dafür einen halben Gigabyte Torch in den Web-Prozess zu
-    holen, wäre der Preis für eine Unterscheidung, die hier nicht ansteht.
+    **Aus dem Pegel, nicht aus einem VAD.** Ein Raum, ein Mikrofon vor dem
+    Mund, eine Äußerung - was laut wird, ist diese Person. Ein auf
+    durchschnittlicher Sprache trainiertes Modell zu fragen, wo abweichende
+    Sprache anfängt, träfe dieselbe Annahme, an der die Diktierfunktion des
+    Telefons scheitert; und es brächte torch in den Webprozess.
 
-    Dazu kommt ein zweiter Grund, und der wiegt schwerer: wortlaut ist für
-    Menschen gebaut, deren Aussprache von der Norm abweicht (siehe README). Ein
-    Modell, das auf durchschnittlicher Sprache gelernt hat, zu fragen, wo hier
-    Sprache anfängt, hieße dieselbe Annahme noch einmal zu treffen, an der die
-    Diktierfunktion des Telefons bereits scheitert. Ein Pegel ist ein Pegel.
-
-    **Was daraus folgt.** Die Grenzen sind ein Vorschlag, kein Befund - die
-    Ansicht zeigt sie als zwei Linien, die sich mit Finger oder Maus
-    verschieben lassen. Findet sich kein Fenster über der Schwelle, ist der
-    Vorschlag die ganze Aufnahme: Lieber nichts vorschlagen als etwas
-    wegschneiden.
+    Die Grenzen sind ein Vorschlag, den ein Mensch verschiebt. Ohne Fenster
+    über der Schwelle ist er die ganze Aufnahme.
     """
     laut = [nummer for nummer, wert in enumerate(kurve.werte) if wert >= kurve.schwelle]
     if not laut:
@@ -220,10 +197,8 @@ def stimmgrenzen(kurve: Verlauf, rand_s: float = RAND_S) -> tuple[float, float]:
 def dauer(wav: Path) -> float:
     """Wie lang eine WAV-Datei ist, ohne sie zu lesen.
 
-    `untersuche` weiß das auch, liest dafür aber jeden Abtastwert und rechnet
-    Pegel, Clipping und Randstille mit. Wer nur wissen will, wie weit die
-    Aufnahme reicht - etwa um eine Zeitmarke daran zu messen -, bekommt es hier
-    aus dem Kopf der Datei.
+    Aus dem Kopf der Datei, anders als `untersuche`, das jeden Abtastwert
+    liest.
     """
     with wave.open(str(wav), "rb") as datei:
         return datei.getnframes() / datei.getframerate()
@@ -234,36 +209,20 @@ def schneide_ausschnitt(
 ) -> tuple[float, float]:
     """Schreibt den Bereich [start_s, ende_s) einer WAV-Datei in eine neue Datei.
 
-    Gebraucht von „schreiben": Whisper liefert Abschnittsgrenzen, und jeder
-    Abschnitt braucht sein eigenes Audio - er kann einzeln neu eingesprochen
-    werden und geht einzeln als Korrekturpaar an „hören". Und von „hören", wenn
-    jemand die Stille an den Rändern einer Aufnahme wegschneidet
-    (`services/zuschnitt.py`).
-
-    Reine Standardbibliothek und ohne Umkodieren: ein Schnitt an
-    Rahmengrenzen ist das Kopieren eines Byte-Bereichs. Grenzen außerhalb der
-    Datei werden auf sie zurechtgestutzt, statt zu scheitern - Whisper meldet
+    Für die Abschnitte in „schreiben", für Zuschnitt und Teilung in „hören"
+    (`services/zuschnitt.py`). Verlustfrei: Bei 16 kHz mono PCM ist ein
+    Schnitt das Kopieren eines Byte-Bereichs, ohne Umkodieren und ohne
+    Blenden. Grenzen außerhalb der Datei werden gestutzt - Whisper meldet
     gelegentlich ein Ende hinter dem letzten Abtastwert.
 
-    **Verlustfrei heißt hier wirklich verlustfrei.** Bei 16 kHz mono PCM ist
-    ein Rahmen zwei Byte, und zwei Byte sind zugleich der kleinste Block, an
-    dem sich schneiden lässt. Was hier herauskommt, ist Abtastwert für
-    Abtastwert dasselbe wie im Original - kein Umkodieren, keine Ein- und
-    Ausblendung, kein Generationsverlust. Mit einem komprimierten Format wäre
-    das anders; deshalb liegt der Korpus in PCM (siehe `wandle_in_wav`).
-
-    `nach_aussen` rundet den Anfang ab- und das Ende aufwärts auf den nächsten
-    Rahmen, statt beide abzuschneiden. Beim Zuschneiden ist das die richtige
-    Richtung: Ein Rahmen zu viel sind 62 Mikrosekunden Stille, ein Rahmen zu
-    wenig ist ein angeschnittener Abtastwert. Zurück kommen die Grenzen, die
-    dabei wirklich erreicht wurden - wer sie aufbewahrt, bewahrt auf, was in
-    der Datei steht, und nicht, was jemand gewünscht hat.
+    `nach_aussen` rundet den Anfang ab- und das Ende aufwärts: Ein Rahmen zu
+    viel sind 62 Mikrosekunden Stille, einer zu wenig ein angeschnittener
+    Abtastwert. Zurück kommen die tatsächlich erreichten Grenzen.
     """
     with wave.open(str(quelle), "rb") as datei:
         rahmen_gesamt = datei.getnframes()
         rate = datei.getframerate()
-        # Ohne `nach_aussen` schneidet beides ab - das Verhalten, auf das sich
-        # „schreiben" seit jeher verlässt.
+        # Ohne `nach_aussen` schneidet beides ab.
         ab, auf = (math.floor, math.ceil) if nach_aussen else (int, int)
         von = max(0, min(rahmen_gesamt, ab(start_s * rate)))
         bis = max(von, min(rahmen_gesamt, auf(ende_s * rate)))

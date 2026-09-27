@@ -1,27 +1,18 @@
 """Der Zugang zu einem Sprecher - zugleich seine Kennung.
 
-Diese Datei liegt in der Bibliothek und nicht in einer App, weil zwei Apps
-denselben Zugang lesen: „hören" gibt ihn aus und prüft ihn am eigenen Korpus,
-„schreiben" legt seine Diktate unter demselben Sprecher ab und muss dieselbe
-Kennung aus demselben Token ableiten. Zwei Auslegungen desselben Formats wären
-zwei Gelegenheiten, sie auseinanderlaufen zu lassen.
+In der Bibliothek, weil alle drei Apps denselben Zugang auslegen.
 
 Ein Zugang sieht so aus::
 
     spr_01J8ZQ…8K.7f2ac1…                 <sprecher_id>.<geheimnis>
 
-Er trägt die Kennung sichtbar vor sich her, und genau das ist der Zweck: Der
-Server spaltet am Punkt, öffnet **die** Datenbank dieses Sprechers und prüft
-dort den Prüfwert des Geheimnisses. Die Kennung ist damit abgeleitet und nicht
-behauptet, und der Nachschlag geht auf dieselbe Datei, die die Anfrage ohnehin
-öffnet - kein Durchsuchen aller Sprecher.
+Der Server spaltet am Punkt, öffnet die Datenbank dieses Sprechers und prüft
+dort den Prüfwert des Geheimnisses: Die Kennung ist abgeleitet, nicht
+behauptet, und nachgeschlagen wird in genau einer Datei. Wer die offene
+Kennung in einen fremden Zugang schreibt, scheitert am Geheimnis.
 
-Dass die Kennung offen dasteht, kostet nichts: Wer sie in einen fremden Zugang
-schreibt, dessen Geheimnis passt dort nicht, und die Antwort ist 401.
-
-Gespeichert wird nur der Prüfwert. Ein einfacher SHA-256 genügt dafür - anders
-als ein Passwort ist das Geheimnis kein gemerktes Wort, sondern 160 Bit aus
-`os.urandom`; ein Wörterbuchangriff hat daran nichts zu holen.
+Gespeichert wird nur ein SHA-256 - das Geheimnis ist kein gemerktes Wort,
+sondern 160 Bit Zufall, gegen die kein Wörterbuch hilft.
 """
 
 from __future__ import annotations
@@ -77,13 +68,8 @@ def stimmt(geheimnis: str, gespeichert: str | None) -> bool:
 class Sprecherzugang:
     """Wer ein vorgelegter Zugang ist: Kennung, Name und Sprache aus dem Korpus.
 
-    **Warum die Sprache hier mitkommt.** Sie steht am Profil und gilt für
-    alles, was daran hängt (`wortlaut/sprachen.py`). Wer sie braucht - „lernen"
-    für den Trainingsauftrag, „schreiben" für das Diktat -, hat den Korpus des
-    Sprechers ohnehin gerade offen: Diese Prüfung liest die Zeile bereits. Sie
-    ein zweites Mal zu holen wäre eine zweite Abfrage für eine Auskunft, die
-    schon auf dem Tisch liegt - und eine zweite Stelle, an der jemand den
-    Rückfall auf Deutsch hinschreiben könnte.
+    Die Sprache kommt mit, weil die Prüfung die Zeile ohnehin liest - „lernen"
+    braucht sie für den Auftrag, „schreiben" für das Diktat.
     """
 
     sprecher_id: str
@@ -94,16 +80,10 @@ class Sprecherzugang:
 def pruefe(datenverzeichnis: Path, vorgelegt: str) -> Sprecherzugang | None:
     """Den Sprecher zu einem vorgelegten Zugang - oder None, wenn er nicht gilt.
 
-    Der Nachschlag geht lesend in die Korpusdatenbank des Sprechers, dessen
-    Kennung der Zugang vor sich herträgt: eine Datei, kein Durchsuchen. Das ist
-    derselbe Weg, den „hören" in seiner `deps.py` geht - dort mit der ohnehin
-    offenen Sitzung, hier ohne, weil „schreiben" den Korpus nur lesen darf und
-    keinen Schreiber darauf öffnen soll (Grundentscheidung 6). `mode=ro` hält
-    das fest: Diese Verbindung kann nicht schreiben, auch nicht aus Versehen.
-
-    Ein unbekannter Sprecher, eine fehlende Datei und ein falsches Geheimnis
-    sind bewusst dasselbe Ergebnis. Wer hier ein „gibt es nicht" von einem
-    „stimmt nicht" unterscheiden könnte, könnte Kennungen abklopfen.
+    Gelesen wird mit `mode=ro`: „lernen" und „schreiben" dürfen den Korpus nur
+    lesen (Grundentscheidung 6). Ein unbekannter Sprecher, eine fehlende Datei
+    und ein falsches Geheimnis sind dasselbe Ergebnis - sonst ließen sich
+    Kennungen abklopfen.
     """
     teile = zerlege(vorgelegt)
     if teile is None:
@@ -126,9 +106,6 @@ def pruefe(datenverzeichnis: Path, vorgelegt: str) -> Sprecherzugang | None:
 
     if zeile is None or not stimmt(geheimnis, zeile[1]):
         return None
-    # Die Spalte ist `NOT NULL DEFAULT 'de'` (001_init.sql), also steht dort
-    # immer etwas - der Rückfall gilt einer Datenbank, die älter ist als diese
-    # Zeile, und nicht dem Normalfall.
     return Sprecherzugang(
         sprecher_id=sprecher_id,
         name=zeile[0] or "",

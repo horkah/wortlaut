@@ -1,44 +1,27 @@
-"""Ein Trainingslauf als Verzeichnis - die Nahtstelle zwischen „lernen" und der GPU.
+"""Ein Trainingslauf als Verzeichnis - die Nahtstelle zwischen „lernen" und dem Trainer.
 
-Trainiert wird nicht in dem Prozess, der die Oberfläche ausliefert. Das Modell
-braucht torch, CUDA und einige Gigabyte Abbild; der Webdienst braucht das nie
-und soll in Sekunden neu starten. Zwischen beiden liegt deshalb dasselbe, was
-zwischen „schreiben" und „hören" liegt: keine direkte Aufrufkette, sondern
-etwas Liegendes, das beide lesen können.
-
-Hier ist das ein Verzeichnis je Auftrag:
+Der Trainer läuft in einem eigenen Container mit torch und CUDA; der Webdienst
+soll in Sekunden neu starten. Zwischen beiden liegt keine Aufrufkette, sondern
+ein Verzeichnis je Auftrag:
 
     data/snapshots/<job_id>/
-    ├── sprecher.txt          nur die Sprecher-ID - die Zusage an die Löschung
-    ├── auftrag.json          was zu tun ist: Sprecher, Methode, Daten, Abschluss
-    ├── manifest.jsonl        der Schnappschuss: je Zeile eine Trainingsprobe
-    ├── zustand.json          was daraus geworden ist - vom Trainer geschrieben
+    ├── sprecher.txt          die Sprecher-ID - die Zusage an die Löschung
+    ├── manifest.jsonl        der Schnappschuss: je Zeile eine Probe in einer Fassung
+    ├── kernauswahl.json      nur bei Kernauswahl
+    ├── auftrag.json          was zu tun ist - zuletzt geschrieben
+    ├── zustand.json          was daraus geworden ist - vom Trainer
     ├── fortschritt.jsonl     je Zeile ein Ereignis: Schritt, Verlust, Stufe
-    ├── bewertung.jsonl       je Zeile eine Testaufnahme, vom fertigen Modell
-    ├── protokoll.txt         die rohe Ausgabe, für den Fall, dass etwas fehlt
-    ├── arbeitsstand/         Zwischenstände des Trainers - nur während des Laufs
-    └── gewichte/             die Rohgewichte - nur bis zur Umwandlung
+    ├── bewertung.jsonl       je Zeile eine Messung einer Faltung
+    ├── protokoll.txt         die rohe Ausgabe
+    ├── halt                  der Wunsch, anzuhalten
+    └── arbeitsstand/, gewichte/, vorgespult/, ausgang/   nur während des Laufs
 
-**Warum das Verzeichnis und nicht eine Tabelle der Auftrag ist.** Der Trainer
-läuft in einem anderen Container. Er kann eine SQLite-Datei über das geteilte
-Volume erreichen, aber dann gäbe es zwei Wahrheiten über denselben Lauf - die
-Zeile und die Dateien - und irgendwann eine Zeile, die „läuft" sagt, während
-nichts mehr läuft. So gibt es nur eine: Was der Trainer tut, steht dort, wo er
-schreibt. Die Oberfläche liest mit.
+Keine Tabelle daneben: Was der Trainer tut, steht dort, wo er schreibt - eine
+Zeile, die „läuft" sagt, während nichts mehr läuft, kann es so nicht geben.
+Der Schnappschuss macht den Lauf reproduzierbar, während weiter aufgenommen
+wird, und Auftrag, Daten und Ergebnis sind eine löschbare Einheit.
 
-**Warum `snapshots/` und nicht ein eigenes Verzeichnis.** Weil das Manifest
-genau das ist, was der Entwurf einen Schnappschuss nennt: der eingefrorene
-Stand des Korpus zum Zeitpunkt des Auftrags. Er ist der Grund, warum weiter
-aufgenommen werden kann, während ein Training läuft, ohne dass das Ergebnis
-unreproduzierbar wird. Der Arbeitsstand des Laufs daneben zu legen, macht aus
-Auftrag, Daten und Ergebnis **eine** löschbare Einheit - und
-`scripts/purge_speaker.py` findet sie bereits an der `sprecher.txt`, ohne das
-Manifest deuten zu müssen.
-
-**Warum die Warteschlange keine Datei ist.** Offen ist ein Auftrag, zu dem es
-noch keinen `zustand.json` gibt. Eine zusätzliche Warteschlangendatei wäre ein
-zweiter Ort, an dem dasselbe steht - und der erste, der bei einem Abbruch nicht
-mehr stimmt.
+Offen ist ein Auftrag ohne `zustand.json` - das ist die ganze Warteschlange.
 """
 
 from __future__ import annotations
@@ -55,7 +38,6 @@ from typing import Any
 
 from wortlaut import registry
 
-# Dasselbe Verzeichnis, das `services/loeschung.py` bereits kennt und löscht.
 SCHNAPPSCHUESSE = "snapshots"
 SPRECHER_MARKE = "sprecher.txt"
 
@@ -66,86 +48,43 @@ FORTSCHRITT = "fortschritt.jsonl"
 BEWERTUNG = "bewertung.jsonl"
 PROTOKOLL = "protokoll.txt"
 # Der Wunsch, einen Lauf anzuhalten. Die Oberfläche legt die Datei hin, der
-# Läufer im Trainer-Container sieht sie und beendet den rechnenden Prozess -
-# derselbe Weg über das Verzeichnis wie für alles andere zwischen den beiden
-# (`apps/lernen/training/laeufer.py`). Sie bleibt danach liegen: Ein
-# angehaltener Lauf soll nicht wieder anlaufen, nur weil ihn jemand neu
-# einliest.
+# Läufer beendet den Prozess (`apps/lernen/training/laeufer.py`). Sie bleibt
+# liegen, damit der Lauf nicht wieder anläuft.
 HALT = "halt"
 
-# Die beiden Verzeichnisse, die nur während eines Laufs etwas zu sagen haben:
-# der Arbeitsstand des Trainers (Zwischenstände samt Optimierer) und die
-# Rohgewichte, aus denen der CTranslate2-Stand gerechnet wird. Beide wiegen
-# Gigabyte, beide liest danach nichts mehr in diesem Projekt - und sie stehen
-# hier und nicht im Trainer, weil zwei Seiten sie wegräumen müssen (siehe
-# `raeume_zwischenstaende_auf`).
+# Was nur während eines Laufs gebraucht wird und Gigabyte wiegen kann (siehe
+# `raeume_zwischenstaende_auf`): der Arbeitsstand des Trainers samt Optimierer,
+# die Rohgewichte vor der Umwandlung, die vorgespulten Fassungen
+# (`wortlaut/tempo.py`) und die zurückgerechneten Gewichte eines
+# Ausgangsstands (`training/ausgangsstand.py`).
 ARBEITSSTAND = "arbeitsstand"
 GEWICHTE = "gewichte"
-# Die vorgespulten Fassungen, falls dieser Lauf mit einem Tempofaktor rechnet
-# (`wortlaut/tempo.py`). Sie gehören hierher und nicht in den Korpus: Sie sind
-# abgeleitet, gehören zu diesem einen Lauf und wären im Korpus eine dritte
-# Garnitur Audiodateien, die niemand hören will.
 VORGESPULT = "vorgespult"
-# Die Gewichte des Ausgangsstands, wenn dieser Lauf auf einem trainierten
-# Stand aufsetzt statt auf einem Grundmodell (siehe `grundmodell_aus`). Ein
-# Stand liegt nur als CTranslate2 vor; transformers braucht ihn zurückgerechnet
-# (`training/ausgangsstand.py`), und das einmal je Lauf und nicht je Faltung.
 AUSGANG = "ausgang"
 ZWISCHENSTAENDE = (ARBEITSSTAND, GEWICHTE, VORGESPULT, AUSGANG)
 
 # ── Die Faltungen ───────────────────────────────────────────────────────────
 #
-# Sechsfache Kreuzvalidierung über **alle** Aufnahmen. Jede Aufnahme kommt in
-# die Faltung, die bis dahin am wenigsten hat, und bei Gleichstand in die
-# vorderste - bei lauter einzelnen Aufnahmen also 1, 2, 3, 4, 5, 6, 1, 2, … Je
-# Faltung läuft ein Training: gelernt wird auf den anderen fünf Sechsteln,
-# gemessen auf diesem einen. Sechs Trainings später ist **jede** Aufnahme genau
-# einmal von einem Modell gehört worden, das sie nie gesehen hat.
+# Sechsfache Kreuzvalidierung über alle Aufnahmen: Je Faltung lernt ein Modell
+# auf fünf Sechsteln und wird am sechsten gemessen; danach ist jede Aufnahme
+# einmal von einem Modell gehört, das sie nie gelernt hat. Kein unabhängiger
+# Test - der wäre eigens aufzunehmen.
 #
-# **Warum nach Zählerstand und nicht reihum.** Teile und Kopien aus „Editieren"
-# gehen geschlossen in die Faltung ihres Originals (`aufteilung.py` in
-# „lernen"). Reihum vergeben, bekam eine Faltung mit einer dreiteiligen
-# Verwandtschaft trotzdem ihren nächsten Platz in der Runde, und die Faltungen
-# standen bei 4, 4, 4, 6, 4, 4. Nach Zählerstand holen die anderen auf, bis
-# alle wieder gleich sind.
-#
-# **Warum die großen Verwandtschaften zuerst.** Aufholen können die anderen nur
-# mit dem, was danach noch kommt. Geschnitten wird aber oft spät: Bei FEMKE
-# standen die Verwandtschaften mit vier, fünf und sechs Aufnahmen am Ende des
-# Korpus, dahinter keine einzelne mehr, und die Faltungen lagen bei 5, 9, 7,
-# 10, 5, 7. Werden die Gruppen nach Größe vergeben, bleiben die einzelnen
-# Aufnahmen für den Ausgleich übrig - FEMKE steht damit bei 8, 7, 7, 7, 7, 7.
-# Unter gleich großen Gruppen gilt weiter die Reihenfolge des Korpus; bei
-# lauter einzelnen Aufnahmen ändert sich also nichts.
-#
-# **Was hier bis September 2026 stand, und warum es weg ist.** Ein festes
-# Testdrittel, einmal vergeben und nie wieder angefasst. Der Gedanke war
-# richtig, die Ausführung trug nicht: Bei einem Korpus von neun Aufnahmen
-# bestand der Test aus dreien und die Validierung aus einer, und eine Zahl über
-# drei Aufnahmen ist keine Auskunft, sondern ein Würfelwurf. Die Kreuzvalidierung
-# beantwortet dieselbe Frage über den ganzen Korpus statt über ein Drittel.
-#
-# Wirklich unabhängige Testaufnahmen sind damit nicht ersetzt - sie werden
-# eigens aufgenommen werden. Bis dahin steht hier kein Test, und das ist
-# ehrlicher, als ein Sechstel so zu nennen.
-#
-# **Warum gerechnet und nicht gespeichert.** Die alte Zuteilung musste in einer
-# Tabelle stehen, weil eine Aufnahme, die einmal geprüft hatte, nie wieder
-# trainieren durfte - verschob sich ihr Platz, war die Messung entwertet. Diese
-# Zusage gibt es nicht mehr: In fünf von sechs Faltungen trainiert jede
-# Aufnahme ohnehin. Die Faltung folgt deshalb einfach der Reihenfolge des
-# Korpus, steht in jedem Schnappschuss und braucht keine zweite Wahrheit
-# daneben.
+# Teile und Kopien aus „Editieren" bleiben mit ihrem Original in einer Faltung
+# (`aufteilung.py` in „lernen"). Vergeben wird nach Zählerstand, die größten
+# Verwandtschaften zuerst, damit die einzelnen Aufnahmen am Ende ausgleichen;
+# unter gleich großen gilt die Reihenfolge des Korpus. Die Faltung wird bei
+# jedem Auftrag neu gerechnet und steht im Schnappschuss - in fünf von sechs
+# Faltungen lernt jede Aufnahme ohnehin, eine feste Zuteilung braucht es nicht.
 FALTUNGEN = 6
 
 
 def verteile(groessen: Iterable[int]) -> list[int]:
     """Die Faltung (ab 0) jeder Gruppe, in der Reihenfolge der `groessen`.
 
-    Eine Gruppe ist, was zusammenbleiben muss, und ihre Größe die Zahl ihrer
-    Aufnahmen. Die größte zuerst, unter gleich großen die vorderste, kommt
-    jede dorthin, wo bis dahin am wenigsten liegt; bei Gleichstand in die
-    Faltung mit der niedrigsten Nummer.
+    Eine Gruppe bleibt zusammen, ihre Größe ist die Zahl ihrer Aufnahmen. Die
+    größte zuerst, unter gleich großen die vorderste, kommt jede in die
+    Faltung mit dem kleinsten Zählerstand, bei Gleichstand in die niedrigste.
     """
     groessen = list(groessen)
     stand = [0] * FALTUNGEN
@@ -157,43 +96,29 @@ def verteile(groessen: Iterable[int]) -> list[int]:
     return vergeben
 
 
-# ── Methoden und Datensätze ─────────────────────────────────────────────────
+# ── Methode und Datensatz ───────────────────────────────────────────────────
 #
-# Zwei Fragen, die sich nicht vermischen lassen, und deshalb zwei Achsen: Wie
-# wird trainiert, und womit. Vier Kombinationen, vier Modelle - erst der
-# Vergleich sagt, ob das Mehr an Daten oder das Mehr an Freiheit geholfen hat.
+# Zwei Achsen: wie trainiert wird (alle Gewichte oder ein LoRA-Zusatz) und
+# womit (nur Originale oder auch die gemessenen Fassungen).
 VOLL = "full"
 LORA = "lora"
 METHODEN = (VOLL, LORA)
 
 # ── Grundmodelle ────────────────────────────────────────────────────────────
 #
-# Worauf feingetunt wird. `small` war lange das einzige und ist die Vorgabe
-# geblieben: die kleinste Stufe, die ganze Sätze trifft, und dieselbe Reihe,
-# gegen die „hören" schon misst.
-#
-# `medium` kommt seit September 2026 dazu - aber **nur mit LoRA**. Volles
-# Feintuning von `medium` sprengt den Speicher einer 11-GB-Karte; es gar nicht
-# erst anzubieten ist ehrlicher, als es nach zwei Stunden am Speicher scheitern
-# zu lassen. Als LoRA-Variante war es in `docs/trainingsverfahren.md` schon als
-# eigener Versuch vorgesehen: Das Grundmodell ist der stärkste Hebel überhaupt,
-# und der Zusatz lässt es unangetastet.
+# Worauf feingetunt wird. `small` ist die Vorgabe: die kleinste Stufe, die
+# ganze Sätze trifft. Die großen nur mit LoRA - volles Feintuning sprengt eine
+# 11-GB-Karte (`NUR_MIT_ZUSATZ`).
 def kurzname(basismodell: str) -> str:
     """`openai/whisper-medium` → `medium` - so heißt es überall in den Tabellen."""
     return basismodell.rsplit("/", 1)[-1].removeprefix("whisper-")
 
 
-# Ein Lauf kann seit September 2026 auch auf einem **trainierten Stand**
-# aufsetzen statt auf einem unveränderten Grundmodell - auf einem eigenen, um
-# weiterzulernen, oder auf dem eines anderen Menschen, dessen Stimme der
-# eigenen näher liegt als die des Internets. Vorbereitet ist das im Trainer,
-# angeboten wird es nicht: Der Versuch, einen Stand weiter zu trainieren, ist
-# gescheitert, und die Wahl kennt nur die Whisper-Modelle.
-#
-# Im Auftrag steht dann beides: `basismodell` bleibt das Whisper-Modell, auf
-# dem jener Stand selbst gewachsen ist - daran hängen Zerteiler, Rezept und die
-# Frage, ob volles Feintuning in die Karte passt -, und `ausgangsstand` sagt,
-# mit welchen Gewichten begonnen wird.
+# Ein Lauf kann auf einem trainierten Stand aufsetzen statt auf einem
+# Grundmodell. Der Trainer kann das, angeboten wird es nicht - weiterzulernen
+# brachte keinen Gewinn. Im Auftrag bleibt `basismodell` das Whisper-Modell,
+# auf dem jener Stand gewachsen ist (Zerteiler, Rezept, Speicher), und
+# `ausgangsstand` nennt die Gewichte, mit denen begonnen wird.
 AUSGANGSSTAND = "ausgangsstand"
 
 
@@ -201,15 +126,12 @@ def grundmodell_aus(auftrag: dict[str, Any]) -> str:
     """Worauf dieser Lauf aufsetzt, so wie es zur Wahl stand.
 
     Der Ausgangsstand (`spr_…/<version>`), wenn es einen gibt, sonst das
-    Grundmodell (`openai/whisper-small`). Das ist der Schlüssel, unter dem die
-    Oberfläche die Wahl führt.
+    Grundmodell (`openai/whisper-small`).
     """
     return str(auftrag.get(AUSGANGSSTAND) or auftrag.get("basismodell") or "")
 
 
-# Grundmodelle, die für volles Feintuning zu groß sind. Nicht der Karte wegen
-# allein: Auch die Rechenzeit wächst mit dem Quadrat der Aufmerksamkeit, und
-# ein volles `medium` wäre auf dieser Karte kein Nachmittag mehr.
+# Grundmodelle, die für volles Feintuning zu groß sind.
 NUR_MIT_ZUSATZ = ("medium", "large", "large-v2", "large-v3")
 
 
@@ -279,20 +201,17 @@ def waehle_kern(wer: dict[str, float]) -> list[str]:
 
 
 def auswahl_aus(auftrag: dict[str, Any]) -> str:
-    """Die Auswahl eines Auftrags - `alle` bei einem von vor dieser Achse."""
+    """Die Auswahl eines Auftrags - `alle`, wenn das Feld fehlt."""
     return str(auftrag.get("auswahl") or AUSWAHL_ALLE)
 
 
 def verteile_kern(kern: Iterable[str], staemme: dict[str, str]) -> dict[str, int]:
     """Die Faltung jeder Kernaufnahme - der Kern verteilt wie ein eigener Korpus.
 
-    Dieselbe Regel wie beim Auftrag (`apps/lernen/backend/services/aufteilung.py`),
-    nur über den Kern: je Stamm eine Gruppe, damit Teile und Kopien mit ihrem
-    Original in derselben Faltung bleiben, in der Reihenfolge des Korpus -
-    `staemme` nennt jede Aufnahme des Auftrags mit ihrem Stamm, in dieser
-    Reihenfolge. Die Faltungen des Manifests taugen dafür nicht: Sie sind über
-    alle Aufnahmen verteilt, und nach der Wahl trüge die eine Faltung 28
-    Kernaufnahmen und die andere 40.
+    Dieselbe Regel wie beim Auftrag (`verteile`), je Stamm, in der
+    Reihenfolge des Korpus; `staemme` nennt jede Aufnahme mit ihrem Stamm in
+    dieser Reihenfolge. Die Faltungen des Manifests sind über alle Aufnahmen
+    verteilt und trügen nach der Wahl ungleich viel Kern.
     """
     im_kern = set(kern)
     gruppen: dict[str, list[str]] = {}
@@ -309,10 +228,7 @@ def verteile_kern(kern: Iterable[str], staemme: dict[str, str]) -> dict[str, int
 
 def mit_kern(inhalt: dict[str, Any]) -> dict[str, Any]:
     """Die Kernauswahl mit gewähltem Kern - aus ihren Werten, ohne `offen`.
-
-    Eine Stelle für Server und Trainer: Wer wählt, wählt nach denselben Werten
-    dasselbe und verteilt es gleich.
-    """
+    Server und Trainer wählen hier, also gleich."""
     wer = {str(kennung): float(wert) for kennung, wert in dict(inhalt.get("wer") or {}).items()}
     kern = waehle_kern(wer)
     ergebnis = {schluessel: wert for schluessel, wert in inhalt.items() if schluessel != "offen"}
@@ -329,10 +245,8 @@ def mit_kern(inhalt: dict[str, Any]) -> dict[str, Any]:
 def kern_aus(verzeichnis: Path, auftrag: dict[str, Any]) -> set[str] | None:
     """Die Aufnahmen des Kerns - `None`, wenn auf allen gelernt wird.
 
-    Fehlt die Datei bei einem Auftrag, der den Kern verlangt, ist das ein
-    Fehler und kein Rückfall auf alle Aufnahmen: Ein Lauf, der still auf allem
-    lernt, hieße trotzdem `K` und wäre ein anderes Modell als sein Name.
-    Dasselbe gilt für einen Kern, der noch nicht gewählt ist.
+    Fehlt die Datei oder ist noch nicht gewählt, ist das ein Fehler, kein
+    Rückfall auf alle - der Lauf hieße sonst `K` und wäre etwas anderes.
     """
     if auswahl_aus(auftrag) != AUSWAHL_KERN:
         return None
@@ -347,9 +261,9 @@ def kern_aus(verzeichnis: Path, auftrag: dict[str, Any]) -> set[str] | None:
 def kernfaltungen_aus(verzeichnis: Path, auftrag: dict[str, Any]) -> dict[str, int] | None:
     """Jede Kernaufnahme mit ihrer Faltung - `None`, wenn auf allen gelernt wird.
 
-    Eine Kernauswahl von vor den eigenen Faltungen (27. September 2026) hat
-    keine; dann gelten die des Manifests, eingeschränkt auf den Kern. Das ist
-    ungleichmäßiger, aber ehrlich: Verwandte teilen sich auch dort eine Faltung.
+    Trägt die Kernauswahl keine eigenen Faltungen, gelten die des Manifests,
+    eingeschränkt auf den Kern - ungleichmäßiger, aber Verwandte bleiben
+    zusammen.
     """
     kern = kern_aus(verzeichnis, auftrag)
     if kern is None:
@@ -369,30 +283,18 @@ def kernfaltungen_aus(verzeichnis: Path, auftrag: dict[str, Any]) -> dict[str, i
 
 # ── Die Geschwindigkeit ─────────────────────────────────────────────────────
 #
-# Dysarthrische Sprache ist oft stark verlangsamt, und Whisper versteht sie
-# vorgespult messbar besser. Nur wieviel - das hängt am Sprecher. Drei Wege
-# führen zu einer Antwort, und sie kosten sehr verschieden viel:
+# Dysarthrische Sprache ist oft verlangsamt, und Whisper versteht sie
+# vorgespult besser - wie viel, hängt am Sprecher:
 #
-# * `aus` - gar nicht vorspulen. Die Vorgabe und der Zustand von immer.
-# * `geschaetzt` - aus den Daten gerechnet, ohne eine einzige Erkennung: Wie
-#   lange bräuchte dieser Text bei gewöhnlichem Sprechtempo, und wie lange hat
-#   der Sprecher wirklich gebraucht? Das Verhältnis ist der Faktor. Kostet
-#   nichts und ist sofort da (`training/tempowahl.aus_dauern`).
-# * `optimal` - gesucht, je Faltung acht bis zehn Stützstellen am
-#   unveränderten Grundmodell. Kostet rund eine Minute je Faltung und misst,
-#   was das Modell wirklich versteht, statt es auszurechnen.
+# * `aus` - nicht vorspulen.
+# * `geschaetzt` - Aufnahmedauer gegen die Sprechdauer der Texte bei
+#   gewöhnlichem Tempo, ohne Erkennung (`training/tempowahl.aus_dauern`).
+# * `optimal` - gesucht an Stützstellen am unveränderten Grundmodell, rund
+#   eine Minute je Faltung.
 #
-# **Warum beide Rechenwege nebeneinander.** Sie beantworten verschiedene
-# Fragen. Der geschätzte Faktor sagt, wie stark dieser Mensch von der Norm
-# abweicht; der gesuchte sagt, bei welcher Geschwindigkeit dieses Modell ihn am
-# besten versteht. Das muss nicht dasselbe sein - und solange es nicht gemessen
-# ist, gehören beide in die Tafel und nicht eines in den Quelltext.
-#
-# Hier stand bis September 2026 `wie_eingestellt`: der Faktor aus dem
-# Sprecherprofil. Den gibt es nicht mehr (`012_ohne_profiltempo.sql`). Ein
-# Auftrag von damals trägt den Wert noch; er wird wie `aus` gelesen, und das
-# ist richtig - das Profil stand bei allen außer einem Sprecher auf 1,0, und
-# wo es anders stand, trägt der fertige Stand seinen Faktor bei sich.
+# Beide Verfahren beantworten verschiedene Fragen - wie weit dieser Mensch von
+# der Norm abweicht, und wo das Modell ihn am besten versteht -; welcher
+# Faktor besser ist, zeigt die Tafel.
 TEMPO_AUS = "aus"
 TEMPO_GESCHAETZT = "geschaetzt"
 TEMPO_OPTIMAL = "optimal"
@@ -400,35 +302,19 @@ TEMPI = (TEMPO_AUS, TEMPO_GESCHAETZT, TEMPO_OPTIMAL)
 
 
 def tempowahl_aus(auftrag: dict[str, Any]) -> str:
-    """Welches Verfahren dieser Auftrag bestellt hat.
-
-    Die eine Stelle, die einen Auftrag darauf befragt - und die einzige, die
-    den alten Wert `wie_eingestellt` kennt. Alles, was nicht `geschaetzt` oder
-    `optimal` heißt, heißt `aus`.
-    """
+    """Welches Verfahren dieser Auftrag bestellt hat; jeder andere Wert heißt `aus`."""
     gewaehlt = str(auftrag.get("tempowahl") or TEMPO_AUS)
     return gewaehlt if gewaehlt in (TEMPO_GESCHAETZT, TEMPO_OPTIMAL) else TEMPO_AUS
 
 # ── Der Abschluss ───────────────────────────────────────────────────────────
 #
-# Die dritte Achse: was am Ende mit den Gewichten geschieht, wenn die Schleife
-# durch ist. Sie fasst das Training nicht an - sie entscheidet nur, welcher
-# Stand aus einem gelaufenen Training ausgeliefert wird.
+# Was am Ende mit den Gewichten geschieht - eine Achse und keine stille
+# Verbesserung, damit die Tafel zeigt, was gewirkt hat
+# (`training/abschluss.py`):
 #
-# **Warum das eine Wahl ist und keine stille Verbesserung.** Beides sind
-# Standardhandgriffe mit erwartetem Gewinn, und beide könnten schlicht immer
-# laufen. Dann aber wäre jeder Vergleich mit einem Stand von vorher ein
-# Vergleich zweier Rezepte, von dem niemand mehr wüsste, welche Hälfte gewirkt
-# hat. Also: eine weitere Achse in derselben Vergleichstafel, und `bester` ist
-# und bleibt genau das, was dieses Projekt bisher gerechnet hat.
-#
-# `bester`        Der beste Zwischenstand der Validierung - das Verfahren von
-#                 vorher, Gewicht für Gewicht.
-# `mittel`        Die besten Zwischenstände elementweise gemittelt („Model
-#                 Soup"). Kostet keine Trainingszeit, nur Platz auf der Platte.
-# `interpoliert`  Der beste Stand, anteilig mit dem Grundmodell verrechnet
-#                 (WiSE-FT): θ = α·θ_grund + (1−α)·θ_fein. α wird auf der
-#                 Validierung gewählt - nie auf dem Testdrittel.
+# `bester`        Der beste Zwischenstand der Validierung.
+# `mittel`        Die besten Zwischenstände elementweise gemittelt („Model Soup").
+# `interpoliert`  θ = α·θ_grund + (1−α)·θ_fein (WiSE-FT), α an der Validierung gewählt.
 # `beides`        Erst mitteln, dann interpolieren.
 ABSCHLUSS_BESTER = "bester"
 ABSCHLUSS_MITTEL = "mittel"
@@ -454,21 +340,15 @@ def interpoliert(abschluss: str) -> bool:
 
 # ── Die Augmentierung im Training ───────────────────────────────────────────
 #
-# Die vierte Achse: womit die Trainingsproben abgewandelt werden, während
-# gelernt wird. Gerechnet wird das im Trainer und nirgends abgelegt - was
-# gewürfelt ist, ist in jedem Durchgang ein anderes, und eine Datei wäre hier
-# nicht die Ersparnis, sondern der Verlust (`training/klangwandel.py`).
+# Was mit einer Lernprobe beim Laden geschieht, gewürfelt und nirgends
+# abgelegt (`training/klangwandel.py`). `daten` dagegen sagt, welche Fassungen
+# überhaupt gelernt werden.
 #
-# Nicht zu verwechseln mit `daten`: Das sagt, **welche abgelegten Fassungen**
-# einer Aufnahme als eigene Zeilen ins Manifest kommen - also womit trainiert
-# wird. Hier steht, **was mit einer Zeile geschieht**, wenn sie geladen wird.
-#
-# `keine`      Die Probe, wie sie im Manifest steht. Die Vorgabe und das
-#              Verfahren von vorher.
+# `keine`      Die Probe, wie sie im Manifest steht.
 # `masken`     SpecAugment: Zeit- und Frequenzbalken ins Spektrogramm.
 # `umgebung`   Dazu Raum und Rauschen auf der Welle.
-# `voll`       Dazu Tempo - bei dysarthrischer Sprache die einzige der vier,
-#              die auch schaden kann, und deshalb eine eigene Stufe.
+# `voll`       Dazu Tempo - bei dysarthrischer Sprache ein Merkmal, das
+#              verwürfelt auch schaden kann, deshalb eine eigene Stufe.
 AUG_KEINE = "keine"
 AUG_MASKEN = "masken"
 AUG_UMGEBUNG = "umgebung"
@@ -478,19 +358,10 @@ AUGMENTIERUNGEN = (AUG_KEINE, AUG_MASKEN, AUG_UMGEBUNG, AUG_VOLL)
 
 # ── Wie lange trainiert wird ────────────────────────────────────────────────
 #
-# Die fünfte Achse, und sie kommt aus einem Befund: Bei einem sehr kleinen
-# Korpus war die Validierungskurve am letzten Durchgang noch im Fallen. Die
-# Zahl der Durchgänge im Rezept ist als **Obergrenze** gedacht - „zu hoch
-# kostet Rechenzeit, zu niedrig kostet Güte". Zu niedrig war sie hier, und
-# gemerkt hat es niemand, weil ein Lauf, der am Ende noch besser wird, genauso
-# aussieht wie einer, der fertig ist.
-#
-# `fest`       Die Zahl aus dem Rezept, ohne Rücksicht auf die Kurve. Die
-#              Vorgabe und das Verfahren von vorher.
-# `geduldig`   Eine weit höhere Obergrenze, und Schluss ist, wenn die
-#              Validierung mehrere Durchgänge lang nicht mehr besser wird.
-#              Ausgeliefert wird ohnehin der beste Durchgang - die Geduld
-#              kostet also Rechenzeit und niemals Güte.
+# `fest`       Die Zahl der Durchgänge aus dem Rezept.
+# `geduldig`   Eine weit höhere Obergrenze; Schluss, wenn die Validierung
+#              mehrere Prüfungen lang nicht besser wird. Ausgeliefert wird
+#              ohnehin der beste Durchgang - Geduld kostet nur Rechenzeit.
 DAUER_FEST = "fest"
 DAUER_GEDULDIG = "geduldig"
 DAUERN = (DAUER_FEST, DAUER_GEDULDIG)
@@ -536,8 +407,7 @@ def grundmodellcode(basismodell: str) -> str:
 def optionscode(auftrag: dict[str, Any]) -> str:
     """Der Optionscode eines Auftrags oder Manifests - die einzige Stelle, die ihn bildet.
 
-    Ein Feld, das fehlt, ist eine Achse, die es damals noch nicht gab: Es
-    zählt als Vorgabe. Ein unbekannter Wert wird `?`, statt still zu fehlen.
+    Ein fehlendes Feld zählt als Vorgabe, ein unbekannter Wert wird `?`.
     """
 
     def glied(tafel: dict[str, str], wert: object, vorgabe: str) -> str:
@@ -565,23 +435,11 @@ def optionscode(auftrag: dict[str, Any]) -> str:
 
 # ── Die Folge ───────────────────────────────────────────────────────────────
 #
-# Der Optionscode sagt, wie trainiert wurde, aber nicht worauf und nicht
-# welcher von mehreren. Zwei Läufe mit demselben Rezept über denselben Korpus
-# hießen gleich. Hinter den Code kommt deshalb die Folge: `/43` für die Zahl
-# der Aufnahmen, auf denen gelernt wurde, und ein Buchstabe, wenn es Code und
-# Zahl schon gibt - `ML-E-SRP-Ts-CI/43`, dann `/43b`, `/43c`, …, nach `z`
-# weiter mit `aa`, `ab`.
-#
-# **Vergeben beim Auftrag, danach nie wieder angefasst.** Sie steht in
-# `auftrag.json` (und im Manifest des Standes) und nicht gerechnet: Würde sie
-# aus den vorhandenen Läufen abgeleitet, rückte sie beim Löschen eines
-# anderen nach, und dieselbe Kennung zeigte heute auf dieses Modell und
-# morgen auf jenes.
-#
-# **Gezählt wird, was beim Auftrag noch da ist.** Der neue Buchstabe ist einer
-# über dem höchsten vorhandenen, mindestens `b`. Gelöschte zählen nicht: Gibt
-# es nur noch `/43b` und `/43e`, kommt `/43f`; gibt es keinen mehr, wieder
-# `/43` ohne Buchstaben.
+# Hinter dem Optionscode: die Zahl der Aufnahmen und ein Buchstabe, wenn es
+# Code und Zahl schon gibt - `/43`, `/43b`, `/43c`, nach `z` weiter mit `aa`.
+# Vergeben beim Auftrag, einer über dem höchsten noch vorhandenen Buchstaben,
+# und danach nie geändert - sonst zeigte dieselbe Kennung nach einer Löschung
+# auf ein anderes Modell.
 FOLGE = "folge"
 
 
@@ -614,8 +472,7 @@ def folgenummer(buchstaben: str) -> int:
 def naechste_folge(auftrag: dict[str, Any], vorhandene: Iterable[dict[str, Any]]) -> str:
     """Die Folge für diesen Auftrag, gemessen an den `vorhandene` Aufträgen desselben Sprechers.
 
-    Mitgezählt wird nur, wer schon eine Folge trägt: Ohne sie gibt es keine
-    Kennung, die dieser gleichen könnte.
+    Mitgezählt wird nur, wer eine Folge trägt.
     """
     code = optionscode(auftrag)
     zahl = str(int(auftrag.get("aufnahmen") or 0))
@@ -629,10 +486,7 @@ def naechste_folge(auftrag: dict[str, Any], vorhandene: Iterable[dict[str, Any]]
 
 
 def titel(auftrag: dict[str, Any]) -> str:
-    """Optionscode und Folge - `ML-E-SRP-Ts-CI/43c`, so steht ein Lauf überall da.
-
-    Ein Auftrag von vor der Folge trägt nur den Code.
-    """
+    """Optionscode und Folge - `ML-E-SRP-Ts-CI/43c`; ohne Folge nur der Code."""
     folge = str(auftrag.get(FOLGE) or "")
     return f"{optionscode(auftrag)}/{folge}" if folge else optionscode(auftrag)
 
@@ -644,10 +498,7 @@ FERTIG = "fertig"
 GESCHEITERT = "gescheitert"
 ABGEBROCHEN = "abgebrochen"
 
-# Ab wann ein Lauf, der `laeuft` sagt, als hängend gilt: eine Viertelstunde
-# ohne ein geschriebenes Byte. Siehe `Lauf.haengt` - die Zahl steht hier, weil
-# sie eine Aussage über dieses Verzeichnis ist und nicht über die Ansicht, die
-# sie zeigt.
+# Ab wann ein Lauf, der `laeuft` sagt, als hängend gilt (`Lauf.haengt`).
 STILLSTAND_S = 15 * 60
 
 
@@ -664,22 +515,13 @@ def lauf_verzeichnis(datenverzeichnis: Path, job_id: str) -> Path:
 
 
 def raeume_zwischenstaende_auf(verzeichnis: Path) -> list[str]:
-    """Arbeitsstand und Rohgewichte eines Laufs löschen; gibt zurück, was wegging.
+    """Die Zwischenstände eines Laufs löschen; gibt zurück, was wegging.
 
-    Gerufen von zwei Seiten, und das ist Absicht. Der rechnende Prozess tut es
-    selbst, sobald er fertig oder gescheitert ist (`finetune.main`) - das ist
-    der gewöhnliche Weg, und er sagt es auch ins Protokoll. Der Läufer tut es
-    danach noch einmal (`laeufer.einmal`), und der deckt den Fall, den der
-    erste nicht decken kann: einen Prozess, den der Kern erschlagen hat, weil
-    der Speicher der Karte oder die Platte nicht mehr reichte. Dann läuft kein
-    `finally` mehr.
-
-    Genau so ist dieses Projekt einmal auf eine volle Platte gelaufen: ein
-    abgebrochener Lauf, dessen `arbeitsstand/checkpoint-63` mit 1,8 GB
-    Optimierer liegen blieb. Ein Rest dieser Größe je Abbruch füllt die Platte,
-    und die volle Platte bringt den nächsten Lauf aus demselben Grund um.
-
-    Zweimal zu löschen ist kein Fehler: Was schon weg ist, wird übergangen.
+    Der rechnende Prozess tut es selbst (`finetune.main`), der Läufer danach
+    noch einmal (`laeufer.einmal`) - für einen Prozess, den der Kern erschlagen
+    hat und der kein `finally` mehr erreicht. Ein liegen gebliebener
+    Arbeitsstand wiegt Gigabyte, und eine volle Platte bringt den nächsten
+    Lauf um.
     """
     entfernt: list[str] = []
     for name in ZWISCHENSTAENDE:
@@ -691,12 +533,7 @@ def raeume_zwischenstaende_auf(verzeichnis: Path) -> list[str]:
 
 
 def lies_json(pfad: Path) -> dict[str, Any] | None:
-    """Eine JSON-Datei, oder `None`, wenn sie fehlt oder halb geschrieben ist.
-
-    Halb geschrieben kommt vor: Der Trainer schreibt, während die Oberfläche
-    liest. Ein Fehler ist das nicht - beim nächsten Takt steht sie vollständig
-    da. Ein 500er dagegen wäre einer.
-    """
+    """Eine JSON-Datei, oder `None`, wenn sie fehlt oder gerade geschrieben wird."""
     try:
         return json.loads(pfad.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -716,9 +553,7 @@ def haenge_an(pfad: Path, zeile: dict[str, Any]) -> None:
     pfad.parent.mkdir(parents=True, exist_ok=True)
     with pfad.open("a", encoding="utf-8") as datei:
         datei.write(json.dumps(zeile, ensure_ascii=False) + "\n")
-        # Ohne das steht der Fortschritt im Puffer des Trainers, während die
-        # Oberfläche daneben eine leere Datei liest und behauptet, es gehe
-        # nicht voran.
+        # Sonst stünde der Fortschritt im Puffer, und die Oberfläche läse nichts.
         datei.flush()
 
 
@@ -731,8 +566,7 @@ def lies_zeilen(pfad: Path) -> list[dict[str, Any]]:
         try:
             zeilen.append(json.loads(roh))
         except ValueError:
-            # Die letzte Zeile kann halb geschrieben sein, während gerechnet
-            # wird. Sie kommt beim nächsten Lesen vollständig.
+            # Die letzte Zeile kann gerade geschrieben werden.
             continue
     return zeilen
 
@@ -761,22 +595,11 @@ class Lauf:
 
     @property
     def stillstand_s(self) -> float:
-        """Wie lange dieser Lauf schon nichts mehr geschrieben hat, in Sekunden.
+        """Wie lange dieser Lauf nichts geschrieben hat, in Sekunden.
 
-        Der Puls eines Laufs sind seine Dateien. Ein rechnender Trainer
-        schreibt fortwährend: Fortschritt, Protokoll, Zustand. Hört das auf,
-        während der Zustand `laeuft` sagt, dann rechnet entweder nichts mehr,
-        oder es rechnet und kommt nicht voran - von außen ist das dasselbe.
-
-        **Warum über die Dateien und nicht über den Prozess.** Weil er in einem
-        anderen Container steckt. Der Webdienst sieht ihn nicht und soll ihn
-        auch nicht sehen: Zwischen Oberfläche und Karte liegt ein Verzeichnis
-        und kein Netzwerkweg - das ist die Grundentscheidung dieses Teils
-        (`training/laeufer.py`). Was durch dieses Verzeichnis nicht zu
-        erfahren ist, ist hier nicht zu erfahren.
-
-        Für einen Lauf, der nie angefangen hat, zählt der Auftrag: Auch er ist
-        eine Datei, und sein Alter ist dann das richtige Maß.
+        Der Puls eines Laufs sind seine Dateien - der Prozess steckt in einem
+        anderen Container, den der Webdienst nicht sieht. Ohne Fortschritt,
+        Protokoll und Zustand zählt das Alter des Auftrags.
         """
         juengste = 0.0
         for name in (FORTSCHRITT, PROTOKOLL, ZUSTAND, AUFTRAG):
@@ -791,26 +614,12 @@ class Lauf:
 
     @property
     def haengt(self) -> bool:
-        """Sagt `laeuft`, rührt sich aber nicht mehr.
+        """Sagt `laeuft`, rührt sich aber nicht mehr - der Prozess ist tot, ohne
+        es sagen zu können, oder kommt nicht voran. Von außen ist das dasselbe.
 
-        Das kommt auf zwei Wegen zustande, und beide enden gleich:
-
-        * Der Prozess ist tot, ohne es sagen zu können - der Trainer-Container
-          wurde neu gestartet, die Maschine ist neu gestartet, der Kern hat
-          ihn erschlagen. `laeufer._nacharbeit` fängt das sonst ab, kommt aber
-          selbst nicht mehr dazu, wenn es ihn mit erwischt hat.
-        * Der Prozess lebt und kommt nicht voran.
-
-        Von außen ist beides dasselbe, und für den Menschen davor auch: Da
-        steht ein Lauf bei 3 % und bewegt sich nicht. Genau das soll dastehen,
-        statt eines Fortschrittsbalkens, der Zuversicht vortäuscht.
-
-        **Warum die Grenze so weit liegt.** Ein Lauf darf still sein. Das
-        Umwandeln nach CTranslate2 schreibt minutenlang nichts, und seit der
-        Trainer auf eine belegte Karte wartet, sind es bis zu neun Minuten am
-        Stück (`training/bewerten.py`). Die Grenze muss darüber liegen, sonst
-        heißt „hängt" irgendwann nur noch „ist gerade beschäftigt" - und eine
-        Warnung, die auch im Normalfall angeht, liest bald niemand mehr.
+        Die Grenze liegt über der längsten stillen Strecke eines gesunden
+        Laufs: Umwandeln und das Warten auf eine belegte Karte schreiben
+        minutenlang nichts (`training/bewerten.py`).
         """
         return self.status == LAEUFT and self.stillstand_s > STILLSTAND_S
 
@@ -834,17 +643,14 @@ def lies_lauf(datenverzeichnis: Path, job_id: str) -> Lauf | None:
         job_id=job_id,
         verzeichnis=verzeichnis,
         auftrag=auftrag,
-        # Fehlt der Zustand, hat noch niemand angefangen: Genau das ist „wartet".
+        # Ohne Zustand hat noch niemand angefangen.
         zustand=lies_json(verzeichnis / ZUSTAND) or {"status": WARTET},
     )
 
 
 def alle_laeufe(datenverzeichnis: Path, sprecher_id: str = "") -> list[Lauf]:
-    """Alle Läufe, älteste zuerst; leerer Sprecher heißt: alle.
-
-    Sortiert nach Kennung, und die ist zeitlich sortierbar (siehe `ids.py`) -
-    die Reihenfolge im Verzeichnis ist damit die Reihenfolge der Aufträge.
-    """
+    """Alle Läufe, älteste zuerst (die Kennung ist zeitlich sortierbar); leerer
+    Sprecher heißt: alle."""
     if not wurzel(datenverzeichnis).is_dir():
         return []
     laeufe = (
@@ -860,12 +666,7 @@ def alle_laeufe(datenverzeichnis: Path, sprecher_id: str = "") -> list[Lauf]:
 
 
 def naechster_offener(datenverzeichnis: Path) -> Lauf | None:
-    """Der älteste Auftrag, den noch niemand angefasst hat.
-
-    Einer nach dem anderen, über alle Sprecher: Es gibt eine GPU, und zwei
-    Läufe darauf wären zusammen langsamer als nacheinander - dieselbe
-    Überlegung wie bei der Auswertung in „hören".
-    """
+    """Der älteste offene Auftrag - einer nach dem anderen, über alle Sprecher."""
     for lauf in alle_laeufe(datenverzeichnis):
         if lauf.offen:
             return lauf
@@ -873,12 +674,7 @@ def naechster_offener(datenverzeichnis: Path) -> Lauf | None:
 
 
 def manifestzeilen(verzeichnis: Path) -> Iterator[dict[str, Any]]:
-    """Die Proben eines Schnappschusses, Zeile für Zeile.
-
-    Als Strom und nicht als Liste: Das Manifest kann bei vielen Aufnahmen und
-    mehreren Fassungen je Aufnahme lang werden, und der Trainer braucht immer nur
-    die nächste.
-    """
+    """Die Proben eines Schnappschusses, Zeile für Zeile, als Strom."""
     pfad = verzeichnis / MANIFEST
     if not pfad.is_file():
         return

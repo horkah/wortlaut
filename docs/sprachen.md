@@ -58,10 +58,11 @@ For a new language, in this order - each step makes the next testable:
    evaluation and dictation follow.
 2. **A voice.** `scripts/vorlesen.py --hole <voice>` and a label in
    `vorlesen.PiperMotor.BESCHREIBUNG`. Synthesize a sentence with the
-   language's awkward sounds and check stderr for `Missing phoneme from id
-   map` - current espeak-ng emits some letters decomposed where older models
-   list only the precomposed form (`vorlesen._zusammengesetzt` repairs `ç`;
-   Turkish, Czech or Vietnamese can hit the same). Silence there is the test.
+   language's awkward sounds, listen, and read it back through Whisper. A
+   `Missing phoneme from id map` on stderr is not necessarily a fault: current
+   espeak-ng emits some letters decomposed, and smaller models were trained
+   through the same loss - "repairing" it made German voices worse (see the
+   comment in `vorlesen.py`). Turkish, Czech or Vietnamese can hit the same.
 3. **Chunker measure** in `chunker.MASSE`: characters per second and
    abbreviations. It affects prompt length only; approximately right is
    enough.
