@@ -6,14 +6,13 @@ kannte - die Zahl der Modelltafel.
 
 **Eine Verwandtschaft ist eine Aufnahme.** Teile und Kopien aus „Editieren"
 sind derselbe Ton (`zuschnitt.stamm`); in verschiedenen Faltungen lernte ein
-Modell, woran es gemessen wird. Verteilt wird je Stamm nach Zählerstand, die
-größten zuerst (`wortlaut.laeufe.verteile`), damit die einzelnen Aufnahmen
-ausgleichen.
+Modell, woran es gemessen wird. Die Faltung hängt am Stamm - an seiner
+Kennung, nicht an der Reihenfolge (`wortlaut.laeufe.verteile`): Neue und
+gelöschte Aufnahmen verschieben keine andere.
 
 **Gerechnet bei jedem Auftrag und im Schnappschuss festgehalten**
 (`services/auftraege.py`). In fünf von sechs Faltungen lernt jede Aufnahme
-ohnehin; welche sie trägt, entscheidet nur, wo sie gemessen wird. Eine
-Löschung verschiebt die Faltungen - verglichen werden Läufe, nicht Faltungen.
+ohnehin; welche sie trägt, entscheidet nur, wo sie gemessen wird.
 """
 
 from __future__ import annotations
@@ -39,16 +38,10 @@ class Probe:
 
 
 def proben(korpus: Session) -> list[Probe]:
-    """Alle brauchbaren Aufnahmen mit ihrer Faltung, älteste zuerst.
-
-    Die Reihenfolge des Korpus entscheidet unter gleich großen Stämmen.
-    """
+    """Alle brauchbaren Aufnahmen mit ihrer Faltung, älteste zuerst."""
     reihe = gueltige_aufnahmen(korpus)
-    groessen: dict[str, int] = {}
-    for aufnahme, _ in reihe:
-        stamm = zuschnitt.stamm(aufnahme)
-        groessen[stamm] = groessen.get(stamm, 0) + 1
-    faltungen = dict(zip(groessen, laeufe.verteile(groessen.values()), strict=True))
+    staemme = list(dict.fromkeys(zuschnitt.stamm(aufnahme) for aufnahme, _ in reihe))
+    faltungen = dict(zip(staemme, laeufe.verteile(staemme), strict=True))
     return [
         Probe(
             aufnahme=aufnahme,

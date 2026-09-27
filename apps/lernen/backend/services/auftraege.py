@@ -31,6 +31,8 @@ from wortlaut import augmentierung, corpus, ids, laeufe, registry
 
 from apps.hoeren.backend.db.models import Textquelle
 from apps.hoeren.backend.services import zuschnitt
+from apps.lernen.backend.config import einstellungen
+from apps.lernen.backend.services import aufteilung, kernauswahl
 from apps.lernen.backend.services.aufteilung import Probe
 from apps.lernen.backend.services.kernauswahl import Kernauswahl
 
@@ -177,6 +179,107 @@ def beauftrage(
     return lauf
 
 
+@dataclass(frozen=True)
+class Bestellung:
+    """Was jemand bestellt - aus der Oberfläche oder mit `make train`.
+
+    Anders als `Auftrag` noch ungeprüft; `grundmodell` leer heißt: die Vorgabe.
+    """
+
+    sprecher_id: str
+    sprache: str
+    methode: str
+    daten: str = laeufe.NUR_ORIGINAL
+    auswahl: str = laeufe.AUSWAHL_ALLE
+    abschluss: str = laeufe.ABSCHLUSS_BESTER
+    augmentierung: str = laeufe.AUG_KEINE
+    dauer: str = laeufe.DAUER_FEST
+    tempowahl: str = laeufe.TEMPO_AUS
+    grundmodell: str = ""
+
+
+class Abgelehnt(Exception):
+    """Eine Bestellung, die so nicht geht - mit dem HTTP-Status, den die API meldet."""
+
+    def __init__(self, status: int, text: str) -> None:
+        super().__init__(text)
+        self.status = status
+
+
+def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) -> laeufe.Lauf:
+    """Prüfen und beauftragen - eine Stelle für Oberfläche und Kommandozeile.
+
+    Geprüft wird alles, was sonst erst nach Stunden am Trainer scheiterte:
+    jede Achse, das Grundmodell, ob die Methode auf die Karte passt
+    (`Einstellungen.methoden_fuer`) und ob es für sechs Faltungen reicht.
+    """
+    for wert, erlaubt, was in (
+        (bestellung.methode, laeufe.METHODEN, "Methode"),
+        (bestellung.daten, laeufe.DATENSAETZE, "Datensatz"),
+        (bestellung.auswahl, laeufe.AUSWAHLEN, "Auswahl"),
+        (bestellung.abschluss, laeufe.ABSCHLUESSE, "Abschluss"),
+        (bestellung.augmentierung, laeufe.AUGMENTIERUNGEN, "Augmentierung"),
+        (bestellung.dauer, laeufe.DAUERN, "Dauer"),
+        (bestellung.tempowahl, laeufe.TEMPI, "Tempowahl"),
+    ):
+        if wert not in erlaubt:
+            raise Abgelehnt(400, f"Unbekannt ({was}): {wert}. Zur Wahl: {', '.join(erlaubt)}.")
+
+    konfiguration = einstellungen()
+    grundmodell = bestellung.grundmodell or konfiguration.lernen_basismodell
+    # Nur Whisper-Modelle. Ein Ausgangsstand (`Auftrag.ausgangsstand`,
+    # `training/ausgangsstand.py`) kann der Trainer, angeboten wird er nicht.
+    if grundmodell not in konfiguration.grundmodelle():
+        raise Abgelehnt(
+            400,
+            f"Unbekanntes Grundmodell: {grundmodell}. Zur Wahl: "
+            f"{', '.join(konfiguration.grundmodelle())} (WORTLAUT_LERNEN_GRUNDMODELLE).",
+        )
+    # Scheiterte sonst erst nach Stunden am Speicher der Karte.
+    erlaubte = konfiguration.methoden_fuer(grundmodell)
+    if bestellung.methode not in erlaubte:
+        raise Abgelehnt(
+            400,
+            f"{laeufe.kurzname(grundmodell)} lässt sich auf dieser Karte nur mit "
+            f"{', '.join(erlaubte) or 'nichts'} trainieren - volles Feintuning sprengt "
+            "ihren Speicher.",
+        )
+    proben = aufteilung.proben(korpus)
+    if not aufteilung.genug(proben):
+        raise Abgelehnt(
+            409,
+            f"Für sechsfache Kreuzvalidierung braucht es mindestens "
+            f"{laeufe.FALTUNGEN} brauchbare Aufnahmen - vorhanden sind {len(proben)}.",
+        )
+
+    kern = None
+    if bestellung.auswahl == laeufe.AUSWAHL_KERN:
+        try:
+            kern = kernauswahl.waehle(datenverzeichnis, korpus, bestellung.sprecher_id, proben)
+        except kernauswahl.KeinKern as ursache:
+            raise Abgelehnt(409, str(ursache)) from ursache
+
+    return beauftrage(
+        datenverzeichnis,
+        korpus,
+        proben,
+        Auftrag(
+            sprecher_id=bestellung.sprecher_id,
+            methode=bestellung.methode,
+            daten=bestellung.daten,
+            auswahl=bestellung.auswahl,
+            abschluss=bestellung.abschluss,
+            augmentierung=bestellung.augmentierung,
+            dauer=bestellung.dauer,
+            tempowahl=bestellung.tempowahl,
+            basismodell=grundmodell,
+            # Für Whispers Sprachmarken und die Bewertung (`wortlaut/sprachen.py`).
+            sprache=bestellung.sprache,
+        ),
+        kernauswahl=kern,
+    )
+
+
 def halte_an(datenverzeichnis: Path, job_id: str) -> bool:
     """Einen Lauf anhalten - einen wartenden sofort, einen rechnenden über den Trainer.
 
@@ -209,7 +312,7 @@ def starte_neu(datenverzeichnis: Path, sprecher_id: str, job_id: str) -> laeufe.
     """Einen gescheiterten oder angehaltenen Lauf noch einmal rechnen lassen.
 
     Derselbe Auftrag auf demselben Schnappschuss; verworfene Aufnahmen fallen
-    heraus wie immer (`daten.zeilen_fuer_faltung`). Wer den heutigen Korpus
+    heraus wie immer (`laeufe.zeilen_fuer_faltung`). Wer den heutigen Korpus
     will, beauftragt neu.
 
     Der neue Lauf bekommt eine eigene Kennung und die Folge (`/43b`) des

@@ -185,6 +185,20 @@ def einmal() -> bool:
     return True
 
 
+def melde_karte() -> None:
+    """Die Karte einmal beschreiben (`finetune.py --karte`), damit „lernen"
+    anbietet, was darauf passt - im Unterprozess: Der Läufer selbst hält
+    keinen CUDA-Kontext, der Platz gehört den Läufen."""
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "apps.lernen.training.finetune", "--karte"],
+            check=False,
+            timeout=120,
+        )
+    except subprocess.TimeoutExpired:
+        print("Karte nicht gemeldet - die Messung hing.", flush=True)
+
+
 def main() -> int:
     konfiguration = einstellungen()
     print(
@@ -192,6 +206,7 @@ def main() -> int:
         f"Takt: {konfiguration.lernen_takt_s} s",
         flush=True,
     )
+    melde_karte()
     for job_id in raeume_verwaiste_auf():
         print(f"Verwaist aus einem früheren Lauf, als gescheitert vermerkt: {job_id}", flush=True)
     while True:

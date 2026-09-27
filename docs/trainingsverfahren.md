@@ -10,11 +10,12 @@ herauszuholen. Aufträge, Warteschlange, Modelltafel und Freigabe stehen in
 ## 1. In einem Absatz
 
 Überwachtes Feintuning eines vortrainierten Sequenz-zu-Sequenz-Modells
-(`whisper-small` oder `whisper-medium`) auf Paaren aus Log-Mel-Spektrogramm
+(`whisper-small`, `-medium` oder `-large-v3`) auf Paaren aus Log-Mel-Spektrogramm
 und Zeichenkette. Zielfunktion ist die Kreuzentropie je Marke unter Teacher
 Forcing, je Probe gemittelt und mit einem Gewicht aus dem Manifest versehen.
-AdamW, lineares Aufwärmen und Abklingen, halbe Genauigkeit,
-Gradientenakkumulation. Voll oder mit LoRA an den
+AdamW, lineares Aufwärmen und Abklingen, halbe Genauigkeit (bf16 oder fp16,
+je nach Karte), Gradientenakkumulation bis zum wirksamen Stapel des Rezepts.
+Voll oder mit LoRA an den
 Aufmerksamkeitsprojektionen. Nach jedem Durchgang wird auf der
 zurückgehaltenen Faltung geprüft und der beste Durchgang behalten.
 Wählbar sind Augmentierung zur Laufzeit, Early Stopping, Vorspulen,
@@ -82,13 +83,15 @@ in der **B** sitzt.
 EINGABE:  Laufverzeichnis L (Auftrag, Manifest, ggf. Kernauswahl), Rezept R
 AUSGABE:  Modellstand, Messwerte
 
+entlade Ollama, melde die Karte K, warte auf Platz  # finetune.pruefe_karte
+
 WENN Auswahl = kern:
     miss fehlende Werte mit dem freigegebenen Modell, wähle die besten 70 %,
     verteile sie auf eigene Faltungen                 # bewerten.vervollstaendige_kern
 
 FÜR f = 1 … 6:
     D_lern ← Zeilen außerhalb von Faltung f            # je nach Datensatz nur Originale
-    D_mess ← Zeilen in Faltung f, alle Fassungen
+    D_mess ← Zeilen in Faltung f, alle Fassungen, nur Vorlagen   # Korrekturen lernen nur
     θ_f, ergebnis_f ← TRAINIERE(θ_grund, D_lern, D_mess, R)
     M_f ← nach_CTranslate2(θ_f)
     FÜR jede Zeile z in D_mess:
@@ -97,6 +100,7 @@ FÜR f = 1 … 6:
 mitgenommen ← Median über die Faltungen: Plan, bester Durchgang, α, Tempo
 θ ← TRAINIERE(θ_grund, alle Zeilen, ∅, R, mitgenommen)    # das Endmodell
 prüfe θ an zwölf gelernten Aufnahmen                       # Plausibilität, keine Note
+stelle WER/CER des Grundmodells daneben (aus „hören“)     # bewerten.gegen_grundmodell
 trage ein mit status = fertig                              # Freigabe bleibt ein Mensch
 ```
 
@@ -104,7 +108,10 @@ trage ein mit status = fertig                              # Freigabe bleibt ein
 
 ```
 FUNKTION TRAINIERE(θ, D_lern, D_mess, R, vorgaben):
-    WENN R.methode = lora: θ ← θ + LoRA(Rang r, Ziele {q_proj, v_proj})
+    entlade Ollama
+    WENN R.methode = lora: θ ← θ halb (bf16|fp16) + LoRA(Rang r, Ziele {q_proj, v_proj}) in fp32
+    (s, g) ← erster Kandidat, dessen Probeschritt auf K passt   # finetune.zuschneiden
+    a      ← R.stapel / s                           # s Proben je Schritt, g = Gradientensparen
     fixiere Sprache des Profils, Aufgabe = transcribe
     Plan  ← vorgaben.plan  ODER  (geduldig ? R.epochen_hoechstens : R.epochen)
     Warm  ← min(R.warmlauf_schritte, ⌈0,2 · Gesamtschritte⌉)
@@ -115,7 +122,7 @@ FUNKTION TRAINIERE(θ, D_lern, D_mess, R, vorgaben):
         FÜR jeden Stapel B aus mische(D_lern):
             merkmale ← augmentiere(LogMel(B.audio))    # nur Lernproben, gewürfelt
             L ← Σ w_i ℓ_i / Σ w_i                       # compute_loss
-            rückwärts, beschneide Gradienten, Schritt alle R.akkumulation Stapel
+            rückwärts, beschneide Gradienten, Schritt alle a Stapel
         WENN D_mess ≠ ∅:
             L_val ← Verlust auf D_mess
             WENN L_val < bestes.verlust: bestes ← (L_val, θ)
@@ -152,9 +159,10 @@ Mitte, und die Epochenzahl wird so zur bloßen Obergrenze.
 
 Der Faktor 100 zwischen den Lernraten ist Absicht: Voll zieht eine hohe
 Lernrate dem Modell in wenigen hundert Schritten alles aus, was es konnte; die
-LoRA-Matrizen starten bei null. `medium` rechnet mit LoRA zusätzlich
-`gradientensparsam` (`je_grundmodell` im Rezept). Die Zahlen stehen in
-`training/rezepte/` und nicht im Quelltext.
+LoRA-Matrizen starten bei null. `stapel` ist in beiden der wirksame Stapel;
+wie viele Proben je Schritt auf der Karte liegen, ob mit Gradientensparen und
+in welcher Genauigkeit, misst der Trainer (`wortlaut/kartenplan.py`). Die
+Zahlen stehen in `training/rezepte/` und nicht im Quelltext.
 
 **Einordnung.** Whisper-small, voll und LoRA nebeneinander, je Sprecher - das
 ist, was die aktuelle Arbeit zu dysarthrischer Sprache tut. Huber, Kernahan

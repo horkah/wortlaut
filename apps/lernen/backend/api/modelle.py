@@ -18,7 +18,7 @@ from wortlaut import augmentierung, laeufe as lauf_layout, registry, streuung
 
 from ..config import einstellungen
 from ..deps import Korpus, SprecherId
-from ..services import grundmodelle, messwerte
+from ..services import freigabe, grundmodelle, messwerte
 from .laeufe import METHODEN, SteckbriefZeile
 
 router = APIRouter(prefix="/lernen/api/modelle", tags=["Modelle"])
@@ -197,18 +197,6 @@ class Freigabe(BaseModel):
     ref: str = ""
 
 
-def _grundmodellnamen() -> list[str]:
-    konfiguration = einstellungen()
-    namen = [
-        teil.strip() for teil in konfiguration.auswertung_modelle.split(",") if teil.strip()
-    ]
-    # Das trainierte Grundmodell immer - es ist die Baseline.
-    kurz = lauf_layout.kurzname(konfiguration.lernen_basismodell)
-    if kurz not in namen:
-        namen.append(kurz)
-    return namen
-
-
 def _stand_name(manifest: dict) -> str:
     """Der Titel einer Zeile: Optionscode und Folge des Laufs, aus dem der Stand kam.
 
@@ -289,7 +277,7 @@ def uebersicht(
         )
     konfiguration = einstellungen()
     aufnahmen = messwerte.messaufnahmen(korpus)
-    namen = _grundmodellnamen()
+    namen = freigabe.grundmodellnamen()
 
     reihen = messwerte.grundmodelle(korpus, namen, aufnahmen)
     staende = registry.alle_staende(konfiguration.data_dir, sprecher)
@@ -471,29 +459,18 @@ def _zeilenname(ref: str, staende: list[dict]) -> str:
 
 @router.post("/freigabe", response_model=UebersichtAntwort)
 def gib_frei(
-    freigabe: Freigabe,
+    wunsch: Freigabe,
     korpus: Korpus,
     sprecher: SprecherId,
     intervall: str = streuung.AUS,
     vergleich_mit: str = "",
 ) -> UebersichtAntwort:
-    """Dieses Modell freigeben - und damit jedes andere zurückziehen.
-
-    Geprüft gegen die eigene Liste, nicht das Dateisystem - sonst ließe ein
-    Pfad fremde Stände laden.
-    """
-    konfiguration = einstellungen()
-    erlaubt = {
-        *(_grundmodellnamen()),
-        *(
-            str(manifest.get("id", ""))
-            for manifest in registry.alle_staende(konfiguration.data_dir, sprecher)
-        ),
-    }
-    if freigabe.ref and freigabe.ref not in erlaubt:
-        raise HTTPException(status_code=404, detail="Dieses Modell steht hier nicht zur Wahl.")
-
-    registry.gib_frei(konfiguration.data_dir, sprecher, freigabe.ref)
+    """Dieses Modell freigeben - und damit jedes andere zurückziehen
+    (`services/freigabe.py`, dieselbe Stelle wie `make release`)."""
+    try:
+        freigabe.gib_frei(einstellungen().data_dir, sprecher, wunsch.ref)
+    except freigabe.NichtFreigebbar as ursache:
+        raise HTTPException(status_code=404, detail=str(ursache)) from ursache
     # Mit denselben Parametern, damit die Tabelle ihre Bereiche behält.
     return uebersicht(korpus, sprecher, intervall, vergleich_mit)
 
@@ -639,7 +616,7 @@ def _hier(
     if trainierbar:
         namen = {wahl.schluessel: wahl.name for wahl in METHODEN}
         methoden = ", ".join(
-            namen.get(methode, methode) for methode in lauf_layout.methoden_fuer(repo)
+            namen.get(methode, methode) for methode in konfiguration.methoden_fuer(repo)
         )
         original = grundmodelle.im_cache(repo)
         zeilen.append(
@@ -696,7 +673,7 @@ def grundmodell(name: str, korpus: Korpus, sprecher: SprecherId) -> GrundmodellE
     Ohne Modellkarte (ein Grundmodell außerhalb von `KARTEN`) bleibt der erste
     Steckbrief leer; was hier liegt, steht trotzdem da.
     """
-    if name not in _grundmodellnamen():
+    if name not in freigabe.grundmodellnamen():
         raise HTTPException(status_code=404, detail="Dieses Grundmodell steht hier nicht zur Wahl.")
     karte = grundmodelle.KARTEN.get(name)
 

@@ -42,8 +42,9 @@ vorlegt; alle drei liegen unter einer Domain und teilen den `localStorage`,
 also genügt ein persönlicher Link, einmal geöffnet.
 
 **8. Jede Entscheidung hat genau einen Ort.** Welches Modell gilt, wird in
-`lernen` unter **Modelle** entschieden, wo die Zahlen stehen. `schreiben`
-liest die Freigabe und zeigt sie an.
+`lernen` entschieden - unter **Modelle**, wo die Zahlen stehen, oder mit
+`make release`, beides über dieselbe Stelle (`services/freigabe.py`).
+`schreiben` liest die Freigabe und zeigt sie an.
 
 **9. Ein Zugang sagt, wem etwas gehört - nicht, was es kosten darf.** Der
 Sprecherzugang liegt bei jedem, der aufnimmt. Wo ein Weg mehr kostet als
@@ -199,14 +200,16 @@ Gewicht ins Training. **Modi:** `gelesen` und `nachgesprochen` aus `hören`,
 `lernen` legt je Auftrag ein Verzeichnis an; der Trainer schreibt dort mit.
 
 ```
-data/snapshots/<job_id>/
-├── sprecher.txt          # die Sprecher-ID - für die Löschung
-├── manifest.jsonl        # der eingefrorene Korpus: eine Zeile je Probe und Fassung
-├── kernauswahl.json      # nur bei Kernauswahl
-├── auftrag.json          # zuletzt geschrieben - erst damit ist der Lauf offen
-├── zustand.json          # vom Trainer: Status, Stufe, Faltung
-├── fortschritt.jsonl, bewertung.jsonl, protokoll.txt
-└── halt                  # der Wunsch, anzuhalten
+data/snapshots/
+├── karte.json                # vom Trainer: seine Karte - „lernen" bietet an, was passt
+└── <job_id>/
+    ├── sprecher.txt          # die Sprecher-ID - für die Löschung
+    ├── manifest.jsonl        # der eingefrorene Korpus: eine Zeile je Probe und Fassung
+    ├── kernauswahl.json      # nur bei Kernauswahl
+    ├── auftrag.json          # zuletzt geschrieben - erst damit ist der Lauf offen
+    ├── zustand.json          # vom Trainer: Status, Stufe, Faltung, Zuschnitt
+    ├── fortschritt.jsonl, bewertung.jsonl, protokoll.txt
+    └── halt                  # der Wunsch, anzuhalten
 ```
 
 ```json
@@ -216,7 +219,9 @@ data/snapshots/<job_id>/
 
 Der Schnappschuss macht einen Lauf reproduzierbar, während weiter aufgenommen
 wird. `sprecher.txt` lässt `scripts/purge_speaker.py` ihn finden, ohne das
-Manifest zu deuten. Die Einzelheiten stehen in `wortlaut/laeufe.py`.
+Manifest zu deuten. Die Einzelheiten stehen in `wortlaut/laeufe.py`, der
+Zuschnitt auf die Karte in `wortlaut/kartenplan.py`. `karte.json` trägt keine
+Stimmdaten und gehört keinem Sprecher.
 
 ---
 

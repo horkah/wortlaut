@@ -67,8 +67,8 @@ wird `medium` freigegeben.
 **Die Stimme bleibt im Haus.** Aufnahmen einer Person mit Sprechstörung sind
 Gesundheitsdaten nach Art. 9 DSGVO. Erkennung, Training, Zeichenerkennung und
 Textquelle laufen auf der eigenen Maschine; Adapter für fremde Dienste sind
-Schalter mit lokaler Voreinstellung, und der Trainings-Container hängt an
-keinem Netz.
+Schalter mit lokaler Voreinstellung, und der Trainings-Container holt aus dem
+Netz nur die Grundmodelle - Aufnahmen verlassen die Maschine nicht.
 
 **Die Oberfläche ist für den gebaut, der sie braucht.** Ein persönlicher Link
 statt einer Anmeldung, höchstens eine vierstellige PIN. Schrift, Kontrast und
@@ -95,6 +95,15 @@ Training:
 ```bash
 docker compose up -d
 docker compose --profile training up -d training
+```
+
+Ein eigenes Modell von der Kommandozeile - LoRA auf `whisper-large-v3`,
+zugeschnitten auf die Karte, die da ist (Genauigkeit, Stapel,
+Gradientensparen; siehe [Betrieb](docs/betrieb.md#der-trainer)):
+
+```bash
+make train SPEAKER=spr_7f2a RECIPE=whisper_lora   # beauftragen, zusehen, WER gegen das Grundmodell
+make release JOB=job_01J8…                        # freigeben - „schreiben" diktiert damit
 ```
 
 ---

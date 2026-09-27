@@ -172,9 +172,13 @@ services:
     restart: unless-stopped
     logging: *logs
     env_file: .env
-    # Kein `networks`: Dieser Dienst ruft nichts und wird von nichts gerufen.
-    # Er lädt einmal das Grundmodell von Hugging Face - das geht über das
-    # Standardnetz von Compose.
+    # Zwei Netze: das Standardnetz, über das er ein Grundmodell einmal von
+    # Hugging Face lädt, und `intern`, über das er Ollama vor jedem Lauf die
+    # Karte abnimmt (`training/karte.entlade_ollama`). Gerufen wird er von
+    # niemandem - Aufträge kommen über das Laufverzeichnis.
+    networks:
+      - default
+      - intern
     environment:
       WORTLAUT_DATA_DIR: /srv/wortlaut/data
     volumes:

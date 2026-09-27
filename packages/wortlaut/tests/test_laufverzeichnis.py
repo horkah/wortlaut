@@ -25,45 +25,84 @@ def _auftrag(datenverzeichnis: Path, job_id: str, sprecher: str = "spr_a") -> Pa
 
 
 class TestFaltungen:
-    def test_jede_faltung_kommt_gleich_oft_vor(self) -> None:
-        vergeben = laeufe.verteile([1] * (laeufe.FALTUNGEN * 4))
-        assert sorted(set(vergeben)) == list(range(laeufe.FALTUNGEN))
-        assert all(vergeben.count(faltung) == 4 for faltung in range(laeufe.FALTUNGEN))
+    @staticmethod
+    def _staemme(anzahl: int, vorsilbe: str = "rec_") -> list[str]:
+        return [f"{vorsilbe}{nummer:04d}" for nummer in range(anzahl)]
 
-    def test_einzelne_aufnahmen_gehen_reihum(self) -> None:
-        # 1, 2, 3, 4, 5, 6, 1, 2, … - die siebte Aufnahme fängt wieder vorn an.
-        n = laeufe.FALTUNGEN
-        assert laeufe.verteile([1] * (2 * n + 1)) == [*range(n), *range(n), 0]
+    def test_dieselbe_kennung_dieselbe_faltung(self) -> None:
+        staemme = self._staemme(50)
+        assert laeufe.verteile(staemme) == laeufe.verteile(list(staemme))
+
+    def test_neue_und_geloeschte_verschieben_keine_andere(self) -> None:
+        # Die Zusage des Hashs: Eine Aufnahme misst in jedem Lauf in derselben
+        # Faltung, was immer dazukommt oder wegfällt.
+        staemme = self._staemme(60)
+        vorher = dict(zip(staemme, laeufe.verteile(staemme), strict=True))
+        spaeter = [*staemme[5:], *self._staemme(20, "neu_")]
+        nachher = dict(zip(spaeter, laeufe.verteile(spaeter), strict=True))
+        assert all(nachher[stamm] == vorher[stamm] for stamm in staemme[5:])
+
+    def test_die_reihenfolge_zaehlt_nicht(self) -> None:
+        staemme = self._staemme(40)
+        vorwaerts = dict(zip(staemme, laeufe.verteile(staemme), strict=True))
+        rueckwaerts = list(reversed(staemme))
+        assert dict(zip(rueckwaerts, laeufe.verteile(rueckwaerts), strict=True)) == vorwaerts
+
+    def test_viele_staemme_fuellen_jede_faltung(self) -> None:
+        vergeben = laeufe.verteile(self._staemme(300))
+        assert set(vergeben) == set(range(laeufe.FALTUNGEN))
+        # Ungefähr gleich groß - ein Hash, kein Zählerstand.
+        assert all(30 <= vergeben.count(faltung) <= 70 for faltung in range(laeufe.FALTUNGEN))
+
+    @pytest.mark.parametrize("anzahl", [6, 7, 8, 11])
+    def test_bei_wenigen_bleibt_keine_leer(self, anzahl: int) -> None:
+        # Bliebe eine Faltung leer, ginge es reihum in Hash-Reihenfolge.
+        vergeben = laeufe.verteile(self._staemme(anzahl))
+        assert set(vergeben) == set(range(laeufe.FALTUNGEN))
+
+    def test_leer_bleibt_leer(self) -> None:
+        assert laeufe.verteile([]) == []
+
+
+class TestMessenNurVorlagen:
+    """Gemessen wird nur an Vorlagen; Korrekturen lernen in jeder Faltung mit."""
 
     @staticmethod
-    def _stand(groessen: list[int]) -> list[int]:
-        stand = [0] * laeufe.FALTUNGEN
-        for faltung, groesse in zip(laeufe.verteile(groessen), groessen, strict=True):
-            stand[faltung] += groesse
-        return stand
+    def _manifest(verzeichnis: Path) -> None:
+        zeilen = [
+            {"recording_id": "rec_a", "faltung": 0, "quelle": "vorlage", "variante": "original"},
+            {"recording_id": "rec_a", "faltung": 0, "quelle": "vorlage", "variante": "rauschen"},
+            {"recording_id": "rec_k", "faltung": 0, "quelle": "korrektur", "variante": "original"},
+            {"recording_id": "rec_k", "faltung": 0, "quelle": "korrektur", "variante": "rauschen"},
+            {"recording_id": "rec_b", "faltung": 1, "quelle": "vorlage", "variante": "original"},
+        ]
+        (verzeichnis / laeufe.MANIFEST).write_text(
+            "\n".join(json.dumps({**zeile, "audio": f"{zeile['recording_id']}.wav"}) for zeile in zeilen),
+            encoding="utf-8",
+        )
 
-    def test_eine_grosse_gruppe_wird_aufgeholt(self) -> None:
-        # So stand FEMKE bei 4, 4, 4, 6, 4, 4: eine dreiteilige Verwandtschaft
-        # an vierter Stelle, reihum weitergezählt. Jetzt geht sie als größte
-        # voran, und die einzelnen Aufnahmen füllen die übrigen Faltungen auf.
-        groessen = [1, 1, 1, 3, *[1] * 20]
-        assert self._stand(groessen) == [5, 5, 4, 4, 4, 4]
-        assert laeufe.verteile(groessen)[:6] == [1, 2, 3, 0, 4, 5]
+    @staticmethod
+    def _kennungen(zeilen: list[dict]) -> list[tuple[str, str]]:
+        return [(zeile["recording_id"], zeile["variante"]) for zeile in zeilen]
 
-    def test_spaet_geschnittenes_wird_trotzdem_ausgeglichen(self) -> None:
-        # Die großen Verwandtschaften am Ende des Korpus: In Korpusreihenfolge
-        # vergeben lägen die Faltungen bei 5, 9, 7, 10, 5, 7; die großen zuerst
-        # bei 8, 7, 7, 7, 7, 7.
-        groessen = [1, 1, 1, 3, *[1] * 7, 3, *[1] * 7, 2, 4, 5, 3, 6]
-        assert sum(groessen) == 43
-        assert self._stand(groessen) == [8, 7, 7, 7, 7, 7]
+    def test_eine_korrektur_wird_nie_gemessen(self, tmp_path: Path) -> None:
+        self._manifest(tmp_path)
+        lern, mess = laeufe.zeilen_fuer_faltung(tmp_path, 0, laeufe.NUR_ORIGINAL)
+        assert self._kennungen(mess) == [("rec_a", "original"), ("rec_a", "rauschen")]
+        # Auch in ihrer eigenen Faltung lernt sie mit - gemessen wird dort ja nicht an ihr.
+        assert self._kennungen(lern) == [("rec_k", "original"), ("rec_b", "original")]
 
-    def test_gleich_grosse_in_der_reihenfolge_des_korpus(self) -> None:
-        assert laeufe.verteile([1, 2, 1, 2]) == [2, 0, 3, 1]
+    def test_mit_varianten_lernt_die_korrektur_in_allen_fassungen(self, tmp_path: Path) -> None:
+        self._manifest(tmp_path)
+        lern, _ = laeufe.zeilen_fuer_faltung(tmp_path, 1, laeufe.MIT_VARIANTEN)
+        assert ("rec_k", "rauschen") in self._kennungen(lern)
+        assert ("rec_b", "original") not in self._kennungen(lern)
 
-    def test_bei_gleichstand_die_niedrigste_nummer(self) -> None:
-        assert laeufe.verteile([2, 1, 1]) == [0, 1, 2]
-        assert laeufe.verteile([]) == []
+    def test_das_endmodell_misst_nichts(self, tmp_path: Path) -> None:
+        self._manifest(tmp_path)
+        lern, mess = laeufe.zeilen_fuer_faltung(tmp_path, None, laeufe.NUR_ORIGINAL)
+        assert mess == []
+        assert {kennung for kennung, _ in self._kennungen(lern)} == {"rec_a", "rec_k", "rec_b"}
 
 
 class TestWarteschlange:

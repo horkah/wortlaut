@@ -12,11 +12,14 @@ warmlauf_schritte: 50
 # Ebenfalls eine Obergrenze (`whisper_full.yaml`).
 epochen: 12
 
+# Der wirksame Stapel. Wie viele davon je Schritt auf der Karte liegen und wie
+# oft gesammelt wird, misst der Trainer (`wortlaut/kartenplan.py`).
 stapel: 8
-akkumulation: 1
 
 gewichtsverfall: 0.0
-fp16: true
+# Halbe Genauigkeit, wo eine Karte ist: bf16 ab Ampere, sonst fp16 mit
+# Verlustskalierung; das eingefrorene Grundmodell liegt dann ebenfalls halb.
+mischpraezision: true
 gradientenbegrenzung: 1.0
 
 lora:
@@ -62,13 +65,3 @@ augmentierung:
   # Sprechers - es zu verwürfeln kann helfen oder schaden.
   tempo_wahrscheinlichkeit: 0.5
   tempo_faktor: [0.9, 1.1]
-
-# Abweichungen je Grundmodell - nur des Speichers wegen.
-je_grundmodell:
-  medium:
-    # 769 statt 244 Millionen Gewichte; eng wird es durch die Aktivierungen.
-    # Sie werden beim Rückwärtsgang neu gerechnet statt aufgehoben: gemessen
-    # 2,3 statt 9,3 GB bei Stapel 8 - genug Platz, damit danach der Erkenner
-    # auf dieselbe Karte passt - und sogar schneller (68 statt 125 ms je
-    # Probe), weil ein volles Gedächtnis mehr kostet als die zweite Rechnung.
-    gradientensparsam: true

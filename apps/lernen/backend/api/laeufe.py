@@ -20,11 +20,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
-from wortlaut import laeufe as lauf_layout, registry, streuung
+from wortlaut import kartenplan, laeufe as lauf_layout, registry, streuung
 
 from ..config import einstellungen
 from ..deps import Korpus, Sprache, SprecherId, korpus_engine
-from ..services import aufteilung, auftraege, kernauswahl, vergleich
+from ..services import aufteilung, auftraege, vergleich
 
 router = APIRouter(prefix="/lernen/api/laeufe", tags=["Läufe"])
 
@@ -235,10 +235,6 @@ class GrundmodellAntwort(BaseModel):
 
 def _grundmodelle() -> list[GrundmodellAntwort]:
     konfiguration = einstellungen()
-    beschreibung = {
-        "small": "244 M Parameter.",
-        "medium": "769 M Parameter. Nur LoRA (GPU-Speicher).",
-    }
     antworten = []
     for modell in konfiguration.grundmodelle():
         kurz = lauf_layout.kurzname(modell)
@@ -246,8 +242,9 @@ def _grundmodelle() -> list[GrundmodellAntwort]:
             GrundmodellAntwort(
                 schluessel=modell,
                 name=f"whisper-{kurz}",
-                erklaerung=beschreibung.get(kurz, ""),
-                methoden=list(lauf_layout.methoden_fuer(modell)),
+                # Welche Methoden passen, steht daneben - auf dieser Karte.
+                erklaerung=f"{kartenplan.parameter(kurz) / 1e6:.0f} M Parameter.",
+                methoden=list(konfiguration.methoden_fuer(modell)),
                 code=lauf_layout.grundmodellcode(modell),
             )
         )
@@ -769,13 +766,27 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
             f"{float(rezept['lernrate']):.0e}".replace("e-0", "e-"),
             f"Warmlauf {warm} Schritte" if warm else "",
         )
+    # Wie der Lauf auf die Karte kam (`wortlaut/kartenplan.py`): aus dem
+    # Manifest, solange er rechnet aus dem Zustand.
+    zuschnitt = dict(manifest.get("zuschnitt") or zustand.get("zuschnitt") or {})
     if rezept.get("stapel"):
-        akk = int(rezept.get("akkumulation") or 1)
-        wirksam = int(rezept["stapel"]) * akk
         dazu(
             "Stapel",
-            f"{rezept['stapel']} × {akk}" if akk > 1 else str(rezept["stapel"]),
-            f"wirksam {wirksam}" if akk > 1 else "",
+            f"{rezept['stapel']} wirksam",
+            (
+                f"je Schritt {zuschnitt['stapel']} × {zuschnitt['akkumulation']}"
+                + (", Gradientensparen" if zuschnitt.get("gradientensparsam") else "")
+            )
+            if zuschnitt.get("stapel")
+            else "",
+        )
+    if zuschnitt.get("genauigkeit"):
+        karte = dict(zuschnitt.get("karte") or {})
+        dazu(
+            "Karte",
+            f"{karte['name']}, {float(karte['speicher_mb']) / 1000:.0f} GB" if karte else "Prozessor",
+            f"{zuschnitt['genauigkeit']}, {zuschnitt.get('aufmerksamkeit', 'sdpa')}"
+            + (", Grundmodell halb" if zuschnitt.get("halbe_grundgewichte") else ""),
         )
 
     gelaufen = kv.get("durchgaenge")
@@ -903,86 +914,28 @@ def beauftrage(
     """Einen Lauf beauftragen.
 
     Der Trainerschlüssel wird vor allem anderen geprüft: Wer nicht trainieren
-    darf, erfährt nichts über Korpus oder Methoden.
+    darf, erfährt nichts über Korpus oder Methoden. Was bestellt werden kann,
+    prüft `auftraege.bestelle` - dieselbe Stelle für `make train`.
     """
-    if bestellung.methode not in lauf_layout.METHODEN:
-        raise HTTPException(status_code=400, detail=f"Unbekannte Methode: {bestellung.methode}")
-    if bestellung.daten not in lauf_layout.DATENSAETZE:
-        raise HTTPException(status_code=400, detail=f"Unbekannter Datensatz: {bestellung.daten}")
-    if bestellung.auswahl not in lauf_layout.AUSWAHLEN:
-        raise HTTPException(status_code=400, detail=f"Unbekannte Auswahl: {bestellung.auswahl}")
-    if bestellung.abschluss not in lauf_layout.ABSCHLUESSE:
-        raise HTTPException(
-            status_code=400, detail=f"Unbekannter Abschluss: {bestellung.abschluss}"
-        )
-    if bestellung.augmentierung not in lauf_layout.AUGMENTIERUNGEN:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unbekannte Augmentierung: {bestellung.augmentierung}",
-        )
-    if bestellung.dauer not in lauf_layout.DAUERN:
-        raise HTTPException(status_code=400, detail=f"Unbekannte Dauer: {bestellung.dauer}")
-    if bestellung.tempowahl not in lauf_layout.TEMPI:
-        raise HTTPException(
-            status_code=400, detail=f"Unbekannte Tempowahl: {bestellung.tempowahl}"
-        )
-
-    konfiguration = einstellungen()
-    grundmodell = bestellung.grundmodell or konfiguration.lernen_basismodell
-    # Nur Whisper-Modelle. Ein Ausgangsstand (`auftraege.Auftrag.ausgangsstand`,
-    # `training/ausgangsstand.py`) kann der Trainer, angeboten wird er nicht.
-    if grundmodell not in konfiguration.grundmodelle():
-        raise HTTPException(
-            status_code=400, detail=f"Unbekanntes Grundmodell: {grundmodell}"
-        )
-    # Scheiterte sonst erst nach Stunden am Speicher der Karte.
-    erlaubte = lauf_layout.methoden_fuer(grundmodell)
-    if bestellung.methode not in erlaubte:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"{lauf_layout.kurzname(grundmodell)} lässt sich nur mit "
-                f"{', '.join(erlaubte)} trainieren - volles Feintuning sprengt "
-                "den Speicher der Karte."
+    try:
+        lauf = auftraege.bestelle(
+            einstellungen().data_dir,
+            korpus,
+            auftraege.Bestellung(
+                sprecher_id=sprecher,
+                sprache=sprache,
+                methode=bestellung.methode,
+                daten=bestellung.daten,
+                auswahl=bestellung.auswahl,
+                abschluss=bestellung.abschluss,
+                augmentierung=bestellung.augmentierung,
+                dauer=bestellung.dauer,
+                tempowahl=bestellung.tempowahl,
+                grundmodell=bestellung.grundmodell,
             ),
         )
-    proben = aufteilung.proben(korpus)
-    if not aufteilung.genug(proben):
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                f"Für sechsfache Kreuzvalidierung braucht es mindestens "
-                f"{lauf_layout.FALTUNGEN} brauchbare Aufnahmen - vorhanden sind "
-                f"{len(proben)}."
-            ),
-        )
-
-    kern = None
-    if bestellung.auswahl == lauf_layout.AUSWAHL_KERN:
-        try:
-            kern = kernauswahl.waehle(konfiguration.data_dir, korpus, sprecher, proben)
-        except kernauswahl.KeinKern as ursache:
-            raise HTTPException(status_code=409, detail=str(ursache)) from ursache
-
-    lauf = auftraege.beauftrage(
-        konfiguration.data_dir,
-        korpus,
-        proben,
-        auftraege.Auftrag(
-            sprecher_id=sprecher,
-            methode=bestellung.methode,
-            daten=bestellung.daten,
-            auswahl=bestellung.auswahl,
-            abschluss=bestellung.abschluss,
-            augmentierung=bestellung.augmentierung,
-            dauer=bestellung.dauer,
-            tempowahl=bestellung.tempowahl,
-            basismodell=grundmodell,
-            # Für Whispers Sprachmarken und die Bewertung (`wortlaut/sprachen.py`).
-            sprache=sprache,
-        ),
-        kernauswahl=kern,
-    )
+    except auftraege.Abgelehnt as ursache:
+        raise HTTPException(status_code=ursache.status, detail=str(ursache)) from ursache
     return _als_antwort(lauf)
 
 

@@ -15,6 +15,7 @@ Gemessen im Trainer, wo das Modell schon auf der Karte liegt, mit
 
 from __future__ import annotations
 
+import sqlite3
 import statistics
 import tempfile
 import time
@@ -58,12 +59,11 @@ def _rezeptauszug(auftrag: dict[str, Any]) -> dict[str, Any]:
     return {
         "lernrate": rezept.get("lernrate"),
         "warmlauf_schritte": rezept.get("warmlauf_schritte"),
+        # Wirksam; wie er auf die Karte kam, steht unter `zuschnitt` im Manifest.
         "stapel": rezept.get("stapel"),
-        "akkumulation": rezept.get("akkumulation"),
         "epochen": rezept.get("epochen"),
         "epochen_hoechstens": rezept.get("epochen_hoechstens"),
         "geduld": rezept.get("geduld"),
-        "gradientensparsam": bool(rezept.get("gradientensparsam", False)),
         "lora_rang": lora.get("rang"),
         "lora_alpha": lora.get("alpha"),
         "lora_ziele": list(lora.get("ziele") or []),
@@ -198,14 +198,11 @@ def bewerte_faltung(
     """
     from wortlaut.whisper.local import LokalerTranskriptor
 
-    # Erst hier: `daten` zieht numpy und torch nach, `befund_ueber` braucht sie nicht.
-    from .daten import zeilen_fuer_faltung
-
     sprecher_id = str(auftrag["sprecher_id"])
     korpuswurzel = datenverzeichnis / corpus.sprecher_relpfad(sprecher_id)
     # Beim Kern nur seine Aufnahmen auf seinen Faltungen; den Rest hört das
     # Endmodell in „hören" (`wortlaut/laeufe.py`, „Die Auswahl").
-    _lern, zeilen = zeilen_fuer_faltung(
+    _lern, zeilen = laeufe.zeilen_fuer_faltung(
         verzeichnis,
         faltung,
         str(auftrag.get("daten") or laeufe.NUR_ORIGINAL),
@@ -269,7 +266,7 @@ def vervollstaendige_kern(
     faktor = float(inhalt.get("tempo") or tempo.VORGABE)
     offen = {str(kennung) for kennung in inhalt.get("offen") or []}
     # Das Original jeder offenen Aufnahme; Verworfenes fällt heraus
-    # (`daten.zeilen_fuer_faltung`).
+    # (`laeufe.zeilen_fuer_faltung`).
     zeilen = [
         zeile
         for zeile in laeufe.manifestzeilen(verzeichnis)
@@ -426,7 +423,7 @@ def pruefe_endmodell(
     alle = [
         zeile
         for zeile in laeufe.manifestzeilen(verzeichnis)
-        # Verworfenes fehlt, wie beim Lernen (`daten.zeilen_fuer_faltung`).
+        # Verworfenes fehlt, wie beim Lernen (`laeufe.zeilen_fuer_faltung`).
         if str(zeile.get("variante")) == augmentierung.ORIGINAL
         and (korpuswurzel / str(zeile["audio"])).is_file()
         and (kern is None or str(zeile.get("recording_id")) in kern)
@@ -554,6 +551,86 @@ def _zusammengefasst(
     }
 
 
+def _grundzeilen(datenverzeichnis: Path, sprecher_id: str, modell: str) -> dict[tuple[str, str], dict]:
+    """Was „hören" für dieses Grundmodell gemessen hat - je Aufnahme und Fassung.
+
+    Nur lesend: Den Korpus schreibt „hören" allein (Grundentscheidung 6).
+    """
+    pfad = corpus.datenbank_pfad(datenverzeichnis, sprecher_id)
+    if not pfad.is_file():
+        return {}
+    verbindung = sqlite3.connect(f"file:{pfad}?mode=ro", uri=True)
+    try:
+        return {
+            (str(aufnahme), str(variante)): {"wer": float(wer), "cer": float(cer)}
+            for aufnahme, variante, wer, cer in verbindung.execute(
+                "SELECT recording_id, variante, wer, cer FROM erkennungen WHERE modell = ?",
+                (modell,),
+            )
+        }
+    except sqlite3.Error:
+        return {}
+    finally:
+        verbindung.close()
+
+
+def gegen_grundmodell(
+    datenverzeichnis: Path, auftrag: dict[str, Any], zeilen: list[dict[str, Any]], bericht
+) -> dict[str, Any]:
+    """WER und CER dieses Laufs und des unveränderten Grundmodells, auf denselben Messungen.
+
+    Das Grundmodell misst die Auswertung von „hören" - neu gemessen wird hier
+    nicht, wie beim Vergleich in der Oberfläche (`services/vergleich.py`).
+    Gezählt wird, was beide haben; was dem Grundmodell fehlt, steht als Zahl
+    daneben.
+    """
+    kurz = laeufe.kurzname(str(auftrag.get("basismodell", "")))
+    grund = _grundzeilen(datenverzeichnis, str(auftrag["sprecher_id"]), kurz)
+    gemeinsam = [
+        (zeile, grund[schluessel])
+        for zeile in zeilen
+        if (schluessel := (str(zeile.get("recording_id")), str(zeile.get("variante")))) in grund
+    ]
+    ergebnis: dict[str, Any] = {
+        "modell": kurz,
+        "einheiten": len(gemeinsam),
+        "ohne_grundmodell": len(zeilen) - len(gemeinsam),
+    }
+    if gemeinsam:
+        for seite, auswahl in (("dieser_stand", 0), ("grundmodell", 1)):
+            ergebnis[seite] = {
+                mass: round(sum(float(paar[auswahl][mass]) for paar in gemeinsam) / len(gemeinsam), 6)
+                for mass in ("wer", "cer")
+            }
+    bericht.sage(bericht_gegen_grundmodell(ergebnis))
+    return ergebnis
+
+
+def bericht_gegen_grundmodell(ergebnis: dict[str, Any]) -> str:
+    """Die Gegenüberstellung als Text - fürs Protokoll und für `make train`."""
+    if not ergebnis.get("einheiten"):
+        return (
+            f"Gegen {ergebnis.get('modell')}: keine gemeinsame Messung - in „hören“ unter "
+            "„Auswertung“ rechnet das Grundmodell über den Korpus."
+        )
+
+    def zeile(name: str, werte: dict[str, float]) -> str:
+        return f"  {name:<26} WER {werte['wer']:.3f}   CER {werte['cer']:.3f}"
+
+    teile = [
+        f"Ergebnis auf {ergebnis['einheiten']} Messungen - nur Vorlagen, jede von einem "
+        "Modell, das sie nicht gelernt hat:",
+        zeile(f"{ergebnis['modell']} unverändert", ergebnis["grundmodell"]),
+        zeile("dieser Stand", ergebnis["dieser_stand"]),
+    ]
+    if ergebnis.get("ohne_grundmodell"):
+        teile.append(
+            f"  ({ergebnis['ohne_grundmodell']} Messungen ohne Wert von {ergebnis['modell']} - "
+            "in „hören“ unter „Auswertung“ nachzuholen)"
+        )
+    return "\n".join(teile)
+
+
 def gib_frei(
     verzeichnis: Path,
     datenverzeichnis: Path,
@@ -563,12 +640,15 @@ def gib_frei(
     abschluss=None,
     zeilen: list[dict[str, Any]] | None = None,
     mitgenommen: dict[str, Any] | None = None,
+    zuschnitt: dict[str, Any] | None = None,
 ) -> str:
     """Das Endmodell umwandeln, prüfen und eintragen. Gibt die Version zurück.
 
     Die Zahlen sind die der Faltungen (`zeilen`); das Endmodell wird nur
-    geprüft (`pruefe_endmodell`). Eingetragen als `fertig`, freigegeben wird
-    von Hand (`apps/lernen/backend/api/modelle.py`).
+    geprüft (`pruefe_endmodell`). Daneben das unveränderte Grundmodell auf
+    denselben Messungen (`gegen_grundmodell`). Eingetragen als `fertig`,
+    freigegeben wird von Hand - in „Modelle" oder mit `make release`
+    (`apps/lernen/backend/services/freigabe.py`).
     """
     from .finetune import wandle_um
 
@@ -580,6 +660,7 @@ def gib_frei(
 
     wandle_um(gewichte, ct2, bericht)
     gemessen = _zusammengefasst(zeilen or [])
+    grundmodell = gegen_grundmodell(datenverzeichnis, auftrag, zeilen or [], bericht)
     pruefung = pruefe_endmodell(
         verzeichnis, datenverzeichnis, ct2, auftrag, bericht, zeilen or [], faktor
     )
@@ -615,6 +696,10 @@ def gib_frei(
             "erstellt": laeufe.jetzt(),
             "daten_umfang": auftrag.get("zeilen", {}),
             "metriken": gemessen,
+            # Das unveränderte Grundmodell auf denselben Messungen.
+            "grundmodell": grundmodell,
+            # Worauf und wie das Endmodell gerechnet wurde (`kartenplan.py`).
+            "zuschnitt": zuschnitt or {},
             "laufzeit": "faster-whisper>=1.1",
             "status": "fertig",
         },

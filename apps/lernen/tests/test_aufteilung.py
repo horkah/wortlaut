@@ -1,4 +1,4 @@
-"""Die Faltungen: sechs, nach Zählerstand vergeben, nirgends gespeichert.
+"""Die Faltungen: sechs, nach der Kennung vergeben, nirgends gespeichert.
 
 Die tragende Zusage - **eine Aufnahme trägt genau eine Faltung**, sonst hörte
 ein Modell, woran es gemessen wird - prüft `test_laeufe.py` am Manifest. Hier
@@ -32,7 +32,7 @@ class TestZugriff:
 
 
 class TestFaltungen:
-    def test_folgen_der_reihenfolge(self, klient: TestClient, quelle: str, sprich) -> None:
+    def test_sechs_aufnahmen_je_eine_faltung(self, klient: TestClient, quelle: str, sprich) -> None:
         # Sechs Aufnahmen, sechs Faltungen, je eine.
         sprich(6)
         daten = _uebersicht(klient)
@@ -41,20 +41,20 @@ class TestFaltungen:
         assert daten["je_faltung"] == {str(nummer): 1 for nummer in range(laeufe.FALTUNGEN)}
         assert daten["genug"] is True
 
-    def test_die_siebte_faengt_wieder_vorn_an(
+    def test_wenige_aufnahmen_verteilen_sich_gleichmaessig(
         self, klient: TestClient, quelle: str, sprich
     ) -> None:
+        # Welche Faltung zwei bekommt, hängt an den Kennungen - dass keine
+        # leer bleibt und keine drei trägt, nicht.
         sprich(8)
         je_faltung = _uebersicht(klient)["je_faltung"]
-        assert je_faltung["0"] == 2
-        assert je_faltung["1"] == 2
-        assert je_faltung["2"] == 1
+        assert sorted(je_faltung.values()) == [1, 1, 1, 1, 2, 2]
 
     def test_neue_aufnahmen_zaehlen_sofort_mit(
         self, klient: TestClient, quelle: str, sprich
     ) -> None:
-        # Kein Knopf „jetzt zuteilen": Die Faltung folgt der Reihenfolge des
-        # Korpus und wird bei jedem Hinsehen neu gerechnet.
+        # Kein Knopf „jetzt zuteilen": Die Faltung hängt an der Kennung und
+        # wird bei jedem Hinsehen neu gerechnet.
         sprich(6)
         assert _uebersicht(klient)["aufnahmen"] == 6
         sprich(3)

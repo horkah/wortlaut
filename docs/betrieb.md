@@ -120,19 +120,54 @@ docker compose --profile training up -d training
 docker compose logs -f training
 ```
 
-Der erste Lauf lädt das Grundmodell in den Modellcache. Woran ein Lauf hängt,
-steht in seinem Verzeichnis: `zustand.json` sagt, was er tut, `protokoll.txt`,
-warum er es nicht mehr tut.
+Der Läufer meldet beim Start seine Karte (`data/snapshots/karte.json`);
+„lernen" bietet danach nur an, was darauf passt. Der erste Lauf mit einem
+Grundmodell lädt es in den Modellcache (`large-v3` gut 3 GB). Der Container
+hängt am Standardnetz - für Hugging Face - und an `intern`, um Ollama vor
+jedem Lauf und jeder Faltung die Karte abzunehmen; gerufen wird er von
+niemandem.
+
+**Ein Lauf von der Kommandozeile** - dieselbe Prüfung wie in der Oberfläche,
+gerechnet im Trainings-Container:
+
+```bash
+docker compose exec wortlaut python scripts/trainieren.py spr_7f2a whisper_lora --grundmodell large-v3
+docker compose exec wortlaut python scripts/freigeben.py job_01J8…
+```
+
+Auf einer Maschine mit `uv` dasselbe als `make train SPEAKER=spr_7f2a
+RECIPE=whisper_lora` (Vorgabe `MODELL=large-v3`, weitere Achsen mit
+`ACHSEN="dauer=geduldig daten=augmentiert"`) und `make release JOB=…`. Das
+Skript liest das Protokoll mit, bis der Lauf endet, und nennt am Ende WER und
+CER neben denen des unveränderten Grundmodells; Strg-C beendet nur das
+Zusehen. Freigegeben diktiert „schreiben" ab dem nächsten Diktat damit.
+
+**Zugeschnitten wird auf die Karte, nicht im Rezept** (`wortlaut/kartenplan.py`).
+Vor jedem Training misst der Trainer mit einem Probeschritt, wie viele Proben
+je Schritt passen, und sammelt den Rest über die Akkumulation - der wirksame
+Stapel des Rezepts bleibt. Genauigkeit bf16 ab Ampere, sonst fp16;
+Aufmerksamkeit über `sdpa`; bei LoRA das Grundmodell in halber Genauigkeit.
+Auf der RTX 2080 Ti (11 GB) heißt das: `large-v3` nur mit LoRA, Stapel
+und Gradientensparen nach Probeschritt. Auf 40 oder 80 GB darf es voll
+trainiert werden und rechnet ohne Gradientensparen. Gerechnet wird auf der
+ersten Karte; mehrere Karten beschleunigen einen Lauf nicht.
+`WORTLAUT_LERNEN_RESERVE_MB` (Vorgabe 2000) bleibt den Erkennern des
+Webdienstes, damit während eines Trainings diktiert werden kann. Was ein
+Lauf gewählt hat, steht in seinem Protokoll (`Zuschnitt: …`) und im
+Manifest des Standes (`zuschnitt`).
+
+Woran ein Lauf hängt, steht in seinem Verzeichnis: `zustand.json` sagt, was
+er tut, `protokoll.txt`, warum er es nicht mehr tut.
 
 ```bash
 docker compose exec wortlaut tail -40 data/snapshots/job_01J8…/protokoll.txt
 ```
 
 Endet ein Lauf mit „CUDA out of memory", hielt entweder jemand anderes die
-Karte länger als zehn Minuten (`nvidia-smi` zeigt, wer), oder das Training
-passt nicht auf die Karte - dann `stapel` im Rezept herunter und
-`akkumulation` hinauf. Den Trainer neu zu starten kostet nur den laufenden
-Lauf.
+Karte länger als zehn Minuten (`nvidia-smi` zeigt, wer), oder nicht einmal
+ein Stapel von 1 mit Gradientensparen passt neben die Reserve - dann die
+Reserve senken oder die Methode wechseln. Den Trainer neu zu starten kostet
+nur den laufenden Lauf.
 
 ---
 
