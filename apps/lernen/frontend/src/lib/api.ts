@@ -90,6 +90,8 @@ export type Lauf = {
   fenster: string;
   /** Ob die Geschwindigkeit gesucht wurde oder die des Profils galt. */
   tempowahl: string;
+  /** Womit jede Erkennung beginnt: aus | vokabular. */
+  kontext: string;
   /**
    * Die Geschwindigkeit, mit der dieser Lauf wirklich gerechnet hat.
    * `null` heißt bei `optimal`: wird noch gesucht.
@@ -205,6 +207,7 @@ export type Laufliste = {
   steuerungen: Wahl[];
   fenster: Wahl[];
   tempi: Wahl[];
+  kontexte: Wahl[];
   grundmodelle: Grundmodell[];
   /** Die Vorgabe, worauf trainiert wird. */
   basismodell: string;
@@ -247,6 +250,7 @@ export type Laufeinzeln = {
   steuerungen: Wahl[];
   fenster: Wahl[];
   tempi: Wahl[];
+  kontexte: Wahl[];
   grundmodelle: Grundmodell[];
   kurve_training: Punkt[];
   kurve_validierung: Punkt[];
@@ -404,6 +408,7 @@ export type Bestellung = {
   steuerung: string;
   fenster: string;
   tempowahl: string;
+  kontext: string;
   grundmodell: string;
 };
 

@@ -691,6 +691,19 @@ class TestSteuerung:
         assert "Steuergröße" in antwort.json()["detail"]
 
 
+class TestKontext:
+    def test_vokabular_steht_im_auftrag_und_im_code(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        sprich(6)
+        antwort = klient.post(
+            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original", "kontext": "vokabular"}
+        )
+        assert antwort.status_code == 201, antwort.text
+        assert antwort.json()["kontext"] == laeufe.KONTEXT_VOKABULAR
+        assert antwort.json()["code"].split("/")[0].endswith("-X")
+
+
 class TestFenster:
     def test_gekuerzt_steht_im_auftrag_und_im_code(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis

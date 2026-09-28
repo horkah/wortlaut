@@ -28,6 +28,7 @@ export type Trainingswahl = {
   steuerung: string;
   fenster: string;
   tempowahl: string;
+  kontext: string;
 };
 
 /** Die Vorgabe jeder Achse, wie in `wortlaut/laeufe.py`. */
@@ -46,6 +47,7 @@ export const VORGABE: Trainingswahl = {
   steuerung: 'verlust',
   fenster: 'voll',
   tempowahl: 'aus',
+  kontext: 'aus',
 };
 
 export function trainingswahl(): Trainingswahl {
@@ -70,6 +72,7 @@ export function trainingswahl(): Trainingswahl {
       steuerung: gelesen.steuerung ?? VORGABE.steuerung,
       fenster: gelesen.fenster ?? VORGABE.fenster,
       tempowahl: gelesen.tempowahl ?? VORGABE.tempowahl,
+      kontext: gelesen.kontext ?? VORGABE.kontext,
     };
   } catch {
     // Gesperrter Speicher oder kaputtes JSON - beides kein Fehlerfall.

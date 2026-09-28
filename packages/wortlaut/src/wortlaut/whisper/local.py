@@ -8,6 +8,10 @@ Zwei Arten von Modellangaben, beide von faster-whisper selbst unterschieden:
   faster-whisper beim ersten Aufruf herunterlädt.
 
 Worauf gerechnet wird, entscheidet `wortlaut/rechenwerk.py`.
+
+Liegt im Verzeichnis eines Standes ein `startprompt.txt`, beginnt jede
+Erkennung damit (`initial_prompt`) - das Vokabular, das der Stand beim
+Training mitbekommen hat (`apps/lernen/training/kontext.py`).
 """
 
 from __future__ import annotations
@@ -21,6 +25,19 @@ from .. import rechenwerk
 from . import Abschnitt, Transkript
 
 _log = logging.getLogger(__name__)
+
+# Der Startprompt eines Standes, neben seinen Gewichten.
+STARTPROMPT = "startprompt.txt"
+
+
+def startprompt(modell: Path | str) -> str | None:
+    """Der Startprompt, der bei diesem Modell liegt - `None` bei einem Namen oder ohne Datei."""
+    datei = Path(modell) / STARTPROMPT
+    try:
+        text = datei.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return text or None
 
 
 class LokalerTranskriptor:
@@ -43,6 +60,8 @@ class LokalerTranskriptor:
         self.wunsch = geraet
         self.geraet, self.rechenart = rechenwerk.waehle(geraet, rechenart)
         self._geladen = None  # das Modell selbst, erst beim ersten Aufruf geladen
+        # Mit dem Modell gelesen, damit ein neu geschriebener Stand ihn mitbringt.
+        self.startprompt: str | None = None
 
     @property
     def marke(self) -> str:
@@ -89,11 +108,14 @@ class LokalerTranskriptor:
         sich eine Karte teilt, kann dann auf Platz warten (`training/bewerten.py`)."""
         if self._geladen is None:
             self._geladen = self._lade()
+            self.startprompt = startprompt(self.modell)
 
     def transkribiere(self, wav: Path, sprache: str) -> Transkript:
         self.lade()
 
-        rohabschnitte, _info = self._geladen.transcribe(str(wav), language=sprache)
+        rohabschnitte, _info = self._geladen.transcribe(
+            str(wav), language=sprache, initial_prompt=self.startprompt
+        )
         rohabschnitte = list(rohabschnitte)
         abschnitte = [
             Abschnitt(start_s=a.start, ende_s=a.end, text=a.text.strip()) for a in rohabschnitte

@@ -35,10 +35,12 @@ from typing import Any
 
 import yaml
 from wortlaut import kartenplan, laeufe, sprachen, tempo
+from wortlaut.whisper.local import STARTPROMPT
 
 from . import abschluss as abschlussrechnung
 from . import adapter as zusatz
 from . import fenster as fensterrechnung
+from . import kontext
 from . import ausgangsstand
 from . import tempowahl
 from . import klangwandel
@@ -248,10 +250,15 @@ def _trainerklasse():
             geraet = eingang["input_features"].device.type
             # Gierig: Die Prüfung soll Stände ordnen, nicht die letzte Stelle treffen.
             with torch.no_grad(), torch.autocast(geraet, dtype=halb, enabled=halb is not None):
+                # Ein Durchgang, ohne Zeitmarken: Gibt ein entgleister Stand
+                # dennoch welche aus, rückt Whispers Segmentschleife sonst
+                # nicht vor und dekodiert ewig.
                 erzeugt = model.generate(
                     input_features=eingang["input_features"],
                     max_new_tokens=self.neue_marken,
                     num_beams=1,
+                    return_timestamps=False,
+                    force_unique_generate_call=True,
                 )
             return verlust, erzeugt, eingang["labels"]
 
@@ -772,6 +779,15 @@ def trainiere(
     # Die Umwandlung nimmt beide mit (`wandle_um`).
     zerteiler.save_pretrained(gewichte)
     ausleser.save_pretrained(gewichte)
+    startprompt: list[str] = []
+    if laeufe.kontext_aus(auftrag) == laeufe.KONTEXT_VOKABULAR:
+        # Nur aus dem, was diese Faltung lernt (`kontext.py`).
+        startprompt = kontext.schreibe(gewichte, lernzeilen, zerteiler, rezept)
+        bericht.sage(
+            f"Startprompt: {len(startprompt)} Wörter aus den Lerntexten"
+            if startprompt
+            else "Startprompt: kein seltenes Wort in den Lerntexten - es bleibt ohne"
+        )
 
     # Was das Endmodell von dieser Faltung mitnimmt.
     kennzahlen: dict[str, Any] = {
@@ -780,6 +796,7 @@ def trainiere(
         "alpha": ergebnis.alpha,
         "tempo": faktor,
         "fenster_s": fenster / fensterrechnung.RAHMEN_JE_S,
+        "startprompt_woerter": len(startprompt),
         "tempowahl": tempoergebnis.als_dict() if tempoergebnis is not None else None,
         # Worauf und wie gerechnet wurde - fürs Manifest (`bewerten.gib_frei`).
         "zuschnitt": {
@@ -1036,6 +1053,9 @@ def wandle_um(gewichte: Path, ziel: Path, bericht: Bericht) -> None:
     TransformersConverter(
         str(gewichte), copy_files=BEIZULEGEN, load_as_float16=True
     ).convert(str(ziel), quantization="float16", force=True)
+    # Der Startprompt reist mit dem Stand (`kontext.py`, `wortlaut/whisper/local.py`).
+    if (gewichte / STARTPROMPT).is_file():
+        shutil.copy2(gewichte / STARTPROMPT, ziel / STARTPROMPT)
 
 
 def _median(werte: list[float]) -> float | None:

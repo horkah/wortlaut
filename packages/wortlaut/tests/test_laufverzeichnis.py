@@ -227,8 +227,9 @@ class TestOptionscode:
             "augmentierung": "voll",
             "tempowahl": "optimal",
             "abschluss": "beides",
+            "kontext": "vokabular",
         }
-        assert laeufe.optionscode(auftrag) == "ML-Zd-R64-A-K-Qv-U-E-W-F-SRP-Ts-CI"
+        assert laeufe.optionscode(auftrag) == "ML-Zd-R64-A-K-Qv-U-E-W-F-SRP-Ts-CI-X"
 
     def test_die_alte_tempowahl_zaehlt_als_aus(self) -> None:
         auftrag = {"basismodell": "openai/whisper-small", "methode": "full",
@@ -283,6 +284,7 @@ class TestOptionscode:
             laeufe.CODE_AUGMENTIERUNG,
             laeufe.CODE_TEMPO,
             laeufe.CODE_ABSCHLUSS,
+            laeufe.CODE_KONTEXT,
         )
         anfaenge = [{code[0] for code in tafel.values() if code} for tafel in tafeln]
         for i, eine in enumerate(anfaenge):
@@ -303,6 +305,7 @@ class TestOptionscode:
         assert set(laeufe.CODE_AUGMENTIERUNG) == set(laeufe.AUGMENTIERUNGEN)
         assert set(laeufe.CODE_TEMPO) == set(laeufe.TEMPI)
         assert set(laeufe.CODE_ABSCHLUSS) == set(laeufe.ABSCHLUESSE)
+        assert set(laeufe.CODE_KONTEXT) == set(laeufe.KONTEXTE)
 
 
 class TestKern:

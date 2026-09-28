@@ -86,6 +86,7 @@ class Auftrag:
     steuerung: str = laeufe.STEUERUNG_VERLUST
     fenster: str = laeufe.FENSTER_VOLL
     tempowahl: str = laeufe.TEMPO_AUS
+    kontext: str = laeufe.KONTEXT_AUS
     # Leer: das unveränderte `basismodell`.
     ausgangsstand: str = ""
     auswahl: str = laeufe.AUSWAHL_ALLE
@@ -259,6 +260,7 @@ def beauftrage(
         "dauer": auftrag.dauer,
         "steuerung": auftrag.steuerung,
         "fenster": auftrag.fenster,
+        "kontext": auftrag.kontext,
         "basismodell": auftrag.basismodell,
         "sprache": auftrag.sprache,
         "tempowahl": auftrag.tempowahl,
@@ -306,6 +308,7 @@ class Bestellung:
     steuerung: str = laeufe.STEUERUNG_VERLUST
     fenster: str = laeufe.FENSTER_VOLL
     tempowahl: str = laeufe.TEMPO_AUS
+    kontext: str = laeufe.KONTEXT_AUS
     grundmodell: str = ""
 
 
@@ -338,6 +341,7 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
         (bestellung.steuerung, laeufe.STEUERUNGEN, "Steuergröße"),
         (bestellung.fenster, laeufe.FENSTER, "Fenster"),
         (bestellung.tempowahl, laeufe.TEMPI, "Tempowahl"),
+        (bestellung.kontext, laeufe.KONTEXTE, "Kontext"),
     ):
         if wert not in erlaubt:
             raise Abgelehnt(400, f"Unbekannt ({was}): {wert}. Zur Wahl: {', '.join(erlaubt)}.")
@@ -398,6 +402,7 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
             dauer=bestellung.dauer,
             steuerung=bestellung.steuerung,
             fenster=bestellung.fenster,
+            kontext=bestellung.kontext,
             tempowahl=bestellung.tempowahl,
             basismodell=grundmodell,
             # Für Whispers Sprachmarken und die Bewertung (`wortlaut/sprachen.py`).

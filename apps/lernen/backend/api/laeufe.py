@@ -342,6 +342,25 @@ TEMPI = [
 ]
 
 
+KONTEXTE = [
+    WahlAntwort(
+        schluessel=lauf_layout.KONTEXT_AUS,
+        name="Aus",
+        erklaerung="",
+        code=lauf_layout.CODE_KONTEXT[lauf_layout.KONTEXT_AUS],
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.KONTEXT_VOKABULAR,
+        name="Vokabular",
+        erklaerung=(
+            "Startprompt mit den seltenen Wörtern der Lerntexte - je Faltung nur ihren; "
+            "gilt überall, wo der Stand hört."
+        ),
+        code=lauf_layout.CODE_KONTEXT[lauf_layout.KONTEXT_VOKABULAR],
+    ),
+]
+
+
 class GrundmodellAntwort(BaseModel):
     """Ein Grundmodell zur Wahl - und was es verträgt.
 
@@ -401,6 +420,7 @@ class Bestellung(BaseModel):
     steuerung: str = lauf_layout.STEUERUNG_VERLUST
     fenster: str = lauf_layout.FENSTER_VOLL
     tempowahl: str = lauf_layout.TEMPO_AUS
+    kontext: str = lauf_layout.KONTEXT_AUS
     # Leer: die Vorgabe des Servers.
     grundmodell: str = ""
     auswahl: str = lauf_layout.AUSWAHL_ALLE
@@ -435,6 +455,7 @@ class LaufAntwort(BaseModel):
     steuerung: str = lauf_layout.STEUERUNG_VERLUST
     fenster: str = lauf_layout.FENSTER_VOLL
     tempowahl: str = lauf_layout.TEMPO_AUS
+    kontext: str = lauf_layout.KONTEXT_AUS
     # Das Tempo, mit dem gerechnet wurde; `null`, solange die Suche läuft.
     tempo: float | None = None
     # Während der Suche der Median des bisher Gefundenen - dann `false`.
@@ -515,6 +536,7 @@ class EinzelAntwort(BaseModel):
     steuerungen: list[WahlAntwort]
     fenster: list[WahlAntwort]
     tempi: list[WahlAntwort]
+    kontexte: list[WahlAntwort]
     grundmodelle: list[GrundmodellAntwort]
     kurve_training: list[PunktAntwort]
     kurve_validierung: list[PunktAntwort]
@@ -541,6 +563,7 @@ class ListeAntwort(BaseModel):
     steuerungen: list[WahlAntwort]
     fenster: list[WahlAntwort]
     tempi: list[WahlAntwort]
+    kontexte: list[WahlAntwort]
     grundmodelle: list[GrundmodellAntwort]
     basismodell: str
     # Vom Server, damit die Oberfläche die Zahl nicht selbst kennt.
@@ -681,6 +704,7 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         steuerung=lauf_layout.steuerung_aus(lauf.auftrag),
         fenster=lauf_layout.fenster_aus(lauf.auftrag),
         tempowahl=lauf_layout.tempowahl_aus(lauf.auftrag),
+        kontext=lauf_layout.kontext_aus(lauf.auftrag),
         tempo=_tempo_des_laufs(lauf),
         tempo_endgueltig=bool(lauf.zustand.get("tempo_endgueltig", True)),
         basismodell=str(lauf.auftrag.get("basismodell", "")),
@@ -1009,6 +1033,13 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
         )
 
     dazu("Abschluss", _abschlusstext(manifest))
+    if lauf_layout.kontext_aus(auftrag) == lauf_layout.KONTEXT_VOKABULAR:
+        woerter = [wort for wort in str(manifest.get("startprompt") or "").split(", ") if wort]
+        dazu(
+            "Startprompt",
+            f"{len(woerter)} Wörter" if manifest else _wahlname(KONTEXTE, "vokabular"),
+            "die seltenen Wörter der Lerntexte, vor jeder Erkennung",
+        )
 
     # ── Was dabei herauskam ─────────────────────────────────────────────────
     gemessen = dict(zustand.get("metriken") or {})
@@ -1089,6 +1120,7 @@ def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         steuerungen=STEUERUNGEN,
         fenster=FENSTER,
         tempi=TEMPI,
+        kontexte=KONTEXTE,
         grundmodelle=_grundmodelle(),
         basismodell=konfiguration.lernen_basismodell,
         faltungen=lauf_layout.FALTUNGEN,
@@ -1142,6 +1174,7 @@ def beauftrage(
                 steuerung=bestellung.steuerung,
                 fenster=bestellung.fenster,
                 tempowahl=bestellung.tempowahl,
+                kontext=bestellung.kontext,
                 grundmodell=bestellung.grundmodell,
             ),
         )
@@ -1183,6 +1216,7 @@ def einzeln(
         steuerungen=STEUERUNGEN,
         fenster=FENSTER,
         tempi=TEMPI,
+        kontexte=KONTEXTE,
         grundmodelle=_grundmodelle(),
         kurve_training=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["training"]],
         kurve_validierung=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["validierung"]],

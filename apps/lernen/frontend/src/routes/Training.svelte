@@ -57,6 +57,7 @@
   let steuerung = $state(gemerkt.steuerung);
   let fenster = $state(gemerkt.fenster);
   let tempowahl = $state(gemerkt.tempowahl);
+  let kontext = $state(gemerkt.kontext);
 
   $effect(() => {
     setzeTrainingswahl({
@@ -74,6 +75,7 @@
       steuerung,
       fenster,
       tempowahl,
+      kontext,
     });
   });
 
@@ -162,6 +164,7 @@
           ['Augmentierung', daten.augmentierungen, (lauf) => lauf.augmentierung],
           ['Tempo', daten.tempi, (lauf) => lauf.tempowahl],
           ['Abschluss', daten.abschluesse, (lauf) => lauf.abschluss],
+          ['Kontext', daten.kontexte, (lauf) => lauf.kontext],
         ]
       : [],
   );
@@ -238,6 +241,7 @@
               lauf.steuerung || 'verlust',
               lauf.fenster || 'voll',
               lauf.tempowahl || 'wie_eingestellt',
+              lauf.kontext || 'aus',
             ].join('/'),
         ),
     ),
@@ -266,6 +270,7 @@
       steuerung,
       fenster,
       tempowahl,
+      kontext,
     ].join('/'),
   );
 
@@ -367,6 +372,7 @@
           steuerung,
           fenster,
           tempowahl,
+          kontext,
           grundmodell,
         },
         schluessel,
@@ -747,6 +753,18 @@
           <label class="option">
             <input type="radio" bind:group={abschluss} value={wahl.schluessel} />
             {@render option(wahl, prozent('Abschluss', wahl))}
+          </label>
+        {/each}
+      </fieldset>
+
+      <!-- Wirkt nur beim Dekodieren, dort aber überall, wo der Stand hört
+           (`training/kontext.py`). -->
+      <fieldset>
+        <legend>Kontext</legend>
+        {#each daten.kontexte as wahl (wahl.schluessel)}
+          <label class="option">
+            <input type="radio" bind:group={kontext} value={wahl.schluessel} />
+            {@render option(wahl, prozent('Kontext', wahl))}
           </label>
         {/each}
       </fieldset>

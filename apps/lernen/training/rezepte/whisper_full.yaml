@@ -54,6 +54,12 @@ selbst_mindestsicherheit: 0.8
 # des Laufs aufgeschlagen wird, bevor auf ganze Sekunden gerundet wird.
 fenster_zuschlag_s: 1.0
 
+# Zum Kontext `vokabular` (`training/kontext.py`): Marken für den ganzen
+# Startprompt (Whisper erlaubt 223) und ab wie vielen Stücken ein Wort als
+# selten gilt.
+kontext_marken: 120
+kontext_mindestteile: 3
+
 # Die Zahlen zur Augmentierungsstufe des Auftrags - je Probe und Durchgang
 # neu gewürfelt, nichts abgelegt (`training/klangwandel.py`).
 augmentierung:
