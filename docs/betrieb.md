@@ -302,6 +302,12 @@ uv run python scripts/purge_speaker.py spr_7f2a --ja-wirklich
 
 ## Wenn etwas klemmt
 
+Zuerst ins **Fehlerprotokoll** (Menü, unter „System"): Warnungen und Fehler
+von Webdienst, Läufer und Training der letzten sieben Tage, mit Stapel. Es
+liegt in `data/protokoll/fehler.jsonl`, geschrieben von allen Prozessen
+(`wortlaut/fehlerlog.py`); Älteres fällt heraus. Zu sehen für Aufsicht,
+Verwaltung und wer den Trainerschlüssel im Browser hat.
+
 | Symptom | Ursache |
 |---|---|
 | `ffmpeg ist gescheitert` beim Upload | ffmpeg fehlt, oder das Format ist kaputt |

@@ -23,7 +23,9 @@ from contextlib import AsyncExitStack
 from typing import Any
 
 from fastapi import FastAPI
+from wortlaut import fehlerlog
 
+from apps.hoeren.backend.config import einstellungen
 from apps.hoeren.backend.main import app as hoeren
 from apps.lernen.backend.main import BASIS as LERNEN, app as lernen
 from apps.schreiben.backend.main import BASIS as SCHREIBEN, app as schreiben
@@ -50,6 +52,8 @@ async def _lebenszyklus(receive, send) -> None:
     """Start und Ende an alle drei Apps weitergeben, damit ein Handler dafür
     nicht unbemerkt ausfällt."""
     await receive()  # lifespan.startup
+    # Warnungen und Fehler aller drei Apps ins Fehlerprotokoll.
+    fehlerlog.richte_ein(lambda: einstellungen().data_dir, "app")
     async with AsyncExitStack() as stapel:
         try:
             for teil in (hoeren, lernen, schreiben):

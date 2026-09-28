@@ -37,6 +37,12 @@ class Grundeinstellungen(BaseSettings):
 
     data_dir: Path = Path("./data")
 
+    # Wer ein Training anstoßen darf (`X-Trainer-Key` vor Beauftragen und
+    # Neustart in „lernen"). Der Sprecherzugang sagt, wessen Modell entsteht,
+    # nicht, wer die Karte stundenlang belegen darf. Er öffnet auch das
+    # Fehlerprotokoll in „hören". Leer heißt abgeschaltet.
+    trainer_key: str = ""
+
     # Die Stimmen für das Vorlesen (`wortlaut/vorlesen.py`) - Modelldateien wie
     # die Whisper-Modelle, deshalb im selben Modellspeicher, nicht im Abbild
     # und nicht in der Sicherung.

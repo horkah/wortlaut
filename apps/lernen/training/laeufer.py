@@ -21,6 +21,7 @@ trägt den Zustand selbst ein.
 
 from __future__ import annotations
 
+import logging
 import os
 import signal
 import subprocess
@@ -29,9 +30,13 @@ import threading
 import time
 from pathlib import Path
 
-from wortlaut import laeufe
+from wortlaut import fehlerlog, laeufe
 
 from apps.lernen.backend.config import einstellungen
+
+# Ins Fehlerprotokoll (`wortlaut/fehlerlog.py`); die übrigen Zeilen gehen wie
+# bisher nur ins Container-Log.
+_log = logging.getLogger("wortlaut.trainer")
 
 
 # Wie oft nachgesehen wird, ob jemand anhalten will, und wie lange ein
@@ -182,6 +187,14 @@ def einmal() -> bool:
     if entfernt:
         print(f"Zwischenstände weggeräumt: {', '.join(entfernt)}", flush=True)
     print(f"Auftrag {lauf.job_id} beendet ({rueckgabe})", flush=True)
+    nachher = laeufe.lies_lauf(konfiguration.data_dir, lauf.job_id)
+    if nachher is not None and nachher.status == laeufe.GESCHEITERT:
+        _log.error(
+            "Lauf %s (%s) gescheitert: %s",
+            lauf.job_id,
+            laeufe.titel(lauf.auftrag),
+            nachher.zustand.get("fehler") or f"Rückgabe {rueckgabe}",
+        )
     return True
 
 
@@ -196,11 +209,12 @@ def melde_karte() -> None:
             timeout=120,
         )
     except subprocess.TimeoutExpired:
-        print("Karte nicht gemeldet - die Messung hing.", flush=True)
+        _log.warning("Karte nicht gemeldet - die Messung hing.")
 
 
 def main() -> int:
     konfiguration = einstellungen()
+    fehlerlog.richte_ein(lambda: einstellungen().data_dir, "trainer")
     print(
         f"Läufer bereit. Datenverzeichnis: {konfiguration.data_dir}, "
         f"Takt: {konfiguration.lernen_takt_s} s",
@@ -208,7 +222,7 @@ def main() -> int:
     )
     melde_karte()
     for job_id in raeume_verwaiste_auf():
-        print(f"Verwaist aus einem früheren Lauf, als gescheitert vermerkt: {job_id}", flush=True)
+        _log.warning("Verwaist aus einem früheren Lauf, als gescheitert vermerkt: %s", job_id)
     while True:
         try:
             if not einmal():
@@ -218,7 +232,7 @@ def main() -> int:
             return 0
         except Exception as ursache:  # noqa: BLE001 - der Läufer bleibt stehen
             # Ein Fehler beim Nachsehen soll nicht alle folgenden Aufträge mitnehmen.
-            print(f"Läufer: {type(ursache).__name__}: {ursache}", flush=True)
+            _log.error("Läufer: %s: %s", type(ursache).__name__, ursache, exc_info=True)
             time.sleep(konfiguration.lernen_takt_s)
 
 

@@ -22,6 +22,7 @@ from wortlaut.web import FrontendDateien
 from .api import (
     admin,
     auswertung,
+    fehlerlog,
     intake,
     konto,
     progress,
@@ -49,6 +50,8 @@ app.include_router(zugang.router)
 
 app.include_router(sprachen.router)
 app.include_router(system.router)
+# Der Wächter steckt im Weg selbst: Verwaltung, Aufsicht oder Trainerschlüssel.
+app.include_router(fehlerlog.router)
 
 # Alles, was Daten berührt. Der Wächter steckt in `SprecherId`/`Datenbank`.
 for router in (

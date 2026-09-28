@@ -25,7 +25,7 @@
   } from '../lib/api';
   import Papierkorb from '../lib/Papierkorb.svelte';
   import { loescheNachRueckfrage } from '../lib/laufloeschen';
-  import { setzeTrainerschluessel, trainerschluessel } from '../lib/trainerschluessel';
+  import { setzeTrainerschluessel, trainerschluessel } from '$ui/trainerschluessel.svelte';
   import { setzeTrainingswahl, trainingswahl } from '../lib/trainingswahl';
   import { LAUF_ROUTE, gehZu } from '../lib/zustand.svelte';
   import { zeitpunkt } from '$ui/zeit';
@@ -119,7 +119,7 @@
   });
   // Der Trainerschlüssel. Er steht hier neben Methode und Datensatz, weil er
   // an derselben Stelle gebraucht wird - aber er gehört nicht zur Bestellung,
-  // sondern zur Erlaubnis, sie aufzugeben (siehe `lib/trainerschluessel.ts`).
+  // sondern zur Erlaubnis, sie aufzugeben (siehe `$ui/trainerschluessel.svelte.ts`).
   let schluessel = $state(trainerschluessel());
 
   const laeufe = $derived(daten?.laeufe ?? []);
