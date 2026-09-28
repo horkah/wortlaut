@@ -712,6 +712,22 @@ def jetzt() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
+def dauer_text(sekunden: float) -> str:
+    """Eine Laufzeit wie überall in der Oberfläche: `1 h 23 min`, `42 min 5 s`, `8 s`.
+
+    Dieselbe Regel wie `dauer` in `packages/ui/zeit.ts`: höchstens zwei
+    Einheiten, eine glatte Null am Ende fällt weg, keine Dezimalstunden.
+    """
+    gesamt = max(0, round(sekunden))
+    stunden, rest = divmod(gesamt, 3600)
+    minuten, sek = divmod(rest, 60)
+    if stunden:
+        return f"{stunden} h {minuten} min" if minuten else f"{stunden} h"
+    if minuten:
+        return f"{minuten} min {sek} s" if sek else f"{minuten} min"
+    return f"{sek} s"
+
+
 def wurzel(datenverzeichnis: Path) -> Path:
     return datenverzeichnis / SCHNAPPSCHUESSE
 

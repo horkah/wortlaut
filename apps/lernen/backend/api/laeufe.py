@@ -746,18 +746,13 @@ class SteckbriefZeile(BaseModel):
 
 
 def _dauer_lesbar(von: str, bis: str) -> str:
-    """`2026-09-14T08:52:23+00:00` bis `…09:34:36+00:00` → `42 Minuten`."""
+    """`2026-09-14T08:52:23+00:00` bis `…10:15:36+00:00` → `1 h 23 min`."""
     try:
         anfang = datetime.fromisoformat(von)
         ende = datetime.fromisoformat(bis)
     except (TypeError, ValueError):
         return ""
-    sekunden = max(0.0, (ende - anfang).total_seconds())
-    if sekunden < 90:
-        return f"{sekunden:.0f} Sekunden"
-    if sekunden < 5400:
-        return f"{sekunden / 60:.0f} Minuten"
-    return f"{sekunden / 3600:.1f} Stunden".replace(".", ",")
+    return lauf_layout.dauer_text((ende - anfang).total_seconds())
 
 
 def _wahlname(liste: list[WahlAntwort], schluessel: str) -> str:
