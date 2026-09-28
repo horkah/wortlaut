@@ -313,6 +313,8 @@ mit LoRA gibt.
 * **α wächst mit dem Rang** (`alpha_je_rang: 2`): Bei festem α hieße ein
   kleinerer Rang zugleich eine größere wirksame Lernrate, und der Vergleich
   der Ränge mäße beides.
+* **Was passt, entscheidet die Karte** (`kartenplan.lora_passt`, siehe
+  [lernen](lernen.md)); auf der 2080 Ti bei `large-v3` jede Wahl.
 * **`out_proj`**, nicht `o_proj`: So heißt die Ausgabeprojektion bei Whisper.
   Auf einen Teil beschränkt, bekommt peft ein Muster über den ganzen
   Modulnamen statt einer Namensliste.

@@ -18,6 +18,11 @@ passt, entscheidet dieser Plan:
 * **Welche Methoden überhaupt gehen** (`methoden`): volles Feintuning braucht
   Gewichte, Gradienten und Adam in `float32`, sechzehn Byte je Gewicht. Auf
   11 GB passt das für `small`, auf 40 GB für `large-v3`.
+* **Welcher LoRA-Zusatz geht** (`lora_passt`): Der Zusatz kostet dieselben
+  sechzehn Byte je Gewicht, und wie viele es sind, hängt an Rang und Zielen
+  (`lora_parameter`). Auf der 2080 Ti passt bei `large-v3` jede Wahl - alle
+  Projektionen mit Rang 64 brauchen im Probeschritt 5,3 GB -, auf kleineren
+  Karten nicht mehr.
 
 **Gemessen, nicht angenommen.** Der Trainer beschreibt seine Karte
 (`Karte`) und legt sie neben die Läufe (`karte.json`), `lernen` liest sie und
@@ -54,6 +59,21 @@ PARAMETER_MIO = {
 }
 # Ein unbekanntes Modell wird behandelt wie das größte bekannte.
 UNBEKANNT_MIO = max(PARAMETER_MIO.values())
+
+# Breite und Schichten in Encoder und Decoder - für die Größe eines LoRA-Zusatzes.
+ABMESSUNGEN = {
+    "tiny": (384, 4, 4),
+    "base": (512, 6, 6),
+    "small": (768, 12, 12),
+    "medium": (1024, 24, 24),
+    "large": (1280, 32, 32),
+    "large-v2": (1280, 32, 32),
+    "large-v3": (1280, 32, 32),
+    "large-v3-turbo": (1280, 32, 4),
+}
+UNBEKANNT_ABMESSUNGEN = max(ABMESSUNGEN.values())
+# Die Projektionen der Aufmerksamkeit; `fc1` und `fc2` sind die des Feedforward.
+AUFMERKSAMKEIT = ("q_proj", "k_proj", "v_proj", "out_proj")
 
 # Byte je Gewicht, das auf der Karte liegt.
 BYTE_VOLL = 16  # float32: Gewicht, Gradient, zwei Adam-Momente
@@ -130,6 +150,47 @@ def bedarf_mb(kurzname: str, methode: str, halbe_grundgewichte: bool = True) -> 
     else:
         je_gewicht = BYTE_HALB if halbe_grundgewichte else BYTE_GANZ
     return gewichte * je_gewicht / 1e6 + GRUNDLAST_MB
+
+
+def lora_parameter(
+    kurzname: str, module: tuple[str, ...], teile: tuple[str, ...], rang: int
+) -> int:
+    """Wie viele Gewichte ein LoRA-Zusatz hat: je Projektion Rang mal (Eingang + Ausgang).
+
+    Im Decoder gibt es jede Projektion der Aufmerksamkeit zweimal - Selbst- und
+    Kreuzaufmerksamkeit. Der Feedforward ist viermal so breit wie das Modell.
+    """
+    breite, encoder, decoder = ABMESSUNGEN.get(kurzname, UNBEKANNT_ABMESSUNGEN)
+    je_modul = {name: 2 * breite for name in AUFMERKSAMKEIT} | {
+        "fc1": 5 * breite,
+        "fc2": 5 * breite,
+    }
+    gesamt = 0
+    for teil, schichten in (("encoder", encoder), ("decoder", decoder)):
+        if teil not in teile:
+            continue
+        for name in module:
+            anzahl = 2 if teil == "decoder" and name in AUFMERKSAMKEIT else 1
+            gesamt += schichten * anzahl * je_modul.get(name, 2 * breite) * rang
+    return gesamt
+
+
+def lora_passt(
+    kurzname: str,
+    module: tuple[str, ...],
+    teile: tuple[str, ...],
+    rang: int,
+    karte: Karte | None,
+    reserve_mb: float,
+) -> bool:
+    """Ob LoRA mit diesem Zusatz auf diese Karte passt - Grundmodell halb, Zusatz voll.
+
+    Ohne Karte ja, wie bei `methoden`.
+    """
+    if karte is None:
+        return True
+    zusatz = lora_parameter(kurzname, module, teile, rang) * BYTE_VOLL / 1e6
+    return bedarf_mb(kurzname, "lora") + zusatz <= nutzbar_mb(karte, reserve_mb)
 
 
 def nutzbar_mb(karte: Karte, reserve_mb: float) -> float:

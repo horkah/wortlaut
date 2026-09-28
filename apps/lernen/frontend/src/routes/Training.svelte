@@ -105,6 +105,18 @@
   const mitLora = $derived(methode === 'lora');
   const bestellteZiele = $derived(mitLora ? loraZiele : 'qv');
   const bestellterRang = $derived(mitLora ? loraRang : '32');
+
+  // Welche Zusätze mit dem Grundmodell auf die Karte passen - wie bei den
+  // Methoden sagt es der Server. Passt die Wahl nicht, rückt erst der Rang
+  // nach, dann die Ziele.
+  const erlaubteLora = $derived(gewaehltesGrundmodell?.lora ?? []);
+  const loraGeht = (ziele: string, rang: string) =>
+    !erlaubteLora.length || erlaubteLora.includes(`${ziele}/${rang}`);
+  $effect(() => {
+    if (!mitLora || !erlaubteLora.length || loraGeht(loraZiele, loraRang)) return;
+    const gleicheZiele = erlaubteLora.find((wahl) => wahl.startsWith(`${loraZiele}/`));
+    [loraZiele, loraRang] = (gleicheZiele ?? erlaubteLora[0]).split('/');
+  });
   // Der Trainerschlüssel. Er steht hier neben Methode und Datensatz, weil er
   // an derselben Stelle gebraucht wird - aber er gehört nicht zur Bestellung,
   // sondern zur Erlaubnis, sie aufzugeben (siehe `lib/trainerschluessel.ts`).
@@ -629,9 +641,15 @@
       <fieldset disabled={!mitLora}>
         <legend>LoRA-Ziele</legend>
         {#each daten.lora_ziele as wahl (wahl.schluessel)}
-          <label class="option" class:nichtmoeglich={!mitLora}>
-            <input type="radio" bind:group={loraZiele} value={wahl.schluessel} />
-            {@render option(wahl, prozent('LoRA-Ziele', wahl))}
+          {@const geht = loraGeht(wahl.schluessel, loraRang)}
+          <label class="option" class:nichtmoeglich={!mitLora || !geht}>
+            <input type="radio" bind:group={loraZiele} value={wahl.schluessel} disabled={!geht} />
+            {@render option(
+              geht
+                ? wahl
+                : { ...wahl, erklaerung: `Mit Rang ${loraRang} und ${gewaehltesGrundmodell?.name} nicht möglich (GPU-Speicher).` },
+              prozent('LoRA-Ziele', wahl),
+            )}
           </label>
         {/each}
       </fieldset>
@@ -639,9 +657,15 @@
       <fieldset disabled={!mitLora}>
         <legend>LoRA-Rang</legend>
         {#each daten.lora_raenge as wahl (wahl.schluessel)}
-          <label class="option" class:nichtmoeglich={!mitLora}>
-            <input type="radio" bind:group={loraRang} value={wahl.schluessel} />
-            {@render option(wahl, prozent('LoRA-Rang', wahl))}
+          {@const geht = loraGeht(loraZiele, wahl.schluessel)}
+          <label class="option" class:nichtmoeglich={!mitLora || !geht}>
+            <input type="radio" bind:group={loraRang} value={wahl.schluessel} disabled={!geht} />
+            {@render option(
+              geht
+                ? wahl
+                : { ...wahl, erklaerung: `Mit diesen Zielen und ${gewaehltesGrundmodell?.name} nicht möglich (GPU-Speicher).` },
+              prozent('LoRA-Rang', wahl),
+            )}
           </label>
         {/each}
       </fieldset>

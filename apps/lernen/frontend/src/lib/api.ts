@@ -43,6 +43,8 @@ export type Grundmodell = {
   name: string;
   erklaerung: string;
   methoden: string[];
+  /** Die LoRA-Zusätze, die auf die Karte passen, als `ziele/rang`. */
+  lora: string[];
   /** Sein Anfang im Optionscode: `S`, `M`, `L3`. */
   code: string;
 };

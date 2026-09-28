@@ -372,6 +372,8 @@ class GrundmodellAntwort(BaseModel):
     name: str
     erklaerung: str
     methoden: list[str]
+    # Die LoRA-Zusätze, die passen, als `ziele/rang` (`kartenplan.lora_passt`).
+    lora: list[str]
     code: str
 
 
@@ -387,6 +389,7 @@ def _grundmodelle() -> list[GrundmodellAntwort]:
                 # Welche Methoden passen, steht daneben - auf dieser Karte.
                 erklaerung=f"{kartenplan.parameter(kurz) / 1e6:.0f} M Parameter.",
                 methoden=list(konfiguration.methoden_fuer(modell)),
+                lora=konfiguration.lora_fuer(modell),
                 code=lauf_layout.grundmodellcode(modell),
             )
         )
