@@ -341,8 +341,8 @@ Modell eine Aufnahmesituation, statt den Sprecher zu verstehen.
 
 **Sicherheit** schaltet unter jeder Zahl den 95-%-Bereich ein, als Bootstrap
 über 2000 Ziehungen je Aufnahme (`wortlaut/streuung.py`) - die Fassungen einer
-Aufnahme sind Messungen an einem Gegenstand. Die Ziehung je Einheit steht zur
-Wahl, weil sie in der Literatur üblich ist. **Gegen** paart jede Zeile mit
+Aufnahme sind Messungen an einem Gegenstand; je Messung gezogen wäre der
+Bereich zu schmal. **Gegen** paart jede Zeile mit
 einem gewählten Modell und zeigt den Abstand mit p-Wert; das ist schärfer als
 zwei überlappende Bereiche. Eingeschaltet ändert sich keine Zahl - der Bereich
 tritt daneben. Überlappen sich bester und zweitbester Wert einer Spalte, trägt
@@ -405,7 +405,7 @@ POST   /lernen/api/laeufe/{id}/abbruch      anhalten
 POST   /lernen/api/laeufe/{id}/neustart     neu starten, ersetzt ihn     + X-Trainer-Key
 DELETE /lernen/api/laeufe/{id}              löschen, samt Stand
 GET    /lernen/api/modelle                  die Tafel
-                                            ?intervall=aus|aufnahme|einheit&vergleich_mit=<ref>
+                                            ?intervall=aus|aufnahme&vergleich_mit=<ref>
 POST   /lernen/api/modelle/freigabe         { ref } - leer nimmt die Freigabe zurück
 GET    /lernen/api/modelle/grundmodell/{n}  Steckbrief eines Grundmodells, seine Zahlen
 GET    /gesundheit                          ohne Zugang
