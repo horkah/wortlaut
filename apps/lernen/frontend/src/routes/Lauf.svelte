@@ -117,6 +117,21 @@
     return `${anteil >= 0 ? '+' : ''}${anteil.toFixed(0)} %`;
   }
 
+  /**
+   * Die Punkte einer Reihe, je Training für sich: Jede Faltung und das
+   * Endmodell zählen ihre Schritte wieder ab null. Wo der Schritt zurückspringt,
+   * steht eine Lücke - sonst zöge ECharts eine Linie vom Ende einer Faltung
+   * zum Anfang der nächsten.
+   */
+  function abschnitte(punkte: [number, number | null][]): [number, number | null][] {
+    const ergebnis: [number, number | null][] = [];
+    punkte.forEach((punkt, stelle) => {
+      if (stelle > 0 && punkt[0] < punkte[stelle - 1][0]) ergebnis.push([punkt[0], null]);
+      ergebnis.push(punkt);
+    });
+    return ergebnis;
+  }
+
   function option() {
     const schrift = farbe('--text', '#1c1b19');
     const leise = farbe('--gedaempft', '#6b6b6b');
@@ -178,7 +193,7 @@
           // darin unter.
           showSymbol: false,
           smooth: true,
-          data: kurve.map((punkt) => [punkt.schritt, punkt.verlust]),
+          data: abschnitte(kurve.map((punkt) => [punkt.schritt, punkt.verlust])),
           lineStyle: { color: akzent, width: 2 },
           itemStyle: { color: akzent },
         },
@@ -190,7 +205,7 @@
           // Punkte liest man ab.
           symbolSize: 7,
           smooth: false,
-          data: pruefung.map((punkt) => [punkt.schritt, punkt.verlust]),
+          data: abschnitte(pruefung.map((punkt) => [punkt.schritt, punkt.verlust])),
           lineStyle: { color: '#d55e00', width: 2, type: 'dashed' as const },
           itemStyle: { color: '#d55e00' },
         },
@@ -203,9 +218,11 @@
                 yAxisIndex: 1,
                 symbolSize: 7,
                 smooth: false,
-                data: pruefung
-                  .filter((punkt) => punkt.wer !== null && punkt.wer !== undefined)
-                  .map((punkt) => [punkt.schritt, punkt.wer]),
+                data: abschnitte(
+                  pruefung
+                    .filter((punkt) => punkt.wer !== null && punkt.wer !== undefined)
+                    .map((punkt): [number, number | null] => [punkt.schritt, punkt.wer]),
+                ),
                 lineStyle: { color: '#0072b2', width: 2, type: 'dotted' as const },
                 itemStyle: { color: '#0072b2' },
               },
