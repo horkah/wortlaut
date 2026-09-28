@@ -104,6 +104,7 @@ Optionscode. Die Vorgabe ist jeweils der erste Wert.
 | Selbsttraining | aus, unbestätigte Diktate | ob das freigegebene Modell unbestätigte Diktate beschriftet und sie mitlernen |
 | Epochen | fest, geduldig | feste Obergrenze oder Early Stopping |
 | Steuergröße | Validierungsverlust, WER | woran Checkpoint, Abbruch und α gewählt werden |
+| Fenster | 30 Sekunden, gekürzt | Encoder im Training auf die längste Aufnahme gekürzt, ausgeliefert mit 30 s |
 | Augmentierung | keine, SpecAugment, + Raum + Rauschen, + Tempo | Abwandlung zur Laufzeit, nur auf den Lernproben |
 | Tempo | aus, geschätzt, gesucht | siehe [Wie schnell gehört wird](#wie-schnell-gehört-wird) |
 | Abschluss | bester Checkpoint, Checkpoint-Mittel, WiSE-FT, beides | was am Ende mit den Gewichten geschieht |
@@ -200,6 +201,7 @@ Glied, wenn sie nicht auf ihrer Vorgabe steht:
 | Selbsttraining | aus, an | –, `U` |
 | Epochen | fest, geduldig | –, `E` |
 | Steuergröße | Verlust, WER | –, `W` |
+| Fenster | 30 s, gekürzt | –, `F` |
 | Augmentierung | keine, SpecAugment, + Raum + Rauschen, + Tempo | –, `S`, `SR`, `SRP` |
 | Tempo | aus, geschätzt, gesucht | –, `Tg`, `Ts` |
 | Abschluss | bester, Mittel, WiSE-FT, beides | –, `C`, `I`, `CI` |

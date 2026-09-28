@@ -691,6 +691,20 @@ class TestSteuerung:
         assert "Steuergröße" in antwort.json()["detail"]
 
 
+class TestFenster:
+    def test_gekuerzt_steht_im_auftrag_und_im_code(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        sprich(6)
+        antwort = klient.post(
+            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original", "fenster": "gekuerzt"}
+        )
+        assert antwort.status_code == 201, antwort.text
+        assert antwort.json()["fenster"] == laeufe.FENSTER_GEKUERZT
+        assert antwort.json()["code"].split("/")[0].endswith("-F")
+        assert _beauftrage(klient)["fenster"] == laeufe.FENSTER_VOLL
+
+
 class TestLoraZusatz:
     """Ziele und Rang des LoRA-Zusatzes (`training/adapter.py`)."""
 

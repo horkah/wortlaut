@@ -322,10 +322,14 @@ def interpoliere(
             eigen = modell.state_dict()
             # `.clone()`: Auf dem Prozessor gibt `.to("cpu")` denselben Speicher
             # zurück, und jedes α rechnete auf dem vorigen weiter.
+            # Nur, was dieselbe Form hat - im gekürzten Fenster ist die feste
+            # Positionseinbettung des Encoders kürzer (`fenster.py`).
             fein = {
                 name: wert.detach().to("cpu", torch.float32).clone()
                 for name, wert in eigen.items()
-                if name in grund and torch.is_floating_point(wert)
+                if name in grund
+                and torch.is_floating_point(wert)
+                and grund[name].shape == wert.shape
             }
 
             def stelle_ein(alpha: float) -> None:
@@ -494,7 +498,11 @@ def _nur_interpolieren(modell, basismodell: str, alpha: float, bericht) -> None:
             grund = _grundgewichte(basismodell)
             eigen = modell.state_dict()
             for name, wert in eigen.items():
-                if name not in grund or not torch.is_floating_point(wert):
+                if (
+                    name not in grund
+                    or not torch.is_floating_point(wert)
+                    or grund[name].shape != wert.shape
+                ):
                     continue
                 gemischt = alpha * grund[name].to(torch.float32) + (1.0 - alpha) * wert.detach().to(
                     "cpu", torch.float32

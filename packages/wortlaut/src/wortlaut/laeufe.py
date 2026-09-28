@@ -469,6 +469,24 @@ def steuerung_aus(auftrag: dict[str, Any]) -> str:
     return str(auftrag.get("steuerung") or STEUERUNG_VERLUST)
 
 
+# ── Das Fenster des Encoders ────────────────────────────────────────────────
+#
+# Whisper hört immer 30 Sekunden; bei Sätzen von drei bis fünf Sekunden geht
+# der größte Teil der Encoder-Rechnung auf Stille (`training/fenster.py`):
+#
+# `voll`      30 Sekunden, wie ausgeliefert.
+# `gekuerzt`  Nur im Training auf die längste Aufnahme des Laufs gekürzt;
+#             gesichert, umgewandelt und gemessen wird wieder mit 30 Sekunden.
+FENSTER_VOLL = "voll"
+FENSTER_GEKUERZT = "gekuerzt"
+FENSTER = (FENSTER_VOLL, FENSTER_GEKUERZT)
+
+
+def fenster_aus(auftrag: dict[str, Any]) -> str:
+    """Das Encoder-Fenster eines Auftrags - `voll`, wenn das Feld fehlt."""
+    return str(auftrag.get("fenster") or FENSTER_VOLL)
+
+
 # ── Der Optionscode ─────────────────────────────────────────────────────────
 #
 # Alle Achsen eines Auftrags in einer Zeichenkette, etwa `ML-A-K-SRP-Ts-C`.
@@ -496,6 +514,7 @@ CODE_KORREKTURGEWICHT = {
 CODE_SELBSTTRAINING = {SELBST_AUS: "", SELBST_AN: "U"}
 CODE_DAUER = {DAUER_FEST: "", DAUER_GEDULDIG: "E"}
 CODE_STEUERUNG = {STEUERUNG_VERLUST: "", STEUERUNG_WER: "W"}
+CODE_FENSTER = {FENSTER_VOLL: "", FENSTER_GEKUERZT: "F"}
 # Kumulativ: S = SpecAugment, R = Raum + Rauschen, P = Tempo-Perturbation.
 CODE_AUGMENTIERUNG = {AUG_KEINE: "", AUG_MASKEN: "S", AUG_UMGEBUNG: "SR", AUG_VOLL: "SRP"}
 CODE_TEMPO = {TEMPO_AUS: "", TEMPO_GESCHAETZT: "Tg", TEMPO_OPTIMAL: "Ts"}
@@ -546,6 +565,7 @@ def optionscode(auftrag: dict[str, Any]) -> str:
         glied(CODE_SELBSTTRAINING, auftrag.get("selbsttraining"), SELBST_AUS),
         glied(CODE_DAUER, auftrag.get("dauer"), DAUER_FEST),
         glied(CODE_STEUERUNG, auftrag.get("steuerung"), STEUERUNG_VERLUST),
+        glied(CODE_FENSTER, auftrag.get("fenster"), FENSTER_VOLL),
         glied(CODE_AUGMENTIERUNG, auftrag.get("augmentierung"), AUG_KEINE),
         CODE_TEMPO[tempowahl_aus(auftrag)],
         glied(CODE_ABSCHLUSS, auftrag.get("abschluss"), ABSCHLUSS_BESTER),

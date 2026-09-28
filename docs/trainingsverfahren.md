@@ -34,6 +34,7 @@ sechsfacher Kreuzvalidierung, mit Bootstrap-Bereichen auf jeder Zahl.
 | 3a | Unbestätigte Diktate beschriften (nur `U`) | `apps/lernen/training/selbsttraining.py` (`beschrifte`) |
 | 4 | Lern- und Messzeilen einer Faltung | `apps/lernen/training/daten.py` (`zeilen_fuer_faltung`) |
 | 5 | WAV → Log-Mel, Augmentierung, Marken, Stapel | `daten.py` (`Proben`, `Stapler`), `klangwandel.py` |
+| 5a | Encoder-Fenster kürzen und zurückbringen (nur `F`) | `fenster.py` |
 | 6 | Tempo schätzen oder suchen | `tempowahl.py` |
 | 7 | **Der Lernschritt** | `finetune.py` (`trainiere`) |
 | 8 | Die gewichtete Verlustrechnung | `finetune.py` (`GewichtetesTraining.compute_loss`) |
@@ -117,6 +118,7 @@ trage ein mit status = fertig                              # Freigabe bleibt ein
 FUNKTION TRAINIERE(θ, D_lern, D_mess, R, vorgaben):
     entlade Ollama
     WENN R.methode = lora: θ ← θ halb (bf16|fp16) + LoRA(Rang r, α = 2r, Ziele z) in fp32   # r, z: Auftrag
+    WENN Fenster gekürzt: Encoder auf längste Aufnahme + 1 s    # fenster.kuerze
     (s, g) ← erster Kandidat, dessen Probeschritt auf K passt   # finetune.zuschneiden
     a      ← R.stapel / s                           # s Proben je Schritt, g = Gradientensparen
     fixiere Sprache des Profils, Aufgabe = transcribe
@@ -138,6 +140,7 @@ FUNKTION TRAINIERE(θ, D_lern, D_mess, R, vorgaben):
 
     θ ← bestes.θ                                        # nicht das letzte θ
     θ ← ABSCHLUSS(θ, R, Auftrag.abschluss)              # mitteln / interpolieren
+    WENN Fenster gekürzt: volle 30 Sekunden zurück      # fenster.stelle_her
     GIB ZURÜCK θ
 ```
 
@@ -259,6 +262,37 @@ vom Modell, mit dem die Person gerade diktiert.
 * Das Beschriftungsmodell kennt die Faltungen, an denen gemessen wird - es
   wurde auf allem trainiert. Die Beschriftung betrifft anderes Audio; ganz
   unabhängig ist sie trotzdem nicht.
+
+### Das Encoder-Fenster
+
+`apps/lernen/training/fenster.py`: Whisper füllt jede Aufnahme auf 30
+Sekunden auf. Bei Äußerungen von drei bis fünf Sekunden geht der größte Teil
+der Encoder-Rechnung auf Stille, und die Aufmerksamkeit wächst mit dem
+Quadrat der Länge.
+
+| Wahl | im Training | ausgeliefert und gemessen |
+|---|---|---|
+| `voll` | 30 s | 30 s |
+| `gekuerzt` | längste Aufnahme + `fenster_zuschlag_s`, auf ganze Sekunden | 30 s |
+
+* **Die Länge rechnet sich aus dem Manifest**: die längste Dauer über Lern-
+  und Messzeilen, vorgespult entsprechend kürzer, mit der Tempo-Abwandlung
+  (`voll`) entsprechend länger. Fehlt einer Zeile die Dauer, bleibt das
+  Fenster voll - abgeschnittene Sprache hieße falsche Beschriftung.
+* **Gekürzt werden Merkmale und Positionseinbettung.** Die Einbettung des
+  Encoders ist bei Whisper fest und sinusförmig; gekürzt ist sie der Anfang
+  derselben Tabelle. `max_source_positions` folgt, danach prüft Whisper die
+  Eingabe und entscheidet `generate`, ob sie kurz ist.
+* **Vor dem Sichern kommt die volle Tabelle zurück.** CTranslate2 und
+  faster-whisper erwarten die 30-Sekunden-Geometrie. Gemessen wird damit der
+  Stand, wie er ausgeliefert wird - mit einer Auffüllung, die er im Training
+  nie gesehen hat. Ob das schadet, zeigt die Tafel; darin liegt das Risiko.
+* **Der Probeschritt** misst mit dem gekürzten Fenster; es passen mehr Proben
+  je Schritt auf die Karte. Auf der RTX 2080 Ti, whisper-small voll, 20 kurze
+  Sätze: Fenster 9 s, Training 164 statt 211 s, weil das Gradientensparen
+  entfällt; Sichern und Optimierer kürzt es nicht.
+* WiSE-FT überspringt beim vollen Training die gekürzte Einbettung - sie ist
+  ohnehin die des Grundmodells.
 
 ### Der LoRA-Zusatz
 
@@ -396,18 +430,7 @@ Erwartet ist eine Einschätzung, kein Messwert; relativ zur heutigen WER.
 
 | | Maßnahme | erwartet | Aufwand | Risiko |
 |---|---|---|---|---|
-| **G** | Encoder auf die tatsächliche Länge kürzen | 2–4× Tempo | mittel | mittel |
 | **H** | Kontextverstärkung beim Dekodieren | 3–10 % | gering | gering |
-
-### G - Die 30 Sekunden loswerden
-
-Die Positionseinbettungen des Encoders auf etwa 10 s kürzen. Bei Äußerungen
-von drei bis fünf Sekunden geht heute rund 80 % der Encoder-Rechnung auf
-Stille. CTranslate2 und faster-whisper erwarten aber die 30-Sekunden-Geometrie;
-gangbar wäre, gekürzt zu trainieren und für die Auslieferung zurückzubringen,
-oder die Kürzung nur für Vorläufe zu nutzen, deren Ergebnis eine Rangfolge ist.
-Ein Lauf dauert heute unter einer Stunde; **G** ist nützlich, aber keine
-Bedingung.
 
 ### H - Die Dekodierseite
 

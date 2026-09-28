@@ -301,6 +301,25 @@ STEUERUNGEN = [
 ]
 
 
+FENSTER = [
+    WahlAntwort(
+        schluessel=lauf_layout.FENSTER_VOLL,
+        name="30 Sekunden",
+        erklaerung="",
+        code=lauf_layout.CODE_FENSTER[lauf_layout.FENSTER_VOLL],
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.FENSTER_GEKUERZT,
+        name="Gekürzt",
+        erklaerung=(
+            "Im Training auf die längste Aufnahme gekürzt; ausgeliefert und gemessen "
+            "mit 30 Sekunden."
+        ),
+        code=lauf_layout.CODE_FENSTER[lauf_layout.FENSTER_GEKUERZT],
+    ),
+]
+
+
 TEMPI = [
     WahlAntwort(
         schluessel=lauf_layout.TEMPO_AUS,
@@ -380,6 +399,7 @@ class Bestellung(BaseModel):
     augmentierung: str = lauf_layout.AUG_KEINE
     dauer: str = lauf_layout.DAUER_FEST
     steuerung: str = lauf_layout.STEUERUNG_VERLUST
+    fenster: str = lauf_layout.FENSTER_VOLL
     tempowahl: str = lauf_layout.TEMPO_AUS
     # Leer: die Vorgabe des Servers.
     grundmodell: str = ""
@@ -413,6 +433,7 @@ class LaufAntwort(BaseModel):
     augmentierung: str
     dauer: str
     steuerung: str = lauf_layout.STEUERUNG_VERLUST
+    fenster: str = lauf_layout.FENSTER_VOLL
     tempowahl: str = lauf_layout.TEMPO_AUS
     # Das Tempo, mit dem gerechnet wurde; `null`, solange die Suche läuft.
     tempo: float | None = None
@@ -492,6 +513,7 @@ class EinzelAntwort(BaseModel):
     augmentierungen: list[WahlAntwort]
     dauern: list[WahlAntwort]
     steuerungen: list[WahlAntwort]
+    fenster: list[WahlAntwort]
     tempi: list[WahlAntwort]
     grundmodelle: list[GrundmodellAntwort]
     kurve_training: list[PunktAntwort]
@@ -517,6 +539,7 @@ class ListeAntwort(BaseModel):
     augmentierungen: list[WahlAntwort]
     dauern: list[WahlAntwort]
     steuerungen: list[WahlAntwort]
+    fenster: list[WahlAntwort]
     tempi: list[WahlAntwort]
     grundmodelle: list[GrundmodellAntwort]
     basismodell: str
@@ -656,6 +679,7 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         augmentierung=str(lauf.auftrag.get("augmentierung") or lauf_layout.AUG_KEINE),
         dauer=str(lauf.auftrag.get("dauer") or lauf_layout.DAUER_FEST),
         steuerung=lauf_layout.steuerung_aus(lauf.auftrag),
+        fenster=lauf_layout.fenster_aus(lauf.auftrag),
         tempowahl=lauf_layout.tempowahl_aus(lauf.auftrag),
         tempo=_tempo_des_laufs(lauf),
         tempo_endgueltig=bool(lauf.zustand.get("tempo_endgueltig", True)),
@@ -976,6 +1000,13 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
         _wahlname(STEUERUNGEN, steuerung),
         "wählt Checkpoint, Abbruch und α",
     )
+    if lauf_layout.fenster_aus(auftrag) == lauf_layout.FENSTER_GEKUERZT:
+        sekunden = zustand.get("fenster_s")
+        dazu(
+            "Fenster",
+            f"{_zahl(sekunden, 1)} s im Training" if sekunden else _wahlname(FENSTER, "gekuerzt"),
+            "ausgeliefert und gemessen mit 30 s",
+        )
 
     dazu("Abschluss", _abschlusstext(manifest))
 
@@ -1056,6 +1087,7 @@ def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         augmentierungen=AUGMENTIERUNGEN,
         dauern=DAUERN,
         steuerungen=STEUERUNGEN,
+        fenster=FENSTER,
         tempi=TEMPI,
         grundmodelle=_grundmodelle(),
         basismodell=konfiguration.lernen_basismodell,
@@ -1108,6 +1140,7 @@ def beauftrage(
                 augmentierung=bestellung.augmentierung,
                 dauer=bestellung.dauer,
                 steuerung=bestellung.steuerung,
+                fenster=bestellung.fenster,
                 tempowahl=bestellung.tempowahl,
                 grundmodell=bestellung.grundmodell,
             ),
@@ -1148,6 +1181,7 @@ def einzeln(
         augmentierungen=AUGMENTIERUNGEN,
         dauern=DAUERN,
         steuerungen=STEUERUNGEN,
+        fenster=FENSTER,
         tempi=TEMPI,
         grundmodelle=_grundmodelle(),
         kurve_training=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["training"]],

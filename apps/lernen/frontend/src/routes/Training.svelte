@@ -55,6 +55,7 @@
   let augmentierung = $state(gemerkt.augmentierung);
   let dauer = $state(gemerkt.dauer);
   let steuerung = $state(gemerkt.steuerung);
+  let fenster = $state(gemerkt.fenster);
   let tempowahl = $state(gemerkt.tempowahl);
 
   $effect(() => {
@@ -71,6 +72,7 @@
       augmentierung,
       dauer,
       steuerung,
+      fenster,
       tempowahl,
     });
   });
@@ -156,6 +158,7 @@
           ['Selbsttraining', daten.selbsttraininge, (lauf) => lauf.selbsttraining],
           ['Epochen', daten.dauern, (lauf) => lauf.dauer],
           ['Steuergröße', daten.steuerungen, (lauf) => lauf.steuerung],
+          ['Fenster', daten.fenster, (lauf) => lauf.fenster],
           ['Augmentierung', daten.augmentierungen, (lauf) => lauf.augmentierung],
           ['Tempo', daten.tempi, (lauf) => lauf.tempowahl],
           ['Abschluss', daten.abschluesse, (lauf) => lauf.abschluss],
@@ -233,6 +236,7 @@
               lauf.augmentierung || 'keine',
               lauf.dauer || 'fest',
               lauf.steuerung || 'verlust',
+              lauf.fenster || 'voll',
               lauf.tempowahl || 'wie_eingestellt',
             ].join('/'),
         ),
@@ -260,6 +264,7 @@
       augmentierung,
       dauer,
       steuerung,
+      fenster,
       tempowahl,
     ].join('/'),
   );
@@ -360,6 +365,7 @@
           augmentierung,
           dauer,
           steuerung,
+          fenster,
           tempowahl,
           grundmodell,
         },
@@ -697,6 +703,18 @@
           <label class="option">
             <input type="radio" bind:group={steuerung} value={wahl.schluessel} />
             {@render option(wahl, prozent('Steuergröße', wahl))}
+          </label>
+        {/each}
+      </fieldset>
+
+      <!-- Nur im Training; ausgeliefert wird immer mit 30 Sekunden
+           (`training/fenster.py`). -->
+      <fieldset>
+        <legend>Fenster</legend>
+        {#each daten.fenster as wahl (wahl.schluessel)}
+          <label class="option">
+            <input type="radio" bind:group={fenster} value={wahl.schluessel} />
+            {@render option(wahl, prozent('Fenster', wahl))}
           </label>
         {/each}
       </fieldset>

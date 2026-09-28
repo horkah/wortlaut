@@ -50,6 +50,10 @@ wer_pruefungen_je_durchgang: 3
 # Markenwahrscheinlichkeit eine selbst beschriftete Aufnahme mitlernt.
 selbst_mindestsicherheit: 0.8
 
+# Zum gekürzten Fenster (`training/fenster.py`): was auf die längste Aufnahme
+# des Laufs aufgeschlagen wird, bevor auf ganze Sekunden gerundet wird.
+fenster_zuschlag_s: 1.0
+
 # Die Zahlen zur Augmentierungsstufe des Auftrags - je Probe und Durchgang
 # neu gewürfelt, nichts abgelegt (`training/klangwandel.py`).
 augmentierung:

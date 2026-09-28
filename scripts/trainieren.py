@@ -49,6 +49,7 @@ ACHSEN = (
     "augmentierung",
     "dauer",
     "steuerung",
+    "fenster",
     "tempowahl",
 )
 TAKT_S = 5.0
