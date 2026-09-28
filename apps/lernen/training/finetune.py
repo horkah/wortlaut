@@ -1279,7 +1279,7 @@ def main(argumente: list[str]) -> int:
         if entfernt:
             bericht.sage(f"Aufgeräumt: {', '.join(entfernt)}")
 
-    bericht.sage(f"Fertig in {(time.monotonic() - begonnen) / 60:.1f} Minuten: {version}")
+    bericht.sage(f"Fertig in {laeufe.dauer_text(time.monotonic() - begonnen)}: {version}")
     return 0
 
 
