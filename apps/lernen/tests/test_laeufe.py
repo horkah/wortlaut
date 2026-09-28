@@ -652,6 +652,45 @@ class TestTempowahl:
         assert "Tempowahl" in antwort.json()["detail"]
 
 
+class TestSteuerung:
+    """Wonach Checkpoint, Abbruch und α gewählt werden (`training/steuerung.py`)."""
+
+    def test_die_vorgabe_ist_der_verlust(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        sprich(6)
+        lauf = _beauftrage(klient)
+        auftrag = laeufe.lies_json(
+            laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]) / laeufe.AUFTRAG
+        )
+        assert auftrag["steuerung"] == laeufe.STEUERUNG_VERLUST
+        assert lauf["steuerung"] == laeufe.STEUERUNG_VERLUST
+
+    def test_die_wer_steht_im_auftrag_und_im_code(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        sprich(6)
+        antwort = klient.post(
+            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original", "steuerung": "wer"}
+        )
+        assert antwort.status_code == 201, antwort.text
+        assert antwort.json()["steuerung"] == laeufe.STEUERUNG_WER
+        assert antwort.json()["code"].split("/")[0].endswith("-W")
+        wahl = klient.get("/lernen/api/laeufe").json()["steuerungen"]
+        assert [eintrag["schluessel"] for eintrag in wahl] == list(laeufe.STEUERUNGEN)
+
+    def test_eine_unbekannte_wird_abgewiesen(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        sprich(6)
+        antwort = klient.post(
+            "/lernen/api/laeufe",
+            json={"methode": "lora", "daten": "original", "steuerung": "gefuehl"},
+        )
+        assert antwort.status_code == 400
+        assert "Steuergröße" in antwort.json()["detail"]
+
+
 class TestVerwaisteLaeufe:
     """Was beim Start des Trainers mit Läufen geschieht, die `laeuft` sagen.
 

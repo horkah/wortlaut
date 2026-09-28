@@ -42,6 +42,10 @@ epochen_hoechstens: 40
 geduld: 4
 mindestgewinn: 0.001
 
+# Zur Steuergröße `wer` (`training/steuerung.py`): Prüfungen je Durchgang, jede
+# frei dekodiert. Die Geduld oben zählt weiter Durchgänge.
+wer_pruefungen_je_durchgang: 3
+
 # Die Zahlen zur Augmentierungsstufe des Auftrags - je Probe und Durchgang
 # neu gewürfelt, nichts abgelegt (`training/klangwandel.py`).
 augmentierung:

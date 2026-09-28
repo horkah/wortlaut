@@ -58,6 +58,9 @@
   const laeuft = $derived(lauf?.status === 'laeuft');
   const kurve = $derived(daten?.kurve_training ?? []);
   const pruefung = $derived(daten?.kurve_validierung ?? []);
+  // Bei der Steuergröße WER prüft der Trainer auch frei dekodiert - eine
+  // dritte Reihe auf eigener Achse, denn WER und Verlust haben keine gemeinsame Skala.
+  const mitWer = $derived(pruefung.some((punkt) => punkt.wer !== null && punkt.wer !== undefined));
   const hatKurve = $derived(kurve.length > 0);
   const vergleich = $derived(daten?.vergleich ?? {});
   const fassungen = $derived(Object.keys(vergleich));
@@ -147,13 +150,24 @@
         axisLine: { lineStyle: { color: rand } },
         axisLabel: { color: leise },
       },
-      yAxis: {
-        type: 'value',
-        name: 'Verlust',
-        nameTextStyle: { color: leise, align: 'left' as const },
-        axisLabel: { color: leise },
-        splitLine: { lineStyle: { color: rand, opacity: 0.6 } },
-      },
+      yAxis: [
+        {
+          type: 'value',
+          name: 'Verlust',
+          nameTextStyle: { color: leise, align: 'left' as const },
+          axisLabel: { color: leise },
+          splitLine: { lineStyle: { color: rand, opacity: 0.6 } },
+        },
+        {
+          type: 'value',
+          name: 'WER',
+          show: mitWer,
+          min: 0,
+          nameTextStyle: { color: leise, align: 'right' as const },
+          axisLabel: { color: leise },
+          splitLine: { show: false },
+        },
+      ],
       series: [
         {
           id: 'training',
@@ -180,6 +194,23 @@
           lineStyle: { color: '#d55e00', width: 2, type: 'dashed' as const },
           itemStyle: { color: '#d55e00' },
         },
+        ...(mitWer
+          ? [
+              {
+                id: 'validierung_wer',
+                name: 'Validierung WER',
+                type: 'line' as const,
+                yAxisIndex: 1,
+                symbolSize: 7,
+                smooth: false,
+                data: pruefung
+                  .filter((punkt) => punkt.wer !== null && punkt.wer !== undefined)
+                  .map((punkt) => [punkt.schritt, punkt.wer]),
+                lineStyle: { color: '#0072b2', width: 2, type: 'dotted' as const },
+                itemStyle: { color: '#0072b2' },
+              },
+            ]
+          : []),
       ],
     };
   }

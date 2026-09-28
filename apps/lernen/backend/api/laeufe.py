@@ -129,7 +129,7 @@ ABSCHLUESSE = [
     WahlAntwort(
         schluessel=lauf_layout.ABSCHLUSS_BESTER,
         name="Bester Checkpoint",
-        erklaerung="Geringster Validierungsverlust.",
+        erklaerung="Bester Wert der Steuergröße.",
         code=lauf_layout.CODE_ABSCHLUSS[lauf_layout.ABSCHLUSS_BESTER],
     ),
     WahlAntwort(
@@ -193,6 +193,22 @@ DAUERN = [
         name="Early Stopping",
         erklaerung="Höhere Obergrenze, Abbruch ohne Verbesserung der Validierung.",
         code=lauf_layout.CODE_DAUER[lauf_layout.DAUER_GEDULDIG],
+    ),
+]
+
+
+STEUERUNGEN = [
+    WahlAntwort(
+        schluessel=lauf_layout.STEUERUNG_VERLUST,
+        name="Validierungsverlust",
+        erklaerung="Geprüft je Durchgang.",
+        code=lauf_layout.CODE_STEUERUNG[lauf_layout.STEUERUNG_VERLUST],
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.STEUERUNG_WER,
+        name="WER",
+        erklaerung="Frei dekodiert, geprüft je Drittel eines Durchgangs.",
+        code=lauf_layout.CODE_STEUERUNG[lauf_layout.STEUERUNG_WER],
     ),
 ]
 
@@ -272,6 +288,7 @@ class Bestellung(BaseModel):
     abschluss: str = lauf_layout.ABSCHLUSS_BESTER
     augmentierung: str = lauf_layout.AUG_KEINE
     dauer: str = lauf_layout.DAUER_FEST
+    steuerung: str = lauf_layout.STEUERUNG_VERLUST
     tempowahl: str = lauf_layout.TEMPO_AUS
     # Leer: die Vorgabe des Servers.
     grundmodell: str = ""
@@ -298,6 +315,7 @@ class LaufAntwort(BaseModel):
     abschluss: str
     augmentierung: str
     dauer: str
+    steuerung: str = lauf_layout.STEUERUNG_VERLUST
     tempowahl: str = lauf_layout.TEMPO_AUS
     # Das Tempo, mit dem gerechnet wurde; `null`, solange die Suche läuft.
     tempo: float | None = None
@@ -372,6 +390,7 @@ class EinzelAntwort(BaseModel):
     abschluesse: list[WahlAntwort]
     augmentierungen: list[WahlAntwort]
     dauern: list[WahlAntwort]
+    steuerungen: list[WahlAntwort]
     tempi: list[WahlAntwort]
     grundmodelle: list[GrundmodellAntwort]
     kurve_training: list[PunktAntwort]
@@ -392,6 +411,7 @@ class ListeAntwort(BaseModel):
     abschluesse: list[WahlAntwort]
     augmentierungen: list[WahlAntwort]
     dauern: list[WahlAntwort]
+    steuerungen: list[WahlAntwort]
     tempi: list[WahlAntwort]
     grundmodelle: list[GrundmodellAntwort]
     basismodell: str
@@ -526,6 +546,7 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         abschluss=str(lauf.auftrag.get("abschluss") or lauf_layout.ABSCHLUSS_BESTER),
         augmentierung=str(lauf.auftrag.get("augmentierung") or lauf_layout.AUG_KEINE),
         dauer=str(lauf.auftrag.get("dauer") or lauf_layout.DAUER_FEST),
+        steuerung=lauf_layout.steuerung_aus(lauf.auftrag),
         tempowahl=lauf_layout.tempowahl_aus(lauf.auftrag),
         tempo=_tempo_des_laufs(lauf),
         tempo_endgueltig=bool(lauf.zustand.get("tempo_endgueltig", True)),
@@ -808,6 +829,12 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
         )
     else:
         dazu("Dauer", _wahlname(DAUERN, str(auftrag.get("dauer") or lauf_layout.DAUER_FEST)))
+    steuerung = lauf_layout.steuerung_aus(auftrag)
+    dazu(
+        "Steuergröße",
+        _wahlname(STEUERUNGEN, steuerung),
+        "wählt Checkpoint, Abbruch und α",
+    )
 
     dazu("Abschluss", _abschlusstext(manifest))
 
@@ -883,6 +910,7 @@ def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         abschluesse=ABSCHLUESSE,
         augmentierungen=AUGMENTIERUNGEN,
         dauern=DAUERN,
+        steuerungen=STEUERUNGEN,
         tempi=TEMPI,
         grundmodelle=_grundmodelle(),
         basismodell=konfiguration.lernen_basismodell,
@@ -930,6 +958,7 @@ def beauftrage(
                 abschluss=bestellung.abschluss,
                 augmentierung=bestellung.augmentierung,
                 dauer=bestellung.dauer,
+                steuerung=bestellung.steuerung,
                 tempowahl=bestellung.tempowahl,
                 grundmodell=bestellung.grundmodell,
             ),
@@ -965,6 +994,7 @@ def einzeln(
         abschluesse=ABSCHLUESSE,
         augmentierungen=AUGMENTIERUNGEN,
         dauern=DAUERN,
+        steuerungen=STEUERUNGEN,
         tempi=TEMPI,
         grundmodelle=_grundmodelle(),
         kurve_training=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["training"]],

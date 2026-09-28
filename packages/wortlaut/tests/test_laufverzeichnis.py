@@ -218,11 +218,12 @@ class TestOptionscode:
             "daten": "augmentiert",
             "auswahl": "kern",
             "dauer": "geduldig",
+            "steuerung": "wer",
             "augmentierung": "voll",
             "tempowahl": "optimal",
             "abschluss": "beides",
         }
-        assert laeufe.optionscode(auftrag) == "ML-A-K-E-SRP-Ts-CI"
+        assert laeufe.optionscode(auftrag) == "ML-A-K-E-W-SRP-Ts-CI"
 
     def test_die_alte_tempowahl_zaehlt_als_aus(self) -> None:
         auftrag = {"basismodell": "openai/whisper-small", "methode": "full",
@@ -268,6 +269,7 @@ class TestOptionscode:
             laeufe.CODE_DATENSATZ,
             laeufe.CODE_AUSWAHL,
             laeufe.CODE_DAUER,
+            laeufe.CODE_STEUERUNG,
             laeufe.CODE_AUGMENTIERUNG,
             laeufe.CODE_TEMPO,
             laeufe.CODE_ABSCHLUSS,
@@ -282,6 +284,7 @@ class TestOptionscode:
         assert set(laeufe.CODE_DATENSATZ) == set(laeufe.DATENSAETZE)
         assert set(laeufe.CODE_AUSWAHL) == set(laeufe.AUSWAHLEN)
         assert set(laeufe.CODE_DAUER) == set(laeufe.DAUERN)
+        assert set(laeufe.CODE_STEUERUNG) == set(laeufe.STEUERUNGEN)
         assert set(laeufe.CODE_AUGMENTIERUNG) == set(laeufe.AUGMENTIERUNGEN)
         assert set(laeufe.CODE_TEMPO) == set(laeufe.TEMPI)
         assert set(laeufe.CODE_ABSCHLUSS) == set(laeufe.ABSCHLUESSE)

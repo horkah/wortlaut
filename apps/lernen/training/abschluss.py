@@ -11,10 +11,11 @@ Zwei Handgriffe ohne zusätzliches Training, außerhalb der Trainingsschleife:
 Beides ist eine Achse des Auftrags, keine stille Rezeptänderung, damit die
 Tafel zeigt, was wirkt; `bester` lässt den besten Durchgang unverändert.
 
-**α wird auf dem Validierungsverlust gewählt**, derselben Größe, an der
-`load_best_model_at_end` den besten Durchgang erkennt. In einer Faltung ist
-die Validierung die zurückgehaltene Faltung selbst. Der WER wäre das bessere
-Maß, kostete aber einen Dekodierdurchgang je α.
+**α wird an der Steuergröße gewählt** (`steuerung.py`), derselben Größe, an
+der `load_best_model_at_end` den besten Durchgang erkennt: dem
+Validierungsverlust oder, bei `wer`, der frei dekodierten WER - dann kostet
+jedes α eine Dekodierung. In einer Faltung ist die Validierung die
+zurückgehaltene Faltung selbst.
 
 **Nie schlechter als der Anfang.** α = 0 steht im Raster, doch bei `beides`
 beginnt die Interpolation beim gemittelten Stand. Deshalb merkt sich der
@@ -58,11 +59,13 @@ class Ergebnis:
     """
 
     art: str
+    # Die Steuergröße, in der alle `verlust_*` stehen: `loss` oder `wer`.
+    mass: str = "loss"
     # Die gemittelten Zwischenstände, bei ihrem Namen (`checkpoint-63`).
     staende: tuple[str, ...] = ()
     # Der gewählte Anteil des Grundmodells; `None` ohne Interpolation.
     alpha: float | None = None
-    # Der Validierungsverlust vor und nach dem Abschluss.
+    # Die Steuergröße vor und nach dem Abschluss.
     verlust_vorher: float | None = None
     verlust_nachher: float | None = None
     # Nach der Mittelung, vor der Interpolation - zeigt bei `beides`, was wirkte.
@@ -77,6 +80,7 @@ class Ergebnis:
     def als_dict(self) -> dict[str, Any]:
         return {
             "art": self.art,
+            "mass": self.mass,
             "staende": list(self.staende),
             "alpha": self.alpha,
             "verlust_vorher": self.verlust_vorher,
@@ -93,6 +97,7 @@ class _Sammler:
     """Was während des Abschlusses zusammenkommt - innen, damit außen ein `Ergebnis` steht."""
 
     art: str
+    mass: str = "loss"
     staende: list[str] = field(default_factory=list)
     alpha: float | None = None
     verlust_vorher: float | None = None
@@ -105,6 +110,7 @@ class _Sammler:
     def fertig(self) -> Ergebnis:
         return Ergebnis(
             art=self.art,
+            mass=self.mass,
             staende=tuple(self.staende),
             alpha=self.alpha,
             verlust_vorher=self.verlust_vorher,
@@ -149,16 +155,17 @@ def zu_behalten(art: str, rezept: dict[str, Any]) -> int:
 # ── Zwischenstände lesen ────────────────────────────────────────────────────
 
 
-def _verluste(trainer) -> dict[int, float]:
-    """Schritt → Validierungsverlust, aus dem Protokoll des Trainers."""
+def _verluste(trainer, mass: str = "loss") -> dict[int, float]:
+    """Schritt → Steuergröße (`eval_loss`, `eval_wer`), aus dem Protokoll des Trainers."""
+    schluessel = f"eval_{mass}"
     gefunden: dict[int, float] = {}
     for zeile in trainer.state.log_history:
-        if "eval_loss" in zeile and "step" in zeile:
-            gefunden[int(zeile["step"])] = float(zeile["eval_loss"])
+        if schluessel in zeile and "step" in zeile:
+            gefunden[int(zeile["step"])] = float(zeile[schluessel])
     return gefunden
 
 
-def beste_staende(trainer, arbeitsstand: Path, anzahl: int) -> list[Path]:
+def beste_staende(trainer, arbeitsstand: Path, anzahl: int, mass: str = "loss") -> list[Path]:
     """Die besten noch vorhandenen Zwischenstände, bester zuerst.
 
     „Noch vorhanden" ist die halbe Arbeit: Der Trainer räumt nach
@@ -168,7 +175,7 @@ def beste_staende(trainer, arbeitsstand: Path, anzahl: int) -> list[Path]:
     """
     if not arbeitsstand.is_dir():
         return []
-    verluste = _verluste(trainer)
+    verluste = _verluste(trainer, mass)
     vorhanden: list[tuple[float, int, Path]] = []
     for pfad in arbeitsstand.iterdir():
         if not pfad.is_dir() or not pfad.name.startswith(STAND_PRAEFIX):
@@ -291,11 +298,12 @@ def interpoliere(
     messe: Callable[[], float],
     ist_lora: bool,
     sage: Callable[[str], None],
+    name: str = "Validierungsverlust",
 ) -> tuple[float, list[tuple[float, float]]]:
     """α auf der Validierung wählen und das Modell darauf einstellen.
 
     Gibt das gewählte α und alle Versuche zurück. Der Reihe nach: jedes α
-    einstellen, den Validierungsverlust messen, das beste behalten - und zum
+    einstellen, die Steuergröße messen, das beste behalten - und zum
     Schluss noch einmal einstellen, damit das Modell den Stand trägt, der
     gewonnen hat.
     """
@@ -331,7 +339,7 @@ def interpoliere(
             stelle_ein(alpha)
             verlust = messe()
             versuche.append((alpha, verlust))
-            sage(f"  α = {alpha:.2f} · Validierungsverlust {verlust:.5f}")
+            sage(f"  α = {alpha:.2f} · {name} {verlust:.5f}")
 
         bestes = min(versuche, key=lambda paar: paar[1])[0]
         stelle_ein(bestes)
@@ -351,6 +359,7 @@ def fuehre_aus(
     hat_pruefung: bool,
     bericht,
     alpha_vorgabe: float | None = None,
+    mass: str = "loss",
 ) -> Ergebnis:
     """Den bestellten Abschluss rechnen; gibt zurück, was dabei herauskam.
 
@@ -360,8 +369,11 @@ def fuehre_aus(
     Das Endmodell hält nichts zurück und hat damit kein Maß. Es wendet das α
     der Faltungen an (`alpha_vorgabe`); die Mittelung entfällt, denn sie wählt
     unter Zwischenständen.
+
+    `mass` ist die Steuergröße des Trainings (`steuerung.Pruefplan.mass`).
     """
-    sammler = _Sammler(art=art)
+    sammler = _Sammler(art=art, mass=mass)
+    name = "Validierungs-WER" if mass == "wer" else "Validierungsverlust"
     if art == laeufe.ABSCHLUSS_BESTER:
         return sammler.fertig()
 
@@ -383,9 +395,9 @@ def fuehre_aus(
         return sammler.fertig()
 
     bericht.stufe("abschluss")
-    messe = _messer(trainer)
+    messe = _messer(trainer, mass)
     sammler.verlust_vorher = messe()
-    bericht.sage(f"Validierungsverlust vor dem Abschluss: {sammler.verlust_vorher:.5f}")
+    bericht.sage(f"{name} vor dem Abschluss: {sammler.verlust_vorher:.5f}")
 
     ist_lora = _ist_lora(modell)
     # Der Anfangsstand, auf dem Prozessor - bei vollem Training ein Gigabyte,
@@ -394,7 +406,7 @@ def fuehre_aus(
 
     if laeufe.mittelt(art):
         anzahl = staende_aus(rezept)
-        staende = beste_staende(trainer, arbeitsstand, anzahl)
+        staende = beste_staende(trainer, arbeitsstand, anzahl, mass)
         if len(staende) < 2:
             sammler.hinweise.append(
                 "Weniger als zwei Zwischenstände auf der Platte - nicht gemittelt."
@@ -405,9 +417,7 @@ def fuehre_aus(
             bericht.sage(f"Gemittelt über: {', '.join(sammler.staende)}")
             mittle(modell, staende, ist_lora)
             sammler.verlust_mittel = messe()
-            bericht.sage(
-                f"Validierungsverlust nach der Mittelung: {sammler.verlust_mittel:.5f}"
-            )
+            bericht.sage(f"{name} nach der Mittelung: {sammler.verlust_mittel:.5f}")
 
     if laeufe.interpoliert(art):
         alpha, versuche = interpoliere(
@@ -417,13 +427,14 @@ def fuehre_aus(
             messe,
             ist_lora,
             bericht.sage,
+            name,
         )
         sammler.alpha = alpha
         sammler.versuche.extend(versuche)
         bericht.sage(f"Gewählt: α = {alpha:.2f} Grundmodell")
 
     sammler.verlust_nachher = messe()
-    bericht.sage(f"Validierungsverlust nach dem Abschluss: {sammler.verlust_nachher:.5f}")
+    bericht.sage(f"{name} nach dem Abschluss: {sammler.verlust_nachher:.5f}")
 
     # Schlechter als der Anfang: zurücknehmen und es am Stand vermerken.
     if sammler.verlust_nachher > sammler.verlust_vorher:
@@ -497,8 +508,8 @@ def _ist_lora(modell) -> bool:
     return any("lora_" in name for name, _ in modell.named_parameters())
 
 
-def _messer(trainer) -> Callable[[], float]:
-    """Ein Aufruf, der den Validierungsverlust zurückgibt.
+def _messer(trainer, mass: str = "loss") -> Callable[[], float]:
+    """Ein Aufruf, der die Steuergröße zurückgibt - Verlust oder WER.
 
     Mit eigenem Präfix, damit diese Messungen nicht in der Lernkurve landen:
     Dort steht der Verlust je Durchgang, und ein halbes Dutzend Punkte am
@@ -508,6 +519,6 @@ def _messer(trainer) -> Callable[[], float]:
 
     def messe() -> float:
         gemessen = trainer.evaluate(metric_key_prefix="abschluss")
-        return float(gemessen.get("abschluss_loss", 0.0))
+        return float(gemessen.get(f"abschluss_{mass}", 0.0))
 
     return messe

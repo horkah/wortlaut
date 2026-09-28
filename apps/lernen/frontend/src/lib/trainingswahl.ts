@@ -21,6 +21,7 @@ export type Trainingswahl = {
   abschluss: string;
   augmentierung: string;
   dauer: string;
+  steuerung: string;
   tempowahl: string;
 };
 
@@ -33,6 +34,7 @@ export const VORGABE: Trainingswahl = {
   abschluss: 'bester',
   augmentierung: 'keine',
   dauer: 'fest',
+  steuerung: 'verlust',
   tempowahl: 'aus',
 };
 
@@ -51,6 +53,7 @@ export function trainingswahl(): Trainingswahl {
       abschluss: gelesen.abschluss ?? VORGABE.abschluss,
       augmentierung: gelesen.augmentierung ?? VORGABE.augmentierung,
       dauer: gelesen.dauer ?? VORGABE.dauer,
+      steuerung: gelesen.steuerung ?? VORGABE.steuerung,
       tempowahl: gelesen.tempowahl ?? VORGABE.tempowahl,
     };
   } catch {

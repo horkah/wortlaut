@@ -7,8 +7,8 @@
 `<rezept>` ist eine Datei aus `apps/lernen/training/rezepte/` ohne Endung -
 `whisper_lora` oder `whisper_full` - und bestimmt die Methode. Die übrigen
 Achsen des Auftrags (`daten`, `auswahl`, `abschluss`, `augmentierung`,
-`dauer`, `tempowahl`, siehe `docs/lernen.md`) stehen auf ihrer Vorgabe,
-solange keine `achse=wert` sie ändert.
+`dauer`, `steuerung`, `tempowahl`, siehe `docs/lernen.md`) stehen auf ihrer
+Vorgabe, solange keine `achse=wert` sie ändert.
 
 **Beauftragt wird über dieselbe Stelle wie in der Oberfläche**
 (`services/auftraege.bestelle`): dieselben Prüfungen, dasselbe
@@ -39,7 +39,7 @@ from apps.lernen.backend.config import einstellungen
 from apps.lernen.backend.services import auftraege
 
 REZEPTE = Path(__file__).resolve().parents[1] / "apps" / "lernen" / "training" / "rezepte"
-ACHSEN = ("daten", "auswahl", "abschluss", "augmentierung", "dauer", "tempowahl")
+ACHSEN = ("daten", "auswahl", "abschluss", "augmentierung", "dauer", "steuerung", "tempowahl")
 TAKT_S = 5.0
 # Wie lange ein Auftrag warten darf, bis der Hinweis auf den Läufer kommt.
 LAEUFER_HINWEIS_NACH_S = 60.0

@@ -41,6 +41,7 @@ from . import ausgangsstand
 from . import tempowahl
 from . import klangwandel
 from . import karte
+from . import steuerung as steuergroesse
 from .daten import Proben, Stapler
 
 REZEPTE = Path(__file__).parent / "rezepte"
@@ -196,11 +197,14 @@ def _rueckmeldung(bericht: Bericht):
             # Präfix (`abschluss.py`).
             if "eval_loss" not in metrics:
                 return
+            # Bei der Steuergröße `wer` auch die frei dekodierte WER (`steuerung.py`).
+            wer = {"wer": round(float(metrics["eval_wer"]), 5)} if "eval_wer" in metrics else {}
             bericht.ereignis(
                 art="validierung",
                 schritt=int(zustand.global_step),
                 epoche=round(float(zustand.epoch or 0.0), 3),
                 verlust=round(float(metrics.get("eval_loss", 0.0)), 5),
+                **wer,
             )
 
     return Kurve()
@@ -217,6 +221,38 @@ def _trainerklasse():
     from transformers import Seq2SeqTrainer
 
     class GewichtetesTraining(Seq2SeqTrainer):
+        # Wie viele Marken eine Prüfung frei erzeugen darf; `None`: Die
+        # Prüfung misst nur den Verlust (`steuerung.py`).
+        neue_marken: int | None = None
+
+        def prediction_step(
+            self, model, inputs, prediction_loss_only, ignore_keys=None, **erzeugung
+        ):
+            """Der gewichtete Verlust - und bei der Steuergröße `wer` die freie Dekodierung.
+
+            Nicht über `predict_with_generate`: Das reichte `gewichte` an
+            `generate` weiter und rechnete den Verlust ungewichtet.
+            """
+            verlust, _, _ = super(Seq2SeqTrainer, self).prediction_step(
+                model, inputs, prediction_loss_only=True, ignore_keys=ignore_keys
+            )
+            if prediction_loss_only or self.neue_marken is None:
+                return verlust, None, None
+            eingang = self._prepare_inputs(inputs)
+            # Die halbe Genauigkeit des Trainings auch hier: Der Trainer legt
+            # sie nur um `forward`, `generate` ruft den Encoder daran vorbei -
+            # bei LoRA auf einem halben Grundmodell.
+            halb = torch.float16 if self.args.fp16 else torch.bfloat16 if self.args.bf16 else None
+            geraet = eingang["input_features"].device.type
+            # Gierig: Die Prüfung soll Stände ordnen, nicht die letzte Stelle treffen.
+            with torch.no_grad(), torch.autocast(geraet, dtype=halb, enabled=halb is not None):
+                erzeugt = model.generate(
+                    input_features=eingang["input_features"],
+                    max_new_tokens=self.neue_marken,
+                    num_beams=1,
+                )
+            return verlust, erzeugt, eingang["labels"]
+
         def compute_loss(
             self, model, inputs, return_outputs=False, num_items_in_batch=None
         ):
@@ -257,6 +293,9 @@ def _halt_nach(ziel: float, bericht):
     Das Endmodell hat kein Abbruchkriterium, weiß aber aus den Faltungen,
     wann sie am besten standen, und hört dort auf - auf derselben Rampe. Ein
     kleineres `num_train_epochs` verschöbe den Lernratenverlauf (`trainiere`).
+
+    Geprüft nach jedem Schritt: Bei der Steuergröße `wer` stand eine Faltung
+    auch mitten in einem Durchgang am besten (`steuerung.py`).
     """
     from transformers import TrainerCallback
 
@@ -264,8 +303,11 @@ def _halt_nach(ziel: float, bericht):
         def __init__(self) -> None:
             self.gesagt = False
 
-        def on_epoch_end(self, args, zustand, steuerung, **weiteres):
-            if float(zustand.epoch or 0.0) >= ziel - 1e-6:
+        def on_step_end(self, args, zustand, steuerung, **weiteres):
+            # Auf den nächsten Schritt: `ziel` ist auf zwei Stellen gerundet
+            # (`_bester_durchgang`).
+            je_durchgang = float(zustand.max_steps) / max(1e-9, float(args.num_train_epochs))
+            if float(zustand.epoch or 0.0) >= ziel - 0.5 / max(1.0, je_durchgang):
                 steuerung.should_training_stop = True
                 if not self.gesagt:
                     bericht.sage(
@@ -535,6 +577,19 @@ def trainiere(
             f"- der Lauf hat nur {gesamtschritte}."
         )
 
+    # Wonach ausgewählt wird (`steuerung.py`): bei `wer` öfter geprüft, und
+    # jede Prüfung dekodiert frei.
+    pruefplan = steuergroesse.plane(
+        laeufe.steuerung_aus(auftrag), hat_pruefung, je_durchgang, rezept
+    )
+    if pruefplan.dekodiert:
+        bericht.sage(
+            f"Steuergröße WER: {pruefplan.je_durchgang} Prüfungen je Durchgang, "
+            f"alle {pruefplan.alle_schritte} Schritte, frei dekodiert"
+        )
+    # Prüfen und Sichern im selben Takt - `load_best_model_at_end` verlangt es.
+    takt = "steps" if pruefplan.alle_schritte else "epoch"
+
     # Je Faltung ein Arbeitsstand, den `main` vor der nächsten wegräumt.
     ausgabe = verzeichnis / laeufe.ARBEITSSTAND / _name_fuer(faltung)
     sparsam = zuschnitt.gradientensparsam
@@ -558,20 +613,26 @@ def trainiere(
         fp16=zuschnitt.genauigkeit == "fp16",
         bf16=zuschnitt.genauigkeit == "bf16",
         logging_steps=LOG_ALLE,
-        # Je Durchgang prüfen - die zweite Kurve.
-        eval_strategy="epoch" if hat_pruefung else "no",
-        # Je Durchgang sichern und am Ende den besten nehmen: Die Validierung
+        # Je Durchgang prüfen, bei der Steuergröße `wer` öfter - die zweite Kurve.
+        eval_strategy=takt if hat_pruefung else "no",
+        # Je Prüfung sichern und am Ende den besten nehmen: Die Validierung
         # dreht bei wenig Sprache in der Mitte, danach lernt das Modell
         # auswendig. Die Durchgangszahl ist so nur eine Obergrenze.
         #
         # Wie viele Zwischenstände bleiben, sagt `abschluss.zu_behalten`; wer
-        # mittelt, sichert ohne Optimierer (`save_only_model`) - fortgesetzt
-        # wird ein Lauf nie. Alles verschwindet mit dem `arbeitsstand` (`main`).
-        save_strategy="epoch" if hat_pruefung else "no",
+        # mittelt oder öfter prüft, sichert ohne Optimierer (`save_only_model`)
+        # - fortgesetzt wird ein Lauf nie. Alles verschwindet mit dem
+        # `arbeitsstand` (`main`).
+        save_strategy=takt if hat_pruefung else "no",
+        **(
+            {"eval_steps": pruefplan.alle_schritte, "save_steps": pruefplan.alle_schritte}
+            if pruefplan.alle_schritte
+            else {}
+        ),
         save_total_limit=abschlussrechnung.zu_behalten(art, rezept),
-        save_only_model=laeufe.mittelt(art),
+        save_only_model=laeufe.mittelt(art) or pruefplan.dekodiert,
         load_best_model_at_end=hat_pruefung,
-        metric_for_best_model="eval_loss",
+        metric_for_best_model=pruefplan.metrik,
         greater_is_better=False,
         # Der Bericht ist der einzige Draht nach draußen.
         report_to=[],
@@ -588,7 +649,7 @@ def trainiere(
     if geduldig:
         from transformers import EarlyStoppingCallback
 
-        geduld = int(rezept.get("geduld", 5))
+        geduld = pruefplan.geduld(rezept)
         gewinn = float(rezept.get("mindestgewinn", 0.0))
         rueckrufe.append(
             EarlyStoppingCallback(
@@ -607,7 +668,15 @@ def trainiere(
         eval_dataset=pruef if len(pruef) else None,
         data_collator=Stapler(zerteiler),
         callbacks=rueckrufe,
+        compute_metrics=steuergroesse.wer_rechner(zerteiler) if pruefplan.dekodiert else None,
     )
+    if pruefplan.dekodiert:
+        # Genug für den längsten Satz der Validierung und etwas Übermaß -
+        # mehr erzeugt nur ein Stand, der sich wiederholt.
+        laengste_pruefung = max(len(zerteiler(str(zeile["text"])).input_ids) for zeile in messzeilen)
+        trainer.neue_marken = min(
+            int(modell.config.max_target_positions) // 2, 2 * laengste_pruefung + 10
+        )
 
     bericht.stufe("training")
     trainer.train()
@@ -628,12 +697,13 @@ def trainiere(
         # Weit vor dem letzten heißt: Die Obergrenze des Rezepts ist zu hoch.
         bericht.sage(
             f"Bester Durchgang: {Path(trainer.state.best_model_checkpoint).name} "
-            f"· Validierungsverlust {trainer.state.best_metric:.5f}"
+            f"· {pruefplan.name} {trainer.state.best_metric:.5f}"
         )
         bericht.ereignis(
             art="bester",
             schritt=int(Path(trainer.state.best_model_checkpoint).name.rsplit("-", 1)[-1]),
-            verlust=round(float(trainer.state.best_metric), 5),
+            mass=pruefplan.mass,
+            wert=round(float(trainer.state.best_metric), 5),
         )
 
     # Bei `bester` geschieht nichts (`abschluss.py`).
@@ -648,6 +718,7 @@ def trainiere(
         hat_pruefung=hat_pruefung,
         bericht=bericht,
         alpha_vorgabe=(vorgaben or {}).get("alpha"),
+        mass=pruefplan.mass,
     )
 
     bericht.stufe("sichern")

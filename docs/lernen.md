@@ -56,8 +56,9 @@ der Auswertung von „hören"; was dort fehlt, wird gezählt, nicht nachgemessen
 **Was die Zahl sagt.** Wie gut das Verfahren auf diesem Korpus arbeitet - kein
 unabhängiger Test. Und sie ist leicht optimistisch: Das zurückgehaltene
 Sechstel ist zugleich die Validierung der Faltung. An ihm werden der beste
-Checkpoint, das α des Abschlusses und bei `geduldig` der Abbruch gewählt, und
-an ihm wird gemessen. Sauber wäre eine geschachtelte Kreuzvalidierung; sie
+Checkpoint, das α des Abschlusses und bei `geduldig` der Abbruch gewählt -
+mit der Steuergröße `wer` dreimal je Durchgang und am selben Maß -, und an ihm
+wird gemessen. Sauber wäre eine geschachtelte Kreuzvalidierung; sie
 kostet das Quadrat der Rechenzeit.
 
 ### Das Endmodell
@@ -97,6 +98,7 @@ Optionscode. Die Vorgabe ist jeweils der erste Wert.
 | Datensatz | Nur Originale, Mit Abwandlungen | ob die gemessenen Fassungen mitgelernt werden |
 | Auswahl | Alle Aufnahmen, Kernauswahl | siehe [Die Kernauswahl](#die-kernauswahl) |
 | Epochen | fest, geduldig | feste Obergrenze oder Early Stopping |
+| Steuergröße | Validierungsverlust, WER | woran Checkpoint, Abbruch und α gewählt werden |
 | Augmentierung | keine, SpecAugment, + Raum + Rauschen, + Tempo | Abwandlung zur Laufzeit, nur auf den Lernproben |
 | Tempo | aus, geschätzt, gesucht | siehe [Wie schnell gehört wird](#wie-schnell-gehört-wird) |
 | Abschluss | bester Checkpoint, Checkpoint-Mittel, WiSE-FT, beides | was am Ende mit den Gewichten geschieht |
@@ -188,6 +190,7 @@ Glied, wenn sie nicht auf ihrer Vorgabe steht:
 | Datensatz | Nur Originale, Mit Abwandlungen | –, `A` |
 | Auswahl | Alle Aufnahmen, Kernauswahl | –, `K` |
 | Epochen | fest, geduldig | –, `E` |
+| Steuergröße | Verlust, WER | –, `W` |
 | Augmentierung | keine, SpecAugment, + Raum + Rauschen, + Tempo | –, `S`, `SR`, `SRP` |
 | Tempo | aus, geschätzt, gesucht | –, `Tg`, `Ts` |
 | Abschluss | bester, Mittel, WiSE-FT, beides | –, `C`, `I`, `CI` |
