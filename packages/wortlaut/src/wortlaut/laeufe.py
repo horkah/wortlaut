@@ -925,8 +925,8 @@ def zeilen_fuer_faltung(
     Lernzeilen und Messzeilen an einer Stelle, denn hier hängt die Zusage der
     Kreuzvalidierung: Kein Modell hört, woran es gemessen wird.
 
-    `faltung = None` ist das Endmodell: lernt auf allem, misst nichts
-    (`training/finetune.py`). Gemessen wird auf allen Fassungen und nur an
+    `faltung = None` gibt alle Lernzeilen und keine Messzeile - woraus das
+    Endmodell seinen Startprompt nimmt (`training/endmodell.py`). Gemessen wird auf allen Fassungen und nur an
     Vorlagen (`GEMESSENE_QUELLE`), gelernt je nach `daten` - Modelle
     unterscheiden sich nur in ihren Trainingsdaten.
 
@@ -949,8 +949,7 @@ def zeilen_fuer_faltung(
                 lern.append({**zeile, "text": text})
             continue
         # Seit dem Schnappschuss verworfene Aufnahmen haben kein Audio
-        # (`apps/hoeren/backend/api/recordings.py`) - wichtig bei Neustart und
-        # `nachziehen.py`.
+        # (`apps/hoeren/backend/api/recordings.py`) - wichtig beim Neustart.
         if korpus is not None and not (korpus / str(zeile["audio"])).is_file():
             continue
         if kern is None:

@@ -106,9 +106,8 @@
   }
 
   /**
-   * Die Punkte einer Reihe, je Training für sich: Jede Faltung und das
-   * Endmodell zählen ihre Schritte wieder ab null. Wo der Schritt zurückspringt,
-   * steht eine Lücke - sonst zöge ECharts eine Linie vom Ende einer Faltung
+   * Die Punkte einer Reihe, je Training für sich: Jede Faltung zählt ihre
+   * Schritte ab null. Wo der Schritt zurückspringt, steht eine Lücke - sonst zöge ECharts eine Linie vom Ende einer Faltung
    * zum Anfang der nächsten.
    */
   function abschnitte(punkte: [number, number | null][]): [number, number | null][] {

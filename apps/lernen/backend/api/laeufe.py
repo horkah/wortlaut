@@ -589,6 +589,13 @@ STUFENFOLGE: tuple[tuple[str, float], ...] = (
     ("bewerten", 0.07),
 )
 
+# Das Endmodell trainiert nicht, es mittelt die Faltungen (`training/endmodell.py`).
+ENDSTUFEN: tuple[tuple[str, float], ...] = (
+    ("mitteln", 0.4),
+    ("umwandeln", 0.2),
+    ("bewerten", 0.4),
+)
+
 # Stufen, die in sich weiterzählen; bei den übrigen steht der Balken am Anfang der Stufe.
 MIT_SCHRITTEN = frozenset({"training", "tempowahl"})
 
@@ -596,10 +603,11 @@ MIT_SCHRITTEN = frozenset({"training", "tempowahl"})
 def _anteil(lauf: lauf_layout.Lauf) -> float | None:
     """Wie weit der **ganze Lauf** ist - von 0 bis 1, und nie rückwärts.
 
-    Ein Lauf rechnet sechs Faltungen und das Endmodell, jedes mit eigenem
-    Schrittzähler. Jedes Training bekommt denselben Anteil, darin die Stufen
-    nach `STUFENFOLGE`; was es nicht durchläuft (Tempowahl, Bewertung beim
-    Endmodell), fällt heraus, damit der Balken nicht springt.
+    Ein Lauf rechnet sechs Faltungen, jede mit eigenem Schrittzähler, und
+    mittelt sie zum Endmodell. Jede Faltung und das Endmodell bekommen
+    denselben Anteil, darin die Stufen nach `STUFENFOLGE` bzw. `ENDSTUFEN`;
+    was eine Faltung nicht durchläuft (Tempowahl), fällt heraus, damit der
+    Balken nicht springt.
 
     Monoton, weil `finetune.py` die Stufen in dieser Reihenfolge aufruft. Ein
     unbekannter Stufenname zählt als „noch nicht begonnen".
@@ -615,16 +623,16 @@ def _anteil(lauf: lauf_layout.Lauf) -> float | None:
     endmodell = "faltung" in zustand and zustand.get("faltung") is None
     nummer = trainings - 1 if endmodell else int(zustand.get("faltung") or 0)
 
-    # Das Endmodell übernimmt den Tempomedian und wird an nichts gemessen.
-    sucht = (
-        lauf_layout.tempowahl_aus(lauf.auftrag) == lauf_layout.TEMPO_OPTIMAL
-        and not endmodell
+    sucht = lauf_layout.tempowahl_aus(lauf.auftrag) == lauf_layout.TEMPO_OPTIMAL
+    stufen = (
+        list(ENDSTUFEN)
+        if endmodell
+        else [
+            (name, gewicht)
+            for name, gewicht in STUFENFOLGE
+            if name != "tempowahl" or sucht
+        ]
     )
-    stufen = [
-        (name, gewicht)
-        for name, gewicht in STUFENFOLGE
-        if (name != "tempowahl" or sucht) and (name != "bewerten" or not endmodell)
-    ]
     summe = sum(gewicht for _name, gewicht in stufen)
 
     jetzt = str(zustand.get("stufe", ""))
@@ -843,6 +851,27 @@ def _auswahl_im_steckbrief(lauf: lauf_layout.Lauf) -> tuple[str, str]:
     return name, " · ".join(teil for teil in teile if teil)
 
 
+def _endmodell_im_steckbrief(manifest: dict) -> tuple[str, str]:
+    """Wie viele Faltungen gemittelt sind - und welche warum fehlen."""
+    befund = dict(manifest.get("endmodell") or {})
+    if not befund:
+        return "", ""
+    gemittelt = list(befund.get("faltungen") or [])
+    ausgelassen = list(befund.get("ausgelassen") or [])
+    GRUENDE = {
+        "abgebrochen": "abgebrochen",
+        "ausgefranst": "ausgefranst",
+        "ausreisser": "weit hinter den anderen, gemessen am Grundmodell",
+    }
+    return (
+        f"Mittel aus {len(gemittelt)} von {len(gemittelt) + len(ausgelassen)} Faltungen",
+        "; ".join(
+            f"ohne Faltung {int(eintrag['faltung']) + 1} ({GRUENDE.get(eintrag['grund'], eintrag['grund'])})"
+            for eintrag in ausgelassen
+        ),
+    )
+
+
 def _selbst_im_steckbrief(lauf: lauf_layout.Lauf) -> tuple[str, str]:
     """Das Selbsttraining als Wert und Hinweis: wie viele aufgenommen, nach wem."""
     wahl = lauf_layout.selbsttraining_aus(lauf.auftrag)
@@ -1024,6 +1053,7 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
         )
 
     dazu("Abschluss", _abschlusstext(manifest))
+    dazu("Endmodell", *_endmodell_im_steckbrief(manifest))
     if lauf_layout.kontext_aus(auftrag) == lauf_layout.KONTEXT_VOKABULAR:
         woerter = [wort for wort in str(manifest.get("startprompt") or "").split(", ") if wort]
         dazu(

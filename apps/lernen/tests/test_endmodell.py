@@ -1,9 +1,9 @@
-"""Der siebte Stand - der, mit dem später diktiert wird.
+"""Der Stand, mit dem später diktiert wird - das Mittel der Faltungen.
 
-Die Zahlen eines Laufs stammen aus seinen Faltungen. Freigegeben wird ein
-Modell, das auf allem gelernt hat und sich deshalb nicht bewerten lässt -
-wohl aber prüfen, ob es überhaupt zuhört, statt nach dem ersten Satz
-weiterzureden.
+Die Zahlen eines Laufs stammen aus seinen Faltungen. Freigegeben wird ihr
+Mittel, das jede Aufnahme kennt und sich deshalb nicht bewerten lässt - wohl
+aber prüfen, ob es überhaupt zuhört, statt nach dem ersten Satz
+weiterzureden. Welche Faltung ins Mittel geht, entscheidet `pruefe_faltungen`.
 """
 
 from __future__ import annotations
@@ -107,46 +107,6 @@ class TestVorbehalt:
         assert "4 von 12" in satz
 
 
-class TestPlanZurueckgelesen:
-    """Der Plan der Faltungen steht nicht im Manifest - aber im Fortschritt.
-
-    Fehlt `plan` unter `kreuzvalidierung`, liest `nachziehen` ihn aus den
-    Startmeldungen der Faltungen.
-    """
-
-    def _lauf(self, tmp_path, *zeilen: dict):
-        from wortlaut import laeufe
-
-        for zeile in zeilen:
-            laeufe.haenge_an(tmp_path / laeufe.FORTSCHRITT, zeile)
-        return tmp_path
-
-    def test_die_erste_startmeldung_zaehlt(self, tmp_path) -> None:
-        from apps.lernen.training.nachziehen import plan_aus_dem_lauf
-
-        # Alle sechs Faltungen planen gleich; sie hören nur verschieden früh auf.
-        lauf = self._lauf(
-            tmp_path,
-            {"art": "stufe", "name": "vorbereiten"},
-            {"art": "start", "epochen": 8.0, "schritte_gesamt": 300},
-            {"art": "schritt", "epoche": 1.0},
-            {"art": "start", "epochen": 8.0, "schritte_gesamt": 300},
-        )
-        assert plan_aus_dem_lauf(lauf) == 8.0
-
-    def test_ohne_startmeldung_wird_nichts_behauptet(self, tmp_path) -> None:
-        from apps.lernen.training.nachziehen import plan_aus_dem_lauf
-
-        # Null heißt „nicht zu ermitteln" - dann bleibt es beim alten
-        # Verhalten, und das ist ehrlicher als ein geratener Horizont.
-        assert plan_aus_dem_lauf(self._lauf(tmp_path, {"art": "schritt"})) == 0.0
-
-    def test_ein_fehlender_lauf_ist_kein_fehler(self, tmp_path) -> None:
-        from apps.lernen.training.nachziehen import plan_aus_dem_lauf
-
-        assert plan_aus_dem_lauf(tmp_path / "gibtesnicht") == 0.0
-
-
 class TestFreieVersion:
     """Dasselbe Rezept in derselben Minute beauftragt - und kein Stand geht verloren."""
 
@@ -162,7 +122,7 @@ class TestFreieVersion:
         assert freie_version(tmp_path, self._auftrag("job_b"), self.VERSION) == self.VERSION
 
     def test_derselbe_lauf_behaelt_seinen_namen(self, tmp_path) -> None:
-        # So rechnet `nachziehen` einen Stand an seinem Platz neu.
+        # Trägt ein Lauf seinen Stand noch einmal ein, bleibt der Name.
         self._eintragen(tmp_path, "job_b", self.VERSION)
         assert freie_version(tmp_path, self._auftrag("job_b", "43b"), self.VERSION) == self.VERSION
 
@@ -175,3 +135,104 @@ class TestFreieVersion:
         self._eintragen(tmp_path, "job_b", self.VERSION)
         version = freie_version(tmp_path, self._auftrag("job_c"), self.VERSION)
         assert version == f"{self.VERSION}-job_c"
+
+
+def _messungen(faltung: int, wer: float, anzahl: int = 8) -> list[dict]:
+    zeilen = [
+        {"faltung": faltung, "variante": "original", "wer": wer, "recording_id": f"r{faltung}_{i}"}
+        for i in range(anzahl)
+    ]
+    # Das Rauschen zählt nicht mit - wie in der Plausibilitätsprüfung.
+    return zeilen + [
+        {"faltung": faltung, "variante": "rauschen", "wer": 5.0, "recording_id": f"r{faltung}_{i}"}
+        for i in range(anzahl)
+    ]
+
+
+def _grund(zeilen: list[dict], wer_je_faltung: dict[int, float]) -> dict:
+    """Die WER des Grundmodells je Aufnahme - je Faltung eine Schwierigkeit."""
+    return {
+        (z["recording_id"], "original"): wer_je_faltung[z["faltung"]]
+        for z in zeilen
+        if z["variante"] == "original"
+    }
+
+
+class TestWelcheFaltungen:
+    """Was ins Mittel geht (`endmodell.pruefe_faltungen`)."""
+
+    ALLE = list(range(6))
+
+    def _pruefe(self, zeilen: list[dict], vorhanden=None, grund=None):
+        from apps.lernen.training.endmodell import pruefe_faltungen
+
+        return pruefe_faltungen(
+            zeilen, self.ALLE, set(self.ALLE if vorhanden is None else vorhanden), grund
+        )
+
+    def test_gesunde_faltungen_gehen_alle_hinein(self) -> None:
+        zeilen = [z for f in self.ALLE for z in _messungen(f, 0.2 + f * 0.02)]
+        behalten, ausgelassen = self._pruefe(zeilen, grund=_grund(zeilen, dict.fromkeys(self.ALLE, 0.5)))
+        assert behalten == self.ALLE and ausgelassen == []
+
+    def test_eine_ausgefranste_bleibt_draussen(self) -> None:
+        # Mehr Fehler als Wörter auf einem Viertel der Originale.
+        zeilen = [z for f in range(5) for z in _messungen(f, 0.2)]
+        zeilen += _messungen(5, 0.2, 5) + _messungen(5, 1.3, 3)
+        behalten, ausgelassen = self._pruefe(zeilen)
+        assert behalten == [0, 1, 2, 3, 4]
+        assert ausgelassen[0]["faltung"] == 5 and ausgelassen[0]["grund"] == "ausgefranst"
+
+    def test_eine_einzelne_missratene_zeile_reicht_nicht(self) -> None:
+        # Bei vier Messungen wäre eine schon ein Viertel.
+        zeilen = [z for f in range(5) for z in _messungen(f, 0.2, 4)]
+        zeilen += _messungen(5, 0.2, 3) + _messungen(5, 1.3, 1)
+        assert self._pruefe(zeilen)[0] == self.ALLE
+
+    def test_schwerere_saetze_sind_kein_ausreisser(self) -> None:
+        # Faltung 5 hat die schwersten Sätze: Auch das Grundmodell liegt dort
+        # dreimal so hoch. Gemessen daran ist sie wie die anderen.
+        zeilen = [z for f in range(5) for z in _messungen(f, 0.1)] + _messungen(5, 0.3)
+        grund = _grund(zeilen, {**dict.fromkeys(range(5), 0.4), 5: 1.2})
+        assert self._pruefe(zeilen, grund=grund)[0] == self.ALLE
+
+    def test_ein_ausreisser_gegen_das_grundmodell_bleibt_draussen(self) -> None:
+        # Gleich schwere Sätze, aber Faltung 5 ist schlechter als das Grundmodell.
+        zeilen = [z for f in range(5) for z in _messungen(f, 0.2)] + _messungen(5, 0.6)
+        behalten, ausgelassen = self._pruefe(zeilen, grund=_grund(zeilen, dict.fromkeys(self.ALLE, 0.4)))
+        assert 5 not in behalten
+        assert ausgelassen[0]["grund"] == "ausreisser"
+        assert ausgelassen[0]["verhaeltnis"] > 1.0
+
+    def test_besser_als_das_grundmodell_ist_nie_ein_ausreisser(self) -> None:
+        # Weit hinter den anderen, aber noch vor dem Grundmodell - kein Schaden.
+        zeilen = [z for f in range(5) for z in _messungen(f, 0.05)] + _messungen(5, 0.35)
+        grund = _grund(zeilen, dict.fromkeys(self.ALLE, 0.4))
+        assert self._pruefe(zeilen, grund=grund)[0] == self.ALLE
+
+    def test_ohne_grundmodell_keine_ausreisserpruefung(self) -> None:
+        zeilen = [z for f in range(5) for z in _messungen(f, 0.2)] + _messungen(5, 0.6)
+        assert self._pruefe(zeilen)[0] == self.ALLE
+
+    def test_eine_abgebrochene_fehlt(self) -> None:
+        zeilen = [z for f in range(5) for z in _messungen(f, 0.2)]
+        behalten, ausgelassen = self._pruefe(zeilen, vorhanden=range(5))
+        assert behalten == [0, 1, 2, 3, 4]
+        assert ausgelassen == [
+            {"faltung": 5, "grund": "abgebrochen", "wer": None, "verhaeltnis": None, "median": None}
+        ]
+
+
+class TestAbschlussbild:
+    def test_alpha_ist_der_median_und_zurueckgenommen_nur_wenn_ueberall(self) -> None:
+        from apps.lernen.training.endmodell import _abschlussbild
+
+        faltungen = [
+            {"abschluss": {"alpha": 0.1, "zurueckgenommen": False}},
+            {"abschluss": {"alpha": 0.3, "zurueckgenommen": True}},
+            {"abschluss": {"alpha": 0.2, "zurueckgenommen": False}},
+        ]
+        bild = _abschlussbild(faltungen, "interpoliert")
+        assert bild["alpha"] == 0.2
+        assert bild["zurueckgenommen"] is False
+        assert _abschlussbild(faltungen[1:2], "interpoliert")["zurueckgenommen"] is True
