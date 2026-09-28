@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from wortlaut import kartenplan, laeufe, sprachen, tempo
+from wortlaut import fehlerlog, kartenplan, laeufe, sprachen, tempo
 from wortlaut.whisper.local import STARTPROMPT
 
 from . import abschluss as abschlussrechnung
@@ -1208,9 +1208,12 @@ def _halt_bei_sigterm(_signal: int, _rahmen: object) -> None:
 
 def main(argumente: list[str]) -> int:
     signal.signal(signal.SIGTERM, _halt_bei_sigterm)
-    if argumente == ["--karte"]:
-        from apps.lernen.backend.config import einstellungen
+    from apps.lernen.backend.config import einstellungen
 
+    # Warnungen dieses Prozesses ins Fehlerprotokoll; ein Scheitern meldet der
+    # Läufer, der den Zustand danach liest (`laeufer.einmal`).
+    fehlerlog.richte_ein(lambda: einstellungen().data_dir, "training")
+    if argumente == ["--karte"]:
         diese = melde_karte(einstellungen().data_dir)
         print(f"Karte gemeldet: {diese.name}, {diese.speicher_mb:.0f} MB" if diese else "Keine Karte.")
         return 0

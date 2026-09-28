@@ -101,6 +101,16 @@ export const DARSTELLUNG_PFAD = '/darstellung';
 export const SYSTEM_PFAD = '/system';
 
 /**
+ * Warnungen und Fehler von Webdienst und Trainer der letzten sieben Tage
+ * (`Fehlerprotokoll.svelte`, `GET /api/fehlerlog`).
+ *
+ * Nur für Aufsicht, Verwaltung und wer den Trainerschlüssel im Browser hat -
+ * darin stehen Pfade und Kennungen, keine Sache eines einzelnen Sprechers.
+ * Im Menü direkt unter „System", vor „Über wortlaut".
+ */
+export const FEHLERLOG_PFAD = '/fehlerprotokoll';
+
+/**
  * Wo die Zugangsdaten dieser Instanz verwaltet werden - Verwalter- und
  * Aufsichtstoken.
  *
@@ -259,6 +269,7 @@ export const MENUE_TEXT: Record<string, string> = {
   [AUDIO_PFAD]: 'Audio',
   [DARSTELLUNG_PFAD]: 'Darstellung',
   [SYSTEM_PFAD]: 'System',
+  [FEHLERLOG_PFAD]: 'Fehlerprotokoll',
 };
 
 /**
@@ -289,7 +300,11 @@ export const GERAETE_PUNKTE: Menuepunkt[] = [
  * „hören" - dort Hash-Routen, von außerhalb Adressen, die eine Seite laden.
  * Eine Ansicht liegt in genau einer App.
  */
-export function menuePunkte(art: string, app: AppSchluessel): Menuepunkt[] {
+export function menuePunkte(
+  art: string,
+  app: AppSchluessel,
+  mitTrainerschluessel = false,
+): Menuepunkt[] {
   const inHoeren = app === 'hoeren';
   // Von außen die volle Adresse, innerhalb von „hören" die Hash-Route.
   const nachHoeren = (pfad: string) => (inHoeren ? {} : { href: `/#${pfad}` });
@@ -313,8 +328,12 @@ export function menuePunkte(art: string, app: AppSchluessel): Menuepunkt[] {
   // dieser Punkt der einzige Weg herein, und ein Menü, das ihn erst nach
   // erfolgreicher Anmeldung zeigt, hätte die Tür hinter dem Schloss.
   punkte.push({ pfad: ZUGANGSDATEN_PFAD, text: MENUE_TEXT[ZUGANGSDATEN_PFAD] });
-  // Erst wer, dann womit.
-  return [...punkte, ...GERAETE_PUNKTE];
+  // Erst wer, dann womit - und zuletzt, was schiefging.
+  const fehler =
+    art === 'verwaltung' || art === 'aufsicht' || mitTrainerschluessel
+      ? [{ pfad: FEHLERLOG_PFAD, text: MENUE_TEXT[FEHLERLOG_PFAD] }]
+      : [];
+  return [...punkte, ...GERAETE_PUNKTE, ...fehler];
 }
 
 /**
@@ -424,6 +443,7 @@ export const SCHALTBARE_MENUEPUNKTE: Schaltbar[] = [
     grund: 'Diese Seite selbst - ohne sie käme kein Schalter zurück.',
   },
   { schluessel: menueSchluessel(SYSTEM_PFAD), text: MENUE_TEXT[SYSTEM_PFAD] },
+  { schluessel: menueSchluessel(FEHLERLOG_PFAD), text: MENUE_TEXT[FEHLERLOG_PFAD] },
   { schluessel: PROJEKT_SCHLUESSEL, text: 'Über wortlaut' },
 ];
 

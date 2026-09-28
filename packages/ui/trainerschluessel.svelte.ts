@@ -2,19 +2,21 @@
  * Der Trainerschlüssel im Browser - das zweite Geheimnis, und das seltenere.
  *
  * Der Zugang eines Sprechers sagt, wessen Modell entsteht; er liegt in
- * `$ui/zugang` und geht an jede Anfrage. Dieser Schlüssel beantwortet eine
+ * `zugang.ts` und geht an jede Anfrage. Dieser Schlüssel beantwortet eine
  * andere Frage - ob jemand die Karte für Stunden belegen darf - und geht
- * deshalb an genau eine: `POST /lernen/api/laeufe` (siehe
- * `backend/api/laeufe.py`).
+ * deshalb nur an die Wege, die er öffnet: `POST /lernen/api/laeufe` und das
+ * Fehlerprotokoll (`GET /api/fehlerlog`).
  *
  * Im `localStorage`, weil in Sitzungen trainiert wird und ein jedes Mal
  * leeres Feld in einer Textdatei landet. Unter eigenem Namen, damit
- * „abmelden" den Zugang räumt, ohne den Schlüssel mitzunehmen.
+ * „abmelden" den Zugang räumt, ohne den Schlüssel mitzunehmen. Hier in
+ * `packages/ui` und als Zustand, weil das Menü jeder App wissen will, ob er da
+ * ist - und es sofort wissen soll, wenn er eingetragen wird.
  */
 
 const SCHLUESSEL = 'wortlaut.trainerschluessel';
 
-export function trainerschluessel(): string {
+function gespeichert(): string {
   try {
     return localStorage.getItem(SCHLUESSEL) ?? '';
   } catch {
@@ -24,9 +26,16 @@ export function trainerschluessel(): string {
   }
 }
 
+const stand = $state({ wert: gespeichert() });
+
+export function trainerschluessel(): string {
+  return stand.wert;
+}
+
 export function setzeTrainerschluessel(wert: string): void {
+  const getrimmt = wert.trim();
+  stand.wert = getrimmt;
   try {
-    const getrimmt = wert.trim();
     if (getrimmt) localStorage.setItem(SCHLUESSEL, getrimmt);
     else localStorage.removeItem(SCHLUESSEL);
   } catch {

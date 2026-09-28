@@ -12,6 +12,7 @@ Art. 9 DSGVO. Das bestimmt den Aufbau, nicht nur einen Hinweistext.
 | Diktate von „schreiben" | `…/diktate/<sprecher_id>/` | Arbeitsstand bis zur Übergabe |
 | Laufverzeichnisse | `…/snapshots/<job_id>/` | Manifest mit Texten, markiert mit `sprecher.txt` |
 | Modellstände | `…/modelle/<sprecher_id>/` | tragen Stimmcharakteristik |
+| Fehlerprotokoll | `…/protokoll/fehler.jsonl` | Warnungen und Fehler, sieben Tage; Kennungen und Pfade, nur für Aufsicht, Verwaltung und Trainerschlüssel |
 
 Alles zu einer Person liegt unter Verzeichnissen mit ihrer Kennung - die
 Voraussetzung für eine Löschung, die sich nachweisen lässt.

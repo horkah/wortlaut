@@ -2,7 +2,7 @@
  * Der Bearbeitungsschlüssel im Browser - das zweite Geheimnis dieser App.
  *
  * Wortgleich zum Trainerschlüssel in „lernen"
- * (`apps/lernen/frontend/src/lib/trainerschluessel.ts`), und das ist Absicht:
+ * (`packages/ui/trainerschluessel.svelte.ts`), und das ist Absicht:
  * Es ist dieselbe Bauart für dieselbe Art von Frage. Der Zugang eines
  * Sprechers sagt, wessen Aufnahmen das sind; er liegt in `$ui/zugang` und geht
  * an jede Anfrage. Dieser Schlüssel beantwortet, ob jemand in den Bestand

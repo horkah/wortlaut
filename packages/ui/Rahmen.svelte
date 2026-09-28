@@ -8,7 +8,8 @@
    * aus dem gemeinsamen Zustand (`lage.svelte.ts`): wer angemeldet ist, was
    * im Menü steht, welcher Reiter offen ist. Und er zeigt jede Ansicht, die
    * im Menü steht und keiner einzelnen App gehört - Audio, Darstellung,
-   * System, Zugangsdaten -, dazu den Hinweis, wenn kein Zugang da ist.
+   * System, Fehlerprotokoll, Zugangsdaten -, dazu den Hinweis, wenn kein
+   * Zugang da ist.
    *
    * So viel hier, damit keine App davon abweichen kann.
    *
@@ -22,11 +23,13 @@
   import Audio from './Audio.svelte';
   import Darstellung from './Darstellung.svelte';
   import System from './System.svelte';
+  import Fehlerprotokoll from './Fehlerprotokoll.svelte';
   import Zugangsdaten from './Zugangsdaten.svelte';
   import KeinZugang from './KeinZugang.svelte';
   import {
     AUDIO_PFAD,
     DARSTELLUNG_PFAD,
+    FEHLERLOG_PFAD,
     REITER,
     SYSTEM_PFAD,
     ZUGANGSDATEN_PFAD,
@@ -35,6 +38,7 @@
   } from './apps';
   import { merkeReiter, vorgabeReiter } from './reiter';
   import { ladeZugang, lage } from './lage.svelte';
+  import { trainerschluessel } from './trainerschluessel.svelte';
 
   let {
     app,
@@ -67,10 +71,11 @@
     [AUDIO_PFAD]: Audio,
     [DARSTELLUNG_PFAD]: Darstellung,
     [SYSTEM_PFAD]: System,
+    [FEHLERLOG_PFAD]: Fehlerprotokoll,
     [ZUGANGSDATEN_PFAD]: Zugangsdaten,
   };
 
-  const menue = $derived(menuePunkte(lage.art, app));
+  const menue = $derived(menuePunkte(lage.art, app, Boolean(trainerschluessel())));
   const reiter = $derived(REITER[app].filter((punkt) => punkt.pfad in ansichten));
 
   // Welcher Reiter gilt, solange in der Adresse nichts steht: der, auf dem

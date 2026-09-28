@@ -24,11 +24,6 @@ def sprecher_relpfad(sprecher_id: str) -> str:
 
 
 class Einstellungen(Grundeinstellungen):
-    # Wer ein Training anstoßen darf (`X-Trainer-Key` vor Beauftragen und
-    # Neustart). Der Sprecherzugang sagt, wessen Modell entsteht, nicht, wer
-    # die Karte stundenlang belegen darf. Leer heißt abgeschaltet.
-    trainer_key: str = ""
-
     # Die Vorgabe, worauf trainiert wird: die kleinste Stufe, die ganze Sätze
     # trifft, und dieselbe, gegen die „hören" misst.
     lernen_basismodell: str = "openai/whisper-small"
