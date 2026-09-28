@@ -78,7 +78,9 @@ class Proben(torch.utils.data.Dataset):
         if not tempo.vorspulen_noetig(self.faktor) or self.zwischenlager is None:
             return quelle
 
-        ziel = self.zwischenlager / relpfad
+        # Ein Pfad aus dem Korpus hinaus (`../../diktate/…`, Selbsttraining)
+        # bleibt im Zwischenlager darin.
+        ziel = self.zwischenlager / relpfad.replace("../", "")
         if not ziel.is_file():
             tempo.spule_vor(quelle, ziel, self.faktor)
         return ziel

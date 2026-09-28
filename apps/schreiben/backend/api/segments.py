@@ -119,6 +119,8 @@ async def sprich_neu(
     abschnitt.blob = roh.blob
     abschnitt.dauer_s = roh.dauer_s
     abschnitt.herkunft = "neu"
+    # Geht mit der Korrektur an „hören" (`services/outbox.py`).
+    abschnitt.anlaeufe = (abschnitt.anlaeufe or 1) + 1
     db.commit()
     return als_antwort(db, sitzung)
 

@@ -468,6 +468,8 @@ def teilen(
                 quality.pruefe(befund, neue_vorlage.dauer_geschaetzt_s), ensure_ascii=False
             ),
             externe_id=None,
+            # Ein Teil einer Korrektur ist so oft gesprochen wie sie.
+            anlaeufe=original.anlaeufe,
             sortierschluessel=f"{stamm}.{nummer}",
             erstellt=original.erstellt,
         )

@@ -61,6 +61,11 @@ def _pruefe_trainerschluessel(
         )
 
 
+def _gewichtstext(gewicht: float) -> str:
+    """`0.25` → `0,25`."""
+    return f"{gewicht:g}".replace(".", ",")
+
+
 class WahlAntwort(BaseModel):
     """Eine Wahlmöglichkeit beim Beauftragen - Schlüssel, Name, Kurzbeschreibung.
 
@@ -163,6 +168,47 @@ AUSWAHLEN = [
             "sie hört erst das Endmodell in der Auswertung von „hören“."
         ),
         code=lauf_layout.CODE_AUSWAHL[lauf_layout.AUSWAHL_KERN],
+    ),
+]
+
+
+KORREKTURGEWICHTE = [
+    WahlAntwort(
+        schluessel=gewicht,
+        name=f"Gewicht {gewicht.replace('.', ',')}",
+        erklaerung="Korrekturen zählen wie Vorlagen." if gewicht == "1.0" else "",
+        code=lauf_layout.CODE_KORREKTURGEWICHT[gewicht],
+    )
+    for gewicht in lauf_layout.KORREKTURGEWICHTE
+    if gewicht != lauf_layout.GEWICHT_VERLAUF
+] + [
+    WahlAntwort(
+        schluessel=lauf_layout.GEWICHT_VERLAUF,
+        name="Aus dem Verlauf",
+        erklaerung=(
+            f"Unverändert bestätigt {_gewichtstext(auftraege.GEWICHT_UNVERAENDERT)}, "
+            f"nachgesprochen {_gewichtstext(auftraege.GEWICHT_NACHGESPROCHEN)}."
+        ),
+        code=lauf_layout.CODE_KORREKTURGEWICHT[lauf_layout.GEWICHT_VERLAUF],
+    )
+]
+
+
+SELBSTTRAININGE = [
+    WahlAntwort(
+        schluessel=lauf_layout.SELBST_AUS,
+        name="Aus",
+        erklaerung="",
+        code=lauf_layout.CODE_SELBSTTRAINING[lauf_layout.SELBST_AUS],
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.SELBST_AN,
+        name="Unbestätigte Diktate",
+        erklaerung=(
+            "Das freigegebene Modell beschriftet sie; was es sicher hört, lernt mit "
+            f"Gewicht {_gewichtstext(auftraege.GEWICHTE[lauf_layout.QUELLE_SELBST])} mit."
+        ),
+        code=lauf_layout.CODE_SELBSTTRAINING[lauf_layout.SELBST_AN],
     ),
 ]
 
@@ -338,6 +384,8 @@ class Bestellung(BaseModel):
     # Leer: die Vorgabe des Servers.
     grundmodell: str = ""
     auswahl: str = lauf_layout.AUSWAHL_ALLE
+    korrekturgewicht: str = lauf_layout.GEWICHT_VORGABE
+    selbsttraining: str = lauf_layout.SELBST_AUS
 
 
 class StandHinweis(BaseModel):
@@ -359,6 +407,8 @@ class LaufAntwort(BaseModel):
     lora_ziele: str = lauf_layout.ZIELE_QV
     lora_rang: str = lauf_layout.RANG_VORGABE
     auswahl: str = lauf_layout.AUSWAHL_ALLE
+    korrekturgewicht: str = lauf_layout.GEWICHT_VORGABE
+    selbsttraining: str = lauf_layout.SELBST_AUS
     abschluss: str
     augmentierung: str
     dauer: str
@@ -436,6 +486,8 @@ class EinzelAntwort(BaseModel):
     lora_raenge: list[WahlAntwort]
     datensaetze: list[WahlAntwort]
     auswahlen: list[WahlAntwort]
+    korrekturgewichte: list[WahlAntwort]
+    selbsttraininge: list[WahlAntwort]
     abschluesse: list[WahlAntwort]
     augmentierungen: list[WahlAntwort]
     dauern: list[WahlAntwort]
@@ -459,6 +511,8 @@ class ListeAntwort(BaseModel):
     lora_raenge: list[WahlAntwort]
     datensaetze: list[WahlAntwort]
     auswahlen: list[WahlAntwort]
+    korrekturgewichte: list[WahlAntwort]
+    selbsttraininge: list[WahlAntwort]
     abschluesse: list[WahlAntwort]
     augmentierungen: list[WahlAntwort]
     dauern: list[WahlAntwort]
@@ -596,6 +650,8 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         lora_rang=lauf_layout.lora_rang_aus(lauf.auftrag),
         daten=str(lauf.auftrag.get("daten", "")),
         auswahl=lauf_layout.auswahl_aus(lauf.auftrag),
+        korrekturgewicht=lauf_layout.korrekturgewicht_aus(lauf.auftrag),
+        selbsttraining=lauf_layout.selbsttraining_aus(lauf.auftrag),
         abschluss=str(lauf.auftrag.get("abschluss") or lauf_layout.ABSCHLUSS_BESTER),
         augmentierung=str(lauf.auftrag.get("augmentierung") or lauf_layout.AUG_KEINE),
         dauer=str(lauf.auftrag.get("dauer") or lauf_layout.DAUER_FEST),
@@ -748,6 +804,27 @@ def _auswahl_im_steckbrief(lauf: lauf_layout.Lauf) -> tuple[str, str]:
     return name, " · ".join(teil for teil in teile if teil)
 
 
+def _selbst_im_steckbrief(lauf: lauf_layout.Lauf) -> tuple[str, str]:
+    """Das Selbsttraining als Wert und Hinweis: wie viele aufgenommen, nach wem."""
+    wahl = lauf_layout.selbsttraining_aus(lauf.auftrag)
+    name = _wahlname(SELBSTTRAININGE, wahl)
+    if wahl != lauf_layout.SELBST_AN:
+        return name, ""
+    kandidaten = int(dict(lauf.auftrag.get("zeilen") or {}).get(lauf_layout.QUELLE_SELBST, 0))
+    inhalt = lauf_layout.lies_json(lauf.verzeichnis / lauf_layout.SELBSTBESCHRIFTUNG)
+    if inhalt is None:
+        return name, f"{kandidaten} Abschnitte, noch nicht beschriftet"
+    zeilen = dict(inhalt.get("zeilen") or {})
+    aufgenommen = sum(1 for zeile in zeilen.values() if zeile.get("aufgenommen"))
+    modell = str(inhalt.get("modell") or "")
+    teile = [
+        f"{aufgenommen} von {len(zeilen)} Abschnitten aufgenommen",
+        f"nach {registry.beschriftung(modell)}" if modell else "",
+        f"ab Sicherheit {_zahl(inhalt['schwelle'])}" if inhalt.get("schwelle") is not None else "",
+    ]
+    return name, " · ".join(teil for teil in teile if teil)
+
+
 def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
     """Was diesen Lauf ausmacht - in Zahlen, nicht in Sätzen.
 
@@ -803,6 +880,12 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
     umfang = f"{proben} Proben aus {aufnahmen} Aufnahmen" if proben and aufnahmen else ""
     dazu("Datensatz", _wahlname(DATENSAETZE, str(auftrag.get("daten", ""))), umfang)
     dazu("Auswahl", *_auswahl_im_steckbrief(lauf))
+    dazu(
+        "Korrekturen",
+        _wahlname(KORREKTURGEWICHTE, lauf_layout.korrekturgewicht_aus(auftrag)),
+        "Vorlagen zählen 1",
+    )
+    dazu("Selbsttraining", *_selbst_im_steckbrief(lauf))
 
     stufe = str(auftrag.get("augmentierung") or lauf_layout.AUG_KEINE)
     dazu(
@@ -967,6 +1050,8 @@ def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         lora_raenge=LORA_RAENGE,
         datensaetze=DATENSAETZE,
         auswahlen=AUSWAHLEN,
+        korrekturgewichte=KORREKTURGEWICHTE,
+        selbsttraininge=SELBSTTRAININGE,
         abschluesse=ABSCHLUESSE,
         augmentierungen=AUGMENTIERUNGEN,
         dauern=DAUERN,
@@ -1017,6 +1102,8 @@ def beauftrage(
                 lora_rang=bestellung.lora_rang,
                 daten=bestellung.daten,
                 auswahl=bestellung.auswahl,
+                korrekturgewicht=bestellung.korrekturgewicht,
+                selbsttraining=bestellung.selbsttraining,
                 abschluss=bestellung.abschluss,
                 augmentierung=bestellung.augmentierung,
                 dauer=bestellung.dauer,
@@ -1055,6 +1142,8 @@ def einzeln(
         lora_raenge=LORA_RAENGE,
         datensaetze=DATENSAETZE,
         auswahlen=AUSWAHLEN,
+        korrekturgewichte=KORREKTURGEWICHTE,
+        selbsttraininge=SELBSTTRAININGE,
         abschluesse=ABSCHLUESSE,
         augmentierungen=AUGMENTIERUNGEN,
         dauern=DAUERN,

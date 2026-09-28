@@ -44,6 +44,10 @@ steht in der Oberfläche über dem Auswahlfeld, wo jemand zögert.
 - Das hochgeladene Opus liegt nur temporär, bis ffmpeg fertig ist.
 - „schreiben" behält die zusammenhängende Diktataufnahme nicht, und ein
   Abschnitt verliert seine Datei, sobald er im Korpus angekommen ist.
+- Ein Lauf mit **Selbsttraining** lernt auch aus nie bestätigten Diktaten.
+  Ihr Audio bleibt, wo es liegt; der Lauf nennt es im Manifest und legt die
+  Beschriftung des Modells in `selbstbeschriftung.json` - beides unter der
+  Sprecher-Marke des Laufs und mit ihm gelöscht. Voreingestellt ist es aus.
 - Abgewandelte Fassungen und vorgelesene Sätze gehen mit ihrer Aufnahme und
   ihrem Sprecher.
 - Fehlermeldungen enthalten Pfade, keine Transkripte oder Audioinhalte.

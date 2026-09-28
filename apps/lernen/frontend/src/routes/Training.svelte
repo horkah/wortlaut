@@ -49,6 +49,8 @@
   let loraRang = $state(gemerkt.loraRang);
   let datensatz = $state(gemerkt.datensatz);
   let auswahl = $state(gemerkt.auswahl);
+  let korrekturgewicht = $state(gemerkt.korrekturgewicht);
+  let selbsttraining = $state(gemerkt.selbsttraining);
   let abschluss = $state(gemerkt.abschluss);
   let augmentierung = $state(gemerkt.augmentierung);
   let dauer = $state(gemerkt.dauer);
@@ -63,6 +65,8 @@
       loraRang,
       datensatz,
       auswahl,
+      korrekturgewicht,
+      selbsttraining,
       abschluss,
       augmentierung,
       dauer,
@@ -148,6 +152,8 @@
           ['LoRA-Rang', daten.lora_raenge, (lauf) => lauf.lora_rang],
           ['Datensatz', daten.datensaetze, (lauf) => lauf.daten],
           ['Auswahl', daten.auswahlen, (lauf) => lauf.auswahl],
+          ['Korrekturen', daten.korrekturgewichte, (lauf) => lauf.korrekturgewicht],
+          ['Selbsttraining', daten.selbsttraininge, (lauf) => lauf.selbsttraining],
           ['Epochen', daten.dauern, (lauf) => lauf.dauer],
           ['Steuergröße', daten.steuerungen, (lauf) => lauf.steuerung],
           ['Augmentierung', daten.augmentierungen, (lauf) => lauf.augmentierung],
@@ -221,6 +227,8 @@
               lauf.lora_rang || '32',
               lauf.daten,
               lauf.auswahl || 'alle',
+              lauf.korrekturgewicht || '0.5',
+              lauf.selbsttraining || 'aus',
               lauf.abschluss || 'bester',
               lauf.augmentierung || 'keine',
               lauf.dauer || 'fest',
@@ -246,6 +254,8 @@
       bestellterRang,
       datensatz,
       auswahl,
+      korrekturgewicht,
+      selbsttraining,
       abschluss,
       augmentierung,
       dauer,
@@ -257,6 +267,7 @@
   const STUFEN: Record<string, string> = {
     vorbereiten: 'wird vorbereitet',
     kernauswahl: 'Kernauswahl: das freigegebene Modell hört, was ihm fehlt',
+    selbsttraining: 'Selbsttraining: das freigegebene Modell beschriftet Diktate',
     laden: 'Modell wird geladen',
     tempowahl: 'sucht die Geschwindigkeit',
     training: 'trainiert',
@@ -276,6 +287,7 @@
     // „Endmodell", denn auch dort ist die Faltung `null`.
     if (lauf.stufe === 'vorbereiten') return stufe;
     if (lauf.stufe === 'kernauswahl') return `${stufe} (${lauf.kern_offen} Aufnahmen)`;
+    if (lauf.stufe === 'selbsttraining') return stufe;
     // `faltung === null`: das Endmodell, das auf allem lernt.
     const wo =
       lauf.faltung === null
@@ -342,6 +354,8 @@
           lora_rang: bestellterRang,
           daten: datensatz,
           auswahl,
+          korrekturgewicht,
+          selbsttraining,
           abschluss,
           augmentierung,
           dauer,
@@ -639,6 +653,28 @@
           <label class="option">
             <input type="radio" bind:group={auswahl} value={wahl.schluessel} />
             {@render option(wahl, prozent('Auswahl', wahl))}
+          </label>
+        {/each}
+      </fieldset>
+
+      <!-- Nur Korrekturen aus „schreiben"; Vorlagen zählen immer 1. -->
+      <fieldset>
+        <legend>Korrekturen</legend>
+        {#each daten.korrekturgewichte as wahl (wahl.schluessel)}
+          <label class="option">
+            <input type="radio" bind:group={korrekturgewicht} value={wahl.schluessel} />
+            {@render option(wahl, prozent('Korrekturen', wahl))}
+          </label>
+        {/each}
+      </fieldset>
+
+      <!-- Lernt nur mit, gemessen wird es nie (`training/selbsttraining.py`). -->
+      <fieldset>
+        <legend>Selbsttraining</legend>
+        {#each daten.selbsttraininge as wahl (wahl.schluessel)}
+          <label class="option">
+            <input type="radio" bind:group={selbsttraining} value={wahl.schluessel} />
+            {@render option(wahl, prozent('Selbsttraining', wahl))}
           </label>
         {/each}
       </fieldset>

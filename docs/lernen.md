@@ -46,7 +46,8 @@ jedem Auftrag gerechnet und steht im Manifest.
 
 **Gemessen wird nur an Vorlagen** (`laeufe.zeilen_fuer_faltung`). Eine
 Korrektur aus „schreiben" trägt als Text eine abgenickte Maschinenausgabe;
-sie lernt in jeder Faltung mit, gewichtet mit 0,5, und wird nie gemessen.
+sie lernt in jeder Faltung mit, gewichtet nach der Achse „Korrekturen", und
+wird nie gemessen. Ebenso selbst beschriftete Diktate.
 
 **Am Ende steht das Grundmodell daneben.** Protokoll und Manifest
 (`grundmodell`) nennen WER und CER des Laufs und des unveränderten
@@ -99,6 +100,8 @@ Optionscode. Die Vorgabe ist jeweils der erste Wert.
 | LoRA-Rang | 32, 8, 64 | wie groß er ist, α wächst mit - nur mit LoRA |
 | Datensatz | Nur Originale, Mit Abwandlungen | ob die gemessenen Fassungen mitgelernt werden |
 | Auswahl | Alle Aufnahmen, Kernauswahl | siehe [Die Kernauswahl](#die-kernauswahl) |
+| Korrekturen | Gewicht 0,5, 0,25, 0,75, 1,0, aus dem Verlauf | womit Korrekturen aus „schreiben" zählen |
+| Selbsttraining | aus, unbestätigte Diktate | ob das freigegebene Modell unbestätigte Diktate beschriftet und sie mitlernen |
 | Epochen | fest, geduldig | feste Obergrenze oder Early Stopping |
 | Steuergröße | Validierungsverlust, WER | woran Checkpoint, Abbruch und α gewählt werden |
 | Augmentierung | keine, SpecAugment, + Raum + Rauschen, + Tempo | Abwandlung zur Laufzeit, nur auf den Lernproben |
@@ -193,6 +196,8 @@ Glied, wenn sie nicht auf ihrer Vorgabe steht:
 | LoRA-Rang | 32, 8, 64 | –, `R8`, `R64` |
 | Datensatz | Nur Originale, Mit Abwandlungen | –, `A` |
 | Auswahl | Alle Aufnahmen, Kernauswahl | –, `K` |
+| Korrekturen | 0,5, 0,25, 0,75, 1,0, Verlauf | –, `Q25`, `Q75`, `Q100`, `Qv` |
+| Selbsttraining | aus, an | –, `U` |
 | Epochen | fest, geduldig | –, `E` |
 | Steuergröße | Verlust, WER | –, `W` |
 | Augmentierung | keine, SpecAugment, + Raum + Rauschen, + Tempo | –, `S`, `SR`, `SRP` |

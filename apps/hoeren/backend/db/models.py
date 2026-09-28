@@ -99,6 +99,8 @@ class Aufnahme(Basis):
     zuschnitt_ende_s: Mapped[float | None] = mapped_column(default=None)
     # Leer, außer bei Teilen: Kennung des Originals mit angehängter Nummer.
     sortierschluessel: Mapped[str | None] = mapped_column(default=None)
+    # Nur bei Korrekturen: wie oft in „schreiben" gesprochen, bis bestätigt.
+    anlaeufe: Mapped[int | None] = mapped_column(default=None)
     erstellt: Mapped[str]
 
 

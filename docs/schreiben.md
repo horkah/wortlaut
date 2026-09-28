@@ -12,10 +12,11 @@ hier arbeitet, entscheidet [lernen](lernen.md).
 1. Die Person spricht; Whisper liefert Text mit Segmentgrenzen.
 2. Die App liest die Abschnitte vor; jeder ist anklickbar.
 3. Ein Klick → nur dieser Abschnitt wird neu eingesprochen und erkannt; der
-   Rest bleibt.
-4. Bestätigt, geht jeder Abschnitt als Korrekturpaar an
+   Rest bleibt. Der Abschnitt zählt seine Anläufe mit (`segments.anlaeufe`).
+4. Bestätigt, geht jeder Abschnitt als Korrekturpaar samt Anläufen an
    `POST /api/korpus/intake` von `hören`. Der Postausgang puffert, wenn `hören`
-   nicht erreichbar ist.
+   nicht erreichbar ist. Aus den Anläufen kann `lernen` das Gewicht der
+   Korrektur ableiten ([Das Trainingsverfahren](trainingsverfahren.md#die-korrekturen)).
 
 ## Aufbau
 

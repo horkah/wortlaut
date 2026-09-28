@@ -21,7 +21,9 @@ Baseline ein anderer Versuch.
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -32,14 +34,36 @@ from wortlaut import augmentierung, corpus, ids, laeufe, registry
 from apps.hoeren.backend.db.models import Textquelle
 from apps.hoeren.backend.services import zuschnitt
 from apps.lernen.backend.config import einstellungen
+from apps.schreiben.backend import config as schreiben_ablage
 from apps.lernen.backend.services import aufteilung, kernauswahl
 from apps.lernen.backend.services.aufteilung import Probe
 from apps.lernen.backend.services.kernauswahl import Kernauswahl
 
 # Womit eine Probe zählt. Korrekturen stammen aus „schreiben": Ihr Text ist
 # keine Vorgabe, sondern eine vom Menschen abgenickte Maschinenausgabe. Wer sie
-# gleichrangig einspeist, trainiert dem Modell seine eigenen Fehler an.
-GEWICHTE = {"vorlage": 1.0, "korrektur": 0.5}
+# gleichrangig einspeist, trainiert dem Modell seine eigenen Fehler an - wie
+# viel weniger, ist eine Achse (`laeufe.KORREKTURGEWICHTE`). Selbst
+# beschriftetes Audio hat nicht einmal ein Nicken.
+GEWICHTE = {"vorlage": 1.0, "korrektur": 0.5, laeufe.QUELLE_SELBST: 0.25}
+
+# `verlauf`: das Gewicht einer Korrektur nach ihren Anläufen in „schreiben".
+# Unverändert bestätigt heißt, das Modell hatte recht - es gibt wenig zu
+# lernen, und ob jemand genau hingesehen hat, weiß niemand. Nachgesprochen
+# heißt, die Person hat genau diesen Abschnitt geprüft und durchgesetzt.
+# Ohne Zahl gilt die Vorgabe.
+GEWICHT_UNVERAENDERT = 0.25
+GEWICHT_NACHGESPROCHEN = 0.75
+
+
+def gewicht_fuer(quelle: str, korrekturgewicht: str, anlaeufe: int | None = None) -> float:
+    """Womit eine Probe im Training zählt (`Probe.gewicht` in `training/daten.py`)."""
+    if quelle != "korrektur":
+        return GEWICHTE.get(quelle, 1.0)
+    if korrekturgewicht != laeufe.GEWICHT_VERLAUF:
+        return float(korrekturgewicht)
+    if anlaeufe is None:
+        return float(laeufe.GEWICHT_VORGABE)
+    return GEWICHT_UNVERAENDERT if anlaeufe <= 1 else GEWICHT_NACHGESPROCHEN
 
 
 @dataclass(frozen=True)
@@ -64,6 +88,8 @@ class Auftrag:
     # Leer: das unveränderte `basismodell`.
     ausgangsstand: str = ""
     auswahl: str = laeufe.AUSWAHL_ALLE
+    korrekturgewicht: str = laeufe.GEWICHT_VORGABE
+    selbsttraining: str = laeufe.SELBST_AUS
 
 
 def _quelle_von(korpus: Session, probe: Probe) -> str:
@@ -73,7 +99,11 @@ def _quelle_von(korpus: Session, probe: Probe) -> str:
 
 
 def _manifestzeile(
-    probe: Probe, variante: str, quelle: str, sprecher_id: str
+    probe: Probe,
+    variante: str,
+    quelle: str,
+    sprecher_id: str,
+    korrekturgewicht: str = laeufe.GEWICHT_VORGABE,
 ) -> dict[str, Any]:
     # Relativ zum Korpus, damit sich ein Schnappschuss kopieren lässt.
     innerhalb = corpus.sprecher_relpfad(sprecher_id)
@@ -84,6 +114,7 @@ def _manifestzeile(
         if variante == augmentierung.ORIGINAL
         else corpus.variante_relpfad(sprecher_id, probe.aufnahme.id, variante)
     )
+    anlaeufe = probe.aufnahme.anlaeufe
     return {
         "audio": voll.removeprefix(f"{innerhalb}/"),
         "text": probe.vorlage.text,
@@ -91,29 +122,85 @@ def _manifestzeile(
         "modus": probe.aufnahme.modus,
         "variante": variante,
         "dauer_s": zuschnitt.arbeitsdauer(probe.aufnahme),
-        "gewicht": GEWICHTE.get(quelle, 1.0),
+        "gewicht": gewicht_fuer(quelle, korrekturgewicht, anlaeufe),
+        # Nur bei Korrekturen: wie oft in „schreiben" gesprochen.
+        "anlaeufe": anlaeufe,
         "faltung": probe.faltung,
         "recording_id": probe.aufnahme.id,
     }
 
 
+def unbeschriftete_diktate(datenverzeichnis: Path, sprecher_id: str) -> list[dict[str, Any]]:
+    """Die Abschnitte nie bestätigter Diktate aus „schreiben", die noch Audio haben.
+
+    Nur lesend, über SQL - die Diktatdatenbank schreibt „schreiben" allein. Ihr
+    Text ist die Ausgabe des Modells von damals und zählt nicht; beschriftet
+    wird im Trainer (`training/selbsttraining.py`). Der Pfad steht relativ zum
+    Korpus wie jeder im Manifest.
+    """
+    pfad = datenverzeichnis / schreiben_ablage.sprecher_relpfad(sprecher_id)
+    datenbank = pfad / schreiben_ablage.DATENBANKNAME
+    if not datenbank.is_file():
+        return []
+    verbindung = sqlite3.connect(f"file:{datenbank}?mode=ro", uri=True)
+    try:
+        abschnitte = verbindung.execute(
+            "SELECT s.id, s.blob, s.dauer_s FROM segments s "
+            "JOIN sessions z ON z.id = s.session_id "
+            "WHERE z.status = 'offen' AND s.blob IS NOT NULL "
+            "ORDER BY s.erstellt, s.position"
+        ).fetchall()
+    except sqlite3.Error:
+        return []
+    finally:
+        verbindung.close()
+    korpus = datenverzeichnis / corpus.sprecher_relpfad(sprecher_id)
+    return [
+        {
+            "audio": Path(os.path.relpath(datenverzeichnis / blob, korpus)).as_posix(),
+            "text": "",
+            "quelle": laeufe.QUELLE_SELBST,
+            "modus": "frei",
+            "variante": augmentierung.ORIGINAL,
+            "dauer_s": float(dauer),
+            "gewicht": GEWICHTE[laeufe.QUELLE_SELBST],
+            # Keine Faltung: gelernt in jeder, gemessen in keiner.
+            "faltung": None,
+            "recording_id": kennung,
+        }
+        for kennung, blob, dauer in abschnitte
+        if (datenverzeichnis / blob).is_file()
+    ]
+
+
 def schreibe_manifest(
-    ziel: Path, korpus: Session, proben: list[Probe], sprecher_id: str, daten: str
+    ziel: Path,
+    korpus: Session,
+    proben: list[Probe],
+    sprecher_id: str,
+    daten: str,
+    korrekturgewicht: str = laeufe.GEWICHT_VORGABE,
+    unbeschriftet: list[dict[str, Any]] | None = None,
 ) -> dict[str, int]:
     """Das Manifest schreiben; gibt zurück, wie viele Zeilen je Faltung entstanden.
 
     Immer alle Fassungen, unabhängig von `daten` - was gelernt wird, entscheidet
-    der Trainer (`training/daten.py`).
+    der Trainer (`training/daten.py`). Unbeschriftetes Audio zählt eigens
+    (`selbst`), nicht in `gesamt`.
     """
     gezaehlt = {str(faltung): 0 for faltung in range(laeufe.FALTUNGEN)}
     with ziel.open("w", encoding="utf-8") as datei:
         for probe in proben:
             quelle = _quelle_von(korpus, probe)
             for variante in augmentierung.VARIANTEN:
-                zeile = _manifestzeile(probe, variante, quelle, sprecher_id)
+                zeile = _manifestzeile(probe, variante, quelle, sprecher_id, korrekturgewicht)
                 datei.write(json.dumps(zeile, ensure_ascii=False) + "\n")
                 gezaehlt[str(probe.faltung)] += 1
-    gezaehlt["gesamt"] = sum(gezaehlt.values())
+        gezaehlt["gesamt"] = sum(gezaehlt.values())
+        for zeile in unbeschriftet or []:
+            datei.write(json.dumps(zeile, ensure_ascii=False) + "\n")
+        if unbeschriftet:
+            gezaehlt[laeufe.QUELLE_SELBST] = len(unbeschriftet)
     return gezaehlt
 
 
@@ -140,7 +227,15 @@ def beauftrage(
     )
 
     gezaehlt = schreibe_manifest(
-        verzeichnis / laeufe.MANIFEST, korpus, proben, auftrag.sprecher_id, auftrag.daten
+        verzeichnis / laeufe.MANIFEST,
+        korpus,
+        proben,
+        auftrag.sprecher_id,
+        auftrag.daten,
+        auftrag.korrekturgewicht,
+        unbeschriftete_diktate(datenverzeichnis, auftrag.sprecher_id)
+        if auftrag.selbsttraining == laeufe.SELBST_AN
+        else None,
     )
 
     if auftrag.auswahl == laeufe.AUSWAHL_KERN:
@@ -156,6 +251,8 @@ def beauftrage(
         "lora_rang": auftrag.lora_rang,
         "daten": auftrag.daten,
         "auswahl": auftrag.auswahl,
+        "korrekturgewicht": auftrag.korrekturgewicht,
+        "selbsttraining": auftrag.selbsttraining,
         "abschluss": auftrag.abschluss,
         "augmentierung": auftrag.augmentierung,
         "dauer": auftrag.dauer,
@@ -199,6 +296,8 @@ class Bestellung:
     lora_rang: str = laeufe.RANG_VORGABE
     daten: str = laeufe.NUR_ORIGINAL
     auswahl: str = laeufe.AUSWAHL_ALLE
+    korrekturgewicht: str = laeufe.GEWICHT_VORGABE
+    selbsttraining: str = laeufe.SELBST_AUS
     abschluss: str = laeufe.ABSCHLUSS_BESTER
     augmentierung: str = laeufe.AUG_KEINE
     dauer: str = laeufe.DAUER_FEST
@@ -228,6 +327,8 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
         (bestellung.lora_rang, laeufe.LORA_RAENGE, "LoRA-Rang"),
         (bestellung.daten, laeufe.DATENSAETZE, "Datensatz"),
         (bestellung.auswahl, laeufe.AUSWAHLEN, "Auswahl"),
+        (bestellung.korrekturgewicht, laeufe.KORREKTURGEWICHTE, "Korrekturgewicht"),
+        (bestellung.selbsttraining, laeufe.SELBSTTRAINING, "Selbsttraining"),
         (bestellung.abschluss, laeufe.ABSCHLUESSE, "Abschluss"),
         (bestellung.augmentierung, laeufe.AUGMENTIERUNGEN, "Augmentierung"),
         (bestellung.dauer, laeufe.DAUERN, "Dauer"),
@@ -286,6 +387,8 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
             lora_rang=bestellung.lora_rang,
             daten=bestellung.daten,
             auswahl=bestellung.auswahl,
+            korrekturgewicht=bestellung.korrekturgewicht,
+            selbsttraining=bestellung.selbsttraining,
             abschluss=bestellung.abschluss,
             augmentierung=bestellung.augmentierung,
             dauer=bestellung.dauer,

@@ -485,6 +485,11 @@ def trainiere(
     faktor = float(auftrag.get("tempo", tempo.VORGABE))
     tempoergebnis: tempowahl.Ergebnis | None = None
     gewaehlt = laeufe.tempowahl_aus(auftrag)
+    # Das Tempo nur an beschrifteten Aufnahmen: Selbstbeschriftetes hat die
+    # Erkennung schon mit einem Tempo gehört.
+    fuer_tempo = [
+        zeile for zeile in lernzeilen if str(zeile.get("quelle")) != laeufe.QUELLE_SELBST
+    ]
 
     if gewaehlt == laeufe.TEMPO_GESCHAETZT:
         # Aus Textlänge und Aufnahmedauer (`tempowahl.aus_dauern`).
@@ -492,7 +497,7 @@ def trainiere(
             faktor = float(vorgaben["tempo"])
             bericht.sage(f"Tempo aus den Faltungen übernommen: Faktor {faktor:g}")
         else:
-            tempoergebnis = tempowahl.aus_dauern(lernzeilen, bericht)
+            tempoergebnis = tempowahl.aus_dauern(fuer_tempo, bericht)
             faktor = tempoergebnis.faktor
             if tempoergebnis.hinweis:
                 bericht.sage(f"  {tempoergebnis.hinweis}")
@@ -504,7 +509,7 @@ def trainiere(
         else:
             # Auf den Lernzeilen - nie an dem, woran gemessen wird.
             tempoergebnis = tempowahl.waehle(
-                lernzeilen,
+                fuer_tempo,
                 korpuswurzel,
                 ausgangsstand.erkenner(datenverzeichnis, auftrag),
                 sprache,
@@ -521,7 +526,12 @@ def trainiere(
 
     lern = Proben(lernzeilen, korpuswurzel, ausleser, zerteiler, wandler, faktor, zwischenlager)
     pruef = Proben(messzeilen, korpuswurzel, ausleser, zerteiler, None, faktor, zwischenlager)
-    bericht.sage(f"Proben: {len(lern)} zum Lernen, {len(pruef)} zum Steuern")
+    selbst = sum(1 for zeile in lernzeilen if str(zeile.get("quelle")) == laeufe.QUELLE_SELBST)
+    bericht.sage(
+        f"Proben: {len(lern)} zum Lernen"
+        + (f" (davon {selbst} selbst beschriftet)" if selbst else "")
+        + f", {len(pruef)} zum Steuern"
+    )
     if wandler.taetig:
         bericht.sage(f"Augmentierung: {abwandlung} (nur auf den Lernproben)")
     if not len(lern):
@@ -1159,6 +1169,16 @@ def main(argumente: list[str]) -> int:
         from .bewerten import vervollstaendige_kern
 
         vervollstaendige_kern(verzeichnis, datenverzeichnis, auftrag, bericht)
+        # Ebenso vorher: Was selbst beschriftet mitlernt, lernt in jeder Faltung.
+        from .selbsttraining import beschrifte
+
+        beschrifte(
+            verzeichnis,
+            datenverzeichnis,
+            auftrag,
+            _rezept_fuer(str(auftrag["methode"]), str(auftrag["basismodell"])),
+            bericht,
+        )
 
         # Erst die Messung, dann der Stand, der ausgeliefert wird.
         zeilen, mitgenommen = kreuzvalidiere(verzeichnis, datenverzeichnis, auftrag, bericht)

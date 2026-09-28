@@ -31,6 +31,7 @@ sechsfacher Kreuzvalidierung, mit Bootstrap-Bereichen auf jeder Zahl.
 | 1 | Sechs Faltungen je Stamm | `wortlaut/laeufe.verteile`, `apps/lernen/backend/services/aufteilung.py` |
 | 2 | Manifest: Pfad, Text, Herkunft, Gewicht, Faltung je Probe und Fassung | `apps/lernen/backend/services/auftraege.py` (`_manifestzeile`) |
 | 3 | Kernauswahl vervollständigen (nur `K`) | `apps/lernen/training/bewerten.py` (`vervollstaendige_kern`) |
+| 3a | Unbestätigte Diktate beschriften (nur `U`) | `apps/lernen/training/selbsttraining.py` (`beschrifte`) |
 | 4 | Lern- und Messzeilen einer Faltung | `apps/lernen/training/daten.py` (`zeilen_fuer_faltung`) |
 | 5 | WAV → Log-Mel, Augmentierung, Marken, Stapel | `daten.py` (`Proben`, `Stapler`), `klangwandel.py` |
 | 6 | Tempo schätzen oder suchen | `tempowahl.py` |
@@ -62,10 +63,11 @@ Zwei Abweichungen von der Vorgabe von `transformers`:
 
 1. **Normiert je Probe, nicht je Marke.** Sonst zählte ein langer Satz mehr
    als ein kurzer, und das Gewicht ginge in der Satzlänge unter.
-2. **Gewichtet je Probe.** `w_i = 1,0` für eine Vorlage, `0,5` für eine
-   Korrektur aus „schreiben" (`auftraege.GEWICHTE`). Eine Korrektur ist eine
-   abgenickte Maschinenausgabe; gleichrangig trainierte sie dem Modell seine
-   eigenen Fehler an. Die 0,5 ist begründet, aber ungemessen (**F**).
+2. **Gewichtet je Probe.** `w_i = 1,0` für eine Vorlage; für eine Korrektur
+   aus „schreiben" wählt der Auftrag (Vorgabe `0,5`, siehe
+   [Die Korrekturen](#die-korrekturen)); `0,25` für selbst beschriftetes
+   Audio. Eine Korrektur ist eine abgenickte Maschinenausgabe; gleichrangig
+   trainierte sie dem Modell seine eigenen Fehler an.
 
 Die Validierung rechnet denselben gewichteten Verlust.
 
@@ -90,6 +92,9 @@ entlade Ollama, melde die Karte K, warte auf Platz  # finetune.pruefe_karte
 WENN Auswahl = kern:
     miss fehlende Werte mit dem freigegebenen Modell, wähle die besten 70 %,
     verteile sie auf eigene Faltungen                 # bewerten.vervollstaendige_kern
+WENN Selbsttraining:
+    beschrifte unbestätigte Diktate mit dem freigegebenen Modell,
+    behalte, was es sicher genug hört                 # selbsttraining.beschrifte
 
 FÜR f = 1 … 6:
     D_lern ← Zeilen außerhalb von Faltung f            # je nach Datensatz nur Originale
@@ -210,6 +215,50 @@ gewürfelt und nirgends abgelegt:
 Kosten je Probe von vier Sekunden gegen 9,1 ms für den Merkmalsausleser:
 `masken` 0,08 ms, `umgebung` 0,77 ms, `voll` 4,4 ms. Vorbereitet wird in zwei
 Ladefäden, während die Karte rechnet.
+
+### Die Korrekturen
+
+Korrekturen aus „schreiben" sind die Datenquelle, die im Betrieb nicht
+versiegt; die zitierte Fallstudie holt dort ihren größten zusätzlichen Gewinn
+(10,7 % → 9,7 %). Wie stark sie zählen, ist eine Achse; das Gewicht steht je Zeile im
+Manifest (`services/auftraege.gewicht_fuer`).
+
+| Wahl | Gewicht einer Korrektur |
+|---|---|
+| `0.5`, `0.25`, `0.75`, `1.0` | fest |
+| `verlauf` | unverändert bestätigt 0,25, nachgesprochen 0,75, ohne Zahl 0,5 |
+
+* **Der Verlauf kommt aus „schreiben".** Jeder Abschnitt zählt, wie oft er
+  gesprochen wurde (`segments.anlaeufe`); die Zahl geht mit der Korrektur an
+  „hören" (`recordings.anlaeufe`, Teile erben sie) und ins Manifest.
+* **Warum so herum.** Unverändert bestätigt heißt: Das Modell hatte schon
+  recht, es gibt wenig zu lernen, und ob jemand genau hingesehen hat, weiß
+  niemand. Nachgesprochen heißt: Die Person hat genau diesen Abschnitt
+  geprüft und durchgesetzt.
+
+### Selbsttraining
+
+`apps/lernen/training/selbsttraining.py`: unbeschriftetes Audio, beschriftet
+vom Modell, mit dem die Person gerade diktiert.
+
+* **Die Kandidaten** sind die Abschnitte nie bestätigter Diktate in
+  „schreiben", die noch Audio haben. Der Server legt sie beim Auftrag ins
+  Manifest (`quelle = selbst`, ohne Text, ohne Faltung); gelesen wird die
+  Diktatdatenbank nur, über SQL.
+* **Beschriftet wird einmal, vor der ersten Faltung**, vom freigegebenen
+  Stand mit seinem Tempo, sonst vom Grundmodell. Aufgenommen wird, was es mit
+  einer mittleren Markenwahrscheinlichkeit ab `selbst_mindestsicherheit`
+  (0,8) hört (`Transkript.sicherheit`).
+* **Gelernt in jeder Faltung, gemessen nie**, mit Gewicht 0,25 - auch beim
+  Kern, denn es gehört nicht zum Korpus. Tempowahl und
+  Plausibilitätsprüfung sehen es nicht.
+* **Selbsttraining verstärkt eigene Fehler.** Deshalb Schwelle und Gewicht,
+  und deshalb steht jede Beschriftung samt Sicherheit in
+  `selbstbeschriftung.json`; der Steckbrief nennt, wie viele aufgenommen
+  wurden.
+* Das Beschriftungsmodell kennt die Faltungen, an denen gemessen wird - es
+  wurde auf allem trainiert. Die Beschriftung betrifft anderes Audio; ganz
+  unabhängig ist sie trotzdem nicht.
 
 ### Der LoRA-Zusatz
 
@@ -347,23 +396,8 @@ Erwartet ist eine Einschätzung, kein Messwert; relativ zur heutigen WER.
 
 | | Maßnahme | erwartet | Aufwand | Risiko |
 |---|---|---|---|---|
-| **F** | Korrekturgewicht messen; Selbsttraining | 5–20 % | hoch | mittel |
 | **G** | Encoder auf die tatsächliche Länge kürzen | 2–4× Tempo | mittel | mittel |
 | **H** | Kontextverstärkung beim Dekodieren | 3–10 % | gering | gering |
-
-### F - Die Korrekturen ernst nehmen
-
-1. Das Gewicht 0,5 gegen 0,25, 0,75 und 1,0 stellen.
-2. Das Gewicht je Probe aus der Korrekturhistorie ableiten: Eine unverändert
-   bestätigte Korrektur ist etwas anderes als eine in drei Anläufen
-   umgeschriebene. Die Information liegt in `schreiben` vor; das Manifest
-   bräuchte ein Feld.
-3. Selbsttraining: unbeschriftetes Audio mit dem aktuellen Modell beschriften,
-   nach Konfidenz filtern, gewichtet zurückspeisen.
-
-Die Korrekturschleife ist die Datenquelle, die im Betrieb nicht versiegt; die
-zitierte Fallstudie holt dort ihren größten zusätzlichen Gewinn (10,7 % →
-9,7 %). Selbsttraining verstärkt eigene Fehler und gehört ans Ende.
 
 ### G - Die 30 Sekunden loswerden
 

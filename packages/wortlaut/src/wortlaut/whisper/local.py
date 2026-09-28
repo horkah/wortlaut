@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import gc
 import logging
+import math
 from pathlib import Path
 
 from .. import rechenwerk
@@ -93,7 +94,24 @@ class LokalerTranskriptor:
         self.lade()
 
         rohabschnitte, _info = self._geladen.transcribe(str(wav), language=sprache)
+        rohabschnitte = list(rohabschnitte)
         abschnitte = [
             Abschnitt(start_s=a.start, ende_s=a.end, text=a.text.strip()) for a in rohabschnitte
         ]
-        return Transkript(text=" ".join(a.text for a in abschnitte).strip(), abschnitte=abschnitte)
+        return Transkript(
+            text=" ".join(a.text for a in abschnitte).strip(),
+            abschnitte=abschnitte,
+            sicherheit=_sicherheit(rohabschnitte),
+        )
+
+
+def _sicherheit(rohabschnitte: list) -> float | None:
+    """Die mittlere Markenwahrscheinlichkeit über alle Abschnitte, nach Marken gewichtet.
+
+    faster-whisper nennt je Abschnitt den Mittelwert der Log-Wahrscheinlichkeiten
+    (`avg_logprob`); zurück in eine Wahrscheinlichkeit erst nach dem Mitteln.
+    """
+    marken = sum(len(a.tokens) for a in rohabschnitte)
+    if not marken:
+        return None
+    return math.exp(sum(a.avg_logprob * len(a.tokens) for a in rohabschnitte) / marken)
