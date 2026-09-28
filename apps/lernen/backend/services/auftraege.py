@@ -57,6 +57,7 @@ class Auftrag:
     abschluss: str = laeufe.ABSCHLUSS_BESTER
     augmentierung: str = laeufe.AUG_KEINE
     dauer: str = laeufe.DAUER_FEST
+    steuerung: str = laeufe.STEUERUNG_VERLUST
     tempowahl: str = laeufe.TEMPO_AUS
     # Leer: das unveränderte `basismodell`.
     ausgangsstand: str = ""
@@ -154,6 +155,7 @@ def beauftrage(
         "abschluss": auftrag.abschluss,
         "augmentierung": auftrag.augmentierung,
         "dauer": auftrag.dauer,
+        "steuerung": auftrag.steuerung,
         "basismodell": auftrag.basismodell,
         "sprache": auftrag.sprache,
         "tempowahl": auftrag.tempowahl,
@@ -194,6 +196,7 @@ class Bestellung:
     abschluss: str = laeufe.ABSCHLUSS_BESTER
     augmentierung: str = laeufe.AUG_KEINE
     dauer: str = laeufe.DAUER_FEST
+    steuerung: str = laeufe.STEUERUNG_VERLUST
     tempowahl: str = laeufe.TEMPO_AUS
     grundmodell: str = ""
 
@@ -220,6 +223,7 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
         (bestellung.abschluss, laeufe.ABSCHLUESSE, "Abschluss"),
         (bestellung.augmentierung, laeufe.AUGMENTIERUNGEN, "Augmentierung"),
         (bestellung.dauer, laeufe.DAUERN, "Dauer"),
+        (bestellung.steuerung, laeufe.STEUERUNGEN, "Steuergröße"),
         (bestellung.tempowahl, laeufe.TEMPI, "Tempowahl"),
     ):
         if wert not in erlaubt:
@@ -271,6 +275,7 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
             abschluss=bestellung.abschluss,
             augmentierung=bestellung.augmentierung,
             dauer=bestellung.dauer,
+            steuerung=bestellung.steuerung,
             tempowahl=bestellung.tempowahl,
             basismodell=grundmodell,
             # Für Whispers Sprachmarken und die Bewertung (`wortlaut/sprachen.py`).

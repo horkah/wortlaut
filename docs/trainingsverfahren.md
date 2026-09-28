@@ -16,10 +16,11 @@ Forcing, je Probe gemittelt und mit einem Gewicht aus dem Manifest versehen.
 AdamW, lineares Aufwärmen und Abklingen, halbe Genauigkeit (bf16 oder fp16,
 je nach Karte), Gradientenakkumulation bis zum wirksamen Stapel des Rezepts.
 Voll oder mit LoRA an den
-Aufmerksamkeitsprojektionen. Nach jedem Durchgang wird auf der
-zurückgehaltenen Faltung geprüft und der beste Durchgang behalten.
-Wählbar sind Augmentierung zur Laufzeit, Early Stopping, Vorspulen,
-Checkpoint-Mittel und Interpolation mit dem Grundmodell. Gemessen wird per
+Aufmerksamkeitsprojektionen. Auf der zurückgehaltenen Faltung wird geprüft
+und der beste Stand behalten - nach dem Verlust je Durchgang oder nach der
+WER, frei dekodiert je Drittel eines Durchgangs. Wählbar sind außerdem
+Augmentierung zur Laufzeit, Early Stopping, Vorspulen, Checkpoint-Mittel und
+Interpolation mit dem Grundmodell. Gemessen wird per
 sechsfacher Kreuzvalidierung, mit Bootstrap-Bereichen auf jeder Zahl.
 
 ---
@@ -36,6 +37,7 @@ sechsfacher Kreuzvalidierung, mit Bootstrap-Bereichen auf jeder Zahl.
 | 6 | Tempo schätzen oder suchen | `tempowahl.py` |
 | 7 | **Der Lernschritt** | `finetune.py` (`trainiere`) |
 | 8 | Die gewichtete Verlustrechnung | `finetune.py` (`GewichtetesTraining.compute_loss`) |
+| 8a | Prüfplan und WER der Steuergröße | `steuerung.py`, `GewichtetesTraining.prediction_step` |
 | 9 | Checkpoint-Mittel, WiSE-FT | `abschluss.py` (`fuehre_aus`) |
 | 10 | LoRA verschmelzen, nach CTranslate2 wandeln | `finetune.py` (`wandle_um`) |
 | 11 | Faltung messen, Endmodell prüfen, Stand eintragen | `bewerten.py`, `finetune.kreuzvalidiere` |
@@ -70,8 +72,9 @@ Die Validierung rechnet denselben gewichteten Verlust.
 
 **Optimiert wird etwas anderes als beurteilt.** `L(θ)` ist ein Markenverlust
 unter Teacher Forcing; beurteilt wird die WER nach freier Dekodierung mit Beam
-Search in CTranslate2. Beide korrelieren, sind aber nicht dasselbe - die Lücke,
-in der **B** sitzt.
+Search in CTranslate2. Beide korrelieren, sind aber nicht dasselbe. Die
+Steuergröße `wer` schließt die Lücke dort, wo ausgewählt wird (siehe
+[Die Steuergröße](#die-steuergröße)); gelernt wird weiter an `L(θ)`.
 
 ---
 
@@ -116,18 +119,18 @@ FUNKTION TRAINIERE(θ, D_lern, D_mess, R, vorgaben):
     Plan  ← vorgaben.plan  ODER  (geduldig ? R.epochen_hoechstens : R.epochen)
     Warm  ← min(R.warmlauf_schritte, ⌈0,2 · Gesamtschritte⌉)
     Opt   ← AdamW(lr = R.lernrate, weight_decay = R.gewichtsverfall)
-    bestes ← (∞, θ)
+    bestes ← (∞, θ)                                 # `wert`: die Steuergröße
 
     FÜR epoche = 1 … Plan:
         FÜR jeden Stapel B aus mische(D_lern):
             merkmale ← augmentiere(LogMel(B.audio))    # nur Lernproben, gewürfelt
             L ← Σ w_i ℓ_i / Σ w_i                       # compute_loss
             rückwärts, beschneide Gradienten, Schritt alle a Stapel
-        WENN D_mess ≠ ∅:
-            L_val ← Verlust auf D_mess
-            WENN L_val < bestes.verlust: bestes ← (L_val, θ)
-            WENN geduldig und R.geduld Prüfungen ohne Gewinn > R.mindestgewinn: Schluss
-        WENN vorgaben.halt erreicht: Schluss            # nur das Endmodell
+            WENN D_mess ≠ ∅ und Prüfung fällig:          # je Durchgang, bei `wer` je Drittel
+                S ← Steuergröße auf D_mess                # Verlust oder WER, frei dekodiert
+                WENN S < bestes.wert: bestes ← (S, θ)
+                WENN geduldig und R.geduld Durchgänge ohne Gewinn > R.mindestgewinn: Schluss
+            WENN vorgaben.halt erreicht: Schluss        # nur das Endmodell
 
     θ ← bestes.θ                                        # nicht das letzte θ
     θ ← ABSCHLUSS(θ, R, Auftrag.abschluss)              # mitteln / interpolieren
@@ -155,6 +158,7 @@ Mitte, und die Epochenzahl wird so zur bloßen Obergrenze.
 | Rang / Alpha / Ausfall | – | 32 / 64 / 0,05 |
 | Ziele | alle | `q_proj`, `v_proj` |
 | gemittelte Stände | 3 | 3 |
+| WER-Prüfungen je Durchgang | 3 | 3 |
 | α-Raster | 0; 0,1; 0,2; 0,3; 0,5 | 0; 0,05; 0,1; 0,2; 0,3; 0,5 |
 
 Der Faktor 100 zwischen den Lernraten ist Absicht: Voll zieht eine hohe
@@ -208,6 +212,39 @@ Kosten je Probe von vier Sekunden gegen 9,1 ms für den Merkmalsausleser:
 `masken` 0,08 ms, `umgebung` 0,77 ms, `voll` 4,4 ms. Vorbereitet wird in zwei
 Ladefäden, während die Karte rechnet.
 
+### Die Steuergröße
+
+`apps/lernen/training/steuerung.py`: woran bester Zwischenstand, Abbruch bei
+`geduldig` und das α des Abschlusses gewählt werden.
+
+| Wahl | geprüft | Maß |
+|---|---|---|
+| `verlust` | je Durchgang | gewichteter Validierungsverlust |
+| `wer` | je Drittel eines Durchgangs (`wer_pruefungen_je_durchgang`) | WER nach freier Dekodierung |
+
+* **Dieselbe WER wie die Messung.** Normalisiert mit `wortlaut/metriken.py`
+  und je Zeile gemittelt wie in der Bewertung einer Faltung - nur gierig in
+  torch statt mit Beam Search in CTranslate2. Die Prüfung soll Stände
+  ordnen, nicht die letzte Stelle treffen.
+* **Warum überhaupt.** Der Validierungsverlust bestraft Marken, an denen die
+  freie Dekodierung längst einen anderen Pfad nähme, und sieht die
+  Textangleichung nicht; bei kleinen Korpora fallen beide Kurven regelmäßig
+  auseinander.
+* **Eigene Dekodierung statt `predict_with_generate`.** Jene reichte die
+  Probengewichte an `generate` weiter und rechnete den Verlust ungewichtet;
+  `GewichtetesTraining.prediction_step` rechnet den gewichteten Verlust und
+  dekodiert daneben, mit höchstens doppelt so vielen Marken wie der längste
+  Satz der Validierung.
+* **Die Geduld zählt Durchgänge.** Bei drei Prüfungen je Durchgang wartet
+  `geduldig` dreimal so viele Prüfungen.
+* **Öfter prüfen heißt öfter sichern**, deshalb ohne Optimierer
+  (`save_only_model`). Das Endmodell hält auch mitten in einem Durchgang an
+  (`_halt_nach`).
+* **Mehr Auswahl, mehr Anpassung an die Validierung.** Je feiner an der
+  zurückgehaltenen Faltung gewählt wird, desto optimistischer wird ihre Zahl;
+  dagegen stehen die Vertrauensbereiche.
+* Die Validierungskurve zeigt die WER als dritte Reihe auf eigener Achse.
+
 ### Early Stopping (`geduldig`)
 
 Statt der festen Epochenzahl eine weite Obergrenze und Schluss nach `geduld`
@@ -246,7 +283,7 @@ Sichern:
 * Ohne Validierungsproben fällt der Abschluss auf `bester` zurück.
 
 Das Manifest des Standes trägt `abschluss` und `abschluss_bericht`: gemittelte
-Stände, α, Verluste vorher, nach der Mittelung und danach.
+Stände, α, die Steuergröße (`mass`) vorher, nach der Mittelung und danach.
 
 ### Vorspulen
 
@@ -287,21 +324,10 @@ Erwartet ist eine Einschätzung, kein Messwert; relativ zur heutigen WER.
 
 | | Maßnahme | erwartet | Aufwand | Risiko |
 |---|---|---|---|---|
-| **B** | Auswahl nach WER, häufiger geprüft | 3–8 % | mittel | gering |
 | **E** | LoRA-Ziele erweitern, Rang prüfen | 0–5 % | gering | gering |
 | **F** | Korrekturgewicht messen; Selbsttraining | 5–20 % | hoch | mittel |
 | **G** | Encoder auf die tatsächliche Länge kürzen | 2–4× Tempo | mittel | mittel |
 | **H** | Kontextverstärkung beim Dekodieren | 3–10 % | gering | gering |
-
-### B - Auswählen nach dem, worauf es ankommt
-
-`compute_metrics` mit `predict_with_generate=True`, WER als
-`metric_for_best_model`, geprüft etwa jedes Drittel eines Durchgangs. Der
-Validierungsverlust bestraft Marken, an denen die freie Dekodierung längst
-einen anderen Pfad nähme, und sieht die Textangleichung nicht; bei kleinen
-Korpora fallen beide Kurven regelmäßig auseinander. Kosten: freie Dekodierung
-in torch an jedem Prüfpunkt. Je feiner ausgewählt wird, desto mehr passt man
-sich der Validierung an - dagegen stehen die Vertrauensbereiche.
 
 ### E - LoRA genauer einstellen
 

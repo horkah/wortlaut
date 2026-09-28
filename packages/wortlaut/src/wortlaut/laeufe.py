@@ -371,6 +371,25 @@ DAUER_GEDULDIG = "geduldig"
 DAUERN = (DAUER_FEST, DAUER_GEDULDIG)
 
 
+# ── Wonach ausgewählt wird ──────────────────────────────────────────────────
+#
+# Die Steuergröße, an der bester Zwischenstand, Abbruch und α gewählt werden
+# (`training/finetune.py`, `training/abschluss.py`):
+#
+# `verlust`   Der gewichtete Validierungsverlust, geprüft je Durchgang.
+# `wer`       Die WER nach freier Dekodierung, geprüft je Drittel eines
+#             Durchgangs - das, woran der Stand gemessen wird. Kostet eine
+#             Dekodierung je Prüfung.
+STEUERUNG_VERLUST = "verlust"
+STEUERUNG_WER = "wer"
+STEUERUNGEN = (STEUERUNG_VERLUST, STEUERUNG_WER)
+
+
+def steuerung_aus(auftrag: dict[str, Any]) -> str:
+    """Die Steuergröße eines Auftrags - `verlust`, wenn das Feld fehlt."""
+    return str(auftrag.get("steuerung") or STEUERUNG_VERLUST)
+
+
 # ── Der Optionscode ─────────────────────────────────────────────────────────
 #
 # Alle Achsen eines Auftrags in einer Zeichenkette, etwa `ML-A-K-SRP-Ts-C`.
@@ -385,6 +404,7 @@ CODE_METHODE = {VOLL: "V", LORA: "L"}
 CODE_DATENSATZ = {NUR_ORIGINAL: "", MIT_VARIANTEN: "A"}
 CODE_AUSWAHL = {AUSWAHL_ALLE: "", AUSWAHL_KERN: "K"}
 CODE_DAUER = {DAUER_FEST: "", DAUER_GEDULDIG: "E"}
+CODE_STEUERUNG = {STEUERUNG_VERLUST: "", STEUERUNG_WER: "W"}
 # Kumulativ: S = SpecAugment, R = Raum + Rauschen, P = Tempo-Perturbation.
 CODE_AUGMENTIERUNG = {AUG_KEINE: "", AUG_MASKEN: "S", AUG_UMGEBUNG: "SR", AUG_VOLL: "SRP"}
 CODE_TEMPO = {TEMPO_AUS: "", TEMPO_GESCHAETZT: "Tg", TEMPO_OPTIMAL: "Ts"}
@@ -430,6 +450,7 @@ def optionscode(auftrag: dict[str, Any]) -> str:
         glied(CODE_DATENSATZ, auftrag.get("daten"), NUR_ORIGINAL),
         glied(CODE_AUSWAHL, auftrag.get("auswahl"), AUSWAHL_ALLE),
         glied(CODE_DAUER, auftrag.get("dauer"), DAUER_FEST),
+        glied(CODE_STEUERUNG, auftrag.get("steuerung"), STEUERUNG_VERLUST),
         glied(CODE_AUGMENTIERUNG, auftrag.get("augmentierung"), AUG_KEINE),
         CODE_TEMPO[tempowahl_aus(auftrag)],
         glied(CODE_ABSCHLUSS, auftrag.get("abschluss"), ABSCHLUSS_BESTER),

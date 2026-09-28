@@ -50,6 +50,7 @@
   let abschluss = $state(gemerkt.abschluss);
   let augmentierung = $state(gemerkt.augmentierung);
   let dauer = $state(gemerkt.dauer);
+  let steuerung = $state(gemerkt.steuerung);
   let tempowahl = $state(gemerkt.tempowahl);
 
   $effect(() => {
@@ -61,6 +62,7 @@
       abschluss,
       augmentierung,
       dauer,
+      steuerung,
       tempowahl,
     });
   });
@@ -135,6 +137,7 @@
           ['Datensatz', daten.datensaetze, (lauf) => lauf.daten],
           ['Auswahl', daten.auswahlen, (lauf) => lauf.auswahl],
           ['Epochen', daten.dauern, (lauf) => lauf.dauer],
+          ['Steuergröße', daten.steuerungen, (lauf) => lauf.steuerung],
           ['Augmentierung', daten.augmentierungen, (lauf) => lauf.augmentierung],
           ['Tempo', daten.tempi, (lauf) => lauf.tempowahl],
           ['Abschluss', daten.abschluesse, (lauf) => lauf.abschluss],
@@ -207,6 +210,7 @@
               lauf.abschluss || 'bester',
               lauf.augmentierung || 'keine',
               lauf.dauer || 'fest',
+              lauf.steuerung || 'verlust',
               lauf.tempowahl || 'wie_eingestellt',
             ].join('/'),
         ),
@@ -229,6 +233,7 @@
       abschluss,
       augmentierung,
       dauer,
+      steuerung,
       tempowahl,
     ].join('/'),
   );
@@ -322,6 +327,7 @@
           abschluss,
           augmentierung,
           dauer,
+          steuerung,
           tempowahl,
           grundmodell,
         },
@@ -604,6 +610,18 @@
           <label class="option">
             <input type="radio" bind:group={dauer} value={wahl.schluessel} />
             {@render option(wahl, prozent('Epochen', wahl))}
+          </label>
+        {/each}
+      </fieldset>
+
+      <!-- Wählt besten Checkpoint, Abbruch und α (`wortlaut/laeufe.py`,
+           „Wonach ausgewählt wird"). -->
+      <fieldset>
+        <legend>Steuergröße</legend>
+        {#each daten.steuerungen as wahl (wahl.schluessel)}
+          <label class="option">
+            <input type="radio" bind:group={steuerung} value={wahl.schluessel} />
+            {@render option(wahl, prozent('Steuergröße', wahl))}
           </label>
         {/each}
       </fieldset>

@@ -77,6 +77,8 @@ export type Lauf = {
   augmentierung: string;
   /** Wie lange trainiert wurde: fest | geduldig. */
   dauer: string;
+  /** Woran Checkpoint, Abbruch und α gewählt wurden: verlust | wer. */
+  steuerung: string;
   /** Ob die Geschwindigkeit gesucht wurde oder die des Profils galt. */
   tempowahl: string;
   /**
@@ -187,6 +189,7 @@ export type Laufliste = {
   abschluesse: Wahl[];
   augmentierungen: Wahl[];
   dauern: Wahl[];
+  steuerungen: Wahl[];
   tempi: Wahl[];
   grundmodelle: Grundmodell[];
   /** Die Vorgabe, worauf trainiert wird. */
@@ -223,6 +226,7 @@ export type Laufeinzeln = {
   abschluesse: Wahl[];
   augmentierungen: Wahl[];
   dauern: Wahl[];
+  steuerungen: Wahl[];
   tempi: Wahl[];
   grundmodelle: Grundmodell[];
   kurve_training: Punkt[];
@@ -374,6 +378,7 @@ export type Bestellung = {
   abschluss: string;
   augmentierung: string;
   dauer: string;
+  steuerung: string;
   tempowahl: string;
   grundmodell: string;
 };
