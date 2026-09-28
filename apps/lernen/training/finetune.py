@@ -398,6 +398,18 @@ def trainiere(
             f"{diese_karte.name if diese_karte else 'dem Prozessor'} nur mit "
             f"{', '.join(erlaubt) or 'nichts'} trainieren."
         )
+    if methode == laeufe.LORA and not laeufe.lora_moeglich(
+        basismodell,
+        laeufe.lora_ziele_aus(auftrag),
+        laeufe.lora_rang_aus(auftrag),
+        diese_karte,
+        konfiguration.lernen_reserve_mb,
+    ):
+        raise RuntimeError(
+            f"LoRA an „{laeufe.lora_ziele_aus(auftrag)}“ mit Rang {laeufe.lora_rang_aus(auftrag)} "
+            f"passt mit {laeufe.kurzname(basismodell)} nicht auf "
+            f"{diese_karte.name if diese_karte else 'den Prozessor'}."
+        )
     rezept = _rezept_fuer(methode, basismodell)
     gemischt = bool(rezept.get("mischpraezision", True)) and diese_karte is not None
 

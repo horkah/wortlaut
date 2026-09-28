@@ -123,6 +123,32 @@ def kurzname(basismodell: str) -> str:
 AUSGANGSSTAND = "ausgangsstand"
 
 
+def lora_moeglich(
+    basismodell: str,
+    ziele: str,
+    rang: str,
+    karte: kartenplan.Karte | None = kartenplan.VORGABE,
+    reserve_mb: float = kartenplan.RESERVE_MB,
+) -> bool:
+    """Ob dieser LoRA-Zusatz mit diesem Grundmodell auf diese Karte passt."""
+    module, teile = LORA_MODULE[ziele]
+    return kartenplan.lora_passt(kurzname(basismodell), module, teile, int(rang), karte, reserve_mb)
+
+
+def lora_wahlen(
+    basismodell: str,
+    karte: kartenplan.Karte | None = kartenplan.VORGABE,
+    reserve_mb: float = kartenplan.RESERVE_MB,
+) -> list[str]:
+    """Die passenden Kombinationen als `ziele/rang` - leer, wenn LoRA gar nicht passt."""
+    return [
+        f"{ziele}/{rang}"
+        for ziele in LORA_ZIELE
+        for rang in LORA_RAENGE
+        if lora_moeglich(basismodell, ziele, rang, karte, reserve_mb)
+    ]
+
+
 def grundmodell_aus(auftrag: dict[str, Any]) -> str:
     """Worauf dieser Lauf aufsetzt, so wie es zur Wahl stand.
 
@@ -164,6 +190,16 @@ LORA_ZIELE = (ZIELE_QV, ZIELE_ALLE, ZIELE_ENCODER, ZIELE_DECODER)
 # Der Rang; α wächst mit, damit die Skalierung α/r bleibt.
 RANG_VORGABE = "32"
 LORA_RAENGE = (RANG_VORGABE, "8", "64")
+
+# Je Wahl die Projektionen und wo (`training/adapter.py`). `out_proj` heißt bei
+# Whisper, was anderswo `o_proj` heißt.
+_ALLE_PROJEKTIONEN = ("q_proj", "k_proj", "v_proj", "out_proj", "fc1", "fc2")
+LORA_MODULE: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    ZIELE_QV: (("q_proj", "v_proj"), ("encoder", "decoder")),
+    ZIELE_ALLE: (_ALLE_PROJEKTIONEN, ("encoder", "decoder")),
+    ZIELE_ENCODER: (_ALLE_PROJEKTIONEN, ("encoder",)),
+    ZIELE_DECODER: (_ALLE_PROJEKTIONEN, ("decoder",)),
+}
 
 
 def lora_ziele_aus(auftrag: dict[str, Any]) -> str:

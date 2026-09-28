@@ -15,19 +15,10 @@ from typing import Any
 
 from wortlaut import laeufe
 
-# Die Projektionen eines Whisper-Blocks. `out_proj` heißt bei Whisper, was
-# anderswo `o_proj` heißt; im Decoder tragen Selbst- und Kreuzaufmerksamkeit
-# dieselben Namen.
-AUFMERKSAMKEIT = ("q_proj", "v_proj")
-ALLE = ("q_proj", "k_proj", "v_proj", "out_proj", "fc1", "fc2")
+# Die Projektionen je Wahl (`laeufe.LORA_MODULE`); im Decoder tragen Selbst-
+# und Kreuzaufmerksamkeit dieselben Namen.
 BEIDE = ("encoder", "decoder")
-
-ZIELE: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
-    laeufe.ZIELE_QV: (AUFMERKSAMKEIT, BEIDE),
-    laeufe.ZIELE_ALLE: (ALLE, BEIDE),
-    laeufe.ZIELE_ENCODER: (ALLE, ("encoder",)),
-    laeufe.ZIELE_DECODER: (ALLE, ("decoder",)),
-}
+ZIELE = laeufe.LORA_MODULE
 
 # α je Rang und Ausfall, wenn das Rezept nichts sagt.
 ALPHA_JE_RANG = 2.0

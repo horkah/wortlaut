@@ -360,7 +360,15 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
             f"Unbekanntes Grundmodell: {grundmodell}. Zur Wahl: "
             f"{', '.join(konfiguration.grundmodelle())} (WORTLAUT_LERNEN_GRUNDMODELLE).",
         )
-    # Scheiterte sonst erst nach Stunden am Speicher der Karte.
+    # Scheiterte sonst erst am Speicher der Karte.
+    if bestellung.methode == laeufe.LORA and (
+        f"{bestellung.lora_ziele}/{bestellung.lora_rang}" not in konfiguration.lora_fuer(grundmodell)
+    ):
+        raise Abgelehnt(
+            400,
+            f"LoRA an „{bestellung.lora_ziele}“ mit Rang {bestellung.lora_rang} passt mit "
+            f"{laeufe.kurzname(grundmodell)} nicht auf diese Karte.",
+        )
     erlaubte = konfiguration.methoden_fuer(grundmodell)
     if bestellung.methode not in erlaubte:
         raise Abgelehnt(

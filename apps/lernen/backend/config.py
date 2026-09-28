@@ -67,8 +67,15 @@ class Einstellungen(Grundeinstellungen):
     def methoden_fuer(self, basismodell: str) -> tuple[str, ...]:
         """Welche Methoden mit diesem Grundmodell gehen - auf der Karte, die der
         Trainer zuletzt gemeldet hat, sonst auf der, für die wortlaut gebaut ist."""
-        karte = kartenplan.lies_karte(laeufe.wurzel(self.data_dir)) or kartenplan.VORGABE
-        return laeufe.methoden_fuer(basismodell, karte, self.lernen_reserve_mb)
+        return laeufe.methoden_fuer(basismodell, self.karte(), self.lernen_reserve_mb)
+
+    def lora_fuer(self, basismodell: str) -> list[str]:
+        """Welche LoRA-Zusätze (`ziele/rang`) mit diesem Grundmodell auf die Karte passen."""
+        return laeufe.lora_wahlen(basismodell, self.karte(), self.lernen_reserve_mb)
+
+    def karte(self) -> kartenplan.Karte:
+        """Die Karte, die der Trainer zuletzt gemeldet hat, sonst die, für die wortlaut gebaut ist."""
+        return kartenplan.lies_karte(laeufe.wurzel(self.data_dir)) or kartenplan.VORGABE
 
 
 @lru_cache

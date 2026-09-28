@@ -125,6 +125,14 @@ Feintuning braucht sechzehn Byte je Gewicht (Gewicht, Gradient, Adam); auf
 40 GB geht damit auch `large-v3` voll. Gezählt wird mit
 `WORTLAUT_LERNEN_RESERVE_MB` Platz für die Erkenner des Webdienstes.
 
+**Ebenso Ziele und Rang von LoRA.** Der Zusatz kostet dieselben sechzehn Byte
+je Gewicht, und wie viele es sind, folgt aus Rang, Zielen und den Abmessungen
+des Modells (`kartenplan.lora_parameter`). Was nicht passt, bietet die
+Oberfläche nicht an, und Bestellung wie Trainer weisen es ab. Auf der 2080 Ti
+passt bei `large-v3` jede Wahl - gemessen braucht der größte Zusatz (alle
+Projektionen, Rang 64, 115 M Gewichte) im Probeschritt 5,3 GB; auf einer
+8-GB-Karte fiele er weg.
+
 **Wie ein Lauf auf die Karte passt, misst der Trainer** vor jedem Training:
 Ein Probeschritt mit dem längsten Text zeigt, wie viele Proben je Schritt
 Platz haben - erst ohne Gradientensparen, dann mit, dann mit halbem Stapel.
