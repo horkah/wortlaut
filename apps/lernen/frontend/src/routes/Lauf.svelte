@@ -337,7 +337,7 @@
        Achsen an einer Stelle stehen - denselben, aus denen auch die
        Wahlfelder gebaut werden. -->
   {#if daten?.steckbrief?.length}
-    <details class="steckbrief" open>
+    <details class="steckbrief">
       <summary>Steckbrief des Trainings</summary>
       <dl>
         {#each daten.steckbrief as feld (feld.begriff)}

@@ -115,7 +115,7 @@
   <!-- Zwei Steckbriefe wie der eine beim Lauf: erst, was das Modell ist,
        dann, was davon hier liegt. Beschriftet vom Server. -->
   {#if daten.steckbrief.length}
-    <details class="steckbrief" open>
+    <details class="steckbrief">
       <summary>Steckbrief des Modells</summary>
       <dl>
         {#each daten.steckbrief as feld (feld.begriff)}
@@ -129,7 +129,7 @@
     </details>
   {/if}
 
-  <details class="steckbrief" open>
+  <details class="steckbrief">
     <summary>Auf dieser Maschine</summary>
     <dl>
       {#each daten.vor_ort as feld (feld.begriff)}
