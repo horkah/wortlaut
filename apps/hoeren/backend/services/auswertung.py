@@ -33,7 +33,7 @@ from __future__ import annotations
 import asyncio
 import tempfile
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from sqlalchemy import Engine, delete, func, select
@@ -726,14 +726,19 @@ def gleiche_ab(db: Session, datenverzeichnis: Path, sprecher_id: str) -> None:
 
 def stand(db: Session, namen: list[str], werk: str, datenverzeichnis: Path | None = None) -> Stand:
     """Der Stand für die Oberfläche - auch dann, wenn gerade kein Lauf läuft."""
+    # Erst fragen, ob der Lauf fertig ist, dann zählen: Wird er fertig,
+    # während gezählt wird, fehlte sonst sein letzter Posten, und der Stand
+    # sagte „fertig" bei 7 von 8.
+    lauf = _lauf
+    fertig = lauf is None or lauf.aufgabe.done()
     bekannt = gehoert(datenverzeichnis, namen) if datenverzeichnis is not None else None
     erledigt, gesamt = zaehle(db, namen, werk, bekannt)
-    if _lauf is None:
+    if lauf is None:
         return Stand(laeuft=False, erledigt=erledigt, gesamt=gesamt)
 
-    _lauf.stand.erledigt, _lauf.stand.gesamt = erledigt, gesamt
-    _lauf.stand.laeuft = not _lauf.aufgabe.done()
-    return _lauf.stand
+    # Eine Abschrift: Den Stand des Laufs ändert auch die Ereignisschleife
+    # (`starte`, `_fertig_gemeldet`), und die Antwort soll zu ihrer Zählung passen.
+    return replace(lauf.stand, laeuft=not fertig, erledigt=erledigt, gesamt=gesamt)
 
 
 def laeuft_fuer() -> str:

@@ -210,16 +210,17 @@ def _werk() -> str:
 
 
 def _stand(db: Datenbank, sprecher: str) -> StandAntwort:
+    # Wer rechnet, aus derselben Momentaufnahme wie die Zählung - ein zweites
+    # Nachfragen (`laeuft_fuer`) sähe womöglich schon das Ende des Laufs.
     roh = auswertung.stand(db, _namen(sprecher), _werk(), einstellungen().data_dir)
-    laeuft_fuer = auswertung.laeuft_fuer()
     return StandAntwort(
-        laeuft=roh.laeuft and laeuft_fuer == sprecher,
+        laeuft=roh.laeuft and roh.sprecher_id == sprecher,
         erledigt=roh.erledigt,
         gesamt=roh.gesamt,
         uebersprungen=roh.uebersprungen,
         aktuell=roh.aktuell,
         fehler=roh.fehler,
-        fremder_lauf=bool(laeuft_fuer) and laeuft_fuer != sprecher,
+        fremder_lauf=roh.laeuft and roh.sprecher_id != sprecher,
     )
 
 
@@ -244,6 +245,8 @@ def uebersicht(db: Datenbank, sprecher: SprecherId) -> AuswertungAntwort:
     Faltungen gehören sofort in Vergleich und Zählung.
     """
     auswertung.gleiche_ab(db, einstellungen().data_dir, sprecher)
+    # Vor den Messwerten: Was der Stand zählt, steht dann auch in der Kurve.
+    stand = _stand(db, sprecher)
     namen = _namen(sprecher)
     nach_aufnahme: dict[str, dict[str, dict[str, dict[str, float]]]] = {}
     for erkennung in db.scalars(
@@ -268,7 +271,7 @@ def uebersicht(db: Datenbank, sprecher: SprecherId) -> AuswertungAntwort:
         laeufe=_laeufe(sprecher),
         varianten=VARIANTEN,
         metriken=METRIKEN,
-        stand=_stand(db, sprecher),
+        stand=stand,
         punkte=[
             PunktAntwort(
                 nummer=nummer,
