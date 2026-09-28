@@ -37,6 +37,7 @@ import yaml
 from wortlaut import kartenplan, laeufe, sprachen, tempo
 
 from . import abschluss as abschlussrechnung
+from . import adapter as zusatz
 from . import ausgangsstand
 from . import tempowahl
 from . import klangwandel
@@ -374,6 +375,7 @@ def trainiere(
         raise RuntimeError(
             f"Unbekannte Dauer: {dauer}. Zur Wahl stehen: {', '.join(laeufe.DAUERN)}."
         )
+    zusatz.pruefe(auftrag)
     konfiguration = einstellungen()
     # Vor jedem Training: Das Sprachmodell der Textquelle kann seit dem letzten
     # längst wieder geladen sein.
@@ -432,14 +434,15 @@ def trainiere(
     if methode == laeufe.LORA:
         from peft import LoraConfig, get_peft_model
 
-        einstellung = rezept["lora"]
+        # Rang und Ziele aus dem Auftrag (`adapter.py`).
+        einstellung = zusatz.adapter_fuer(rezept, auftrag)
         modell = get_peft_model(
             modell,
             LoraConfig(
-                r=int(einstellung["rang"]),
-                lora_alpha=int(einstellung["alpha"]),
-                lora_dropout=float(einstellung["ausfall"]),
-                target_modules=list(einstellung["ziele"]),
+                r=einstellung.rang,
+                lora_alpha=einstellung.alpha,
+                lora_dropout=einstellung.ausfall,
+                target_modules=einstellung.muster,
                 bias="none",
             ),
             # Der Zusatz in float32, auch über einem halben Grundmodell.
@@ -451,7 +454,11 @@ def trainiere(
         modell.enable_input_require_grads()
         trainierbar = sum(p.numel() for p in modell.parameters() if p.requires_grad)
         gesamt = sum(p.numel() for p in modell.parameters())
-        bericht.sage(f"LoRA: {trainierbar:,} von {gesamt:,} Gewichten werden gelernt")
+        bericht.sage(
+            f"LoRA: Rang {einstellung.rang}, α {einstellung.alpha}, "
+            f"{', '.join(einstellung.module)} in {' und '.join(einstellung.teile)} - "
+            f"{trainierbar:,} von {gesamt:,} Gewichten werden gelernt"
+        )
 
     korpuswurzel = datenverzeichnis / corpus.sprecher_relpfad(sprecher_id)
     # Nur an den Lernproben; die Steuergröße bleibt unverändert (`klangwandel.py`).

@@ -45,6 +45,8 @@
   const gemerkt = trainingswahl();
   let grundmodell = $state(gemerkt.grundmodell);
   let methode = $state(gemerkt.methode);
+  let loraZiele = $state(gemerkt.loraZiele);
+  let loraRang = $state(gemerkt.loraRang);
   let datensatz = $state(gemerkt.datensatz);
   let auswahl = $state(gemerkt.auswahl);
   let abschluss = $state(gemerkt.abschluss);
@@ -57,6 +59,8 @@
     setzeTrainingswahl({
       grundmodell,
       methode,
+      loraZiele,
+      loraRang,
       datensatz,
       auswahl,
       abschluss,
@@ -87,6 +91,12 @@
       methode = erlaubteMethoden[0];
     }
   });
+
+  // Ziele und Rang gibt es nur mit LoRA; bei vollem Training gehen die
+  // Vorgaben hinaus, die gemerkte Wahl bleibt für den nächsten LoRA-Lauf.
+  const mitLora = $derived(methode === 'lora');
+  const bestellteZiele = $derived(mitLora ? loraZiele : 'qv');
+  const bestellterRang = $derived(mitLora ? loraRang : '32');
   // Der Trainerschlüssel. Er steht hier neben Methode und Datensatz, weil er
   // an derselben Stelle gebraucht wird - aber er gehört nicht zur Bestellung,
   // sondern zur Erlaubnis, sie aufzugeben (siehe `lib/trainerschluessel.ts`).
@@ -134,6 +144,8 @@
       ? [
           ['Grundmodell', daten.grundmodelle, (lauf) => lauf.grundmodell],
           ['Methode', daten.methoden, (lauf) => lauf.methode],
+          ['LoRA-Ziele', daten.lora_ziele, (lauf) => lauf.lora_ziele],
+          ['LoRA-Rang', daten.lora_raenge, (lauf) => lauf.lora_rang],
           ['Datensatz', daten.datensaetze, (lauf) => lauf.daten],
           ['Auswahl', daten.auswahlen, (lauf) => lauf.auswahl],
           ['Epochen', daten.dauern, (lauf) => lauf.dauer],
@@ -205,6 +217,8 @@
             [
               lauf.grundmodell,
               lauf.methode,
+              lauf.lora_ziele || 'qv',
+              lauf.lora_rang || '32',
               lauf.daten,
               lauf.auswahl || 'alle',
               lauf.abschluss || 'bester',
@@ -228,6 +242,8 @@
     [
       grundmodell || daten?.basismodell || '',
       methode,
+      bestellteZiele,
+      bestellterRang,
       datensatz,
       auswahl,
       abschluss,
@@ -322,6 +338,8 @@
       await beauftrageLauf(
         {
           methode,
+          lora_ziele: bestellteZiele,
+          lora_rang: bestellterRang,
           daten: datensatz,
           auswahl,
           abschluss,
@@ -577,6 +595,27 @@
                 : { ...wahl, erklaerung: `Mit ${gewaehltesGrundmodell?.name} nicht möglich (GPU-Speicher).` },
               prozent('Methode', wahl),
             )}
+          </label>
+        {/each}
+      </fieldset>
+
+      <!-- Nur mit LoRA (`training/adapter.py`). -->
+      <fieldset disabled={!mitLora}>
+        <legend>LoRA-Ziele</legend>
+        {#each daten.lora_ziele as wahl (wahl.schluessel)}
+          <label class="option" class:nichtmoeglich={!mitLora}>
+            <input type="radio" bind:group={loraZiele} value={wahl.schluessel} />
+            {@render option(wahl, prozent('LoRA-Ziele', wahl))}
+          </label>
+        {/each}
+      </fieldset>
+
+      <fieldset disabled={!mitLora}>
+        <legend>LoRA-Rang</legend>
+        {#each daten.lora_raenge as wahl (wahl.schluessel)}
+          <label class="option" class:nichtmoeglich={!mitLora}>
+            <input type="radio" bind:group={loraRang} value={wahl.schluessel} />
+            {@render option(wahl, prozent('LoRA-Rang', wahl))}
           </label>
         {/each}
       </fieldset>

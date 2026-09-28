@@ -1,7 +1,7 @@
 # Feintuning mit LoRA: das Grundmodell bleibt, gelernt wird ein kleiner Zusatz.
 #
-# Zwei kleine Matrizen je Aufmerksamkeitsschicht, ein knappes Prozent der
-# Gewichte: passt in den Speicher, geht schneller, verdirbt das Grundmodell nicht.
+# Zwei kleine Matrizen je Projektion, ein knappes Prozent der Gewichte: passt
+# in den Speicher, geht schneller, verdirbt das Grundmodell nicht.
 name: Feintuning (LoRA)
 
 # Hundertmal so groß wie beim vollen Training: Die Zusatzmatrizen starten bei null.
@@ -22,13 +22,12 @@ gewichtsverfall: 0.0
 mischpraezision: true
 gradientenbegrenzung: 1.0
 
+# Rang und Ziele wählt der Auftrag (`training/adapter.py`); hier, was für
+# jede Wahl gilt.
 lora:
-  # Für eine Stimme reichlich; größer nähert sich dem vollen Training.
-  rang: 32
-  alpha: 64
+  # α wächst mit dem Rang, damit die Skalierung α/r bleibt - bei Rang 32 also 64.
+  alpha_je_rang: 2
   ausfall: 0.05
-  # Dort sitzt die Anpassung an eine abweichende Aussprache.
-  ziele: [q_proj, v_proj]
 
 # Die Zahlen zum Abschluss, den der Auftrag bestellt.
 abschluss:

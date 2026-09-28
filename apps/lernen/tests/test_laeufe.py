@@ -691,6 +691,46 @@ class TestSteuerung:
         assert "Steuergröße" in antwort.json()["detail"]
 
 
+class TestLoraZusatz:
+    """Ziele und Rang des LoRA-Zusatzes (`training/adapter.py`)."""
+
+    def test_ziele_und_rang_stehen_im_auftrag(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        sprich(6)
+        antwort = klient.post(
+            "/lernen/api/laeufe",
+            json={"methode": "lora", "daten": "original", "lora_ziele": "encoder", "lora_rang": "8"},
+        )
+        assert antwort.status_code == 201, antwort.text
+        lauf = antwort.json()
+        assert (lauf["lora_ziele"], lauf["lora_rang"]) == ("encoder", "8")
+        assert lauf["code"].startswith("SL-Ze-R8")
+        auftrag = laeufe.lies_json(
+            laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]) / laeufe.AUFTRAG
+        )
+        assert (auftrag["lora_ziele"], auftrag["lora_rang"]) == ("encoder", "8")
+
+    def test_nur_mit_lora(self, klient: TestClient, quelle: str, sprich) -> None:
+        sprich(6)
+        antwort = klient.post(
+            "/lernen/api/laeufe",
+            json={"methode": "full", "daten": "original", "lora_ziele": "alle"},
+        )
+        assert antwort.status_code == 400
+        assert "nur mit LoRA" in antwort.json()["detail"]
+
+    def test_ein_unbekannter_rang_wird_abgewiesen(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        sprich(6)
+        antwort = klient.post(
+            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original", "lora_rang": "7"}
+        )
+        assert antwort.status_code == 400
+        assert "LoRA-Rang" in antwort.json()["detail"]
+
+
 class TestVerwaisteLaeufe:
     """Was beim Start des Trainers mit Läufen geschieht, die `laeuft` sagen.
 

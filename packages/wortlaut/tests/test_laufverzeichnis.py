@@ -215,6 +215,8 @@ class TestOptionscode:
         auftrag = {
             "basismodell": "openai/whisper-medium",
             "methode": "lora",
+            "lora_ziele": "decoder",
+            "lora_rang": "64",
             "daten": "augmentiert",
             "auswahl": "kern",
             "dauer": "geduldig",
@@ -223,7 +225,7 @@ class TestOptionscode:
             "tempowahl": "optimal",
             "abschluss": "beides",
         }
-        assert laeufe.optionscode(auftrag) == "ML-A-K-E-W-SRP-Ts-CI"
+        assert laeufe.optionscode(auftrag) == "ML-Zd-R64-A-K-E-W-SRP-Ts-CI"
 
     def test_die_alte_tempowahl_zaehlt_als_aus(self) -> None:
         auftrag = {"basismodell": "openai/whisper-small", "methode": "full",
@@ -266,6 +268,8 @@ class TestOptionscode:
     def test_die_glieder_verschiedener_achsen_teilen_keinen_anfang(self) -> None:
         # Sonst hieße `C` je nach Stelle zweierlei.
         tafeln = (
+            laeufe.CODE_LORA_ZIELE,
+            laeufe.CODE_LORA_RANG,
             laeufe.CODE_DATENSATZ,
             laeufe.CODE_AUSWAHL,
             laeufe.CODE_DAUER,
@@ -281,6 +285,8 @@ class TestOptionscode:
 
     def test_jeder_wert_jeder_achse_hat_ein_glied(self) -> None:
         assert set(laeufe.CODE_METHODE) == set(laeufe.METHODEN)
+        assert set(laeufe.CODE_LORA_ZIELE) == set(laeufe.LORA_ZIELE)
+        assert set(laeufe.CODE_LORA_RANG) == set(laeufe.LORA_RAENGE)
         assert set(laeufe.CODE_DATENSATZ) == set(laeufe.DATENSAETZE)
         assert set(laeufe.CODE_AUSWAHL) == set(laeufe.AUSWAHLEN)
         assert set(laeufe.CODE_DAUER) == set(laeufe.DAUERN)

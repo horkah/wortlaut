@@ -95,6 +95,8 @@ Optionscode. Die Vorgabe ist jeweils der erste Wert.
 |---|---|---|
 | Grundmodell | whisper-small, whisper-medium, whisper-large-v3 | welche Methode geht, entscheidet die Karte; API und Trainer weisen ab, was nicht passt |
 | Methode | Volles Feintuning, LoRA | wie viel Freiheit das Modell bekommt |
+| LoRA-Ziele | q, v; alle Projektionen; nur Encoder; nur Decoder | wo der Zusatz sitzt - nur mit LoRA |
+| LoRA-Rang | 32, 8, 64 | wie groß er ist, α wächst mit - nur mit LoRA |
 | Datensatz | Nur Originale, Mit Abwandlungen | ob die gemessenen Fassungen mitgelernt werden |
 | Auswahl | Alle Aufnahmen, Kernauswahl | siehe [Die Kernauswahl](#die-kernauswahl) |
 | Epochen | fest, geduldig | feste Obergrenze oder Early Stopping |
@@ -187,6 +189,8 @@ Glied, wenn sie nicht auf ihrer Vorgabe steht:
 |---|---|---|
 | Grundmodell | small, medium, large-v3 | `S`, `M`, `L3` |
 | Methode | Volles Feintuning, LoRA | `V`, `L` |
+| LoRA-Ziele | q, v; alle; Encoder; Decoder | –, `Z`, `Ze`, `Zd` |
+| LoRA-Rang | 32, 8, 64 | –, `R8`, `R64` |
 | Datensatz | Nur Originale, Mit Abwandlungen | –, `A` |
 | Auswahl | Alle Aufnahmen, Kernauswahl | –, `K` |
 | Epochen | fest, geduldig | –, `E` |

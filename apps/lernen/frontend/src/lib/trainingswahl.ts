@@ -16,6 +16,8 @@ const SCHLUESSEL = 'wortlaut.trainingswahl';
 export type Trainingswahl = {
   grundmodell: string;
   methode: string;
+  loraZiele: string;
+  loraRang: string;
   datensatz: string;
   auswahl: string;
   abschluss: string;
@@ -29,6 +31,8 @@ export type Trainingswahl = {
 export const VORGABE: Trainingswahl = {
   grundmodell: '',
   methode: 'lora',
+  loraZiele: 'qv',
+  loraRang: '32',
   datensatz: 'original',
   auswahl: 'alle',
   abschluss: 'bester',
@@ -48,6 +52,8 @@ export function trainingswahl(): Trainingswahl {
     return {
       grundmodell: gelesen.grundmodell ?? VORGABE.grundmodell,
       methode: gelesen.methode ?? VORGABE.methode,
+      loraZiele: gelesen.loraZiele ?? VORGABE.loraZiele,
+      loraRang: gelesen.loraRang ?? VORGABE.loraRang,
       datensatz: gelesen.datensatz ?? VORGABE.datensatz,
       auswahl: gelesen.auswahl ?? VORGABE.auswahl,
       abschluss: gelesen.abschluss ?? VORGABE.abschluss,
