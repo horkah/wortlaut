@@ -198,7 +198,7 @@ Glied, wenn sie nicht auf ihrer Vorgabe steht:
 | LoRA-Rang | 32, 8, 64 | –, `R8`, `R64` |
 | Datensatz | Nur Originale, Mit Abwandlungen | –, `A` |
 | Auswahl | Alle Aufnahmen, Kernauswahl | –, `K` |
-| Korrekturen | 0,5, 0,25, 0,75, 1,0, Verlauf | –, `Q25`, `Q75`, `Q100`, `Qv` |
+| Korrekturen | 0,5, 0,25, 0,75, 1,0, Verlauf | –, `Q25`, `Q75`, `Q1`, `Qv` |
 | Selbsttraining | aus, an | –, `U` |
 | Epochen | fest, geduldig | –, `E` |
 | Steuergröße | Verlust, WER | –, `W` |

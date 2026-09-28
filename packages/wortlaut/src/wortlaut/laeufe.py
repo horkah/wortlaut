@@ -521,12 +521,12 @@ CODE_LORA_ZIELE = {ZIELE_QV: "", ZIELE_ALLE: "Z", ZIELE_ENCODER: "Ze", ZIELE_DEC
 CODE_LORA_RANG = {rang: "" if rang == RANG_VORGABE else f"R{rang}" for rang in LORA_RAENGE}
 CODE_DATENSATZ = {NUR_ORIGINAL: "", MIT_VARIANTEN: "A"}
 CODE_AUSWAHL = {AUSWAHL_ALLE: "", AUSWAHL_KERN: "K"}
-# Q = Gewicht der Korrekturen (in Hundertsteln, `v` = aus dem Verlauf), U = unbeschriftet.
+# Q = Gewicht der Korrekturen (`Q25` = 0,25, `Q1` = 1, `Qv` = aus dem Verlauf), U = unbeschriftet.
 CODE_KORREKTURGEWICHT = {
     GEWICHT_VORGABE: "",
     "0.25": "Q25",
     "0.75": "Q75",
-    "1.0": "Q100",
+    "1.0": "Q1",
     GEWICHT_VERLAUF: "Qv",
 }
 CODE_SELBSTTRAINING = {SELBST_AUS: "", SELBST_AN: "U"}
