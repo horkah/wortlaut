@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import gc
 import json
+import logging
 import math
 import shutil
 import signal
@@ -49,6 +50,8 @@ from . import steuerung as steuergroesse
 from .daten import Proben, Stapler
 
 REZEPTE = Path(__file__).parent / "rezepte"
+# Ins Fehlerprotokoll (`wortlaut/fehlerlog.py`).
+_log = logging.getLogger("wortlaut.training")
 # Der Keim des Laufs - für den Trainer und den Würfel des Wandlers (`klangwandel.py`).
 KEIM = 20260912
 # Jeder wievielte Schritt in die Lernkurve geht - die Oberfläche liest sie im Takt.
@@ -80,11 +83,8 @@ class Bericht:
     Eine Stelle für alles, was der Prozess über sich sagt.
     """
 
-    def __init__(self, verzeichnis: Path, spuren: bool = True) -> None:
+    def __init__(self, verzeichnis: Path) -> None:
         self.verzeichnis = verzeichnis
-        # Ohne Spuren redet der Bericht nur - `nachziehen.py` lässt den
-        # fertigen Lauf unberührt.
-        self.spuren = spuren
         self.zustand: dict[str, Any] = {
             "status": laeufe.LAEUFT,
             "stufe": "vorbereiten",
@@ -93,8 +93,7 @@ class Bericht:
         self._schreibe()
 
     def _schreibe(self) -> None:
-        if self.spuren:
-            laeufe.schreibe_json(self.verzeichnis / laeufe.ZUSTAND, self.zustand)
+        laeufe.schreibe_json(self.verzeichnis / laeufe.ZUSTAND, self.zustand)
 
     def sage(self, text: str) -> None:
         """Ins Protokoll - und auf die Standardausgabe, wo der Läufer mitliest."""
@@ -108,8 +107,6 @@ class Bericht:
         self.sage(f"— {name}")
 
     def ereignis(self, **felder: Any) -> None:
-        if not self.spuren:
-            return
         laeufe.haenge_an(
             self.verzeichnis / laeufe.FORTSCHRITT, {"zeit": laeufe.jetzt(), **felder}
         )
@@ -124,9 +121,9 @@ class Bericht:
         self._schreibe()
 
     def faltung(self, nummer: int | None) -> None:
-        """Welche der sieben Trainings gerade läuft - für den Balken der Liste.
+        """Welche Faltung gerade läuft - für den Balken der Liste.
 
-        `None` ist das Endmodell.
+        `None` ist das Endmodell, das Mittel der Faltungen (`endmodell.py`).
         """
         self.zustand["faltung"] = nummer
         self.zustand["faltungen_gesamt"] = laeufe.FALTUNGEN
@@ -292,47 +289,14 @@ def _trainerklasse():
 
 
 def _name_fuer(faltung: int | None) -> str:
-    """Wie das Verzeichnis einer Faltung heißt - `endmodell`, wenn keine."""
+    """Wie das Verzeichnis einer Faltung heißt - `endmodell` für ihr Mittel."""
     return "endmodell" if faltung is None else f"faltung-{faltung}"
-
-
-def _halt_nach(ziel: float, bericht):
-    """Ein Rückruf, der nach `ziel` Durchgängen Schluss macht - Plan unberührt.
-
-    Das Endmodell hat kein Abbruchkriterium, weiß aber aus den Faltungen,
-    wann sie am besten standen, und hört dort auf - auf derselben Rampe. Ein
-    kleineres `num_train_epochs` verschöbe den Lernratenverlauf (`trainiere`).
-
-    Geprüft nach jedem Schritt: Bei der Steuergröße `wer` stand eine Faltung
-    auch mitten in einem Durchgang am besten (`steuerung.py`).
-    """
-    from transformers import TrainerCallback
-
-    class Haltestelle(TrainerCallback):
-        def __init__(self) -> None:
-            self.gesagt = False
-
-        def on_step_end(self, args, zustand, steuerung, **weiteres):
-            # Auf den nächsten Schritt: `ziel` ist auf zwei Stellen gerundet
-            # (`_bester_durchgang`).
-            je_durchgang = float(zustand.max_steps) / max(1e-9, float(args.num_train_epochs))
-            if float(zustand.epoch or 0.0) >= ziel - 0.5 / max(1.0, je_durchgang):
-                steuerung.should_training_stop = True
-                if not self.gesagt:
-                    bericht.sage(
-                        f"Schluss nach {zustand.epoch:.1f} Durchgängen - "
-                        "so weit reichten die Faltungen."
-                    )
-                    self.gesagt = True
-            return steuerung
-
-    return Haltestelle()
 
 
 def _bester_durchgang(trainer, obergrenze: float, hat_pruefung: bool) -> float:
     """Bei welchem Durchgang dieser Lauf am besten stand.
 
-    Ohne Steuergröße (Endmodell) die gelaufene Zahl.
+    Ohne Steuergröße die gelaufene Zahl.
     """
     if not hat_pruefung or not trainer.state.best_model_checkpoint:
         return float(trainer.state.epoch or obergrenze)
@@ -345,16 +309,13 @@ def trainiere(
     verzeichnis: Path,
     datenverzeichnis: Path,
     bericht: Bericht,
-    faltung: int | None = None,
-    vorgaben: dict[str, Any] | None = None,
+    faltung: int,
 ) -> tuple[Path, abschlussrechnung.Ergebnis, dict[str, Any]]:
     """Ein Training; gibt Gewichte, Abschluss und die gelernten Kennzahlen zurück.
 
     `faltung` bleibt draußen: Gelernt wird auf den anderen fünf, gesteuert und
-    gemessen auf ihr. `None` ist das Endmodell - lernt auf allem, misst nichts,
-    diktiert in „schreiben". Ohne Validierung bringt es Durchgänge, Plan, α
-    und Tempo aus den Faltungen mit (`vorgaben`). Den Abschluss regelt
-    `abschluss.py`.
+    gemessen auf ihr. Den Abschluss regelt `abschluss.py`. Die Gewichte
+    bleiben liegen, bis das Endmodell sie gemittelt hat (`endmodell.py`).
     """
     import torch
     from transformers import (
@@ -513,32 +474,21 @@ def trainiere(
 
     if gewaehlt == laeufe.TEMPO_GESCHAETZT:
         # Aus Textlänge und Aufnahmedauer (`tempowahl.aus_dauern`).
-        if vorgaben and vorgaben.get("tempo") is not None:
-            faktor = float(vorgaben["tempo"])
-            bericht.sage(f"Tempo aus den Faltungen übernommen: Faktor {faktor:g}")
-        else:
-            tempoergebnis = tempowahl.aus_dauern(fuer_tempo, bericht)
-            faktor = tempoergebnis.faktor
-            if tempoergebnis.hinweis:
-                bericht.sage(f"  {tempoergebnis.hinweis}")
+        tempoergebnis = tempowahl.aus_dauern(fuer_tempo, bericht)
     elif gewaehlt == laeufe.TEMPO_OPTIMAL:
-        if vorgaben and vorgaben.get("tempo") is not None:
-            # Das Endmodell übernimmt das Tempo der Faltungen.
-            faktor = float(vorgaben["tempo"])
-            bericht.sage(f"Tempo aus den Faltungen übernommen: Faktor {faktor:g}")
-        else:
-            # Auf den Lernzeilen - nie an dem, woran gemessen wird.
-            tempoergebnis = tempowahl.waehle(
-                fuer_tempo,
-                korpuswurzel,
-                ausgangsstand.erkenner(datenverzeichnis, auftrag),
-                sprache,
-                bericht,
-                faltung,
-            )
-            faktor = tempoergebnis.faktor
-            if tempoergebnis.hinweis:
-                bericht.sage(f"  {tempoergebnis.hinweis}")
+        # Auf den Lernzeilen - nie an dem, woran gemessen wird.
+        tempoergebnis = tempowahl.waehle(
+            fuer_tempo,
+            korpuswurzel,
+            ausgangsstand.erkenner(datenverzeichnis, auftrag),
+            sprache,
+            bericht,
+            faltung,
+        )
+    if tempoergebnis is not None:
+        faktor = tempoergebnis.faktor
+        if tempoergebnis.hinweis:
+            bericht.sage(f"  {tempoergebnis.hinweis}")
 
     zwischenlager = verzeichnis / laeufe.VORGESPULT if tempo.vorspulen_noetig(faktor) else None
     if zwischenlager is not None:
@@ -576,7 +526,7 @@ def trainiere(
     if not len(lern):
         raise RuntimeError("Das Manifest enthält keine Trainingsprobe.")
 
-    # Das Endmodell hält nichts zurück und hat keine Steuergröße.
+    # Ohne Vorlagen in der Faltung - etwa lauter Korrekturen - gibt es keine Steuergröße.
     hat_pruefung = len(pruef) > 0
 
     zuschnitt = zuschneiden(
@@ -599,25 +549,11 @@ def trainiere(
             "Geduldig nicht möglich: Ohne Validierungsproben gibt es kein "
             "Kriterium. Es gilt die feste Zahl Durchgänge."
         )
-    # `plan` ist der Horizont der Lernrate, `halt` wo aufgehört wird. Eine
-    # Faltung plant über ihre Obergrenze und hört auf, wenn die Geduld endet.
-    plan = float(
+    # Der Horizont der Lernrate: Eine geduldige Faltung plant über ihre
+    # Obergrenze und hört auf, wenn die Geduld endet.
+    durchgaenge = float(
         rezept.get("epochen_hoechstens", rezept["epochen"]) if geduldig else rezept["epochen"]
     )
-    halt: float | None = None
-    if vorgaben and vorgaben.get("durchgaenge"):
-        # Das Endmodell erbt Plan und Halt der Faltungen: dieselbe Rampe,
-        # derselbe Punkt darauf. Nur die Durchgangszahl mit neu gebautem Plan
-        # wäre ein anderer Lauf - mit Warmlauf und Spitze an anderer Stelle
-        # (`docs/lernen.md`).
-        plan = float(vorgaben.get("plan") or vorgaben["durchgaenge"])
-        halt = float(vorgaben["durchgaenge"])
-        geduldig = False
-        bericht.sage(
-            f"Aus den Faltungen übernommen: Plan über {plan:.1f} Durchgänge, "
-            f"Schluss nach {halt:.1f} - derselbe Lernratenverlauf wie dort."
-        )
-    durchgaenge = plan
 
     # Der Warmlauf, gedeckelt auf `WARMLAUF_ANTEIL` - sonst wäre bei neun
     # Aufnahmen der ganze Lauf Rampe. Größere Läufe behalten die Schrittzahl
@@ -701,8 +637,6 @@ def trainiere(
     )
 
     rueckrufe: list[Any] = [_rueckmeldung(bericht)]
-    if halt is not None:
-        rueckrufe.append(_halt_nach(halt, bericht))
     if geduldig:
         from transformers import EarlyStoppingCallback
 
@@ -774,7 +708,6 @@ def trainiere(
         arbeitsstand=ausgabe,
         hat_pruefung=hat_pruefung,
         bericht=bericht,
-        alpha_vorgabe=(vorgaben or {}).get("alpha"),
         mass=pruefplan.mass,
     )
 
@@ -801,10 +734,9 @@ def trainiere(
             else "Startprompt: kein seltenes Wort in den Lerntexten - es bleibt ohne"
         )
 
-    # Was das Endmodell von dieser Faltung mitnimmt.
+    # Was diese Faltung herausfand - für Manifest und Steckbrief.
     kennzahlen: dict[str, Any] = {
         "durchgaenge": _bester_durchgang(trainer, durchgaenge, hat_pruefung),
-        "plan_durchgaenge": plan,
         "alpha": ergebnis.alpha,
         "tempo": faktor,
         "fenster_s": fenster / fensterrechnung.RAHMEN_JE_S,
@@ -825,11 +757,7 @@ def trainiere(
 
 
 def trainiere_geduldig(
-    verzeichnis: Path,
-    datenverzeichnis: Path,
-    bericht: Bericht,
-    faltung: int | None = None,
-    vorgaben: dict[str, Any] | None = None,
+    verzeichnis: Path, datenverzeichnis: Path, bericht: Bericht, faltung: int
 ) -> tuple[Path, abschlussrechnung.Ergebnis, dict[str, Any]]:
     """`trainiere` - und ist die Karte belegt, warten und die Faltung neu beginnen.
 
@@ -842,7 +770,7 @@ def trainiere_geduldig(
         raeume_karte(bericht)
 
     return karte.mit_geduld(
-        lambda: trainiere(verzeichnis, datenverzeichnis, bericht, faltung, vorgaben),
+        lambda: trainiere(verzeichnis, datenverzeichnis, bericht, faltung),
         bericht,
         aufraeumen=aufraeumen,
         fremd_belegt_mb=fremd_belegt_mb,
@@ -1080,7 +1008,7 @@ def _median(werte: list[float]) -> float | None:
 
 
 def _gewaehltes_tempo(gelernt: list[dict[str, Any]], auftrag: dict[str, Any]) -> float | None:
-    """Der Faktor, mit dem das Endmodell rechnet.
+    """Der Faktor, mit dem das Endmodell diktiert.
 
     Gesucht: das Minimum der zusammengelegten Kurve. Geschätzt: das Mittel,
     auf eine Viertelstufe gerundet. Sonst ist der Wert überall derselbe.
@@ -1104,35 +1032,55 @@ def kreuzvalidiere(
     """Sechs Trainings, sechs Messungen - und was das Endmodell daraus mitnimmt.
 
     Danach ist jede Aufnahme einmal von einem Modell gehört worden, das sie
-    nicht kannte. Nach jeder Faltung wird sofort weggeräumt.
+    nicht kannte. Die Gewichte jeder Faltung bleiben liegen, bis das Endmodell
+    sie gemittelt hat (`endmodell.py`); Arbeitsstand und CTranslate2-Fassung
+    gehen sofort.
+
+    **Eine Faltung, die abbricht, hält den Lauf nicht auf.** Sie steht als
+    gescheitert im Fortschritt und im Fehlerprotokoll, und das Endmodell mittelt
+    die übrigen. Erst wenn keine durchkommt, scheitert der Lauf.
     """
     from .bewerten import bewerte_faltung
 
     zeilen: list[dict[str, Any]] = []
     gelernt: list[dict[str, Any]] = []
+    gescheitert: list[dict[str, Any]] = []
 
     gewaehlt = laeufe.tempowahl_aus(auftrag)
     for faltung in range(laeufe.FALTUNGEN):
         bericht.faltung(faltung)
         bericht.sage(f"── Faltung {faltung + 1} von {laeufe.FALTUNGEN}")
-        gewichte, ergebnis, kennzahlen = trainiere_geduldig(
-            verzeichnis, datenverzeichnis, bericht, faltung=faltung
-        )
         ct2 = verzeichnis / laeufe.GEWICHTE / f"ct2-faltung-{faltung}"
-        wandle_um(gewichte, ct2, bericht)
-        zeilen.extend(
-            bewerte_faltung(
-                verzeichnis,
-                datenverzeichnis,
-                ct2,
-                auftrag,
-                faltung,
-                bericht,
-                # Das Tempo dieser Faltung - gemessen wird, wie gelernt wurde.
-                faktor=float(kennzahlen["tempo"]),
+        try:
+            gewichte, ergebnis, kennzahlen = trainiere_geduldig(
+                verzeichnis, datenverzeichnis, bericht, faltung=faltung
             )
-        )
-        gelernt.append({**kennzahlen, "faltung": faltung, "abschluss": ergebnis.als_dict()})
+            wandle_um(gewichte, ct2, bericht)
+            zeilen.extend(
+                bewerte_faltung(
+                    verzeichnis,
+                    datenverzeichnis,
+                    ct2,
+                    auftrag,
+                    faltung,
+                    bericht,
+                    # Das Tempo dieser Faltung - gemessen wird, wie gelernt wurde.
+                    faktor=float(kennzahlen["tempo"]),
+                )
+            )
+        except Exception as ursache:  # noqa: BLE001 - was immer torch wirft
+            _log.error(
+                "Faltung %d von %s gescheitert", faltung + 1, verzeichnis.name, exc_info=True
+            )
+            bericht.sage(
+                f"Faltung {faltung + 1} gescheitert ({type(ursache).__name__}: {ursache}) - "
+                "sie fehlt im Endmodell, die übrigen laufen weiter."
+            )
+            bericht.ereignis(art="faltung_gescheitert", nummer=faltung, text=str(ursache))
+            gescheitert.append({"faltung": faltung, "fehler": f"{type(ursache).__name__}: {ursache}"})
+            shutil.rmtree(verzeichnis / laeufe.GEWICHTE / _name_fuer(faltung), ignore_errors=True)
+        else:
+            gelernt.append({**kennzahlen, "faltung": faltung, "abschluss": ergebnis.als_dict()})
         if gewaehlt != laeufe.TEMPO_AUS:
             # Nach jeder Faltung der vorläufige Wert, als solcher markiert.
             bericht.merke(
@@ -1141,19 +1089,21 @@ def kreuzvalidiere(
             )
         # Sofort: Die nächste Faltung braucht Platte und Karte.
         raeume_karte(bericht)
-        shutil.rmtree(gewichte.parent, ignore_errors=True)
+        shutil.rmtree(ct2, ignore_errors=True)
         shutil.rmtree(verzeichnis / laeufe.ARBEITSSTAND / _name_fuer(faltung), ignore_errors=True)
+
+    if not gelernt:
+        raise RuntimeError("Keine Faltung ist durchgekommen - es gibt nichts zu mitteln.")
 
     mitgenommen = {
         "durchgaenge": _median([float(k["durchgaenge"]) for k in gelernt]),
-        # Der Horizont der Lernrate, damit das Endmodell auf derselben Rampe läuft.
-        "plan": _median([float(k["plan_durchgaenge"]) for k in gelernt]),
         "alpha": _median([k["alpha"] for k in gelernt if k["alpha"] is not None]),
         # Beim Suchen das Minimum der zusammengelegten Kurve (`_gewaehltes_tempo`).
         "tempo": _gewaehltes_tempo(gelernt, auftrag),
         # Die gemittelte Kurve samt Standardfehler je Stützstelle.
         "tempokurve": tempowahl.zusammengelegt(gelernt)[1],
         "faltungen": gelernt,
+        "gescheitert": gescheitert,
     }
     bericht.sage(
         f"Aus den Faltungen: {mitgenommen['durchgaenge']:.1f} Durchgänge"
@@ -1253,17 +1203,35 @@ def main(argumente: list[str]) -> int:
         # Erst die Messung, dann der Stand, der ausgeliefert wird.
         zeilen, mitgenommen = kreuzvalidiere(verzeichnis, datenverzeichnis, auftrag, bericht)
 
+        # Kein siebtes Training: das Mittel der Faltungen (`endmodell.py`).
         bericht.faltung(None)
-        bericht.sage("── Endmodell: lernt auf allem, was da ist")
-        gewichte, ergebnis, kennzahlen = trainiere_geduldig(
-            verzeichnis, datenverzeichnis, bericht, faltung=None, vorgaben=mitgenommen
+        bericht.sage("── Endmodell: das Mittel der Faltungsmodelle")
+        from .endmodell import baue
+
+        gewichte, endmodell, abschluss_bericht = baue(
+            verzeichnis, datenverzeichnis, auftrag, zeilen, mitgenommen, bericht
         )
 
         from .bewerten import gib_frei
 
         version = gib_frei(
-            verzeichnis, datenverzeichnis, gewichte, auftrag, bericht, ergebnis,
-            zeilen=zeilen, mitgenommen=mitgenommen, zuschnitt=kennzahlen.get("zuschnitt"),
+            verzeichnis,
+            datenverzeichnis,
+            gewichte,
+            auftrag,
+            bericht,
+            abschluss_bericht,
+            zeilen=zeilen,
+            mitgenommen=mitgenommen,
+            zuschnitt=next(
+                (
+                    k.get("zuschnitt")
+                    for k in mitgenommen["faltungen"]
+                    if k["faltung"] in endmodell["faltungen"]
+                ),
+                None,
+            ),
+            endmodell=endmodell,
         )
     except Angehalten:
         bericht.sage("Angehalten auf Wunsch.")

@@ -297,6 +297,7 @@
     sichern: 'wird gesichert',
     umwandeln: 'wird umgewandelt',
     bewerten: 'misst die zurückgehaltene Faltung',
+    mitteln: 'mittelt die Faltungsmodelle',
   };
 
   /**
@@ -310,7 +311,7 @@
     if (lauf.stufe === 'vorbereiten') return stufe;
     if (lauf.stufe === 'kernauswahl') return `${stufe} (${lauf.kern_offen} Aufnahmen)`;
     if (lauf.stufe === 'selbsttraining') return stufe;
-    // `faltung === null`: das Endmodell, das auf allem lernt.
+    // `faltung === null`: das Endmodell, das Mittel der Faltungen.
     const wo =
       lauf.faltung === null
         ? 'Endmodell'

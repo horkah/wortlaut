@@ -33,12 +33,12 @@ Die Aufnahmen gehen auf sechs Faltungen, je Stamm: Teile und Kopien aus
 (`laeufe.verteile`). Neue und gelöschte Aufnahmen verschieben keine andere,
 und eine Aufnahme misst in jedem Lauf in derselben Faltung. Nur wenn ein
 kleiner Korpus eine Faltung leer ließe, gehen die Stämme reihum in
-Hash-Reihenfolge. Ein Lauf rechnet sieben Trainings:
+Hash-Reihenfolge. Ein Lauf rechnet sechs Trainings und mittelt sie:
 
 | | lernt auf | gemessen an |
 |---|---|---|
 | Faltung 1 … 6 | fünf Sechsteln | dem zurückgehaltenen Sechstel |
-| Endmodell | allem | nichts |
+| Endmodell | - (Mittel der Faltungen) | nichts, nur geprüft |
 
 Danach ist jede Aufnahme genau einmal von einem Modell gehört worden, das sie
 nie gelernt hat; diese Messungen sind die Zahl des Laufs. Die Faltung wird bei
@@ -64,10 +64,48 @@ kostet das Quadrat der Rechenzeit.
 
 ### Das Endmodell
 
-Das siebte Training lernt auf allem, mit dem, was sich in den Faltungen bewährt
-hat: ihrem Lernratenplan (Median des Horizonts), ihrer besten Stelle darauf als
-Haltepunkt (`_halt_nach`) und dem Median ihres α. Dieselbe Rampe, derselbe
-Punkt darauf - eine bloß kleinere Epochenzahl verschöbe den ganzen Verlauf.
+**Das Endmodell ist das Mittel der Faltungsmodelle** (`training/endmodell.py`),
+kein siebtes Training. Die Gewichte der sechs Faltungen werden elementweise
+gemittelt („Model Soup"): Alle starten vom selben Grundmodell und lernen mit
+kleiner Lernrate kurz, sie liegen in derselben Verlustmulde, und ihr Mittel
+ist erfahrungsgemäß mindestens so gut wie die Faltung im Durchschnitt. Jede
+Aufnahme steckt in fünf der sechs Modelle.
+
+Ein Training auf allem müsste Haltepunkt und α blind aus den Faltungen
+übernehmen, ohne Validierung - und kann dabei entgleisen, ohne dass es vor der
+Prüfung am Ende jemand sieht. Das beste Faltungsmodell auszuliefern wäre keine
+Lösung: „Beste" hieße meist nur, dass seine zurückgehaltenen Aufnahmen die
+leichtesten waren.
+
+**Bei LoRA wird der verschmolzene Stand gemittelt.** Jede Faltung sichert
+Grundmodell plus B·A; ihr Mittel ist genau das Grundmodell plus das Mittel der
+Änderungen. A und B getrennt zu mitteln wäre falsch - das Produkt der Mittel
+ist nicht das Mittel der Produkte.
+
+**Was schiefging, bleibt draußen** (`endmodell.pruefe_faltungen`), gemessen an
+den Originalen, die die Faltung zurückhielt:
+
+| Grund | wann |
+|---|---|
+| **abgebrochen** | die Faltung ist gescheitert; der Lauf rechnet mit den übrigen weiter |
+| **ausgefranst** | ein Viertel ihrer Messungen oder mehr, mindestens zwei, hat mehr Fehler als Wörter |
+| **Ausreißer** | ihr Verhältnis zum Grundmodell liegt über dem Anderthalbfachen des Medians, und sie ist schlechter als das Grundmodell |
+
+**Ausreißer am Grundmodell gemessen, nicht an der WER.** Die WER einer
+Faltung hängt vor allem daran, wie schwer ihre zurückgehaltenen Aufnahmen
+sind. Das Verhältnis ihrer WER zu der des Grundmodells auf denselben
+Aufnahmen (aus der Auswertung in „hören") rechnet das heraus; eine Faltung,
+die besser ist als das Grundmodell, bleibt immer drin. Fehlen die Werte des
+Grundmodells, entfällt diese Prüfung, und das Protokoll sagt es. Dieselben
+Schwellen wie in der Plausibilitätsprüfung. Erst wenn keine Faltung
+übrig bleibt, scheitert der Lauf. Die Messungen einer ausgelassenen Faltung
+bleiben in der Zahl des Laufs: Sie beschreibt das Verfahren auf diesem Korpus,
+nicht einen einzelnen Stand. Der Steckbrief nennt „Mittel aus 5 von 6
+Faltungen" und, welche warum fehlt; das Manifest trägt es unter `endmodell`.
+
+Beim Kontext `vokabular` bekommt das Mittel den Startprompt aus allen
+Lerntexten. Das α der Tafel ist der Median der gemittelten Faltungen - jede
+trägt ihr eigenes.
 
 Dieser Stand wird ausgeliefert. Er kennt jede Aufnahme und lässt sich nicht
 mehr ehrlich messen; **die Zahl neben ihm stammt aus den Faltungen.**
@@ -271,7 +309,7 @@ alle anderen.
 Faltungen sind. Die Aufnahmen selbst stehen unter „Meine Daten" in „hören".
 
 **Training** beauftragt und zeigt die Läufe: je Lauf Code, Zustand, Umfang,
-ein Balken über alle sieben Trainings und die Stufe. Kommen neue Aufnahmen
+ein Balken über die sechs Faltungen samt Mittel und die Stufe. Kommen neue Aufnahmen
 dazu, steht es da - „23 Aufnahmen sind dazugekommen, seit zuletzt etwas fertig
 trainiert wurde". Von selbst angestoßen wird nichts: Ein Lauf belegt die Karte
 und friert einen Stand des Korpus ein, und das soll jemand entscheiden.

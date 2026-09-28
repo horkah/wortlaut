@@ -362,7 +362,6 @@ def fuehre_aus(
     arbeitsstand: Path,
     hat_pruefung: bool,
     bericht,
-    alpha_vorgabe: float | None = None,
     mass: str = "loss",
 ) -> Ergebnis:
     """Den bestellten Abschluss rechnen; gibt zurück, was dabei herauskam.
@@ -370,9 +369,8 @@ def fuehre_aus(
     Das Modell wird dabei an Ort und Stelle verändert - danach steht in ihm
     der Stand, der gesichert und ausgeliefert wird.
 
-    Das Endmodell hält nichts zurück und hat damit kein Maß. Es wendet das α
-    der Faltungen an (`alpha_vorgabe`); die Mittelung entfällt, denn sie wählt
-    unter Zwischenständen.
+    Ohne Validierung - eine Faltung ohne Vorlagen - gibt es kein Maß; dann
+    geschieht nichts.
 
     `mass` ist die Steuergröße des Trainings (`steuerung.Pruefplan.mass`).
     """
@@ -382,20 +380,8 @@ def fuehre_aus(
         return sammler.fertig()
 
     if not hat_pruefung:
-        if alpha_vorgabe is not None and laeufe.interpoliert(art):
-            bericht.stufe("abschluss")
-            _nur_interpolieren(modell, basismodell, float(alpha_vorgabe), bericht)
-            sammler.alpha = float(alpha_vorgabe)
-            sammler.hinweise.append(
-                f"α = {float(alpha_vorgabe):.2f} aus den Faltungen übernommen, ohne "
-                "eigene Messung. Gemittelt wurde nicht - dafür fehlt das Maß."
-            )
-            bericht.sage(sammler.hinweise[-1])
-        else:
-            sammler.hinweise.append(
-                "Ohne Steuergröße nicht gerechnet - der Stand bleibt, wie er ist."
-            )
-            bericht.sage("Abschluss übersprungen: nichts zurückgehalten, nichts zu messen.")
+        sammler.hinweise.append("Ohne Steuergröße nicht gerechnet - der Stand bleibt, wie er ist.")
+        bericht.sage("Abschluss übersprungen: nichts zurückgehalten, nichts zu messen.")
         return sammler.fertig()
 
     bericht.stufe("abschluss")
@@ -483,32 +469,6 @@ def _einspielen(modell, stand: dict[str, Any]) -> None:
             ziel = eigen.get(name)
             if ziel is not None:
                 ziel.copy_(wert.to(ziel.device, ziel.dtype))
-
-
-def _nur_interpolieren(modell, basismodell: str, alpha: float, bericht) -> None:
-    """Ein gegebenes α anwenden, ohne zu messen - der Weg des Endmodells."""
-    import torch
-
-    ist_lora = _ist_lora(modell)
-    with torch.no_grad():
-        if ist_lora:
-            for gewicht in _lora_zusaetze(modell):
-                gewicht.mul_(1.0 - alpha)
-        else:
-            grund = _grundgewichte(basismodell)
-            eigen = modell.state_dict()
-            for name, wert in eigen.items():
-                if (
-                    name not in grund
-                    or not torch.is_floating_point(wert)
-                    or grund[name].shape != wert.shape
-                ):
-                    continue
-                gemischt = alpha * grund[name].to(torch.float32) + (1.0 - alpha) * wert.detach().to(
-                    "cpu", torch.float32
-                )
-                wert.copy_(gemischt.to(wert.dtype))
-    bericht.sage(f"Mit dem Grundmodell verrechnet: α = {alpha:.2f} (aus den Faltungen)")
 
 
 def _ist_lora(modell) -> bool:

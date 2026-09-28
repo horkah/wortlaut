@@ -5,9 +5,9 @@ Je Faltung hört das eben trainierte Modell das Sechstel, das es nicht kannte
 einem Modell vor, das sie nie gehört hat.
 
 **Zwei Modelle, eine Zeile.** Die Zahlen stammen aus den sechs Faltungen. Das
-Modell, das „schreiben" anbietet, ist ein siebtes: auf allem trainiert, mit den
-Einstellungen der Faltungen - besser als jedes der sechs und darum nicht
-ehrlich messbar. Die Zahl daneben ist die vorsichtige.
+Modell, das „schreiben" anbietet, ist ihr Mittel (`endmodell.py`) - jede
+Aufnahme steckt in fünf der sechs, darum ist es nicht ehrlich messbar. Die Zahl
+daneben ist die der Faltungen.
 
 Gemessen im Trainer, wo das Modell schon auf der Karte liegt, mit
 `wortlaut/metriken.py` wie die Baseline in „hören", auf allen Fassungen.
@@ -152,7 +152,7 @@ def freie_version(datenverzeichnis: Path, auftrag: dict[str, Any], version: str)
 
     Die Zeitmarke reicht auf die Minute; dasselbe Rezept kurz hintereinander
     ergäbe denselben Namen, und ein Lauf überschriebe den anderen. Derselbe
-    Lauf behält ihn (`nachziehen`); ein fremder bekommt seine Folge (`-43c`),
+    Lauf behält ihn; ein fremder bekommt seine Folge (`-43c`),
     sonst seine Kennung.
     """
     sprecher_id = str(auftrag["sprecher_id"])
@@ -668,16 +668,19 @@ def gib_frei(
     gewichte: Path,
     auftrag: dict[str, Any],
     bericht,
-    abschluss=None,
+    abschluss_bericht: dict[str, Any] | None = None,
     zeilen: list[dict[str, Any]] | None = None,
     mitgenommen: dict[str, Any] | None = None,
     zuschnitt: dict[str, Any] | None = None,
+    endmodell: dict[str, Any] | None = None,
 ) -> str:
     """Das Endmodell umwandeln, prüfen und eintragen. Gibt die Version zurück.
 
-    Die Zahlen sind die der Faltungen (`zeilen`); das Endmodell wird nur
-    geprüft (`pruefe_endmodell`). Daneben das unveränderte Grundmodell auf
-    denselben Messungen (`gegen_grundmodell`). Eingetragen als `fertig`,
+    Das Endmodell ist das Mittel der Faltungen (`endmodell.py`); `endmodell`
+    sagt, welche es sind und welche draußen blieben. Die Zahlen sind die der
+    Faltungen (`zeilen`); das Endmodell wird nur geprüft (`pruefe_endmodell`).
+    Daneben das unveränderte Grundmodell auf denselben Messungen
+    (`gegen_grundmodell`). Eingetragen als `fertig`,
     freigegeben wird von Hand - in „Modelle" oder mit `make release`
     (`apps/lernen/backend/services/freigabe.py`).
     """
@@ -727,8 +730,10 @@ def gib_frei(
             "tempo": faktor,
             # Womit gerechnet wurde - die Rezeptdatei kann sich ändern.
             "rezept": _rezeptauszug(auftrag),
-            "abschluss_bericht": abschluss.als_dict() if abschluss is not None else None,
-            # Was das Endmodell aus den Faltungen übernahm.
+            "abschluss_bericht": abschluss_bericht,
+            # Welche Faltungen gemittelt wurden und welche warum nicht.
+            "endmodell": endmodell or {},
+            # Was die Faltungen herausfanden - Durchgänge, α, Tempo, je Faltung.
             "kreuzvalidierung": mitgenommen or {},
             # Das Lebenszeichen (`pruefe_endmodell`).
             "pruefung": pruefung,

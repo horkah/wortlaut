@@ -95,7 +95,7 @@ wortlaut/
 │   │   ├── training/              # was auf der Karte läuft - eigenes Abbild
 │   │   │   ├── Dockerfile
 │   │   │   ├── laeufer.py         # nimmt Aufträge, einen nach dem anderen
-│   │   │   ├── finetune.py        # Kreuzvalidierung und Endmodell
+│   │   │   ├── finetune.py        # Kreuzvalidierung, dann Mitteln und Eintragen
 │   │   │   ├── daten.py           # Manifest → Merkmale und Marken
 │   │   │   ├── klangwandel.py     # Augmentierung zur Laufzeit
 │   │   │   ├── tempowahl.py       # Vorspulfaktor schätzen oder suchen
@@ -103,7 +103,7 @@ wortlaut/
 │   │   │   ├── ausgangsstand.py   # auf einem trainierten Stand aufsetzen
 │   │   │   ├── bewerten.py        # Faltungen messen, Kern wählen, Stand eintragen
 │   │   │   ├── karte.py           # auf eine belegte Karte warten
-│   │   │   ├── nachziehen.py      # das Endmodell eines Laufs neu rechnen
+│   │   │   ├── endmodell.py       # das Mittel der Faltungen, Ausreißer draußen
 │   │   │   └── rezepte/           # whisper_full.yaml, whisper_lora.yaml
 │   │   └── tests/
 │   │

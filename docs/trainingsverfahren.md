@@ -15,14 +15,16 @@ und Zeichenkette. Zielfunktion ist die Kreuzentropie je Marke unter Teacher
 Forcing, je Probe gemittelt und mit einem Gewicht aus dem Manifest versehen.
 AdamW, lineares Aufwärmen und Abklingen, halbe Genauigkeit (bf16 oder fp16,
 je nach Karte), Gradientenakkumulation bis zum wirksamen Stapel des Rezepts.
-Voll oder mit LoRA, dessen Ziele und Rang der Auftrag wählt. Auf der zurückgehaltenen Faltung wird geprüft
-und der beste Stand behalten - nach dem Verlust je Durchgang oder nach der
-WER, frei dekodiert je Drittel eines Durchgangs. Wählbar sind außerdem
-Augmentierung zur Laufzeit, Early Stopping, Vorspulen, Checkpoint-Mittel,
-Interpolation mit dem Grundmodell, Ziele und Rang von LoRA, das Gewicht der
-Korrekturen, Selbsttraining, ein gekürztes Encoder-Fenster und ein Startprompt
-mit dem einschlägigen Vokabular. Gemessen wird per
-sechsfacher Kreuzvalidierung, mit Bootstrap-Bereichen auf jeder Zahl.
+Voll oder mit LoRA, dessen Ziele und Rang der Auftrag wählt. Auf der
+zurückgehaltenen Faltung wird geprüft und der beste Stand behalten - nach dem
+Verlust je Durchgang oder nach der WER, frei dekodiert je Drittel eines
+Durchgangs. Wählbar sind außerdem Augmentierung zur Laufzeit, Early Stopping,
+Vorspulen, Checkpoint-Mittel, Interpolation mit dem Grundmodell, Ziele und
+Rang von LoRA, das Gewicht der Korrekturen, Selbsttraining, ein gekürztes
+Encoder-Fenster und ein Startprompt mit dem einschlägigen Vokabular. Gemessen
+wird per sechsfacher Kreuzvalidierung, mit Bootstrap-Bereichen auf jeder
+Zahl. Ausgeliefert wird das Mittel der Faltungsmodelle, ohne die, die
+schiefgingen - kein siebtes Training.
 
 ---
 
@@ -43,7 +45,9 @@ sechsfacher Kreuzvalidierung, mit Bootstrap-Bereichen auf jeder Zahl.
 | 8a | Prüfplan und WER der Steuergröße | `steuerung.py`, `GewichtetesTraining.prediction_step` |
 | 9 | Checkpoint-Mittel, WiSE-FT | `abschluss.py` (`fuehre_aus`) |
 | 10 | LoRA verschmelzen, nach CTranslate2 wandeln, Startprompt beilegen | `finetune.py` (`wandle_um`), `kontext.py` |
-| 11 | Faltung messen, Endmodell prüfen, Stand eintragen | `bewerten.py`, `finetune.kreuzvalidiere` |
+| 11 | Faltung messen | `bewerten.py`, `finetune.kreuzvalidiere` |
+| 12 | Faltungen auswählen und mitteln - das Endmodell | `endmodell.py` |
+| 13 | Endmodell prüfen, Stand eintragen | `bewerten.gib_frei` |
 
 Wer eine Stelle lesen will, an der aus Daten ein besseres Modell wird, liest
 `trainiere`: dort stehen die Hyperparameter, dort wird der Trainer gebaut und
@@ -107,8 +111,12 @@ FÜR f = 1 … 6:
     FÜR jede Zeile z in D_mess:
         schreibe WER/CER/MER/WIL(z.text, dekodiere(M_f, z.audio))   # wortlaut/metriken.py
 
-mitgenommen ← Median über die Faltungen: Plan, bester Durchgang, α, Tempo
-θ ← TRAINIERE(θ_grund, alle Zeilen, ∅, R, mitgenommen)    # das Endmodell
+(bricht eine Faltung ab: vermerken, weiter mit der nächsten)
+
+F ← Faltungen ohne Abbruch, ohne Ausfransen, nicht weit hinter den anderen   # endmodell.pruefe_faltungen
+    (gemessen als WER_f / WER_Grundmodell auf denselben Aufnahmen)
+θ ← (1/|F|) · Σ_{f∈F} θ_f                                  # das Endmodell, kein Training
+Startprompt aus allen Lerntexten, wenn bestellt
 prüfe θ an zwölf gelernten Aufnahmen                       # Plausibilität, keine Note
 stelle WER/CER des Grundmodells daneben (aus „hören“)     # bewerten.gegen_grundmodell
 trage ein mit status = fertig                              # Freigabe bleibt ein Mensch
@@ -117,14 +125,14 @@ trage ein mit status = fertig                              # Freigabe bleibt ein
 ### Die Trainingsschleife
 
 ```
-FUNKTION TRAINIERE(θ, D_lern, D_mess, R, vorgaben):
+FUNKTION TRAINIERE(θ, D_lern, D_mess, R):
     entlade Ollama
     WENN R.methode = lora: θ ← θ halb (bf16|fp16) + LoRA(Rang r, α = 2r, Ziele z) in fp32   # r, z: Auftrag
     WENN Fenster gekürzt: Encoder auf längste Aufnahme + 1 s    # fenster.kuerze
     (s, g) ← erster Kandidat, dessen Probeschritt auf K passt   # finetune.zuschneiden
     a      ← R.stapel / s                           # s Proben je Schritt, g = Gradientensparen
     fixiere Sprache des Profils, Aufgabe = transcribe
-    Plan  ← vorgaben.plan  ODER  (geduldig ? R.epochen_hoechstens : R.epochen)
+    Plan  ← geduldig ? R.epochen_hoechstens : R.epochen
     Warm  ← min(R.warmlauf_schritte, ⌈0,2 · Gesamtschritte⌉)
     Opt   ← AdamW(lr = R.lernrate, weight_decay = R.gewichtsverfall)
     bestes ← (∞, θ)                                 # `wert`: die Steuergröße
@@ -138,7 +146,6 @@ FUNKTION TRAINIERE(θ, D_lern, D_mess, R, vorgaben):
                 S ← Steuergröße auf D_mess                # Verlust oder WER, frei dekodiert
                 WENN S < bestes.wert: bestes ← (S, θ)
                 WENN geduldig und R.geduld Durchgänge ohne Gewinn > R.mindestgewinn: Schluss
-            WENN vorgaben.halt erreicht: Schluss        # nur das Endmodell
 
     θ ← bestes.θ                                        # nicht das letzte θ
     θ ← ABSCHLUSS(θ, R, Auftrag.abschluss)              # mitteln / interpolieren
@@ -350,8 +357,7 @@ mit LoRA gibt.
 * **Die Geduld zählt Durchgänge.** Bei drei Prüfungen je Durchgang wartet
   `geduldig` dreimal so viele Prüfungen.
 * **Öfter prüfen heißt öfter sichern**, deshalb ohne Optimierer
-  (`save_only_model`). Das Endmodell hält auch mitten in einem Durchgang an
-  (`_halt_nach`).
+  (`save_only_model`).
 * **Mehr Auswahl, mehr Anpassung an die Validierung.** Je feiner an der
   zurückgehaltenen Faltung gewählt wird, desto optimistischer wird ihre Zahl;
   dagegen stehen die Vertrauensbereiche.
@@ -391,7 +397,8 @@ Sichern:
   B·A in B und A nicht linear ist.
 * **Wer mittelt, hebt mehr Zwischenstände auf**, dafür ohne Optimierer
   (`save_only_model`) - ein Lauf wird nie fortgesetzt.
-* **Das Endmodell wählt nicht**, es übernimmt den Median des α der Faltungen.
+* **Das Endmodell wählt nicht**: Es mittelt die Faltungen samt ihrem α; die
+  Tafel zeigt den Median (`endmodell.py`).
 * Ohne Validierungsproben fällt der Abschluss auf `bester` zurück.
 
 Das Manifest des Standes trägt `abschluss` und `abschluss_bericht`: gemittelte
