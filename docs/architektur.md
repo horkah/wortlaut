@@ -190,7 +190,9 @@ ein Verzeichnis, und jeder Weg in `hören` braucht seinen Sprecher.
 
 **Quellen und Gewichte.** `quelle` ist `vorlage` oder `korrektur`. Korrekturen
 aus `schreiben` sind abgenickte Maschinenausgaben und gehen mit geringerem
-Gewicht ins Training. **Modi:** `gelesen` und `nachgesprochen` aus `hören`,
+Gewicht ins Training - fest oder aus ihren Anläufen, je nach Auftrag. Im
+Manifest eines Laufs kommt `selbst` dazu: unbestätigte Diktate, die der
+Trainer selbst beschriftet. **Modi:** `gelesen` und `nachgesprochen` aus `hören`,
 `frei` aus `schreiben`; `GET /api/progress` zählt sie getrennt.
 
 ---
@@ -308,7 +310,7 @@ eine zweite Wahrheit über dasselbe.
 | Tabelle | Zweck |
 |---|---|
 | `sessions` | eine Diktiersitzung |
-| `segments` | Text, Reihenfolge, Audio, Herkunft |
+| `segments` | Text, Reihenfolge, Audio, Herkunft, Anläufe |
 | `outbox` | offene Korrekturen mit Wiederholungszähler |
 
 SQLAlchemy 2.0 mit typisierten Modellen, Schemaänderungen als nummerierte
@@ -322,6 +324,9 @@ Spalten mit mehr Bedeutung als ihr Name:
   Quelle hängt hinten an.
 - `recordings.externe_id` ist die Abschnittskennung aus `schreiben` und
   eindeutig - der Postausgang darf beliebig oft wiederholen.
+- `recordings.anlaeufe`: nur bei Korrekturen, wie oft der Abschnitt in
+  `schreiben` gesprochen wurde - 1 heißt unverändert bestätigt. Teile erben
+  die Zahl.
 - `recordings.zuschnitt_start_s`, `…_ende_s`: Grenzen des Zuschnitts, NULL
   heißt ungeschnitten. Der Pfad folgt aus der Kennung; `dauer_s` bleibt die
   des Originals.

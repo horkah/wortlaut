@@ -25,6 +25,9 @@ class Abschnitt:
 class Transkript:
     text: str
     abschnitte: list[Abschnitt]
+    # Die mittlere Wahrscheinlichkeit der erzeugten Marken, 0 bis 1 - wie
+    # sicher das Modell war. `None`, wo die Umsetzung es nicht sagt.
+    sicherheit: float | None = None
 
 
 class Transkriptor(Protocol):

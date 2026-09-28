@@ -36,6 +36,18 @@ class TestBestaetigen:
         assert intake.lieferungen[0]["text"] == "Ich möchte einen Kaffee."
         assert intake.lieferungen[0]["bytes"].startswith(b"RIFF")
 
+    def test_nennt_die_anlaeufe_je_abschnitt(
+        self, klient: TestClient, sitzung: str, diktat: dict, aufnahme: dict, intake: Testintake
+    ) -> None:
+        # Unverändert bestätigt ist ein Anlauf, jedes Nachsprechen einer mehr -
+        # „lernen" kann daraus das Gewicht der Korrektur ableiten.
+        kennung = diktat["abschnitte"][1]["id"]
+        klient.post(f"/schreiben/api/segments/{kennung}/neu", files=aufnahme)
+        klient.post(f"/schreiben/api/segments/{kennung}/neu", files=aufnahme)
+        klient.post(f"/schreiben/api/sessions/{sitzung}/bestaetigen")
+
+        assert [lieferung["anlaeufe"] for lieferung in intake.lieferungen] == [1, 3, 1]
+
     def test_loescht_das_audio_nach_der_uebergabe(
         self,
         klient: TestClient,

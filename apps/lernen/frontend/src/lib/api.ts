@@ -74,6 +74,10 @@ export type Lauf = {
   daten: string;
   /** Worauf gelernt wurde: alle | kern (`wortlaut/laeufe.py`, „Die Auswahl"). */
   auswahl: string;
+  /** Womit Korrekturen zählen: 0.5 | 0.25 | 0.75 | 1.0 | verlauf. */
+  korrekturgewicht: string;
+  /** Ob unbestätigte Diktate selbst beschriftet mitlernen: aus | an. */
+  selbsttraining: string;
   /** Was am Ende mit den Gewichten geschah: bester | mittel | interpoliert | beides. */
   abschluss: string;
   /** Womit die Trainingsproben abgewandelt wurden: keine | masken | umgebung | voll. */
@@ -191,6 +195,8 @@ export type Laufliste = {
   lora_raenge: Wahl[];
   datensaetze: Wahl[];
   auswahlen: Wahl[];
+  korrekturgewichte: Wahl[];
+  selbsttraininge: Wahl[];
   abschluesse: Wahl[];
   augmentierungen: Wahl[];
   dauern: Wahl[];
@@ -230,6 +236,8 @@ export type Laufeinzeln = {
   lora_raenge: Wahl[];
   datensaetze: Wahl[];
   auswahlen: Wahl[];
+  korrekturgewichte: Wahl[];
+  selbsttraininge: Wahl[];
   abschluesse: Wahl[];
   augmentierungen: Wahl[];
   dauern: Wahl[];
@@ -384,6 +392,8 @@ export type Bestellung = {
   lora_rang: string;
   daten: string;
   auswahl: string;
+  korrekturgewicht: string;
+  selbsttraining: string;
   abschluss: string;
   augmentierung: string;
   dauer: string;

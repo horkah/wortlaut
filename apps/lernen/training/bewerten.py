@@ -116,6 +116,11 @@ def _version(auftrag: dict[str, Any], faktor: float | None = None) -> str:
     # Der Kern hinter dem Datensatz, wie im Optionscode.
     if laeufe.auswahl_aus(auftrag) == laeufe.AUSWAHL_KERN:
         name = f"{name}-kern"
+    gewicht = laeufe.korrekturgewicht_aus(auftrag)
+    if gewicht != laeufe.GEWICHT_VORGABE:
+        name = f"{name}-{laeufe.CODE_KORREKTURGEWICHT.get(gewicht, gewicht).lower()}"
+    if laeufe.selbsttraining_aus(auftrag) == laeufe.SELBST_AN:
+        name = f"{name}-selbst"
     art = str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER)
     if art != laeufe.ABSCHLUSS_BESTER:
         name = f"{name}-{art}"
@@ -439,8 +444,10 @@ def pruefe_endmodell(
     alle = [
         zeile
         for zeile in laeufe.manifestzeilen(verzeichnis)
-        # Verworfenes fehlt, wie beim Lernen (`laeufe.zeilen_fuer_faltung`).
+        # Verworfenes fehlt, wie beim Lernen (`laeufe.zeilen_fuer_faltung`);
+        # Selbstbeschriftetes hat keinen Text, an dem sich prüfen ließe.
         if str(zeile.get("variante")) == augmentierung.ORIGINAL
+        and str(zeile.get("quelle")) != laeufe.QUELLE_SELBST
         and (korpuswurzel / str(zeile["audio"])).is_file()
         and (kern is None or str(zeile.get("recording_id")) in kern)
     ]
@@ -694,6 +701,8 @@ def gib_frei(
             "lora_rang": laeufe.lora_rang_aus(auftrag),
             "daten": auftrag.get("daten"),
             "auswahl": laeufe.auswahl_aus(auftrag),
+            "korrekturgewicht": laeufe.korrekturgewicht_aus(auftrag),
+            "selbsttraining": laeufe.selbsttraining_aus(auftrag),
             # Die Achsen des Auftrags, und daneben, was herauskam.
             "abschluss": str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER),
             "augmentierung": str(auftrag.get("augmentierung") or laeufe.AUG_KEINE),

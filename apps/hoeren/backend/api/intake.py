@@ -45,6 +45,8 @@ async def nimm_korrektur_an(
     audio: UploadFile = File(),
     text: str = Form(),
     externe_id: str = Form(),
+    # Wie oft der Abschnitt gesprochen wurde; ohne Angabe bleibt die Spalte leer.
+    anlaeufe: int | None = Form(None),
 ) -> IntakeAntwort:
     vorhanden = db.scalars(select(Aufnahme).where(Aufnahme.externe_id == externe_id)).first()
     if vorhanden is not None:
@@ -96,6 +98,7 @@ async def nimm_korrektur_an(
         status="ok",
         hinweise=json.dumps([], ensure_ascii=False),
         externe_id=externe_id,
+        anlaeufe=anlaeufe,
         erstellt=jetzt(),
     )
     db.add(aufnahme)

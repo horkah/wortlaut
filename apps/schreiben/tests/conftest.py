@@ -103,6 +103,7 @@ class Testintake:
         wav: Path,
         text: str,
         externe_id: str,
+        anlaeufe: int,
         sprecher_id: str,
         token: str,
     ) -> None:
@@ -112,6 +113,7 @@ class Testintake:
             {
                 "text": text,
                 "externe_id": externe_id,
+                "anlaeufe": anlaeufe,
                 "bytes": wav.read_bytes(),
                 "sprecher_id": sprecher_id,
                 "token": token,

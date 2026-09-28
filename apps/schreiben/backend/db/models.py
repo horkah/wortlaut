@@ -42,6 +42,8 @@ class Abschnitt(Basis):
     blob: Mapped[str | None]
     dauer_s: Mapped[float]
     herkunft: Mapped[str]  # initial | neu
+    # Wie oft gesprochen: 1 aus dem ersten Diktat, je Nachsprechen eins mehr.
+    anlaeufe: Mapped[int] = mapped_column(default=1)
     erstellt: Mapped[str]
 
 

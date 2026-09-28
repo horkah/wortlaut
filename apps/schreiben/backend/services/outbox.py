@@ -103,6 +103,7 @@ def sende_offene(
                 wav=ablage.pfad(abschnitt.blob),
                 text=abschnitt.text,
                 externe_id=abschnitt.id,
+                anlaeufe=abschnitt.anlaeufe,
                 sprecher_id=sprecher_id,
                 token=token,
             )
@@ -129,6 +130,7 @@ def liefere_ein(
     wav: Path,
     text: str,
     externe_id: str,
+    anlaeufe: int,
     sprecher_id: str,
     token: str,
 ) -> None:
@@ -146,7 +148,7 @@ def liefere_ein(
             params={"sprecher": sprecher_id},
             headers={"Authorization": f"Bearer {token}"},
             files={"audio": (wav.name, datei, "audio/wav")},
-            data={"text": text, "externe_id": externe_id},
+            data={"text": text, "externe_id": externe_id, "anlaeufe": str(anlaeufe)},
             timeout=60,
         )
     antwort.raise_for_status()

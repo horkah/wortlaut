@@ -219,13 +219,15 @@ class TestOptionscode:
             "lora_rang": "64",
             "daten": "augmentiert",
             "auswahl": "kern",
+            "korrekturgewicht": "verlauf",
+            "selbsttraining": "an",
             "dauer": "geduldig",
             "steuerung": "wer",
             "augmentierung": "voll",
             "tempowahl": "optimal",
             "abschluss": "beides",
         }
-        assert laeufe.optionscode(auftrag) == "ML-Zd-R64-A-K-E-W-SRP-Ts-CI"
+        assert laeufe.optionscode(auftrag) == "ML-Zd-R64-A-K-Qv-U-E-W-SRP-Ts-CI"
 
     def test_die_alte_tempowahl_zaehlt_als_aus(self) -> None:
         auftrag = {"basismodell": "openai/whisper-small", "methode": "full",
@@ -272,6 +274,8 @@ class TestOptionscode:
             laeufe.CODE_LORA_RANG,
             laeufe.CODE_DATENSATZ,
             laeufe.CODE_AUSWAHL,
+            laeufe.CODE_KORREKTURGEWICHT,
+            laeufe.CODE_SELBSTTRAINING,
             laeufe.CODE_DAUER,
             laeufe.CODE_STEUERUNG,
             laeufe.CODE_AUGMENTIERUNG,
@@ -289,6 +293,8 @@ class TestOptionscode:
         assert set(laeufe.CODE_LORA_RANG) == set(laeufe.LORA_RAENGE)
         assert set(laeufe.CODE_DATENSATZ) == set(laeufe.DATENSAETZE)
         assert set(laeufe.CODE_AUSWAHL) == set(laeufe.AUSWAHLEN)
+        assert set(laeufe.CODE_KORREKTURGEWICHT) == set(laeufe.KORREKTURGEWICHTE)
+        assert set(laeufe.CODE_SELBSTTRAINING) == set(laeufe.SELBSTTRAINING)
         assert set(laeufe.CODE_DAUER) == set(laeufe.DAUERN)
         assert set(laeufe.CODE_STEUERUNG) == set(laeufe.STEUERUNGEN)
         assert set(laeufe.CODE_AUGMENTIERUNG) == set(laeufe.AUGMENTIERUNGEN)
@@ -340,6 +346,61 @@ class TestKern:
         assert laeufe.kern_anzahl(292) == 205
         wer = {"rec_c": 0.1, "rec_b": 0.2, "rec_a": 0.2, "rec_d": 0.9}
         assert laeufe.waehle_kern(wer) == ["rec_c", "rec_a", "rec_b"]
+
+
+class TestSelbstbeschriftet:
+    """Selbst beschriftete Zeilen: lernen in jeder Faltung, gemessen in keiner."""
+
+    def _lauf(self, tmp_path: Path, beschriftung: dict | None) -> Path:
+        verzeichnis = _auftrag(tmp_path, "job_1")
+        zeilen = [
+            {"audio": f"a{nummer}.wav", "text": f"Satz {nummer}", "quelle": "vorlage",
+             "variante": "original", "faltung": nummer % laeufe.FALTUNGEN,
+             "recording_id": f"rec_{nummer}"}
+            for nummer in range(laeufe.FALTUNGEN)
+        ] + [
+            {"audio": "../../diktate/spr/audio/seg_1.wav", "text": "", "quelle": "selbst",
+             "variante": "original", "faltung": None, "recording_id": "seg_1"},
+        ]
+        with (verzeichnis / laeufe.MANIFEST).open("w", encoding="utf-8") as datei:
+            for zeile in zeilen:
+                datei.write(json.dumps(zeile) + "\n")
+        if beschriftung is not None:
+            laeufe.schreibe_json(verzeichnis / laeufe.SELBSTBESCHRIFTUNG, beschriftung)
+        return verzeichnis
+
+    def test_lernt_in_jeder_faltung_mit_seinem_text(self, tmp_path: Path) -> None:
+        verzeichnis = self._lauf(
+            tmp_path,
+            {"zeilen": {"../../diktate/spr/audio/seg_1.wav": {"text": "Hallo", "aufgenommen": True}}},
+        )
+        for faltung in (*range(laeufe.FALTUNGEN), None):
+            lern, mess = laeufe.zeilen_fuer_faltung(verzeichnis, faltung, laeufe.NUR_ORIGINAL)
+            assert [z["text"] for z in lern if z["quelle"] == "selbst"] == ["Hallo"]
+            assert all(z["quelle"] != "selbst" for z in mess)
+
+    def test_ohne_beschriftung_fehlt_sie(self, tmp_path: Path) -> None:
+        verzeichnis = self._lauf(tmp_path, None)
+        lern, _ = laeufe.zeilen_fuer_faltung(verzeichnis, 0, laeufe.NUR_ORIGINAL)
+        assert all(z["quelle"] != "selbst" for z in lern)
+
+    def test_unsicher_gehoert_lernt_nicht(self, tmp_path: Path) -> None:
+        verzeichnis = self._lauf(
+            tmp_path,
+            {"zeilen": {"../../diktate/spr/audio/seg_1.wav": {"text": "Hallo", "aufgenommen": False}}},
+        )
+        lern, _ = laeufe.zeilen_fuer_faltung(verzeichnis, 0, laeufe.NUR_ORIGINAL)
+        assert all(z["quelle"] != "selbst" for z in lern)
+
+    def test_auch_beim_kern(self, tmp_path: Path) -> None:
+        verzeichnis = self._lauf(
+            tmp_path,
+            {"zeilen": {"../../diktate/spr/audio/seg_1.wav": {"text": "Hallo", "aufgenommen": True}}},
+        )
+        lern, _ = laeufe.zeilen_fuer_faltung(
+            verzeichnis, 0, laeufe.NUR_ORIGINAL, kern={"rec_1": 1}
+        )
+        assert sorted(z["recording_id"] for z in lern) == ["rec_1", "seg_1"]
 
 
 class TestZwischenstaende:

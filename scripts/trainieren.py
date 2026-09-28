@@ -43,6 +43,8 @@ ACHSEN = (
     "lora_rang",
     "daten",
     "auswahl",
+    "korrekturgewicht",
+    "selbsttraining",
     "abschluss",
     "augmentierung",
     "dauer",

@@ -46,6 +46,10 @@ mindestgewinn: 0.001
 # frei dekodiert. Die Geduld oben zählt weiter Durchgänge.
 wer_pruefungen_je_durchgang: 3
 
+# Zum Selbsttraining (`training/selbsttraining.py`): ab welcher mittleren
+# Markenwahrscheinlichkeit eine selbst beschriftete Aufnahme mitlernt.
+selbst_mindestsicherheit: 0.8
+
 # Die Zahlen zur Augmentierungsstufe des Auftrags - je Probe und Durchgang
 # neu gewürfelt, nichts abgelegt (`training/klangwandel.py`).
 augmentierung:

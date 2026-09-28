@@ -236,6 +236,54 @@ def waehle_kern(wer: dict[str, float]) -> list[str]:
     return rangfolge[: kern_anzahl(len(wer))]
 
 
+# ── Die Korrekturen ─────────────────────────────────────────────────────────
+#
+# Eine Korrektur aus „schreiben" ist eine abgenickte Maschinenausgabe; wie
+# stark sie zählt, ist eine Achse (`services/auftraege.gewicht_fuer` in
+# „lernen"):
+#
+# `0.5`, `0.25`, `0.75`, `1.0`   Ein festes Gewicht für jede Korrektur.
+# `verlauf`   Aus der Zahl der Anläufe in „schreiben": unverändert bestätigt
+#             zählt wenig, nachgesprochen viel.
+GEWICHT_VORGABE = "0.5"
+GEWICHT_VERLAUF = "verlauf"
+KORREKTURGEWICHTE = (GEWICHT_VORGABE, "0.25", "0.75", "1.0", GEWICHT_VERLAUF)
+
+
+def korrekturgewicht_aus(auftrag: dict[str, Any]) -> str:
+    """Wie ein Auftrag Korrekturen gewichtet - `0.5`, wenn das Feld fehlt."""
+    return str(auftrag.get("korrekturgewicht") or GEWICHT_VORGABE)
+
+
+# ── Selbsttraining ──────────────────────────────────────────────────────────
+#
+# Unbeschriftetes Audio - Diktate, die in „schreiben" nie bestätigt wurden -
+# beschriftet das freigegebene Modell vor der ersten Faltung; was es sicher
+# genug hört, lernt gewichtet mit (`training/selbsttraining.py`). Gemessen
+# wird es nie, und die Beschriftung steht in `SELBSTBESCHRIFTUNG`.
+SELBST_AUS = "aus"
+SELBST_AN = "an"
+SELBSTTRAINING = (SELBST_AUS, SELBST_AN)
+# Die Herkunft solcher Zeilen im Manifest, neben `vorlage` und `korrektur`.
+QUELLE_SELBST = "selbst"
+SELBSTBESCHRIFTUNG = "selbstbeschriftung.json"
+
+
+def selbsttraining_aus(auftrag: dict[str, Any]) -> str:
+    """Ob ein Auftrag selbst beschriftet - `aus`, wenn das Feld fehlt."""
+    return str(auftrag.get("selbsttraining") or SELBST_AUS)
+
+
+def selbstbeschriftung_aus(verzeichnis: Path) -> dict[str, str]:
+    """Audio → Text der aufgenommenen Selbstbeschriftungen eines Laufs; leer ohne Datei."""
+    inhalt = lies_json(verzeichnis / SELBSTBESCHRIFTUNG) or {}
+    return {
+        str(audio): str(zeile["text"])
+        for audio, zeile in dict(inhalt.get("zeilen") or {}).items()
+        if zeile.get("aufgenommen") and str(zeile.get("text") or "").strip()
+    }
+
+
 def auswahl_aus(auftrag: dict[str, Any]) -> str:
     """Die Auswahl eines Auftrags - `alle`, wenn das Feld fehlt."""
     return str(auftrag.get("auswahl") or AUSWAHL_ALLE)
@@ -437,6 +485,15 @@ CODE_LORA_ZIELE = {ZIELE_QV: "", ZIELE_ALLE: "Z", ZIELE_ENCODER: "Ze", ZIELE_DEC
 CODE_LORA_RANG = {rang: "" if rang == RANG_VORGABE else f"R{rang}" for rang in LORA_RAENGE}
 CODE_DATENSATZ = {NUR_ORIGINAL: "", MIT_VARIANTEN: "A"}
 CODE_AUSWAHL = {AUSWAHL_ALLE: "", AUSWAHL_KERN: "K"}
+# Q = Gewicht der Korrekturen (in Hundertsteln, `v` = aus dem Verlauf), U = unbeschriftet.
+CODE_KORREKTURGEWICHT = {
+    GEWICHT_VORGABE: "",
+    "0.25": "Q25",
+    "0.75": "Q75",
+    "1.0": "Q100",
+    GEWICHT_VERLAUF: "Qv",
+}
+CODE_SELBSTTRAINING = {SELBST_AUS: "", SELBST_AN: "U"}
 CODE_DAUER = {DAUER_FEST: "", DAUER_GEDULDIG: "E"}
 CODE_STEUERUNG = {STEUERUNG_VERLUST: "", STEUERUNG_WER: "W"}
 # Kumulativ: S = SpecAugment, R = Raum + Rauschen, P = Tempo-Perturbation.
@@ -485,6 +542,8 @@ def optionscode(auftrag: dict[str, Any]) -> str:
         glied(CODE_LORA_RANG, auftrag.get("lora_rang"), RANG_VORGABE),
         glied(CODE_DATENSATZ, auftrag.get("daten"), NUR_ORIGINAL),
         glied(CODE_AUSWAHL, auftrag.get("auswahl"), AUSWAHL_ALLE),
+        glied(CODE_KORREKTURGEWICHT, auftrag.get("korrekturgewicht"), GEWICHT_VORGABE),
+        glied(CODE_SELBSTTRAINING, auftrag.get("selbsttraining"), SELBST_AUS),
         glied(CODE_DAUER, auftrag.get("dauer"), DAUER_FEST),
         glied(CODE_STEUERUNG, auftrag.get("steuerung"), STEUERUNG_VERLUST),
         glied(CODE_AUGMENTIERUNG, auftrag.get("augmentierung"), AUG_KEINE),
@@ -780,10 +839,20 @@ def zeilen_fuer_faltung(
     ganze Korpus: Der Rest fehlt in Lern- und Messzeilen, die auch das
     Training steuern. Ohne `kern` alle Aufnahmen auf den Faltungen des
     Manifests.
+
+    Selbst beschriftete Zeilen (`QUELLE_SELBST`) lernen in jeder Faltung mit
+    ihrem Text aus `SELBSTBESCHRIFTUNG`, auch beim Kern - sie gehören nicht
+    zum Korpus. Ohne aufgenommene Beschriftung fehlen sie.
     """
     lern: list[dict[str, Any]] = []
     mess: list[dict[str, Any]] = []
+    beschriftet = selbstbeschriftung_aus(verzeichnis)
     for zeile in manifestzeilen(verzeichnis):
+        if str(zeile.get("quelle")) == QUELLE_SELBST:
+            text = beschriftet.get(str(zeile["audio"]))
+            if text and (korpus is None or (korpus / str(zeile["audio"])).is_file()):
+                lern.append({**zeile, "text": text})
+            continue
         # Seit dem Schnappschuss verworfene Aufnahmen haben kein Audio
         # (`apps/hoeren/backend/api/recordings.py`) - wichtig bei Neustart und
         # `nachziehen.py`.

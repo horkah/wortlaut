@@ -731,6 +731,151 @@ class TestLoraZusatz:
         assert "LoRA-Rang" in antwort.json()["detail"]
 
 
+class TestKorrekturen:
+    """Womit Korrekturen aus „schreiben" zählen (`services/auftraege.gewicht_fuer`)."""
+
+    def _korrektur(self, hoeren: TestClient, externe_id: str, anlaeufe: int | None) -> None:
+        daten = {"text": "Eine Korrektur aus dem Diktat.", "externe_id": externe_id}
+        if anlaeufe is not None:
+            daten["anlaeufe"] = str(anlaeufe)
+        antwort = hoeren.post(
+            "/api/korpus/intake",
+            files={"audio": ("a.wav", b"RIFF", "audio/wav")},
+            data=daten,
+        )
+        assert antwort.status_code == 201, antwort.text
+
+    def _gewichte(self, datenverzeichnis, job_id: str) -> dict:
+        return {
+            zeile.get("anlaeufe"): zeile["gewicht"]
+            for zeile in _manifest(datenverzeichnis, job_id)
+            if zeile["quelle"] == "korrektur"
+        }
+
+    def test_die_vorgabe_ist_ein_halb(
+        self, klient: TestClient, hoeren: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        sprich(6)
+        self._korrektur(hoeren, "seg_1", 1)
+        lauf = _beauftrage(klient)
+        assert self._gewichte(datenverzeichnis, lauf["job_id"]) == {1: 0.5}
+        assert lauf["korrekturgewicht"] == laeufe.GEWICHT_VORGABE
+
+    def test_ein_festes_gewicht(
+        self, klient: TestClient, hoeren: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        sprich(6)
+        self._korrektur(hoeren, "seg_1", 3)
+        antwort = klient.post(
+            "/lernen/api/laeufe",
+            json={"methode": "lora", "daten": "original", "korrekturgewicht": "0.25"},
+        )
+        assert antwort.status_code == 201, antwort.text
+        assert self._gewichte(datenverzeichnis, antwort.json()["job_id"]) == {3: 0.25}
+        assert "-Q25" in antwort.json()["code"]
+
+    def test_aus_dem_verlauf(
+        self, klient: TestClient, hoeren: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        # Unverändert bestätigt zählt wenig, nachgesprochen viel, ohne Zahl die Vorgabe.
+        sprich(6)
+        self._korrektur(hoeren, "seg_1", 1)
+        self._korrektur(hoeren, "seg_2", 3)
+        self._korrektur(hoeren, "seg_3", None)
+        antwort = klient.post(
+            "/lernen/api/laeufe",
+            json={"methode": "lora", "daten": "original", "korrekturgewicht": "verlauf"},
+        )
+        assert antwort.status_code == 201, antwort.text
+        assert self._gewichte(datenverzeichnis, antwort.json()["job_id"]) == {
+            1: 0.25,
+            3: 0.75,
+            None: 0.5,
+        }
+
+    def test_vorlagen_zaehlen_immer_eins(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        sprich(6)
+        antwort = klient.post(
+            "/lernen/api/laeufe",
+            json={"methode": "lora", "daten": "original", "korrekturgewicht": "0.25"},
+        )
+        assert {z["gewicht"] for z in _manifest(datenverzeichnis, antwort.json()["job_id"])} == {1.0}
+
+
+class TestSelbsttraining:
+    """Unbestätigte Diktate als Kandidaten im Manifest (`auftraege.unbeschriftete_diktate`)."""
+
+    def _diktate(self, datenverzeichnis, sprecher_id: str) -> None:
+        import sqlite3
+        from pathlib import Path
+
+        from wortlaut import db
+
+        from apps.schreiben.backend import config as schreiben
+
+        wurzel = datenverzeichnis / schreiben.sprecher_relpfad(sprecher_id)
+        (wurzel / "audio").mkdir(parents=True, exist_ok=True)
+        pfad = wurzel / schreiben.DATENBANKNAME
+        db.wende_migrationen_an(
+            pfad, Path(schreiben.__file__).parent / "db" / "migrations"
+        )
+        with sqlite3.connect(pfad) as verbindung:
+            verbindung.execute(
+                "INSERT INTO sessions VALUES ('dik_offen', 'offen', '2026-09-28', NULL)"
+            )
+            verbindung.execute(
+                "INSERT INTO sessions VALUES ('dik_fertig', 'bestaetigt', '2026-09-28', '2026-09-28')"
+            )
+            for kennung, sitzung in (("seg_a", "dik_offen"), ("seg_b", "dik_fertig")):
+                blob = schreiben.audio_relpfad(sprecher_id, kennung)
+                (datenverzeichnis / blob).write_bytes(b"RIFF")
+                verbindung.execute(
+                    "INSERT INTO segments (id, session_id, position, text, blob, dauer_s, "
+                    "herkunft, erstellt) VALUES (?, ?, 1, 'erkannt', ?, 2.0, 'initial', '2026-09-28')",
+                    (kennung, sitzung, blob),
+                )
+
+    def test_nur_unbestaetigte_diktate_kommen_ins_manifest(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        from wortlaut import corpus
+
+        sprich(6)
+        sprecher_id = _beauftrage(klient)["sprecher_id"]
+        self._diktate(datenverzeichnis, sprecher_id)
+
+        antwort = klient.post(
+            "/lernen/api/laeufe",
+            json={"methode": "lora", "daten": "original", "selbsttraining": "an"},
+        )
+        assert antwort.status_code == 201, antwort.text
+        lauf = antwort.json()
+        assert lauf["code"].split("/")[0].endswith("-U")
+        selbst = [z for z in _manifest(datenverzeichnis, lauf["job_id"]) if z["quelle"] == "selbst"]
+        assert [z["recording_id"] for z in selbst] == ["seg_a"]
+        # Relativ zum Korpus wie jede Zeile - und er führt zur Datei.
+        korpus = datenverzeichnis / corpus.sprecher_relpfad(sprecher_id)
+        assert (korpus / selbst[0]["audio"]).is_file()
+        assert selbst[0]["text"] == ""
+        assert selbst[0]["gewicht"] == 0.25
+        assert lauf["zeilen"]["selbst"] == 1
+        # Nicht unter `gesamt` und nicht in der Folge - es sind keine Aufnahmen.
+        zeilen = _manifest(datenverzeichnis, lauf["job_id"])
+        assert lauf["zeilen"]["gesamt"] == len(zeilen) - 1
+        assert lauf["code"].endswith("/6")
+
+    def test_aus_heisst_keine_kandidaten(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
+    ) -> None:
+        sprich(6)
+        lauf = _beauftrage(klient)
+        self._diktate(datenverzeichnis, lauf["sprecher_id"])
+        lauf = _beauftrage(klient)
+        assert all(z["quelle"] != "selbst" for z in _manifest(datenverzeichnis, lauf["job_id"]))
+
+
 class TestVerwaisteLaeufe:
     """Was beim Start des Trainers mit Läufen geschieht, die `laeuft` sagen.
 
