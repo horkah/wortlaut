@@ -679,7 +679,8 @@ def grundmodell(name: str, korpus: Korpus, sprecher: SprecherId) -> GrundmodellE
 
     tafel = uebersicht(korpus, sprecher)
     zeile = next((m for m in tafel.modelle if m.ref == name), None)
-    freigabe = next((m for m in tafel.modelle if m.freigegeben and m.ref != name), None)
+    # Nicht `freigabe` - so heißt das Modul, das oben die Namen liefert.
+    freigegebenes = next((m for m in tafel.modelle if m.freigegeben and m.ref != name), None)
     freigegeben = tafel.freigegeben == name
     erkennen = grundmodelle.im_cache(grundmodelle.repo_erkennen(name))
     return GrundmodellEinzeln(
@@ -690,8 +691,9 @@ def grundmodell(name: str, korpus: Korpus, sprecher: SprecherId) -> GrundmodellE
         steckbrief=_modellkarte(karte, erkennen) if karte else [],
         vor_ort=_hier(name, erkennen, zeile, sprecher, freigegeben),
         modell=zeile,
-        freigabe=freigabe,
+        freigabe=freigegebenes,
         masse=MASSE,
-        fassungen=FASSUNGEN,
+        # Je Fassung einzeln, wie beim gelernten Stand - ohne das Mittel über alle.
+        fassungen=[fassung for fassung in FASSUNGEN if fassung.schluessel != messwerte.ALLE],
         vergleichbar=tafel.vergleichbar,
     )
