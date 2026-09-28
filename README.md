@@ -13,8 +13,8 @@ nicht das, was ein Sprachmodell für plausibel hält.
 > **Dieses Repository beschreibt nur den aktuellen Stand.** Code, Kommentare,
 > Doku und Oberfläche sagen, was gilt und warum - nie, wie es vorher war. Die
 > Geschichte steht allein in der Commit-History. Ausgenommen sind datierte
-> Berichte wie der [Modellbericht](docs/modellbericht.md) und der
-> [Kernbericht](docs/kernbericht.md).
+> Berichte wie der [Modellbericht](docs/modellbericht.md), der
+> [Kernbericht](docs/kernbericht.md) und der [Optionenbericht](docs/optionenbericht.md).
 
 ---
 
@@ -125,6 +125,7 @@ make release JOB=job_01J8…                        # freigeben - „schreiben" 
 | [Andere Sprachen](docs/sprachen.md) | wortlaut in einer anderen Sprache (englisch) |
 | [Modellbericht](docs/modellbericht.md) | Vergleich aller Stände, Stand 26.09.2026 |
 | [Kernbericht](docs/kernbericht.md) | Kernauswahl gegen alle Aufnahmen, Stand 27.09.2026 |
+| [Optionenbericht](docs/optionenbericht.md) | was die neuen Trainingsoptionen bringen, laufend ergänzt, Stand 28.09.2026 |
 
 ---
 
