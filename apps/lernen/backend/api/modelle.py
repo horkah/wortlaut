@@ -253,6 +253,10 @@ def _stand_herkunft(manifest: dict) -> str:
     )
 
 
+# Aus oder je Aufnahme - die Ziehung je Einheit wäre hier zu schmal.
+ANGEBOTEN = (streuung.AUS, streuung.BLOCK_AUFNAHME)
+
+
 @router.get("", response_model=UebersichtAntwort)
 def uebersicht(
     korpus: Korpus,
@@ -262,18 +266,18 @@ def uebersicht(
 ) -> UebersichtAntwort:
     """Alle Modelle mit ihren Zahlen auf den gemeinsamen Aufnahmen.
 
-    `intervall` legt neben jede Zahl ihren Bereich (`wortlaut/streuung.py`);
-    die Zahlen selbst bleiben dieselben. `aufnahme` ist richtig, sobald mehrere
-    Fassungen einer Aufnahme in der Reihe stehen; `einheit` zieht naiv je
-    Einheit - etwa halb so breit, aber das in der Literatur übliche Verfahren.
+    `intervall=aufnahme` legt neben jede Zahl ihren Bereich
+    (`wortlaut/streuung.py`); die Zahlen selbst bleiben dieselben. Gezogen
+    wird blockweise je Aufnahme - ihre Fassungen sind nicht unabhängig, und je
+    Einheit gezogen wäre der Bereich etwa halb so breit wie der richtige.
 
     `vergleich_mit` paart jede andere Zeile gegen ein Modell: Differenz mit
     Bereich und p-Wert - schärfer als zwei überlappende Bereiche.
     """
-    if intervall not in streuung.BLOCKARTEN:
+    if intervall not in ANGEBOTEN:
         raise HTTPException(
             status_code=400,
-            detail=f"Unbekannte Blockart. Zur Wahl stehen: {', '.join(streuung.BLOCKARTEN)}.",
+            detail=f"Unbekannte Blockart. Zur Wahl stehen: {', '.join(ANGEBOTEN)}.",
         )
     konfiguration = einstellungen()
     aufnahmen = messwerte.messaufnahmen(korpus)

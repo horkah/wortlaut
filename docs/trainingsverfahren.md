@@ -440,8 +440,9 @@ Mittelwert über viele trägt.
 
 * **Blockweise je Aufnahme.** Die Fassungen einer Aufnahme sind nicht
   unabhängig; der Bereich je Einheit ist auf diesen Daten etwa halb so breit
-  wie der richtige (`packages/wortlaut/tests/test_streuung.py`). Er bleibt als
-  `einheit` wählbar, weil die Literatur ihn rechnet.
+  wie der richtige (`packages/wortlaut/tests/test_streuung.py`). Die
+  Bibliothek kennt ihn als `einheit`, weil die Literatur ihn rechnet; die
+  Modelltafel bietet nur den Schalter für den Bereich je Aufnahme.
 * **Fester Keim.** Dieselbe Messreihe ergibt auf jeder Maschine denselben
   Bereich; gleich viele Blöcke bekommen dieselben Ziehungen, was den
   gepaarten Vergleich erst möglich macht.

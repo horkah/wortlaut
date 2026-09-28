@@ -40,14 +40,14 @@
   let sortiertNach = $state('genauigkeit');
 
   /**
-   * Ob und wie ein Vertrauensbereich neben jede Zahl tritt.
+   * Ob ein Vertrauensbereich neben jede Zahl tritt.
    *
-   * Zugeschaltet, nie von selbst: Die Zahlen bleiben dieselben. `aufnahme`
-   * zieht blockweise - die Fassungen einer Aufnahme sind Messungen an einem
-   * Gegenstand. `einheit` zieht naiv je Messung, etwa halb so breit, aber das
-   * in der Literatur übliche Verfahren.
+   * Zugeschaltet, nie von selbst: Die Zahlen bleiben dieselben. Gezogen wird
+   * blockweise je Aufnahme - die Fassungen einer Aufnahme sind Messungen an
+   * einem Gegenstand.
    */
-  let sicherheit = $state('aus');
+  let sicherheit = $state(false);
+  const blockart = $derived(sicherheit ? 'aufnahme' : 'aus');
   /** Gegen welches Modell gepaart verglichen wird; leer heißt: gegen keines. */
   let gegen = $state('');
 
@@ -141,7 +141,7 @@
    * Vergleich über „Gegen" - deshalb steht er in der Erklärung daneben.
    */
   function vorsprungBelegt(mass: Mass): boolean | null {
-    if (sicherheit === 'aus' || !vergleichbar(mass)) return null;
+    if (!sicherheit || !vergleichbar(mass)) return null;
     const bereiche = (uebersicht?.modelle ?? [])
       .map((modell) => ({ roh: wert(modell, mass.schluessel), um: bereich(modell, mass.schluessel) }))
       .filter((eintrag): eintrag is { roh: number; um: Intervall } =>
@@ -171,7 +171,7 @@
 
   async function hole() {
     try {
-      uebersicht = await ladeModelle(sicherheit, gegen);
+      uebersicht = await ladeModelle(blockart, gegen);
       fehler = '';
     } catch (ursache) {
       fehler = ursache instanceof Error ? ursache.message : String(ursache);
@@ -203,7 +203,7 @@
 
     arbeitet = ref;
     try {
-      uebersicht = await gibFrei(ref, sicherheit, gegen);
+      uebersicht = await gibFrei(ref, blockart, gegen);
       fehler = '';
       // „schreiben" lädt daraufhin ein anderes Modell - die Zeile oben soll
       // das sofort sagen und nicht erst beim nächsten Öffnen.
@@ -296,18 +296,12 @@
         {/each}
       </select>
     </label>
-    <!-- Die beiden neuen Wahlmöglichkeiten. Sie ändern nichts an den Zahlen
-         darüber - sie legen eine zweite Zeile darunter. „Aus" ist die Vorgabe
-         und ergibt die Tabelle, die hier immer stand. -->
+    <!-- Ändert nichts an den Zahlen, legt eine zweite Zeile darunter. -->
     <label class="fassungswahl">
+      <input type="checkbox" bind:checked={sicherheit} onchange={hole} />
       <span>Sicherheit</span>
-      <select bind:value={sicherheit} onchange={hole}>
-        <option value="aus">aus</option>
-        <option value="aufnahme">je Aufnahme</option>
-        <option value="einheit">je Messung</option>
-      </select>
     </label>
-    {#if sicherheit !== 'aus'}
+    {#if sicherheit}
       <label class="fassungswahl">
         <span>Gegen</span>
         <select bind:value={gegen} onchange={hole}>
@@ -324,13 +318,10 @@
     <p class="gedaempft klein hinweiszeile">{gewaehlteFassung.erklaerung}</p>
   {/if}
 
-  {#if sicherheit !== 'aus'}
+  {#if sicherheit}
     <p class="gedaempft klein hinweiszeile">
-      95-%-Bereich aus 2000 Ziehungen, blockweise über
-      {sicherheit === 'aufnahme' ? 'die Aufnahmen' : 'die einzelnen Messungen'}.
-      {sicherheit === 'aufnahme'
-        ? 'Die Fassungen einer Aufnahme sind nicht unabhängig - deshalb diese Blockart.'
-        : 'Üblich in der Literatur, hier zu schmal: Die Fassungen einer Aufnahme sind nicht unabhängig.'}
+      95-%-Bereich aus 2000 Ziehungen, blockweise über die Aufnahmen - ihre Fassungen sind
+      nicht unabhängig.
       {#if uebersicht.vergleich_mit}
         {@const verglichen = uebersicht.modelle.find(
           (m) => m.ref === uebersicht!.vergleich_mit,
@@ -599,7 +590,8 @@
     font-size: 0.85rem;
   }
 
-  .fassungswahl select {
+  .fassungswahl select,
+  .fassungswahl input[type='checkbox'] {
     width: auto;
     margin: 0;
   }
