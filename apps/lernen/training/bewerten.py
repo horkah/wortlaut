@@ -35,6 +35,8 @@ from wortlaut import (
 
 from apps.lernen.backend.config import einstellungen
 
+from .adapter import adapter_fuer
+
 
 # Das Grundmodell, das der Name eines Standes nicht nennt.
 VORGABE_GRUNDMODELL = "small"
@@ -55,7 +57,11 @@ def _rezeptauszug(auftrag: dict[str, Any]) -> dict[str, Any]:
     except Exception:  # noqa: BLE001 - ein fehlendes Rezept kostet den Stand nicht
         return {}
 
-    lora = rezept.get("lora") or {}
+    lora = (
+        adapter_fuer(rezept, auftrag).als_dict()
+        if str(auftrag.get("methode")) == laeufe.LORA
+        else {}
+    )
     return {
         "lernrate": rezept.get("lernrate"),
         "warmlauf_schritte": rezept.get("warmlauf_schritte"),
@@ -64,9 +70,8 @@ def _rezeptauszug(auftrag: dict[str, Any]) -> dict[str, Any]:
         "epochen": rezept.get("epochen"),
         "epochen_hoechstens": rezept.get("epochen_hoechstens"),
         "geduld": rezept.get("geduld"),
-        "lora_rang": lora.get("rang"),
-        "lora_alpha": lora.get("alpha"),
-        "lora_ziele": list(lora.get("ziele") or []),
+        # Bei LoRA Rang, α, Ausfall, Projektionen und Teile (`adapter.py`).
+        **lora,
     }
 
 
@@ -99,7 +104,15 @@ def _version(auftrag: dict[str, Any], faktor: float | None = None) -> str:
     ausgang = str(auftrag.get(laeufe.AUSGANGSSTAND) or "")
     if ausgang:
         marke = f"{marke}-{registry.beschriftung(ausgang)}"
-    name = f"{marke}-{auftrag.get('methode', '?')}-{auftrag.get('daten', '?')}"
+    name = f"{marke}-{auftrag.get('methode', '?')}"
+    # Der Zusatz direkt hinter der Methode, wie im Optionscode.
+    ziele = laeufe.lora_ziele_aus(auftrag)
+    if ziele != laeufe.ZIELE_QV:
+        name = f"{name}-{ziele}"
+    rang = laeufe.lora_rang_aus(auftrag)
+    if rang != laeufe.RANG_VORGABE:
+        name = f"{name}-r{rang}"
+    name = f"{name}-{auftrag.get('daten', '?')}"
     # Der Kern hinter dem Datensatz, wie im Optionscode.
     if laeufe.auswahl_aus(auftrag) == laeufe.AUSWAHL_KERN:
         name = f"{name}-kern"
@@ -677,6 +690,8 @@ def gib_frei(
             # Leer ohne Ausgangsstand.
             laeufe.AUSGANGSSTAND: auftrag.get(laeufe.AUSGANGSSTAND) or "",
             "methode": auftrag.get("methode"),
+            "lora_ziele": laeufe.lora_ziele_aus(auftrag),
+            "lora_rang": laeufe.lora_rang_aus(auftrag),
             "daten": auftrag.get("daten"),
             "auswahl": laeufe.auswahl_aus(auftrag),
             # Die Achsen des Auftrags, und daneben, was herauskam.

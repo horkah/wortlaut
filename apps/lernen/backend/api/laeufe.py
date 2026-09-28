@@ -84,9 +84,51 @@ METHODEN = [
     WahlAntwort(
         schluessel=lauf_layout.LORA,
         name="LoRA",
-        erklaerung="Low-Rank-Adapter auf q_proj/v_proj, Grundmodell eingefroren.",
+        erklaerung="Low-Rank-Adapter, Grundmodell eingefroren.",
         code=lauf_layout.CODE_METHODE[lauf_layout.LORA],
     ),
+]
+
+# Nur bei LoRA (`training/adapter.py`).
+LORA_ZIELE = [
+    WahlAntwort(
+        schluessel=lauf_layout.ZIELE_QV,
+        name="q, v",
+        erklaerung="q_proj und v_proj der Aufmerksamkeit, in Encoder und Decoder.",
+        code=lauf_layout.CODE_LORA_ZIELE[lauf_layout.ZIELE_QV],
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.ZIELE_ALLE,
+        name="Alle Projektionen",
+        erklaerung="q, k, v, out_proj, fc1, fc2 in Encoder und Decoder.",
+        code=lauf_layout.CODE_LORA_ZIELE[lauf_layout.ZIELE_ALLE],
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.ZIELE_ENCODER,
+        name="Nur Encoder",
+        erklaerung="Alle Projektionen, nur im Encoder - die Aussprache.",
+        code=lauf_layout.CODE_LORA_ZIELE[lauf_layout.ZIELE_ENCODER],
+    ),
+    WahlAntwort(
+        schluessel=lauf_layout.ZIELE_DECODER,
+        name="Nur Decoder",
+        erklaerung="Alle Projektionen, nur im Decoder - der Wortschatz.",
+        code=lauf_layout.CODE_LORA_ZIELE[lauf_layout.ZIELE_DECODER],
+    ),
+]
+
+LORA_RAENGE = [
+    WahlAntwort(
+        schluessel=rang,
+        name=f"Rang {rang}",
+        erklaerung={
+            lauf_layout.RANG_VORGABE: "",
+            "8": "Kleiner Zusatz, weniger Freiheit.",
+            "64": "Größerer Zusatz, näher am vollen Training.",
+        }.get(rang, ""),
+        code=lauf_layout.CODE_LORA_RANG[rang],
+    )
+    for rang in lauf_layout.LORA_RAENGE
 ]
 
 DATENSAETZE = [
@@ -284,6 +326,9 @@ def _sprechername(sprecher_id: str) -> str:
 class Bestellung(BaseModel):
     methode: str
     daten: str
+    # Nur bei LoRA; bei vollem Training die Vorgaben.
+    lora_ziele: str = lauf_layout.ZIELE_QV
+    lora_rang: str = lauf_layout.RANG_VORGABE
     # Die übrigen Achsen mit ihren Vorgaben.
     abschluss: str = lauf_layout.ABSCHLUSS_BESTER
     augmentierung: str = lauf_layout.AUG_KEINE
@@ -311,6 +356,8 @@ class LaufAntwort(BaseModel):
     methode: str
     daten: str
     # Die Achsen; fehlt eine im Auftrag, galt ihre Vorgabe.
+    lora_ziele: str = lauf_layout.ZIELE_QV
+    lora_rang: str = lauf_layout.RANG_VORGABE
     auswahl: str = lauf_layout.AUSWAHL_ALLE
     abschluss: str
     augmentierung: str
@@ -385,6 +432,8 @@ class EinzelAntwort(BaseModel):
     # Jede Achse benannt, auch die auf Vorgabe (`steckbrief`).
     steckbrief: list[SteckbriefZeile]
     methoden: list[WahlAntwort]
+    lora_ziele: list[WahlAntwort]
+    lora_raenge: list[WahlAntwort]
     datensaetze: list[WahlAntwort]
     auswahlen: list[WahlAntwort]
     abschluesse: list[WahlAntwort]
@@ -406,6 +455,8 @@ class EinzelAntwort(BaseModel):
 class ListeAntwort(BaseModel):
     laeufe: list[LaufAntwort]
     methoden: list[WahlAntwort]
+    lora_ziele: list[WahlAntwort]
+    lora_raenge: list[WahlAntwort]
     datensaetze: list[WahlAntwort]
     auswahlen: list[WahlAntwort]
     abschluesse: list[WahlAntwort]
@@ -541,6 +592,8 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         sprecher_id=lauf.sprecher_id,
         code=lauf_layout.titel(lauf.auftrag),
         methode=str(lauf.auftrag.get("methode", "")),
+        lora_ziele=lauf_layout.lora_ziele_aus(lauf.auftrag),
+        lora_rang=lauf_layout.lora_rang_aus(lauf.auftrag),
         daten=str(lauf.auftrag.get("daten", "")),
         auswahl=lauf_layout.auswahl_aus(lauf.auftrag),
         abschluss=str(lauf.auftrag.get("abschluss") or lauf_layout.ABSCHLUSS_BESTER),
@@ -730,12 +783,17 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
 
     rezept = dict(manifest.get("rezept") or {})
     methode = str(auftrag.get("methode", ""))
-    if methode == lauf_layout.LORA and rezept.get("lora_rang"):
-        ziele = ", ".join(rezept.get("lora_ziele") or [])
+    if methode == lauf_layout.LORA:
+        # Rang und α aus dem Manifest, solange er rechnet aus dem Auftrag.
+        rang = rezept.get("lora_rang") or lauf_layout.lora_rang_aus(auftrag)
+        alpha = rezept.get("lora_alpha")
+        ziele = lauf_layout.lora_ziele_aus(auftrag)
+        wo = " und ".join(rezept.get("lora_teile") or [])
         dazu(
             "Methode",
-            f"LoRA · Rang {rezept['lora_rang']}, α {rezept.get('lora_alpha')}",
-            ziele,
+            f"LoRA · Rang {rang}" + (f", α {alpha}" if alpha else ""),
+            ", ".join(rezept.get("lora_ziele") or []) + (f" in {wo}" if wo else "")
+            or _wahlname(LORA_ZIELE, ziele),
         )
     else:
         dazu("Methode", _wahlname(METHODEN, methode))
@@ -905,6 +963,8 @@ def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         # Nie negativ, auch nach Löschungen.
         aufnahmen_neu=max(0, len(proben) - zuletzt),
         methoden=METHODEN,
+        lora_ziele=LORA_ZIELE,
+        lora_raenge=LORA_RAENGE,
         datensaetze=DATENSAETZE,
         auswahlen=AUSWAHLEN,
         abschluesse=ABSCHLUESSE,
@@ -953,6 +1013,8 @@ def beauftrage(
                 sprecher_id=sprecher,
                 sprache=sprache,
                 methode=bestellung.methode,
+                lora_ziele=bestellung.lora_ziele,
+                lora_rang=bestellung.lora_rang,
                 daten=bestellung.daten,
                 auswahl=bestellung.auswahl,
                 abschluss=bestellung.abschluss,
@@ -989,6 +1051,8 @@ def einzeln(
         lauf=_als_antwort(lauf),
         steckbrief=steckbrief(lauf),
         methoden=METHODEN,
+        lora_ziele=LORA_ZIELE,
+        lora_raenge=LORA_RAENGE,
         datensaetze=DATENSAETZE,
         auswahlen=AUSWAHLEN,
         abschluesse=ABSCHLUESSE,

@@ -68,6 +68,9 @@ export type Lauf = {
   /** Alle Achsen als Optionscode, etwa `ML-A-C` (`wortlaut/laeufe.optionscode`). */
   code: string;
   methode: string;
+  /** Nur bei LoRA: wo der Zusatz sitzt (qv | alle | encoder | decoder) und sein Rang. */
+  lora_ziele: string;
+  lora_rang: string;
   daten: string;
   /** Worauf gelernt wurde: alle | kern (`wortlaut/laeufe.py`, „Die Auswahl"). */
   auswahl: string;
@@ -184,6 +187,8 @@ export type Gegenueber = {
 export type Laufliste = {
   laeufe: Lauf[];
   methoden: Wahl[];
+  lora_ziele: Wahl[];
+  lora_raenge: Wahl[];
   datensaetze: Wahl[];
   auswahlen: Wahl[];
   abschluesse: Wahl[];
@@ -221,6 +226,8 @@ export type Laufeinzeln = {
   /** Jede Achse benannt, auch die auf Vorgabe - vom Server beschriftet. */
   steckbrief: SteckbriefZeile[];
   methoden: Wahl[];
+  lora_ziele: Wahl[];
+  lora_raenge: Wahl[];
   datensaetze: Wahl[];
   auswahlen: Wahl[];
   abschluesse: Wahl[];
@@ -373,6 +380,8 @@ export const lauf = (jobId: string, intervall = 'aus') =>
  */
 export type Bestellung = {
   methode: string;
+  lora_ziele: string;
+  lora_rang: string;
   daten: string;
   auswahl: string;
   abschluss: string;

@@ -54,6 +54,8 @@ class Auftrag:
     # Ein vergessenes Feld fiele sonst still auf Deutsch zurück.
     sprache: str
     # Die Achsen (`wortlaut/laeufe.py`), jede mit ihrer Vorgabe.
+    lora_ziele: str = laeufe.ZIELE_QV
+    lora_rang: str = laeufe.RANG_VORGABE
     abschluss: str = laeufe.ABSCHLUSS_BESTER
     augmentierung: str = laeufe.AUG_KEINE
     dauer: str = laeufe.DAUER_FEST
@@ -150,6 +152,8 @@ def beauftrage(
         "job_id": job_id,
         "sprecher_id": auftrag.sprecher_id,
         "methode": auftrag.methode,
+        "lora_ziele": auftrag.lora_ziele,
+        "lora_rang": auftrag.lora_rang,
         "daten": auftrag.daten,
         "auswahl": auftrag.auswahl,
         "abschluss": auftrag.abschluss,
@@ -191,6 +195,8 @@ class Bestellung:
     sprecher_id: str
     sprache: str
     methode: str
+    lora_ziele: str = laeufe.ZIELE_QV
+    lora_rang: str = laeufe.RANG_VORGABE
     daten: str = laeufe.NUR_ORIGINAL
     auswahl: str = laeufe.AUSWAHL_ALLE
     abschluss: str = laeufe.ABSCHLUSS_BESTER
@@ -218,6 +224,8 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
     """
     for wert, erlaubt, was in (
         (bestellung.methode, laeufe.METHODEN, "Methode"),
+        (bestellung.lora_ziele, laeufe.LORA_ZIELE, "LoRA-Ziele"),
+        (bestellung.lora_rang, laeufe.LORA_RAENGE, "LoRA-Rang"),
         (bestellung.daten, laeufe.DATENSAETZE, "Datensatz"),
         (bestellung.auswahl, laeufe.AUSWAHLEN, "Auswahl"),
         (bestellung.abschluss, laeufe.ABSCHLUESSE, "Abschluss"),
@@ -228,6 +236,10 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
     ):
         if wert not in erlaubt:
             raise Abgelehnt(400, f"Unbekannt ({was}): {wert}. Zur Wahl: {', '.join(erlaubt)}.")
+    if bestellung.methode != laeufe.LORA and (
+        bestellung.lora_ziele != laeufe.ZIELE_QV or bestellung.lora_rang != laeufe.RANG_VORGABE
+    ):
+        raise Abgelehnt(400, "LoRA-Ziele und -Rang gibt es nur mit LoRA.")
 
     konfiguration = einstellungen()
     grundmodell = bestellung.grundmodell or konfiguration.lernen_basismodell
@@ -270,6 +282,8 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
         Auftrag(
             sprecher_id=bestellung.sprecher_id,
             methode=bestellung.methode,
+            lora_ziele=bestellung.lora_ziele,
+            lora_rang=bestellung.lora_rang,
             daten=bestellung.daten,
             auswahl=bestellung.auswahl,
             abschluss=bestellung.abschluss,

@@ -15,8 +15,7 @@ und Zeichenkette. Zielfunktion ist die Kreuzentropie je Marke unter Teacher
 Forcing, je Probe gemittelt und mit einem Gewicht aus dem Manifest versehen.
 AdamW, lineares Aufwärmen und Abklingen, halbe Genauigkeit (bf16 oder fp16,
 je nach Karte), Gradientenakkumulation bis zum wirksamen Stapel des Rezepts.
-Voll oder mit LoRA an den
-Aufmerksamkeitsprojektionen. Auf der zurückgehaltenen Faltung wird geprüft
+Voll oder mit LoRA, dessen Ziele und Rang der Auftrag wählt. Auf der zurückgehaltenen Faltung wird geprüft
 und der beste Stand behalten - nach dem Verlust je Durchgang oder nach der
 WER, frei dekodiert je Drittel eines Durchgangs. Wählbar sind außerdem
 Augmentierung zur Laufzeit, Early Stopping, Vorspulen, Checkpoint-Mittel und
@@ -112,7 +111,7 @@ trage ein mit status = fertig                              # Freigabe bleibt ein
 ```
 FUNKTION TRAINIERE(θ, D_lern, D_mess, R, vorgaben):
     entlade Ollama
-    WENN R.methode = lora: θ ← θ halb (bf16|fp16) + LoRA(Rang r, Ziele {q_proj, v_proj}) in fp32
+    WENN R.methode = lora: θ ← θ halb (bf16|fp16) + LoRA(Rang r, α = 2r, Ziele z) in fp32   # r, z: Auftrag
     (s, g) ← erster Kandidat, dessen Probeschritt auf K passt   # finetune.zuschneiden
     a      ← R.stapel / s                           # s Proben je Schritt, g = Gradientensparen
     fixiere Sprache des Profils, Aufgabe = transcribe
@@ -147,7 +146,7 @@ Mitte, und die Epochenzahl wird so zur bloßen Obergrenze.
 
 | | Volles Training | LoRA |
 |---|---|---|
-| trainierbare Gewichte (small) | 244 M (100 %) | ≈ 2,4 M (≈ 1 %) |
+| trainierbare Gewichte (small) | 244 M (100 %) | 3,5 M (1,4 %) bei q, v und Rang 32 |
 | Lernrate | 1e-5 | 1e-3 |
 | Aufwärmschritte | 50, höchstens ein Fünftel | 50, höchstens ein Fünftel |
 | Epochen fest / geduldig | 8 / 40 | 12 / 60 |
@@ -155,8 +154,8 @@ Mitte, und die Epochenzahl wird so zur bloßen Obergrenze.
 | Stapel × Akkumulation | 4 × 2 | 8 × 1 |
 | Gewichtsverfall | 0,01 | 0,0 |
 | Gradientenbegrenzung | 1,0 | 1,0 |
-| Rang / Alpha / Ausfall | – | 32 / 64 / 0,05 |
-| Ziele | alle | `q_proj`, `v_proj` |
+| Rang / Alpha / Ausfall | – | Auftrag (8, **32**, 64) / 2·Rang / 0,05 |
+| Ziele | alle | Auftrag (**q, v**, alle, nur Encoder, nur Decoder) |
 | gemittelte Stände | 3 | 3 |
 | WER-Prüfungen je Durchgang | 3 | 3 |
 | α-Raster | 0; 0,1; 0,2; 0,3; 0,5 | 0; 0,05; 0,1; 0,2; 0,3; 0,5 |
@@ -211,6 +210,30 @@ gewürfelt und nirgends abgelegt:
 Kosten je Probe von vier Sekunden gegen 9,1 ms für den Merkmalsausleser:
 `masken` 0,08 ms, `umgebung` 0,77 ms, `voll` 4,4 ms. Vorbereitet wird in zwei
 Ladefäden, während die Karte rechnet.
+
+### Der LoRA-Zusatz
+
+`apps/lernen/training/adapter.py`: Ziele und Rang sind zwei Achsen, die es nur
+mit LoRA gibt.
+
+| Ziele | Projektionen | wo |
+|---|---|---|
+| `qv` | `q_proj`, `v_proj` | Encoder und Decoder |
+| `alle` | `q_proj`, `k_proj`, `v_proj`, `out_proj`, `fc1`, `fc2` | Encoder und Decoder |
+| `encoder` | wie `alle` | nur Encoder |
+| `decoder` | wie `alle` | nur Decoder, Selbst- und Kreuzaufmerksamkeit |
+
+* **Encoder gegen Decoder beantwortet eine inhaltliche Frage.** Abweichende
+  Aussprache ist ein Encoder-, abweichender Wortschatz ein Decoder-Problem.
+* **α wächst mit dem Rang** (`alpha_je_rang: 2`): Bei festem α hieße ein
+  kleinerer Rang zugleich eine größere wirksame Lernrate, und der Vergleich
+  der Ränge mäße beides.
+* **`out_proj`**, nicht `o_proj`: So heißt die Ausgabeprojektion bei Whisper.
+  Auf einen Teil beschränkt, bekommt peft ein Muster über den ganzen
+  Modulnamen statt einer Namensliste.
+* Die Einordnung aus der Literatur (Abschnitt 5) erwartet den Gewinn an der
+  Aufmerksamkeit und von exotischeren Varianten nichts Belastbares; die Tafel
+  zeigt, ob das hier auch gilt.
 
 ### Die Steuergröße
 
@@ -324,19 +347,9 @@ Erwartet ist eine Einschätzung, kein Messwert; relativ zur heutigen WER.
 
 | | Maßnahme | erwartet | Aufwand | Risiko |
 |---|---|---|---|---|
-| **E** | LoRA-Ziele erweitern, Rang prüfen | 0–5 % | gering | gering |
 | **F** | Korrekturgewicht messen; Selbsttraining | 5–20 % | hoch | mittel |
 | **G** | Encoder auf die tatsächliche Länge kürzen | 2–4× Tempo | mittel | mittel |
 | **H** | Kontextverstärkung beim Dekodieren | 3–10 % | gering | gering |
-
-### E - LoRA genauer einstellen
-
-Ziele von `{q_proj, v_proj}` auf `{q,k,v,o_proj, fc1, fc2}` erweitern, Rang 8,
-32 und 64 gegeneinander, Encoder und Decoder getrennt. Die
-Ein-Sprecher-Vergleiche sagen, dass Adapter an der Aufmerksamkeit den Gewinn
-tragen und exotischere Varianten nichts Belastbares bringen. Die getrennte
-Betrachtung beantwortete eine inhaltliche Frage: Abweichende Aussprache ist
-ein Encoder-, abweichender Wortschatz ein Decoder-Problem.
 
 ### F - Die Korrekturen ernst nehmen
 

@@ -145,6 +145,37 @@ def methoden_fuer(
     return kartenplan.methoden(kurzname(basismodell), karte, reserve_mb)
 
 
+# ── Der LoRA-Zusatz ─────────────────────────────────────────────────────────
+#
+# Nur bei LoRA: wo der Zusatz sitzt und wie groß er ist
+# (`training/adapter.py`). Abweichende Aussprache ist eher ein Encoder-,
+# abweichender Wortschatz eher ein Decoder-Problem - `encoder` und `decoder`
+# trennen beides.
+#
+# `qv`       q_proj und v_proj der Aufmerksamkeit, in Encoder und Decoder.
+# `alle`     q, k, v, out_proj und fc1, fc2, in Encoder und Decoder.
+# `encoder`  Wie `alle`, nur im Encoder.
+# `decoder`  Wie `alle`, nur im Decoder (Selbst- und Kreuzaufmerksamkeit).
+ZIELE_QV = "qv"
+ZIELE_ALLE = "alle"
+ZIELE_ENCODER = "encoder"
+ZIELE_DECODER = "decoder"
+LORA_ZIELE = (ZIELE_QV, ZIELE_ALLE, ZIELE_ENCODER, ZIELE_DECODER)
+# Der Rang; α wächst mit, damit die Skalierung α/r bleibt.
+RANG_VORGABE = "32"
+LORA_RAENGE = (RANG_VORGABE, "8", "64")
+
+
+def lora_ziele_aus(auftrag: dict[str, Any]) -> str:
+    """Wo der Zusatz eines Auftrags sitzt - `qv`, wenn das Feld fehlt."""
+    return str(auftrag.get("lora_ziele") or ZIELE_QV)
+
+
+def lora_rang_aus(auftrag: dict[str, Any]) -> str:
+    """Der Rang eines Auftrags - die Vorgabe, wenn das Feld fehlt."""
+    return str(auftrag.get("lora_rang") or RANG_VORGABE)
+
+
 NUR_ORIGINAL = "original"
 MIT_VARIANTEN = "augmentiert"
 DATENSAETZE = (NUR_ORIGINAL, MIT_VARIANTEN)
@@ -401,6 +432,9 @@ def steuerung_aus(auftrag: dict[str, Any]) -> str:
 # eine Achse auf ihrer Vorgabe fehlt. Die Buchstaben der Glieder sind
 # untereinander verschieden, damit sich jedes für sich lesen lässt.
 CODE_METHODE = {VOLL: "V", LORA: "L"}
+# Z = Ziele des Zusatzes, R = Rang.
+CODE_LORA_ZIELE = {ZIELE_QV: "", ZIELE_ALLE: "Z", ZIELE_ENCODER: "Ze", ZIELE_DECODER: "Zd"}
+CODE_LORA_RANG = {rang: "" if rang == RANG_VORGABE else f"R{rang}" for rang in LORA_RAENGE}
 CODE_DATENSATZ = {NUR_ORIGINAL: "", MIT_VARIANTEN: "A"}
 CODE_AUSWAHL = {AUSWAHL_ALLE: "", AUSWAHL_KERN: "K"}
 CODE_DAUER = {DAUER_FEST: "", DAUER_GEDULDIG: "E"}
@@ -447,6 +481,8 @@ def optionscode(auftrag: dict[str, Any]) -> str:
         else grundmodellcode(str(auftrag.get("basismodell") or "")) + methode
     )
     glieder = (
+        glied(CODE_LORA_ZIELE, auftrag.get("lora_ziele"), ZIELE_QV),
+        glied(CODE_LORA_RANG, auftrag.get("lora_rang"), RANG_VORGABE),
         glied(CODE_DATENSATZ, auftrag.get("daten"), NUR_ORIGINAL),
         glied(CODE_AUSWAHL, auftrag.get("auswahl"), AUSWAHL_ALLE),
         glied(CODE_DAUER, auftrag.get("dauer"), DAUER_FEST),
