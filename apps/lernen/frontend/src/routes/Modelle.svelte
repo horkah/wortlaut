@@ -33,9 +33,9 @@
   let geladen = $state(false);
   let arbeitet = $state('');
 
-  // Vorgabe „Alle Fassungen"; „Original" oder „Rauschen" zeigen, ob ein Stand
-  // den Sprecher verstanden hat oder die Aufnahmesituation.
-  let fassung = $state('alle');
+  // Vorgabe „Original": ob ein Stand den Sprecher verstanden hat. „Rauschen"
+  // zeigt die Aufnahmesituation, „Alle Fassungen" beides zusammen.
+  let fassung = $state('original');
   // Die Richtung folgt aus dem Maß.
   let sortiertNach = $state('genauigkeit');
 
