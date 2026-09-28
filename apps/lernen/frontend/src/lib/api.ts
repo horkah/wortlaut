@@ -186,10 +186,6 @@ export type Gegenueber = {
   trainiert: number | null;
   besser: boolean | null;
   anzahl: number;
-  /** Nur bei angefordertem Bereich; sonst `null`. */
-  unterschied: Unterschied | null;
-  bereich_baseline: Intervall | null;
-  bereich_trainiert: Intervall | null;
 };
 
 export type Laufliste = {
@@ -257,9 +253,6 @@ export type Laufeinzeln = {
   /** Fassung → die Maße, Baseline und trainiert. */
   vergleich: Record<string, Gegenueber[]>;
   protokoll: string;
-  /** Welche Blockart gerechnet wurde: `aus`, `aufnahme` oder `einheit`. */
-  intervall: string;
-  streuung_marke: string;
 };
 
 /** Ein Maß in der Modelltabelle, beschriftet vom Server. */
@@ -381,14 +374,8 @@ export const aufteilung = () => anfrage<Aufteilung>('/aufteilung');
 
 export const laeufe = () => anfrage<Laufliste>('/laeufe');
 
-/**
- * Ein Lauf im Einzelnen. `intervall` schaltet die Vertrauensbereiche dazu:
- * `aus` (Vorgabe), `aufnahme` (blockweise gezogen -
- * die richtige Wahl) oder `einheit` (naiv je Messung, zum Vergleich mit der
- * Literatur).
- */
-export const lauf = (jobId: string, intervall = 'aus') =>
-  anfrage<Laufeinzeln>(`/laeufe/${jobId}?intervall=${encodeURIComponent(intervall)}`);
+/** Ein Lauf im Einzelnen: Steckbrief, Kurven, Vergleich mit der Baseline. */
+export const lauf = (jobId: string) => anfrage<Laufeinzeln>(`/laeufe/${jobId}`);
 
 /**
  * Einen Lauf beauftragen - mit Trainerschlüssel im eigenen Kopf; in

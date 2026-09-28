@@ -496,26 +496,6 @@ class TestVertrauensbereiche:
     def test_unbekannte_blockart_ist_vierhundert(self, klient: TestClient) -> None:
         assert klient.get("/lernen/api/modelle?intervall=quatsch").status_code == 400
 
-    def test_beim_einzelnen_lauf_dasselbe(
-        self, klient: TestClient, baseline, fertiger_lauf
-    ) -> None:
-        job_id = klient.get("/lernen/api/laeufe").json()["laeufe"][0]["job_id"]
-        ohne = klient.get(f"/lernen/api/laeufe/{job_id}").json()
-        mit = klient.get(f"/lernen/api/laeufe/{job_id}?intervall=aufnahme").json()
-
-        assert ohne["intervall"] == "aus"
-        assert all(
-            eintrag["unterschied"] is None
-            for eintraege in ohne["vergleich"].values()
-            for eintrag in eintraege
-        )
-        for fassung, eintraege in mit["vergleich"].items():
-            for stelle, eintrag in enumerate(eintraege):
-                vorher = ohne["vergleich"][fassung][stelle]
-                assert eintrag["baseline"] == vorher["baseline"]
-                assert eintrag["trainiert"] == vorher["trainiert"]
-                assert eintrag["besser"] == vorher["besser"]
-
 
 class TestFremdesTempo:
     """Ein Stand mit abweichender Geschwindigkeit zählt ganz normal mit.

@@ -346,8 +346,7 @@ Wahl, weil sie in der Literatur üblich ist. **Gegen** paart jede Zeile mit
 einem gewählten Modell und zeigt den Abstand mit p-Wert; das ist schärfer als
 zwei überlappende Bereiche. Eingeschaltet ändert sich keine Zahl - der Bereich
 tritt daneben. Überlappen sich bester und zweitbester Wert einer Spalte, trägt
-sie ein `≈`. Beim einzelnen Lauf gibt es dieselbe Wahl mit einer Spalte
-**Belegt?**; ein fertiger Lauf schreibt seine Bereiche ins Manifest.
+sie ein `≈`. Ein fertiger Lauf schreibt seine Bereiche ins Manifest.
 
 ### Freigeben
 
@@ -402,7 +401,6 @@ GET    /lernen/api/aufteilung               die Faltungen in Zahlen
 GET    /lernen/api/laeufe                   die Liste, ohne Kurven
 POST   /lernen/api/laeufe                   beauftragen                    + X-Trainer-Key
 GET    /lernen/api/laeufe/{id}              Steckbrief, Kurven, Vergleich, Protokoll
-                                            ?intervall=aus|aufnahme|einheit
 POST   /lernen/api/laeufe/{id}/abbruch      anhalten
 POST   /lernen/api/laeufe/{id}/neustart     neu starten, ersetzt ihn     + X-Trainer-Key
 DELETE /lernen/api/laeufe/{id}              löschen, samt Stand

@@ -20,7 +20,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
-from wortlaut import kartenplan, laeufe as lauf_layout, registry, streuung
+from wortlaut import kartenplan, laeufe as lauf_layout, registry
 
 from ..config import einstellungen
 from ..deps import Korpus, Sprache, SprecherId, korpus_engine
@@ -513,10 +513,6 @@ class GegenueberAntwort(BaseModel):
     trainiert: float | None
     besser: bool | None
     anzahl: int
-    # Nur mit `?intervall=` (`services/vergleich.Gegenueber`).
-    unterschied: dict | None = None
-    bereich_baseline: dict | None = None
-    bereich_trainiert: dict | None = None
 
 
 class EinzelAntwort(BaseModel):
@@ -543,9 +539,6 @@ class EinzelAntwort(BaseModel):
     # fassung -> die Maße, Baseline und trainiert
     vergleich: dict[str, list[GegenueberAntwort]]
     protokoll: str
-    # `aus`, `aufnahme` oder `einheit`.
-    intervall: str = streuung.AUS
-    streuung_marke: str = ""
 
 
 class ListeAntwort(BaseModel):
@@ -1184,19 +1177,8 @@ def beauftrage(
 
 
 @router.get("/{job_id}", response_model=EinzelAntwort)
-def einzeln(
-    job_id: str, korpus: Korpus, sprecher: SprecherId, intervall: str = streuung.AUS
-) -> EinzelAntwort:
-    """Kurven, Bewertung und Vergleich zu einem Lauf.
-
-    `intervall` legt neben jedes Gegenüber den gepaarten Abstand samt Bereich
-    und p-Wert (`wortlaut/streuung.py`); die Zahlen selbst bleiben dieselben.
-    """
-    if intervall not in streuung.BLOCKARTEN:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unbekannte Blockart. Zur Wahl stehen: {', '.join(streuung.BLOCKARTEN)}.",
-        )
+def einzeln(job_id: str, korpus: Korpus, sprecher: SprecherId) -> EinzelAntwort:
+    """Kurven, Bewertung und Vergleich zu einem Lauf."""
     lauf = _hole(sprecher, job_id)
     kurven = auftraege.lernkurve(lauf)
     protokoll = lauf.verzeichnis / lauf_layout.PROTOKOLL
@@ -1228,20 +1210,13 @@ def einzeln(
                     trainiert=eintrag.trainiert,
                     besser=eintrag.besser,
                     anzahl=eintrag.anzahl,
-                    unterschied=eintrag.unterschied,
-                    bereich_baseline=eintrag.bereich_baseline,
-                    bereich_trainiert=eintrag.bereich_trainiert,
                 )
                 for eintrag in eintraege
             ]
-            for fassung, eintraege in vergleich.je_fassung(lauf, korpus, intervall).items()
+            for fassung, eintraege in vergleich.je_fassung(lauf, korpus).items()
         },
         # Nur das Ende - dort steht, woran es scheiterte.
         protokoll=protokoll.read_text(encoding="utf-8")[-4000:] if protokoll.is_file() else "",
-        intervall=intervall,
-        streuung_marke=(
-            streuung.Verfahren(blockart=intervall).marke if intervall != streuung.AUS else ""
-        ),
     )
 
 
