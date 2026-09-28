@@ -18,8 +18,10 @@ je nach Karte), Gradientenakkumulation bis zum wirksamen Stapel des Rezepts.
 Voll oder mit LoRA, dessen Ziele und Rang der Auftrag wählt. Auf der zurückgehaltenen Faltung wird geprüft
 und der beste Stand behalten - nach dem Verlust je Durchgang oder nach der
 WER, frei dekodiert je Drittel eines Durchgangs. Wählbar sind außerdem
-Augmentierung zur Laufzeit, Early Stopping, Vorspulen, Checkpoint-Mittel und
-Interpolation mit dem Grundmodell. Gemessen wird per
+Augmentierung zur Laufzeit, Early Stopping, Vorspulen, Checkpoint-Mittel,
+Interpolation mit dem Grundmodell, Ziele und Rang von LoRA, das Gewicht der
+Korrekturen, Selbsttraining, ein gekürztes Encoder-Fenster und ein Startprompt
+mit dem einschlägigen Vokabular. Gemessen wird per
 sechsfacher Kreuzvalidierung, mit Bootstrap-Bereichen auf jeder Zahl.
 
 ---
@@ -40,7 +42,7 @@ sechsfacher Kreuzvalidierung, mit Bootstrap-Bereichen auf jeder Zahl.
 | 8 | Die gewichtete Verlustrechnung | `finetune.py` (`GewichtetesTraining.compute_loss`) |
 | 8a | Prüfplan und WER der Steuergröße | `steuerung.py`, `GewichtetesTraining.prediction_step` |
 | 9 | Checkpoint-Mittel, WiSE-FT | `abschluss.py` (`fuehre_aus`) |
-| 10 | LoRA verschmelzen, nach CTranslate2 wandeln | `finetune.py` (`wandle_um`) |
+| 10 | LoRA verschmelzen, nach CTranslate2 wandeln, Startprompt beilegen | `finetune.py` (`wandle_um`), `kontext.py` |
 | 11 | Faltung messen, Endmodell prüfen, Stand eintragen | `bewerten.py`, `finetune.kreuzvalidiere` |
 
 Wer eine Stelle lesen will, an der aus Daten ein besseres Modell wird, liest
@@ -101,7 +103,7 @@ FÜR f = 1 … 6:
     D_lern ← Zeilen außerhalb von Faltung f            # je nach Datensatz nur Originale
     D_mess ← Zeilen in Faltung f, alle Fassungen, nur Vorlagen   # Korrekturen lernen nur
     θ_f, ergebnis_f ← TRAINIERE(θ_grund, D_lern, D_mess, R)
-    M_f ← nach_CTranslate2(θ_f)
+    M_f ← nach_CTranslate2(θ_f)                        # samt Startprompt aus D_lern, wenn bestellt
     FÜR jede Zeile z in D_mess:
         schreibe WER/CER/MER/WIL(z.text, dekodiere(M_f, z.audio))   # wortlaut/metriken.py
 
@@ -340,7 +342,9 @@ mit LoRA gibt.
   Probengewichte an `generate` weiter und rechnete den Verlust ungewichtet;
   `GewichtetesTraining.prediction_step` rechnet den gewichteten Verlust und
   dekodiert daneben, mit höchstens doppelt so vielen Marken wie der längste
-  Satz der Validierung.
+  Satz der Validierung - in genau einem Durchgang ohne Zeitmarken. Gibt ein
+  entgleister Stand trotzdem Zeitmarken aus, rückte Whispers Segmentschleife
+  sonst nicht vor.
 * **Die Geduld zählt Durchgänge.** Bei drei Prüfungen je Durchgang wartet
   `geduldig` dreimal so viele Prüfungen.
 * **Öfter prüfen heißt öfter sichern**, deshalb ohne Optimierer
@@ -396,6 +400,31 @@ Stände, α, die Steuergröße (`mass`) vorher, nach der Mittelung und danach.
 Siehe [lernen](lernen.md#wie-schnell-gehört-wird). Gesucht wird am
 unveränderten Grundmodell auf den Lernzeilen jeder Faltung, nie an Messdaten.
 
+### Der Startprompt
+
+`apps/lernen/training/kontext.py`: die einzige Maßnahme ohne Training. Mit
+`vokabular` beginnt jede Erkennung des Standes mit einer Liste der Wörter,
+die für diese Person einschlägig sind (`initial_prompt` in faster-whisper).
+Flache Fusion mit einem n-Gramm-Modell bringt faster-whisper nicht mit; der
+Startprompt geht ohne Umbau des Dekodierers.
+
+* **Die seltenen Wörter der Lerntexte.** Was Whispers Zerteiler in mindestens
+  `kontext_mindestteile` (3) Stücke zerlegt, hat Whisper selten gesehen -
+  Namen, Fachwörter, Zusammensetzungen. Häufiges zuerst, bis `kontext_marken`
+  (120 von 223 möglichen) verbraucht sind. Texte sind Vorlagen und bestätigte
+  Korrekturen, je Aufnahme einmal; Selbstbeschriftetes nie.
+* **Je Faltung nur aus ihren Lerntexten.** Sonst stünden die Wörter der
+  gemessenen Sätze vorab da, und die Zahl der Faltung maß den Prompt, nicht
+  das Modell. Das Endmodell nimmt alle Texte.
+* **Der Prompt reist mit dem Stand.** `startprompt.txt` liegt neben den
+  Gewichten und im CTranslate2-Verzeichnis; `LokalerTranskriptor` liest ihn
+  beim Laden. So gilt er in der Messung der Faltungen, in „schreiben", in der
+  Auswertung von „hören" und in der Kernauswahl gleich. Das Manifest des
+  Standes trägt ihn als `startprompt`.
+* **Er kann Whisper zum Halluzinieren verleiten** - bei Stille etwa zur
+  Wortliste. Gemessen wird er deshalb wie alles andere; die
+  Plausibilitätsprüfung des Endmodells sieht Ausgefranstes.
+
 ### Vertrauensbereiche
 
 `packages/wortlaut/src/wortlaut/streuung.py`, neben `metriken.py`: Die eine
@@ -424,27 +453,7 @@ gerechnet; ein Stand bringt seine im Manifest mit.
 
 ---
 
-## 7. Offene Hebel
-
-Erwartet ist eine Einschätzung, kein Messwert; relativ zur heutigen WER.
-
-| | Maßnahme | erwartet | Aufwand | Risiko |
-|---|---|---|---|---|
-| **H** | Kontextverstärkung beim Dekodieren | 3–10 % | gering | gering |
-
-### H - Die Dekodierseite
-
-Flache Fusion eines kleinen n-Gramm-Modells oder Trie-basierte
-Kontextverstärkung, dazu ein Startprompt mit dem einschlägigen Vokabular. Die
-einzige Maßnahme ohne Training, und das Textmaterial liegt vor: Vorlagen aus
-`hören`, bestätigte Diktate aus `schreiben`. faster-whisper bringt flache
-Fusion nicht mit; der billige Einstieg ist der Startprompt in
-`LokalerTranskriptor.transkribiere`. Er kann Whisper auch zum Halluzinieren
-verleiten und gehört gemessen wie alles andere.
-
----
-
-## 8. Bewusst nicht vorgeschlagen
+## 7. Bewusst nicht vorgeschlagen
 
 * **Ein größeres Grundmodell** beantwortet nicht die Frage dieses Dokuments -
   mehr aus demselben Material bei demselben Grundmodell. `whisper-medium`
@@ -458,7 +467,7 @@ verleiten und gehört gemessen wie alles andere.
 
 ---
 
-## 9. Literatur
+## 8. Literatur
 
 Personalisierung für atypische Sprache:
 

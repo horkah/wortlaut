@@ -411,6 +411,24 @@ ABSCHLUESSE = (
 )
 
 
+# ── Der Kontext beim Dekodieren ─────────────────────────────────────────────
+#
+# Die einzige Achse ohne Einfluss aufs Training (`training/kontext.py`):
+#
+# `aus`         Whisper dekodiert ohne Vorgabe.
+# `vokabular`   Ein Startprompt mit den seltenen Wörtern der Lerntexte. Er
+#               liegt als `startprompt.txt` beim Stand und gilt überall, wo
+#               der Stand hört - je Faltung nur aus ihren Lerntexten.
+KONTEXT_AUS = "aus"
+KONTEXT_VOKABULAR = "vokabular"
+KONTEXTE = (KONTEXT_AUS, KONTEXT_VOKABULAR)
+
+
+def kontext_aus(auftrag: dict[str, Any]) -> str:
+    """Der Kontext eines Auftrags - `aus`, wenn das Feld fehlt."""
+    return str(auftrag.get("kontext") or KONTEXT_AUS)
+
+
 def mittelt(abschluss: str) -> bool:
     """Ob dieser Abschluss mehrere Zwischenstände mittelt."""
     return abschluss in (ABSCHLUSS_MITTEL, ABSCHLUSS_BEIDES)
@@ -527,6 +545,10 @@ CODE_ABSCHLUSS = {
 }
 
 
+# X = Kontext beim Dekodieren.
+CODE_KONTEXT = {KONTEXT_AUS: "", KONTEXT_VOKABULAR: "X"}
+
+
 def grundmodellcode(basismodell: str) -> str:
     """`openai/whisper-medium` → `M`, `…-large-v3` → `L3`, `…-large-v3-turbo` → `L3T`."""
     teile = [teil for teil in kurzname(basismodell).split("-") if teil]
@@ -569,6 +591,7 @@ def optionscode(auftrag: dict[str, Any]) -> str:
         glied(CODE_AUGMENTIERUNG, auftrag.get("augmentierung"), AUG_KEINE),
         CODE_TEMPO[tempowahl_aus(auftrag)],
         glied(CODE_ABSCHLUSS, auftrag.get("abschluss"), ABSCHLUSS_BESTER),
+        glied(CODE_KONTEXT, auftrag.get("kontext"), KONTEXT_AUS),
     )
     return "-".join([kopf, *(teil for teil in glieder if teil)])
 

@@ -33,6 +33,8 @@ from wortlaut import (
     tempo,
 )
 
+from wortlaut.whisper.local import startprompt
+
 from apps.lernen.backend.config import einstellungen
 
 from .adapter import adapter_fuer
@@ -136,6 +138,9 @@ def _version(auftrag: dict[str, Any], faktor: float | None = None) -> str:
     fenster = laeufe.fenster_aus(auftrag)
     if fenster != laeufe.FENSTER_VOLL:
         name = f"{name}-{fenster}"
+    kontext = laeufe.kontext_aus(auftrag)
+    if kontext != laeufe.KONTEXT_AUS:
+        name = f"{name}-{kontext}"
     # Zuletzt das Tempo - sonst trügen zwei Stände, die sich nur darin
     # unterscheiden, denselben Namen.
     wirklich = geltendes_tempo(auftrag, None) if faktor is None else faktor
@@ -712,6 +717,9 @@ def gib_frei(
             "dauer": str(auftrag.get("dauer") or laeufe.DAUER_FEST),
             "steuerung": laeufe.steuerung_aus(auftrag),
             "fenster": laeufe.fenster_aus(auftrag),
+            "kontext": laeufe.kontext_aus(auftrag),
+            # Womit jede Erkennung dieses Standes beginnt (`kontext.py`).
+            "startprompt": startprompt(ct2) or "",
             "tempowahl": laeufe.tempowahl_aus(auftrag),
             # Die Folge (`/43b`), damit der Stand sie auch ohne Lauf trägt.
             laeufe.FOLGE: auftrag.get(laeufe.FOLGE),

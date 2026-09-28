@@ -51,6 +51,7 @@ ACHSEN = (
     "steuerung",
     "fenster",
     "tempowahl",
+    "kontext",
 )
 TAKT_S = 5.0
 # Wie lange ein Auftrag warten darf, bis der Hinweis auf den Läufer kommt.

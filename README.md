@@ -115,7 +115,7 @@ make release JOB=job_01J8…                        # freigeben - „schreiben" 
 | [Der Entwurf](docs/architektur.md) | Grundentscheidungen, Aufbau, Nahtstellen, Technik |
 | [App „hören"](docs/hoeren.md) | Sammeln, Zugänge, Aufsicht, Zuschnitt, Auswertung |
 | [App „lernen"](docs/lernen.md) | Kreuzvalidierung, Aufträge, Modelltafel, Freigabe |
-| [Das Trainingsverfahren](docs/trainingsverfahren.md) | die Rechnung in Pseudocode und die offenen Hebel |
+| [Das Trainingsverfahren](docs/trainingsverfahren.md) | die Rechnung in Pseudocode und ihre Bausteine |
 | [App „schreiben"](docs/schreiben.md) | Diktieren, Abschnitte, Postausgang |
 | [Konfiguration](docs/konfiguration.md) | jede Umgebungsvariable |
 | [Entwicklung](docs/entwicklung.md) | lokal starten, Trainer, Tests, Konventionen |

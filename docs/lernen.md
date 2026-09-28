@@ -108,6 +108,7 @@ Optionscode. Die Vorgabe ist jeweils der erste Wert.
 | Augmentierung | keine, SpecAugment, + Raum + Rauschen, + Tempo | Abwandlung zur Laufzeit, nur auf den Lernproben |
 | Tempo | aus, geschätzt, gesucht | siehe [Wie schnell gehört wird](#wie-schnell-gehört-wird) |
 | Abschluss | bester Checkpoint, Checkpoint-Mittel, WiSE-FT, beides | was am Ende mit den Gewichten geschieht |
+| Kontext | aus, Vokabular | Startprompt mit den seltenen Wörtern der Lerntexte, beim Dekodieren |
 
 Was welche Wahl im Einzelnen rechnet, steht in
 [Das Trainingsverfahren](trainingsverfahren.md). Welche Grundmodelle zur Wahl
@@ -205,6 +206,7 @@ Glied, wenn sie nicht auf ihrer Vorgabe steht:
 | Augmentierung | keine, SpecAugment, + Raum + Rauschen, + Tempo | –, `S`, `SR`, `SRP` |
 | Tempo | aus, geschätzt, gesucht | –, `Tg`, `Ts` |
 | Abschluss | bester, Mittel, WiSE-FT, beides | –, `C`, `I`, `CI` |
+| Kontext | aus, Vokabular | –, `X` |
 
 `ML-A-K-SRP-Ts-C` ist whisper-medium mit LoRA, mit Abwandlungen, auf dem Kern,
 voller Augmentierung, gesuchtem Tempo und Checkpoint-Mittel.
