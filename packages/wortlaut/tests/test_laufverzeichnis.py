@@ -223,11 +223,12 @@ class TestOptionscode:
             "selbsttraining": "an",
             "dauer": "geduldig",
             "steuerung": "wer",
+            "fenster": "gekuerzt",
             "augmentierung": "voll",
             "tempowahl": "optimal",
             "abschluss": "beides",
         }
-        assert laeufe.optionscode(auftrag) == "ML-Zd-R64-A-K-Qv-U-E-W-SRP-Ts-CI"
+        assert laeufe.optionscode(auftrag) == "ML-Zd-R64-A-K-Qv-U-E-W-F-SRP-Ts-CI"
 
     def test_die_alte_tempowahl_zaehlt_als_aus(self) -> None:
         auftrag = {"basismodell": "openai/whisper-small", "methode": "full",
@@ -278,6 +279,7 @@ class TestOptionscode:
             laeufe.CODE_SELBSTTRAINING,
             laeufe.CODE_DAUER,
             laeufe.CODE_STEUERUNG,
+            laeufe.CODE_FENSTER,
             laeufe.CODE_AUGMENTIERUNG,
             laeufe.CODE_TEMPO,
             laeufe.CODE_ABSCHLUSS,
@@ -297,6 +299,7 @@ class TestOptionscode:
         assert set(laeufe.CODE_SELBSTTRAINING) == set(laeufe.SELBSTTRAINING)
         assert set(laeufe.CODE_DAUER) == set(laeufe.DAUERN)
         assert set(laeufe.CODE_STEUERUNG) == set(laeufe.STEUERUNGEN)
+        assert set(laeufe.CODE_FENSTER) == set(laeufe.FENSTER)
         assert set(laeufe.CODE_AUGMENTIERUNG) == set(laeufe.AUGMENTIERUNGEN)
         assert set(laeufe.CODE_TEMPO) == set(laeufe.TEMPI)
         assert set(laeufe.CODE_ABSCHLUSS) == set(laeufe.ABSCHLUESSE)

@@ -38,6 +38,7 @@ from wortlaut import kartenplan, laeufe, sprachen, tempo
 
 from . import abschluss as abschlussrechnung
 from . import adapter as zusatz
+from . import fenster as fensterrechnung
 from . import ausgangsstand
 from . import tempowahl
 from . import klangwandel
@@ -524,8 +525,27 @@ def trainiere(
     if zwischenlager is not None:
         bericht.sage(f"Vorgespult: Faktor {faktor:g} - Tonhöhe bleibt")
 
-    lern = Proben(lernzeilen, korpuswurzel, ausleser, zerteiler, wandler, faktor, zwischenlager)
-    pruef = Proben(messzeilen, korpuswurzel, ausleser, zerteiler, None, faktor, zwischenlager)
+    # Das Fenster des Encoders (`fenster.py`): gekürzt nur bis zum Sichern.
+    fenster = fensterrechnung.VOLL
+    volles_fenster = None
+    if laeufe.fenster_aus(auftrag) == laeufe.FENSTER_GEKUERZT:
+        fenster = fensterrechnung.rahmen_fuer(lernzeilen + messzeilen, faktor, rezept, abwandlung)
+        if fenster < fensterrechnung.VOLL:
+            volles_fenster = fensterrechnung.kuerze(modell, fenster)
+        bericht.sage(
+            f"Fenster: {fenster / fensterrechnung.RAHMEN_JE_S:g} statt "
+            f"{fensterrechnung.VOLL / fensterrechnung.RAHMEN_JE_S:g} Sekunden - "
+            "gesichert und gemessen wird wieder mit dem vollen"
+        )
+        bericht.merke(fenster_s=fenster / fensterrechnung.RAHMEN_JE_S)
+    je_probe = fenster if volles_fenster is not None else None
+
+    lern = Proben(
+        lernzeilen, korpuswurzel, ausleser, zerteiler, wandler, faktor, zwischenlager, je_probe
+    )
+    pruef = Proben(
+        messzeilen, korpuswurzel, ausleser, zerteiler, None, faktor, zwischenlager, je_probe
+    )
     selbst = sum(1 for zeile in lernzeilen if str(zeile.get("quelle")) == laeufe.QUELLE_SELBST)
     bericht.sage(
         f"Proben: {len(lern)} zum Lernen"
@@ -548,6 +568,7 @@ def trainiere(
         gemischt,
         laengste=max(len(zerteiler(str(zeile["text"])).input_ids) for zeile in lernzeilen),
         mel_kanaele=int(ausleser.feature_size),
+        mel_rahmen=fenster,
         reserve_mb=konfiguration.lernen_reserve_mb,
         bericht=bericht,
     )
@@ -738,6 +759,10 @@ def trainiere(
         mass=pruefplan.mass,
     )
 
+    if volles_fenster is not None:
+        # Ausgeliefert wird die 30-Sekunden-Geometrie (`fenster.py`).
+        fensterrechnung.stelle_her(modell, volles_fenster)
+
     bericht.stufe("sichern")
     gewichte = verzeichnis / laeufe.GEWICHTE / _name_fuer(faltung)
     if methode == laeufe.LORA:
@@ -754,6 +779,7 @@ def trainiere(
         "plan_durchgaenge": plan,
         "alpha": ergebnis.alpha,
         "tempo": faktor,
+        "fenster_s": fenster / fensterrechnung.RAHMEN_JE_S,
         "tempowahl": tempoergebnis.als_dict() if tempoergebnis is not None else None,
         # Worauf und wie gerechnet wurde - fürs Manifest (`bewerten.gib_frei`).
         "zuschnitt": {
@@ -858,12 +884,18 @@ def _torchtyp(genauigkeit: str):
 
 
 def _probeschritt(
-    modell, stapel: int, sparsam: bool, mel_kanaele: int, laengste: int, genauigkeit: str
+    modell,
+    stapel: int,
+    sparsam: bool,
+    mel_kanaele: int,
+    laengste: int,
+    genauigkeit: str,
+    mel_rahmen: int = 3000,
 ) -> float:
     """Ein Vorwärts- und Rückwärtsgang mit dem schwersten Stapel; gibt die Spitze in MB.
 
-    Schwerster Stapel: Whisper hört immer 30 Sekunden (3000 Merkmalsrahmen),
-    also zählt allein der längste Text. Ein Speichermangel geht als Fehler
+    Schwerster Stapel: Jede Probe ist gleich lang - 30 Sekunden oder das
+    gekürzte Fenster (`fenster.py`) -, also zählt allein der längste Text. Ein Speichermangel geht als Fehler
     hinaus; was der Schritt belegt hat, gibt er in jedem Fall zurück.
     """
     import torch
@@ -874,7 +906,7 @@ def _probeschritt(
         modell.gradient_checkpointing_disable()
     modell.train()
     geraet = next(modell.parameters()).device
-    merkmale = torch.zeros((stapel, mel_kanaele, 3000), device=geraet)
+    merkmale = torch.zeros((stapel, mel_kanaele, mel_rahmen), device=geraet)
     # Irgendeine Marke, so oft wie der längste Text lang ist.
     marken = torch.full((stapel, max(2, laengste)), 50257, dtype=torch.long, device=geraet)
     torch.cuda.reset_peak_memory_stats()
@@ -901,6 +933,7 @@ def zuschneiden(
     mel_kanaele: int,
     reserve_mb: float,
     bericht: Bericht,
+    mel_rahmen: int = 3000,
 ) -> kartenplan.Plan:
     """Wie dieses Training auf diese Karte passt - ausprobiert, nicht geschätzt.
 
@@ -921,7 +954,9 @@ def zuschneiden(
     zusatz = kartenplan.optimierer_mb(trainierbar)
     for stapel, sparsam in kartenplan.kandidaten(wirksam):
         try:
-            spitze = _probeschritt(modell, stapel, sparsam, mel_kanaele, laengste, genau)
+            spitze = _probeschritt(
+                modell, stapel, sparsam, mel_kanaele, laengste, genau, mel_rahmen
+            )
         except Exception as ursache:  # noqa: BLE001 - was immer torch wirft
             if not karte.ist_speichermangel(ursache):
                 raise

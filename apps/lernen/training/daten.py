@@ -53,8 +53,11 @@ class Proben(torch.utils.data.Dataset):
         wandler: Wandler | None = None,
         faktor: float = tempo.VORGABE,
         zwischenlager: Path | None = None,
+        fenster: int | None = None,
     ) -> None:
         self.zeilen = zeilen
+        # Merkmalsrahmen je Probe; `None`: Whispers 30 Sekunden (`fenster.py`).
+        self.fenster = fenster
         self.korpus = korpus
         self.faktor = faktor
         self.zwischenlager = zwischenlager
@@ -97,6 +100,8 @@ class Proben(torch.utils.data.Dataset):
         # Wie weit der Ton reicht - sonst träfe ein Zeitbalken meist die Stille.
         rahmen = min(merkmale.shape[1], len(klang) // RAHMENSCHRITT)
         merkmale = self.wandler.merkmale(merkmale, rahmen)
+        if self.fenster is not None:
+            merkmale = merkmale[:, : self.fenster]
 
         return Probe(
             merkmale=merkmale,
@@ -109,7 +114,7 @@ class Proben(torch.utils.data.Dataset):
 class Stapler:
     """Fasst Proben zu einem Stapel zusammen und füllt die Marken auf.
 
-    Die Merkmale sind schon 30 Sekunden lang. Die Füllstellen der Marken
+    Die Merkmale sind schon gleich lang - 30 Sekunden oder das Fenster. Die Füllstellen der Marken
     bekommen -100, den Wert, den PyTorchs Verlust überspringt.
     """
 

@@ -86,6 +86,8 @@ export type Lauf = {
   dauer: string;
   /** Woran Checkpoint, Abbruch und α gewählt wurden: verlust | wer. */
   steuerung: string;
+  /** Das Encoder-Fenster im Training: voll | gekuerzt. */
+  fenster: string;
   /** Ob die Geschwindigkeit gesucht wurde oder die des Profils galt. */
   tempowahl: string;
   /**
@@ -201,6 +203,7 @@ export type Laufliste = {
   augmentierungen: Wahl[];
   dauern: Wahl[];
   steuerungen: Wahl[];
+  fenster: Wahl[];
   tempi: Wahl[];
   grundmodelle: Grundmodell[];
   /** Die Vorgabe, worauf trainiert wird. */
@@ -242,6 +245,7 @@ export type Laufeinzeln = {
   augmentierungen: Wahl[];
   dauern: Wahl[];
   steuerungen: Wahl[];
+  fenster: Wahl[];
   tempi: Wahl[];
   grundmodelle: Grundmodell[];
   kurve_training: Punkt[];
@@ -398,6 +402,7 @@ export type Bestellung = {
   augmentierung: string;
   dauer: string;
   steuerung: string;
+  fenster: string;
   tempowahl: string;
   grundmodell: string;
 };

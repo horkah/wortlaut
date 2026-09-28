@@ -133,6 +133,9 @@ def _version(auftrag: dict[str, Any], faktor: float | None = None) -> str:
     steuerung = laeufe.steuerung_aus(auftrag)
     if steuerung != laeufe.STEUERUNG_VERLUST:
         name = f"{name}-{steuerung}"
+    fenster = laeufe.fenster_aus(auftrag)
+    if fenster != laeufe.FENSTER_VOLL:
+        name = f"{name}-{fenster}"
     # Zuletzt das Tempo - sonst trügen zwei Stände, die sich nur darin
     # unterscheiden, denselben Namen.
     wirklich = geltendes_tempo(auftrag, None) if faktor is None else faktor
@@ -708,6 +711,7 @@ def gib_frei(
             "augmentierung": str(auftrag.get("augmentierung") or laeufe.AUG_KEINE),
             "dauer": str(auftrag.get("dauer") or laeufe.DAUER_FEST),
             "steuerung": laeufe.steuerung_aus(auftrag),
+            "fenster": laeufe.fenster_aus(auftrag),
             "tempowahl": laeufe.tempowahl_aus(auftrag),
             # Die Folge (`/43b`), damit der Stand sie auch ohne Lauf trägt.
             laeufe.FOLGE: auftrag.get(laeufe.FOLGE),
