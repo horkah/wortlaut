@@ -100,7 +100,8 @@ Grundmodells, entfällt diese Prüfung, und das Protokoll sagt es. Dieselben
 Schwellen wie in der Plausibilitätsprüfung. Erst wenn keine Faltung
 übrig bleibt, scheitert der Lauf. Die Messungen einer ausgelassenen Faltung
 bleiben in der Zahl des Laufs: Sie beschreibt das Verfahren auf diesem Korpus,
-nicht einen einzelnen Stand. Der Steckbrief nennt „Mittel aus 5 von 6
+nicht einen einzelnen Stand. In „Modelle" dagegen zählen nur die gemittelten
+Faltungen (siehe dort). Der Steckbrief nennt „Mittel aus 5 von 6
 Faltungen" und, welche warum fehlt; das Manifest trägt es unter `endmodell`.
 
 Beim Kontext `vokabular` bekommt das Mittel den Startprompt aus allen
@@ -374,6 +375,14 @@ sich. Begrenzt eine einzelne Zeile den Boden um mehr als ein Viertel, nennt
 die Tafel sie samt der Zahl, die ohne sie gälte; die Rückfrage beim Löschen
 eines Laufs ebenso. Fehlt der gemeinsame Boden ganz, rechnet jede Zeile auf
 dem, was sie hat, und die Seite sagt es.
+
+**Ein Stand zählt nur die Faltungen, die in seinem Endmodell stecken.** Die
+Tafel dient der Wahl dessen, was ausgeliefert wird, und eine ausgelassene
+Faltung hat dazu nichts beigetragen. Ihre Aufnahmen fehlen dann nur in seiner
+Zeile; den gemeinsamen Boden der übrigen schmälern sie nicht. Die Zeilen
+stehen damit nicht mehr auf genau denselben Einheiten - darum steht unter dem
+Namen „nur 5 von 6 Faltungen". Die Zahl in der Einzelansicht des Laufs zählt
+weiter alle: Sie beschreibt das Training.
 
 **Die Rechenzeit ist eine Eigenschaft der Maschine.** Jede Messung trägt ihr
 Rechenwerk. Nennen nicht alle Zeilen dasselbe, vergleicht die Spalte nicht:

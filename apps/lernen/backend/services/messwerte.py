@@ -35,7 +35,7 @@ from sqlalchemy.orm import Session
 from wortlaut import augmentierung, laeufe, streuung
 
 from apps.hoeren.backend.db.models import Erkennung
-from apps.hoeren.backend.services.auswertung import gueltige_aufnahmen
+from apps.hoeren.backend.services.auswertung import FALTUNG, gueltige_aufnahmen
 
 
 # Die Maße einer Zeile, benannt wie in „hören".
@@ -60,11 +60,31 @@ class Messreihe:
     # unbekannt. Eine Menge: Wich ein Lauf auf den Prozessor aus, ist seine
     # Rechenzeit eine Mischung, und das soll sichtbar sein.
     werke: set[str] = field(default_factory=set)
+    # Welche Faltung eine Einheit gehört hat - nur bei einem trainierten Stand,
+    # und nur bei Messungen aus seiner Kreuzvalidierung.
+    faltungen: dict[Einheit, int] = field(default_factory=dict)
 
     @property
     def werk(self) -> str:
         """Das eine Rechenwerk dieser Reihe - leer, wenn es nicht eines ist."""
         return next(iter(self.werke)) if len(self.werke) == 1 else ''
+
+    def nur_aus(self, faltungen: set[int]) -> Messreihe:
+        """Ohne die Messungen der Faltungen, die nicht in `faltungen` stehen.
+
+        Messungen ohne Faltung - der ausgelieferte Stand auf später
+        Aufgenommenem - bleiben.
+        """
+        behalten = {
+            schluessel: werte
+            for schluessel, werte in self.werte.items()
+            if schluessel not in self.faltungen or self.faltungen[schluessel] in faltungen
+        }
+        return Messreihe(
+            werte=behalten,
+            werke=set(self.werke),
+            faltungen={s: f for s, f in self.faltungen.items() if s in behalten},
+        )
 
     def mittel(self, einheiten: set[Einheit]) -> dict[str, dict[str, float]]:
         """Die Mittel je Fassung und über alles - über genau diese Einheiten.
@@ -227,6 +247,8 @@ def stand(
             mass: float(zeile[mass]) for mass in MASSE if zeile.get(mass) is not None
         }
         reihe.werke.add(str(zeile.get("rechenwerk", "")))
+        if zeile.get("faltung") is not None:
+            reihe.faltungen[(kennung, fassung)] = int(zeile["faltung"])
 
     if korpus is not None and ref:
         for zeile in korpus.scalars(
@@ -240,6 +262,9 @@ def stand(
                 mass: float(getattr(zeile, mass)) for mass in MASSE
             }
             reihe.werke.add(zeile.rechenwerk)
+            # Hier gemessen hat der ausgelieferte Stand, keine Faltung.
+            if zeile.herkunft != FALTUNG:
+                reihe.faltungen.pop((zeile.recording_id, zeile.variante), None)
     return reihe
 
 

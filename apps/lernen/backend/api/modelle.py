@@ -153,6 +153,9 @@ class ModellAntwort(BaseModel):
     kennung: str | None
     # Ein Satz, wenn der Stand die Prüfung nicht bestand (`_vorbehalt`), sonst leer.
     vorbehalt: str
+    # „nur 5 von 6 Faltungen", wenn das Endmodell nicht alle mittelt - die Zahlen
+    # der Zeile stammen dann nur von den gemittelten (`_gemittelte_faltungen`).
+    faltungen_hinweis: str = ""
     job_id: str | None
     freigegeben: bool
     # Worauf gemessen wurde; leer bei Unbekanntem oder Gemischtem. Betrifft nur
@@ -195,6 +198,22 @@ class Freigabe(BaseModel):
     """Was gelten soll. Leer nimmt die Freigabe zurück."""
 
     ref: str = ""
+
+
+def _gemittelte_faltungen(manifest: dict) -> tuple[set[int], str] | None:
+    """Welche Faltungen im Endmodell stecken - `None`, wenn es alle sind.
+
+    Die Tabelle dient der Wahl eines Modells, also zählt, was ausgeliefert
+    wird: Eine ausgelassene Faltung hat nichts zum Endmodell beigetragen, ihre
+    Messungen sagen über es nichts. Die Zahl des Laufs in seiner Einzelansicht
+    zählt sie weiter mit - sie beschreibt das Training.
+    """
+    befund = dict(manifest.get("endmodell") or {})
+    ausgelassen = list(befund.get("ausgelassen") or [])
+    if not ausgelassen:
+        return None
+    gemittelt = {int(faltung) for faltung in befund.get("faltungen") or []}
+    return gemittelt, f"nur {len(gemittelt)} von {len(gemittelt) + len(ausgelassen)} Faltungen"
 
 
 def _stand_name(manifest: dict) -> str:
@@ -285,6 +304,13 @@ def uebersicht(
 
     reihen = messwerte.grundmodelle(korpus, namen, aufnahmen)
     staende = registry.alle_staende(konfiguration.data_dir, sprecher)
+    # Die Zeile eines Standes, dessen Endmodell nicht alle Faltungen mittelt,
+    # rechnet nur mit den gemittelten. Den gemeinsamen Boden bestimmt weiter
+    # seine volle Reihe - die übrigen Zeilen verlieren dadurch keine Einheit,
+    # auch wenn seine dann auf weniger Einheiten steht als ihre. Der Hinweis
+    # unter dem Namen sagt es.
+    gezeigt: dict[str, messwerte.Messreihe] = {}
+    hinweise: dict[str, str] = {}
     for manifest in staende:
         lauf = (
             lauf_layout.lies_lauf(konfiguration.data_dir, str(manifest.get("job_id")))
@@ -298,6 +324,10 @@ def uebersicht(
             if lauf is not None
             else messwerte.Messreihe()
         )
+        teil = _gemittelte_faltungen(manifest)
+        if teil is not None:
+            gemittelt, hinweise[ref] = teil
+            gezeigt[ref] = reihen[ref].nur_aus(gemittelt)
 
     # Das Tempo trennt nichts: Ein Stand bringt es mit, „schreiben" spult
     # beim Diktieren genauso vor (`schreiben/deps.tempo_fuer`). Es gehört zum
@@ -313,10 +343,10 @@ def uebersicht(
     freigegeben = registry.freigegeben(konfiguration.data_dir, sprecher)
 
     # Ein unbekannter Name heißt „gegen keinen" - eine Zugabe, kein Fehler.
-    gegen = reihen.get(vergleich_mit) if vergleich_mit else None
+    gegen = gezeigt.get(vergleich_mit, reihen.get(vergleich_mit)) if vergleich_mit else None
 
     def zeile(ref: str, art: str, name: str, herkunft: str, manifest: dict) -> ModellAntwort:
-        reihe = reihen[ref]
+        reihe = gezeigt.get(ref, reihen[ref])
         boden = gemeinsam if vergleichbar else set(reihe.werte)
         return ModellAntwort(
             ref=ref,
@@ -335,6 +365,7 @@ def uebersicht(
                 else None
             ),
             vorbehalt=_vorbehalt(manifest),
+            faltungen_hinweis=hinweise.get(ref, ""),
             job_id=manifest.get("job_id"),
             freigegeben=ref == freigegeben,
             werte=reihe.mittel(boden),

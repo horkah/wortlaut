@@ -18,7 +18,8 @@ Gewichte (abgebrochen), eine, die ausfranst (mehr Fehler als Wörter auf einem
 Viertel ihrer Originale), und eine, die gemessen am Grundmodell auf denselben
 Aufnahmen weit hinter den anderen liegt. Dieselben Schwellen wie die
 Plausibilitätsprüfung (`bewerten.befund_ueber`), die danach trotzdem läuft.
-Ihre Messungen bleiben in der Zahl des Laufs - sie beschreibt das Verfahren.
+Ihre Messungen bleiben in der Zahl des Laufs - sie beschreibt das Verfahren;
+„Modelle“ lässt sie weg (`api/modelle._gemittelte_faltungen`).
 
 Die Prüfung ohne torch, damit sie sich ohne Karte nachrechnen lässt.
 """
