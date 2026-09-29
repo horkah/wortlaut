@@ -292,6 +292,8 @@ export type Modell = {
   kennung: string | null;
   /** Ein Satz, wenn mit diesem Stand etwas nicht stimmt - sonst leer. */
   vorbehalt: string;
+  /** „nur 5 von 6 Faltungen", wenn das Endmodell nicht alle mittelt - sonst leer. */
+  faltungen_hinweis: string;
   job_id: string | null;
   freigegeben: boolean;
   /** Worauf gemessen wurde: `cuda/int8_float16`, `cpu/int8`, leer = unbekannt oder gemischt. */

@@ -78,7 +78,12 @@ def baseline(hoeren: TestClient, aufnahmen: list[str]) -> None:
 
 
 def _lauf_fertigstellen(
-    datenverzeichnis: Path, job_id: str, sprecher_id: str, *, genauigkeit: float
+    datenverzeichnis: Path,
+    job_id: str,
+    sprecher_id: str,
+    *,
+    genauigkeit: float,
+    endmodell: dict | None = None,
 ) -> str:
     """Nachstellen, was ein durchgelaufener Trainer hinterlässt."""
     verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, job_id)
@@ -117,6 +122,7 @@ def _lauf_fertigstellen(
             "job_id": job_id,
             "erstellt": "2026-09-12T12:00:00+00:00",
             "metriken": {"wer": 0.1, "genauigkeit": genauigkeit, "test_einheiten": 8},
+            "endmodell": endmodell or {},
             "status": "fertig",
         },
     )
@@ -253,6 +259,42 @@ class TestModelluebersicht:
             if modell["werte"]
         }
         assert gezaehlt == {antwort["gemeinsame_einheiten"]}
+
+    def test_ein_stand_zaehlt_nur_die_gemittelten_faltungen(
+        self,
+        klient: TestClient,
+        baseline: None,
+        aufnahmen: list[str],
+        datenverzeichnis,
+        sprecher: str,
+    ) -> None:
+        lauf = klient.post(
+            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original"}
+        ).json()
+        verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"])
+        erste = json.loads(
+            (verzeichnis / laeufe.MANIFEST).read_text(encoding="utf-8").splitlines()[0]
+        )["faltung"]
+        _lauf_fertigstellen(
+            datenverzeichnis,
+            lauf["job_id"],
+            sprecher,
+            genauigkeit=88.0,
+            endmodell={
+                "faltungen": [f for f in range(laeufe.FALTUNGEN) if f != erste],
+                "ausgelassen": [{"faltung": erste, "grund": "ausreisser"}],
+            },
+        )
+        antwort = klient.get("/lernen/api/modelle").json()
+        eigen = next(modell for modell in antwort["modelle"] if modell["art"] == "trainiert")
+        grund = next(modell for modell in antwort["modelle"] if modell["ref"] == "small")
+
+        # Die ausgelassene Faltung fehlt nur in der Zeile ihres Standes - die
+        # Grundmodelle rechnen weiter über den ganzen Boden.
+        assert eigen["faltungen_hinweis"] == "nur 5 von 6 Faltungen"
+        assert 0 < eigen["einheiten"]["alle"] < antwort["gemeinsame_einheiten"]
+        assert grund["einheiten"]["alle"] == antwort["gemeinsame_einheiten"]
+        assert grund["faltungen_hinweis"] == ""
 
     def test_der_nachgestellte_stand_schlaegt_den_platzhalter(
         self, klient: TestClient, baseline: None, fertiger_lauf

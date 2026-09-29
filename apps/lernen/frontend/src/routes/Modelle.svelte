@@ -394,6 +394,11 @@
                   <span class="abzeichen">freigegeben</span>
                 {/if}
               </span>
+              <!-- Die Zeile rechnet nur mit den gemittelten Faltungen, die
+                   übrigen mit allem - vergleichbar nur mit Vorbehalt. -->
+              {#if modell.faltungen_hinweis}
+                <span class="faltungen klein">{modell.faltungen_hinweis}</span>
+              {/if}
               <span class="gedaempft klein">
                 {modell.herkunft}{#if modell.erstellt} · {zeitpunkt(modell.erstellt)}{/if}
               </span>
@@ -500,6 +505,10 @@
   .vorbehalt {
     display: block;
     margin-top: 0.25rem;
+    color: var(--warnung, #8a4b08);
+  }
+
+  .faltungen {
     color: var(--warnung, #8a4b08);
   }
 
