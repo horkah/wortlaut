@@ -298,8 +298,8 @@
     </label>
     <!-- Ändert nichts an den Zahlen, legt eine zweite Zeile darunter. -->
     <label class="fassungswahl">
-      <input type="checkbox" bind:checked={sicherheit} onchange={hole} />
       <span>Sicherheit</span>
+      <input type="checkbox" role="switch" bind:checked={sicherheit} onchange={hole} />
     </label>
     {#if sicherheit}
       <label class="fassungswahl">
@@ -599,8 +599,7 @@
     font-size: 0.85rem;
   }
 
-  .fassungswahl select,
-  .fassungswahl input[type='checkbox'] {
+  .fassungswahl select {
     width: auto;
     margin: 0;
   }
