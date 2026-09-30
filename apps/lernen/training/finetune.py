@@ -612,7 +612,8 @@ def trainiere(
         # dreht bei wenig Sprache in der Mitte, danach lernt das Modell
         # auswendig. Die Durchgangszahl ist so nur eine Obergrenze.
         #
-        # Wie viele Zwischenstände bleiben, sagt `abschluss.zu_behalten`; wer
+        # Welche Zwischenstände bleiben, sagt `abschluss.aufraeumer` - die
+        # besten, nicht die jüngsten; `save_total_limit` bleibt darum aus. Wer
         # mittelt oder öfter prüft, sichert ohne Optimierer (`save_only_model`)
         # - fortgesetzt wird ein Lauf nie. Alles verschwindet mit dem
         # `arbeitsstand` (`main`).
@@ -622,7 +623,6 @@ def trainiere(
             if pruefplan.alle_schritte
             else {}
         ),
-        save_total_limit=abschlussrechnung.zu_behalten(art, rezept),
         save_only_model=laeufe.mittelt(art) or pruefplan.dekodiert,
         load_best_model_at_end=hat_pruefung,
         metric_for_best_model=pruefplan.metrik,
@@ -637,6 +637,12 @@ def trainiere(
     )
 
     rueckrufe: list[Any] = [_rueckmeldung(bericht)]
+    if hat_pruefung:
+        rueckrufe.append(
+            abschlussrechnung.aufraeumer(
+                abschlussrechnung.zu_behalten(art, rezept), pruefplan.mass
+            )
+        )
     if geduldig:
         from transformers import EarlyStoppingCallback
 
