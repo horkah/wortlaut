@@ -145,21 +145,68 @@ def alphas_aus(rezept: dict[str, Any]) -> tuple[float, ...]:
 
 
 def zu_behalten(art: str, rezept: dict[str, Any]) -> int:
-    """Wie viele Zwischenstände auf der Platte bleiben müssen (`save_total_limit`).
+    """Wie viele Zwischenstände auf der Platte bleiben (`aufraeumer`).
 
     Einer ohne Mittelung, sonst so viele, wie gemittelt werden.
     """
     return staende_aus(rezept) if laeufe.mittelt(art) else 1
 
 
+def zu_loeschen(
+    log_history: list[dict[str, Any]], vorhanden: Iterable[Path], anzahl: int, mass: str = "loss"
+) -> list[Path]:
+    """Welche Zwischenstände weg können: alle außer den `anzahl` besten.
+
+    Nicht `save_total_limit`: Das behält den besten und die **jüngsten** -
+    gemittelt würde dann über den besten und die letzten vor dem Early
+    Stopping, also die am stärksten überangepassten. Ein Stand ohne
+    Steuergröße im Protokoll bleibt; ohne sie ist nicht zu sagen, was er taugt.
+    """
+    verluste = _verluste(log_history, mass)
+    bewertet: list[tuple[float, int, Path]] = []
+    for pfad in vorhanden:
+        schritt = _schritt(pfad)
+        if schritt is not None and schritt in verluste:
+            bewertet.append((verluste[schritt], schritt, pfad))
+    # Bei Gleichstand der frühere - wie `load_best_model_at_end`.
+    bewertet.sort(key=lambda eintrag: (eintrag[0], eintrag[1]))
+    return [pfad for _, _, pfad in bewertet[anzahl:]]
+
+
+def aufraeumer(anzahl: int, mass: str = "loss"):
+    """Ein Rückruf für den Trainer, der nach jedem Sichern `zu_loeschen` wegräumt.
+
+    Nach dem Sichern steht die Prüfung desselben Schritts schon im Protokoll -
+    Prüfen und Sichern gehen im selben Takt.
+    """
+    import shutil
+
+    from transformers import TrainerCallback
+
+    class Aufraeumer(TrainerCallback):
+        def on_save(self, args, state, control, **kwargs):
+            if not state.is_world_process_zero:
+                return
+            ausgabe = Path(args.output_dir)
+            staende = [
+                pfad
+                for pfad in ausgabe.glob(f"{STAND_PRAEFIX}*")
+                if pfad.is_dir() and _schritt(pfad) is not None
+            ]
+            for pfad in zu_loeschen(state.log_history, staende, anzahl, mass):
+                shutil.rmtree(pfad, ignore_errors=True)
+
+    return Aufraeumer()
+
+
 # ── Zwischenstände lesen ────────────────────────────────────────────────────
 
 
-def _verluste(trainer, mass: str = "loss") -> dict[int, float]:
+def _verluste(log_history: list[dict[str, Any]], mass: str = "loss") -> dict[int, float]:
     """Schritt → Steuergröße (`eval_loss`, `eval_wer`), aus dem Protokoll des Trainers."""
     schluessel = f"eval_{mass}"
     gefunden: dict[int, float] = {}
-    for zeile in trainer.state.log_history:
+    for zeile in log_history:
         if schluessel in zeile and "step" in zeile:
             gefunden[int(zeile["step"])] = float(zeile[schluessel])
     return gefunden
@@ -168,27 +215,32 @@ def _verluste(trainer, mass: str = "loss") -> dict[int, float]:
 def beste_staende(trainer, arbeitsstand: Path, anzahl: int, mass: str = "loss") -> list[Path]:
     """Die besten noch vorhandenen Zwischenstände, bester zuerst.
 
-    „Noch vorhanden" ist die halbe Arbeit: Der Trainer räumt nach
-    `save_total_limit` auf, und was weg ist, ist weg. Deshalb wird hier nicht
-    aus dem Protokoll geschlossen, welche es geben müsste, sondern nachgesehen,
-    welche es gibt.
+    Nachgesehen, nicht aus dem Protokoll geschlossen: Was der `aufraeumer`
+    gelöscht hat, ist weg.
     """
     if not arbeitsstand.is_dir():
         return []
-    verluste = _verluste(trainer, mass)
+    verluste = _verluste(trainer.state.log_history, mass)
     vorhanden: list[tuple[float, int, Path]] = []
     for pfad in arbeitsstand.iterdir():
         if not pfad.is_dir() or not pfad.name.startswith(STAND_PRAEFIX):
             continue
-        try:
-            schritt = int(pfad.name.rsplit("-", 1)[-1])
-        except ValueError:
-            continue
-        if schritt not in verluste or _gewichtsdatei(pfad) is None:
+        schritt = _schritt(pfad)
+        if schritt is None or schritt not in verluste or _gewichtsdatei(pfad) is None:
             continue
         vorhanden.append((verluste[schritt], schritt, pfad))
     vorhanden.sort(key=lambda eintrag: (eintrag[0], eintrag[1]))
     return [pfad for _, _, pfad in vorhanden[:anzahl]]
+
+
+def _schritt(stand: Path) -> int | None:
+    """`checkpoint-52` → 52; `None` bei allem anderen."""
+    if not stand.name.startswith(STAND_PRAEFIX):
+        return None
+    try:
+        return int(stand.name[len(STAND_PRAEFIX) :])
+    except ValueError:
+        return None
 
 
 def _gewichtsdatei(stand: Path) -> Path | None:

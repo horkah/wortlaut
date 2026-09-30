@@ -13,6 +13,12 @@ jedem Ergebnis.
 > der Läufe und die Tabelle `erkennungen` des Korpus (Baseline `small`). Namen
 > und Kennungen stehen bewusst nicht im Bericht. Bisher liegt ein Vergleich
 > vor; die übrigen Läufe stehen noch in der Warteschlange.
+>
+> **Nachtrag 30. September 2026:** Encoder und Decoder allein, dazu dieselben
+> Ziele auf whisper-medium (Abschnitt 3). Ab diesem Tag mittelt das
+> Checkpoint-Mittel über die besten Zwischenstände statt über den besten und
+> die beiden jüngsten (Abschnitt 4); alle Läufe dieses Berichts rechneten noch
+> mit der alten Auswahl.
 
 ---
 
@@ -21,7 +27,7 @@ jedem Ergebnis.
 | Achse | Werte | Stand |
 |---|---|---|
 | LoRA-Ziele | q, v gegen alle Projektionen | ein Paar, Abschnitt 2 |
-| LoRA-Ziele | nur Encoder, nur Decoder | Lauf rechnet |
+| LoRA-Ziele | nur Encoder, nur Decoder | small und medium, Abschnitt 3 |
 | LoRA-Rang | 64 | beauftragt |
 | Steuergröße | WER | beauftragt |
 | Kontext | Vokabular | beauftragt |
@@ -77,3 +83,49 @@ gesunden Faltungen genau dasselbe wie q, v - und machen das Training
 instabil. Das deckt sich mit der Literatur, nach der der Gewinn an der
 Aufmerksamkeit sitzt. Offen ist, ob „alle" mit kleinerer Lernrate stabil läuft
 und dann mehr bringt; dafür bräuchte es einen Lauf mit angepasstem Rezept.
+
+---
+
+## 3. Nur Encoder, nur Decoder
+
+Alle Projektionen samt Feedforward, Rang 32 - einmal nur im Encoder, einmal
+nur im Decoder. Auf small dieselben Achsen wie in Abschnitt 2, auf medium
+dieselben, aber nur mit Originalen gelernt. Mittlere WER aller 233 gemessenen
+Originale über alle Faltungen, ungepaart und ohne Bereiche - darum weicht
+„alle" auf small um ein Tausendstel von Abschnitt 2 ab:
+
+| | q, v | alle | nur Encoder | nur Decoder |
+|---|---|---|---|---|
+| small | 0,271 | 0,432 | 0,259 | 0,342 |
+| medium | 0,209 | 0,352 | 0,208 | **1,732** |
+
+**Nur Decoder auf medium scheitert.** Alle sechs Faltungen blieben als
+ausgefranst draußen, der Lauf endete ohne Stand. Median-WER 1,17, 53 % der
+Originale haben mehr Fehler als Wörter, die Ausgabe ist im Median fast doppelt
+so lang wie die Vorlage - das Modell erzählt weiter, statt zuzuhören. Die
+Lernrate springt dabei nicht, anders als bei „alle" in Abschnitt 2: Der
+Validierungsverlust ist in fünf Faltungen nach dem zweiten Durchgang am besten
+(in einer nach dem dritten) und steigt danach, der Trainingsverlust fällt
+weiter. Der Decoder lernt die knapp 200 Lernsätze als Sprachmodell auswendig.
+Verstärkt hat es die Auswahl des Checkpoint-Mittels (Abschnitt 4): In
+Faltung 1 gingen die Durchgänge 2, 6 und 7 ins Mittel statt 2, 3 und 5.
+
+**Nur Encoder** liegt bei beiden Modellen gleichauf mit q, v, auf small knapp
+davor. **Vorläufig:** Der Gewinn sitzt im Encoder, also im Hören; der Decoder
+passt sich schneller an die Lerntexte an, als er gewinnt.
+
+---
+
+## 4. Checkpoint-Mittel: die besten, nicht die jüngsten
+
+Gemittelt werden sollen die drei besten Zwischenstände einer Faltung. Auf der
+Platte lagen aber nur der beste und die beiden jüngsten: `transformers`
+räumt nach `save_total_limit` die ältesten weg und schont nur den besten. Mit
+Early Stopping sind die jüngsten die, nach denen die Geduld aufgebraucht war -
+die am stärksten überangepassten. Das galt für jeden Lauf mit Checkpoint-Mittel
+bis zum 29. September, auch für beide in Abschnitt 2 und alle in Abschnitt 3.
+
+Ab dem 30. September behält der Trainer nach jedem Sichern die besten nach
+der Steuergröße (`abschluss.aufraeumer`). Läufe davor und danach sind im
+Checkpoint-Mittel darum nicht unmittelbar vergleichbar; Vergleiche innerhalb
+dieses Berichts bleiben es, weil beide Seiten dieselbe Auswahl hatten.

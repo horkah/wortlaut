@@ -396,7 +396,9 @@ Sichern:
   also die B-Matrizen skaliert. Die Mittelung ist bei LoRA eine Näherung, weil
   B·A in B und A nicht linear ist.
 * **Wer mittelt, hebt mehr Zwischenstände auf**, dafür ohne Optimierer
-  (`save_only_model`) - ein Lauf wird nie fortgesetzt.
+  (`save_only_model`) - ein Lauf wird nie fortgesetzt. Nach jedem Sichern
+  bleiben die besten nach der Steuergröße (`abschluss.aufraeumer`), nicht die
+  jüngsten: Die sind nach dem Early Stopping die am stärksten überangepassten.
 * **Das Endmodell wählt nicht**: Es mittelt die Faltungen samt ihrem α; die
   Tafel zeigt den Median (`endmodell.py`).
 * Ohne Validierungsproben fällt der Abschluss auf `bester` zurück.
