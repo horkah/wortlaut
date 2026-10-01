@@ -315,7 +315,7 @@ export type Modelluebersicht = {
   masse: Mass[];
   fassungen: Fassung[];
   freigegeben: string;
-  testaufnahmen: number;
+  messaufnahmen: number;
   gemeinsame_einheiten: number;
   /** `false` heißt: Die Zahlen stehen nicht auf demselben Boden. */
   vergleichbar: boolean;
