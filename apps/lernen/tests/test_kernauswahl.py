@@ -256,7 +256,9 @@ class TestNachmessen:
 
         # Wie viele, steht trotzdem schon da - auch in der Übersicht.
         assert lauf["kern_aufnahmen"] == anzahl
-        assert lauf["kern_proben"] == lauf["zeilen"]["gesamt"] * anzahl // len(aufnahmen)
+        # Nur Originale, je Aufnahme eine Trainingsprobe - geschätzt, bis gewählt ist.
+        assert lauf["trainingsproben"] == anzahl
+        assert lauf["trainingsproben_geschaetzt"] is True
         assert lauf["kern_offen"] == 1
         steckbrief = klient.get(f"/lernen/api/laeufe/{lauf['job_id']}").json()["steckbrief"]
         zeile = next(zeile for zeile in steckbrief if zeile["begriff"] == "Auswahl")

@@ -104,6 +104,22 @@ class TestMessenNurVorlagen:
         assert mess == []
         assert {kennung for kennung, _ in self._kennungen(lern)} == {"rec_a", "rec_k", "rec_b"}
 
+    def test_der_umfang_zaehlt_training_und_messung_getrennt(self, tmp_path: Path) -> None:
+        self._manifest(tmp_path)
+        umfang = laeufe.umfang(tmp_path, {"daten": laeufe.NUR_ORIGINAL})
+        assert umfang is not None
+        # Gelernt nur die Originale, die Korrektur eingeschlossen.
+        assert umfang.lernen == {"vorlage": 2, "korrektur": 1}
+        assert umfang.lernproben == 3
+        assert umfang.lern_fassungen == ("original",)
+        # Gemessen jede Fassung, aber nur an Vorlagen.
+        assert (umfang.messen, umfang.mess_aufnahmen) == (3, 2)
+        assert umfang.mess_fassungen == ("original", "rauschen")
+
+    def test_beim_kern_vor_der_wahl_kein_umfang(self, tmp_path: Path) -> None:
+        self._manifest(tmp_path)
+        assert laeufe.umfang(tmp_path, {"auswahl": laeufe.AUSWAHL_KERN}) is None
+
 
 class TestWarteschlange:
     def test_ohne_zustand_ist_ein_auftrag_offen(self, tmp_path: Path) -> None:
