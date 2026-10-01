@@ -18,10 +18,9 @@
     beiStimmenAenderung,
     entsperreVorlesen,
     istServestimme,
+    liesVor,
     SERVE_PRAEFIX,
     holeServestimmen,
-    spieleVor,
-    sprich,
     stimmen,
     stimmeNachUri,
     stimmprobe,
@@ -118,23 +117,16 @@
     istServestimme(einstellungen.stimmeUri) ? einstellungen.stimmeUri : gewaehlt?.voiceURI,
   );
 
+  /** Derselbe Weg wie beim Vorlesen in den Apps (`liesVor`), nur mit dem Probesatz. */
   async function probe() {
     fehler = '';
-    entsperreVorlesen(); // noch im Tippen, vor dem Holen der Datei
-    if (serveGewaehlt) {
-      let url: string | null = null;
-      try {
-        url = URL.createObjectURL(await stimmprobe(serveGewaehlt.schluessel));
-        await spieleVor(url, einstellungen.tempo);
-        return;
-      } catch {
-        fehler = 'Diese Stimme spricht gerade nicht - der Browser übernimmt.';
-      } finally {
-        if (url) URL.revokeObjectURL(url);
-      }
-    }
+    entsperreVorlesen(einstellungen.stimmeUri);
     try {
-      await sprich(PROBE, { stimme: gewaehlt, tempo: einstellungen.tempo });
+      await liesVor(
+        PROBE,
+        { stimmeUri: einstellungen.stimmeUri, sprache, tempo: einstellungen.tempo },
+        stimmprobe,
+      );
     } catch (ursache) {
       fehler = ursache instanceof Error ? ursache.message : String(ursache);
     }
@@ -220,7 +212,8 @@
 <p class="gedaempft">
   Wer den Text nicht sicher lesen kann, hört so den Fehler, statt ihn zu suchen. Unterwegs ist ein
   Telefon, das von selbst zu sprechen anfängt, manchmal das Gegenteil - dann hier abschalten und im
-  Text auf „▶ Vorlesen" drücken, wenn es passt.
+  Text auf „▶ Vorlesen" drücken, wenn es passt. Von selbst liest nur eine Stimme vom Server; eine
+  Gerätestimme liest auf Tippen.
 </p>
 
 <div class="reihe">

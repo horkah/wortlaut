@@ -14,7 +14,13 @@
   import Recorder from '$ui/Recorder.svelte';
   import SegmentList from '$ui/SegmentList.svelte';
   import { einstellungen } from '$ui/einstellungen.svelte';
-  import { brichAllesAb, entsperreVorlesen, liesVor, stimmeVerfuegbar } from '$ui/speak';
+  import {
+    brichAllesAb,
+    entsperreVorlesen,
+    istServestimme,
+    liesVor,
+    stimmeVerfuegbar,
+  } from '$ui/speak';
   import { kannTeilen, teile } from '$ui/teilen';
   import { inDieZwischenablage } from '$ui/zwischenablage';
   import {
@@ -104,7 +110,7 @@
 
   /** Der Knopf: Er ist ein Tippen und schaltet damit das Vorlesen frei (`speak.ts`). */
   function tippeVorlesen() {
-    if (!liest) entsperreVorlesen();
+    if (!liest) entsperreVorlesen(einstellungen.stimmeUri);
     lies();
   }
 
@@ -221,11 +227,11 @@
   // Leuten, ist ein Telefon, das von selbst zu sprechen anfängt, der Grund,
   // es wegzulegen. Der Knopf „▶ Vorlesen" oben bleibt davon unberührt; er ist
   // die Handlung, das hier ist die Gewohnheit dahinter.
-  if (
-    einstellungen.liestVonSelbst &&
-    stimmeVerfuegbar(lage.sprache, einstellungen.stimmeUri) &&
-    !bestaetigt
-  )
+  //
+  // Nur mit einer Stimme vom Server: Die Gerätestimme spricht auf dem iPhone
+  // nur aus einem Tippen heraus, und dieses Vorlesen beginnt Sekunden nach dem
+  // letzten. Mit ihr bleibt es beim Knopf.
+  if (einstellungen.liestVonSelbst && istServestimme(einstellungen.stimmeUri) && !bestaetigt)
     lies();
 </script>
 
