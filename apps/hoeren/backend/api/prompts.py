@@ -136,11 +136,7 @@ def hoerprobe(
     Sprechers.
     """
     konfiguration = einstellungen()
-    bekannt = {
-        eintrag.schluessel
-        for eintrag in vorlesen.stimmen(konfiguration.stimmen_dir, konfiguration.vorlesen_motor)
-    }
-    if stimme not in bekannt:
+    if not vorlesen.bietet(konfiguration.stimmen_dir, konfiguration.vorlesen_motor, stimme):
         raise HTTPException(status_code=404, detail="Diese Stimme steht hier nicht zur Wahl.")
 
     blob = vorlesen.stelle_probe_her(
@@ -169,11 +165,7 @@ def hoere_vorlage(
         raise HTTPException(status_code=404, detail="Unbekannte Vorlage")
 
     konfiguration = einstellungen()
-    bekannt = {
-        eintrag.schluessel
-        for eintrag in vorlesen.stimmen(konfiguration.stimmen_dir, konfiguration.vorlesen_motor)
-    }
-    if stimme not in bekannt:
+    if not vorlesen.bietet(konfiguration.stimmen_dir, konfiguration.vorlesen_motor, stimme):
         raise HTTPException(status_code=404, detail="Diese Stimme steht hier nicht zur Wahl.")
 
     blob = vorlesen.stelle_her(

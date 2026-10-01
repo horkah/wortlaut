@@ -11,16 +11,7 @@
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import PromptView from '$ui/PromptView.svelte';
   import Recorder from '$ui/Recorder.svelte';
-  import {
-    brichAllesAb,
-    istServestimme,
-    serveSchluessel,
-    spieleVor,
-    sprich,
-    stimmeNachUri,
-    stimmen,
-    stimmeVerfuegbar,
-  } from '$ui/speak';
+  import { brichAllesAb, liesVor, stimmeVerfuegbar } from '$ui/speak';
   import {
     aufnahmeSenden,
     aufnahmeVerwerfen,
@@ -85,41 +76,17 @@
     abspielUrl = null;
   }
 
-  /**
-   * Den Satz vorlesen - vom Server, sonst vom Browser.
-   *
-   * Der Rückfall ist stumm und das mit Absicht: Wer einen Satz nachsprechen
-   * will, soll ihn hören und keine Fehlermeldung lesen. Ob die Servestimme
-   * fehlt, Piper nicht installiert ist oder die Datei einmal nicht kommt -
-   * der Unterschied ändert für den Menschen davor nichts.
-   */
+  /** Den Satz vorlesen - vom Server, sonst vom Browser (`$ui/speak`). */
   async function vorlesen() {
     if (!ausschnitt?.aktuell) return;
     nachgesprochen = true; // schon der Versuch verändert die Sprechweise
     const vorlage = ausschnitt.aktuell;
-
-    if (istServestimme(einstellungen.stimmeUri)) {
-      let url: string | null = null;
-      try {
-        const inhalt = await vorlageVorgelesen(
-          vorlage.id,
-          serveSchluessel(einstellungen.stimmeUri!),
-        );
-        url = URL.createObjectURL(inhalt);
-        await spieleVor(url, einstellungen.tempo);
-        return;
-      } catch {
-        // Weiter unten mit der Browserstimme.
-      } finally {
-        if (url) URL.revokeObjectURL(url);
-      }
-    }
-
     try {
-      await sprich(vorlage.text, {
-        stimme: stimmeNachUri(einstellungen.stimmeUri, stimmen(lage.sprache)),
-        tempo: einstellungen.tempo,
-      });
+      await liesVor(
+        vorlage.text,
+        { stimmeUri: einstellungen.stimmeUri, sprache: lage.sprache, tempo: einstellungen.tempo },
+        (stimme) => vorlageVorgelesen(vorlage.id, stimme),
+      );
     } catch (ursache) {
       fehler = ursache instanceof Error ? ursache.message : String(ursache);
     }
@@ -192,7 +159,7 @@
     schriftRem={einstellungen.schriftRem}
   />
 
-  {#if stimmeVerfuegbar(lage.sprache)}
+  {#if stimmeVerfuegbar(lage.sprache, einstellungen.stimmeUri)}
     <div class="reihe" style="justify-content:center">
       <button class="knopf" onclick={vorlesen} disabled={stand === 'sendet'}>
         ▶ Vorsprechen lassen

@@ -61,7 +61,7 @@ export type PostausgangStand = { offen: number; gesendet: number; letzter_fehler
  */
 const API = `${import.meta.env.BASE_URL}api`;
 
-const { anfrage } = api(API);
+const { anfrage, hole } = api(API);
 
 /** Aufnahmen gehen immer als Formulardatei; die Umwandlung macht der Server. */
 function alsFormular(aufnahme: Blob): RequestInit {
@@ -83,6 +83,12 @@ export const abschnittNeuSprechen = (abschnitt: string, aufnahme: Blob) =>
   anfrage<Sitzung>(`/segments/${abschnitt}/neu`, alsFormular(aufnahme));
 
 export const abschnittAudioUrl = (abschnitt: string) => `${API}/segments/${abschnitt}/audio`;
+
+/** Den Text eines Abschnitts in einer Stimme des Servers (`$ui/speak` `liesVor`). */
+export const abschnittVorgelesen = async (abschnitt: string, stimme: string) =>
+  (
+    await hole(`/segments/${abschnitt}/vorlesung?stimme=${encodeURIComponent(stimme)}`)
+  ).blob();
 
 // ── Abschließen ─────────────────────────────────────────────────────────────
 

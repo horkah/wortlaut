@@ -26,6 +26,7 @@ from ..db.models import Vorlage
 # Durchgereicht, damit der Rest der App eine Adresse für diese Begriffe hat.
 Stimme = klangwandel.Stimme
 VorlesenFehler = klangwandel.VorlesenFehler
+bietet = klangwandel.bietet
 
 
 def relpfad(vorlage: Vorlage, stimme: str) -> str:

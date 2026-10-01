@@ -11,11 +11,15 @@ andere Anfrage auf.
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from wortlaut import audio as klang
+from wortlaut import vorlesen
 
 from ..config import einstellungen
 from ..db.models import Abschnitt, jetzt
@@ -132,6 +136,38 @@ def hoere_ab(abschnitt_id: str, db: Datenbank, ablage: Ablage) -> FileResponse:
     if abschnitt.blob is None:
         raise HTTPException(status_code=404, detail="Aufnahme ist bereits übergeben.")
     return FileResponse(ablage.pfad(abschnitt.blob), media_type="audio/wav")
+
+
+@router.get("/api/segments/{abschnitt_id}/vorlesung")
+async def lies_vor(abschnitt_id: str, stimme: str, db: Datenbank) -> Response:
+    """Den Text dieses Abschnitts in einer Stimme des Servers - Gegenlesen mit dem Ohr.
+
+    Vorgelesen wird nur, was im eigenen Diktat steht, nie ein mitgeschickter
+    Text. Gerechnet bei jeder Anfrage und nirgends abgelegt: Ein Abschnitt
+    ändert sich mit jedem Nachsprechen, und Piper braucht für einen Satz einen
+    Bruchteil einer Sekunde. 404 heißt: nimm die Browserstimme
+    (`packages/ui/speak.ts`).
+    """
+    abschnitt = _hole_abschnitt(db, abschnitt_id)
+    text = abschnitt.text.strip()
+    konfiguration = einstellungen()
+    if not vorlesen.bietet(konfiguration.stimmen_dir, konfiguration.vorlesen_motor, stimme):
+        raise HTTPException(status_code=404, detail="Diese Stimme steht hier nicht zur Wahl.")
+    if not text:
+        raise HTTPException(status_code=404, detail="Dieser Abschnitt hat keinen Text.")
+
+    def rechne() -> bytes:
+        with tempfile.TemporaryDirectory() as zwischen:
+            ziel = Path(zwischen) / "vorlesung.wav"
+            motor = vorlesen.motor_fuer(konfiguration.stimmen_dir, konfiguration.vorlesen_motor)
+            motor.sprich(text, stimme, ziel)
+            return ziel.read_bytes()
+
+    try:
+        inhalt = await run_in_threadpool(rechne)
+    except vorlesen.VorlesenFehler as fehler:
+        raise HTTPException(status_code=404, detail=str(fehler)) from fehler
+    return Response(content=inhalt, media_type="audio/wav", headers={"Cache-Control": "no-store"})
 
 
 def _hole_abschnitt(db: Session, abschnitt_id: str) -> Abschnitt:

@@ -62,7 +62,9 @@ Die Zielperson kann schlecht lesen und schreiben (Grundentscheidung 7):
   Reiterreihe bleibt leer.
 - **Vorgelesen wird von selbst**, mit mitlaufender Markierung - wer den Text
   nicht sicher liest, hört den Fehler. Ob von selbst vorgelesen wird, steht
-  unter „Audio"; „▶ Vorlesen" steht über dem Text.
+  unter „Audio"; „▶ Vorlesen" steht über dem Text. Gelesen wird in der
+  Stimme, die unter „Audio" gewählt ist - eine des Servers wie in `hören`
+  (`GET …/segments/{id}/vorlesung`), sonst die des Browsers.
 - **Nichts zu tippen.** Der Zugang kommt über den persönlichen Link, derselbe
   Eintrag wie in `hören`.
 - **Bearbeitet wird durch Sprechen.** „Text weitergeben" öffnet das
@@ -102,6 +104,7 @@ POST   /schreiben/api/sessions/{id}/segments        multipart: audio → Abschni
 POST   /schreiben/api/sessions/{id}/bestaetigen     → Postausgang, sofort senden
 POST   /schreiben/api/segments/{id}/neu             multipart: audio, ersetzt einen
 GET    /schreiben/api/segments/{id}/audio
+GET    /schreiben/api/segments/{id}/vorlesung?stimme=   der Text in einer Serverstimme; 404: Browser
 GET    /schreiben/api/model                         welches Modell geladen ist
 GET    /schreiben/api/outbox
 POST   /schreiben/api/outbox/senden                 noch einmal versuchen

@@ -160,3 +160,61 @@ class TestNeuEinsprechen:
     def test_kennt_den_abschnitt_nicht(self, klient: TestClient, aufnahme: dict) -> None:
         antwort = klient.post("/schreiben/api/segments/seg_gibtsnicht/neu", files=aufnahme)
         assert antwort.status_code == 404
+
+
+class TestVorlesen:
+    """Ein Abschnitt in einer Stimme des Servers - dieselben Stimmen wie in „hören"."""
+
+    @pytest.fixture
+    def stimme(self, monkeypatch: pytest.MonkeyPatch) -> list[str]:
+        """Eine Stimme, die spricht; gibt zurück, was sie sprechen musste."""
+        from wortlaut import vorlesen
+
+        gesprochen: list[str] = []
+
+        class Motor:
+            def sprich(self, text: str, stimme: str, ziel: Path) -> None:
+                gesprochen.append(text)
+                ziel.write_bytes(b"RIFF" + text.encode("utf-8"))
+
+        monkeypatch.setattr(
+            vorlesen,
+            "stimmen",
+            lambda verzeichnis, motor="piper": [
+                vorlesen.Stimme(schluessel="piper/de_DE-probe", name="Probe", erklaerung="", sprache="de")
+            ],
+        )
+        monkeypatch.setattr(vorlesen, "motor_fuer", lambda verzeichnis, motor="piper": Motor())
+        return gesprochen
+
+    def test_liest_den_text_des_abschnitts(
+        self, klient: TestClient, diktat: dict, stimme: list[str]
+    ) -> None:
+        kennung = diktat["abschnitte"][1]["id"]
+        antwort = klient.get(
+            f"/schreiben/api/segments/{kennung}/vorlesung?stimme=piper/de_DE-probe"
+        )
+        assert antwort.status_code == 200, antwort.text
+        assert antwort.headers["content-type"] == "audio/wav"
+        assert stimme == ["Mit wenig Milch."]
+
+    def test_eine_unbekannte_stimme_ist_vierhundertvier(
+        self, klient: TestClient, diktat: dict, stimme: list[str]
+    ) -> None:
+        kennung = diktat["abschnitte"][0]["id"]
+        antwort = klient.get(f"/schreiben/api/segments/{kennung}/vorlesung?stimme=piper/fremd")
+        assert antwort.status_code == 404
+        assert stimme == []
+
+    def test_ohne_stimmen_liest_der_browser(self, klient: TestClient, diktat: dict) -> None:
+        kennung = diktat["abschnitte"][0]["id"]
+        antwort = klient.get(
+            f"/schreiben/api/segments/{kennung}/vorlesung?stimme=piper/de_DE-thorsten-high"
+        )
+        assert antwort.status_code == 404
+
+    def test_ohne_zugang_nichts(self, klient_ohne_zugang: TestClient) -> None:
+        antwort = klient_ohne_zugang.get(
+            "/schreiben/api/segments/seg_gibtsnicht/vorlesung?stimme=piper/x"
+        )
+        assert antwort.status_code == 401
