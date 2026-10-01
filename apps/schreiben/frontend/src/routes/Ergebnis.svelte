@@ -18,7 +18,7 @@
   import { kannTeilen, teile } from '$ui/teilen';
   import { inDieZwischenablage } from '$ui/zwischenablage';
   import {
-    abschnittAudioUrl,
+    abschnittAudio,
     abschnittNeuSprechen,
     abschnittVorgelesen,
     bestaetigen,
@@ -49,6 +49,31 @@
   const bestaetigt = $derived(sitzung?.status === 'bestaetigt');
   const ganzerText = $derived(abschnitte.map((a) => a.text).join(' '));
   const bearbeitet = $derived(abschnitte.find((a) => a.id === bearbeitetId) ?? null);
+
+  // Die eigene Aufnahme des offenen Abschnitts, mit Zugang geholt
+  // (`abschnittAudio`) und im Browser abgespielt. Neu geholt, sobald der
+  // Abschnitt neu eingesprochen ist - dann ist er ein neues Objekt.
+  let aufnahmeUrl = $state<string | null>(null);
+  $effect(() => {
+    const abschnitt = bearbeitet?.hat_audio ? bearbeitet : null;
+    if (!abschnitt) return;
+    let url: string | null = null;
+    let vorbei = false;
+    abschnittAudio(abschnitt.id)
+      .then((inhalt) => {
+        if (vorbei) return;
+        url = URL.createObjectURL(inhalt);
+        aufnahmeUrl = url;
+      })
+      .catch(() => {
+        // Ohne Aufnahme fehlt nur der Abspieler; neu sprechen geht trotzdem.
+      });
+    return () => {
+      vorbei = true;
+      if (url) URL.revokeObjectURL(url);
+      aufnahmeUrl = null;
+    };
+  });
 
   // ── Vorlesen ──────────────────────────────────────────────────────────────
 
@@ -217,9 +242,7 @@
   <div class="karte">
     <p class="gedaempft">Diesen Abschnitt noch einmal sprechen:</p>
     <p class="satz" style="font-size:{einstellungen.schriftRem}rem">{bearbeitet.text}</p>
-    {#if bearbeitet.hat_audio}
-      <AudioPlayer quelle={abschnittAudioUrl(bearbeitet.id)} beschriftung="So klang es" />
-    {/if}
+    <AudioPlayer quelle={aufnahmeUrl} beschriftung="So klang es" />
     <div class="mitte">
       <Recorder
         onaufnahme={ersetze}

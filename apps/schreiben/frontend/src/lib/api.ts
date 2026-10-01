@@ -56,8 +56,7 @@ export type PostausgangStand = { offen: number; gesendet: number; letzter_fehler
  * `BASE_URL` ist das `base` aus der Vite-Konfiguration (`/schreiben/`) - so
  * steht der Ort an einer Stelle und nicht zweimal. Wie eine Anfrage hinausgeht
  * und wie ein Fehlschlag aussieht, steht in `$ui/api` - einmal für alle drei
- * Apps. Der Ort bleibt trotzdem als Wert stehen: `abschnittAudioUrl` gibt eine
- * Adresse heraus und stellt keine Anfrage.
+ * Apps.
  */
 const API = `${import.meta.env.BASE_URL}api`;
 
@@ -82,7 +81,12 @@ export const diktieren = (sitzung: string, aufnahme: Blob) =>
 export const abschnittNeuSprechen = (abschnitt: string, aufnahme: Blob) =>
   anfrage<Sitzung>(`/segments/${abschnitt}/neu`, alsFormular(aufnahme));
 
-export const abschnittAudioUrl = (abschnitt: string) => `${API}/segments/${abschnitt}/audio`;
+/**
+ * Die eigene Aufnahme eines Abschnitts - geholt mit Zugang. Als bloße Adresse
+ * in einem `<audio src>` ginge die Anfrage ohne Zugang hinaus und bekäme 401.
+ */
+export const abschnittAudio = async (abschnitt: string) =>
+  (await hole(`/segments/${abschnitt}/audio`)).blob();
 
 /** Den Text eines Abschnitts in einer Stimme des Servers (`$ui/speak` `liesVor`). */
 export const abschnittVorgelesen = async (abschnitt: string, stimme: string) =>
