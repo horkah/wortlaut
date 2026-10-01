@@ -146,6 +146,28 @@ export function sprich(text: string, wie: Sprechweise = {}): Promise<void> {
   });
 }
 
+/**
+ * Die Sprachausgabe freischalten, solange ein Tippen im Gang ist.
+ *
+ * Safari auf dem iPhone spricht erst, nachdem die Seite einmal aus einem
+ * Tippen heraus `speak()` gerufen hat; ein `speak()` ohne Tippen davor
+ * scheitert mit `not-allowed`. Das trifft das Vorlesen von selbst in
+ * „schreiben": Es beginnt, wenn der Text vom Server kommt, Sekunden nach dem
+ * letzten Tippen. Eine stumme, leere Äußerung beim Tippen auf „● Aufnehmen"
+ * genügt, und danach darf die Seite sprechen, solange sie offen ist.
+ *
+ * Eine Datei vom Server braucht das nicht - sie spielt, weil die Seite eben
+ * noch das Mikrofon offen hatte.
+ */
+export function entsperreVorlesen(): void {
+  if (!('speechSynthesis' in window)) return;
+  const synth = window.speechSynthesis;
+  if (synth.speaking || synth.pending) return;
+  const stumm = new SpeechSynthesisUtterance('');
+  stumm.volume = 0;
+  synth.speak(stumm);
+}
+
 export function brichVorlesenAb(): void {
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 }

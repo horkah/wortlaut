@@ -10,6 +10,7 @@
 
   let {
     onaufnahme,
+    ontippen,
     deaktiviert = false,
     geraeteId = null,
     verstaerkung = 1,
@@ -17,6 +18,11 @@
   }: {
     /** Wird mit der fertigen Aufnahme aufgerufen. */
     onaufnahme: (aufnahme: Blob) => void;
+    /**
+     * Läuft bei jedem Tippen auf den Knopf, noch im Tippen selbst - für das, was
+     * der Browser nur dort erlaubt (`entsperreVorlesen` in `speak.ts`).
+     */
+    ontippen?: () => void;
     deaktiviert?: boolean;
     /** Gewähltes Mikrofon; `null` heißt: was der Browser vorschlägt. */
     geraeteId?: string | null;
@@ -69,7 +75,11 @@
     class="knopf gross"
     class:laeuft
     disabled={deaktiviert}
-    onclick={() => (laeuft ? stoppe() : starte())}
+    onclick={() => {
+      ontippen?.();
+      if (laeuft) stoppe();
+      else starte();
+    }}
   >
     {laeuft ? `■ Fertig (${sekunden}s)` : '● Aufnehmen'}
   </button>
