@@ -88,6 +88,21 @@ export function beiStimmenAenderung(anhoerer: () => void): () => void {
   return () => window.speechSynthesis.removeEventListener('voiceschanged', anhoerer);
 }
 
+/**
+ * Die Äußerung, die gerade spricht - festgehalten, weil WebKit eine, an der
+ * nur noch die Sprachausgabe hängt, mitten im Satz wegräumt: Dann kommt nie
+ * ein `end`, und wer abschnittweise vorliest, wartet für immer.
+ */
+let aeussernd: SpeechSynthesisUtterance | null = null;
+
+/**
+ * Fehler, nach denen eine ausdrücklich gewählte Stimme schuld ist. iOS führt
+ * Stimmen in `getVoices()`, die auf dem Gerät gar nicht geladen sind; gewählt,
+ * scheitern sie mit `synthesis-failed`. Ohne `voice` nimmt das System die
+ * Stimme dieser Sprache, die es hat.
+ */
+const STIMME_SCHULD = new Set(['synthesis-failed', 'synthesis-unavailable', 'voice-unavailable']);
+
 /** Spricht den Text und löst auf, wenn er zu Ende ist. */
 export function sprich(text: string, wie: Sprechweise = {}): Promise<void> {
   return new Promise((fertig, fehler) => {
@@ -95,19 +110,39 @@ export function sprich(text: string, wie: Sprechweise = {}): Promise<void> {
       fehler(new Error('Dieser Browser kann nicht vorlesen.'));
       return;
     }
-    window.speechSynthesis.cancel(); // eine Äußerung nach der anderen
+    const synth = window.speechSynthesis;
+    // Eine Äußerung nach der anderen - aber nur abbrechen, was läuft: Safari
+    // auf dem iPhone verschluckt eine Äußerung, die direkt nach einem
+    // `cancel()` ins Leere kommt.
+    if (synth.speaking || synth.pending) synth.cancel();
 
-    const aeusserung = new SpeechSynthesisUtterance(text);
-    // Die Sprache der gewählten Stimme schlägt die angefragte: Wer eine Stimme
-    // nennt, hat sie ausgesucht. Ohne beides spricht der Browser in seiner
-    // eigenen Vorgabe - eine Sprache zu erfinden wäre schlechter als keine.
-    const lang = wie.stimme?.lang ?? wie.sprache;
-    if (lang) aeusserung.lang = lang;
-    if (wie.stimme) aeusserung.voice = wie.stimme;
-    aeusserung.rate = wie.tempo ?? TEMPO_VORGABE;
-    aeusserung.onend = () => fertig();
-    aeusserung.onerror = () => fehler(new Error('Vorlesen ist fehlgeschlagen.'));
-    window.speechSynthesis.speak(aeusserung);
+    const versuche = (stimme: SpeechSynthesisVoice | null) => {
+      const aeusserung = new SpeechSynthesisUtterance(text);
+      // Die Sprache der gewählten Stimme schlägt die angefragte: Wer eine
+      // Stimme nennt, hat sie ausgesucht. Ohne beides spricht der Browser in
+      // seiner eigenen Vorgabe - eine Sprache zu erfinden wäre schlechter als
+      // keine.
+      const lang = wie.stimme?.lang ?? wie.sprache;
+      if (lang) aeusserung.lang = lang;
+      if (stimme) aeusserung.voice = stimme;
+      aeusserung.rate = wie.tempo ?? TEMPO_VORGABE;
+      aeusserung.onend = () => {
+        if (aeussernd === aeusserung) aeussernd = null;
+        fertig();
+      };
+      aeusserung.onerror = (ereignis) => {
+        if (aeussernd === aeusserung) aeussernd = null;
+        // Angehalten ist auch fertig, wie bei `spieleVor`.
+        if (ereignis.error === 'interrupted' || ereignis.error === 'canceled') fertig();
+        else if (stimme && STIMME_SCHULD.has(ereignis.error)) versuche(null);
+        else if (ereignis.error === 'not-allowed')
+          fehler(new Error('Der Browser liest erst nach einem Tippen vor - bitte „▶ Vorlesen".'));
+        else fehler(new Error(`Vorlesen ist fehlgeschlagen (${ereignis.error}).`));
+      };
+      aeussernd = aeusserung;
+      synth.speak(aeusserung);
+    };
+    versuche(wie.stimme ?? null);
   });
 }
 
