@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from wortlaut import corpus
 
 from apps.lernen.backend.main import app as lernen_app
+from apps.lernen.tests.conftest import TRAINERSCHLUESSEL
 
 
 @pytest.fixture
@@ -147,5 +148,9 @@ class TestLoeschenBleibtBeimEigenen:
             "/lernen/api/laeufe", json={"methode": "lora", "daten": "original"}
         ).json()["job_id"]
 
-        assert fremder.delete(f"/lernen/api/laeufe/{meiner}").status_code == 404
+        # Mit Trainerschlüssel - sonst endete es schon vor der Frage, wem er gehört.
+        antwort = fremder.delete(
+            f"/lernen/api/laeufe/{meiner}", headers={"X-Trainer-Key": TRAINERSCHLUESSEL}
+        )
+        assert antwort.status_code == 404
         assert klient.get(f"/lernen/api/laeufe/{meiner}").status_code == 200

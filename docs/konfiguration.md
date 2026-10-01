@@ -87,7 +87,7 @@ die nächste Textquelle wartet dafür einige Sekunden aufs Laden.
 
 | Variable | Vorgabe | Was sie tut |
 |---|---|---|
-| `WORTLAUT_TRAINER_KEY` | leer | Kopfzeile `X-Trainer-Key` vor Beauftragen und Neustart. Leer = hier trainiert niemand |
+| `WORTLAUT_TRAINER_KEY` | leer | Kopfzeile `X-Trainer-Key` vor Beauftragen, Neustart und Löschen eines Laufs. Leer = hier trainiert niemand |
 | `WORTLAUT_LERNEN_BASISMODELL` | `openai/whisper-small` | die Vorgabe, worauf trainiert wird |
 | `WORTLAUT_LERNEN_GRUNDMODELLE` | `openai/whisper-small,openai/whisper-medium,openai/whisper-large-v3` | was zur Wahl steht; jedes auch in `WORTLAUT_AUSWERTUNG_MODELLE`, sonst fehlt seine Baseline. Welche Methode je Modell geht, entscheidet die Karte (`wortlaut/kartenplan.py`) |
 | `WORTLAUT_LERNEN_GERAET` | `cuda` | worauf **trainiert** wird; auf dem Prozessor dauert es Tage. Anders als beim Erkennen gibt es kein Ausweichen |

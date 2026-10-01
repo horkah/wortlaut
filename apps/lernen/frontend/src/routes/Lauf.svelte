@@ -20,7 +20,7 @@
   import type { Diagramm } from '../lib/diagramm';
   import { lauf as ladeLauf, type Laufeinzeln } from '../lib/api';
   import Papierkorb from '../lib/Papierkorb.svelte';
-  import { loescheNachRueckfrage } from '../lib/laufloeschen';
+  import { darfLoeschen, loescheNachRueckfrage } from '../lib/laufloeschen';
   import { gehZu, lage, laufAusRoute } from '../lib/zustand.svelte';
 
   // Die Kennung steht in der Adresse (`LAUF_ROUTE`) - von dort und nicht als
@@ -256,7 +256,7 @@
 
   /**
    * Der Papierkorb für jeden Lauf, auch den fertigen - „Training" zeigt
-   * fertige nicht, die Modelltafel hat keinen.
+   * fertige nicht, die Modelltafel hat keinen. Nur mit Trainerschlüssel.
    */
   async function loesche() {
     if (!lauf) return;
@@ -326,12 +326,14 @@
       {#if lauf.kennung}<code class="kennung">{lauf.kennung}</code>{/if}
       <span class="optionscode">{lauf.code}</span>
     </h2>
-    <Papierkorb
-      title={lauf.loeschbar ? 'Diesen Lauf löschen' : 'Ein rechnender Lauf lässt sich nicht löschen'}
-      label="Lauf {lauf.code} löschen"
-      disabled={!lauf.loeschbar || loescht}
-      onclick={loesche}
-    />
+    {#if darfLoeschen()}
+      <Papierkorb
+        title={lauf.loeschbar ? 'Diesen Lauf löschen' : 'Ein rechnender Lauf lässt sich nicht löschen'}
+        label="Lauf {lauf.code} löschen"
+        disabled={!lauf.loeschbar || loescht}
+        onclick={loesche}
+      />
+    {/if}
   </div>
 
   <!-- Der Steckbrief: **jede** Achse, auch die auf Vorgabe - der Code in der

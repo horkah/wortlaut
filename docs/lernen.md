@@ -316,10 +316,12 @@ trainiert wurde". Von selbst angestoßen wird nichts: Ein Lauf belegt die Karte
 und friert einen Stand des Korpus ein, und das soll jemand entscheiden.
 
 **Beauftragen verlangt den Trainerschlüssel.** Er steht in einem Feld über den
-Wahlen und geht als `X-Trainer-Key` nur mit dem Auftrag und dem Neustart
-hinaus; ein Schlüssel, der funktioniert hat, bleibt im Browser. Ist
+Wahlen und geht als `X-Trainer-Key` nur mit dem Auftrag, dem Neustart und dem
+Löschen hinaus; ein Schlüssel, der funktioniert hat, bleibt im Browser. Ist
 `WORTLAUT_TRAINER_KEY` leer, sagt die Ansicht das und zeigt keine Wahl.
-Zusehen, anhalten, löschen und freigeben verlangen ihn nie.
+**Löschen ebenso nur mit ihm:** Wer trainieren darf, darf auch wegwerfen. Ohne
+eingetragenen Schlüssel zeigt keine Ansicht einen Papierkorb. Zusehen,
+anhalten und freigeben verlangen ihn nie.
 
 **Anhalten.** Ein wartender Lauf wird sofort zurückgenommen. Bei einem
 rechnenden legt die Ansicht `halt` ins Laufverzeichnis; der Läufer schickt dem
@@ -458,7 +460,7 @@ POST   /lernen/api/laeufe                   beauftragen                    + X-T
 GET    /lernen/api/laeufe/{id}              Steckbrief, Kurven, Vergleich, Protokoll
 POST   /lernen/api/laeufe/{id}/abbruch      anhalten
 POST   /lernen/api/laeufe/{id}/neustart     neu starten, ersetzt ihn     + X-Trainer-Key
-DELETE /lernen/api/laeufe/{id}              löschen, samt Stand
+DELETE /lernen/api/laeufe/{id}              löschen, samt Stand          + X-Trainer-Key
 GET    /lernen/api/modelle                  die Tafel
                                             ?intervall=aus|aufnahme&vergleich_mit=<ref>
 POST   /lernen/api/modelle/freigabe         { ref } - leer nimmt die Freigabe zurück

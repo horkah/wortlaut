@@ -430,10 +430,10 @@ export const starteNeu = (jobId: string, schluessel: string) =>
   });
 
 /** Einen Lauf ersatzlos entfernen - samt dem Modell, das aus ihm entstand. */
-export const loescheLauf = (jobId: string) =>
+export const loescheLauf = (jobId: string, schluessel: string) =>
   anfrage<{ job_id: string; version: string; war_freigegeben: boolean }>(
     `/laeufe/${jobId}`,
-    { method: 'DELETE' },
+    { method: 'DELETE', headers: { 'X-Trainer-Key': schluessel } },
   );
 
 /**

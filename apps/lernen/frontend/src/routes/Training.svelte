@@ -24,7 +24,7 @@
     type Wahl,
   } from '../lib/api';
   import Papierkorb from '../lib/Papierkorb.svelte';
-  import { loescheNachRueckfrage } from '../lib/laufloeschen';
+  import { darfLoeschen, loescheNachRueckfrage } from '../lib/laufloeschen';
   import { setzeTrainerschluessel, trainerschluessel } from '$ui/trainerschluessel.svelte';
   import { setzeTrainingswahl, trainingswahl } from '../lib/trainingswahl';
   import { LAUF_ROUTE, gehZu } from '../lib/zustand.svelte';
@@ -502,15 +502,17 @@
             <!-- Der Papierkorb sitzt in der Kopfzeile der Karte und nicht bei
                  den Knöpfen darunter: Dort stehen die Wege weiter, hier der
                  eine Weg hinaus. Beschriftet für Vorlesestimmen, denn ein
-                 Sinnbild allein sagt nichts. -->
-            <Papierkorb
-              title={lauf.loeschbar
-                ? 'Diesen Lauf löschen'
-                : 'Ein rechnender Lauf lässt sich nicht löschen'}
-              label="Lauf {lauf.code} löschen"
-              disabled={!lauf.loeschbar || loescht === lauf.job_id}
-              onclick={() => loesche(lauf)}
-            />
+                 Sinnbild allein sagt nichts. Nur mit Trainerschlüssel. -->
+            {#if darfLoeschen()}
+              <Papierkorb
+                title={lauf.loeschbar
+                  ? 'Diesen Lauf löschen'
+                  : 'Ein rechnender Lauf lässt sich nicht löschen'}
+                label="Lauf {lauf.code} löschen"
+                disabled={!lauf.loeschbar || loescht === lauf.job_id}
+                onclick={() => loesche(lauf)}
+              />
+            {/if}
           </span>
         </div>
 

@@ -4,8 +4,8 @@
  * Der Zugang eines Sprechers sagt, wessen Modell entsteht; er liegt in
  * `zugang.ts` und geht an jede Anfrage. Dieser Schlüssel beantwortet eine
  * andere Frage - ob jemand die Karte für Stunden belegen darf - und geht
- * deshalb nur an die Wege, die er öffnet: `POST /lernen/api/laeufe` und das
- * Fehlerprotokoll (`GET /api/fehlerlog`).
+ * deshalb nur an die Wege, die er öffnet: `POST /lernen/api/laeufe`, das
+ * Löschen eines Laufs und das Fehlerprotokoll (`GET /api/fehlerlog`).
  *
  * Im `localStorage`, weil in Sitzungen trainiert wird und ein jedes Mal
  * leeres Feld in einer Textdatei landet. Unter eigenem Namen, damit
