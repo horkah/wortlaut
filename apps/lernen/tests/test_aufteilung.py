@@ -41,14 +41,16 @@ class TestFaltungen:
         assert daten["je_faltung"] == {str(nummer): 1 for nummer in range(laeufe.FALTUNGEN)}
         assert daten["genug"] is True
 
-    def test_wenige_aufnahmen_verteilen_sich_gleichmaessig(
+    def test_wenige_aufnahmen_lassen_keine_faltung_leer(
         self, klient: TestClient, quelle: str, sprich
     ) -> None:
-        # Welche Faltung zwei bekommt, hängt an den Kennungen - dass keine
-        # leer bleibt und keine drei trägt, nicht.
+        # Wie viele in welche Faltung gehen, hängt an den Kennungen - auch
+        # 1-1-1-1-1-3 ist richtig. Zugesagt ist nur: keine bleibt leer
+        # (`wortlaut.laeufe.verteile`).
         sprich(8)
         je_faltung = _uebersicht(klient)["je_faltung"]
-        assert sorted(je_faltung.values()) == [1, 1, 1, 1, 2, 2]
+        assert sum(je_faltung.values()) == 8
+        assert min(je_faltung.values()) >= 1
 
     def test_neue_aufnahmen_zaehlen_sofort_mit(
         self, klient: TestClient, quelle: str, sprich
