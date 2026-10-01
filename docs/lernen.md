@@ -315,13 +315,16 @@ dazu, steht es da - „23 Aufnahmen sind dazugekommen, seit zuletzt etwas fertig
 trainiert wurde". Von selbst angestoßen wird nichts: Ein Lauf belegt die Karte
 und friert einen Stand des Korpus ein, und das soll jemand entscheiden.
 
-**Beauftragen verlangt den Trainerschlüssel.** Er steht in einem Feld über den
-Wahlen und geht als `X-Trainer-Key` nur mit dem Auftrag, dem Neustart und dem
-Löschen hinaus; ein Schlüssel, der funktioniert hat, bleibt im Browser. Ist
-`WORTLAUT_TRAINER_KEY` leer, sagt die Ansicht das und zeigt keine Wahl.
-**Löschen ebenso nur mit ihm:** Wer trainieren darf, darf auch wegwerfen. Ohne
-eingetragenen Schlüssel zeigt keine Ansicht einen Papierkorb. Zusehen,
-anhalten und freigeben verlangen ihn nie.
+**Beauftragen verlangt den Trainerschlüssel.** Eingetragen wird er unter
+„Zugangsdaten", wie der Bearbeitungsschlüssel, einmal für alle Apps
+(`packages/ui/schluessel.svelte.ts`). Er geht als `X-Trainer-Key` nur mit dem
+Auftrag, dem Neustart und dem Löschen hinaus - und mit der Auskunft
+`GET /api/zugang`, die sagt, ob er gilt. Danach richtet sich die Ansicht: Gilt
+er nicht, ist „Training beauftragen" gesperrt, und ein Satz verweist auf die
+Zugangsdaten. Ist `WORTLAUT_TRAINER_KEY` leer, sagt die Ansicht das und zeigt
+keine Wahl. **Löschen ebenso nur mit ihm:** Wer trainieren darf, darf auch
+wegwerfen. Solange der Server ihn nicht annimmt, zeigt keine Ansicht einen
+Papierkorb. Zusehen, anhalten und freigeben verlangen ihn nie.
 
 **Anhalten.** Ein wartender Lauf wird sofort zurückgenommen. Bei einem
 rechnenden legt die Ansicht `halt` ins Laufverzeichnis; der Läufer schickt dem

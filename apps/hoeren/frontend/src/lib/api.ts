@@ -12,6 +12,7 @@
  */
 
 import { alsJson, api } from '$ui/api';
+import { mitSchluessel } from '$ui/schluessel.svelte';
 // Wer der Server in diesem Browser sieht - die Form steht in `$ui/wer`, weil
 // alle drei Apps dieselbe Antwort lesen.
 import type { Wer } from '$ui/wer';
@@ -568,11 +569,8 @@ export const auswertungStoppen = () =>
 // den Bearbeitungsschlüssel als `X-Editor-Key` - dasselbe Muster wie der
 // Trainerschlüssel in „lernen", und aus demselben Grund: Der Zugang sagt,
 // wessen Aufnahmen das sind, nicht, wer in den Bestand greifen darf.
-//
-// `zuschnittStand` bleibt ausdrücklich ohne Schlüssel: Er beantwortet die
-// Frage, ob überhaupt nach einem gefragt werden soll.
-
-export type ZuschnittStand = { bereit: boolean; hinweis: string };
+// Eingetragen wird er unter „Zugangsdaten" (`$ui/schluessel.svelte`); ob er
+// gilt, steht in `lage.bearbeiten`.
 
 export type Zuschnittaufnahme = {
   id: string;
@@ -598,17 +596,14 @@ export type Zuschnittgrenze = { id: string; start_s: number; ende_s: number };
 
 export type Zuschnittergebnis = { geschrieben: number; fehler: Record<string, string> };
 
-function mitSchluessel(schluessel: string, weitere: HeadersInit = {}): RequestInit {
-  return { headers: { ...weitere, 'X-Editor-Key': schluessel } };
-}
+/** Die Köpfe des Zuschnitts: der Bearbeitungsschlüssel, beim Schreiben dazu JSON. */
+const bearbeitung = (json = false): HeadersInit =>
+  mitSchluessel(['bearbeitung'], json ? { 'Content-Type': 'application/json' } : {});
 
-export const zuschnittStand = () => anfrage<ZuschnittStand>('/zuschnitt/stand');
-
-export const zuschnittAufnahmen = (schluessel: string, ab = 0, anzahl = 10) =>
-  anfrage<Zuschnittseite>(
-    `/zuschnitt/aufnahmen?ab=${ab}&anzahl=${anzahl}`,
-    mitSchluessel(schluessel),
-  );
+export const zuschnittAufnahmen = (ab = 0, anzahl = 10) =>
+  anfrage<Zuschnittseite>(`/zuschnitt/aufnahmen?ab=${ab}&anzahl=${anzahl}`, {
+    headers: bearbeitung(),
+  });
 
 /**
  * Das ungeschnittene Original - die eine Stelle, die es ausdrücklich liefert.
@@ -618,24 +613,24 @@ export const zuschnittAufnahmen = (schluessel: string, ab = 0, anzahl = 10) =>
  * wird immer aus ihm, und eine Kurve so breit wie das letzte Ergebnis ließe
  * einen zu engen Schnitt nie wieder aufmachen.
  */
-export const zuschnittOriginal = (schluessel: string, aufnahme: string) =>
-  blob(`/zuschnitt/aufnahmen/${aufnahme}/original`, mitSchluessel(schluessel));
+export const zuschnittOriginal = (aufnahme: string) =>
+  blob(`/zuschnitt/aufnahmen/${aufnahme}/original`, { headers: bearbeitung() });
 
-export const zuschnittSchreiben = (schluessel: string, grenzen: Zuschnittgrenze[]) =>
+export const zuschnittSchreiben = (grenzen: Zuschnittgrenze[]) =>
   anfrage<Zuschnittergebnis>('/zuschnitt/schreiben', {
     ...alsJson({ grenzen }),
-    headers: { 'Content-Type': 'application/json', 'X-Editor-Key': schluessel },
+    headers: bearbeitung(true),
   });
 
-export const zuschnittZuruecknehmen = (schluessel: string, grenzen: Zuschnittgrenze[]) =>
+export const zuschnittZuruecknehmen = (grenzen: Zuschnittgrenze[]) =>
   anfrage<Zuschnittergebnis>('/zuschnitt/zuruecknehmen', {
     ...alsJson({ grenzen }),
-    headers: { 'Content-Type': 'application/json', 'X-Editor-Key': schluessel },
+    headers: bearbeitung(true),
   });
 
 /** Eine einzelne Aufnahme, wie die Liste sie zeigt - für „Editieren". */
-export const zuschnittEine = (schluessel: string, aufnahme: string) =>
-  anfrage<Zuschnittaufnahme>(`/zuschnitt/aufnahmen/${aufnahme}`, mitSchluessel(schluessel));
+export const zuschnittEine = (aufnahme: string) =>
+  anfrage<Zuschnittaufnahme>(`/zuschnitt/aufnahmen/${aufnahme}`, { headers: bearbeitung() });
 
 export type Zuschnittteilung = {
   id: string;
@@ -650,10 +645,10 @@ export type Zuschnittteilung = {
  * Eine Aufnahme in zwei neue zerlegen. Das Original bleibt; die Teile tragen
  * sein Datum und stehen in der Liste direkt darunter.
  */
-export const zuschnittTeilen = (schluessel: string, teilung: Zuschnittteilung) =>
+export const zuschnittTeilen = (teilung: Zuschnittteilung) =>
   anfrage<{ ids: string[] }>('/zuschnitt/teilen', {
     ...alsJson(teilung),
-    headers: { 'Content-Type': 'application/json', 'X-Editor-Key': schluessel },
+    headers: bearbeitung(true),
   });
 
 /**
@@ -661,8 +656,8 @@ export const zuschnittTeilen = (schluessel: string, teilung: Zuschnittteilung) =
  * Vorlage, wenn an ihr nichts mehr hängt. Anders als das Verwerfen: danach
  * steht der Satz nicht wieder in der Warteschlange.
  */
-export const zuschnittLoeschen = (schluessel: string, grenzen: Zuschnittgrenze[]) =>
+export const zuschnittLoeschen = (grenzen: Zuschnittgrenze[]) =>
   anfrage<Zuschnittergebnis>('/zuschnitt/loeschen', {
     ...alsJson({ grenzen }),
-    headers: { 'Content-Type': 'application/json', 'X-Editor-Key': schluessel },
+    headers: bearbeitung(true),
   });

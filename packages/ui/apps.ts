@@ -303,7 +303,7 @@ export const GERAETE_PUNKTE: Menuepunkt[] = [
 export function menuePunkte(
   art: string,
   app: AppSchluessel,
-  mitTrainerschluessel = false,
+  darfTrainieren = false,
 ): Menuepunkt[] {
   const inHoeren = app === 'hoeren';
   // Von außen die volle Adresse, innerhalb von „hören" die Hash-Route.
@@ -330,7 +330,7 @@ export function menuePunkte(
   punkte.push({ pfad: ZUGANGSDATEN_PFAD, text: MENUE_TEXT[ZUGANGSDATEN_PFAD] });
   // Erst wer, dann womit - und zuletzt, was schiefging.
   const fehler =
-    art === 'verwaltung' || art === 'aufsicht' || mitTrainerschluessel
+    art === 'verwaltung' || art === 'aufsicht' || darfTrainieren
       ? [{ pfad: FEHLERLOG_PFAD, text: MENUE_TEXT[FEHLERLOG_PFAD] }]
       : [];
   return [...punkte, ...GERAETE_PUNKTE, ...fehler];

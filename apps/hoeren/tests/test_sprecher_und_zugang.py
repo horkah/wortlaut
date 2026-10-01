@@ -232,7 +232,7 @@ class TestZugangAusgeben:
         # Damit die Oberfläche zeigen kann, wer eingestellt ist - und zwar das,
         # was der Server sieht, nicht das, was der Browser sich gemerkt hat.
         auskunft = klient.get("/api/zugang").json()
-        assert auskunft == {
+        assert {schluessel: auskunft[schluessel] for schluessel in ("art", "sprecher_id", "name", "sprache")} == {
             "art": "sprecher",
             "sprecher_id": sprecher,
             "name": "Testperson",
@@ -277,3 +277,49 @@ def _zweiter_sprecher(verwalter: TestClient) -> str:
     )
     assert antwort.status_code == 201
     return antwort.json()["id"]
+
+
+class TestRechte:
+    """Was die mitgeschickten Schlüssel öffnen - nach derselben Rechnung wie die Wächter."""
+
+    @pytest.fixture
+    def _mit_schluesseln(self, _umgebung: None, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("WORTLAUT_TRAINER_KEY", "trainer")
+        monkeypatch.setenv("WORTLAUT_EDITOR_KEY", "editor")
+        einstellungen.cache_clear()
+
+    @staticmethod
+    def _rechte(klient: TestClient, **kopf: str) -> tuple[str, str]:
+        auskunft = klient.get("/api/zugang", headers=kopf).json()
+        return auskunft["trainieren"], auskunft["bearbeiten"]
+
+    def test_ohne_schluessel_fehlen_sie(self, _mit_schluesseln: None, klient: TestClient) -> None:
+        assert self._rechte(klient) == ("fehlt", "fehlt")
+
+    def test_ein_falscher_schluessel_heisst_falsch(
+        self, _mit_schluesseln: None, klient: TestClient
+    ) -> None:
+        # Der Fall, in dem eine Oberfläche sonst einen Papierkorb zeigte, den
+        # der Server dann abweist.
+        kopf = {"X-Trainer-Key": "daneben", "X-Editor-Key": "daneben"}
+        assert self._rechte(klient, **kopf) == ("falsch", "falsch")
+
+    def test_die_richtigen_gelten(self, _mit_schluesseln: None, klient: TestClient) -> None:
+        kopf = {"X-Trainer-Key": "trainer", "X-Editor-Key": "editor"}
+        assert self._rechte(klient, **kopf) == ("gilt", "gilt")
+
+    def test_jeder_fuer_sich(self, _mit_schluesseln: None, klient: TestClient) -> None:
+        assert self._rechte(klient, **{"X-Trainer-Key": "trainer"}) == ("gilt", "fehlt")
+
+    def test_nicht_hinterlegt_heisst_aus(
+        self, _umgebung: None, monkeypatch: pytest.MonkeyPatch, klient: TestClient
+    ) -> None:
+        monkeypatch.setenv("WORTLAUT_TRAINER_KEY", "")
+        monkeypatch.setenv("WORTLAUT_EDITOR_KEY", "")
+        einstellungen.cache_clear()
+        assert self._rechte(klient, **{"X-Trainer-Key": "irgendwas"}) == ("aus", "aus")
+
+    def test_auch_verwaltung_erfaehrt_ihre_rechte(
+        self, _mit_schluesseln: None, verwalter: TestClient
+    ) -> None:
+        assert self._rechte(verwalter, **{"X-Trainer-Key": "trainer"}) == ("gilt", "fehlt")

@@ -17,12 +17,11 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
-import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
-from wortlaut import augmentierung, kartenplan, laeufe as lauf_layout, registry
+from wortlaut import augmentierung, kartenplan, laeufe as lauf_layout, registry, schluessel
 
 from ..config import einstellungen
 from ..deps import Korpus, Sprache, SprecherId, korpus_engine
@@ -30,38 +29,15 @@ from ..services import aufteilung, auftraege, vergleich
 
 router = APIRouter(prefix="/lernen/api/laeufe", tags=["Läufe"])
 
-# Nicht `Authorization`: Dort liegt der Sprecherzugang, der sagt, wessen
-# Modell entsteht (`deps.py`).
-SCHLUESSEL_KOPF = "X-Trainer-Key"
-
-
 def _pruefe_trainerschluessel(
-    x_trainer_key: Annotated[str | None, Header()] = None,
+    vorgelegt: Annotated[str | None, Header(alias=schluessel.TRAINER.kopf)] = None,
 ) -> None:
     """Wächter der Wege, die die Karte belegen - und des Löschens von Läufen samt Modell.
 
     Der Sprecherzugang sagt „wessen Modell", nicht „wer darf rechnen lassen".
     Wer trainieren darf, darf auch wegwerfen; alle anderen sehen nur zu.
-    Nicht gesetzt heißt abgeschaltet (`config.trainer_key`); die Oberfläche
-    zeigt den Knopf dann nicht (`bereit`, `hinweis`). Zeitkonstant über die
-    UTF-8-Bytes verglichen, wie in „hören".
     """
-    erwartet = einstellungen().trainer_key
-    if not erwartet:
-        # 401 wie in „hören": An einer abgeschalteten Tür ist niemand angemeldet.
-        raise HTTPException(
-            status_code=401,
-            detail=(
-                "Training ist abgeschaltet: Auf diesem Server ist kein "
-                "Trainerschlüssel hinterlegt (WORTLAUT_TRAINER_KEY)."
-            ),
-        )
-    vorgelegt = x_trainer_key or ""
-    if not secrets.compare_digest(vorgelegt.encode("utf-8"), erwartet.encode("utf-8")):
-        raise HTTPException(
-            status_code=401,
-            detail="Falscher oder fehlender Trainerschlüssel.",
-        )
+    schluessel.TRAINER.verlange(einstellungen().trainer_key, vorgelegt)
 
 
 def _gewichtstext(gewicht: float) -> str:
@@ -574,8 +550,6 @@ class ListeAntwort(BaseModel):
     # kein Trainerschlüssel.
     bereit: bool
     hinweis: str
-    # Ob die Oberfläche nach dem Trainerschlüssel fragen muss.
-    schluessel_noetig: bool
     # Brauchbare Aufnahmen, und wie viele der jüngste fertige Lauf nicht
     # kannte - zeigt, wann ein Lauf sich lohnt. Von selbst trainiert wird nie:
     # Wer rechnen lassen will, sagt es.
@@ -1248,7 +1222,6 @@ def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         basismodell=konfiguration.lernen_basismodell,
         faltungen=lauf_layout.FALTUNGEN,
         bereit=genug and erlaubt,
-        schluessel_noetig=erlaubt,
         # Der Schlüssel zuerst - ohne ihn helfen auch mehr Aufnahmen nicht.
         hinweis=(
             ""

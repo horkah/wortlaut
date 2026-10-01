@@ -1,7 +1,8 @@
 """Zugänge ausgeben, zurückziehen und auskunft geben, wer gerade ruft.
 
 * `GET /api/zugang` sagt, für wen dieser Browser eingestellt ist - Sprecher,
-  Verwaltung oder Aufsicht; die Antwort kommt aus dem Vorgelegten.
+  Verwaltung oder Aufsicht - und was die mitgeschickten Schlüssel gerade
+  öffnen (`wortlaut.schluessel`); die Antwort kommt aus dem Vorgelegten.
 * `POST` und `DELETE` unter einem Sprecher gehören der Verwaltung.
 
 Im Klartext gibt es den Zugang genau einmal, beim Ausgeben; gespeichert ist
@@ -10,12 +11,16 @@ nur der Prüfwert. Ein neuer macht den alten ungültig.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from typing import Annotated
+
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from wortlaut import schluessel
 from wortlaut import zugang as zugangsdienst
 
+from ..config import einstellungen
 from ..db.models import Sprecher, jetzt
 from ..deps import Verwaltung, Wer, engine_fuer
 
@@ -31,6 +36,11 @@ class WerAntwort(BaseModel):
     # Die Sprache des Profils, für das Vorlesen (`packages/ui/speak.ts`); leer
     # für Verwaltung und Aufsicht.
     sprache: str | None = None
+    # Je Recht der Stand des Schlüssels: `aus`, `fehlt`, `falsch` oder `gilt`.
+    # Dieselbe Rechnung wie in den Wächtern - die Oberfläche zeigt danach,
+    # was geht, und blendet aus, was nicht geht.
+    trainieren: str = schluessel.AUS
+    bearbeiten: str = schluessel.AUS
 
 
 class ZugangAntwort(BaseModel):
@@ -41,15 +51,28 @@ class ZugangAntwort(BaseModel):
 
 
 @router.get("/api/zugang", response_model=WerAntwort)
-def wer_ruft(wer: Wer) -> WerAntwort:
+def wer_ruft(
+    wer: Wer,
+    trainerschluessel: Annotated[str | None, Header(alias=schluessel.TRAINER.kopf)] = None,
+    bearbeitungsschluessel: Annotated[
+        str | None, Header(alias=schluessel.BEARBEITUNG.kopf)
+    ] = None,
+) -> WerAntwort:
+    konfiguration = einstellungen()
+    rechte = {
+        "trainieren": schluessel.TRAINER.stand(konfiguration.trainer_key, trainerschluessel),
+        "bearbeiten": schluessel.BEARBEITUNG.stand(
+            konfiguration.editor_key, bearbeitungsschluessel
+        ),
+    }
     if wer.art != "sprecher":
-        return WerAntwort(art=wer.art)
+        return WerAntwort(art=wer.art, **rechte)
     with Session(engine_fuer(wer.sprecher_id)) as sitzung:
         sprecher = sitzung.get(Sprecher, wer.sprecher_id)
         name = sprecher.name if sprecher is not None else None
         sprache = sprecher.sprache if sprecher is not None else None
     return WerAntwort(
-        art="sprecher", sprecher_id=wer.sprecher_id, name=name, sprache=sprache
+        art="sprecher", sprecher_id=wer.sprecher_id, name=name, sprache=sprache, **rechte
     )
 
 

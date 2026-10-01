@@ -81,13 +81,6 @@ class TestSchluessel:
         assert antwort.status_code == 401
         assert "WORTLAUT_EDITOR_KEY" in antwort.json()["detail"]
 
-    def test_stand_sagt_das_ohne_schluessel(self, klient: TestClient) -> None:
-        """Die Oberfläche muss fragen dürfen, ob sie fragen soll."""
-        antwort = klient.get("/api/zuschnitt/stand")
-        assert antwort.status_code == 200
-        assert antwort.json()["bereit"] is False
-        assert antwort.json()["hinweis"]
-
     def test_sprecherzugang_allein_genuegt_nicht(
         self, _mit_schluessel: None, klient: TestClient, sprecher: str
     ) -> None:

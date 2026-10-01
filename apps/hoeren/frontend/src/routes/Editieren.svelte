@@ -36,10 +36,8 @@
     zuschnittTeilen,
     type Zuschnittaufnahme,
   } from '../lib/api';
-  import { bearbeitungsschluessel } from '../lib/bearbeitungsschluessel';
   import { gehZu, lage } from '../lib/zustand.svelte';
 
-  const schluessel = bearbeitungsschluessel();
   const kennung = $derived(lage.route.slice(EDITIEREN_ROUTE.length));
 
   let aufnahme = $state<Zuschnittaufnahme | null>(null);
@@ -141,12 +139,15 @@
     vergiss();
     datei = null;
     aufnahme = null;
-    if (!schluessel) {
-      fehler = 'Zum Editieren braucht es den Bearbeitungsschlüssel - bitte im Zuschnitt eingeben.';
+    // Ob der Bearbeitungsschlüssel gilt, sagt der Server; gelesen hier, damit
+    // die Ansicht neu lädt, sobald er unter „Zugangsdaten" eingetragen ist.
+    if (lage.bearbeiten === 'unbekannt') return;
+    if (lage.bearbeiten !== 'gilt') {
+      fehler = 'Zum Editieren braucht es den Bearbeitungsschlüssel - einzutragen unter „Zugangsdaten“.';
       return;
     }
     try {
-      const eine = await zuschnittEine(schluessel, id);
+      const eine = await zuschnittEine(id);
       start = eine.zuschnitt_start_s ?? eine.vorschlag_start_s;
       ende = eine.zuschnitt_ende_s ?? eine.vorschlag_ende_s;
       teilung = pausenmitte(eine, start, ende);
@@ -197,7 +198,7 @@
           : [teilung, ende];
     try {
       spielt = welches;
-      datei ??= await zuschnittOriginal(schluessel, aufnahme.id);
+      datei ??= await zuschnittOriginal(aufnahme.id);
       await spiele(aufnahme.id, datei, von, bis, () => {
         if (spielt === welches) spielt = '';
       });
@@ -228,7 +229,7 @@
     fehler = '';
     laeuft = true;
     try {
-      await zuschnittTeilen(schluessel, {
+      await zuschnittTeilen({
         id: aufnahme.id,
         start_s: start,
         teilung_s: teilung,

@@ -10,7 +10,7 @@
    */
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Pager from '$ui/Pager.svelte';
-  import { ZUSCHNITT_PFAD } from '$ui/apps';
+  import { ZUGANGSDATEN_PFAD, ZUSCHNITT_PFAD } from '$ui/apps';
   import { merkePin, schloss, vergissPin } from '$ui/pin.svelte';
   import { dauer, tag, tagUndZeit } from '$ui/zeit';
   import {
@@ -24,7 +24,6 @@
     michUmbenennen,
     pinSetzen,
     pinStand,
-    zuschnittStand,
     type AufsichtAufnahme,
     type AufsichtSitzung,
     type Konto,
@@ -269,25 +268,17 @@
 
   const megabyte = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
-  // Ob dieser Server überhaupt zuschneiden lässt. Ist kein
-  // Bearbeitungsschlüssel hinterlegt, steht der Knopf gar nicht erst da -
-  // dasselbe Verfahren wie beim Trainingsknopf in „lernen": Eine Tür zeigen,
-  // die 401 antwortet, ist keine Auskunft, sondern eine Sackgasse.
-  let zuschneidbar = $state(false);
+  // Der Weg in den Zuschnitt steht nur da, wenn der Server den
+  // Bearbeitungsschlüssel annimmt (`lage.bearbeiten`) - eine Tür zeigen, die
+  // 401 antwortet, ist keine Auskunft, sondern eine Sackgasse. Fehlt er nur,
+  // steht ein Hinweis auf die Zugangsdaten da; ist der Zuschnitt
+  // abgeschaltet, nichts.
+  const zuschneidbar = $derived(lage.bearbeiten === 'gilt');
 
   $effect(() => {
     if (lage.art === 'sprecher') starte();
   });
 
-  $effect(() => {
-    if (lage.art !== 'sprecher') return;
-    // Scheitert die Abfrage, bleibt der Knopf weg. Der Zuschnitt ist eine
-    // Werkbank und keine Bedingung; ein Fehler darüber gehört nicht auf diese
-    // Seite.
-    zuschnittStand()
-      .then((auskunft) => (zuschneidbar = auskunft.bereit))
-      .catch(() => (zuschneidbar = false));
-  });
 </script>
 
 {#if fehler}
@@ -462,10 +453,14 @@
       <p class="gedaempft">
         Zwischen dem Druck auf den Aufnahmeknopf und dem ersten Laut liegt meist eine Sekunde,
         hinten oft mehr. Im Zuschnitt sehen Sie zu jeder Aufnahme den Lautstärkeverlauf und
-        schneiden weg, was davor und dahinter steht. Die Originale bleiben erhalten. Dafür braucht
-        es zusätzlich den Bearbeitungsschlüssel dieses Servers.
+        schneiden weg, was davor und dahinter steht. Die Originale bleiben erhalten.
       </p>
     </div>
+  {:else if lage.bearbeiten === 'fehlt' || lage.bearbeiten === 'falsch'}
+    <p class="gedaempft">
+      Zuschneiden und Editieren gehen mit dem Bearbeitungsschlüssel dieses Servers - einzutragen
+      unter <a href="#{ZUGANGSDATEN_PFAD}">Zugangsdaten</a>.
+    </p>
   {/if}
   {#each aufnahmen as aufnahme (aufnahme.id)}
     <div class="karte">

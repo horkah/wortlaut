@@ -10,12 +10,11 @@ nicht; im Protokoll stehen Pfade und Kennungen anderer.
 
 from __future__ import annotations
 
-import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
-from wortlaut import fehlerlog
+from wortlaut import fehlerlog, schluessel
 
 from ..config import einstellungen
 from ..deps import _pruefe_verwaltung
@@ -41,11 +40,9 @@ class Antwort(BaseModel):
     tage: int
 
 
-def _darf_lesen(authorization: str | None, x_trainer_key: str | None) -> None:
+def _darf_lesen(authorization: str | None, trainerschluessel: str | None) -> None:
     """Trainerschlüssel, sonst Verwaltung oder Aufsicht (`deps._pruefe_verwaltung`)."""
-    erwartet = einstellungen().trainer_key
-    vorgelegt = (x_trainer_key or "").encode("utf-8")
-    if erwartet and vorgelegt and secrets.compare_digest(vorgelegt, erwartet.encode("utf-8")):
+    if schluessel.TRAINER.stand(einstellungen().trainer_key, trainerschluessel) == schluessel.GILT:
         return
     try:
         _pruefe_verwaltung(authorization)
@@ -60,10 +57,10 @@ def _darf_lesen(authorization: str | None, x_trainer_key: str | None) -> None:
 @router.get("/api/fehlerlog", response_model=Antwort)
 def fehlerlog_lesen(
     authorization: Annotated[str | None, Header()] = None,
-    x_trainer_key: Annotated[str | None, Header()] = None,
+    trainerschluessel: Annotated[str | None, Header(alias=schluessel.TRAINER.kopf)] = None,
 ) -> Antwort:
     """Die Einträge der letzten sieben Tage, jüngster zuerst."""
-    _darf_lesen(authorization, x_trainer_key)
+    _darf_lesen(authorization, trainerschluessel)
     return Antwort(
         eintraege=[Eintrag(**zeile) for zeile in fehlerlog.lies(einstellungen().data_dir)],
         tage=fehlerlog.AUFBEWAHRUNG.days,
