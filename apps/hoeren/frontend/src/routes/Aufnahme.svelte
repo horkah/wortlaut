@@ -11,7 +11,7 @@
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import PromptView from '$ui/PromptView.svelte';
   import Recorder from '$ui/Recorder.svelte';
-  import { brichAllesAb, liesVor, stimmeVerfuegbar } from '$ui/speak';
+  import { brichAllesAb, entsperreVorlesen, liesVor, stimmeVerfuegbar } from '$ui/speak';
   import {
     aufnahmeSenden,
     aufnahmeVerwerfen,
@@ -80,6 +80,7 @@
   async function vorlesen() {
     if (!ausschnitt?.aktuell) return;
     nachgesprochen = true; // schon der Versuch verändert die Sprechweise
+    entsperreVorlesen(); // noch im Tippen, vor dem Holen der Datei
     const vorlage = ausschnitt.aktuell;
     try {
       await liesVor(

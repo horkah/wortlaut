@@ -103,6 +103,15 @@ let aeussernd: SpeechSynthesisUtterance | null = null;
  */
 const STIMME_SCHULD = new Set(['synthesis-failed', 'synthesis-unavailable', 'voice-unavailable']);
 
+/**
+ * So lange darf es dauern, bis eine Äußerung oder Datei hörbar anfängt.
+ *
+ * Safari auf dem iPhone verwirft ein `speak()` oder `play()`, das es nicht
+ * zulässt, manchmal ohne jedes Ereignis - ohne diese Frist wartete, wer
+ * abschnittweise vorliest, für immer, und der Knopf bliebe auf „■ Anhalten".
+ */
+const ANLAUF_MS = 4000;
+
 /** Spricht den Text und löst auf, wenn er zu Ende ist. */
 export function sprich(text: string, wie: Sprechweise = {}): Promise<void> {
   return new Promise((fertig, fehler) => {
@@ -111,10 +120,11 @@ export function sprich(text: string, wie: Sprechweise = {}): Promise<void> {
       return;
     }
     const synth = window.speechSynthesis;
-    // Eine Äußerung nach der anderen - aber nur abbrechen, was läuft: Safari
-    // auf dem iPhone verschluckt eine Äußerung, die direkt nach einem
-    // `cancel()` ins Leere kommt.
-    if (synth.speaking || synth.pending) synth.cancel();
+    // Eine Äußerung nach der anderen - abgebrochen wird aber nur eine eigene,
+    // die noch spricht: Safari auf dem iPhone verschluckt eine Äußerung, die
+    // direkt nach einem `cancel()` kommt. Die stumme aus `entsperreVorlesen`
+    // ist dann gleich durch und darf vorausgehen.
+    if (aeussernd) synth.cancel();
 
     const versuche = (stimme: SpeechSynthesisVoice | null) => {
       const aeusserung = new SpeechSynthesisUtterance(text);
@@ -126,14 +136,29 @@ export function sprich(text: string, wie: Sprechweise = {}): Promise<void> {
       if (lang) aeusserung.lang = lang;
       if (stimme) aeusserung.voice = stimme;
       aeusserung.rate = wie.tempo ?? TEMPO_VORGABE;
-      aeusserung.onend = () => {
+      const vorbei = () => {
+        clearTimeout(wache);
         if (aeussernd === aeusserung) aeussernd = null;
+      };
+      // Solange das Gerät spricht, ist es angelaufen, auch wenn `start` fehlt.
+      const wache = setTimeout(() => {
+        if (aeussernd !== aeusserung || synth.speaking) return;
+        vorbei();
+        synth.cancel();
+        fehler(new Error('Das Gerät hat nicht angefangen vorzulesen - bitte „▶ Vorlesen" tippen.'));
+      }, ANLAUF_MS);
+      aeusserung.onstart = () => clearTimeout(wache);
+      aeusserung.onend = () => {
+        vorbei();
         fertig();
       };
       aeusserung.onerror = (ereignis) => {
-        if (aeussernd === aeusserung) aeussernd = null;
-        // Angehalten ist auch fertig, wie bei `spieleVor`.
+        const meine = aeussernd === aeusserung;
+        vorbei();
+        // Angehalten ist auch fertig, wie bei `spieleVor` - auch, wenn schon
+        // die nächste Äußerung dran ist.
         if (ereignis.error === 'interrupted' || ereignis.error === 'canceled') fertig();
+        else if (!meine) return; // schon vom Wachhund erledigt
         else if (stimme && STIMME_SCHULD.has(ereignis.error)) versuche(null);
         else if (ereignis.error === 'not-allowed')
           fehler(new Error('Der Browser liest erst nach einem Tippen vor - bitte „▶ Vorlesen".'));
@@ -147,26 +172,34 @@ export function sprich(text: string, wie: Sprechweise = {}): Promise<void> {
 }
 
 /**
- * Die Sprachausgabe freischalten, solange ein Tippen im Gang ist.
+ * Vorlesen freischalten, solange ein Tippen im Gang ist - beide Wege.
  *
- * Safari auf dem iPhone spricht erst, nachdem die Seite einmal aus einem
- * Tippen heraus `speak()` gerufen hat; ein `speak()` ohne Tippen davor
- * scheitert mit `not-allowed`. Das trifft das Vorlesen von selbst in
- * „schreiben": Es beginnt, wenn der Text vom Server kommt, Sekunden nach dem
- * letzten Tippen. Eine stumme, leere Äußerung beim Tippen auf „● Aufnehmen"
- * genügt, und danach darf die Seite sprechen, solange sie offen ist.
+ * Safari auf dem iPhone lässt eine Seite erst sprechen, nachdem sie einmal aus
+ * einem Tippen heraus `speak()` gerufen hat, und ein Audio-Element erst
+ * spielen, nachdem es einmal aus einem Tippen heraus `play()` bekam. Das
+ * Vorlesen von selbst in „schreiben" beginnt aber, wenn der Text vom Server
+ * kommt, Sekunden nach dem letzten Tippen, und jeder weitere Abschnitt noch
+ * später. Deshalb hier beim Tippen: eine Äußerung aus einem Leerzeichen, stumm,
+ * und eine Zehntelsekunde Stille im einen Abspieler, den `spieleVor` danach
+ * für jede Datei wiederverwendet.
  *
- * Eine Datei vom Server braucht das nicht - sie spielt, weil die Seite eben
- * noch das Mikrofon offen hatte.
+ * Gerufen aus jedem Knopf, nach dem vorgelesen wird - einmal genügt je Seite,
+ * mehrmals schadet nicht.
  */
 export function entsperreVorlesen(): void {
-  if (!('speechSynthesis' in window)) return;
-  const synth = window.speechSynthesis;
-  if (synth.speaking || synth.pending) return;
-  const stumm = new SpeechSynthesisUtterance('');
+  if (!laufend) {
+    const klang = abspieler();
+    klang.src = stille();
+    klang.play().catch(() => {}); // abgebrochen, sobald die erste Datei kommt
+  }
+  if (!('speechSynthesis' in window) || sprachausgabeFrei) return;
+  sprachausgabeFrei = true;
+  const stumm = new SpeechSynthesisUtterance(' ');
   stumm.volume = 0;
-  synth.speak(stumm);
+  window.speechSynthesis.speak(stumm);
 }
+
+let sprachausgabeFrei = false;
 
 export function brichVorlesenAb(): void {
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
@@ -222,7 +255,46 @@ export async function stimmprobe(stimme: string): Promise<Blob> {
   return antwort.blob();
 }
 
-let laufend: { klang: HTMLAudioElement; fertig: () => void } | null = null;
+/**
+ * Der eine Abspieler für alles Vorgelesene.
+ *
+ * Einer und nicht einer je Datei: Safari auf dem iPhone lässt ein
+ * Audio-Element ohne Tippen nur spielen, wenn es schon einmal aus einem Tippen
+ * heraus gespielt hat (`entsperreVorlesen`). Ein neues Element je Abschnitt
+ * wäre jedes Mal gesperrt.
+ */
+let spieler: HTMLAudioElement | null = null;
+
+function abspieler(): HTMLAudioElement {
+  return (spieler ??= new Audio());
+}
+
+let stilleUrl: string | null = null;
+
+/** Eine Zehntelsekunde Stille als WAV - genug, damit `play()` etwas hat. */
+function stille(): string {
+  if (stilleUrl) return stilleUrl;
+  const proben = 800; // 0,1 s bei 8 kHz, 16 Bit, mono
+  const daten = new DataView(new ArrayBuffer(44 + 2 * proben));
+  const schreibe = (stelle: number, text: string) =>
+    [...text].forEach((zeichen, i) => daten.setUint8(stelle + i, zeichen.charCodeAt(0)));
+  schreibe(0, 'RIFF');
+  daten.setUint32(4, 36 + 2 * proben, true);
+  schreibe(8, 'WAVEfmt ');
+  daten.setUint32(16, 16, true);
+  daten.setUint16(20, 1, true); // PCM
+  daten.setUint16(22, 1, true); // mono
+  daten.setUint32(24, 8000, true);
+  daten.setUint32(28, 16000, true);
+  daten.setUint16(32, 2, true);
+  daten.setUint16(34, 16, true);
+  schreibe(36, 'data');
+  daten.setUint32(40, 2 * proben, true);
+  stilleUrl = URL.createObjectURL(new Blob([daten.buffer], { type: 'audio/wav' }));
+  return stilleUrl;
+}
+
+let laufend: { fertig: () => void } | null = null;
 
 /**
  * Eine vorgelesene Datei abspielen und auflösen, wenn sie zu Ende ist.
@@ -235,30 +307,49 @@ let laufend: { klang: HTMLAudioElement; fertig: () => void } | null = null;
 export function spieleVor(url: string, tempo = TEMPO_VORGABE): Promise<void> {
   return new Promise((fertig, fehler) => {
     haltAn();
-    const klang = new Audio(url);
+    const klang = abspieler();
     // Angehalten ist auch fertig - sonst wartete, wer abschnittweise vorliest,
     // nach einem Halt für immer.
-    laufend = { klang, fertig };
+    const dieser = { fertig };
+    laufend = dieser;
+    const vorbei = () => {
+      clearTimeout(wache);
+      if (laufend === dieser) laufend = null;
+    };
+    const scheitere = (ursache: unknown) => {
+      if (laufend !== dieser) return; // angehalten oder abgelöst
+      vorbei();
+      fehler(ursache instanceof Error ? ursache : new Error(String(ursache)));
+    };
+    const wache = setTimeout(
+      () => scheitere(new Error('Die vorgelesene Fassung fing nicht an zu spielen.')),
+      ANLAUF_MS,
+    );
+    klang.onplaying = () => clearTimeout(wache);
+    klang.onended = () => {
+      if (laufend !== dieser) return;
+      vorbei();
+      fertig();
+    };
+    klang.onerror = () => scheitere(new Error('Die vorgelesene Fassung ließ sich nicht abspielen.'));
+    klang.src = url;
+    // Nach `src` gesetzt: Eine neue Quelle stellt das Tempo zurück.
+    klang.defaultPlaybackRate = tempo;
     klang.playbackRate = tempo;
     // `preservesPitch` heißt in älteren Browsern anders; beides zu setzen ist
     // billiger als eine Abfrage, welcher gerade liest.
     type MitTonhoehe = HTMLAudioElement & { mozPreservesPitch?: boolean };
     klang.preservesPitch = true;
     (klang as MitTonhoehe).mozPreservesPitch = true;
-    klang.onended = () => {
-      if (laufend?.klang === klang) laufend = null;
-      fertig();
-    };
-    klang.onerror = () => fehler(new Error('Die vorgelesene Fassung ließ sich nicht abspielen.'));
-    klang.play().catch(fehler);
+    klang.play().catch(scheitere);
   });
 }
 
 function haltAn(): void {
   if (laufend) {
-    const { klang, fertig } = laufend;
+    const { fertig } = laufend;
     laufend = null;
-    klang.pause();
+    spieler?.pause();
     fertig();
   }
 }

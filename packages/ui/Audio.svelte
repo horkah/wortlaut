@@ -16,6 +16,7 @@
   import Mikrofontest from './Mikrofontest.svelte';
   import {
     beiStimmenAenderung,
+    entsperreVorlesen,
     istServestimme,
     SERVE_PRAEFIX,
     holeServestimmen,
@@ -119,6 +120,7 @@
 
   async function probe() {
     fehler = '';
+    entsperreVorlesen(); // noch im Tippen, vor dem Holen der Datei
     if (serveGewaehlt) {
       let url: string | null = null;
       try {

@@ -14,7 +14,7 @@
   import Recorder from '$ui/Recorder.svelte';
   import SegmentList from '$ui/SegmentList.svelte';
   import { einstellungen } from '$ui/einstellungen.svelte';
-  import { brichAllesAb, liesVor, stimmeVerfuegbar } from '$ui/speak';
+  import { brichAllesAb, entsperreVorlesen, liesVor, stimmeVerfuegbar } from '$ui/speak';
   import { kannTeilen, teile } from '$ui/teilen';
   import { inDieZwischenablage } from '$ui/zwischenablage';
   import {
@@ -100,6 +100,12 @@
       liest = false;
       gesprochen = null;
     }
+  }
+
+  /** Der Knopf: Er ist ein Tippen und schaltet damit das Vorlesen frei (`speak.ts`). */
+  function tippeVorlesen() {
+    if (!liest) entsperreVorlesen();
+    lies();
   }
 
   function halt() {
@@ -225,7 +231,7 @@
 
 <div class="reihe kopfzeile">
   {#if stimmeVerfuegbar(lage.sprache, einstellungen.stimmeUri)}
-    <button class="knopf" onclick={lies}>{liest ? '■ Anhalten' : '▶ Vorlesen'}</button>
+    <button class="knopf" onclick={tippeVorlesen}>{liest ? '■ Anhalten' : '▶ Vorlesen'}</button>
   {/if}
   <span class="gedaempft">{abschnitte.length} Abschnitte · zum Bessern anklicken</span>
 </div>
