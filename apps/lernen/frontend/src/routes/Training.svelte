@@ -514,19 +514,11 @@
           </span>
         </div>
 
-        <!-- Beim Kern steht, worauf der Lauf rechnet, vor dem Ganzen: Die volle
-             Zahl allein las sich, als lerne er auf allem. Das „von" sagt, dass
-             es noch einen Rest gibt - den hört erst das Endmodell. -->
+        <!-- Nur die Zahl, auf der gelernt wird. Was wofür, steht im Steckbrief
+             des Laufs. -->
         <p class="gedaempft klein">
           {zeitpunkt(lauf.erstellt)} ·
-          {#if lauf.kern_aufnahmen !== null}
-            <span title="Kernauswahl: gelernt und gemessen nur auf diesen - die übrigen hört erst das Endmodell, in der Auswertung von „hören“">
-              {lauf.kern_aufnahmen} von {lauf.aufnahmen} Aufnahmen ·
-              {lauf.kern_proben} von {lauf.zeilen.gesamt ?? 0} Proben
-            </span>
-          {:else}
-            {lauf.aufnahmen} Aufnahmen · {lauf.zeilen.gesamt ?? 0} Proben
-          {/if}
+          {lauf.trainingsproben_geschaetzt ? '≈ ' : ''}{lauf.trainingsproben} Trainingsproben
           · {daten?.faltungen ?? 6} Faltungen
           {#if tempoErgebnis(lauf)} · {tempoErgebnis(lauf)}{/if}
         </p>

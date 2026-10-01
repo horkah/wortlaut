@@ -14,13 +14,15 @@ Gerechnet wird im Trainer-Container; hier entsteht nur das Verzeichnis
 from __future__ import annotations
 
 from datetime import datetime
+from functools import lru_cache
+from pathlib import Path
 
 import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
-from wortlaut import kartenplan, laeufe as lauf_layout, registry
+from wortlaut import augmentierung, kartenplan, laeufe as lauf_layout, registry
 
 from ..config import einstellungen
 from ..deps import Korpus, Sprache, SprecherId, korpus_engine
@@ -479,10 +481,13 @@ class LaufAntwort(BaseModel):
     anteil: float | None
     aufnahmen: int
     zeilen: dict[str, int]
-    # Beim Kern: worauf gelernt wird, schon vor der Wahl
+    # Worauf gelernt wird (`lauf_layout.umfang`). Beim Kern vor der Wahl
+    # geschätzt - dann `trainingsproben_geschaetzt`.
+    trainingsproben: int = 0
+    trainingsproben_geschaetzt: bool = False
+    # Beim Kern: auf wie vielen Aufnahmen, schon vor der Wahl
     # (`services/kernauswahl.py`); `null`: auf allen.
     kern_aufnahmen: int | None = None
-    kern_proben: int | None = None
     # Was der Trainer vor der Wahl nachmessen muss.
     kern_offen: int = 0
     version: str | None
@@ -668,25 +673,64 @@ def _stand_zu(lauf: lauf_layout.Lauf) -> StandHinweis | None:
     )
 
 
-def _kernumfang(lauf: lauf_layout.Lauf) -> dict[str, int]:
-    """Auf wie vielen Aufnahmen und Proben ein Kernlauf lernt - leer bei allen.
+def _marke(pfad: Path) -> float:
+    try:
+        return pfad.stat().st_mtime
+    except OSError:
+        return 0.0
 
-    Die Proben gerechnet statt gezählt - jede Aufnahme hat gleich viele Zeilen
-    (`services/auftraege.schreibe_manifest`) -, damit die Zahl vor der Wahl dasteht.
+
+@lru_cache(maxsize=256)
+def _umfang_gemerkt(
+    verzeichnis: Path, daten: str, auswahl: str, _marken: tuple[float, ...]
+) -> lauf_layout.Umfang | None:
+    return lauf_layout.umfang(verzeichnis, {"daten": daten, "auswahl": auswahl})
+
+
+def _umfang(lauf: lauf_layout.Lauf, auswahl: str | None = None) -> lauf_layout.Umfang | None:
+    """`lauf_layout.umfang`, gemerkt, bis sich Manifest, Kern oder Selbstbeschriftung ändern.
+
+    Die Übersicht fragt ihn für jeden Lauf bei jedem Abruf.
     """
+    marken = tuple(
+        _marke(lauf.verzeichnis / name)
+        for name in (lauf_layout.MANIFEST, lauf_layout.KERNAUSWAHL, lauf_layout.SELBSTBESCHRIFTUNG)
+    )
+    return _umfang_gemerkt(
+        lauf.verzeichnis,
+        str(lauf.auftrag.get("daten") or lauf_layout.NUR_ORIGINAL),
+        auswahl or lauf_layout.auswahl_aus(lauf.auftrag),
+        marken,
+    )
+
+
+def _kernumfang(lauf: lauf_layout.Lauf) -> dict[str, int]:
+    """Auf wie vielen Aufnahmen ein Kernlauf lernt - leer bei allen."""
     if lauf_layout.auswahl_aus(lauf.auftrag) != lauf_layout.AUSWAHL_KERN:
         return {}
     inhalt = lauf_layout.lies_json(lauf.verzeichnis / lauf_layout.KERNAUSWAHL) or {}
     aufnahmen = int(lauf.auftrag.get("aufnahmen", 0))
-    proben = int(dict(lauf.auftrag.get("zeilen") or {}).get("gesamt", 0))
     if "kern" in inhalt:
         anzahl = len(inhalt["kern"])
     else:
         anzahl = int(inhalt.get("anzahl") or lauf_layout.kern_anzahl(aufnahmen))
     return {
         "kern_aufnahmen": anzahl,
-        "kern_proben": proben * anzahl // aufnahmen if aufnahmen else 0,
         "kern_offen": 0 if "kern" in inhalt else len(inhalt.get("offen") or []),
+    }
+
+
+def _trainingsproben(lauf: lauf_layout.Lauf) -> dict[str, int | bool]:
+    """Worauf gelernt wird - beim Kern vor der Wahl anteilig aus allen geschätzt."""
+    umfang = _umfang(lauf)
+    if umfang is not None:
+        return {"trainingsproben": umfang.lernproben}
+    alle = _umfang(lauf, lauf_layout.AUSWAHL_ALLE)
+    aufnahmen = int(lauf.auftrag.get("aufnahmen", 0))
+    anzahl = int(_kernumfang(lauf).get("kern_aufnahmen", aufnahmen))
+    return {
+        "trainingsproben": alle.lernproben * anzahl // aufnahmen if alle and aufnahmen else 0,
+        "trainingsproben_geschaetzt": True,
     }
 
 
@@ -721,6 +765,7 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         anteil=_anteil(lauf),
         aufnahmen=int(lauf.auftrag.get("aufnahmen", 0)),
         zeilen=dict(lauf.auftrag.get("zeilen", {})),
+        **_trainingsproben(lauf),
         **_kernumfang(lauf),
         version=lauf.zustand.get("version"),
         kennung=(
@@ -872,6 +917,60 @@ def _endmodell_im_steckbrief(manifest: dict) -> tuple[str, str]:
     )
 
 
+FASSUNGSNAMEN = {
+    augmentierung.ORIGINAL: "Original",
+    **{abwandlung.name: abwandlung.titel for abwandlung in augmentierung.ABWANDLUNGEN},
+}
+
+
+def _anzahl(zahl: int, eins: str, mehr: str) -> str:
+    return f"{zahl} {eins if zahl == 1 else mehr}"
+
+
+def _fassungen(namen: tuple[str, ...]) -> str:
+    return ", ".join(FASSUNGSNAMEN.get(name, name) for name in namen)
+
+
+def _training_im_steckbrief(umfang: lauf_layout.Umfang) -> tuple[str, str]:
+    """Worauf gelernt wurde, nach Herkunft - und in wie vielen Faltungen."""
+    vorlagen = umfang.lernen.get(lauf_layout.GEMESSENE_QUELLE, 0)
+    korrekturen = umfang.lernen.get("korrektur", 0)
+    selbst = umfang.lernen.get(lauf_layout.QUELLE_SELBST, 0)
+    faltungen = lauf_layout.FALTUNGEN
+    teile = [
+        f"{_anzahl(vorlagen, 'Vorlage', 'Vorlagen')} in {faltungen - 1} von {faltungen} Faltungen"
+        if vorlagen
+        else "",
+        f"{_anzahl(korrekturen, 'Korrektur', 'Korrekturen')} in allen" if korrekturen else "",
+        f"{selbst} selbst beschriftet in allen" if selbst else "",
+        _fassungen(umfang.lern_fassungen),
+    ]
+    return (
+        f"{_anzahl(umfang.lernproben, 'Probe', 'Proben')} aus "
+        f"{_anzahl(umfang.lern_aufnahmen, 'Aufnahme', 'Aufnahmen')}",
+        " · ".join(teil for teil in teile if teil),
+    )
+
+
+def _messung_im_steckbrief(umfang: lauf_layout.Umfang) -> tuple[str, str]:
+    """Woran gemessen wurde - und was nicht, mit Grund."""
+    nicht = [
+        name
+        for quelle, name in (("korrektur", "Korrekturen"), (lauf_layout.QUELLE_SELBST, "Selbstbeschriftetes"))
+        if umfang.lernen.get(quelle)
+    ]
+    teile = [
+        "nur Vorlagen, jede einmal von der Faltung, die sie nicht kannte",
+        _fassungen(umfang.mess_fassungen),
+        f"{' und '.join(nicht)} nicht: ihr Text stammt von der Erkennung selbst" if nicht else "",
+    ]
+    return (
+        f"{_anzahl(umfang.messen, 'Probe', 'Proben')} aus "
+        f"{_anzahl(umfang.mess_aufnahmen, 'Aufnahme', 'Aufnahmen')}",
+        " · ".join(teil for teil in teile if teil),
+    )
+
+
 def _selbst_im_steckbrief(lauf: lauf_layout.Lauf) -> tuple[str, str]:
     """Das Selbsttraining als Wert und Hinweis: wie viele aufgenommen, nach wem."""
     wahl = lauf_layout.selbsttraining_aus(lauf.auftrag)
@@ -943,10 +1042,7 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
     else:
         dazu("Methode", _wahlname(METHODEN, methode))
 
-    aufnahmen = auftrag.get("aufnahmen")
-    proben = dict(auftrag.get("zeilen") or {}).get("gesamt")
-    umfang = f"{proben} Proben aus {aufnahmen} Aufnahmen" if proben and aufnahmen else ""
-    dazu("Datensatz", _wahlname(DATENSAETZE, str(auftrag.get("daten", ""))), umfang)
+    dazu("Datensatz", _wahlname(DATENSAETZE, str(auftrag.get("daten", ""))))
     dazu("Auswahl", *_auswahl_im_steckbrief(lauf))
     dazu(
         "Korrekturen",
@@ -954,12 +1050,17 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
         "Vorlagen zählen 1",
     )
     dazu("Selbsttraining", *_selbst_im_steckbrief(lauf))
+    # Was wofür: Beim Kern stehen die Zahlen erst nach der Wahl fest.
+    umfang = _umfang(lauf)
+    if umfang is not None:
+        dazu("Training", *_training_im_steckbrief(umfang))
+        dazu("Messung", *_messung_im_steckbrief(umfang))
 
     stufe = str(auftrag.get("augmentierung") or lauf_layout.AUG_KEINE)
     dazu(
         "Augmentierung",
         AUGMENTIERUNG_GRIFFE.get(stufe, _wahlname(AUGMENTIERUNGEN, stufe)),
-        "nur auf den Lernproben, je Durchgang neu gewürfelt"
+        "nur auf den Trainingsproben, je Durchgang neu gewürfelt"
         if stufe != lauf_layout.AUG_KEINE
         else "",
     )

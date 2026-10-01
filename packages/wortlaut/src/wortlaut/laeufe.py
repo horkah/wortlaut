@@ -965,3 +965,59 @@ def zeilen_fuer_faltung(
         if daten == MIT_VARIANTEN or str(zeile.get("variante")) == augmentierung.ORIGINAL:
             lern.append(zeile)
     return lern, mess
+
+
+@dataclass(frozen=True)
+class Umfang:
+    """Was ein Lauf lernt und woran er gemessen wird - gezählt, nicht beschrieben."""
+
+    # Herkunft (`vorlage`, `korrektur`, `selbst`) → Proben.
+    lernen: dict[str, int]
+    lern_aufnahmen: int
+    lern_fassungen: tuple[str, ...]
+    messen: int
+    mess_aufnahmen: int
+    mess_fassungen: tuple[str, ...]
+
+    @property
+    def lernproben(self) -> int:
+        return sum(self.lernen.values())
+
+
+def umfang(verzeichnis: Path, auftrag: dict[str, Any]) -> Umfang | None:
+    """Die Zahlen hinter einem Lauf, aus `zeilen_fuer_faltung` - dieselbe Rechnung wie im Training.
+
+    Gelernt wird jede Probe in den Faltungen, die sie nicht messen, gemessen
+    jede einmal. `None` beim Kern, solange er nicht gewählt ist.
+    """
+    try:
+        kern = kernfaltungen_aus(verzeichnis, auftrag)
+    except RuntimeError:
+        return None
+    daten = str(auftrag.get("daten") or NUR_ORIGINAL)
+    lern, _ = zeilen_fuer_faltung(verzeichnis, None, daten, kern=kern)
+    mess = [
+        zeile
+        for faltung in range(FALTUNGEN)
+        for zeile in zeilen_fuer_faltung(verzeichnis, faltung, daten, kern=kern)[1]
+    ]
+
+    def aufnahme(zeile: dict[str, Any]) -> str:
+        return str(zeile.get("recording_id") or zeile["audio"])
+
+    def fassungen(zeilen: list[dict[str, Any]]) -> tuple[str, ...]:
+        da = {str(zeile.get("variante") or augmentierung.ORIGINAL) for zeile in zeilen}
+        return tuple(name for name in augmentierung.VARIANTEN if name in da)
+
+    lernen: dict[str, int] = {}
+    for zeile in lern:
+        quelle = str(zeile.get("quelle") or GEMESSENE_QUELLE)
+        lernen[quelle] = lernen.get(quelle, 0) + 1
+    return Umfang(
+        lernen=lernen,
+        lern_aufnahmen=len({aufnahme(zeile) for zeile in lern}),
+        lern_fassungen=fassungen(lern),
+        messen=len(mess),
+        mess_aufnahmen=len({aufnahme(zeile) for zeile in mess}),
+        mess_fassungen=fassungen(mess),
+    )
