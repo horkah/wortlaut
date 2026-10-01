@@ -22,6 +22,7 @@
    * Ausschnitt eine Zahl im Browser und wird aus der geladenen Datei
    * abgespielt (`$ui/ausschnitt`) - keine vorläufigen Dateien auf dem Server.
    */
+  import { untrack } from 'svelte';
   import Pager from '$ui/Pager.svelte';
   import Pegelverlauf from '$ui/Pegelverlauf.svelte';
   import { spiele, stoppe, vergiss } from '$ui/ausschnitt';
@@ -31,13 +32,13 @@
     zuschnittLoeschen,
     zuschnittOriginal,
     zuschnittSchreiben,
-    zuschnittStand,
     zuschnittZuruecknehmen,
     type Zuschnittaufnahme,
   } from '../lib/api';
-  import { bearbeitungsschluessel, setzeBearbeitungsschluessel } from '../lib/bearbeitungsschluessel';
+  import { ApiFehler } from '$ui/api';
+  import { ladeZugang } from '$ui/lage.svelte';
   import { gehZu, lage } from '../lib/zustand.svelte';
-  import { MEINE_DATEN_PFAD, EDITIEREN_ROUTE } from '$ui/apps';
+  import { MEINE_DATEN_PFAD, EDITIEREN_ROUTE, ZUGANGSDATEN_PFAD } from '$ui/apps';
 
   // Wie viele Aufnahmen auf eine Seite gehen. Zehn ist die Vorgabe; mehr darf
   // wählen, wer einen großen Bildschirm und einen kurzen Korpus hat. Je Zeile
@@ -45,10 +46,20 @@
   // darauf, wie lange das Blättern dauert.
   const SEITENGROESSEN = [10, 20, 50];
 
-  let stand = $state<'unbekannt' | 'aus' | 'schluessel' | 'offen'>('unbekannt');
-  let hinweis = $state('');
-  let schluessel = $state(bearbeitungsschluessel());
-  let eingabe = $state('');
+  // Ob der Bearbeitungsschlüssel gilt, sagt der Server (`lage.bearbeiten`);
+  // eingetragen wird er unter „Zugangsdaten".
+  let geladen = $state(false);
+  const stand = $derived(
+    lage.bearbeiten === 'gilt'
+      ? geladen
+        ? 'offen'
+        : 'unbekannt'
+      : lage.bearbeiten === 'unbekannt'
+        ? 'unbekannt'
+        : lage.bearbeiten === 'aus'
+          ? 'aus'
+          : 'schluessel',
+  );
 
   let aufnahmen = $state<Zuschnittaufnahme[]>([]);
   let gesamt = $state(0);
@@ -106,59 +117,18 @@
     gemerkt.seite = seite;
     gemerkt.proSeite = proSeite;
     try {
-      const antwort = await zuschnittAufnahmen(schluessel, (seite - 1) * proSeite, proSeite);
+      const antwort = await zuschnittAufnahmen((seite - 1) * proSeite, proSeite);
       aufnahmen = antwort.aufnahmen;
       gesamt = antwort.gesamt;
       grenzen = Object.fromEntries(aufnahmen.map((eine) => [eine.id, anfang(eine)]));
       markiert = {};
-      stand = 'offen';
+      geladen = true;
     } catch (ursache) {
-      const satz = ursache instanceof Error ? ursache.message : String(ursache);
-      // Ein falscher Schlüssel ist kein Fehler auf der Seite, sondern die
-      // Frage nach dem richtigen - sonst stünde die Liste leer da und daneben
-      // ein Satz, den niemand beantworten kann.
-      if (satz.includes('schlüssel') || satz.includes('Schlüssel')) {
-        stand = 'schluessel';
-        hinweis = satz;
-      } else {
-        fehler = satz;
-      }
+      // Hat sich der Schlüssel inzwischen geändert, sagt die Auskunft es neu -
+      // und die Ansicht zeigt den Weg zu den Zugangsdaten statt einer leeren Liste.
+      if (ursache instanceof ApiFehler && ursache.status === 401) await ladeZugang();
+      else fehler = ursache instanceof Error ? ursache.message : String(ursache);
     }
-  }
-
-  async function starte() {
-    try {
-      const auskunft = await zuschnittStand();
-      if (!auskunft.bereit) {
-        stand = 'aus';
-        hinweis = auskunft.hinweis;
-        return;
-      }
-      if (!schluessel) {
-        stand = 'schluessel';
-        return;
-      }
-      await lade();
-    } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
-    }
-  }
-
-  function schluesselMerken(ereignis: SubmitEvent) {
-    ereignis.preventDefault();
-    if (!eingabe.trim()) return;
-    schluessel = eingabe.trim();
-    setzeBearbeitungsschluessel(schluessel);
-    eingabe = '';
-    hinweis = '';
-    lade();
-  }
-
-  function schluesselVergessen() {
-    setzeBearbeitungsschluessel('');
-    schluessel = '';
-    aufnahmen = [];
-    stand = 'schluessel';
   }
 
   async function blaettere(neue: number) {
@@ -206,7 +176,7 @@
       spielt = marke;
       let datei = dateien.get(aufnahme.id);
       if (!datei) {
-        datei = await zuschnittOriginal(schluessel, aufnahme.id);
+        datei = await zuschnittOriginal(aufnahme.id);
         dateien.set(aufnahme.id, datei);
       }
       await spiele(
@@ -247,7 +217,7 @@
       )
     )
       return;
-    await tue('schreiben', () => zuschnittSchreiben(schluessel, auswahl));
+    await tue('schreiben', () => zuschnittSchreiben(auswahl));
   }
 
   async function nimmZurueck() {
@@ -261,7 +231,7 @@
       )
     )
       return;
-    await tue('zurueck', () => zuschnittZuruecknehmen(schluessel, auswahl));
+    await tue('zurueck', () => zuschnittZuruecknehmen(auswahl));
   }
 
   /**
@@ -286,7 +256,7 @@
       )
     )
       return;
-    await tue('loeschen', () => zuschnittLoeschen(schluessel, auswahl), 'gelöscht');
+    await tue('loeschen', () => zuschnittLoeschen(auswahl), 'gelöscht');
   }
 
   /** Ein Knopf, der arbeitet - und danach die Seite neu holt, damit sie stimmt. */
@@ -314,7 +284,8 @@
   }
 
   $effect(() => {
-    if (lage.art === 'sprecher') starte();
+    // Nur Zugang und Recht lösen das Laden aus, nicht die Seite - die blättert selbst.
+    if (lage.art === 'sprecher' && lage.bearbeiten === 'gilt') untrack(lade);
     // Beim Verlassen der Ansicht nichts weiterlaufen lassen und den Speicher
     // freigeben: Eine Aufnahme, die aus einer geschlossenen Seite weiterspricht,
     // ist das Gegenteil von dem, was diese Ansicht verspricht.
@@ -342,7 +313,10 @@
   <p class="gedaempft">Wird geladen …</p>
 {:else if stand === 'aus'}
   <div class="karte">
-    <p>{hinweis}</p>
+    <p>
+      Der Zuschnitt ist auf diesem Server abgeschaltet: <code>WORTLAUT_EDITOR_KEY</code> ist nicht
+      gesetzt.
+    </p>
     <p class="gedaempft">
       Der Zuschnitt greift in den Bestand: Er entscheidet, welcher Ton ab dann gemessen und
       trainiert wird. Deshalb steht ein eigener Schlüssel davor, und ohne hinterlegten Schlüssel
@@ -351,22 +325,11 @@
   </div>
 {:else if stand === 'schluessel'}
   <div class="karte">
-    <p>Zum Zuschneiden braucht es den Bearbeitungsschlüssel dieses Servers.</p>
-    {#if hinweis}<p class="fehler">{hinweis}</p>{/if}
-    <form class="reihe" onsubmit={schluesselMerken}>
-      <!-- svelte-ignore a11y_autofocus -->
-      <input
-        bind:value={eingabe}
-        type="password"
-        autocomplete="off"
-        placeholder="Bearbeitungsschlüssel"
-        required
-      />
-      <button class="knopf haupt" type="submit">Weiter</button>
-    </form>
-    <p class="gedaempft">
-      Er bleibt in diesem Browser gespeichert, damit er nicht bei jeder Seite neu getippt werden
-      muss. Ihr Zugang bleibt davon unberührt - es sind zwei verschiedene Geheimnisse.
+    <p>
+      {lage.bearbeiten === 'falsch'
+        ? 'Der eingetragene Bearbeitungsschlüssel stimmt nicht.'
+        : 'Zum Zuschneiden braucht es den Bearbeitungsschlüssel dieses Servers.'}
+      Eingetragen wird er unter <a href="#{ZUGANGSDATEN_PFAD}">Zugangsdaten</a>.
     </p>
   </div>
 {:else}
@@ -398,7 +361,6 @@
           {/each}
         </select>
       </label>
-      <button class="knopf" onclick={schluesselVergessen}>Schlüssel vergessen</button>
     </div>
   </div>
 

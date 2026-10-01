@@ -22,7 +22,6 @@ nicht.
 from __future__ import annotations
 
 import json
-import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -30,7 +29,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select
 from wortlaut import audio as klang
-from wortlaut import corpus, ids
+from wortlaut import corpus, ids, schluessel
 from wortlaut.text import chunker
 
 from ..config import einstellungen
@@ -41,45 +40,18 @@ from ..services.prompt_queue import naechste_position
 
 router = APIRouter(prefix="/api/zuschnitt", tags=["Zuschnitt"])
 
-# Ein eigener Kopf - in `Authorization` liegt der Sprecherzugang.
-SCHLUESSEL_KOPF = "X-Editor-Key"
-
 # Höchstens so viele Aufnahmen je Seite - jede bringt einen gerechneten Verlauf mit.
 SEITE_MAX = 100
 
 
 def _pruefe_schluessel(
-    x_editor_key: Annotated[str | None, Header()] = None,
+    vorgelegt: Annotated[str | None, Header(alias=schluessel.BEARBEITUNG.kopf)] = None,
 ) -> None:
-    """Wächter aller Wege dieser Datei.
-
-    Nicht gesetzt heißt abgeschaltet. Zeitkonstant über die UTF-8-Bytes
-    verglichen.
-    """
-    erwartet = einstellungen().editor_key
-    if not erwartet:
-        raise HTTPException(
-            status_code=401,
-            detail=(
-                "Der Zuschnitt ist abgeschaltet: Auf diesem Server ist kein "
-                "Bearbeitungsschlüssel hinterlegt (WORTLAUT_EDITOR_KEY)."
-            ),
-        )
-    vorgelegt = x_editor_key or ""
-    if not secrets.compare_digest(vorgelegt.encode("utf-8"), erwartet.encode("utf-8")):
-        raise HTTPException(
-            status_code=401, detail="Falscher oder fehlender Bearbeitungsschlüssel."
-        )
+    """Wächter aller Wege dieser Datei (`wortlaut.schluessel`)."""
+    schluessel.BEARBEITUNG.verlange(einstellungen().editor_key, vorgelegt)
 
 
 Schluessel = Depends(_pruefe_schluessel)
-
-
-class StandAntwort(BaseModel):
-    """Ob auf diesem Server überhaupt zugeschnitten werden kann."""
-
-    bereit: bool
-    hinweis: str
 
 
 class ZuschnittAntwort(BaseModel):
@@ -143,23 +115,6 @@ class Ergebnis(BaseModel):
     geschrieben: int
     # Was nicht ging, je Aufnahme ein Satz; die übrigen gelten.
     fehler: dict[str, str]
-
-
-@router.get("/stand", response_model=StandAntwort)
-def stand() -> StandAntwort:
-    """Ob zugeschnitten werden kann - ohne Wächter, denn davon hängt ab, ob gefragt wird.
-
-    Wie `GET /api/konto/pin`: nur ein Ja oder Nein.
-    """
-    if einstellungen().editor_key:
-        return StandAntwort(bereit=True, hinweis="")
-    return StandAntwort(
-        bereit=False,
-        hinweis=(
-            "Der Zuschnitt ist auf diesem Server abgeschaltet: "
-            "WORTLAUT_EDITOR_KEY ist nicht gesetzt."
-        ),
-    )
 
 
 @router.get("/aufnahmen", response_model=Seite, dependencies=[Schluessel])

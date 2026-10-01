@@ -17,6 +17,7 @@
  */
 
 import { ApiFehler, api } from './api';
+import { mitAllenSchluesseln, type Recht } from './schluessel.svelte';
 
 /**
  * Die API von „hören" - sie liegt auf der Wurzel der gemeinsamen Domain
@@ -24,8 +25,12 @@ import { ApiFehler, api } from './api';
  */
 const hoeren = api('/api');
 
-/** Beim Server nachfragen, wer dieser Browser ist. */
-export const werRuft = () => hoeren.anfrage<Wer>('/zugang');
+/**
+ * Beim Server nachfragen, wer dieser Browser ist - und was seine Schlüssel
+ * öffnen. Die einzige Anfrage, an die beide Schlüssel gehen.
+ */
+export const werRuft = () =>
+  hoeren.anfrage<Wer>('/zugang', { headers: mitAllenSchluesseln() });
 
 /** Die drei, die der Server durchlässt; alles andere wird ein 401. */
 export type Rufer = 'sprecher' | 'verwaltung' | 'aufsicht';
@@ -49,6 +54,10 @@ export interface Wer {
    * (`wortlaut/sprachen.py`).
    */
   sprache: string | null;
+  /** Training beauftragen, neu starten, Läufe samt Modell löschen, Fehlerprotokoll. */
+  trainieren: Exclude<Recht, 'unbekannt'>;
+  /** Zuschnitt und Editieren in „hören". */
+  bearbeiten: Exclude<Recht, 'unbekannt'>;
 }
 
 /** Was davon im gemeinsamen Zustand steht (`lage.svelte.ts`). */
@@ -57,6 +66,8 @@ export interface Zugangsstand {
   sprecher: string | null;
   name: string | null;
   sprache: string | null;
+  trainieren: Recht;
+  bearbeiten: Recht;
 }
 
 /**
@@ -68,13 +79,22 @@ export const OFFEN: Zugangsstand = {
   sprecher: null,
   name: null,
   sprache: null,
+  trainieren: 'unbekannt',
+  bearbeiten: 'unbekannt',
 };
 
 /** Beim Server nachfragen, für wen dieser Browser eingestellt ist. */
 export async function ermittleZugang(): Promise<Zugangsstand> {
   try {
     const wer = await werRuft();
-    return { art: wer.art, sprecher: wer.sprecher_id, name: wer.name, sprache: wer.sprache };
+    return {
+      art: wer.art,
+      sprecher: wer.sprecher_id,
+      name: wer.name,
+      sprache: wer.sprache,
+      trainieren: wer.trainieren,
+      bearbeiten: wer.bearbeiten,
+    };
   } catch (ursache) {
     // Ein abgewiesener Zugang ist kein Fehler, sondern ein fehlender Schritt;
     // alles andere (Server weg) sieht die Ansicht ohnehin an ihren Anfragen.

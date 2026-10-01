@@ -3,7 +3,7 @@
  *
  * Wer Läufe zum Vergleich beauftragt, ändert zwischen zweien meist eine Achse
  * und sieht sich zwischendurch Kurven an. Die Wahl liegt deshalb im
- * `localStorage` - wie der Trainerschlüssel (`trainerschluessel.ts`); ohne
+ * `localStorage` - wie der Trainerschlüssel (`$ui/schluessel.svelte`); ohne
  * Speicher gilt die Vorgabe.
  *
  * Nur Bedienkomfort: Was bestellt wurde, steht im Auftrag des Laufs

@@ -156,7 +156,6 @@ class TestOhneHinterlegtenSchluessel:
         sprich(6)
         liste = klient.get("/lernen/api/laeufe").json()
         assert liste["bereit"] is False
-        assert liste["schluessel_noetig"] is False
         assert "Trainerschlüssel" in liste["hinweis"]
 
     def test_zusehen_bleibt_moeglich(self, klient: TestClient, abgeschaltet: None) -> None:
@@ -164,12 +163,11 @@ class TestOhneHinterlegtenSchluessel:
 
 
 class TestWasDieOberflaecheErfaehrt:
-    def test_mit_schluessel_fragt_die_seite_danach(
+    def test_mit_schluessel_ist_die_seite_bereit(
         self, klient: TestClient, quelle: str, sprich
     ) -> None:
         sprich(6)
         liste = klient.get("/lernen/api/laeufe").json()
-        assert liste["schluessel_noetig"] is True
         assert liste["bereit"] is True
         assert liste["hinweis"] == ""
 

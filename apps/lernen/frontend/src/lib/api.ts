@@ -9,6 +9,7 @@
  */
 
 import { alsJson, api } from '$ui/api';
+import { mitSchluessel } from '$ui/schluessel.svelte';
 // Wer der Server in diesem Browser sieht - die Form steht in `$ui/wer`, weil
 // alle drei Apps dieselbe Antwort lesen. Diese hier bekommt sie von „hören".
 import type { Wer } from '$ui/wer';
@@ -215,8 +216,6 @@ export type Laufliste = {
   faltungen: number;
   bereit: boolean;
   hinweis: string;
-  /** Ob der Server vor einem Auftrag den Trainerschlüssel sehen will. */
-  schluessel_noetig: boolean;
   /** Wie viele brauchbare Aufnahmen es gibt. */
   aufnahmen_jetzt: number;
   /** Wie viele davon der jüngste fertige Lauf noch nicht kannte. */
@@ -407,12 +406,13 @@ export type Bestellung = {
 
 /**
  * Die Achsen als Objekt: gleich typisierte Argumente ließen sich unbemerkt
- * vertauschen. Der Schlüssel ist Erlaubnis, nicht Bestellung.
+ * vertauschen. Der Schlüssel ist Erlaubnis, nicht Bestellung - er kommt aus
+ * den Zugangsdaten (`$ui/schluessel.svelte`).
  */
-export const beauftrage = (bestellung: Bestellung, schluessel: string) =>
+export const beauftrage = (bestellung: Bestellung) =>
   anfrage<Lauf>('/laeufe', {
     ...alsJson(bestellung),
-    headers: { 'Content-Type': 'application/json', 'X-Trainer-Key': schluessel },
+    headers: mitSchluessel(['trainer'], { 'Content-Type': 'application/json' }),
   });
 
 /** Anhalten: einen wartenden sofort, einen rechnenden über den Trainer. */
@@ -423,17 +423,17 @@ export const halteAn = (jobId: string) =>
  * Einen gescheiterten oder angehaltenen Lauf neu starten. Der neue ersetzt den
  * alten; verlangt wie das Beauftragen den Trainerschlüssel.
  */
-export const starteNeu = (jobId: string, schluessel: string) =>
+export const starteNeu = (jobId: string) =>
   anfrage<Lauf>(`/laeufe/${jobId}/neustart`, {
     method: 'POST',
-    headers: { 'X-Trainer-Key': schluessel },
+    headers: mitSchluessel(['trainer']),
   });
 
-/** Einen Lauf ersatzlos entfernen - samt dem Modell, das aus ihm entstand. */
-export const loescheLauf = (jobId: string, schluessel: string) =>
+/** Einen Lauf ersatzlos entfernen - samt Modell, nur mit Trainerschlüssel. */
+export const loescheLauf = (jobId: string) =>
   anfrage<{ job_id: string; version: string; war_freigegeben: boolean }>(
     `/laeufe/${jobId}`,
-    { method: 'DELETE', headers: { 'X-Trainer-Key': schluessel } },
+    { method: 'DELETE', headers: mitSchluessel(['trainer']) },
   );
 
 /**

@@ -89,7 +89,11 @@ niemand war.
 der einzige Weg herein. Mit einem Sprecherzugang zeigt die Seite zuerst,
 wessen Zugang im Browser liegt, und darunter **Zugang wechseln** - der Weg zu
 Verwaltung und Aufsicht. Alle drei Apps lesen denselben Eintrag
-(`packages/ui/zugang.ts`).
+(`packages/ui/zugang.ts`). Darunter stehen die **Rechte dieses Browsers**: was
+der Zugang trägt, und je Schlüssel - Trainer und Bearbeitung - ob er gilt,
+falsch ist, fehlt oder auf dem Server abgeschaltet ist. Eingetragen werden
+beide Schlüssel nur hier (`packages/ui/schluessel.svelte.ts`); geprüft wird
+mit derselben Rechnung wie in den Wächtern (`wortlaut/schluessel.py`).
 
 Alle Apps liegen unter einer Adresse: `hören` auf der Wurzel, `lernen` unter
 `/lernen/`, `schreiben` unter `/schreiben/` (`packages/ui/apps.ts`). Der Pfad
@@ -389,8 +393,10 @@ Gedacht für das Original nach dem Teilen.
 
 Vor allen Wegen des Zuschnitts steht zusätzlich `WORTLAUT_EDITOR_KEY`
 (`X-Editor-Key`), auch vor den lesenden: Der Zuschnitt entscheidet für jede
-folgende Messung und jedes Training, welcher Ton gilt. Leer heißt
-abgeschaltet; dann fehlt der Punkt in „Meine Daten".
+folgende Messung und jedes Training, welcher Ton gilt. Eingetragen wird er
+unter „Zugangsdaten"; ob er gilt, sagt `GET /api/zugang` (`bearbeiten`). Nur
+dann steht der Weg in den Zuschnitt in „Meine Daten", sonst ein Verweis auf
+die Zugangsdaten. Leer heißt abgeschaltet; dann fehlt der Punkt ganz.
 
 ---
 
@@ -583,7 +589,6 @@ POST   /api/auswertung/stopp                Gerechnetes bleibt
 Zuschnitt - zusätzlich `X-Editor-Key`:
 
 ```
-GET    /api/zuschnitt/stand                 { bereit, hinweis } - ohne Schlüssel
 GET    /api/zuschnitt/aufnahmen?ab=&anzahl= Kurve, Vorschlag, bisheriger Schnitt
 GET    /api/zuschnitt/aufnahmen/{id}        eine Aufnahme - für „Editieren"
 GET    /api/zuschnitt/aufnahmen/{id}/original
@@ -614,7 +619,8 @@ DELETE /api/admin/speakers/{id}?bestaetigung={id}
 Mit jedem Zugang (`/api/sprachen` und `/gesundheit` auch ohne):
 
 ```
-GET    /api/zugang                          { art, sprecher_id, name, sprache }
+GET    /api/zugang                          { art, sprecher_id, name, sprache, trainieren, bearbeiten }
+                                            je Recht aus|fehlt|falsch|gilt, nach X-Trainer-Key und X-Editor-Key
 GET    /api/sprachen                        die unterstützten Sprachen
 GET    /api/system                          Maschine und Auslastung - für „System"
 GET    /gesundheit

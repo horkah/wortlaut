@@ -38,7 +38,6 @@
   } from './apps';
   import { merkeReiter, vorgabeReiter } from './reiter';
   import { ladeZugang, lage } from './lage.svelte';
-  import { trainerschluessel } from './trainerschluessel.svelte';
 
   let {
     app,
@@ -75,7 +74,7 @@
     [ZUGANGSDATEN_PFAD]: Zugangsdaten,
   };
 
-  const menue = $derived(menuePunkte(lage.art, app, Boolean(trainerschluessel())));
+  const menue = $derived(menuePunkte(lage.art, app, lage.trainieren === 'gilt'));
   const reiter = $derived(REITER[app].filter((punkt) => punkt.pfad in ansichten));
 
   // Welcher Reiter gilt, solange in der Adresse nichts steht: der, auf dem

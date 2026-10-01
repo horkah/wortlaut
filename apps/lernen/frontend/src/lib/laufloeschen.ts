@@ -5,8 +5,9 @@
  * und die Einzelansicht, der einzige Ort, an dem ein fertiger Lauf noch als
  * Lauf steht. Die Rückfrage steht deshalb hier und nicht zweimal.
  *
- * Nur mit Trainerschlüssel - wer trainieren darf, darf auch löschen. Ohne ihn
- * zeigen beide Stellen keinen Papierkorb (`darfLoeschen`).
+ * Nur mit Trainerschlüssel - wer trainieren darf, darf auch löschen. Ob er
+ * gilt, sagt der Server (`lage.trainieren`); solange nicht, zeigen beide
+ * Stellen keinen Papierkorb (`darfLoeschen`).
  *
  * Die Abfrage nennt, was verschwindet: Das Modell eines fertigen Laufs geht
  * mit (`services/auftraege.loesche`).
@@ -15,13 +16,13 @@
  * sich, womit in „schreiben" diktiert wird.
  */
 
-import { trainerschluessel } from '$ui/trainerschluessel.svelte';
+import { lage } from '$ui/lage.svelte';
 import { zeitpunkt } from '$ui/zeit';
 import { loescheLauf, type Lauf } from './api';
 
-/** Ob der Papierkorb erscheint: nur mit eingetragenem Trainerschlüssel. */
+/** Ob der Papierkorb erscheint: nur, wenn der Server den Trainerschlüssel annimmt. */
 export function darfLoeschen(): boolean {
-  return trainerschluessel() !== '';
+  return lage.trainieren === 'gilt';
 }
 
 /**
@@ -50,6 +51,6 @@ export async function loescheNachRueckfrage(lauf: Lauf): Promise<boolean> {
   zeilen.push('Das lässt sich nicht rückgängig machen.');
 
   if (!confirm(zeilen.join('\n'))) return false;
-  await loescheLauf(lauf.job_id, trainerschluessel());
+  await loescheLauf(lauf.job_id);
   return true;
 }

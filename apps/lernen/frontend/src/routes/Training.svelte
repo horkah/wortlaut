@@ -25,9 +25,9 @@
   } from '../lib/api';
   import Papierkorb from '../lib/Papierkorb.svelte';
   import { darfLoeschen, loescheNachRueckfrage } from '../lib/laufloeschen';
-  import { setzeTrainerschluessel, trainerschluessel } from '$ui/trainerschluessel.svelte';
   import { setzeTrainingswahl, trainingswahl } from '../lib/trainingswahl';
-  import { LAUF_ROUTE, gehZu } from '../lib/zustand.svelte';
+  import { LAUF_ROUTE, gehZu, lage } from '../lib/zustand.svelte';
+  import { ZUGANGSDATEN_PFAD } from '$ui/apps';
   import { zeitpunkt } from '$ui/zeit';
 
   // Während gerechnet wird, soll der Balken mitwachsen - aber ein Takt von
@@ -117,10 +117,10 @@
     const gleicheZiele = erlaubteLora.find((wahl) => wahl.startsWith(`${loraZiele}/`));
     [loraZiele, loraRang] = (gleicheZiele ?? erlaubteLora[0]).split('/');
   });
-  // Der Trainerschlüssel. Er steht hier neben Methode und Datensatz, weil er
-  // an derselben Stelle gebraucht wird - aber er gehört nicht zur Bestellung,
-  // sondern zur Erlaubnis, sie aufzugeben (siehe `$ui/trainerschluessel.svelte.ts`).
-  let schluessel = $state(trainerschluessel());
+  // Beauftragen und Neustarten verlangen den Trainerschlüssel. Eingetragen
+  // wird er unter „Zugangsdaten", ob er gilt, sagt der Server
+  // (`$ui/schluessel.svelte`).
+  const darfTrainieren = $derived(lage.trainieren === 'gilt');
 
   const laeufe = $derived(daten?.laeufe ?? []);
   const arbeitet = $derived(laeufe.some((lauf) => lauf.status === 'laeuft'));
@@ -388,10 +388,7 @@
           kontext,
           grundmodell,
         },
-        schluessel,
       );
-      // Erst merken, wenn er gestimmt hat.
-      setzeTrainerschluessel(schluessel);
       await hole();
       fehler = '';
     } catch (ursache) {
@@ -426,8 +423,7 @@
   /** Neu starten - derselbe Auftrag, derselbe Schnappschuss; der alte Lauf geht. */
   async function neuStarten(lauf: Lauf) {
     try {
-      await starteNeu(lauf.job_id, schluessel);
-      setzeTrainerschluessel(schluessel);
+      await starteNeu(lauf.job_id);
       await hole();
       fehler = '';
     } catch (ursache) {
@@ -560,15 +556,15 @@
           </div>
         {:else if lauf.neu_startbar}
           <!-- Neu starten belegt die Karte wie ein neuer Auftrag und verlangt
-               deshalb denselben Schlüssel - er steht unten bei der Bestellung. -->
+               deshalb denselben Schlüssel. -->
           <div class="reihe">
             <button
               class="knopf"
               onclick={() => neuStarten(lauf)}
-              disabled={daten?.schluessel_noetig && !schluessel.trim()}
-              title={daten?.schluessel_noetig && !schluessel.trim()
-                ? 'Erst unten den Trainerschlüssel eintragen'
-                : 'Derselbe Auftrag noch einmal; dieser Lauf wird dabei entfernt'}
+              disabled={!darfTrainieren}
+              title={darfTrainieren
+                ? 'Derselbe Auftrag noch einmal; dieser Lauf wird dabei entfernt'
+                : 'Erst unter „Zugangsdaten“ den Trainerschlüssel eintragen'}
             >
               Neu starten
             </button>
@@ -789,20 +785,22 @@
       </fieldset>
     </div>
 
-    {#if daten.schluessel_noetig}
+    {#if !darfTrainieren}
       <!-- Ein Lauf belegt die Karte für Stunden, und das soll nicht jeder
            anstoßen können, der einen Aufnahmelink hat. -->
-      <label class="schluessel">
-        <span class="gedaempft">Trainerschlüssel</span>
-        <input type="password" bind:value={schluessel} autocomplete="off" />
-      </label>
+      <p class="hinweise">
+        {lage.trainieren === 'falsch'
+          ? 'Der eingetragene Trainerschlüssel stimmt nicht.'
+          : 'Zum Beauftragen braucht es den Trainerschlüssel.'}
+        Eingetragen wird er unter <a href="#{ZUGANGSDATEN_PFAD}">Zugangsdaten</a>.
+      </p>
     {/if}
 
     <div class="reihe">
       <button
         class="knopf haupt"
         onclick={bestelle}
-        disabled={bestellt === 'laeuft' || (daten.schluessel_noetig && !schluessel.trim())}
+        disabled={bestellt === 'laeuft' || !darfTrainieren}
       >
         Training beauftragen
       </button>
@@ -886,15 +884,6 @@
 
   .bestellung {
     margin-bottom: 1.4rem;
-  }
-
-  .schluessel {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    max-width: 22rem;
-    margin-bottom: 0.8rem;
-    font-size: 0.85rem;
   }
 
   .wahlen {

@@ -12,7 +12,7 @@
    * Zeile - wer sie braucht, klappt sie auf.
    */
   import { api } from './api';
-  import { trainerschluessel } from './trainerschluessel.svelte';
+  import { mitSchluessel } from './schluessel.svelte';
   import { zeitpunkt } from './zeit';
 
   interface Eintrag {
@@ -44,10 +44,9 @@
   async function hole() {
     laedt = true;
     try {
-      const schluessel = trainerschluessel();
       const antwort = await hoeren.anfrage<{ eintraege: Eintrag[]; tage: number }>(
         '/fehlerlog',
-        schluessel ? { headers: { 'X-Trainer-Key': schluessel } } : {},
+        { headers: mitSchluessel(['trainer']) },
       );
       eintraege = antwort.eintraege;
       tage = antwort.tage;
