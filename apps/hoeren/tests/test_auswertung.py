@@ -163,6 +163,32 @@ class TestLauf:
         assert stand["erledigt"] == 2 * JE_AUFNAHME
         assert stand["fehler"] is None
 
+    def test_ein_modell_rechnet_alles_bevor_das_naechste_drankommt(
+        self,
+        klient: TestClient,
+        quelle: str,
+        sprich,
+        antworten: dict,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        sprich()
+        sprich()
+        antworten.update({"small": "eins", "medium": "zwei"})
+        gefragt: list[str] = []
+
+        def merkend(modell, geraet, rechenart, datenverzeichnis=None):
+            gefragt.append(modell)
+            return PlatzhalterErkenner(modell, antworten)
+
+        monkeypatch.setattr(auswertung, "transkriptor_fuer", merkend)
+        _laufe_bis_fertig(klient)
+
+        # Je Posten einmal gefragt - gewechselt wird genau einmal, in der
+        # Reihenfolge der Konfiguration.
+        wechsel = [modell for nummer, modell in enumerate(gefragt) if gefragt[nummer - 1 : nummer] != [modell]]
+        assert wechsel == ["small", "medium"]
+        assert len(gefragt) == 2 * JE_AUFNAHME
+
     def test_misst_jede_fassung_einzeln(
         self, klient: TestClient, quelle: str, sprich, antworten: dict
     ) -> None:
