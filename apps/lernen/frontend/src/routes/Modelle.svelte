@@ -281,7 +281,7 @@
   <div class="messgrundlage">
     <p class="gedaempft klein">
       {#if uebersicht.vergleichbar}
-        Gemessen an {uebersicht.testaufnahmen} Testaufnahmen, die kein Modell je zum Lernen gesehen
+        Gemessen an {uebersicht.messaufnahmen} Testaufnahmen, die kein Modell je zum Lernen gesehen
         hat - {einheiten}
         {einheiten === 1 ? 'Messung' : 'Messungen'} je Modell, für alle dieselben.
       {:else}
