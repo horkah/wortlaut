@@ -498,10 +498,13 @@ Fassung:
 * **Von Hand angestoßen**, nie beim Hochfahren.
 * **Ist nichts offen, läuft nichts**, und der Knopf sagt „Nichts Neues zu
   rechnen".
-* **Aufnahmeweise**, alle Modelle je Aufnahme, damit die Kurve sofort
-  vergleicht. Alle Erkenner liegen dafür gleichzeitig im Speicher - bei
-  `small,medium,large-v3` knapp drei Gigabyte in `int8_float16`.
-* **Danach ist die Karte frei.** Endet ein Lauf, gibt er alle Erkenner zurück
+* **Modellweise**: Ein Modell rechnet alle offenen Aufnahmen und Fassungen,
+  dann kommt das nächste, in der Reihenfolge von `WORTLAUT_AUSWERTUNG_MODELLE`
+  und danach die eigenen Stände. So lädt jedes Modell einmal je Lauf.
+* **Ein Erkenner auf der Karte.** Kommt das nächste Modell an die Reihe, geht
+  das vorige herunter (`transkriptor_fuer`). Mehrere nebeneinander ließen
+  einem großen Stand keinen Platz, und einem Training daneben auch nicht.
+* **Danach ist die Karte frei.** Endet ein Lauf, gibt er den Erkenner zurück
   (`gib_karte_frei`), denn der Trainer braucht die ganze Karte.
 * **Wiederaufnehmbar.** Fertig ist, was in `erkennungen` steht; ein zweiter
   Lauf rechnet nur, was fehlt.

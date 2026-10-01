@@ -38,6 +38,10 @@ FASSUNGEN = len(augmentierung.VARIANTEN)
 JE_AUFNAHME = 2 * FASSUNGEN
 
 
+# Vor dem Ersetzen durch den Platzhalter (`_erkenner`) - für die Karte.
+ECHTER_TRANSKRIPTOR_FUER = auswertung.transkriptor_fuer
+
+
 class PlatzhalterErkenner:
     """Ein Erkenner, der nicht hört, sondern nachschlägt.
 
@@ -404,6 +408,26 @@ class TestKarte:
 
         assert geladen.entladen
         assert auswertung._transkriptoren == {}
+
+    def test_auf_der_karte_liegt_nur_ein_modell(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from wortlaut.whisper import local
+
+        class Geladen(EntladbarerErkenner):
+            def __init__(self, modell, **_rechenwerk) -> None:
+                super().__init__()
+                self.modell = modell
+
+        monkeypatch.setattr(local, "LokalerTranskriptor", Geladen)
+
+        erster = ECHTER_TRANSKRIPTOR_FUER("small", "cpu", "int8")
+        assert ECHTER_TRANSKRIPTOR_FUER("small", "cpu", "int8") is erster
+        zweiter = ECHTER_TRANSKRIPTOR_FUER("medium", "cpu", "int8")
+
+        # Der vorige geht herunter, bevor der nächste lädt.
+        assert erster.entladen
+        assert not zweiter.entladen
+        assert list(auswertung._transkriptoren) == ["medium"]
+        auswertung.gib_karte_frei()
 
     def test_ein_erkenner_ohne_modell_wird_nur_vergessen(self) -> None:
         # Ein entfernter Erkenner hält nichts auf dieser Karte.
