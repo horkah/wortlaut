@@ -507,18 +507,21 @@ def offene_posten(
 ) -> list[Posten]:
     """Was noch zu rechnen ist, in der Reihenfolge, in der gerechnet wird.
 
-    Aufnahme, dann Modell, dann Fassung - so ist eine halb gerechnete Aufnahme
-    für jedes fertige Modell vollständig.
+    Modell, dann Aufnahme, dann Fassung: Ein Modell rechnet alles, was für es
+    offen ist, bevor das nächste drankommt - in der Reihenfolge von `namen`.
+    Ein Modell zu laden kostet bis zu einer halben Minute; je Aufnahme
+    gewechselt, käme jedes in jeder Runde wieder an die Reihe.
 
     Kein Stand über eine Aufnahme, die er kannte (`bekannt`, `verwandte`);
     fehlt dort die Faltung, bleibt die Stelle leer.
     """
     erledigt = _fertig(db, werk)
     gesperrt = verwandte(db, bekannt or {})
+    aufnahmen = gueltige_aufnahmen(db)
     return [
         posten
-        for aufnahme, vorlage in gueltige_aufnahmen(db)
         for modell in namen
+        for aufnahme, vorlage in aufnahmen
         if aufnahme.id not in gesperrt.get(modell, ())
         for variante in augmentierung.VARIANTEN
         if (
