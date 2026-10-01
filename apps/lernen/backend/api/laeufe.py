@@ -38,9 +38,10 @@ SCHLUESSEL_KOPF = "X-Trainer-Key"
 def _pruefe_trainerschluessel(
     x_trainer_key: Annotated[str | None, Header()] = None,
 ) -> None:
-    """Wächter der Wege, die die Karte belegen.
+    """Wächter der Wege, die die Karte belegen - und des Löschens von Läufen samt Modell.
 
     Der Sprecherzugang sagt „wessen Modell", nicht „wer darf rechnen lassen".
+    Wer trainieren darf, darf auch wegwerfen; alle anderen sehen nur zu.
     Nicht gesetzt heißt abgeschaltet (`config.trainer_key`); die Oberfläche
     zeigt den Knopf dann nicht (`bereit`, `hinweis`). Zeitkonstant über die
     UTF-8-Bytes verglichen, wie in „hören".
@@ -1367,7 +1368,11 @@ class GeloeschtAntwort(BaseModel):
     war_freigegeben: bool
 
 
-@router.delete("/{job_id}", response_model=GeloeschtAntwort)
+@router.delete(
+    "/{job_id}",
+    response_model=GeloeschtAntwort,
+    dependencies=[Depends(_pruefe_trainerschluessel)],
+)
 def loeschen(job_id: str, sprecher: SprecherId) -> GeloeschtAntwort:
     """Einen Lauf ersatzlos entfernen - samt dem Modell, das aus ihm entstand.
 

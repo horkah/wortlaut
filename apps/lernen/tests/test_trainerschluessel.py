@@ -4,7 +4,8 @@ Ein Lauf belegt die Karte für Minuten bis Stunden. Der Sprecherzugang sagt,
 wessen Modell dabei entsteht; er sagt nicht, dass dieser Mensch die Maschine
 dafür beschäftigen darf. Deshalb ein zweites Geheimnis vor den beiden Wegen,
 die rechnen lassen - `POST /lernen/api/laeufe` und dem Neustart eines Laufs -,
-und vor keinem anderen.
+und vor dem Löschen eines Laufs samt Modell: Wer trainieren darf, darf auch
+wegwerfen.
 
 Geprüft wird hier beides: dass der Schlüssel die teure Tür wirklich zuhält,
 und dass er vor keiner billigen steht.
@@ -78,19 +79,40 @@ class TestBeauftragen:
         assert klient.post("/lernen/api/laeufe", json=_bestellung()).status_code == 409
 
 
-class TestDerRestBleibtOffen:
-    """Zusehen, zurücknehmen, löschen: alles ohne Schlüssel.
+class TestLoeschen:
+    """Ein Lauf samt Modell geht nur mit dem Schlüssel, der ihn anstoßen durfte."""
 
-    Das ist die Grenze dieser Sperre. Sie beschränkt, was Rechenzeit kostet -
-    nicht, was jemandem gehört. Wer seine Stimme hergegeben hat, kommt an
-    seine Läufe, auch wenn er nie einen anstoßen darf.
+    def test_ohne_schluessel_bleibt_der_lauf(
+        self, klient: TestClient, quelle: str, sprich
+    ) -> None:
+        sprich(6)
+        job_id = klient.post("/lernen/api/laeufe", json=_bestellung()).json()["job_id"]
+        for falsch in ("", "daneben"):
+            antwort = klient.delete(
+                f"/lernen/api/laeufe/{job_id}", headers={"X-Trainer-Key": falsch}
+            )
+            assert antwort.status_code == 401
+        assert klient.get(f"/lernen/api/laeufe/{job_id}").status_code == 200
+
+    def test_mit_schluessel_geloescht(self, klient: TestClient, quelle: str, sprich) -> None:
+        sprich(6)
+        job_id = klient.post("/lernen/api/laeufe", json=_bestellung()).json()["job_id"]
+        assert klient.delete(f"/lernen/api/laeufe/{job_id}").status_code == 200
+
+
+class TestDerRestBleibtOffen:
+    """Zusehen und zurücknehmen: ohne Schlüssel.
+
+    Die Sperre beschränkt, was Rechenzeit kostet oder ein Modell wegwirft -
+    nicht das Hinsehen. Wer seine Stimme hergegeben hat, sieht seine Läufe,
+    auch wenn er nie einen anstoßen darf.
     """
 
     def test_liste_ohne_schluessel(self, klient: TestClient) -> None:
         antwort = klient.get("/lernen/api/laeufe", headers={"X-Trainer-Key": ""})
         assert antwort.status_code == 200
 
-    def test_zuruecknehmen_und_loeschen_ohne_schluessel(
+    def test_zuruecknehmen_ohne_schluessel(
         self, klient: TestClient, quelle: str, sprich
     ) -> None:
         sprich(6)
@@ -98,7 +120,6 @@ class TestDerRestBleibtOffen:
         ohne = {"X-Trainer-Key": ""}
         assert klient.post(f"/lernen/api/laeufe/{job_id}/abbruch", headers=ohne).status_code == 200
         assert klient.get(f"/lernen/api/laeufe/{job_id}", headers=ohne).status_code == 200
-        assert klient.delete(f"/lernen/api/laeufe/{job_id}", headers=ohne).status_code == 200
 
 
 class TestOhneHinterlegtenSchluessel:

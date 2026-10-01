@@ -49,8 +49,8 @@ also genügt ein persönlicher Link, einmal geöffnet.
 **9. Ein Zugang sagt, wem etwas gehört - nicht, was es kosten darf.** Der
 Sprecherzugang liegt bei jedem, der aufnimmt. Wo ein Weg mehr kostet als
 Zusehen, steht ein zweites Geheimnis davor: der Trainerschlüssel
-(`WORTLAUT_TRAINER_KEY`, `X-Trainer-Key`) vor Beauftragen und Neustart eines
-Laufs, der Bearbeitungsschlüssel (`WORTLAUT_EDITOR_KEY`, `X-Editor-Key`) vor
+(`WORTLAUT_TRAINER_KEY`, `X-Trainer-Key`) vor Beauftragen, Neustart und
+Löschen eines Laufs, der Bearbeitungsschlüssel (`WORTLAUT_EDITOR_KEY`, `X-Editor-Key`) vor
 jedem Weg des Zuschnitts - dort auch vor den lesenden, denn schon die Ansicht
 ist die Werkbank. Leer heißt abgeschaltet, nicht offen.
 
