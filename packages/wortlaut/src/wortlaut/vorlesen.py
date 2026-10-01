@@ -201,3 +201,8 @@ def stimmen(stimmenverzeichnis: Path, motorname: str = "piper") -> list[Stimme]:
         return motor_fuer(stimmenverzeichnis, motorname).stimmen()
     except VorlesenFehler:
         return []
+
+
+def bietet(stimmenverzeichnis: Path, motorname: str, stimme: str) -> bool:
+    """Ob diese Stimme hier zur Wahl steht - die Prüfung vor jedem Vorlesen."""
+    return stimme in {eintrag.schluessel for eintrag in stimmen(stimmenverzeichnis, motorname)}

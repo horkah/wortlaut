@@ -14,12 +14,13 @@
   import Recorder from '$ui/Recorder.svelte';
   import SegmentList from '$ui/SegmentList.svelte';
   import { einstellungen } from '$ui/einstellungen.svelte';
-  import { brichVorlesenAb, sprich, stimmeNachUri, stimmeVerfuegbar, stimmen } from '$ui/speak';
+  import { brichAllesAb, liesVor, stimmeVerfuegbar } from '$ui/speak';
   import { kannTeilen, teile } from '$ui/teilen';
   import { inDieZwischenablage } from '$ui/zwischenablage';
   import {
     abschnittAudioUrl,
     abschnittNeuSprechen,
+    abschnittVorgelesen,
     bestaetigen,
     postausgangSenden,
     sitzungHolen,
@@ -59,10 +60,12 @@
       for (const abschnitt of abschnitte) {
         if (!liest) break; // in der Zwischenzeit angehalten
         gesprochen = abschnitt.id;
-        await sprich(abschnitt.text, {
-          stimme: stimmeNachUri(einstellungen.stimmeUri, stimmen(lage.sprache)),
-          tempo: einstellungen.tempo,
-        });
+        // Dieselbe Stimme wie in „hören" - vom Server, sonst vom Browser.
+        await liesVor(
+          abschnitt.text,
+          { stimmeUri: einstellungen.stimmeUri, sprache: lage.sprache, tempo: einstellungen.tempo },
+          (stimme) => abschnittVorgelesen(abschnitt.id, stimme),
+        );
       }
     } catch (ursache) {
       // Ein Abbruch mitten im Satz meldet sich hier ebenfalls; das ist kein
@@ -76,7 +79,7 @@
 
   function halt() {
     liest = false;
-    brichVorlesenAb();
+    brichAllesAb();
     gesprochen = null;
   }
 
@@ -187,11 +190,16 @@
   // Leuten, ist ein Telefon, das von selbst zu sprechen anfängt, der Grund,
   // es wegzulegen. Der Knopf „▶ Vorlesen" oben bleibt davon unberührt; er ist
   // die Handlung, das hier ist die Gewohnheit dahinter.
-  if (einstellungen.liestVonSelbst && stimmeVerfuegbar(lage.sprache) && !bestaetigt) lies();
+  if (
+    einstellungen.liestVonSelbst &&
+    stimmeVerfuegbar(lage.sprache, einstellungen.stimmeUri) &&
+    !bestaetigt
+  )
+    lies();
 </script>
 
 <div class="reihe kopfzeile">
-  {#if stimmeVerfuegbar(lage.sprache)}
+  {#if stimmeVerfuegbar(lage.sprache, einstellungen.stimmeUri)}
     <button class="knopf" onclick={lies}>{liest ? '■ Anhalten' : '▶ Vorlesen'}</button>
   {/if}
   <span class="gedaempft">{abschnitte.length} Abschnitte · zum Bessern anklicken</span>

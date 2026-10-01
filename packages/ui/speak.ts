@@ -31,6 +31,9 @@ export type Sprechweise = {
 /**
  * Ist überhaupt eine Stimme für diese Sprache da?
  *
+ * Eine gewählte Stimme des Servers genügt (`stimmeUri`) - sie spricht auch in
+ * einem Browser, der selbst keine hat.
+ *
  * **`sprache` ohne Vorgabe:** Wer fragt, sagt, für wen (`wortlaut/sprachen.py`).
  *
  * **`null` heißt „weiß ich nicht" und nicht „Deutsch".** So lange steht die
@@ -38,7 +41,8 @@ export type Sprechweise = {
  * Sprache. Dann wird nicht gefiltert, statt eine zu erfinden: Lieber alle
  * Stimmen zeigen als die falschen.
  */
-export function stimmeVerfuegbar(sprache: string | null): boolean {
+export function stimmeVerfuegbar(sprache: string | null, stimmeUri: string | null): boolean {
+  if (istServestimme(stimmeUri)) return true;
   if (!('speechSynthesis' in window)) return false;
   const stimmen = window.speechSynthesis.getVoices();
   // Direkt nach dem Laden ist die Liste oft noch leer; dann lieber optimistisch
@@ -161,7 +165,7 @@ export async function stimmprobe(stimme: string): Promise<Blob> {
   return antwort.blob();
 }
 
-let laufend: HTMLAudioElement | null = null;
+let laufend: { klang: HTMLAudioElement; fertig: () => void } | null = null;
 
 /**
  * Eine vorgelesene Datei abspielen und auflösen, wenn sie zu Ende ist.
@@ -175,15 +179,17 @@ export function spieleVor(url: string, tempo = TEMPO_VORGABE): Promise<void> {
   return new Promise((fertig, fehler) => {
     haltAn();
     const klang = new Audio(url);
+    // Angehalten ist auch fertig - sonst wartete, wer abschnittweise vorliest,
+    // nach einem Halt für immer.
+    laufend = { klang, fertig };
     klang.playbackRate = tempo;
     // `preservesPitch` heißt in älteren Browsern anders; beides zu setzen ist
     // billiger als eine Abfrage, welcher gerade liest.
     type MitTonhoehe = HTMLAudioElement & { mozPreservesPitch?: boolean };
     klang.preservesPitch = true;
     (klang as MitTonhoehe).mozPreservesPitch = true;
-    laufend = klang;
     klang.onended = () => {
-      if (laufend === klang) laufend = null;
+      if (laufend?.klang === klang) laufend = null;
       fertig();
     };
     klang.onerror = () => fehler(new Error('Die vorgelesene Fassung ließ sich nicht abspielen.'));
@@ -193,9 +199,43 @@ export function spieleVor(url: string, tempo = TEMPO_VORGABE): Promise<void> {
 
 function haltAn(): void {
   if (laufend) {
-    laufend.pause();
+    const { klang, fertig } = laufend;
     laufend = null;
+    klang.pause();
+    fertig();
   }
+}
+
+/**
+ * Einen Text vorlesen, wie es eingestellt ist: mit der Stimme des Servers, wenn
+ * eine gewählt ist und ihre Datei kommt, sonst mit der des Browsers.
+ *
+ * Der Rückfall ist stumm und das mit Absicht: Wer zuhören will, soll hören
+ * und keine Fehlermeldung lesen. `datei` holt die gesprochene Fassung - aus
+ * „hören" die einer Vorlage, aus „schreiben" die eines Abschnitts; nie ein
+ * frei mitgeschickter Text.
+ */
+export async function liesVor(
+  text: string,
+  wie: { stimmeUri: string | null; sprache: string | null; tempo: number },
+  datei: (stimme: string) => Promise<Blob>,
+): Promise<void> {
+  if (istServestimme(wie.stimmeUri)) {
+    let url: string | null = null;
+    try {
+      url = URL.createObjectURL(await datei(serveSchluessel(wie.stimmeUri!)));
+      await spieleVor(url, wie.tempo);
+      return;
+    } catch {
+      // Weiter unten mit der Browserstimme.
+    } finally {
+      if (url) URL.revokeObjectURL(url);
+    }
+  }
+  await sprich(text, {
+    stimme: stimmeNachUri(wie.stimmeUri, stimmen(wie.sprache)),
+    tempo: wie.tempo,
+  });
 }
 
 /** Beide Wege anhalten - der Aufrufer weiß nicht, welcher gerade läuft. */
