@@ -78,7 +78,8 @@ class _Lauf:
 # Ein Lauf zur Zeit, über alle Sprecher - zwei wären zusammen langsamer.
 _lauf: _Lauf | None = None
 
-# Für die Dauer eines Laufs geladen, danach frei (`gib_karte_frei`).
+# Der Erkenner des Modells, das gerade rechnet - höchstens einer
+# (`transkriptor_fuer`); nach dem Lauf frei (`gib_karte_frei`).
 _transkriptoren: dict[str, Transkriptor] = {}
 
 
@@ -164,9 +165,17 @@ def transkriptor_fuer(
     """Der Erkenner zu einem Namen - oder zu einem Stand.
 
     Ein Grundmodell über seinen Namen, ein Stand über seine Gewichte.
+
+    Auf der Karte liegt nur einer: Kommt ein anderes Modell an die Reihe, geht
+    das vorige erst herunter. Mehrere nebeneinander ließen einem großen Stand
+    keinen Platz - er wiche auf den Prozessor aus und rechnete ein Vielfaches
+    länger -, und einem Training daneben ebenso wenig. Weil ein Modell alles
+    rechnet, bevor das nächste drankommt (`offene_posten`), lädt jedes einmal.
     """
     if modell not in _transkriptoren:
         from wortlaut.whisper.local import LokalerTranskriptor
+
+        gib_karte_frei()
 
         quelle: str | Path = modell
         if registry.ist_stand(modell) and datenverzeichnis is not None:
