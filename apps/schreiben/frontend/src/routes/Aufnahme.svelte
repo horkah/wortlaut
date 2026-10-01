@@ -46,7 +46,7 @@
 
   <Recorder
     onaufnahme={sende}
-    ontippen={entsperreVorlesen}
+    ontippen={() => entsperreVorlesen(einstellungen.stimmeUri)}
     deaktiviert={stand === 'verstehe'}
     geraeteId={einstellungen.mikrofonId}
     verstaerkung={einstellungen.verstaerkung}

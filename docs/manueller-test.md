@@ -314,7 +314,8 @@ bleibt die Seite leer, das ist kein Fehler.
    faster-whisper sein Modell herunterlädt (Fortschritt in der
    Backend-Konsole). Danach wechselt die Ansicht zum Text.
 5. Erwartet: die Sätze stehen als einzeln umrandete Abschnitte untereinander,
-   und die App liest von selbst vor; der gerade gesprochene Abschnitt ist
+   und die App liest von selbst vor (mit einer Stimme vom Server; mit einer
+   des Geräts erst auf **▶ Vorlesen**); der gerade gesprochene Abschnitt ist
    blass hinterlegt. **■ Anhalten** stoppt sofort, **▶ Vorlesen** beginnt von
    vorn. Dass ein unverändertes Whisper bei abweichender Aussprache daneben
    greift, ist erwartet und der Grund für die App „lernen“.

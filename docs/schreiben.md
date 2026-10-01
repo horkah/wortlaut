@@ -64,7 +64,9 @@ Die Zielperson kann schlecht lesen und schreiben (Grundentscheidung 7):
   nicht sicher liest, hört den Fehler. Ob von selbst vorgelesen wird, steht
   unter „Audio"; „▶ Vorlesen" steht über dem Text. Gelesen wird in der
   Stimme, die unter „Audio" gewählt ist - eine des Servers wie in `hören`
-  (`GET …/segments/{id}/vorlesung`), sonst die des Browsers.
+  (`GET …/segments/{id}/vorlesung`), sonst die des Geräts. Von selbst liest
+  nur eine Stimme vom Server: Die des Geräts spricht auf dem iPhone nur aus
+  einem Tippen heraus, mit ihr bleibt es bei „▶ Vorlesen".
 - **Nichts zu tippen.** Der Zugang kommt über den persönlichen Link, derselbe
   Eintrag wie in `hören`.
 - **Bearbeitet wird durch Sprechen.** „Text weitergeben" öffnet das

@@ -80,7 +80,7 @@
   async function vorlesen() {
     if (!ausschnitt?.aktuell) return;
     nachgesprochen = true; // schon der Versuch verändert die Sprechweise
-    entsperreVorlesen(); // noch im Tippen, vor dem Holen der Datei
+    entsperreVorlesen(einstellungen.stimmeUri); // noch im Tippen, vor dem Holen der Datei
     const vorlage = ausschnitt.aktuell;
     try {
       await liesVor(
