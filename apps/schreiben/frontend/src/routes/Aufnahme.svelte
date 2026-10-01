@@ -9,6 +9,7 @@
    */
   import Recorder from '$ui/Recorder.svelte';
   import { einstellungen } from '$ui/einstellungen.svelte';
+  import { entsperreVorlesen } from '$ui/speak';
   import { MODELLE_URL } from '$ui/apps';
   import { diktieren, sitzungBeginnen } from '../lib/api';
   import { gehZu, setzeSitzung, zustand } from '../lib/zustand.svelte';
@@ -45,6 +46,7 @@
 
   <Recorder
     onaufnahme={sende}
+    ontippen={entsperreVorlesen}
     deaktiviert={stand === 'verstehe'}
     geraeteId={einstellungen.mikrofonId}
     verstaerkung={einstellungen.verstaerkung}
