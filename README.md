@@ -14,7 +14,8 @@ nicht das, was ein Sprachmodell für plausibel hält.
 > Doku und Oberfläche sagen, was gilt und warum - nie, wie es vorher war. Die
 > Geschichte steht allein in der Commit-History. Ausgenommen sind datierte
 > Berichte wie der [Modellbericht](docs/modellbericht.md), der
-> [Kernbericht](docs/kernbericht.md) und der [Optionenbericht](docs/optionenbericht.md).
+> [Kernbericht](docs/kernbericht.md), der [Optionenbericht](docs/optionenbericht.md)
+> und der [Wirkungsbericht](docs/wirkungsbericht.md).
 
 ---
 
@@ -126,6 +127,7 @@ make release JOB=job_01J8…                        # freigeben - „schreiben" 
 | [Modellbericht](docs/modellbericht.md) | Vergleich aller Stände, Stand 26.09.2026 |
 | [Kernbericht](docs/kernbericht.md) | Kernauswahl gegen alle Aufnahmen, Stand 27.09.2026 |
 | [Optionenbericht](docs/optionenbericht.md) | was die neuen Trainingsoptionen bringen, laufend ergänzt, Stand 28.09.2026 |
+| [Wirkungsbericht](docs/wirkungsbericht.md) | Nutzen, Schaden und Kosten jeder Option über alle Läufe im Register, Datenmenge, Stand 02.10.2026 |
 
 ---
 

@@ -1,0 +1,171 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 1330" width="940" height="1330" role="img" aria-label="Alle Vergleiche einzeln">
+<style>
+svg{--surface:#fcfcfb;--t1:#0b0b0b;--t2:#52514e;--t3:#8a8984;--grid:#e6e5e0;--a:#2a78d6;--b:#eb6834;--rausch:#8a8984;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){svg{--surface:#1a1a19;--t1:#ffffff;--t2:#c3c2b7;--t3:#8f8e87;--grid:#3a3a37;--a:#3987e5;--b:#d95926;--rausch:#8f8e87}}
+.bg{fill:var(--surface)} .t1{fill:var(--t1)} .t2{fill:var(--t2)} .t3{fill:var(--t3)}
+.grid{stroke:var(--grid);stroke-width:1} .axis{stroke:var(--t3);stroke-width:1}
+.cA{stroke:var(--a);fill:var(--a)} .cB{stroke:var(--b);fill:var(--b)} .cN{stroke:var(--t2);fill:var(--t2)}
+.lA{stroke:var(--a);fill:none} .lB{stroke:var(--b);fill:none} .lN{stroke:var(--t2);fill:none}
+.hA{stroke:var(--a);fill:var(--surface)} .hB{stroke:var(--b);fill:var(--surface)} .hN{stroke:var(--t2);fill:var(--surface)}
+.ring{stroke:var(--surface)} .band{fill:var(--rausch);opacity:0.16}
+</style>
+<rect class="bg" width="940" height="1330" rx="6"/>
+<text x="16.0" y="28.0" text-anchor="start" class="t1" font-size="16" font-weight="600">Jeder Vergleich einzeln: relative Änderung der WER, gepaart auf denselben Aufnahmen</text>
+<text x="16.0" y="48.0" text-anchor="start" class="t2" font-size="12.5">Gefüllt: ohne abgestürzte Faltungen. Hohl: über alle Faltungen, wo das deutlich abweicht.</text>
+<circle cx="22.0" cy="72.0" r="5" class="cA ring" stroke-width="2"></circle>
+<text x="32.0" y="76.0" text-anchor="start" class="t2" font-size="12">Sprecher A</text>
+<path d="M120.0,65.8 L126.2,72.0 L120.0,78.2 L113.8,72.0 Z" class="cB ring" stroke-width="2"></path>
+<text x="130.0" y="76.0" text-anchor="start" class="t2" font-size="12">Sprecher B</text>
+<circle cx="230.0" cy="72.0" r="4.5" class="hN" stroke-width="2"></circle>
+<text x="240.0" y="76.0" text-anchor="start" class="t2" font-size="12">über alle Faltungen</text>
+<rect x="380" y="66" width="24" height="12" rx="2" class="band"/>
+<text x="410.0" y="76.0" text-anchor="start" class="t2" font-size="12">Rauschen zweier Läufe</text>
+<text x="16.0" y="94.0" text-anchor="start" class="t3" font-size="11">² fast gleiche Daten oder eine zweite Achse im Rauschen · ³ nur Hinweis, weitere Unterschiede</text>
+<rect x="597.9" y="112" width="28.9" height="1148" class="band"/>
+<line x1="476.9" y1="112.0" x2="476.9" y2="1260.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<text x="476.9" y="1276.0" text-anchor="middle" class="t3" font-size="11">−40 %</text>
+<line x1="544.6" y1="112.0" x2="544.6" y2="1260.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<text x="544.6" y="1276.0" text-anchor="middle" class="t3" font-size="11">−20 %</text>
+<line x1="612.3" y1="112.0" x2="612.3" y2="1260.0" class="axis" stroke-width="1" stroke-linecap="round"/>
+<text x="612.3" y="1276.0" text-anchor="middle" class="t3" font-size="11">0</text>
+<line x1="680.0" y1="112.0" x2="680.0" y2="1260.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<text x="680.0" y="1276.0" text-anchor="middle" class="t3" font-size="11">+20 %</text>
+<line x1="747.7" y1="112.0" x2="747.7" y2="1260.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<text x="747.7" y="1276.0" text-anchor="middle" class="t3" font-size="11">+40 %</text>
+<line x1="815.4" y1="112.0" x2="815.4" y2="1260.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<text x="815.4" y="1276.0" text-anchor="middle" class="t3" font-size="11">+60 %</text>
+<line x1="883.1" y1="112.0" x2="883.1" y2="1260.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<text x="883.1" y="1276.0" text-anchor="middle" class="t3" font-size="11">+80 %</text>
+<text x="680.0" y="1296.0" text-anchor="middle" class="t2" font-size="12">Änderung der WER (Option gegen Vergleich)</text>
+<text x="16.0" y="132.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">Gleiches Rezept (Rauschen)</text>
+<text x="448.0" y="153.0" text-anchor="end" class="t2" font-size="11.5">B: identisches Rezept (medium, 43 Aufn.)</text>
+<line x1="563.3" y1="149.0" x2="642.0" y2="149.0" class="lB" stroke-width="2" stroke-linecap="round"/>
+<circle cx="639.0" cy="149.0" r="4.5" class="hN" stroke-width="2"><title>B: identisches Rezept (medium, 43 Aufn.) - ML-E-SRP-CI/43b gegen ML-E-SRP-CI/43c: −3,9 % [−14,5 %; +8,8 %], n = 35; alle Faltungen +7,9 %</title></circle>
+<path d="M599.0,142.8 L605.2,149.0 L599.0,155.2 L592.7,149.0 Z" class="cB ring" stroke-width="2"><title>B: identisches Rezept (medium, 43 Aufn.) - ML-E-SRP-CI/43b gegen ML-E-SRP-CI/43c: −3,9 % [−14,5 %; +8,8 %], n = 35; alle Faltungen +7,9 %</title></path>
+<text x="448.0" y="175.0" text-anchor="end" class="t2" font-size="11.5">A: Korrekturgewicht auf 8 von 474 Zeilen (small)</text>
+<line x1="583.0" y1="171.0" x2="623.1" y2="171.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="602.9" cy="171.0" r="5" class="cA ring" stroke-width="2"><title>A: Korrekturgewicht 0,5→1,0 bei 8 von 474 Zeilen (small) - SL-A-E-SRP-CI/237 gegen SL-A-Q1-E-SRP-CI/237: −2,8 % [−8,7 %; +3,2 %], n = 233; alle Faltungen −2,8 %</title></circle>
+<text x="448.0" y="197.0" text-anchor="end" class="t2" font-size="11.5">A: Korrekturgewicht auf 8 von 474 Zeilen (medium)</text>
+<line x1="597.8" y1="193.0" x2="640.8" y2="193.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="618.6" cy="193.0" r="5" class="cA ring" stroke-width="2"><title>A: Korrekturgewicht 0,5→1,0 bei 8 von 474 Zeilen (medium) - ML-E-SRP-CI/237 gegen ML-Q1-E-SRP-CI/237: +1,9 % [−4,3 %; +8,4 %], n = 233; alle Faltungen +1,9 %</title></circle>
+<text x="448.0" y="219.0" text-anchor="end" class="t2" font-size="11.5">A: Korrekturgewicht auf 8 von 474 Zeilen (medium, Enc.)</text>
+<line x1="599.2" y1="215.0" x2="640.6" y2="215.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="618.2" cy="215.0" r="5" class="cA ring" stroke-width="2"><title>A: Korrekturgewicht 0,5→1,0 bei 8 von 474 Zeilen (medium, Encoder) - ML-Ze-E-SRP-CI/237 gegen ML-Ze-Q1-E-SRP-CI/237: +1,7 % [−3,9 %; +8,4 %], n = 233; alle Faltungen +1,7 %</title></circle>
+<text x="16.0" y="246.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">Grundmodell</text>
+<text x="448.0" y="267.0" text-anchor="end" class="t2" font-size="11.5">A: small → medium²</text>
+<line x1="517.2" y1="263.0" x2="570.2" y2="263.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="542.4" cy="263.0" r="5" class="cA ring" stroke-width="2"><title>A: small → medium - SL-A-E-SRP-CI/237 gegen ML-A-E-SRP-CI/235: −20,7 % [−28,1 %; −12,4 %], n = 231; alle Faltungen −20,7 %</title></circle>
+<text x="448.0" y="289.0" text-anchor="end" class="t2" font-size="11.5">A: medium → large-v3 (Encoder)</text>
+<line x1="547.2" y1="285.0" x2="603.7" y2="285.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="573.0" cy="285.0" r="5" class="cA ring" stroke-width="2"><title>A: medium → large-v3 (Encoder) - ML-Ze-Q1-E-SRP-CI/237 gegen L3L-Ze-Q1-E-SRP-CI/237: −11,6 % [−19,2 %; −2,5 %], n = 233; alle Faltungen −11,6 %</title></circle>
+<text x="448.0" y="311.0" text-anchor="end" class="t2" font-size="11.5">B: medium → large-v3 (Encoder)</text>
+<line x1="549.3" y1="307.0" x2="600.9" y2="307.0" class="lB" stroke-width="2" stroke-linecap="round"/>
+<path d="M573.9,300.8 L580.1,307.0 L573.9,313.2 L567.6,307.0 Z" class="cB ring" stroke-width="2"><title>B: medium → large-v3 (Encoder) - ML-Ze-E-SRP-CI/305 gegen L3L-Ze-E-SRP-CI/305: −11,3 % [−18,6 %; −3,4 %], n = 292; alle Faltungen −11,3 %</title></path>
+<text x="448.0" y="333.0" text-anchor="end" class="t2" font-size="11.5">B: small → medium (Encoder, Rang 64 → 32)²</text>
+<line x1="565.7" y1="329.0" x2="603.3" y2="329.0" class="lB" stroke-width="2" stroke-linecap="round"/>
+<path d="M584.0,322.8 L590.3,329.0 L584.0,335.2 L577.8,329.0 Z" class="cB ring" stroke-width="2"><title>B: small → medium (Encoder, Rang 64 → 32) - SL-Ze-R64-E-SRP-CI/262 gegen ML-Ze-E-SRP-CI/262: −8,4 % [−13,8 %; −2,7 %], n = 262; alle Faltungen −8,4 %</title></path>
+<text x="448.0" y="355.0" text-anchor="end" class="t2" font-size="11.5">A: medium → large-v3 (q,v; Abwandlungen → Originale)³</text>
+<line x1="503.5" y1="351.0" x2="557.5" y2="351.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="530.5" cy="351.0" r="5" class="cA ring" stroke-width="2"><title>A: medium → large-v3 (q,v; mit Abwandlungen → Originale) - ML-A-E-SRP-CI/235 gegen L3L-E-SRP-CI/235: −24,2 % [−32,1 %; −16,2 %], n = 231; alle Faltungen −24,2 %</title></circle>
+<text x="16.0" y="382.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">LoRA-Ziele</text>
+<text x="448.0" y="403.0" text-anchor="end" class="t2" font-size="11.5">A: q,v → alle Projektionen (small)</text>
+<line x1="588.8" y1="399.0" x2="632.3" y2="399.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="812.5" cy="399.0" r="4.5" class="hN" stroke-width="2"><title>A: q,v → alle Projektionen (small) - SL-A-E-SRP-CI/237 gegen SL-Z-A-E-SRP-CI/237: −0,9 % [−6,9 %; +5,9 %], n = 190; alle Faltungen +59,1 %</title></circle>
+<circle cx="609.3" cy="399.0" r="5" class="cA ring" stroke-width="2"><title>A: q,v → alle Projektionen (small) - SL-A-E-SRP-CI/237 gegen SL-Z-A-E-SRP-CI/237: −0,9 % [−6,9 %; +5,9 %], n = 190; alle Faltungen +59,1 %</title></circle>
+<text x="448.0" y="425.0" text-anchor="end" class="t2" font-size="11.5">A: q,v → nur Encoder (small)</text>
+<line x1="577.2" y1="421.0" x2="617.5" y2="421.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="596.6" cy="421.0" r="5" class="cA ring" stroke-width="2"><title>A: q,v → nur Encoder (small) - SL-A-E-SRP-CI/237 gegen SL-Ze-A-E-SRP-CI/237: −4,6 % [−10,4 %; +1,5 %], n = 233; alle Faltungen −4,6 %</title></circle>
+<text x="448.0" y="447.0" text-anchor="end" class="t2" font-size="11.5">A: q,v → nur Decoder (small)</text>
+<line x1="674.1" y1="443.0" x2="731.7" y2="443.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="700.9" cy="443.0" r="5" class="cA ring" stroke-width="2"><title>A: q,v → nur Decoder (small) - SL-A-E-SRP-CI/237 gegen SL-Zd-A-E-SRP-CI/237: +26,2 % [+18,3 %; +35,3 %], n = 233; alle Faltungen +26,2 %</title></circle>
+<text x="448.0" y="469.0" text-anchor="end" class="t2" font-size="11.5">A: q,v → alle Projektionen (medium)</text>
+<line x1="623.0" y1="465.0" x2="740.8" y2="465.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="844.3" cy="465.0" r="4.5" class="hN" stroke-width="2"><title>A: q,v → alle Projektionen (medium) - ML-E-SRP-CI/237 gegen ML-Z-E-SRP-CI/237: +19,0 % [+3,2 %; +38,0 %], n = 185; alle Faltungen +68,5 %</title></circle>
+<circle cx="676.5" cy="465.0" r="5" class="cA ring" stroke-width="2"><title>A: q,v → alle Projektionen (medium) - ML-E-SRP-CI/237 gegen ML-Z-E-SRP-CI/237: +19,0 % [+3,2 %; +38,0 %], n = 185; alle Faltungen +68,5 %</title></circle>
+<text x="448.0" y="491.0" text-anchor="end" class="t2" font-size="11.5">A: q,v → nur Encoder (medium)</text>
+<line x1="585.0" y1="487.0" x2="636.9" y2="487.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="610.3" cy="487.0" r="5" class="cA ring" stroke-width="2"><title>A: q,v → nur Encoder (medium) - ML-E-SRP-CI/237 gegen ML-Ze-E-SRP-CI/237: −0,6 % [−8,1 %; +7,3 %], n = 233; alle Faltungen −0,6 %</title></circle>
+<text x="448.0" y="513.0" text-anchor="end" class="t2" font-size="11.5">A: q,v → nur Decoder (medium)</text>
+<text x="900.0" y="513.0" text-anchor="end" class="t1" font-size="11">+729 %, jede Faltung abgestürzt →</text>
+<text x="448.0" y="535.0" text-anchor="end" class="t2" font-size="11.5">B: q,v → nur Encoder (large-v3)</text>
+<line x1="538.9" y1="531.0" x2="608.7" y2="531.0" class="lB" stroke-width="2" stroke-linecap="round"/>
+<path d="M573.6,524.8 L579.8,531.0 L573.6,537.2 L567.3,531.0 Z" class="cB ring" stroke-width="2"><title>B: q,v → nur Encoder (large-v3) - L3L-E-SRP-CI/305 gegen L3L-Ze-E-SRP-CI/305: −11,4 % [−21,7 %; −1,1 %], n = 292; alle Faltungen −11,4 %</title></path>
+<text x="448.0" y="557.0" text-anchor="end" class="t2" font-size="11.5">A: q,v → nur Encoder (large-v3)²</text>
+<line x1="627.4" y1="553.0" x2="705.4" y2="553.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="660.9" cy="553.0" r="5" class="cA ring" stroke-width="2"><title>A: q,v → nur Encoder (large-v3) - L3L-E-SRP-CI/235 gegen L3L-Ze-Q1-E-SRP-CI/237: +14,3 % [+4,5 %; +27,5 %], n = 231; alle Faltungen +14,3 %</title></circle>
+<text x="16.0" y="584.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">LoRA-Rang</text>
+<text x="448.0" y="605.0" text-anchor="end" class="t2" font-size="11.5">A: 32 → 8 (small)</text>
+<line x1="603.6" y1="601.0" x2="644.9" y2="601.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="623.8" cy="601.0" r="5" class="cA ring" stroke-width="2"><title>A: 32 → 8 (small) - SL-A-E-SRP-CI/237 gegen SL-R8-A-E-SRP-CI/237: +3,4 % [−2,6 %; +9,6 %], n = 233; alle Faltungen +3,4 %</title></circle>
+<text x="448.0" y="627.0" text-anchor="end" class="t2" font-size="11.5">A: 32 → 64 (small)</text>
+<line x1="585.2" y1="623.0" x2="619.2" y2="623.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="601.9" cy="623.0" r="5" class="cA ring" stroke-width="2"><title>A: 32 → 64 (small) - SL-A-E-SRP-CI/237 gegen SL-R64-A-E-SRP-CI/237: −3,1 % [−8,0 %; +2,0 %], n = 233; alle Faltungen −3,1 %</title></circle>
+<text x="448.0" y="649.0" text-anchor="end" class="t2" font-size="11.5">A: 32 → 8 (medium)</text>
+<line x1="576.2" y1="645.0" x2="627.6" y2="645.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="667.6" cy="645.0" r="4.5" class="hN" stroke-width="2"><title>A: 32 → 8 (medium) - ML-E-SRP-CI/237 gegen ML-R8-E-SRP-CI/237: −3,3 % [−10,7 %; +4,5 %], n = 185; alle Faltungen +16,3 %</title></circle>
+<circle cx="601.0" cy="645.0" r="5" class="cA ring" stroke-width="2"><title>A: 32 → 8 (medium) - ML-E-SRP-CI/237 gegen ML-R8-E-SRP-CI/237: −3,3 % [−10,7 %; +4,5 %], n = 185; alle Faltungen +16,3 %</title></circle>
+<text x="448.0" y="671.0" text-anchor="end" class="t2" font-size="11.5">A: 32 → 64 (medium)</text>
+<line x1="583.9" y1="667.0" x2="623.5" y2="667.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="603.5" cy="667.0" r="5" class="cA ring" stroke-width="2"><title>A: 32 → 64 (medium) - ML-E-SRP-CI/237 gegen ML-R64-E-SRP-CI/237: −2,6 % [−8,4 %; +3,3 %], n = 233; alle Faltungen −2,6 %</title></circle>
+<text x="448.0" y="693.0" text-anchor="end" class="t2" font-size="11.5">B: 32 → 64 (large-v3)</text>
+<line x1="598.9" y1="689.0" x2="643.8" y2="689.0" class="lB" stroke-width="2" stroke-linecap="round"/>
+<path d="M621.1,682.8 L627.4,689.0 L621.1,695.2 L614.9,689.0 Z" class="cB ring" stroke-width="2"><title>B: 32 → 64 (large-v3) - L3L-E-SRP-CI/305 gegen L3L-R64-E-SRP-CI/305: +2,6 % [−4,0 %; +9,3 %], n = 292; alle Faltungen +2,6 %</title></path>
+<text x="448.0" y="715.0" text-anchor="end" class="t2" font-size="11.5">A: 32 → 64 (small, Encoder)²</text>
+<line x1="622.4" y1="711.0" x2="662.6" y2="711.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="642.0" cy="711.0" r="5" class="cA ring" stroke-width="2"><title>A: 32 → 64 (small, Encoder) - SL-Ze-A-E-SRP-CI/237 gegen SL-Ze-R64-A-Q1-E-SRP-CI/237: +8,8 % [+3,0 %; +14,9 %], n = 233; alle Faltungen +8,8 %</title></circle>
+<text x="16.0" y="742.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">Korrekturgewicht</text>
+<text x="448.0" y="763.0" text-anchor="end" class="t2" font-size="11.5">B: 0,5 → 1,0 bei 26 von 610 Zeilen (large-v3, Encoder)</text>
+<line x1="590.6" y1="759.0" x2="650.2" y2="759.0" class="lB" stroke-width="2" stroke-linecap="round"/>
+<path d="M617.3,752.8 L623.5,759.0 L617.3,765.2 L611.0,759.0 Z" class="cB ring" stroke-width="2"><title>B: 0,5 → 1,0 bei 26 von 610 Zeilen (large-v3, Encoder) - L3L-Ze-E-SRP-CI/305 gegen L3L-Ze-Q1-E-SRP-CI/305: +1,5 % [−6,4 %; +11,2 %], n = 292; alle Faltungen +1,5 %</title></path>
+<text x="16.0" y="790.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">Steuergröße</text>
+<text x="448.0" y="811.0" text-anchor="end" class="t2" font-size="11.5">A: Verlust → WER (small)</text>
+<line x1="600.9" y1="807.0" x2="638.8" y2="807.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="619.4" cy="807.0" r="5" class="cA ring" stroke-width="2"><title>A: Verlust → WER (small) - SL-A-Q1-E-SRP-CI/237 gegen SL-A-Q1-E-W-SRP-CI/237: +2,1 % [−3,4 %; +7,8 %], n = 233; alle Faltungen +2,1 %</title></circle>
+<text x="448.0" y="833.0" text-anchor="end" class="t2" font-size="11.5">A: Verlust → WER (medium)</text>
+<line x1="585.0" y1="829.0" x2="622.4" y2="829.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="603.1" cy="829.0" r="5" class="cA ring" stroke-width="2"><title>A: Verlust → WER (medium) - ML-Q1-E-SRP-CI/237 gegen ML-Q1-E-W-SRP-CI/237: −2,7 % [−8,1 %; +3,0 %], n = 233; alle Faltungen −2,7 %</title></circle>
+<text x="448.0" y="855.0" text-anchor="end" class="t2" font-size="11.5">A: Verlust → WER (small, Encoder)²</text>
+<line x1="591.0" y1="851.0" x2="630.3" y2="851.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="610.4" cy="851.0" r="5" class="cA ring" stroke-width="2"><title>A: Verlust → WER (small, Encoder) - SL-Ze-A-E-SRP-CI/237 gegen SL-Ze-A-Q1-E-W-SRP-CI/237: −0,6 % [−6,3 %; +5,3 %], n = 233; alle Faltungen −0,6 %</title></circle>
+<text x="16.0" y="882.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">Kontext</text>
+<text x="448.0" y="903.0" text-anchor="end" class="t2" font-size="11.5">A: aus → Vokabular (small)</text>
+<line x1="597.4" y1="899.0" x2="637.5" y2="899.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="616.5" cy="899.0" r="5" class="cA ring" stroke-width="2"><title>A: aus → Vokabular (small) - SL-A-Q1-E-SRP-CI/237 gegen SL-A-Q1-E-SRP-CI-X/237: +1,2 % [−4,4 %; +7,5 %], n = 233; alle Faltungen +1,2 %</title></circle>
+<text x="448.0" y="925.0" text-anchor="end" class="t2" font-size="11.5">A: aus → Vokabular (medium)</text>
+<line x1="591.3" y1="921.0" x2="630.4" y2="921.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="609.5" cy="921.0" r="5" class="cA ring" stroke-width="2"><title>A: aus → Vokabular (medium) - ML-Q1-E-SRP-CI/237 gegen ML-Q1-E-SRP-CI-X/237: −0,8 % [−6,2 %; +5,4 %], n = 233; alle Faltungen −0,8 %</title></circle>
+<text x="16.0" y="952.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">Fenster</text>
+<text x="448.0" y="973.0" text-anchor="end" class="t2" font-size="11.5">A: 30 s → gekürzt (medium)</text>
+<line x1="585.0" y1="969.0" x2="627.4" y2="969.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="605.8" cy="969.0" r="5" class="cA ring" stroke-width="2"><title>A: 30 s → gekürzt (medium) - ML-Q1-E-SRP-CI/237 gegen ML-Q1-E-F-SRP-CI/237: −1,9 % [−8,1 %; +4,4 %], n = 233; alle Faltungen −1,9 %</title></circle>
+<text x="448.0" y="995.0" text-anchor="end" class="t2" font-size="11.5">A: 30 s → gekürzt (small)²</text>
+<line x1="598.6" y1="991.0" x2="636.1" y2="991.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="667.8" cy="991.0" r="4.5" class="hN" stroke-width="2"><title>A: 30 s → gekürzt (small) - SL-A-E-SRP-CI/237 gegen SL-A-E-F-SRP-CI/235: +1,4 % [−4,0 %; +7,0 %], n = 197; alle Faltungen +16,4 %</title></circle>
+<circle cx="616.9" cy="991.0" r="5" class="cA ring" stroke-width="2"><title>A: 30 s → gekürzt (small) - SL-A-E-SRP-CI/237 gegen SL-A-E-F-SRP-CI/235: +1,4 % [−4,0 %; +7,0 %], n = 197; alle Faltungen +16,4 %</title></circle>
+<text x="16.0" y="1022.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">Datensatz</text>
+<text x="448.0" y="1043.0" text-anchor="end" class="t2" font-size="11.5">A: nur Originale → mit Abwandlungen (medium)²</text>
+<line x1="593.7" y1="1039.0" x2="660.2" y2="1039.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="623.1" cy="1039.0" r="5" class="cA ring" stroke-width="2"><title>A: nur Originale → mit Abwandlungen (medium) - ML-E-SRP-CI/237 gegen ML-A-E-SRP-CI/235: +3,2 % [−5,5 %; +14,2 %], n = 231; alle Faltungen +3,2 %</title></circle>
+<text x="16.0" y="1070.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">Bündel E · SRP · CI</text>
+<text x="448.0" y="1091.0" text-anchor="end" class="t2" font-size="11.5">B: fest · ohne Augm. · bester → E · SRP · CI (large-v3)</text>
+<line x1="595.2" y1="1087.0" x2="650.5" y2="1087.0" class="lB" stroke-width="2" stroke-linecap="round"/>
+<circle cx="564.8" cy="1087.0" r="4.5" class="hN" stroke-width="2"><title>B: fest, ohne Augm., bester Checkpoint → geduldig, volle Augm., Mittel+WiSE-FT (large-v3) - L3L/262 gegen L3L-E-SRP-CI/262: +2,6 % [−5,1 %; +11,3 %], n = 211; alle Faltungen −14,0 %</title></circle>
+<path d="M621.0,1080.8 L627.2,1087.0 L621.0,1093.2 L614.7,1087.0 Z" class="cB ring" stroke-width="2"><title>B: fest, ohne Augm., bester Checkpoint → geduldig, volle Augm., Mittel+WiSE-FT (large-v3) - L3L/262 gegen L3L-E-SRP-CI/262: +2,6 % [−5,1 %; +11,3 %], n = 211; alle Faltungen −14,0 %</title></path>
+<text x="16.0" y="1118.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">Methode</text>
+<text x="448.0" y="1139.0" text-anchor="end" class="t2" font-size="11.5">B: small LoRA (Encoder, 64) → small voll³</text>
+<line x1="672.6" y1="1135.0" x2="727.6" y2="1135.0" class="lB" stroke-width="2" stroke-linecap="round"/>
+<path d="M699.3,1128.8 L705.6,1135.0 L699.3,1141.2 L693.1,1135.0 Z" class="cB ring" stroke-width="2"><title>B: small LoRA (Encoder, 64) → small voll - SL-Ze-R64-E-SRP-CI/262 gegen SV-E-SRP-CI/262: +25,7 % [+17,8 %; +34,1 %], n = 262; alle Faltungen +25,7 %</title></path>
+<text x="16.0" y="1166.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">Datenmenge</text>
+<text x="448.0" y="1187.0" text-anchor="end" class="t2" font-size="11.5">B: 262 → 305 Aufnahmen (large-v3, q,v)</text>
+<line x1="585.7" y1="1183.0" x2="624.4" y2="1183.0" class="lB" stroke-width="2" stroke-linecap="round"/>
+<path d="M603.6,1176.8 L609.9,1183.0 L603.6,1189.2 L597.4,1183.0 Z" class="cB ring" stroke-width="2"><title>B: 262 → 305 Aufnahmen (large-v3, q,v) - L3L-E-SRP-CI/262 gegen L3L-E-SRP-CI/305: −2,6 % [−7,9 %; +3,6 %], n = 262; alle Faltungen −2,6 %</title></path>
+<text x="448.0" y="1209.0" text-anchor="end" class="t2" font-size="11.5">B: 262 → 305 Aufnahmen (medium, Encoder)</text>
+<line x1="593.7" y1="1205.0" x2="628.4" y2="1205.0" class="lB" stroke-width="2" stroke-linecap="round"/>
+<path d="M611.3,1198.8 L617.6,1205.0 L611.3,1211.2 L605.1,1205.0 Z" class="cB ring" stroke-width="2"><title>B: 262 → 305 Aufnahmen (medium, Encoder) - ML-Ze-E-SRP-CI/262 gegen ML-Ze-E-SRP-CI/305: −0,3 % [−5,5 %; +4,7 %], n = 262; alle Faltungen −0,3 %</title></path>
+<text x="448.0" y="1231.0" text-anchor="end" class="t2" font-size="11.5">A: 235 → 237 Aufn. (medium, Abwandlungen → Originale)³</text>
+<line x1="570.3" y1="1227.0" x2="632.0" y2="1227.0" class="lA" stroke-width="2" stroke-linecap="round"/>
+<circle cx="601.8" cy="1227.0" r="5" class="cA ring" stroke-width="2"><title>A: 235 → 237 Aufnahmen (medium, Abwandlungen → Originale) - ML-A-E-SRP-CI/235 gegen ML-E-SRP-CI/237: −3,1 % [−12,4 %; +5,8 %], n = 231; alle Faltungen −3,1 %</title></circle>
+<text x="448.0" y="1253.0" text-anchor="end" class="t2" font-size="11.5">B: 43 → 262 Aufnahmen (medium, q,v → Encoder)³</text>
+<line x1="460.0" y1="1249.0" x2="562.1" y2="1249.0" class="lB" stroke-width="2" stroke-linecap="round"/>
+<path d="M509.4,1242.8 L515.7,1249.0 L509.4,1255.2 L503.2,1249.0 Z" class="cB ring" stroke-width="2"><title>B: 43 → 262 Aufnahmen (medium, q,v → Encoder) - ML-E-SRP-CI/43b gegen ML-Ze-E-SRP-CI/262: −30,4 % [−46,4 %; −14,8 %], n = 16; alle Faltungen −27,7 %</title></path>
+</svg>

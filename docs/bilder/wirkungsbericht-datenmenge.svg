@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 344" width="760" height="344" role="img" aria-label="Mehr Aufnahmen">
+<style>
+svg{--surface:#fcfcfb;--t1:#0b0b0b;--t2:#52514e;--t3:#8a8984;--grid:#e6e5e0;--a:#2a78d6;--b:#eb6834;--rausch:#8a8984;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){svg{--surface:#1a1a19;--t1:#ffffff;--t2:#c3c2b7;--t3:#8f8e87;--grid:#3a3a37;--a:#3987e5;--b:#d95926;--rausch:#8f8e87}}
+.bg{fill:var(--surface)} .t1{fill:var(--t1)} .t2{fill:var(--t2)} .t3{fill:var(--t3)}
+.grid{stroke:var(--grid);stroke-width:1} .axis{stroke:var(--t3);stroke-width:1}
+.cA{stroke:var(--a);fill:var(--a)} .cB{stroke:var(--b);fill:var(--b)} .cN{stroke:var(--t2);fill:var(--t2)}
+.lA{stroke:var(--a);fill:none} .lB{stroke:var(--b);fill:none} .lN{stroke:var(--t2);fill:none}
+.hA{stroke:var(--a);fill:var(--surface)} .hB{stroke:var(--b);fill:var(--surface)} .hN{stroke:var(--t2);fill:var(--surface)}
+.ring{stroke:var(--surface)} .band{fill:var(--rausch);opacity:0.16}
+</style>
+<rect class="bg" width="760" height="344" rx="6"/>
+<text x="16.0" y="28.0" text-anchor="start" class="t1" font-size="16" font-weight="600">Mehr Aufnahmen bei Sprecher B: dasselbe Rezept, dieselben Aufnahmen</text>
+<text x="16.0" y="48.0" text-anchor="start" class="t2" font-size="12.5">Hohl: der Lauf mit weniger Aufnahmen, gefüllt: mit mehr. Gemessen nur, wo beide Läufe messen.</text>
+<path d="M22.0,70.4 L27.6,76.0 L22.0,81.6 L16.4,76.0 Z" class="hB" stroke-width="2"></path>
+<text x="34.0" y="80.0" text-anchor="start" class="t2" font-size="12">weniger Aufnahmen</text>
+<path d="M170.0,69.8 L176.2,76.0 L170.0,82.2 L163.8,76.0 Z" class="cB ring" stroke-width="2"></path>
+<text x="182.0" y="80.0" text-anchor="start" class="t2" font-size="12">mehr Aufnahmen</text>
+<line x1="230.0" y1="110.0" x2="230.0" y2="248.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<text x="230.0" y="264.0" text-anchor="middle" class="t3" font-size="11">0,4</text>
+<line x1="298.9" y1="110.0" x2="298.9" y2="248.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<text x="298.9" y="264.0" text-anchor="middle" class="t3" font-size="11">0,5</text>
+<line x1="367.8" y1="110.0" x2="367.8" y2="248.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<text x="367.8" y="264.0" text-anchor="middle" class="t3" font-size="11">0,6</text>
+<line x1="436.7" y1="110.0" x2="436.7" y2="248.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<text x="436.7" y="264.0" text-anchor="middle" class="t3" font-size="11">0,7</text>
+<line x1="505.6" y1="110.0" x2="505.6" y2="248.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<text x="505.6" y="264.0" text-anchor="middle" class="t3" font-size="11">0,8</text>
+<text x="367.8" y="284.0" text-anchor="middle" class="t2" font-size="12">WER auf den gemeinsamen Aufnahmen</text>
+<text x="216.0" y="137.0" text-anchor="end" class="t1" font-size="12.5">large-v3, q,v: 262 → 305</text>
+<text x="216.0" y="152.0" text-anchor="end" class="t3" font-size="11">262 gemeinsame Aufnahmen</text>
+<line x1="353.3" y1="133.0" x2="343.1" y2="133.0" class="lB" stroke-width="2" stroke-linecap="round"/>
+<path d="M353.3,127.4 L358.9,133.0 L353.3,138.6 L347.7,133.0 Z" class="hB" stroke-width="2"><title>L3L-E-SRP-CI/262: WER 0,579</title></path>
+<path d="M343.1,126.8 L349.3,133.0 L343.1,139.2 L336.8,133.0 Z" class="cB ring" stroke-width="2"><title>L3L-E-SRP-CI/305: WER 0,564</title></path>
+<text x="556.0" y="137.0" text-anchor="start" class="t2" font-size="12">−2,6 % [−8 %; +4 %]</text>
+<text x="216.0" y="183.0" text-anchor="end" class="t1" font-size="12.5">medium, Encoder: 262 → 305</text>
+<text x="216.0" y="198.0" text-anchor="end" class="t3" font-size="11">262 gemeinsame Aufnahmen</text>
+<line x1="342.6" y1="179.0" x2="341.5" y2="179.0" class="lB" stroke-width="2" stroke-linecap="round"/>
+<path d="M342.6,173.4 L348.2,179.0 L342.6,184.6 L337.0,179.0 Z" class="hB" stroke-width="2"><title>ML-Ze-E-SRP-CI/262: WER 0,563</title></path>
+<path d="M341.5,172.8 L347.7,179.0 L341.5,185.2 L335.2,179.0 Z" class="cB ring" stroke-width="2"><title>ML-Ze-E-SRP-CI/305: WER 0,562</title></path>
+<text x="556.0" y="183.0" text-anchor="start" class="t2" font-size="12">−0,3 % [−5 %; +5 %]</text>
+<text x="216.0" y="229.0" text-anchor="end" class="t1" font-size="12.5">medium: 43 → 262³</text>
+<text x="216.0" y="244.0" text-anchor="end" class="t3" font-size="11">25 gemeinsame Aufnahmen</text>
+<line x1="496.4" y1="225.0" x2="346.4" y2="225.0" class="lN" stroke-width="2" stroke-linecap="round"/>
+<path d="M496.4,219.4 L502.0,225.0 L496.4,230.6 L490.7,225.0 Z" class="hN" stroke-width="2"><title>ML-E-SRP-CI/43b: WER 0,787</title></path>
+<path d="M346.4,218.8 L352.6,225.0 L346.4,231.2 L340.1,225.0 Z" class="cN ring" stroke-width="2"><title>ML-Ze-E-SRP-CI/262: WER 0,569</title></path>
+<text x="556.0" y="229.0" text-anchor="start" class="t2" font-size="12">−27,7 % [−39 %; −17 %]</text>
+<text x="16.0" y="310.0" text-anchor="start" class="t3" font-size="11">³ nur Hinweis: Zwischen 43 und 262 änderten sich Zuschnitt und LoRA-Ziele mit; gemessen auf 25 Aufnahmen.</text>
+<text x="16.0" y="326.0" text-anchor="start" class="t3" font-size="11">Bei 262 → 305 (+16 %) bleibt jede Änderung im Rauschen zweier Läufe.</text>
+</svg>
