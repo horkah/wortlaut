@@ -1,0 +1,390 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 1022" width="860" height="1022" role="img" aria-label="Alle Läufe und ihre Faltungen">
+<style>
+svg{--surface:#fcfcfb;--t1:#0b0b0b;--t2:#52514e;--t3:#8a8984;--grid:#e6e5e0;--a:#2a78d6;--b:#eb6834;--rausch:#8a8984;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){svg{--surface:#1a1a19;--t1:#ffffff;--t2:#c3c2b7;--t3:#8f8e87;--grid:#3a3a37;--a:#3987e5;--b:#d95926;--rausch:#8f8e87}}
+.bg{fill:var(--surface)} .t1{fill:var(--t1)} .t2{fill:var(--t2)} .t3{fill:var(--t3)}
+.grid{stroke:var(--grid);stroke-width:1} .axis{stroke:var(--t3);stroke-width:1}
+.cA{stroke:var(--a);fill:var(--a)} .cB{stroke:var(--b);fill:var(--b)} .cN{stroke:var(--t2);fill:var(--t2)}
+.lA{stroke:var(--a);fill:none} .lB{stroke:var(--b);fill:none} .lN{stroke:var(--t2);fill:none}
+.hA{stroke:var(--a);fill:var(--surface)} .hB{stroke:var(--b);fill:var(--surface)} .hN{stroke:var(--t2);fill:var(--surface)}
+.ring{stroke:var(--surface)} .band{fill:var(--rausch);opacity:0.16}
+</style>
+<rect class="bg" width="860" height="1022" rx="6"/>
+<text x="16.0" y="28.0" text-anchor="start" class="t1" font-size="16" font-weight="600">Alle Läufe: WER der sechs Faltungen und ihr Mittel (Originale)</text>
+<text x="16.0" y="48.0" text-anchor="start" class="t2" font-size="12.5">Jede Faltung misst die Aufnahmen, die ihr Modell nicht lernte. Ein Ausreißer nach rechts ist ein Absturz.</text>
+<circle cx="22.0" cy="70.0" r="3.5" class="hN" stroke-width="2"></circle>
+<text x="32.0" y="74.0" text-anchor="start" class="t2" font-size="12">eine Faltung</text>
+<circle cx="140" cy="70" r="5" fill="none" stroke="var(--t1)" stroke-width="2"/>
+<text x="150.0" y="74.0" text-anchor="start" class="t2" font-size="12">abgestürzt (Abschnitt 5)</text>
+<circle cx="340.0" cy="70.0" r="5" class="cA ring" stroke-width="2"></circle>
+<path d="M358.0,63.8 L364.2,70.0 L358.0,76.2 L351.8,70.0 Z" class="cB ring" stroke-width="2"></path>
+<text x="372.0" y="74.0" text-anchor="start" class="t2" font-size="12">Mittel des Laufs (A, B)</text>
+<line x1="330.0" y1="100.0" x2="330.0" y2="958.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<text x="330.0" y="974.0" text-anchor="middle" class="t3" font-size="11">0,1</text>
+<line x1="439.8" y1="100.0" x2="439.8" y2="958.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<text x="439.8" y="974.0" text-anchor="middle" class="t3" font-size="11">0,2</text>
+<line x1="585.0" y1="100.0" x2="585.0" y2="958.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<text x="585.0" y="974.0" text-anchor="middle" class="t3" font-size="11">0,5</text>
+<line x1="694.8" y1="100.0" x2="694.8" y2="958.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<text x="694.8" y="974.0" text-anchor="middle" class="t3" font-size="11">1,0</text>
+<line x1="804.6" y1="100.0" x2="804.6" y2="958.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<text x="804.6" y="974.0" text-anchor="middle" class="t3" font-size="11">2,0</text>
+<text x="567.3" y="994.0" text-anchor="middle" class="t2" font-size="12">WER, logarithmisch</text>
+<text x="16.0" y="120.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">Sprecher A · 237 Aufnahmen</text>
+<text x="318.0" y="139.0" text-anchor="end" class="t2" font-size="11.5">L3L-Ze-Q1-E-SRP-CI/237</text>
+<line x1="379.0" y1="135.0" x2="467.6" y2="135.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="424.5" cy="135.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-Q1-E-SRP-CI/237, Faltung 1: WER 0,182</title></circle>
+<circle cx="467.6" cy="135.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-Q1-E-SRP-CI/237, Faltung 2: WER 0,238</title></circle>
+<circle cx="462.5" cy="135.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-Q1-E-SRP-CI/237, Faltung 3: WER 0,231</title></circle>
+<circle cx="382.3" cy="135.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-Q1-E-SRP-CI/237, Faltung 4: WER 0,139</title></circle>
+<circle cx="379.0" cy="135.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-Q1-E-SRP-CI/237, Faltung 5: WER 0,136</title></circle>
+<circle cx="446.3" cy="135.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-Q1-E-SRP-CI/237, Faltung 6: WER 0,208</title></circle>
+<circle cx="429.0" cy="135.0" r="4.5" class="cA ring" stroke-width="2"><title>L3L-Ze-Q1-E-SRP-CI/237: Mittel 0,187</title></circle>
+<text x="318.0" y="157.0" text-anchor="end" class="t2" font-size="11.5">ML-R64-E-SRP-CI/237</text>
+<line x1="394.2" y1="153.0" x2="491.0" y2="153.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="461.3" cy="153.0" r="3.5" class="hN" stroke-width="2"><title>ML-R64-E-SRP-CI/237, Faltung 1: WER 0,229</title></circle>
+<circle cx="491.0" cy="153.0" r="3.5" class="hN" stroke-width="2"><title>ML-R64-E-SRP-CI/237, Faltung 2: WER 0,276</title></circle>
+<circle cx="444.9" cy="153.0" r="3.5" class="hN" stroke-width="2"><title>ML-R64-E-SRP-CI/237, Faltung 3: WER 0,206</title></circle>
+<circle cx="394.2" cy="153.0" r="3.5" class="hN" stroke-width="2"><title>ML-R64-E-SRP-CI/237, Faltung 4: WER 0,150</title></circle>
+<circle cx="397.4" cy="153.0" r="3.5" class="hN" stroke-width="2"><title>ML-R64-E-SRP-CI/237, Faltung 5: WER 0,153</title></circle>
+<circle cx="446.7" cy="153.0" r="3.5" class="hN" stroke-width="2"><title>ML-R64-E-SRP-CI/237, Faltung 6: WER 0,209</title></circle>
+<circle cx="442.6" cy="153.0" r="4.5" class="cA ring" stroke-width="2"><title>ML-R64-E-SRP-CI/237: Mittel 0,204</title></circle>
+<text x="318.0" y="175.0" text-anchor="end" class="t2" font-size="11.5">ML-Q1-E-W-SRP-CI/237</text>
+<line x1="401.8" y1="171.0" x2="488.9" y2="171.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="458.8" cy="171.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-W-SRP-CI/237, Faltung 1: WER 0,225</title></circle>
+<circle cx="488.9" cy="171.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-W-SRP-CI/237, Faltung 2: WER 0,273</title></circle>
+<circle cx="448.8" cy="171.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-W-SRP-CI/237, Faltung 3: WER 0,212</title></circle>
+<circle cx="414.3" cy="171.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-W-SRP-CI/237, Faltung 4: WER 0,170</title></circle>
+<circle cx="401.8" cy="171.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-W-SRP-CI/237, Faltung 5: WER 0,157</title></circle>
+<circle cx="443.0" cy="171.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-W-SRP-CI/237, Faltung 6: WER 0,204</title></circle>
+<circle cx="445.3" cy="171.0" r="4.5" class="cA ring" stroke-width="2"><title>ML-Q1-E-W-SRP-CI/237: Mittel 0,207</title></circle>
+<text x="318.0" y="193.0" text-anchor="end" class="t2" font-size="11.5">ML-Ze-E-SRP-CI/237</text>
+<line x1="410.4" y1="189.0" x2="503.0" y2="189.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="452.7" cy="189.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/237, Faltung 1: WER 0,217</title></circle>
+<circle cx="503.0" cy="189.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/237, Faltung 2: WER 0,298</title></circle>
+<circle cx="436.4" cy="189.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/237, Faltung 3: WER 0,196</title></circle>
+<circle cx="410.4" cy="189.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/237, Faltung 4: WER 0,166</title></circle>
+<circle cx="412.0" cy="189.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/237, Faltung 5: WER 0,168</title></circle>
+<circle cx="440.1" cy="189.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/237, Faltung 6: WER 0,200</title></circle>
+<circle cx="445.8" cy="189.0" r="4.5" class="cA ring" stroke-width="2"><title>ML-Ze-E-SRP-CI/237: Mittel 0,208</title></circle>
+<text x="318.0" y="211.0" text-anchor="end" class="t2" font-size="11.5">ML-Q1-E-F-SRP-CI/237</text>
+<line x1="388.8" y1="207.0" x2="491.2" y2="207.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="463.0" cy="207.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-F-SRP-CI/237, Faltung 1: WER 0,232</title></circle>
+<circle cx="491.2" cy="207.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-F-SRP-CI/237, Faltung 2: WER 0,277</title></circle>
+<circle cx="437.8" cy="207.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-F-SRP-CI/237, Faltung 3: WER 0,197</title></circle>
+<circle cx="407.9" cy="207.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-F-SRP-CI/237, Faltung 4: WER 0,163</title></circle>
+<circle cx="388.8" cy="207.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-F-SRP-CI/237, Faltung 5: WER 0,145</title></circle>
+<circle cx="466.7" cy="207.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-F-SRP-CI/237, Faltung 6: WER 0,237</title></circle>
+<circle cx="446.6" cy="207.0" r="4.5" class="cA ring" stroke-width="2"><title>ML-Q1-E-F-SRP-CI/237: Mittel 0,209</title></circle>
+<text x="318.0" y="229.0" text-anchor="end" class="t2" font-size="11.5">ML-E-SRP-CI/237</text>
+<line x1="400.5" y1="225.0" x2="492.4" y2="225.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="463.7" cy="225.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/237, Faltung 1: WER 0,233</title></circle>
+<circle cx="492.4" cy="225.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/237, Faltung 2: WER 0,279</title></circle>
+<circle cx="443.5" cy="225.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/237, Faltung 3: WER 0,205</title></circle>
+<circle cx="400.5" cy="225.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/237, Faltung 4: WER 0,156</title></circle>
+<circle cx="417.4" cy="225.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/237, Faltung 5: WER 0,174</title></circle>
+<circle cx="448.3" cy="225.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/237, Faltung 6: WER 0,211</title></circle>
+<circle cx="446.8" cy="225.0" r="4.5" class="cA ring" stroke-width="2"><title>ML-E-SRP-CI/237: Mittel 0,209</title></circle>
+<text x="318.0" y="247.0" text-anchor="end" class="t2" font-size="11.5">ML-Q1-E-SRP-CI-X/237</text>
+<line x1="416.4" y1="243.0" x2="491.7" y2="243.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="460.0" cy="243.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-SRP-CI-X/237, Faltung 1: WER 0,227</title></circle>
+<circle cx="491.7" cy="243.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-SRP-CI-X/237, Faltung 2: WER 0,277</title></circle>
+<circle cx="432.5" cy="243.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-SRP-CI-X/237, Faltung 3: WER 0,191</title></circle>
+<circle cx="416.4" cy="243.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-SRP-CI-X/237, Faltung 4: WER 0,172</title></circle>
+<circle cx="433.6" cy="243.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-SRP-CI-X/237, Faltung 5: WER 0,192</title></circle>
+<circle cx="443.6" cy="243.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-SRP-CI-X/237, Faltung 6: WER 0,205</title></circle>
+<circle cx="448.3" cy="243.0" r="4.5" class="cA ring" stroke-width="2"><title>ML-Q1-E-SRP-CI-X/237: Mittel 0,211</title></circle>
+<text x="318.0" y="265.0" text-anchor="end" class="t2" font-size="11.5">ML-Ze-Q1-E-SRP-CI/237</text>
+<line x1="417.9" y1="261.0" x2="503.3" y2="261.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="437.7" cy="261.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-Q1-E-SRP-CI/237, Faltung 1: WER 0,197</title></circle>
+<circle cx="503.3" cy="261.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-Q1-E-SRP-CI/237, Faltung 2: WER 0,299</title></circle>
+<circle cx="433.5" cy="261.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-Q1-E-SRP-CI/237, Faltung 3: WER 0,192</title></circle>
+<circle cx="428.0" cy="261.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-Q1-E-SRP-CI/237, Faltung 4: WER 0,186</title></circle>
+<circle cx="417.9" cy="261.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-Q1-E-SRP-CI/237, Faltung 5: WER 0,174</title></circle>
+<circle cx="453.2" cy="261.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-Q1-E-SRP-CI/237, Faltung 6: WER 0,218</title></circle>
+<circle cx="448.6" cy="261.0" r="4.5" class="cA ring" stroke-width="2"><title>ML-Ze-Q1-E-SRP-CI/237: Mittel 0,211</title></circle>
+<text x="318.0" y="283.0" text-anchor="end" class="t2" font-size="11.5">ML-Q1-E-SRP-CI/237</text>
+<line x1="418.8" y1="279.0" x2="497.0" y2="279.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="461.6" cy="279.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-SRP-CI/237, Faltung 1: WER 0,230</title></circle>
+<circle cx="497.0" cy="279.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-SRP-CI/237, Faltung 2: WER 0,287</title></circle>
+<circle cx="437.0" cy="279.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-SRP-CI/237, Faltung 3: WER 0,196</title></circle>
+<circle cx="421.6" cy="279.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-SRP-CI/237, Faltung 4: WER 0,178</title></circle>
+<circle cx="418.8" cy="279.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-SRP-CI/237, Faltung 5: WER 0,175</title></circle>
+<circle cx="445.2" cy="279.0" r="3.5" class="hN" stroke-width="2"><title>ML-Q1-E-SRP-CI/237, Faltung 6: WER 0,207</title></circle>
+<circle cx="449.7" cy="279.0" r="4.5" class="cA ring" stroke-width="2"><title>ML-Q1-E-SRP-CI/237: Mittel 0,213</title></circle>
+<text x="318.0" y="301.0" text-anchor="end" class="t2" font-size="11.5">ML-R8-E-SRP-CI/237</text>
+<line x1="379.4" y1="297.0" x2="528.7" y2="297.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="445.0" cy="297.0" r="3.5" class="hN" stroke-width="2"><title>ML-R8-E-SRP-CI/237, Faltung 1: WER 0,207</title></circle>
+<circle cx="488.0" cy="297.0" r="3.5" class="hN" stroke-width="2"><title>ML-R8-E-SRP-CI/237, Faltung 2: WER 0,271</title></circle>
+<circle cx="453.3" cy="297.0" r="3.5" class="hN" stroke-width="2"><title>ML-R8-E-SRP-CI/237, Faltung 3: WER 0,218</title></circle>
+<circle cx="528.7" cy="297.0" r="5" fill="none" stroke="var(--t1)" stroke-width="2"><title>ML-R8-E-SRP-CI/237, Faltung 4: WER 0,351 - abgestürzt</title></circle>
+<circle cx="379.4" cy="297.0" r="3.5" class="hN" stroke-width="2"><title>ML-R8-E-SRP-CI/237, Faltung 5: WER 0,137</title></circle>
+<circle cx="465.7" cy="297.0" r="3.5" class="hN" stroke-width="2"><title>ML-R8-E-SRP-CI/237, Faltung 6: WER 0,236</title></circle>
+<circle cx="470.8" cy="297.0" r="4.5" class="cA ring" stroke-width="2"><title>ML-R8-E-SRP-CI/237: Mittel 0,243</title></circle>
+<text x="318.0" y="319.0" text-anchor="end" class="t2" font-size="11.5">SL-Ze-A-Q1-E-W-SRP-CI/237</text>
+<line x1="437.8" y1="315.0" x2="529.1" y2="315.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="489.7" cy="315.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-A-Q1-E-W-SRP-CI/237, Faltung 1: WER 0,274</title></circle>
+<circle cx="529.1" cy="315.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-A-Q1-E-W-SRP-CI/237, Faltung 2: WER 0,351</title></circle>
+<circle cx="471.3" cy="315.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-A-Q1-E-W-SRP-CI/237, Faltung 3: WER 0,244</title></circle>
+<circle cx="458.6" cy="315.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-A-Q1-E-W-SRP-CI/237, Faltung 4: WER 0,225</title></circle>
+<circle cx="437.8" cy="315.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-A-Q1-E-W-SRP-CI/237, Faltung 5: WER 0,197</title></circle>
+<circle cx="470.9" cy="315.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-A-Q1-E-W-SRP-CI/237, Faltung 6: WER 0,243</title></circle>
+<circle cx="479.7" cy="315.0" r="4.5" class="cA ring" stroke-width="2"><title>SL-Ze-A-Q1-E-W-SRP-CI/237: Mittel 0,257</title></circle>
+<text x="318.0" y="337.0" text-anchor="end" class="t2" font-size="11.5">SL-Ze-A-E-SRP-CI/237</text>
+<line x1="440.9" y1="333.0" x2="524.7" y2="333.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="481.8" cy="333.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-A-E-SRP-CI/237, Faltung 1: WER 0,261</title></circle>
+<circle cx="524.7" cy="333.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-A-E-SRP-CI/237, Faltung 2: WER 0,342</title></circle>
+<circle cx="474.5" cy="333.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-A-E-SRP-CI/237, Faltung 3: WER 0,249</title></circle>
+<circle cx="461.5" cy="333.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-A-E-SRP-CI/237, Faltung 4: WER 0,229</title></circle>
+<circle cx="440.9" cy="333.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-A-E-SRP-CI/237, Faltung 5: WER 0,201</title></circle>
+<circle cx="484.9" cy="333.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-A-E-SRP-CI/237, Faltung 6: WER 0,266</title></circle>
+<circle cx="480.6" cy="333.0" r="4.5" class="cA ring" stroke-width="2"><title>SL-Ze-A-E-SRP-CI/237: Mittel 0,259</title></circle>
+<text x="318.0" y="355.0" text-anchor="end" class="t2" font-size="11.5">SL-R64-A-E-SRP-CI/237</text>
+<line x1="450.8" y1="351.0" x2="535.5" y2="351.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="490.7" cy="351.0" r="3.5" class="hN" stroke-width="2"><title>SL-R64-A-E-SRP-CI/237, Faltung 1: WER 0,276</title></circle>
+<circle cx="535.5" cy="351.0" r="3.5" class="hN" stroke-width="2"><title>SL-R64-A-E-SRP-CI/237, Faltung 2: WER 0,366</title></circle>
+<circle cx="479.5" cy="351.0" r="3.5" class="hN" stroke-width="2"><title>SL-R64-A-E-SRP-CI/237, Faltung 3: WER 0,257</title></circle>
+<circle cx="450.8" cy="351.0" r="3.5" class="hN" stroke-width="2"><title>SL-R64-A-E-SRP-CI/237, Faltung 4: WER 0,214</title></circle>
+<circle cx="451.3" cy="351.0" r="3.5" class="hN" stroke-width="2"><title>SL-R64-A-E-SRP-CI/237, Faltung 5: WER 0,215</title></circle>
+<circle cx="474.1" cy="351.0" r="3.5" class="hN" stroke-width="2"><title>SL-R64-A-E-SRP-CI/237, Faltung 6: WER 0,248</title></circle>
+<circle cx="483.1" cy="351.0" r="4.5" class="cA ring" stroke-width="2"><title>SL-R64-A-E-SRP-CI/237: Mittel 0,263</title></circle>
+<text x="318.0" y="373.0" text-anchor="end" class="t2" font-size="11.5">SL-A-Q1-E-SRP-CI/237</text>
+<line x1="448.4" y1="369.0" x2="538.6" y2="369.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="479.9" cy="369.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-SRP-CI/237, Faltung 1: WER 0,258</title></circle>
+<circle cx="538.6" cy="369.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-SRP-CI/237, Faltung 2: WER 0,373</title></circle>
+<circle cx="482.7" cy="369.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-SRP-CI/237, Faltung 3: WER 0,262</title></circle>
+<circle cx="448.4" cy="369.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-SRP-CI/237, Faltung 4: WER 0,211</title></circle>
+<circle cx="458.2" cy="369.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-SRP-CI/237, Faltung 5: WER 0,225</title></circle>
+<circle cx="480.3" cy="369.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-SRP-CI/237, Faltung 6: WER 0,258</title></circle>
+<circle cx="483.6" cy="369.0" r="4.5" class="cA ring" stroke-width="2"><title>SL-A-Q1-E-SRP-CI/237: Mittel 0,264</title></circle>
+<text x="318.0" y="391.0" text-anchor="end" class="t2" font-size="11.5">SL-A-Q1-E-SRP-CI-X/237</text>
+<line x1="442.9" y1="387.0" x2="535.8" y2="387.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="496.5" cy="387.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-SRP-CI-X/237, Faltung 1: WER 0,286</title></circle>
+<circle cx="535.8" cy="387.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-SRP-CI-X/237, Faltung 2: WER 0,366</title></circle>
+<circle cx="488.4" cy="387.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-SRP-CI-X/237, Faltung 3: WER 0,272</title></circle>
+<circle cx="456.6" cy="387.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-SRP-CI-X/237, Faltung 4: WER 0,222</title></circle>
+<circle cx="442.9" cy="387.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-SRP-CI-X/237, Faltung 5: WER 0,204</title></circle>
+<circle cx="474.2" cy="387.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-SRP-CI-X/237, Faltung 6: WER 0,249</title></circle>
+<circle cx="485.6" cy="387.0" r="4.5" class="cA ring" stroke-width="2"><title>SL-A-Q1-E-SRP-CI-X/237: Mittel 0,267</title></circle>
+<text x="318.0" y="409.0" text-anchor="end" class="t2" font-size="11.5">SL-A-Q1-E-W-SRP-CI/237</text>
+<line x1="449.0" y1="405.0" x2="530.2" y2="405.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="501.7" cy="405.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-W-SRP-CI/237, Faltung 1: WER 0,296</title></circle>
+<circle cx="530.2" cy="405.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-W-SRP-CI/237, Faltung 2: WER 0,354</title></circle>
+<circle cx="482.6" cy="405.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-W-SRP-CI/237, Faltung 3: WER 0,262</title></circle>
+<circle cx="449.0" cy="405.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-W-SRP-CI/237, Faltung 4: WER 0,212</title></circle>
+<circle cx="453.3" cy="405.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-W-SRP-CI/237, Faltung 5: WER 0,218</title></circle>
+<circle cx="490.6" cy="405.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-Q1-E-W-SRP-CI/237, Faltung 6: WER 0,276</title></circle>
+<circle cx="487.0" cy="405.0" r="4.5" class="cA ring" stroke-width="2"><title>SL-A-Q1-E-W-SRP-CI/237: Mittel 0,269</title></circle>
+<text x="318.0" y="427.0" text-anchor="end" class="t2" font-size="11.5">SL-A-E-SRP-CI/237</text>
+<line x1="441.3" y1="423.0" x2="534.4" y2="423.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="493.1" cy="423.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-E-SRP-CI/237, Faltung 1: WER 0,280</title></circle>
+<circle cx="534.4" cy="423.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-E-SRP-CI/237, Faltung 2: WER 0,363</title></circle>
+<circle cx="481.2" cy="423.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-E-SRP-CI/237, Faltung 3: WER 0,260</title></circle>
+<circle cx="473.3" cy="423.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-E-SRP-CI/237, Faltung 4: WER 0,247</title></circle>
+<circle cx="441.3" cy="423.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-E-SRP-CI/237, Faltung 5: WER 0,202</title></circle>
+<circle cx="485.4" cy="423.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-E-SRP-CI/237, Faltung 6: WER 0,267</title></circle>
+<circle cx="488.1" cy="423.0" r="4.5" class="cA ring" stroke-width="2"><title>SL-A-E-SRP-CI/237: Mittel 0,271</title></circle>
+<text x="318.0" y="445.0" text-anchor="end" class="t2" font-size="11.5">SL-R8-A-E-SRP-CI/237</text>
+<line x1="465.3" y1="441.0" x2="549.2" y2="441.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="502.0" cy="441.0" r="3.5" class="hN" stroke-width="2"><title>SL-R8-A-E-SRP-CI/237, Faltung 1: WER 0,296</title></circle>
+<circle cx="549.2" cy="441.0" r="3.5" class="hN" stroke-width="2"><title>SL-R8-A-E-SRP-CI/237, Faltung 2: WER 0,399</title></circle>
+<circle cx="479.1" cy="441.0" r="3.5" class="hN" stroke-width="2"><title>SL-R8-A-E-SRP-CI/237, Faltung 3: WER 0,256</title></circle>
+<circle cx="473.2" cy="441.0" r="3.5" class="hN" stroke-width="2"><title>SL-R8-A-E-SRP-CI/237, Faltung 4: WER 0,247</title></circle>
+<circle cx="465.3" cy="441.0" r="3.5" class="hN" stroke-width="2"><title>SL-R8-A-E-SRP-CI/237, Faltung 5: WER 0,235</title></circle>
+<circle cx="468.5" cy="441.0" r="3.5" class="hN" stroke-width="2"><title>SL-R8-A-E-SRP-CI/237, Faltung 6: WER 0,240</title></circle>
+<circle cx="493.4" cy="441.0" r="4.5" class="cA ring" stroke-width="2"><title>SL-R8-A-E-SRP-CI/237: Mittel 0,280</title></circle>
+<text x="318.0" y="463.0" text-anchor="end" class="t2" font-size="11.5">SL-Ze-R64-A-Q1-E-SRP-CI/237</text>
+<line x1="468.1" y1="459.0" x2="529.1" y2="459.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="499.2" cy="459.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-R64-A-Q1-E-SRP-CI/237, Faltung 1: WER 0,291</title></circle>
+<circle cx="529.1" cy="459.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-R64-A-Q1-E-SRP-CI/237, Faltung 2: WER 0,351</title></circle>
+<circle cx="498.7" cy="459.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-R64-A-Q1-E-SRP-CI/237, Faltung 3: WER 0,290</title></circle>
+<circle cx="479.7" cy="459.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-R64-A-Q1-E-SRP-CI/237, Faltung 4: WER 0,257</title></circle>
+<circle cx="468.1" cy="459.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-R64-A-Q1-E-SRP-CI/237, Faltung 5: WER 0,239</title></circle>
+<circle cx="479.2" cy="459.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-R64-A-Q1-E-SRP-CI/237, Faltung 6: WER 0,256</title></circle>
+<circle cx="493.9" cy="459.0" r="4.5" class="cA ring" stroke-width="2"><title>SL-Ze-R64-A-Q1-E-SRP-CI/237: Mittel 0,281</title></circle>
+<text x="318.0" y="481.0" text-anchor="end" class="t2" font-size="11.5">SL-Zd-A-E-SRP-CI/237</text>
+<line x1="476.8" y1="477.0" x2="566.1" y2="477.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="546.5" cy="477.0" r="3.5" class="hN" stroke-width="2"><title>SL-Zd-A-E-SRP-CI/237, Faltung 1: WER 0,392</title></circle>
+<circle cx="566.1" cy="477.0" r="3.5" class="hN" stroke-width="2"><title>SL-Zd-A-E-SRP-CI/237, Faltung 2: WER 0,444</title></circle>
+<circle cx="524.1" cy="477.0" r="3.5" class="hN" stroke-width="2"><title>SL-Zd-A-E-SRP-CI/237, Faltung 3: WER 0,340</title></circle>
+<circle cx="505.4" cy="477.0" r="3.5" class="hN" stroke-width="2"><title>SL-Zd-A-E-SRP-CI/237, Faltung 4: WER 0,303</title></circle>
+<circle cx="476.8" cy="477.0" r="3.5" class="hN" stroke-width="2"><title>SL-Zd-A-E-SRP-CI/237, Faltung 5: WER 0,253</title></circle>
+<circle cx="508.8" cy="477.0" r="3.5" class="hN" stroke-width="2"><title>SL-Zd-A-E-SRP-CI/237, Faltung 6: WER 0,309</title></circle>
+<circle cx="524.9" cy="477.0" r="4.5" class="cA ring" stroke-width="2"><title>SL-Zd-A-E-SRP-CI/237: Mittel 0,342</title></circle>
+<text x="318.0" y="499.0" text-anchor="end" class="t2" font-size="11.5">ML-Z-E-SRP-CI/237</text>
+<line x1="449.6" y1="495.0" x2="635.7" y2="495.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="454.7" cy="495.0" r="3.5" class="hN" stroke-width="2"><title>ML-Z-E-SRP-CI/237, Faltung 1: WER 0,220</title></circle>
+<circle cx="504.8" cy="495.0" r="3.5" class="hN" stroke-width="2"><title>ML-Z-E-SRP-CI/237, Faltung 2: WER 0,301</title></circle>
+<circle cx="506.5" cy="495.0" r="3.5" class="hN" stroke-width="2"><title>ML-Z-E-SRP-CI/237, Faltung 3: WER 0,305</title></circle>
+<circle cx="635.7" cy="495.0" r="5" fill="none" stroke="var(--t1)" stroke-width="2"><title>ML-Z-E-SRP-CI/237, Faltung 4: WER 0,688 - abgestürzt</title></circle>
+<circle cx="449.6" cy="495.0" r="3.5" class="hN" stroke-width="2"><title>ML-Z-E-SRP-CI/237, Faltung 5: WER 0,213</title></circle>
+<circle cx="500.1" cy="495.0" r="3.5" class="hN" stroke-width="2"><title>ML-Z-E-SRP-CI/237, Faltung 6: WER 0,293</title></circle>
+<circle cx="529.5" cy="495.0" r="4.5" class="cA ring" stroke-width="2"><title>ML-Z-E-SRP-CI/237: Mittel 0,352</title></circle>
+<text x="318.0" y="517.0" text-anchor="end" class="t2" font-size="11.5">SL-Z-A-E-SRP-CI/237</text>
+<line x1="455.8" y1="513.0" x2="718.3" y2="513.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="718.3" cy="513.0" r="5" fill="none" stroke="var(--t1)" stroke-width="2"><title>SL-Z-A-E-SRP-CI/237, Faltung 1: WER 1,160 - abgestürzt</title></circle>
+<circle cx="532.6" cy="513.0" r="3.5" class="hN" stroke-width="2"><title>SL-Z-A-E-SRP-CI/237, Faltung 2: WER 0,359</title></circle>
+<circle cx="484.3" cy="513.0" r="3.5" class="hN" stroke-width="2"><title>SL-Z-A-E-SRP-CI/237, Faltung 3: WER 0,265</title></circle>
+<circle cx="461.2" cy="513.0" r="3.5" class="hN" stroke-width="2"><title>SL-Z-A-E-SRP-CI/237, Faltung 4: WER 0,229</title></circle>
+<circle cx="455.8" cy="513.0" r="3.5" class="hN" stroke-width="2"><title>SL-Z-A-E-SRP-CI/237, Faltung 5: WER 0,221</title></circle>
+<circle cx="481.4" cy="513.0" r="3.5" class="hN" stroke-width="2"><title>SL-Z-A-E-SRP-CI/237, Faltung 6: WER 0,260</title></circle>
+<circle cx="561.7" cy="513.0" r="4.5" class="cA ring" stroke-width="2"><title>SL-Z-A-E-SRP-CI/237: Mittel 0,432</title></circle>
+<text x="318.0" y="535.0" text-anchor="end" class="t2" font-size="11.5">ML-Zd-E-SRP-CI/237 (gescheitert)</text>
+<line x1="723.0" y1="531.0" x2="817.5" y2="531.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="768.0" cy="531.0" r="3.5" class="hN" stroke-width="2"><title>ML-Zd-E-SRP-CI/237, Faltung 1: WER 1,587</title></circle>
+<circle cx="786.5" cy="531.0" r="3.5" class="hN" stroke-width="2"><title>ML-Zd-E-SRP-CI/237, Faltung 2: WER 1,784</title></circle>
+<circle cx="723.0" cy="531.0" r="3.5" class="hN" stroke-width="2"><title>ML-Zd-E-SRP-CI/237, Faltung 3: WER 1,194</title></circle>
+<circle cx="777.9" cy="531.0" r="3.5" class="hN" stroke-width="2"><title>ML-Zd-E-SRP-CI/237, Faltung 4: WER 1,690</title></circle>
+<circle cx="801.1" cy="531.0" r="3.5" class="hN" stroke-width="2"><title>ML-Zd-E-SRP-CI/237, Faltung 5: WER 1,956</title></circle>
+<circle cx="817.5" cy="531.0" r="3.5" class="hN" stroke-width="2"><title>ML-Zd-E-SRP-CI/237, Faltung 6: WER 2,170</title></circle>
+<circle cx="781.8" cy="531.0" r="4.5" class="cA ring" stroke-width="2"><title>ML-Zd-E-SRP-CI/237: Mittel 1,732 - gescheitert</title></circle>
+<text x="16.0" y="560.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">Sprecher A · 235 Aufnahmen</text>
+<text x="318.0" y="579.0" text-anchor="end" class="t2" font-size="11.5">L3L-E-SRP-CI/235</text>
+<line x1="346.4" y1="575.0" x2="468.7" y2="575.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="409.6" cy="575.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/235, Faltung 1: WER 0,165</title></circle>
+<circle cx="468.7" cy="575.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/235, Faltung 2: WER 0,240</title></circle>
+<circle cx="415.6" cy="575.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/235, Faltung 3: WER 0,172</title></circle>
+<circle cx="352.4" cy="575.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/235, Faltung 4: WER 0,115</title></circle>
+<circle cx="346.4" cy="575.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/235, Faltung 5: WER 0,111</title></circle>
+<circle cx="423.0" cy="575.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/235, Faltung 6: WER 0,180</title></circle>
+<circle cx="407.3" cy="575.0" r="4.5" class="cA ring" stroke-width="2"><title>L3L-E-SRP-CI/235: Mittel 0,163</title></circle>
+<text x="318.0" y="597.0" text-anchor="end" class="t2" font-size="11.5">ML-A-E-SRP-CI/235</text>
+<line x1="391.9" y1="593.0" x2="523.6" y2="593.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="454.9" cy="593.0" r="3.5" class="hN" stroke-width="2"><title>ML-A-E-SRP-CI/235, Faltung 1: WER 0,220</title></circle>
+<circle cx="523.6" cy="593.0" r="3.5" class="hN" stroke-width="2"><title>ML-A-E-SRP-CI/235, Faltung 2: WER 0,339</title></circle>
+<circle cx="447.9" cy="593.0" r="3.5" class="hN" stroke-width="2"><title>ML-A-E-SRP-CI/235, Faltung 3: WER 0,210</title></circle>
+<circle cx="417.2" cy="593.0" r="3.5" class="hN" stroke-width="2"><title>ML-A-E-SRP-CI/235, Faltung 4: WER 0,173</title></circle>
+<circle cx="391.9" cy="593.0" r="3.5" class="hN" stroke-width="2"><title>ML-A-E-SRP-CI/235, Faltung 5: WER 0,148</title></circle>
+<circle cx="435.5" cy="593.0" r="3.5" class="hN" stroke-width="2"><title>ML-A-E-SRP-CI/235, Faltung 6: WER 0,195</title></circle>
+<circle cx="451.1" cy="593.0" r="4.5" class="cA ring" stroke-width="2"><title>ML-A-E-SRP-CI/235: Mittel 0,215</title></circle>
+<text x="318.0" y="615.0" text-anchor="end" class="t2" font-size="11.5">SL-A-E-F-SRP-CI/235</text>
+<line x1="464.1" y1="611.0" x2="578.9" y2="611.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="488.6" cy="611.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-E-F-SRP-CI/235, Faltung 1: WER 0,272</title></circle>
+<circle cx="545.8" cy="611.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-E-F-SRP-CI/235, Faltung 2: WER 0,391</title></circle>
+<circle cx="499.9" cy="611.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-E-F-SRP-CI/235, Faltung 3: WER 0,292</title></circle>
+<circle cx="464.1" cy="611.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-E-F-SRP-CI/235, Faltung 4: WER 0,233</title></circle>
+<circle cx="578.9" cy="611.0" r="5" fill="none" stroke="var(--t1)" stroke-width="2"><title>SL-A-E-F-SRP-CI/235, Faltung 5: WER 0,481 - abgestürzt</title></circle>
+<circle cx="478.4" cy="611.0" r="3.5" class="hN" stroke-width="2"><title>SL-A-E-F-SRP-CI/235, Faltung 6: WER 0,255</title></circle>
+<circle cx="511.8" cy="611.0" r="4.5" class="cA ring" stroke-width="2"><title>SL-A-E-F-SRP-CI/235: Mittel 0,315</title></circle>
+<text x="16.0" y="640.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">Sprecher B · 305 Aufnahmen</text>
+<text x="318.0" y="659.0" text-anchor="end" class="t2" font-size="11.5">L3L-Ze-E-SRP-CI/305</text>
+<line x1="550.1" y1="655.0" x2="602.9" y2="655.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="602.9" cy="655.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-E-SRP-CI/305, Faltung 1: WER 0,560</title></circle>
+<circle cx="587.2" cy="655.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-E-SRP-CI/305, Faltung 2: WER 0,507</title></circle>
+<circle cx="550.1" cy="655.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-E-SRP-CI/305, Faltung 3: WER 0,401</title></circle>
+<circle cx="558.1" cy="655.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-E-SRP-CI/305, Faltung 4: WER 0,422</title></circle>
+<circle cx="596.2" cy="655.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-E-SRP-CI/305, Faltung 5: WER 0,537</title></circle>
+<circle cx="557.2" cy="655.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-E-SRP-CI/305, Faltung 6: WER 0,419</title></circle>
+<path d="M578.6,649.4 L584.3,655.0 L578.6,660.6 L573.0,655.0 Z" class="cB ring" stroke-width="2"><title>L3L-Ze-E-SRP-CI/305: Mittel 0,480</title></path>
+<text x="318.0" y="677.0" text-anchor="end" class="t2" font-size="11.5">L3L-Ze-Q1-E-SRP-CI/305</text>
+<line x1="545.2" y1="673.0" x2="601.8" y2="673.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="598.7" cy="673.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-Q1-E-SRP-CI/305, Faltung 1: WER 0,545</title></circle>
+<circle cx="582.9" cy="673.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-Q1-E-SRP-CI/305, Faltung 2: WER 0,494</title></circle>
+<circle cx="578.0" cy="673.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-Q1-E-SRP-CI/305, Faltung 3: WER 0,478</title></circle>
+<circle cx="569.8" cy="673.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-Q1-E-SRP-CI/305, Faltung 4: WER 0,454</title></circle>
+<circle cx="601.8" cy="673.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-Q1-E-SRP-CI/305, Faltung 5: WER 0,556</title></circle>
+<circle cx="545.2" cy="673.0" r="3.5" class="hN" stroke-width="2"><title>L3L-Ze-Q1-E-SRP-CI/305, Faltung 6: WER 0,389</title></circle>
+<path d="M581.0,667.4 L586.6,673.0 L581.0,678.6 L575.3,673.0 Z" class="cB ring" stroke-width="2"><title>L3L-Ze-Q1-E-SRP-CI/305: Mittel 0,487</title></path>
+<text x="318.0" y="695.0" text-anchor="end" class="t2" font-size="11.5">ML-Ze-E-SRP-CI/305</text>
+<line x1="569.2" y1="691.0" x2="621.7" y2="691.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="616.0" cy="691.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/305, Faltung 1: WER 0,608</title></circle>
+<circle cx="621.7" cy="691.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/305, Faltung 2: WER 0,630</title></circle>
+<circle cx="569.2" cy="691.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/305, Faltung 3: WER 0,453</title></circle>
+<circle cx="582.9" cy="691.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/305, Faltung 4: WER 0,494</title></circle>
+<circle cx="607.2" cy="691.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/305, Faltung 5: WER 0,575</title></circle>
+<circle cx="571.4" cy="691.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/305, Faltung 6: WER 0,459</title></circle>
+<path d="M597.7,685.4 L603.4,691.0 L597.7,696.6 L592.1,691.0 Z" class="cB ring" stroke-width="2"><title>ML-Ze-E-SRP-CI/305: Mittel 0,542</title></path>
+<text x="318.0" y="713.0" text-anchor="end" class="t2" font-size="11.5">L3L-E-SRP-CI/305</text>
+<line x1="567.0" y1="709.0" x2="629.1" y2="709.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="617.5" cy="709.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/305, Faltung 1: WER 0,614</title></circle>
+<circle cx="629.1" cy="709.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/305, Faltung 2: WER 0,661</title></circle>
+<circle cx="571.8" cy="709.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/305, Faltung 3: WER 0,460</title></circle>
+<circle cx="584.2" cy="709.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/305, Faltung 4: WER 0,497</title></circle>
+<circle cx="599.8" cy="709.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/305, Faltung 5: WER 0,549</title></circle>
+<circle cx="567.0" cy="709.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/305, Faltung 6: WER 0,446</title></circle>
+<path d="M597.9,703.4 L603.5,709.0 L597.9,714.6 L592.3,709.0 Z" class="cB ring" stroke-width="2"><title>L3L-E-SRP-CI/305: Mittel 0,542</title></path>
+<text x="318.0" y="731.0" text-anchor="end" class="t2" font-size="11.5">L3L-R64-E-SRP-CI/305</text>
+<line x1="567.2" y1="727.0" x2="619.8" y2="727.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="618.2" cy="727.0" r="3.5" class="hN" stroke-width="2"><title>L3L-R64-E-SRP-CI/305, Faltung 1: WER 0,616</title></circle>
+<circle cx="619.8" cy="727.0" r="3.5" class="hN" stroke-width="2"><title>L3L-R64-E-SRP-CI/305, Faltung 2: WER 0,623</title></circle>
+<circle cx="582.0" cy="727.0" r="3.5" class="hN" stroke-width="2"><title>L3L-R64-E-SRP-CI/305, Faltung 3: WER 0,491</title></circle>
+<circle cx="593.7" cy="727.0" r="3.5" class="hN" stroke-width="2"><title>L3L-R64-E-SRP-CI/305, Faltung 4: WER 0,528</title></circle>
+<circle cx="617.9" cy="727.0" r="3.5" class="hN" stroke-width="2"><title>L3L-R64-E-SRP-CI/305, Faltung 5: WER 0,615</title></circle>
+<circle cx="567.2" cy="727.0" r="3.5" class="hN" stroke-width="2"><title>L3L-R64-E-SRP-CI/305, Faltung 6: WER 0,447</title></circle>
+<path d="M602.0,721.4 L607.6,727.0 L602.0,732.6 L596.3,727.0 Z" class="cB ring" stroke-width="2"><title>L3L-R64-E-SRP-CI/305: Mittel 0,556</title></path>
+<text x="16.0" y="756.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">Sprecher B · 262 Aufnahmen</text>
+<text x="318.0" y="775.0" text-anchor="end" class="t2" font-size="11.5">ML-Ze-E-SRP-CI/262</text>
+<line x1="575.6" y1="771.0" x2="631.6" y2="771.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="616.2" cy="771.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/262, Faltung 1: WER 0,609</title></circle>
+<circle cx="631.6" cy="771.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/262, Faltung 2: WER 0,671</title></circle>
+<circle cx="594.1" cy="771.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/262, Faltung 3: WER 0,530</title></circle>
+<circle cx="586.5" cy="771.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/262, Faltung 4: WER 0,505</title></circle>
+<circle cx="604.1" cy="771.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/262, Faltung 5: WER 0,564</title></circle>
+<circle cx="575.6" cy="771.0" r="3.5" class="hN" stroke-width="2"><title>ML-Ze-E-SRP-CI/262, Faltung 6: WER 0,471</title></circle>
+<path d="M603.9,765.4 L609.6,771.0 L603.9,776.6 L598.3,771.0 Z" class="cB ring" stroke-width="2"><title>ML-Ze-E-SRP-CI/262: Mittel 0,563</title></path>
+<text x="318.0" y="793.0" text-anchor="end" class="t2" font-size="11.5">L3L-E-SRP-CI/262</text>
+<line x1="580.2" y1="789.0" x2="632.1" y2="789.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="630.8" cy="789.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/262, Faltung 1: WER 0,667</title></circle>
+<circle cx="632.1" cy="789.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/262, Faltung 2: WER 0,673</title></circle>
+<circle cx="580.2" cy="789.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/262, Faltung 3: WER 0,485</title></circle>
+<circle cx="606.3" cy="789.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/262, Faltung 4: WER 0,572</title></circle>
+<circle cx="592.5" cy="789.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/262, Faltung 5: WER 0,524</title></circle>
+<circle cx="591.5" cy="789.0" r="3.5" class="hN" stroke-width="2"><title>L3L-E-SRP-CI/262, Faltung 6: WER 0,521</title></circle>
+<path d="M608.2,783.4 L613.9,789.0 L608.2,794.6 L602.6,789.0 Z" class="cB ring" stroke-width="2"><title>L3L-E-SRP-CI/262: Mittel 0,579</title></path>
+<text x="318.0" y="811.0" text-anchor="end" class="t2" font-size="11.5">SL-Ze-R64-E-SRP-CI/262</text>
+<line x1="593.2" y1="807.0" x2="652.8" y2="807.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="620.6" cy="807.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-R64-E-SRP-CI/262, Faltung 1: WER 0,626</title></circle>
+<circle cx="652.8" cy="807.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-R64-E-SRP-CI/262, Faltung 2: WER 0,767</title></circle>
+<circle cx="608.2" cy="807.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-R64-E-SRP-CI/262, Faltung 3: WER 0,579</title></circle>
+<circle cx="593.2" cy="807.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-R64-E-SRP-CI/262, Faltung 4: WER 0,527</title></circle>
+<circle cx="619.7" cy="807.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-R64-E-SRP-CI/262, Faltung 5: WER 0,622</title></circle>
+<circle cx="594.5" cy="807.0" r="3.5" class="hN" stroke-width="2"><title>SL-Ze-R64-E-SRP-CI/262, Faltung 6: WER 0,531</title></circle>
+<path d="M617.8,801.4 L623.4,807.0 L617.8,812.6 L612.1,807.0 Z" class="cB ring" stroke-width="2"><title>SL-Ze-R64-E-SRP-CI/262: Mittel 0,615</title></path>
+<text x="318.0" y="829.0" text-anchor="end" class="t2" font-size="11.5">L3L/262</text>
+<line x1="575.0" y1="825.0" x2="705.8" y2="825.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="620.4" cy="825.0" r="3.5" class="hN" stroke-width="2"><title>L3L/262, Faltung 1: WER 0,625</title></circle>
+<circle cx="640.7" cy="825.0" r="3.5" class="hN" stroke-width="2"><title>L3L/262, Faltung 2: WER 0,711</title></circle>
+<circle cx="575.0" cy="825.0" r="3.5" class="hN" stroke-width="2"><title>L3L/262, Faltung 3: WER 0,469</title></circle>
+<circle cx="583.3" cy="825.0" r="3.5" class="hN" stroke-width="2"><title>L3L/262, Faltung 4: WER 0,495</title></circle>
+<circle cx="705.8" cy="825.0" r="5" fill="none" stroke="var(--t1)" stroke-width="2"><title>L3L/262, Faltung 5: WER 1,072 - abgestürzt</title></circle>
+<circle cx="594.5" cy="825.0" r="3.5" class="hN" stroke-width="2"><title>L3L/262, Faltung 6: WER 0,531</title></circle>
+<path d="M632.2,819.4 L637.8,825.0 L632.2,830.6 L626.6,825.0 Z" class="cB ring" stroke-width="2"><title>L3L/262: Mittel 0,674</title></path>
+<text x="16.0" y="854.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">Sprecher B · 262 Aufnahmen, älterer Zuschnitt</text>
+<text x="318.0" y="873.0" text-anchor="end" class="t2" font-size="11.5">ML-A-E-SRP-CI/262</text>
+<line x1="608.7" y1="869.0" x2="656.2" y2="869.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="615.2" cy="869.0" r="3.5" class="hN" stroke-width="2"><title>ML-A-E-SRP-CI/262, Faltung 1: WER 0,605</title></circle>
+<circle cx="643.5" cy="869.0" r="3.5" class="hN" stroke-width="2"><title>ML-A-E-SRP-CI/262, Faltung 2: WER 0,723</title></circle>
+<circle cx="647.9" cy="869.0" r="3.5" class="hN" stroke-width="2"><title>ML-A-E-SRP-CI/262, Faltung 3: WER 0,744</title></circle>
+<circle cx="608.7" cy="869.0" r="3.5" class="hN" stroke-width="2"><title>ML-A-E-SRP-CI/262, Faltung 4: WER 0,581</title></circle>
+<circle cx="624.3" cy="869.0" r="3.5" class="hN" stroke-width="2"><title>ML-A-E-SRP-CI/262, Faltung 5: WER 0,641</title></circle>
+<circle cx="656.2" cy="869.0" r="3.5" class="hN" stroke-width="2"><title>ML-A-E-SRP-CI/262, Faltung 6: WER 0,784</title></circle>
+<path d="M633.5,863.4 L639.2,869.0 L633.5,874.6 L627.9,869.0 Z" class="cB ring" stroke-width="2"><title>ML-A-E-SRP-CI/262: Mittel 0,679</title></path>
+<text x="318.0" y="891.0" text-anchor="end" class="t2" font-size="11.5">SV-E-SRP-CI/262</text>
+<line x1="639.6" y1="887.0" x2="666.4" y2="887.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="639.6" cy="887.0" r="3.5" class="hN" stroke-width="2"><title>SV-E-SRP-CI/262, Faltung 1: WER 0,706</title></circle>
+<circle cx="651.9" cy="887.0" r="3.5" class="hN" stroke-width="2"><title>SV-E-SRP-CI/262, Faltung 2: WER 0,763</title></circle>
+<circle cx="666.4" cy="887.0" r="3.5" class="hN" stroke-width="2"><title>SV-E-SRP-CI/262, Faltung 3: WER 0,836</title></circle>
+<circle cx="644.0" cy="887.0" r="3.5" class="hN" stroke-width="2"><title>SV-E-SRP-CI/262, Faltung 4: WER 0,726</title></circle>
+<circle cx="654.6" cy="887.0" r="3.5" class="hN" stroke-width="2"><title>SV-E-SRP-CI/262, Faltung 5: WER 0,776</title></circle>
+<circle cx="665.9" cy="887.0" r="3.5" class="hN" stroke-width="2"><title>SV-E-SRP-CI/262, Faltung 6: WER 0,833</title></circle>
+<path d="M654.0,881.4 L659.6,887.0 L654.0,892.6 L648.4,887.0 Z" class="cB ring" stroke-width="2"><title>SV-E-SRP-CI/262: Mittel 0,773</title></path>
+<text x="16.0" y="916.0" text-anchor="start" class="t1" font-size="12.5" font-weight="600">Sprecher B · 43 Aufnahmen</text>
+<text x="318.0" y="935.0" text-anchor="end" class="t2" font-size="11.5">ML-E-SRP-CI/43b</text>
+<line x1="618.6" y1="931.0" x2="701.7" y2="931.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="651.1" cy="931.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/43b, Faltung 1: WER 0,759</title></circle>
+<circle cx="647.8" cy="931.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/43b, Faltung 2: WER 0,743</title></circle>
+<circle cx="618.6" cy="931.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/43b, Faltung 3: WER 0,618</title></circle>
+<circle cx="701.7" cy="931.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/43b, Faltung 4: WER 1,044</title></circle>
+<circle cx="628.5" cy="931.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/43b, Faltung 5: WER 0,658</title></circle>
+<circle cx="647.5" cy="931.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/43b, Faltung 6: WER 0,742</title></circle>
+<path d="M651.5,925.4 L657.1,931.0 L651.5,936.6 L645.9,931.0 Z" class="cB ring" stroke-width="2"><title>ML-E-SRP-CI/43b: Mittel 0,761</title></path>
+<text x="318.0" y="953.0" text-anchor="end" class="t2" font-size="11.5">ML-E-SRP-CI/43c</text>
+<line x1="600.2" y1="949.0" x2="725.4" y2="949.0" class="grid" stroke-width="1" stroke-linecap="round"/>
+<circle cx="725.4" cy="949.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/43c, Faltung 1: WER 1,213</title></circle>
+<circle cx="623.9" cy="949.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/43c, Faltung 2: WER 0,639</title></circle>
+<circle cx="600.2" cy="949.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/43c, Faltung 3: WER 0,550</title></circle>
+<circle cx="679.0" cy="949.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/43c, Faltung 4: WER 0,905</title></circle>
+<circle cx="647.9" cy="949.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/43c, Faltung 5: WER 0,744</title></circle>
+<circle cx="662.9" cy="949.0" r="3.5" class="hN" stroke-width="2"><title>ML-E-SRP-CI/43c, Faltung 6: WER 0,818</title></circle>
+<path d="M663.5,943.4 L669.1,949.0 L663.5,954.6 L657.9,949.0 Z" class="cB ring" stroke-width="2"><title>ML-E-SRP-CI/43c: Mittel 0,821</title></path>
+</svg>
