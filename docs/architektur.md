@@ -312,7 +312,7 @@ siehe [lernen](lernen.md#das-register-der-läufe)):
 
 | Tabelle | Zweck |
 |---|---|
-| `laeufe` | Auftrag, Zustand, Manifest des Modells, Protokoll, Umgebung, wann gelöscht |
+| `laeufe` | Auftrag, Zustand, Manifest des Modells, Protokoll, Umgebung, Fingerabdruck der Daten, wann gelöscht |
 | `daten` | jede Zeile des Manifests, mit Text und Fingerabdruck der Audiodatei |
 | `messungen` | Kreuzvalidierung und Messungen des Endmodells |
 | `ereignisse` | der Verlauf eines Laufs |
