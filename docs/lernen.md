@@ -452,7 +452,15 @@ Sprecher (`services/register.py`, Schema mit Erklärung jeder Spalte in
 | `messungen` | was ein Modell aus einer Aufnahme machte: `faltung` aus der Kreuzvalidierung, `endmodell` aus der Auswertung von „hören" | `bewertung.jsonl`, Tabelle `erkennungen` |
 | `ereignisse` | Verlust je Schritt, Validierung je Durchgang, Stufen, gescheiterte Faltungen | `fortschritt.jsonl` |
 
-Die Sicht `uebersicht` zeigt je Lauf die Eckdaten ohne JSON. Die Umgebung
+Die Sicht `uebersicht` zeigt je Lauf die Eckdaten ohne JSON.
+
+**Welche Läufe vergleichbar sind, sagt `datensatz`**: ein Fingerabdruck über
+Aufnahme, Fassung, Faltung, Herkunft, Text und Audiodatei jeder Zeile von
+`daten` (`register.datensatz`). Gleich heißt: dieselben Daten, dieselben
+Faltungen - zwei solche Läufe unterscheiden sich nur in ihren Optionen, und
+der gepaarte Vergleich ihrer `messungen` (`streuung.unterschied`) misst deren
+Wirkung. Die Zahl hinter dem Optionscode genügt dafür nicht: Gleich viele
+Aufnahmen können andere sein. Die Umgebung
 nennt den Quellstand (SHA-256 über den Code des Trainers - dieselbe Zahl über
 einen Checkout gerechnet findet den Commit), Python, die Bibliotheken, die
 Revision des Grundmodells und die Karte.

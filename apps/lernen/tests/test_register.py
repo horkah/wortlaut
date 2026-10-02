@@ -105,6 +105,32 @@ class TestEintragen:
         assert umgebung["quellstand"] in gespeichert
 
 
+class TestDatensatz:
+    def test_gleiche_daten_gleicher_fingerabdruck(
+        self, klient: TestClient, quelle: str, sprich, datenverzeichnis, sprecher: str
+    ) -> None:
+        # Gleiche Daten, andere Option - genau das Paar, das eine Option misst.
+        sprich(9)
+        gleich = [
+            klient.post("/lernen/api/laeufe", json={"methode": methode, "daten": "original"})
+            .json()["job_id"]
+            for methode in ("lora", "full")
+        ]
+        sprich(3)
+        mehr = klient.post(
+            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original"}
+        ).json()["job_id"]
+        for job_id in (*gleich, mehr):
+            register.trage_ein(datenverzeichnis, job_id)
+
+        fingerabdruck = dict(
+            _zeilen(datenverzeichnis, sprecher, "SELECT job_id, datensatz FROM uebersicht")
+        )
+        assert fingerabdruck[gleich[0]] == fingerabdruck[gleich[1]]
+        assert fingerabdruck[mehr] != fingerabdruck[gleich[0]]
+        assert len(fingerabdruck[mehr]) == 64
+
+
 class TestLoeschen:
     def test_das_register_ueberdauert_lauf_und_modell(
         self, klient: TestClient, fertig, datenverzeichnis, sprecher: str

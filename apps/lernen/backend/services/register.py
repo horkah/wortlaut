@@ -209,6 +209,11 @@ def trage_ein(
             )
 
         register.execute(
+            "UPDATE laeufe SET datensatz = ? WHERE job_id = ?",
+            (datensatz(register, job_id), job_id),
+        )
+
+        register.execute(
             "DELETE FROM messungen WHERE job_id = ? AND herkunft = ?", (job_id, FALTUNG)
         )
         for nummer, zeile in enumerate(laeufe.lies_zeilen(lauf.verzeichnis / laeufe.BEWERTUNG)):
@@ -221,6 +226,30 @@ def trage_ein(
                 (job_id, nummer, zeile.get("zeit"), zeile.get("art"), _json(zeile)),
             )
     return True
+
+
+# Was einen Datensatz ausmacht - das Gewicht nicht, es ist eine Achse des Auftrags.
+_DATENSATZ = ("recording_id", "variante", "faltung", "quelle", "text", "audio_sha256")
+
+
+def datensatz(register: sqlite3.Connection, job_id: str) -> str:
+    """Der Fingerabdruck der Daten dieses Laufs: gleich genau dann, wenn zwei
+    Läufe auf denselben Daten lernten und maßen (`002_datensatz.sql`).
+
+    SHA-256 über die sortierten Zeilen, je Zeile die Felder aus `_DATENSATZ`
+    als JSON-Liste - unabhängig von der Reihenfolge im Manifest.
+    """
+    zeilen = sorted(
+        json.dumps(list(zeile), ensure_ascii=False)
+        for zeile in register.execute(
+            f"SELECT {', '.join(_DATENSATZ)} FROM daten WHERE job_id = ?", (job_id,)
+        )
+    )
+    summe = hashlib.sha256()
+    for zeile in zeilen:
+        summe.update(zeile.encode("utf-8"))
+        summe.update(b"\n")
+    return summe.hexdigest()
 
 
 def _messung(
