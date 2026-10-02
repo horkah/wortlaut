@@ -35,6 +35,8 @@ Rechenzeiten stehen in einer Tafel und sind nur so vergleichbar.
 
 **6. Genau ein Schreiber je Datenbestand.** `hören` schreibt den Korpus,
 `lernen` liest ihn. `lernen` schreibt die Registry, `schreiben` liest sie.
+`lernen` schreibt auch das Register der Läufe (`data/lernen/`), eine eigene
+Datenbank neben dem Korpus statt Tabellen darin.
 
 **7. Keine Anmeldung - aber ein Sprecher.** Die Zielperson kann schlecht lesen
 und schreiben. Jede App leitet den Sprecher aus dem Zugang ab, den der Browser
@@ -87,10 +89,11 @@ wortlaut/
 │   │
 │   ├── lernen/
 │   │   ├── backend/
-│   │   │   ├── main.py, config.py, deps.py   # keine eigene Datenbank
+│   │   │   ├── main.py, config.py, deps.py
 │   │   │   ├── api/               # aufteilung, laeufe, modelle
-│   │   │   └── services/          # aufteilung, auftraege, kernauswahl,
-│   │   │                          # messwerte, vergleich
+│   │   │   ├── services/          # aufteilung, auftraege, kernauswahl,
+│   │   │   │                      # messwerte, register, vergleich
+│   │   │   └── db/migrations/     # das Register der Läufe
 │   │   ├── frontend/src/routes/   # Aufteilung, Training, Lauf, Modelle
 │   │   ├── training/              # was auf der Karte läuft - eigenes Abbild
 │   │   │   ├── Dockerfile
@@ -301,9 +304,18 @@ Die Zeile unter dem Aufnahmeknopf nennt dauerhaft, welches Modell arbeitet.
 | `recordings` | Blob, Messwerte, Modus, Status, Zuschnittgrenzen, Kennung aus „schreiben" |
 | `erkennungen` | je Aufnahme, Modell und Fassung eine Messung, mit Rechenwerk und Herkunft |
 
-**lernen** hat keine Datenbank. Läufe und Stände sind Verzeichnisse, die
+**lernen** arbeitet ohne Datenbank: Läufe und Stände sind Verzeichnisse, die
 Faltungen folgen dem Korpus und stehen im Manifest; eine Tabelle daneben wäre
-eine zweite Wahrheit über dasselbe.
+eine zweite Wahrheit über dasselbe. Was davon nach dem Löschen bleiben muss,
+steht im **Register der Läufe** (`data/lernen/<sprecher_id>/register.sqlite`,
+siehe [lernen](lernen.md#das-register-der-läufe)):
+
+| Tabelle | Zweck |
+|---|---|
+| `laeufe` | Auftrag, Zustand, Manifest des Modells, Protokoll, Umgebung, wann gelöscht |
+| `daten` | jede Zeile des Manifests, mit Text und Fingerabdruck der Audiodatei |
+| `messungen` | Kreuzvalidierung und Messungen des Endmodells |
+| `ereignisse` | der Verlauf eines Laufs |
 
 **schreiben**
 

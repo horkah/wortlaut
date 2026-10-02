@@ -12,6 +12,7 @@ Art. 9 DSGVO. Das bestimmt den Aufbau, nicht nur einen Hinweistext.
 | Diktate von „schreiben" | `…/diktate/<sprecher_id>/` | Arbeitsstand bis zur Übergabe |
 | Laufverzeichnisse | `…/snapshots/<job_id>/` | Manifest mit Texten, markiert mit `sprecher.txt` |
 | Modellstände | `…/modelle/<sprecher_id>/` | tragen Stimmcharakteristik |
+| Register der Läufe | `…/lernen/<sprecher_id>/register.sqlite` | Texte, erkannte Texte und Messwerte jedes Laufs, auch gelöschter; zur wissenschaftlichen Auswertung, pseudonym: Kennung statt Name, kein Audio |
 | Fehlerprotokoll | `…/protokoll/fehler.jsonl` | Warnungen und Fehler, sieben Tage; Kennungen und Pfade, nur für Aufsicht, Verwaltung und Trainerschlüssel |
 
 Alles zu einer Person liegt unter Verzeichnissen mit ihrer Kennung - die
@@ -73,7 +74,9 @@ uv run python scripts/purge_speaker.py <sprecher_id>               # Probelauf
 uv run python scripts/purge_speaker.py <sprecher_id> --ja-wirklich # löschen
 ```
 
-Entfernt Profil, Aufnahmen, Laufverzeichnisse, Modellstände und Diktate.
+Entfernt Profil, Aufnahmen, Laufverzeichnisse, Modellstände, das Register
+der Läufe und Diktate. Das Löschen eines Laufs in „lernen" lässt das Register
+stehen - dafür ist es da.
 Dasselbe geht in der Oberfläche als Aufsicht, mit demselben Umfang aus
 derselben Quelle (`apps/hoeren/backend/services/loeschung.py`). Feiner geht
 es auch: eine Aufnahme, alle Aufnahmen einer Person. Einen Weg, der mehrere

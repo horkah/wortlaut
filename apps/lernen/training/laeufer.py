@@ -33,6 +33,7 @@ from pathlib import Path
 from wortlaut import fehlerlog, laeufe
 
 from apps.lernen.backend.config import einstellungen
+from apps.lernen.backend.services import register
 
 # Ins Fehlerprotokoll (`wortlaut/fehlerlog.py`); die übrigen Zeilen gehen wie
 # bisher nur ins Container-Log.
@@ -129,6 +130,19 @@ def _nacharbeit(lauf: laeufe.Lauf, rueckgabe: int) -> None:
     )
 
 
+def _trage_ein(lauf: laeufe.Lauf) -> None:
+    """Den beendeten Lauf ins Register (`services/register.py`) - mit der
+    Umgebung, die nur hier bekannt ist. Ein Fehler dabei hält den Läufer nicht
+    auf; nachtragen lässt sich mit `scripts/register.py`, solange der Lauf da ist."""
+    datenverzeichnis = einstellungen().data_dir
+    try:
+        register.trage_ein(
+            datenverzeichnis, lauf.job_id, register.umgebung(datenverzeichnis, lauf.auftrag)
+        )
+    except Exception:  # noqa: BLE001 - das Register darf den Läufer nicht anhalten
+        _log.error("Lauf %s nicht ins Register eingetragen", lauf.job_id, exc_info=True)
+
+
 def raeume_verwaiste_auf() -> list[str]:
     """Beim Start: Läufe, die `laeuft` sagen, obwohl niemand rechnet.
 
@@ -155,6 +169,7 @@ def raeume_verwaiste_auf() -> list[str]:
                 ),
             },
         )
+        _trage_ein(lauf)
         verwaist.append(lauf.job_id)
     return verwaist
 
@@ -172,6 +187,7 @@ def einmal() -> bool:
             lauf.verzeichnis / laeufe.ZUSTAND,
             {"status": laeufe.ABGEBROCHEN, "beendet": laeufe.jetzt()},
         )
+        _trage_ein(lauf)
         return True
 
     print(
@@ -187,6 +203,7 @@ def einmal() -> bool:
     if entfernt:
         print(f"Zwischenstände weggeräumt: {', '.join(entfernt)}", flush=True)
     print(f"Auftrag {lauf.job_id} beendet ({rueckgabe})", flush=True)
+    _trage_ein(lauf)
     nachher = laeufe.lies_lauf(konfiguration.data_dir, lauf.job_id)
     if nachher is not None and nachher.status == laeufe.GESCHEITERT:
         _log.error(

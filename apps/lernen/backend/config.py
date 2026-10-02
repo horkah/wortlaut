@@ -14,8 +14,9 @@ from functools import lru_cache
 from wortlaut import kartenplan, laeufe
 from wortlaut.einstellungen import AUSWERTUNG_MODELLE, Grundeinstellungen
 
-# `lernen/<sprecher>` - diese App schreibt dort nichts, die Löschung nimmt ein
-# vorhandenes Verzeichnis aber mit (`hoeren/services/loeschung.py`).
+# `lernen/<sprecher>` - das Register der Läufe (`services/register.py`).
+# Gesichert und gelöscht mit dem Sprecher (`hoeren/services/loeschung.py`),
+# anders als Läufe und Modelle auf der Trainingsablage.
 LERNEN = "lernen"
 
 
