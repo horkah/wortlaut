@@ -35,7 +35,7 @@ from apps.hoeren.backend.db.models import Textquelle
 from apps.hoeren.backend.services import zuschnitt
 from apps.lernen.backend.config import einstellungen
 from apps.schreiben.backend import config as schreiben_ablage
-from apps.lernen.backend.services import aufteilung, kernauswahl
+from apps.lernen.backend.services import aufteilung, kernauswahl, register
 from apps.lernen.backend.services.aufteilung import Probe
 from apps.lernen.backend.services.kernauswahl import Kernauswahl
 
@@ -499,7 +499,9 @@ def loesche(datenverzeichnis: Path, sprecher_id: str, job_id: str) -> Geloescht:
 
     Ohne Lauf wäre nicht mehr nachzusehen, worauf ein Stand gelernt hat - sein
     Manifest liegt dort. Die Oberfläche nennt vorher, ob der Stand freigegeben
-    ist (`api/laeufe.py`). Der Korpus bleibt.
+    ist (`api/laeufe.py`). Der Korpus bleibt, und das Register bekommt vorher
+    alles, was mit dem Lauf verschwindet (`services/register.py`); scheitert
+    das, bleibt der Lauf.
     """
     lauf = laeufe.lies_lauf(datenverzeichnis, job_id)
     if lauf is None or lauf.sprecher_id != sprecher_id:
@@ -511,6 +513,8 @@ def loesche(datenverzeichnis: Path, sprecher_id: str, job_id: str) -> Geloescht:
         raise RuntimeError(
             "Dieser Lauf rechnet gerade. Erst wenn er durch ist, lässt er sich löschen."
         )
+
+    register.trage_vor_dem_loeschen_ein(datenverzeichnis, sprecher_id, job_id)
 
     stand = registry.stand_zu_lauf(datenverzeichnis, sprecher_id, job_id)
     ergebnis = Geloescht(job_id=job_id)

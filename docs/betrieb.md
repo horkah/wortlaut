@@ -52,7 +52,7 @@ geänderte `pyproject.toml` baut die Abhängigkeiten neu, aus dem BuildKit-Cache
 
 | Im Container | Auf dem Wirt | Inhalt |
 |---|---|---|
-| `/srv/wortlaut/data` | Volume `wortlaut-data` | Korpora, Diktate - unersetzlich |
+| `/srv/wortlaut/data` | Volume `wortlaut-data` | Korpora, Diktate, Register der Läufe - unersetzlich |
 | `/srv/wortlaut/data/modelle`, `…/snapshots` | `WORTLAUT_TRAININGSABLAGE/{modelle,snapshots}` | Stände und Läufe - aus dem Korpus neu zu rechnen |
 | `/srv/wortlaut/modellcache` | `WORTLAUT_MODELLCACHE` | Grundmodelle, Stimmen - neu zu laden |
 | `/root/.ollama` (Dienst `ollama`) | `WORTLAUT_OLLAMACACHE` | Modelle von Ollama - `ollama pull` |
@@ -97,6 +97,7 @@ Im Container gibt es weder `make` noch `uv`. Daneben:
 | `scripts/vorlesen.py` | Stimmen holen (`--hole <stimme>`), alle Vorlagen vorab sprechen |
 | `scripts/importieren.py` | Paare aus Ton und Text von außerhalb als Textquelle übernehmen |
 | `scripts/paare_teilen.py` | zu lange Paare aus Ton und Text vor dem Import in Stücke unter 30 s teilen, bevorzugt an Satzenden und in der Stille |
+| `scripts/register.py` | alle vorhandenen Läufe ins Register der Läufe eintragen ([lernen](lernen.md#das-register-der-läufe)) |
 | `scripts/folge_nachtragen.py` | die Folge hinter dem Optionscode für Läufe ohne sie vergeben |
 | `scripts/restore.py`, `scripts/purge_speaker.py` | siehe unten |
 

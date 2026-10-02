@@ -437,6 +437,40 @@ Fassung neben denen des freigegebenen Modells.
 
 ---
 
+## Das Register der Läufe
+
+Lauf und Modell liegen auf der Trainingsablage und gehen beim Löschen. Was es
+braucht, um einen Lauf wissenschaftlich auszuwerten und neu zu rechnen, bleibt
+im Register: `data/lernen/<sprecher_id>/register.sqlite`, eine Datei je
+Sprecher (`services/register.py`, Schema mit Erklärung jeder Spalte in
+`backend/db/migrations/001_register.sql`).
+
+| Tabelle | Was | woher |
+|---|---|---|
+| `laeufe` | Auftrag, Zustand samt Metriken und Bootstrap-Intervall, Manifest des Modells (Rezept, Abschluss, Endmodell, Grundmodell daneben, Plausibilitätsprüfung), Kernauswahl, Protokoll, Umgebung, wann gelöscht | Laufverzeichnis, Registry, Läufer |
+| `daten` | jede Zeile des Manifests: Aufnahme, Fassung, Faltung, Gewicht, Herkunft, Text wie damals, SHA-256 der Audiodatei | `manifest.jsonl` |
+| `messungen` | was ein Modell aus einer Aufnahme machte: `faltung` aus der Kreuzvalidierung, `endmodell` aus der Auswertung von „hören" | `bewertung.jsonl`, Tabelle `erkennungen` |
+| `ereignisse` | Verlust je Schritt, Validierung je Durchgang, Stufen, gescheiterte Faltungen | `fortschritt.jsonl` |
+
+Die Sicht `uebersicht` zeigt je Lauf die Eckdaten ohne JSON. Die Umgebung
+nennt den Quellstand (SHA-256 über den Code des Trainers - dieselbe Zahl über
+einen Checkout gerechnet findet den Commit), Python, die Bibliotheken, die
+Revision des Grundmodells und die Karte.
+
+**Eingetragen wird, wenn ein Lauf endet** (vom Läufer, der die Umgebung
+kennt), **bevor er gelöscht wird** (mit dem, was „hören" mit seinem Modell
+gemessen hat; scheitert das, bleibt der Lauf), und von Hand mit
+`scripts/register.py` für alle vorhandenen. Ein zweites Eintragen ersetzt, was
+aus dem Laufverzeichnis kommt; Umgebung, Messungen des Endmodells, Zeitpunkt
+des Löschens und der erste Fingerabdruck jeder Audiodatei bleiben.
+
+Auf Aufnahmen und Vorlagen zeigt das Register mit deren Kennung; mit
+`ATTACH` an `korpus/<sprecher_id>/hoeren.sqlite` kommt der Rest dazu. Der
+Sprecher steht nur als Kennung darin. Kein Weg der Oberfläche führt hierher;
+gelesen wird mit `sqlite3`.
+
+---
+
 ## Von der Kommandozeile
 
 ```
@@ -487,6 +521,7 @@ abgefragt.
 | Läufe | `data/snapshots/<job_id>/` | schreibend; der Trainer schreibt mit |
 | Modellstände | `data/modelle/<sprecher_id>/<version>/` | schreibend; „schreiben" liest |
 | Freigabe | `data/modelle/<sprecher_id>/freigabe.json` | schreibend; „schreiben" liest |
+| Register der Läufe | `data/lernen/<sprecher_id>/register.sqlite` | schreibend; der Trainer schreibt mit |
 | Was geladen ist | `GET /schreiben/api/model` | lesend |
 
 Dass der Korpus nur gelesen wird, hält ein Test fest
