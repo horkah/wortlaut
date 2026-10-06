@@ -71,15 +71,14 @@ ZWISCHENSTAENDE = (ARBEITSSTAND, GEWICHTE, VORGESPULT, AUSGANG)
 # einmal von einem Modell gehört, das sie nie gelernt hat. Kein unabhängiger
 # Test - der wäre eigens aufzunehmen.
 #
-# **Die Faltung hängt an der Kennung**, nicht an der Reihenfolge: ein Hash des
-# Stamms, modulo sechs. Neue und gelöschte Aufnahmen verschieben keine andere,
-# und eine Aufnahme misst in jedem Lauf in derselben Faltung. Teile und
-# Kopien aus „Editieren" tragen den Stamm ihres Originals und bleiben bei ihm
-# (`aufteilung.py` in „lernen").
+# **Die Faltung wird mit der ersten Aufnahme eines Stamms vergeben**, in die
+# Faltung mit der wenigsten Sprache, und steht dann fest
+# (`hoeren/services/faltungen.py`). Teile und Kopien aus „Editieren" tragen
+# den Stamm ihres Originals und bleiben bei ihm.
 #
-# Ein Hash verteilt erst bei vielen Stämmen gleichmäßig. Bliebe eine Faltung
-# leer, ließe sich nicht kreuzvalidieren - dann gehen die Stämme reihum, in
-# der Reihenfolge ihres Hashs. Das trifft nur sehr kleine Korpora.
+# `verteile` ist die Regel für Stämme ohne Eintrag und für den Kern: ein Hash
+# des Stamms, modulo sechs. Bliebe dabei eine Faltung leer, gehen die Stämme
+# reihum, in der Reihenfolge ihres Hashs.
 FALTUNGEN = 6
 
 
@@ -326,11 +325,9 @@ def auswahl_aus(auftrag: dict[str, Any]) -> str:
 
 
 def verteile_kern(kern: Iterable[str], staemme: dict[str, str]) -> dict[str, int]:
-    """Die Faltung jeder Kernaufnahme - dieselbe Regel wie beim Auftrag (`verteile`).
+    """Die Faltung jeder Kernaufnahme, nach dem Hash ihres Stamms (`verteile`).
 
-    Je Stamm; `staemme` nennt jede Aufnahme mit ihrem Stamm. Eine Kernaufnahme
-    misst damit in derselben Faltung wie im ganzen Korpus - außer der Kern ist
-    so klein, dass eine Faltung leer bliebe.
+    Je Stamm; `staemme` nennt jede Aufnahme mit ihrem Stamm.
     """
     im_kern = set(kern)
     gruppen: dict[str, list[str]] = {}
