@@ -4,6 +4,7 @@
    * ein hochgeladener Text. Beides wird zu Sprecheinheiten geschnitten und
    * hinten an die Warteschlange gehängt.
    */
+  import Papierkorb from '$ui/Papierkorb.svelte';
   import {
     erkennungMoeglich,
     quelleAusDatei,
@@ -447,18 +448,12 @@
       </div>
     </div>
 
-    <button
-      class="feld loeschen"
-      aria-label="Quelle löschen"
+    <Papierkorb
       title="Quelle löschen"
+      label="Quelle {quelle.titel} löschen"
       disabled={laeuft}
       onclick={() => loesche(quelle)}
-    >
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
-        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M4 7h16M10 4h4M6 7l1 13h10l1-13M10 11v6M14 11v6" />
-      </svg>
-    </button>
+    />
   </div>
 {:else}
   <p class="gedaempft">Noch keine Quelle.</p>
@@ -587,12 +582,6 @@
     border-color: var(--akzent);
     background: var(--akzent-hell);
     color: var(--akzent);
-  }
-
-  /* Dieselbe Farbe wie `.fehler` in der gemeinsamen app.css. */
-  .loeschen:hover:not(:disabled) {
-    border-color: var(--fehler);
-    color: var(--fehler);
   }
 
   /* Der Titel ist der Weg zum Text - als Knopf, damit der Token mitgeht,

@@ -1,7 +1,12 @@
 <script lang="ts">
   /**
-   * Der Knopf, der einen Lauf löscht - auf der Karte unter „Training" und in
-   * der Einzelansicht derselbe.
+   * Der eine Papierkorb der ganzen Familie: wo immer ein einzelner Eintrag
+   * gelöscht oder verworfen wird - ein Lauf in „lernen", eine Textquelle, eine
+   * Aufnahme in „Meine Daten" und in der Einsicht. Ein Sinnbild, ein Strich,
+   * ein Verhalten; wer es einmal kennt, erkennt es überall.
+   *
+   * Sammelaktionen mit Zahl („Löschen (3)") bleiben beschriftete Knöpfe: Dort
+   * ist die Zahl die Auskunft, und die trägt kein Sinnbild.
    *
    * Beschriftet für Vorlesestimmen (`label`), denn ein Sinnbild allein sagt
    * nichts.
@@ -24,12 +29,14 @@
     height="18"
     fill="none"
     stroke="currentColor"
-    stroke-width="2"
+    stroke-width="1.75"
     stroke-linecap="round"
     stroke-linejoin="round"
     aria-hidden="true"
   >
-    <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
+    <path
+      d="M4 7h16M9.5 7V5.5A1.5 1.5 0 0 1 11 4h2a1.5 1.5 0 0 1 1.5 1.5V7M6 7l.8 11.2A2 2 0 0 0 8.8 20h6.4a2 2 0 0 0 2-1.8L18 7M10 11v5M14 11v5"
+    />
   </svg>
 </button>
 

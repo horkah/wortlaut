@@ -257,10 +257,10 @@ abgeschaltet, und das ist Absicht. Nach dem Setzen das Backend neu starten.
    nennt vorher Zeitpunkt, Sprecher und Größe. Ein zweiter Lauf ohne
    `--ueberschreiben` bricht ab, ohne etwas zu schreiben.
 9. Eine einzelne Aufnahme löschen: in der Einsicht bei einer Aufnahme
-   **Löschen**, bestätigen. Erwartet: Sie verschwindet aus der Liste, die
-   Zahl oben sinkt. Mit dem Sprecherzugang unter „Aufnehmen“ nachsehen:
-   Die Einheit wird wieder angeboten - anders als beim Verwerfen bleibt keine
-   Spur stehen.
+   den Papierkorb tippen, bestätigen. Erwartet: Sie verschwindet aus der
+   Liste, die Zahl oben sinkt. Mit dem Sprecherzugang unter „Aufnehmen“
+   nachsehen: Die Einheit wird wieder angeboten - anders als beim Verwerfen
+   bleibt keine Spur stehen.
 10. Ganz unten der rot umrandete Kasten. **Diesen Sprecher vollständig
     löschen**: erst bestätigen, dann den Namen abschreiben. Absichtlich
     falsch abschreiben. Erwartet: „Der Name stimmt nicht - es wurde nichts
