@@ -103,6 +103,15 @@ def sitzungen(db: Datenbank, ab: int = 0, anzahl: int = 10) -> SitzungenAntwort:
     return uebersicht.sitzungen_seite(db, ab, anzahl, nur_mit_aufnahmen=True)
 
 
+@router.get(
+    "/aufnahmezeiten", response_model=list[str], dependencies=[Depends(_pruefe_pin)]
+)
+def aufnahmezeiten(db: Datenbank) -> list[str]:
+    """Wann jede eigene gültige Aufnahme entstand - Stoff für den Kalender in
+    „Meine Daten", der sie nach Tagen in der Zeitzone des Betrachters zählt."""
+    return uebersicht.aufnahmezeiten(db)
+
+
 @router.get("/recordings", response_model=AufnahmenAntwort, dependencies=[Depends(_pruefe_pin)])
 def aufnahmen(db: Datenbank, ablage: Ablage, ab: int = 0, anzahl: int = 10) -> AufnahmenAntwort:
     """Die eigenen Aufnahmen mit ihrem Text, neueste zuerst, seitenweise.

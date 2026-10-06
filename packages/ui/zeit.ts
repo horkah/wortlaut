@@ -22,6 +22,13 @@ export function tag(zeitpunkt: string): string {
   return `${wann.getFullYear()}-${zwei(wann.getMonth() + 1)}-${zwei(wann.getDate())}`;
 }
 
+/** Nur der Tag, deutsch, in der Zeitzone des Betrachters (`23.08.2026`). */
+export function datum(zeitpunkt: string): string {
+  const wann = new Date(zeitpunkt);
+  if (Number.isNaN(wann.getTime())) return zeitpunkt;
+  return `${zwei(wann.getDate())}.${zwei(wann.getMonth() + 1)}.${wann.getFullYear()}`;
+}
+
 /**
  * Tag und Uhrzeit, in der Zeitzone des Betrachters (`2026-08-23 04:57`).
  *

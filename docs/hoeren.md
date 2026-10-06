@@ -255,14 +255,22 @@ steht an einer Stelle (`services/loeschung.py`), die auch
 
 ## Meine Daten
 
-Dieselben Profildaten, Sitzungen und Aufnahmen, die die Aufsicht sähe
-(`api/konto.py`), für den Sprecher selbst - aus dem vorgelegten Zugang, ohne
-Kennung in der Adresse. Die Textquellen stehen nur als Summe da (wie viele,
-wie viele Einheiten, wie viele aktiv) mit einem Verweis auf den Reiter
-„Textquelle"; die Liste selbst führt nur er. Sitzungen stehen hier nur mit
-Aufnahmen darin, mit Datum und Uhrzeit in der Zeitzone des Betrachters.
-Kurzes zuerst (Name, Kennzahlen, Ausleiten, PIN, Textquellen), die langen
-Listen danach.
+Dieselben Profildaten und Aufnahmen, die die Aufsicht sähe (`api/konto.py`),
+für den Sprecher selbst - aus dem vorgelegten Zugang, ohne Kennung in der
+Adresse. Die Textquellen stehen nur als Summe da (wie viele, wie viele
+Einheiten, wie viele aktiv) mit einem Verweis auf den Reiter „Textquelle";
+die Liste selbst führt nur er.
+
+Die Sitzungen sind eine Zeile - wie viele, in welchem Zeitraum, mit wie
+vielen Aufnahmen - und darunter ein Kalender (`packages/ui/Kalender.svelte`),
+auf dem jeder Tag mit gültigen Aufnahmen markiert ist; die Zahl je Tag steht
+im Tooltip. Je nach Breite zeigt er den laufenden Monat oder dazu den
+vorigen, geblättert wird mit Pfeilen oder einem Wisch. Der Server liefert
+dafür nur die Zeitpunkte (`GET /api/konto/aufnahmezeiten`); auf welchen Tag
+eine Aufnahme fällt, rechnet der Browser in der Zeitzone des Betrachters.
+
+Kurzes zuerst (Name, Kennzahlen, Ausleiten, PIN, Textquellen, Sitzungen),
+die lange Liste der Aufnahmen danach.
 
 Gelöscht wird hier nur einzeln - eine Aufnahme verwerfen wie beim Aufnehmen.
 `schreiben` verlinkt auf dieselbe Seite.
@@ -580,6 +588,7 @@ POST   /api/korpus/intake                   ← von „schreiben"
 GET    /api/konto                           Profil, Kennzahlen, Textquellen    + X-Pin
 GET    /api/konto/sessions?ab=&anzahl=                                         + X-Pin
 GET    /api/konto/recordings?ab=&anzahl=                                       + X-Pin
+GET    /api/konto/aufnahmezeiten            Zeitpunkte gültiger Aufnahmen      + X-Pin
 PATCH  /api/konto                           { name } - umbenennen                   + X-Pin
 GET    /api/konto/sicherung                 .tgz des eigenen Stands                 + X-Pin
 GET    /api/konto/datensatz                 .zip der eigenen Paare                  + X-Pin
