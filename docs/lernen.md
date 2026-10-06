@@ -306,7 +306,7 @@ alle anderen.
 
 ## Die Ansichten
 
-**Wie gemessen wird** erklärt die Kreuzvalidierung und zeigt, wie schwer die
+**Wie gemessen wird** erklärt Kreuzvalidierung und Endmodell und zeigt, wie schwer die
 Faltungen sind. Die Aufnahmen selbst stehen unter „Meine Daten" in „hören".
 
 **Training** beauftragt und zeigt die Läufe: je Lauf Code, Zustand, Umfang,

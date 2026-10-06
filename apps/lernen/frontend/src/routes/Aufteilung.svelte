@@ -39,20 +39,12 @@
 {:else if !daten}
   <p class="gedaempft">Wird geladen …</p>
 {:else}
-  <p class="gedaempft">
-    Ein Trainingslauf rechnet {faltungen} Trainings hintereinander, nicht eines. Erst
-    {faltungen} für die Messung, dann eines, das ausgeliefert wird.
-  </p>
-
   <div class="karte">
-    <h3>Sechsfache Kreuzvalidierung</h3>
+    <h3>Kreuzvalidierung</h3>
     <p>
-      Die Aufnahmen gehen reihum auf {faltungen} Faltungen. Dann wird {faltungen}-mal
-      trainiert: gelernt auf fünf Faltungen, gemessen auf der sechsten.
-    </p>
-    <p>
-      So ist am Ende <strong>jede Aufnahme</strong> genau einmal von einem Modell gehört
-      worden, das sie nicht kannte. Das ist die Zahl in der Modelltabelle.
+      Jede Aufnahme liegt fest in einer von {faltungen} Faltungen. Ein Lauf trainiert
+      {faltungen}-mal, jeweils auf den übrigen Faltungen, und misst an der zurückgehaltenen.
+      So hört jedes Modell nur Aufnahmen, die es nicht kannte - das ist die Zahl in „Modelle".
     </p>
 
     {#if daten.aufnahmen > 0}
@@ -68,42 +60,27 @@
         {/each}
       </div>
       <p class="gedaempft klein">
-        {daten.aufnahmen} Aufnahmen, {minuten(daten.sekunden)} Sprache, verteilt auf
-        {faltungen} Faltungen.
+        {daten.aufnahmen} Aufnahmen, {minuten(daten.sekunden)} Sprache ·
+        <a href="/#{MEINE_DATEN_PFAD}">Meine Daten</a>
       </p>
     {/if}
 
     {#if !daten.genug}
       <p class="hinweise">
-        {faltungen} Faltungen brauchen mindestens {faltungen} brauchbare Aufnahmen - vorhanden
-        sind {daten.aufnahmen}.
+        Jede Faltung braucht mindestens eine Aufnahme - vorhanden sind {daten.aufnahmen}.
       </p>
     {/if}
-
-    <p class="klein">
-      Die Aufnahmen selbst: <a href="/#{MEINE_DATEN_PFAD}">Meine Daten</a>.
-    </p>
   </div>
 
   <div class="karte">
-    <h3>Das Modell, das Sie am Ende benutzen</h3>
+    <h3>Endmodell</h3>
     <p>
-      Nach den {faltungen} Messläufen wird ein letztes Mal trainiert - auf
-      <strong>allen</strong> Aufnahmen, mit den Einstellungen, die sich in den Faltungen
-      bewährt haben (Durchgänge, α, Tempo). Dieser Stand steht in „Modelle" zur Freigabe.
+      Ausgeliefert wird das Mittel der Faltungsmodelle, ohne die, die schiefgingen. Es hat
+      gelernt, woran die Faltungen gemessen wurden; seine Zahl ist die der Kreuzvalidierung.
     </p>
     <p class="gedaempft">
-      Er kennt jede Aufnahme und lässt sich deshalb nicht ehrlich messen. Die Zahl daneben
-      ist die vorsichtige aus der Kreuzvalidierung.
-    </p>
-  </div>
-
-  <div class="karte">
-    <h3>Was noch fehlt</h3>
-    <p class="gedaempft">
-      Ein unabhängiger Test - eigens aufgenommen, in keinem Training. Die Kreuzvalidierung
-      sagt, wie gut das Verfahren auf <em>diesem</em> Korpus arbeitet, nicht wie gut auf der
-      nächsten Aufnahme.
+      Ein unabhängiger Test fehlt: Die Zahl gilt für diesen Korpus, nicht für die nächste
+      Aufnahme.
     </p>
   </div>
 {/if}
@@ -131,9 +108,8 @@
     font-size: 0.85rem;
   }
 
-  /* Sechs Säulen nebeneinander - kein Diagramm, nur ein Blick darauf, ob die
-     Faltungen gleich schwer sind. Bei einem Korpus, der nicht durch sechs
-     teilbar ist, sind sie es nicht ganz, und das soll man sehen. */
+  /* Eine Säule je Faltung - kein Diagramm, nur ein Blick darauf, ob die
+     Faltungen gleich schwer sind. */
   .faltungen {
     display: flex;
     align-items: flex-end;
