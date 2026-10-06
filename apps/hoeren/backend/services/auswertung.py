@@ -203,9 +203,7 @@ class Posten:
     """Eine offene Rechenaufgabe: diese Fassung dieser Aufnahme durch dieses Modell."""
 
     aufnahme_id: str
-    # Die Arbeitsdatei (`services/zuschnitt.py`) - aus ihr entstehen fehlende
-    # Abwandlungen. Aus dem Blob der Zeile hörte ein zugeschnittener Satz mit
-    # Rauschen wieder die Stille an seinen Rändern.
+    # Die Datei der Aufnahme - aus ihr entstehen fehlende Abwandlungen.
     blob: str
     # Die Datei, die dieses Mal durch das Modell geht - beim Original dieselbe,
     # sonst die abgewandelte Fassung daneben. Hier ausgerechnet und nicht im
@@ -226,7 +224,7 @@ class Posten:
 _MASSE = ("wer", "cer", "mer", "wil", "genauigkeit")
 
 # Der Ton, auf dem ein Lauf eine Aufnahme kannte: Pfad und Dauer aus dem
-# Manifest. `None`, wenn das Manifest fehlt - dann das Original.
+# Manifest. `None`, wenn das Manifest fehlt.
 Ton = tuple[str, float] | None
 
 # Je Laufverzeichnis das Gelesene samt dem Stand der Dateien - gefragt wird
@@ -319,19 +317,16 @@ def verwandte(db: Session, bekannt: dict[str, dict[str, Ton]]) -> dict[str, set[
 
 
 def derselbe_ton(aufnahme: Aufnahme, damals: Ton) -> bool:
-    """Ob ein Lauf diese Aufnahme so kannte, wie sie heute gilt.
+    """Ob ein Lauf diese Aufnahme so kannte, wie sie heute ist.
 
-    Eine Faltung am ungeschnittenen Ton beschreibt eine Datei, mit der niemand
-    mehr arbeitet. Gefragt wird nach Pfad und Dauer, denn ein zweiter Schnitt
-    liegt unter demselben Pfad. Ohne Zuschnitt gilt die Faltung wieder.
+    Ein Zuschnitt überschreibt die Datei unter demselben Pfad
+    (`services/zuschnitt.py`), also wird nach der Dauer gefragt. Ohne Manifest
+    lässt sich nichts vergleichen; dann gilt die Faltung.
     """
     if damals is None:
-        return not zuschnitt.hat_zuschnitt(aufnahme)
-    audio, dauer = damals
-    heute = zuschnitt.arbeitsblob(aufnahme).removeprefix(
-        f"{corpus.sprecher_relpfad(aufnahme.speaker_id)}/"
-    )
-    return audio == heute and abs(dauer - zuschnitt.arbeitsdauer(aufnahme)) < 1e-3
+        return True
+    _, dauer = damals
+    return abs(dauer - aufnahme.dauer_s) < 1e-3
 
 
 def vergiss_ueberholte_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -> int:
@@ -536,7 +531,7 @@ def offene_posten(
         if (
             posten := Posten(
                 aufnahme_id=aufnahme.id,
-                blob=zuschnitt.arbeitsblob(aufnahme),
+                blob=aufnahme.blob,
                 variante_blob=augmentierung.relpfad(aufnahme, variante),
                 referenz=vorlage.text,
                 modell=modell,

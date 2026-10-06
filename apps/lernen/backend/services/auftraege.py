@@ -32,7 +32,6 @@ from sqlalchemy.orm import Session
 from wortlaut import augmentierung, corpus, ids, laeufe, registry
 
 from apps.hoeren.backend.db.models import Textquelle
-from apps.hoeren.backend.services import zuschnitt
 from apps.lernen.backend.config import einstellungen
 from apps.schreiben.backend import config as schreiben_ablage
 from apps.lernen.backend.services import aufteilung, kernauswahl, register
@@ -109,10 +108,8 @@ def _manifestzeile(
 ) -> dict[str, Any]:
     # Relativ zum Korpus, damit sich ein Schnappschuss kopieren lässt.
     innerhalb = corpus.sprecher_relpfad(sprecher_id)
-    # Die Arbeitsdatei: Ein Zuschnitt gilt hier wie überall
-    # (`hoeren/services/zuschnitt.py`).
     voll = (
-        zuschnitt.arbeitsblob(probe.aufnahme)
+        probe.aufnahme.blob
         if variante == augmentierung.ORIGINAL
         else corpus.variante_relpfad(sprecher_id, probe.aufnahme.id, variante)
     )
@@ -123,7 +120,7 @@ def _manifestzeile(
         "quelle": quelle,
         "modus": probe.aufnahme.modus,
         "variante": variante,
-        "dauer_s": zuschnitt.arbeitsdauer(probe.aufnahme),
+        "dauer_s": probe.aufnahme.dauer_s,
         "gewicht": gewicht_fuer(quelle, korrekturgewicht, anlaeufe),
         # Nur bei Korrekturen: wie oft in „schreiben" gesprochen.
         "anlaeufe": anlaeufe,

@@ -684,6 +684,20 @@ class TestTrainierteStaende:
                             "rechenwerk": "cuda/float16",
                         },
                     )
+            # Wie ein echter Lauf: Das Manifest sagt, auf welchem Ton er sie kannte.
+            from apps.hoeren.backend.db.models import Aufnahme
+
+            with Session(engine_fuer(sprecher)) as db:
+                for aufnahme_id in aufnahmen:
+                    laeufe.haenge_an(
+                        verzeichnis / laeufe.MANIFEST,
+                        {
+                            "recording_id": aufnahme_id,
+                            "variante": augmentierung.ORIGINAL,
+                            "audio": f"audio/{aufnahme_id}.wav",
+                            "dauer_s": db.get(Aufnahme, aufnahme_id).dauer_s,
+                        },
+                    )
             registry.schreibe_stand(
                 daten, {"id": ref, "job_id": job, "methode": "lora", "daten": "original"}
             )
@@ -886,32 +900,22 @@ class TestTrainierteStaende:
             for zeile in klient.get(f"/api/auswertung/{aufnahme}").json()["erkennungen"]
         )
 
-    def test_zuruecknehmen_bringt_die_faltung_zurueck(
-        self, klient: TestClient, quelle: str, sprich, lege_stand_an, schneide
-    ) -> None:
-        # Sie war nie falsch, sie gehörte nur zu einem anderen Ton.
-        sprich()
-        aufnahme = _aufnahmen(klient)[0]
-        ref = lege_stand_an(aufnahme)
-        schneide(aufnahme)
-        schneide(aufnahme, "zuruecknehmen")
-        assert klient.get("/api/auswertung").json()["punkte"][0]["werte"][ref] != {}
-
     def test_schon_stehende_faltungen_am_alten_ton_werden_weggeraeumt(
         self, klient: TestClient, quelle: str, sprich, lege_stand_an
     ) -> None:
-        """Der Bestand von vor dieser Regel: Zuschnitt da, Faltung trotzdem da."""
+        """Ein Schnitt am Abgleich vorbei: Die Faltung steht noch da und geht."""
         sprich()
         aufnahme = _aufnahmen(klient)[0]
         ref = lege_stand_an(aufnahme)
         klient.get("/api/auswertung")
 
-        from apps.hoeren.backend.db.models import Aufnahme
+        from apps.hoeren.backend.db.models import Aufnahme, Vorlage
         from apps.hoeren.backend.deps import _ablage as ablage_fuer
         from apps.hoeren.backend.services import zuschnitt
 
         with Session(engine_fuer(_sprecher(klient))) as db:
-            zuschnitt.schneide(ablage_fuer(), db.get(Aufnahme, aufnahme), 1.0, 2.0)
+            zeile = db.get(Aufnahme, aufnahme)
+            zuschnitt.schneide(ablage_fuer(), zeile, db.get(Vorlage, zeile.prompt_id), 1.0, 2.0)
             db.commit()
             assert db.scalars(select(Erkennung).where(Erkennung.modell == ref)).all()
 
@@ -932,7 +936,7 @@ class TestTrainierteStaende:
             {
                 "recording_id": aufnahme,
                 "variante": augmentierung.ORIGINAL,
-                "audio": f"audio/zuschnitt/{aufnahme}.wav",
+                "audio": f"audio/{aufnahme}.wav",
                 "dauer_s": 1.0,
             },
         )

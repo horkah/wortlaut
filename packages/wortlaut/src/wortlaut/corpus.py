@@ -3,10 +3,8 @@
     data/korpus/<sprecher_id>/
     ├── audio/
     │   ├── <aufnahme_id>.wav                    16 kHz mono, PCM 16 bit
-    │   ├── varianten/
-    │   │   └── <aufnahme_id>.<variante>.wav     abgewandelte Fassungen
-    │   └── zuschnitt/
-    │       └── <aufnahme_id>.wav                beschnitten, wenn jemand schnitt
+    │   └── varianten/
+    │       └── <aufnahme_id>.<variante>.wav     abgewandelte Fassungen
     ├── hoeren.sqlite                            Vorlagen, Aufnahmen, Sitzungen
 
     └── vorlesen/<vorlage>.<stimme>.wav          vom Server vorgelesen
@@ -49,24 +47,6 @@ def varianten_relpfad(sprecher_id: str) -> str:
 def variante_relpfad(sprecher_id: str, aufnahme_id: str, variante: str) -> str:
     """Wo die abgewandelte Fassung einer Aufnahme liegt."""
     return f"{KORPUS}/{sprecher_id}/{VARIANTENORDNER}/{aufnahme_id}.{variante}.wav"
-
-
-ZUSCHNITTORDNER = "audio/zuschnitt"
-
-
-def zuschnitte_relpfad(sprecher_id: str) -> str:
-    """Wo alle zugeschnittenen Fassungen eines Sprechers liegen."""
-    return f"{KORPUS}/{sprecher_id}/{ZUSCHNITTORDNER}"
-
-
-def zuschnitt_relpfad(sprecher_id: str, aufnahme_id: str) -> str:
-    """Wo die zugeschnittene Fassung einer Aufnahme liegt.
-
-    Verlustfrei aus dem Original geschnitten; die Grenzen stehen in der Zeile
-    (`zuschnitt_start_s`, `zuschnitt_ende_s`). Ein Zuschnitt je Aufnahme - ein
-    zweiter ersetzt den ersten.
-    """
-    return f"{KORPUS}/{sprecher_id}/{ZUSCHNITTORDNER}/{aufnahme_id}.wav"
 
 
 VORLESENORDNER = "vorlesen"

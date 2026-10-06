@@ -69,8 +69,7 @@ def datensatz_zip(
     zeilen = [
         (zeile, aufnahme, pfad)
         for zeile, aufnahme in _zeilen(sitzung, sprecher.id)
-        # Die Arbeitsdatei - derselbe Ton wie beim Training.
-        if (pfad := ablage.pfad(zuschnitt.arbeitsblob(aufnahme))).is_file()
+        if (pfad := ablage.pfad(aufnahme.blob)).is_file()
     ]
     tabelle = [zeile for zeile, _, _ in zeilen]
 
@@ -104,7 +103,7 @@ def _zeilen(sitzung: Session, sprecher_id: str) -> list[tuple[dict[str, object],
                 "file_name": f"{AUDIO}/{aufnahme.id}.wav",
                 "transcription": vorlage.text,
                 "aufnahme_id": aufnahme.id,
-                "dauer_s": round(zuschnitt.arbeitsdauer(aufnahme), 3),
+                "dauer_s": round(aufnahme.dauer_s, 3),
                 "modus": aufnahme.modus,
                 "quelle": quelle.art,
                 "quelle_titel": quelle.titel,

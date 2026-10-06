@@ -93,10 +93,6 @@ class Aufnahme(Basis):
     status: Mapped[str]  # ok | verworfen
     hinweise: Mapped[str]  # JSON-Liste
     externe_id: Mapped[str | None]
-    # Grenzen des Zuschnitts in Sekunden vom Anfang des Originals; NULL heißt
-    # ungeschnitten. Der Pfad folgt aus der Kennung (`corpus.zuschnitt_relpfad`).
-    zuschnitt_start_s: Mapped[float | None] = mapped_column(default=None)
-    zuschnitt_ende_s: Mapped[float | None] = mapped_column(default=None)
     # Leer, außer bei Teilen: Kennung des Originals mit angehängter Nummer.
     sortierschluessel: Mapped[str | None] = mapped_column(default=None)
     # Nur bei Korrekturen: wie oft in „schreiben" gesprochen, bis bestätigt.

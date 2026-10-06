@@ -480,7 +480,7 @@
       <p class="gedaempft">
         Zwischen dem Druck auf den Aufnahmeknopf und dem ersten Laut liegt meist eine Sekunde,
         hinten oft mehr. Im Zuschnitt sehen Sie zu jeder Aufnahme den Lautstärkeverlauf und
-        schneiden weg, was davor und dahinter steht. Die Originale bleiben erhalten.
+        schneiden weg, was davor und dahinter steht. Der Zuschnitt überschreibt die Originale.
       </p>
     </div>
   {:else if lage.bearbeiten === 'fehlt' || lage.bearbeiten === 'falsch'}

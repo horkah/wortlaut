@@ -148,8 +148,8 @@
     }
     try {
       const eine = await zuschnittEine(id);
-      start = eine.zuschnitt_start_s ?? eine.vorschlag_start_s;
-      ende = eine.zuschnitt_ende_s ?? eine.vorschlag_ende_s;
+      start = eine.vorschlag_start_s;
+      ende = eine.vorschlag_ende_s;
       teilung = pausenmitte(eine, start, ende);
       anfangs = { start, ende, teilung };
       vonHand = false;

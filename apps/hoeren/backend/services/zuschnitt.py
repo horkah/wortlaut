@@ -1,71 +1,40 @@
-"""Der Zuschnitt einer Aufnahme - und die eine Regel, welche Datei gilt.
+"""Der Zuschnitt einer Aufnahme: die Datei auf das kürzen, was zählt.
 
 Zwischen Knopfdruck und Stimme liegt Stille, die mittrainiert und mitgemessen
 würde. Was geschnitten wird, entscheidet ein Mensch (`api/zuschnitt.py`); hier
-steht, was mit den Dateien geschieht.
+steht, was mit der Datei geschieht.
 
-**Die Regel** (`arbeitsblob`): Gibt es einen Zuschnitt, gilt er, sonst das
-Original. Jeder Weg, der Audio anfasst, fragt hier - Anhören, Abwandlungen,
-Auswertung, Trainingsmanifest, Datensatz. Ein Schalter daneben ließe jemanden
-auf einer Datei trainieren, die er in der Ansicht nicht hört.
-
-**Das Original bleibt**, `recordings.blob` zeigt darauf, und ein Zuschnitt
-lässt sich zurücknehmen. Geschnitten wird verlustfrei: In 16 kHz mono PCM ist
-ein Schnitt das Kopieren eines Byte-Bereichs, nach außen gerundet
+**Ein Zuschnitt überschreibt die Aufnahme.** `recordings.blob` zeigt danach
+auf die gekürzte Datei, und die Zeile beschreibt sie - Dauer, Pegel, Stille,
+Hinweise. Eine zweite Fassung daneben gibt es nicht, also auch keine Frage,
+welche gilt, und kein Zurück. Geschnitten wird verlustfrei: In 16 kHz mono PCM
+ist ein Schnitt das Kopieren eines Byte-Bereichs, nach außen gerundet
 (`audio.schneide_ausschnitt`, `nach_aussen=True`), ohne Blenden - geschnitten
 wird in der Stille.
 """
 
 from __future__ import annotations
 
+import json
 import tempfile
 import wave
 from pathlib import Path
 
 from sqlalchemy import func
 from wortlaut import audio as klang
-from wortlaut import corpus, storage
+from wortlaut import storage
 
-from ..db.models import Aufnahme
-
-
-def hat_zuschnitt(aufnahme: Aufnahme) -> bool:
-    """Ob zu dieser Aufnahme ein Zuschnitt eingetragen ist."""
-    return aufnahme.zuschnitt_start_s is not None and aufnahme.zuschnitt_ende_s is not None
-
-
-def zuschnitt_blob(aufnahme: Aufnahme) -> str:
-    """Wo der Zuschnitt dieser Aufnahme liegt - ob er schon da ist oder nicht."""
-    return corpus.zuschnitt_relpfad(aufnahme.speaker_id, aufnahme.id)
-
-
-def arbeitsblob(aufnahme: Aufnahme) -> str:
-    """**Die Regel.** Die Datei, mit der überall gearbeitet wird.
-
-    Aus der Zeile, nicht von der Platte. Fehlt die eingetragene Datei, ist
-    das ein Fehler und kein stiller Rückfall auf das Original.
-    """
-    return zuschnitt_blob(aufnahme) if hat_zuschnitt(aufnahme) else aufnahme.blob
-
-
-def arbeitsdauer(aufnahme: Aufnahme) -> float:
-    """Wie lang die Arbeitsdatei ist - gerechnet, nicht gespeichert.
-
-    `recordings.dauer_s` bleibt die Dauer des Originals.
-    """
-    if not hat_zuschnitt(aufnahme):
-        return aufnahme.dauer_s
-    return aufnahme.zuschnitt_ende_s - aufnahme.zuschnitt_start_s
+from ..db.models import Aufnahme, Vorlage
+from . import quality
 
 
 def schneide(
-    ablage: storage.Ablage, aufnahme: Aufnahme, start_s: float, ende_s: float
-) -> tuple[float, float]:
-    """Den Zuschnitt schreiben und die Grenzen in die Zeile eintragen.
+    ablage: storage.Ablage, aufnahme: Aufnahme, vorlage: Vorlage, start_s: float, ende_s: float
+) -> klang.Befund:
+    """Die Aufnahme auf [start, ende) kürzen und die Zeile nachführen.
 
-    Ein zweiter Schnitt ersetzt den ersten. Geschnitten wird immer aus dem
-    Original, sonst wanderte die Grenze nach innen. Eingetragen werden die
-    tatsächlich erreichten Grenzen.
+    Die Datei wird ersetzt; Dauer, Pegel, Stille und Hinweise kommen aus der
+    neuen. Abwandlungen und Messwerte am alten Ton räumt der Aufrufer weg.
     """
     quelle = ablage.pfad(aufnahme.blob)
     if not quelle.is_file():
@@ -75,48 +44,23 @@ def schneide(
             f"Das Ende muss hinter dem Anfang liegen ({start_s:.2f} bis {ende_s:.2f} s)."
         )
 
-    # Erst daneben schreiben, dann ablegen.
+    # Erst daneben schreiben, dann über das Original legen.
     with tempfile.TemporaryDirectory() as verzeichnis:
         entwurf = Path(verzeichnis) / "zuschnitt.wav"
-        erreicht = klang.schneide_ausschnitt(quelle, entwurf, start_s, ende_s, nach_aussen=True)
-        ablage.lege_ab(zuschnitt_blob(aufnahme), entwurf)
+        klang.schneide_ausschnitt(quelle, entwurf, start_s, ende_s, nach_aussen=True)
+        befund = klang.untersuche(entwurf)
+        ablage.lege_ab(aufnahme.blob, entwurf)
 
-    aufnahme.zuschnitt_start_s, aufnahme.zuschnitt_ende_s = erreicht
-    return erreicht
-
-
-def nimm_zurueck(ablage: storage.Ablage, aufnahme: Aufnahme) -> bool:
-    """Den Zuschnitt verwerfen; ab dann gilt wieder das Original.
-
-    Gibt zurück, ob es etwas zurückzunehmen gab; die Datei geht mit.
-    """
-    if not hat_zuschnitt(aufnahme):
-        return False
-    ablage.loesche(zuschnitt_blob(aufnahme))
-    aufnahme.zuschnitt_start_s = None
-    aufnahme.zuschnitt_ende_s = None
-    return True
-
-
-def stelle_her(ablage: storage.Ablage, aufnahme: Aufnahme) -> bool:
-    """Eine fehlende Zuschnittdatei aus dem Original und den Grenzen nachrechnen.
-
-    Der Zuschnitt wird mitgesichert und ist gewöhnlich da; für ein halb
-    kopiertes Verzeichnis ruft die Zuschnittansicht dies beim Auflisten. Das
-    Ergebnis ist Byte für Byte dasselbe.
-    """
-    if not hat_zuschnitt(aufnahme) or ablage.pfad(zuschnitt_blob(aufnahme)).is_file():
-        return False
-    schneide(ablage, aufnahme, aufnahme.zuschnitt_start_s, aufnahme.zuschnitt_ende_s)
-    return True
-
-
-def loesche(ablage: storage.Ablage, aufnahme: Aufnahme) -> None:
-    """Die zugeschnittene Fassung entfernen. Das Original bleibt unangetastet.
-
-    Für die Löschwege, die das Original selbst anfassen.
-    """
-    ablage.loesche(zuschnitt_blob(aufnahme))
+    aufnahme.dauer_s = befund.dauer_s
+    aufnahme.pegel_dbfs = befund.pegel_dbfs
+    aufnahme.spitze_dbfs = befund.spitze_dbfs
+    aufnahme.clipping_anteil = befund.clipping_anteil
+    aufnahme.stille_vorn_s = befund.stille_vorn_s
+    aufnahme.stille_hinten_s = befund.stille_hinten_s
+    aufnahme.hinweise = json.dumps(
+        quality.pruefe(befund, vorlage.dauer_geschaetzt_s), ensure_ascii=False
+    )
+    return befund
 
 
 def reihenfolge() -> tuple:
@@ -151,9 +95,7 @@ def teile(
 ) -> tuple[klang.Befund, klang.Befund]:
     """Aus dem Original zwei Dateien schneiden: [start, teilung) und [teilung, ende).
 
-    Aus dem Original, dessen Kurve die Ansicht zeigt; ein vorhandener Zuschnitt
-    spielt keine Rolle. Außen wird nach außen gerundet, die Teilung sitzt auf
-    genau einem Rahmen - aneinandergelegt ergeben die Teile Byte für Byte den
+    Außen wird nach außen gerundet, die Teilung sitzt auf genau einem Rahmen - aneinandergelegt ergeben die Teile Byte für Byte den
     Bereich des Originals.
 
     Gibt die Befunde beider Teile zurück; abgelegt ist danach beides.

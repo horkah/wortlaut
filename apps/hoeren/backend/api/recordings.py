@@ -19,7 +19,7 @@ from wortlaut import corpus, ids
 
 from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
 from ..deps import Ablage, Datenbank, SprecherId
-from ..services import augmentierung, quality, zuschnitt
+from ..services import augmentierung, quality
 
 router = APIRouter(prefix="/api/recordings", tags=["Aufnahmen"])
 
@@ -143,7 +143,7 @@ def hoere_ab(
 
 @router.delete("/{aufnahme_id}", status_code=204)
 def verwirf(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage) -> None:
-    """Verwerfen: Audio, Fassungen, Zuschnitt und Messwerte löschen, die Zeile
+    """Verwerfen: Audio, Fassungen und Messwerte löschen, die Zeile
     als `verworfen` behalten. Die Vorlage wird wieder offen.
 
     Der erkannte Text ist dieselbe Äußerung in Schrift und geht mit, auch
@@ -156,9 +156,8 @@ def verwirf(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablag
 
     if aufnahme.status == "ok":
         ablage.loesche(aufnahme.blob)
-        # Fassungen und Zuschnitt sind dieselbe Stimme.
+        # Die Fassungen sind dieselbe Stimme.
         augmentierung.loesche(ablage, aufnahme)
-        zuschnitt.loesche(ablage, aufnahme)
         db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme_id))
         aufnahme.status = "verworfen"
         db.commit()

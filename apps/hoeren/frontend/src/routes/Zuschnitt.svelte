@@ -14,11 +14,12 @@
    * Aufsicht, nicht zwischen den täglichen Reitern (Grundentscheidung 7).
    *
    * Je Aufnahme eine Karte: Lautstärkeverlauf mit zwei Linien, Vorlage, zwei
-   * Knöpfe zum Hören. Die Linien stehen, wo der Server die Stimme vermutet
-   * (`audio.stimmgrenzen`) oder ein Zuschnitt schon sitzt; verschoben mit
-   * Finger, Maus oder Pfeiltasten.
+   * Knöpfe zum Hören. Die Linien stehen anfangs, wo der Server die Stimme
+   * vermutet (`audio.stimmgrenzen`); verschoben mit Finger, Maus oder
+   * Pfeiltasten.
    *
-   * Geschrieben wird erst nach Knopf und Rückfrage. Bis dahin ist der
+   * Geschrieben wird erst nach Knopf und Rückfrage, und dann über das
+   * Original - was außerhalb der Linien lag, ist danach weg. Bis dahin ist der
    * Ausschnitt eine Zahl im Browser und wird aus der geladenen Datei
    * abgespielt (`$ui/ausschnitt`) - keine vorläufigen Dateien auf dem Server.
    */
@@ -32,7 +33,6 @@
     zuschnittLoeschen,
     zuschnittOriginal,
     zuschnittSchreiben,
-    zuschnittZuruecknehmen,
     type Zuschnittaufnahme,
   } from '../lib/api';
   import { ApiFehler } from '$ui/api';
@@ -98,12 +98,9 @@
   const anzahlMarkiert = $derived(Object.values(markiert).filter(Boolean).length);
   const alleMarkiert = $derived(aufnahmen.length > 0 && anzahlMarkiert === aufnahmen.length);
 
-  /** Wo die Linien einer Aufnahme anfangs stehen: der Schnitt, sonst der Vorschlag. */
+  /** Wo die Linien einer Aufnahme anfangs stehen: beim Vorschlag. */
   function anfang(aufnahme: Zuschnittaufnahme) {
-    return {
-      start: aufnahme.zuschnitt_start_s ?? aufnahme.vorschlag_start_s,
-      ende: aufnahme.zuschnitt_ende_s ?? aufnahme.vorschlag_ende_s,
-    };
+    return { start: aufnahme.vorschlag_start_s, ende: aufnahme.vorschlag_ende_s };
   }
 
   async function lade() {
@@ -209,29 +206,15 @@
     if (
       !confirm(
         `${auswahl.length} Aufnahme(n) zuschneiden?\n\n` +
-          'Ab dann wird überall mit den zugeschnittenen Dateien gearbeitet: ' +
-          'beim Messen, beim Trainieren und beim Anhören.\n\n' +
-          'Die Originale bleiben erhalten und lassen sich jederzeit ' +
-          'zurückholen. Die bisherigen Messwerte dieser Aufnahmen werden ' +
-          'verworfen - der nächste Auswertungslauf rechnet sie neu.',
+          'Achtung: Die Originaldateien werden überschrieben. Was außerhalb ' +
+          'der Linien liegt, ist danach unwiederbringlich weg - ' +
+          'das lässt sich nicht rückgängig machen.\n\n' +
+          'Die bisherigen Messwerte dieser Aufnahmen werden verworfen - ' +
+          'der nächste Auswertungslauf rechnet sie neu.',
       )
     )
       return;
     await tue('schreiben', () => zuschnittSchreiben(auswahl));
-  }
-
-  async function nimmZurueck() {
-    const auswahl = gewaehlt();
-    if (!auswahl.length) return;
-    if (
-      !confirm(
-        `Zuschnitt von ${auswahl.length} Aufnahme(n) zurücknehmen?\n\n` +
-          'Danach gelten wieder die Originale in voller Länge. ' +
-          'Die bisherigen Messwerte dieser Aufnahmen werden verworfen.',
-      )
-    )
-      return;
-    await tue('zurueck', () => zuschnittZuruecknehmen(auswahl));
   }
 
   /**
@@ -248,7 +231,7 @@
     if (
       !confirm(
         `${auswahl.length} Aufnahme(n) endgültig löschen?\n\n` +
-          'Gelöscht werden die Aufnahme, ihre Dateien (auch Zuschnitt und Abwandlungen) ' +
+          'Gelöscht werden die Aufnahme, ihre Datei samt Abwandlungen ' +
           'und alle Messwerte. Hängt an ihrer Vorlage keine andere Aufnahme, geht auch ' +
           'die Vorlage - der Satz kommt nicht wieder in die Warteschlange.\n\n' +
           'Das lässt sich nicht rückgängig machen. Wer den Satz neu sprechen will, ' +
@@ -382,9 +365,6 @@
           </span>
         </label>
         <span class="wachsen"></span>
-        {#if aufnahme.zuschnitt_start_s !== null}
-          <span class="geschnitten">zugeschnitten</span>
-        {/if}
         <!-- Zwei Knöpfe, zwei Zeichen: das volle Dreieck für die ganze
              Aufnahme, das Dreieck zwischen zwei Begrenzern für den Ausschnitt.
              Beschriftet sind beide trotzdem, für Vorlesegeräte und für die
@@ -484,9 +464,6 @@
           ? 'Wird geschrieben …'
           : `Zuschnitt schreiben (${anzahlMarkiert})`}
       </button>
-      <button class="knopf" disabled={!anzahlMarkiert || laeuft !== ''} onclick={nimmZurueck}>
-        {laeuft === 'zurueck' ? 'Wird zurückgenommen …' : 'Zuschnitt zurücknehmen'}
-      </button>
       <button
         class="knopf gefahr"
         disabled={!anzahlMarkiert || laeuft !== ''}
@@ -496,11 +473,10 @@
       </button>
     </div>
     <p class="gedaempft">
-      Geschrieben wird eine zweite Datei neben dem Original; das Original bleibt unverändert
-      liegen. Ab dann arbeiten alle Apps mit der zugeschnittenen Fassung - beim Messen, beim
-      Trainieren, beim Ausleiten und beim Anhören. Die bisherigen Messwerte der betroffenen
-      Aufnahmen werden dabei verworfen, weil sie am ungeschnittenen Ton entstanden sind; der
-      nächste Auswertungslauf rechnet sie neu.
+      <strong>Der Zuschnitt überschreibt die Originaldateien</strong> - was außerhalb der
+      Linien liegt, ist danach weg, und das lässt sich nicht rückgängig machen. Die bisherigen
+      Messwerte der betroffenen Aufnahmen werden dabei verworfen, weil sie am alten Ton
+      entstanden sind; der nächste Auswertungslauf rechnet sie neu.
     </p>
   </div>
 {/if}
@@ -541,14 +517,6 @@
      darunter nähme ihr den Kontrast. */
   .karte.markiert {
     border-left: 4px solid var(--akzent);
-  }
-
-  .geschnitten {
-    color: var(--warnung);
-    font-size: 0.8rem;
-    border: 1px solid var(--warnung);
-    border-radius: 0.3rem;
-    padding: 0.05rem 0.4rem;
   }
 
   /* Die Vorlage steht unter der Kurve und ist das, wogegen gehört wird -
