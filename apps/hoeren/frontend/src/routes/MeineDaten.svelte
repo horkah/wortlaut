@@ -12,6 +12,7 @@
    */
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Pager from '$ui/Pager.svelte';
+  import Papierkorb from '$ui/Papierkorb.svelte';
   import Warnzeichen from '$ui/Warnzeichen.svelte';
   import { ZUGANGSDATEN_PFAD, ZUSCHNITT_PFAD } from '$ui/apps';
   import { merkePin, schloss, vergissPin } from '$ui/pin.svelte';
@@ -494,7 +495,12 @@
           </button>
         {/if}
         {#if aufnahme.status === 'ok'}
-          <button class="knopf" onclick={() => verwirf(aufnahme)}>Verwerfen</button>
+          <Papierkorb
+            title="Aufnahme verwerfen"
+            label="Aufnahme verwerfen"
+            disabled={laeuft === `verwerfen-${aufnahme.id}`}
+            onclick={() => verwirf(aufnahme)}
+          />
         {/if}
       </div>
       {#if hoerprobe?.id === aufnahme.id}

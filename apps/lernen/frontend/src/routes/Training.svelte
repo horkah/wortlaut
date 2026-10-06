@@ -23,7 +23,7 @@
     type Laufliste,
     type Wahl,
   } from '../lib/api';
-  import Papierkorb from '../lib/Papierkorb.svelte';
+  import Papierkorb from '$ui/Papierkorb.svelte';
   import { darfLoeschen, loescheNachRueckfrage } from '../lib/laufloeschen';
   import { setzeTrainingswahl, trainingswahl } from '../lib/trainingswahl';
   import { LAUF_ROUTE, gehZu, lage } from '../lib/zustand.svelte';

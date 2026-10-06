@@ -10,6 +10,7 @@
    */
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Pager from '$ui/Pager.svelte';
+  import Papierkorb from '$ui/Papierkorb.svelte';
   import Warnzeichen from '$ui/Warnzeichen.svelte';
   import { dauer, tag, tagUndZeit } from '$ui/zeit';
   import {
@@ -391,7 +392,11 @@
             {hoerprobe?.id === aufnahme.id ? 'Zu' : '▶ Hören'}
           </button>
         {/if}
-        <button class="knopf" onclick={() => loescheEine(aufnahme)}>Löschen</button>
+        <Papierkorb
+          title="Aufnahme löschen"
+          label="Aufnahme löschen"
+          onclick={() => loescheEine(aufnahme)}
+        />
       </div>
       {#if hoerprobe?.id === aufnahme.id}
         <AudioPlayer quelle={hoerprobe.adresse} />

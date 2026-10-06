@@ -19,7 +19,7 @@
   import { MODELLE_PFAD } from '$ui/apps';
   import type { Diagramm } from '../lib/diagramm';
   import { lauf as ladeLauf, type Laufeinzeln } from '../lib/api';
-  import Papierkorb from '../lib/Papierkorb.svelte';
+  import Papierkorb from '$ui/Papierkorb.svelte';
   import { darfLoeschen, loescheNachRueckfrage } from '../lib/laufloeschen';
   import { gehZu, lage, laufAusRoute } from '../lib/zustand.svelte';
 
