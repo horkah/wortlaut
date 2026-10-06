@@ -19,7 +19,7 @@ from wortlaut import corpus, ids
 
 from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
 from ..deps import Ablage, Datenbank, SprecherId
-from ..services import augmentierung, quality
+from ..services import augmentierung, faltungen, quality
 
 router = APIRouter(prefix="/api/recordings", tags=["Aufnahmen"])
 
@@ -96,6 +96,7 @@ async def nimm_auf(
         erstellt=jetzt(),
     )
     db.add(aufnahme)
+    faltungen.vergib(db, aufnahme)
     db.commit()
 
     # Die Fassungen nach dem Commit: Scheitern sie, steht die Aufnahme

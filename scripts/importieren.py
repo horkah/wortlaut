@@ -39,7 +39,7 @@ from wortlaut.text import chunker
 
 from apps.hoeren.backend.config import einstellungen
 from apps.hoeren.backend.db.models import Aufnahme, Sprecher, Textquelle, Vorlage, jetzt
-from apps.hoeren.backend.services import augmentierung, quality
+from apps.hoeren.backend.services import augmentierung, faltungen, quality
 from apps.hoeren.backend.services.prompt_queue import naechste_position
 
 TONENDUNGEN = (".m4a", ".mp3", ".wav", ".ogg", ".opus", ".flac")
@@ -157,6 +157,7 @@ def main() -> int:
                 erstellt=jetzt(),
             )
             sitzung.add(aufnahme)
+            faltungen.vergib(sitzung, aufnahme)
             sitzung.commit()
 
             try:

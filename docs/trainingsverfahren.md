@@ -32,7 +32,7 @@ schiefgingen - kein siebtes Training.
 
 | # | Schritt | Wo |
 |---|---|---|
-| 1 | Sechs Faltungen je Stamm | `wortlaut/laeufe.verteile`, `apps/lernen/backend/services/aufteilung.py` |
+| 1 | Sechs Faltungen je Stamm | `apps/hoeren/backend/services/faltungen.py`, `apps/lernen/backend/services/aufteilung.py` |
 | 2 | Manifest: Pfad, Text, Herkunft, Gewicht, Faltung je Probe und Fassung | `apps/lernen/backend/services/auftraege.py` (`_manifestzeile`) |
 | 3 | Kernauswahl vervollständigen (nur `K`) | `apps/lernen/training/bewerten.py` (`vervollstaendige_kern`) |
 | 3a | Unbestätigte Diktate beschriften (nur `U`) | `apps/lernen/training/selbsttraining.py` (`beschrifte`) |

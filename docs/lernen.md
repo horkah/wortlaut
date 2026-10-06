@@ -29,11 +29,13 @@ Sprecher: Es gibt eine Karte.
 
 Die Aufnahmen gehen auf sechs Faltungen, je Stamm: Teile und Kopien aus
 „Editieren" sind derselbe Ton wie ihr Original und teilen dessen Faltung.
-**Die Faltung hängt an der Kennung** - ein Hash des Stamms, modulo sechs
-(`laeufe.verteile`). Neue und gelöschte Aufnahmen verschieben keine andere,
-und eine Aufnahme misst in jedem Lauf in derselben Faltung. Nur wenn ein
-kleiner Korpus eine Faltung leer ließe, gehen die Stämme reihum in
-Hash-Reihenfolge. Ein Lauf rechnet sechs Trainings und mittelt sie:
+**Die Faltung wird mit der ersten Aufnahme eines Stamms vergeben** - in die
+Faltung mit der wenigsten Sprache - und steht dann fest in „hören"
+(`hoeren/services/faltungen.py`, Tabelle `faltungen`). So bleiben die
+Faltungen gleich schwer, Löschen verschiebt nichts, und eine Aufnahme misst
+in jedem Lauf in derselben Faltung. Ein Stamm ohne Eintrag liegt in der
+Faltung nach seinem Hash (`laeufe.verteile`). Ein Lauf rechnet sechs
+Trainings und mittelt sie:
 
 | | lernt auf | gemessen an |
 |---|---|---|
@@ -214,9 +216,9 @@ Gewichte des freigegebenen Standes fehlen.
 
 **Der Kern ist für den Lauf der ganze Korpus.** Die übrigen 30 % kommen weder
 zum Lernen noch zum Steuern noch in der Messung der Faltungen vor. Die
-Kreuzvalidierung läuft auf den Faltungen des Kerns (`laeufe.verteile_kern`,
-dieselbe Regel je Stamm - eine Kernaufnahme misst in derselben Faltung wie im
-ganzen Korpus), die Plausibilitätsprüfung zieht nur aus dem Kern.
+Kreuzvalidierung läuft auf eigenen Faltungen des Kerns
+(`laeufe.verteile_kern`, nach dem Hash des Stamms), die
+Plausibilitätsprüfung zieht nur aus dem Kern.
 
 **Den Rest hört erst das Endmodell**, in der Auswertung von „hören": Für einen
 Kernstand gelten dort nur die Kernaufnahmen als gehört

@@ -6,9 +6,9 @@ kannte - die Zahl der Modelltafel.
 
 **Eine Verwandtschaft ist eine Aufnahme.** Teile und Kopien aus „Editieren"
 sind derselbe Ton (`zuschnitt.stamm`); in verschiedenen Faltungen lernte ein
-Modell, woran es gemessen wird. Die Faltung hängt am Stamm - an seiner
-Kennung, nicht an der Reihenfolge (`wortlaut.laeufe.verteile`): Neue und
-gelöschte Aufnahmen verschieben keine andere.
+Modell, woran es gemessen wird. Die Faltung hängt am Stamm und wird in
+„hören" mit seiner ersten Aufnahme vergeben (`services/faltungen.py`): in
+die Faltung mit der wenigsten Sprache, danach fest.
 
 **Gerechnet bei jedem Auftrag und im Schnappschuss festgehalten**
 (`services/auftraege.py`). In fünf von sechs Faltungen lernt jede Aufnahme
@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from wortlaut import laeufe
 
 from apps.hoeren.backend.db.models import Aufnahme, Vorlage
+from apps.hoeren.backend.services import faltungen as faltungsdienst
 from apps.hoeren.backend.services import zuschnitt
 from apps.hoeren.backend.services.auswertung import gueltige_aufnahmen
 
@@ -41,7 +42,7 @@ def proben(korpus: Session) -> list[Probe]:
     """Alle brauchbaren Aufnahmen mit ihrer Faltung, älteste zuerst."""
     reihe = gueltige_aufnahmen(korpus)
     staemme = list(dict.fromkeys(zuschnitt.stamm(aufnahme) for aufnahme, _ in reihe))
-    faltungen = dict(zip(staemme, laeufe.verteile(staemme), strict=True))
+    faltungen = faltungsdienst.zuordnung(korpus, staemme)
     return [
         Probe(
             aufnahme=aufnahme,

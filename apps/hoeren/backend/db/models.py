@@ -134,3 +134,13 @@ class Erkennung(Basis):
     #   Faltungsmodell gibt es nicht mehr, neu rechnen lässt sich die Zeile nie.
     herkunft: Mapped[str] = mapped_column(default="gemessen")
     erstellt: Mapped[str]
+
+
+class Faltung(Basis):
+    """In welcher Faltung der Kreuzvalidierung ein Stamm liegt (`services/faltungen.py`)."""
+
+    __tablename__ = "faltungen"
+
+    stamm: Mapped[str] = mapped_column(primary_key=True)
+    faltung: Mapped[int]
+    erstellt: Mapped[str]

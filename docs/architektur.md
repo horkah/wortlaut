@@ -79,7 +79,7 @@ wortlaut/
 │   │   │   │                      # prompts, recordings, zuschnitt, progress,
 │   │   │   │                      # auswertung, intake, sprachen, system
 │   │   │   ├── services/          # prompt_queue, quality, zuschnitt, augmentierung,
-│   │   │   │                      # auswertung, vorlesen, uebersicht, pin,
+│   │   │   │                      # faltungen, auswertung, vorlesen, uebersicht, pin,
 │   │   │   │                      # export, ausleitung, loeschung
 │   │   │   └── db/                # models.py, migrations/
 │   │   ├── frontend/src/routes/   # Verwaltung, Quelle, Aufnahme, Fortschritt,
@@ -300,10 +300,11 @@ Die Zeile unter dem Aufnahmeknopf nennt dauerhaft, welches Modell arbeitet.
 | `sessions` | Aufnahmesitzung |
 | `recordings` | Blob, Messwerte, Modus, Status, Kennung aus „schreiben" |
 | `erkennungen` | je Aufnahme, Modell und Fassung eine Messung, mit Rechenwerk und Herkunft |
+| `faltungen` | je Stamm seine Faltung der Kreuzvalidierung, vergeben mit seiner ersten Aufnahme |
 
 **lernen** arbeitet ohne Datenbank: Läufe und Stände sind Verzeichnisse, die
-Faltungen folgen dem Korpus und stehen im Manifest; eine Tabelle daneben wäre
-eine zweite Wahrheit über dasselbe. Was davon nach dem Löschen bleiben muss,
+Faltungen stehen im Korpus und im Manifest; eine Tabelle daneben wäre eine
+zweite Wahrheit über dasselbe. Was davon nach dem Löschen bleiben muss,
 steht im **Register der Läufe** (`data/lernen/<sprecher_id>/register.sqlite`,
 siehe [lernen](lernen.md#das-register-der-läufe)):
 
