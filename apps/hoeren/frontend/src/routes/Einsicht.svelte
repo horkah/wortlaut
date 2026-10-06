@@ -10,6 +10,7 @@
    */
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Pager from '$ui/Pager.svelte';
+  import Warnzeichen from '$ui/Warnzeichen.svelte';
   import { dauer, tag, tagUndZeit } from '$ui/zeit';
   import {
     alleAufnahmenLoeschen,
@@ -380,12 +381,10 @@
           <div class="gedaempft">
             {aufnahme.dauer_s.toFixed(1)} s · {aufnahme.pegel_dbfs.toFixed(0)} dBFS ·
             {aufnahme.modus} · {aufnahme.quelle_art} · {tag(aufnahme.erstellt)}
+            {#if aufnahme.hinweise.length}<Warnzeichen hinweise={aufnahme.hinweise} />{/if}
             {#if aufnahme.status !== 'ok'}· <strong>{aufnahme.status}</strong>{/if}
             {#if !aufnahme.audio_vorhanden}· <strong>ohne Audio</strong>{/if}
           </div>
-          {#if aufnahme.hinweise.length}
-            <div class="hinweise">{aufnahme.hinweise.join(' · ')}</div>
-          {/if}
         </div>
         {#if aufnahme.audio_vorhanden}
           <button class="knopf" onclick={() => hoere(aufnahme)}>

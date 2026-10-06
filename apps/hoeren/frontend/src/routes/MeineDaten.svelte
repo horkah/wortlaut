@@ -12,6 +12,7 @@
    */
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Pager from '$ui/Pager.svelte';
+  import Warnzeichen from '$ui/Warnzeichen.svelte';
   import { ZUGANGSDATEN_PFAD, ZUSCHNITT_PFAD } from '$ui/apps';
   import { merkePin, schloss, vergissPin } from '$ui/pin.svelte';
   import { dauer, tag, tagUndZeit } from '$ui/zeit';
@@ -483,11 +484,9 @@
           <div>{aufnahme.text}</div>
           <div class="gedaempft">
             {aufnahme.dauer_s.toFixed(1)} s · {aufnahme.modus} · {tag(aufnahme.erstellt)}
+            {#if aufnahme.hinweise.length}<Warnzeichen hinweise={aufnahme.hinweise} />{/if}
             {#if aufnahme.status !== 'ok'}· <strong>{aufnahme.status}</strong>{/if}
           </div>
-          {#if aufnahme.hinweise.length}
-            <div class="hinweise">{aufnahme.hinweise.join(' · ')}</div>
-          {/if}
         </div>
         {#if aufnahme.audio_vorhanden}
           <button class="knopf" onclick={() => hoere(aufnahme)}>
