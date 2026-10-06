@@ -169,24 +169,21 @@ data/korpus/<sprecher_id>/
 ├── hoeren.sqlite                            # Vorlagen, Aufnahmen, Sitzungen, Messwerte
 ├── audio/
 │   ├── <aufnahme_id>.wav                    # was gesprochen wurde, 16 kHz mono PCM
-│   ├── varianten/<aufnahme_id>.<fassung>.wav   # abgewandelt, gerechnet
-│   └── zuschnitt/<aufnahme_id>.wav          # beschnitten, wenn jemand schnitt
+│   └── varianten/<aufnahme_id>.<fassung>.wav   # abgewandelt, gerechnet
 └── vorlesen/<vorlage>.<stimme>.wav          # vom Server vorgelesene Sätze
 ```
 
 `audio/` enthält genau, was in `recordings.blob` steht - was ein Mensch
 gesprochen hat. Alles darunter ist abgeleitet und lässt sich neu rechnen.
 
-**Der Zuschnitt gilt überall.** Gibt es zu einer Aufnahme einen Zuschnitt,
-arbeitet jede App mit ihm: Auswertung, Trainingsmanifest, Datensatz, Anhören.
-Die Regel steht an einer Stelle (`apps/hoeren/backend/services/zuschnitt.py`,
-`arbeitsblob`). Das Original wird nie überschrieben; geschnitten wird immer aus
-ihm, verlustfrei auf ganze Abtastwerte, nach außen gerundet.
+**Ein Zuschnitt überschreibt die Aufnahme.** Je Aufnahme gibt es eine Datei,
+und mit ihr arbeitet jede App: Auswertung, Trainingsmanifest, Datensatz,
+Anhören. Geschnitten wird verlustfrei auf ganze Abtastwerte, nach außen
+gerundet (`apps/hoeren/backend/services/zuschnitt.py`); die Zeile beschreibt
+danach die gekürzte Datei. Was außerhalb der Grenzen lag, ist weg.
 
-**Der Zuschnitt steckt in der Sicherung, die Varianten nicht.** Beide ließen
-sich neu rechnen, aber nur `hören` darf in den Korpus schreiben. Eine fehlende
-Variante holt sich die Auswertung selbst; den Zuschnitt braucht auch `lernen`,
-das nichts nachschneiden darf.
+**Die Varianten stecken nicht in der Sicherung.** Eine fehlende holt sich die
+Auswertung selbst.
 
 Eine Datenbank je Sprecher: `lernen` liest eine Datei, eine Löschung entfernt
 ein Verzeichnis, und jeder Weg in `hören` braucht seinen Sprecher.
@@ -218,7 +215,7 @@ data/snapshots/
 ```
 
 ```json
-{"audio":"audio/zuschnitt/rec_01J8….wav","text":"…","quelle":"vorlage","modus":"gelesen",
+{"audio":"audio/rec_01J8….wav","text":"…","quelle":"vorlage","modus":"gelesen",
  "variante":"original","dauer_s":4.8,"gewicht":1.0,"faltung":3,"recording_id":"rec_01J8…"}
 ```
 
@@ -301,7 +298,7 @@ Die Zeile unter dem Aufnahmeknopf nennt dauerhaft, welches Modell arbeitet.
 | `text_sources` | LLM-Auftrag, hochgeladener oder erkannter Text, Korrektur |
 | `prompts` | eine Sprecheinheit, fortlaufende Position über alle Quellen |
 | `sessions` | Aufnahmesitzung |
-| `recordings` | Blob, Messwerte, Modus, Status, Zuschnittgrenzen, Kennung aus „schreiben" |
+| `recordings` | Blob, Messwerte, Modus, Status, Kennung aus „schreiben" |
 | `erkennungen` | je Aufnahme, Modell und Fassung eine Messung, mit Rechenwerk und Herkunft |
 
 **lernen** arbeitet ohne Datenbank: Läufe und Stände sind Verzeichnisse, die
@@ -339,9 +336,6 @@ Spalten mit mehr Bedeutung als ihr Name:
 - `recordings.anlaeufe`: nur bei Korrekturen, wie oft der Abschnitt in
   `schreiben` gesprochen wurde - 1 heißt unverändert bestätigt. Teile erben
   die Zahl.
-- `recordings.zuschnitt_start_s`, `…_ende_s`: Grenzen des Zuschnitts, NULL
-  heißt ungeschnitten. Der Pfad folgt aus der Kennung; `dauer_s` bleibt die
-  des Originals.
 - `recordings.sortierschluessel`: leer, außer bei Teilen einer geteilten
   Aufnahme (`<id des Originals>.1`, `.2`). Sortiert wird nach `erstellt`, dann
   nach `COALESCE(sortierschluessel, id)` - ein Original steht vor seinen

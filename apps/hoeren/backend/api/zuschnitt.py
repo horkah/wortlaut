@@ -5,13 +5,12 @@ der Stimme vor und schreiben, was ein Mensch daraus macht; was mit den Dateien
 geschieht, steht in `services/zuschnitt.py`.
 
 **Der Schlüssel** (`WORTLAUT_EDITOR_KEY`, `X-Editor-Key`) steht vor allen Wegen,
-auch den lesenden: Der Zuschnitt entscheidet für jede folgende Messung und
-jedes Training, welcher Ton gilt - das trägt der Sprecherzugang auf einem
-Telefon nicht -, und schon die Ansicht ist die Werkbank.
+auch den lesenden: Der Zuschnitt überschreibt Aufnahmen, und das trägt der
+Sprecherzugang auf einem Telefon nicht; schon die Ansicht ist die Werkbank.
 
-**Beim Schreiben**, je Aufnahme: die Datei aus dem Original, die Grenzen in
-die Zeile, die Abwandlungen neu, die Messwerte weg - auch übernommene
-Faltungen, wie beim Verwerfen (`api/recordings.py`). Der nächste
+**Beim Schreiben**, je Aufnahme: die Datei überschrieben, die Zeile aus der
+neuen Datei nachgeführt, die Abwandlungen neu, die Messwerte weg - auch
+übernommene Faltungen, wie beim Verwerfen (`api/recordings.py`). Der nächste
 Auswertungslauf rechnet neu.
 
 Den Ausschnitt spielt der Browser aus der geladenen Datei ab
@@ -60,7 +59,6 @@ class ZuschnittAntwort(BaseModel):
     id: str
     text: str
     erstellt: str
-    # Die Dauer des Originals - geschnitten wird immer aus ihm.
     dauer_s: float
     # Der Lautstärkeverlauf, ein Wert je Fenster, bezogen auf Vollausschlag.
     verlauf: list[float]
@@ -70,9 +68,6 @@ class ZuschnittAntwort(BaseModel):
     # Der Vorschlag nach dem Pegel (`audio.stimmgrenzen`).
     vorschlag_start_s: float
     vorschlag_ende_s: float
-    # Was in der Zeile steht - `null`, solange niemand geschnitten hat.
-    zuschnitt_start_s: float | None
-    zuschnitt_ende_s: float | None
 
 
 class Seite(BaseModel):
@@ -121,12 +116,11 @@ class Ergebnis(BaseModel):
 def aufnahmen(
     sprecher: SprecherId, db: Datenbank, ablage: Ablage, ab: int = 0, anzahl: int = 10
 ) -> Seite:
-    """Die eigenen Aufnahmen mit Kurve, Vorschlag und bisherigem Zuschnitt.
+    """Die eigenen Aufnahmen mit Kurve und Vorschlag.
 
     Älteste zuerst - hier wird eine Liste abgearbeitet, und neue Aufnahmen
     sollen sie nicht verschieben. Der Verlauf wird nur für die gezeigte Seite
-    gerechnet. Ohne Audio entfällt eine Aufnahme; eine fehlende
-    Zuschnittdatei entsteht hier neu (`zuschnitt.stelle_her`).
+    gerechnet. Ohne Audio entfällt eine Aufnahme.
     """
     gueltig = Aufnahme.status == "ok"
     gesamt = db.scalar(select(func.count()).select_from(Aufnahme).where(gueltig)) or 0
@@ -144,25 +138,17 @@ def aufnahmen(
         # Eine unlesbare Datei kostet nur ihre Zeile.
         if (zeile := _zeile(ablage, aufnahme, vorlage)) is not None:
             zeilen.append(zeile)
-    if db.dirty:
-        db.commit()
 
     return Seite(gesamt=gesamt, ab=max(ab, 0), aufnahmen=zeilen)
 
 
 def _zeile(ablage: Ablage, aufnahme: Aufnahme, vorlage: Vorlage) -> ZuschnittAntwort | None:
-    """Eine Aufnahme mit Kurve und Vorschlag; `None`, wenn es nichts zu zeigen gibt.
-
-    Fehlt die zugeschnittene Datei, während die Zeile einen Zuschnitt führt,
-    entsteht sie hier neu (`zuschnitt.stelle_her`). Festgeschrieben wird das
-    beim Aufrufer.
-    """
+    """Eine Aufnahme mit Kurve und Vorschlag; `None`, wenn es nichts zu zeigen gibt."""
     pfad = ablage.pfad(aufnahme.blob)
     if not pfad.is_file():
         return None
     try:
         kurve = klang.verlauf(pfad)
-        zuschnitt.stelle_her(ablage, aufnahme)
     except klang.AudioFehler:
         return None
     vorschlag = klang.stimmgrenzen(kurve)
@@ -176,8 +162,6 @@ def _zeile(ablage: Ablage, aufnahme: Aufnahme, vorlage: Vorlage) -> ZuschnittAnt
         schwelle=round(kurve.schwelle, 5),
         vorschlag_start_s=round(vorschlag[0], 3),
         vorschlag_ende_s=round(vorschlag[1], 3),
-        zuschnitt_start_s=aufnahme.zuschnitt_start_s,
-        zuschnitt_ende_s=aufnahme.zuschnitt_ende_s,
     )
 
 
@@ -199,8 +183,6 @@ def eine(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage) 
     zeile = _zeile(ablage, aufnahme, vorlage) if vorlage is not None else None
     if zeile is None:
         raise HTTPException(status_code=404, detail="Zu dieser Aufnahme liegt kein Audio mehr.")
-    if db.dirty:
-        db.commit()
     return zeile
 
 
@@ -208,12 +190,7 @@ def eine(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage) 
 def original(
     sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage
 ) -> FileResponse:
-    """Das ungeschnittene Original - die eine Stelle, die es ausdrücklich liefert.
-
-    Überall sonst gilt die Arbeitsdatei. Die Ansicht zeichnet aber die Kurve
-    des Originals, sonst ließe sich ein zu enger Schnitt nicht wieder
-    aufmachen.
-    """
+    """Die Datei der Aufnahme - zum Abspielen in der Ansicht, ganz oder im Ausschnitt."""
     aufnahme = _eigene(db, sprecher, aufnahme_id)
     pfad = ablage.pfad(aufnahme.blob)
     if not pfad.is_file():
@@ -223,16 +200,10 @@ def original(
 
 @router.post("/schreiben", response_model=Ergebnis, dependencies=[Schluessel])
 def schreiben(auftrag: Auftrag, sprecher: SprecherId, db: Datenbank, ablage: Ablage) -> Ergebnis:
-    """Die markierten Zuschnitte in den Bestand schreiben.
+    """Die markierten Aufnahmen auf ihre Grenzen kürzen - die Originale werden überschrieben.
 
-    Ab hier arbeitet jede App mit den geschnittenen Dateien: die Auswertung in
-    „hören", das Manifest eines Trainingslaufs in „lernen", der Datensatz zum
-    Mitnehmen und das Anhören in „Meine Daten". Das Original bleibt liegen und
-    unverändert.
-
-    Lag zu einer Aufnahme schon ein Zuschnitt, wird er ersetzt - geschnitten
-    wird erneut aus dem Original, nicht aus dem vorherigen Ergebnis. Sonst
-    wanderte die Grenze mit jedem Durchgang nach innen.
+    Was außerhalb der Grenzen lag, ist danach weg; ein zweiter Schnitt kann
+    nur noch weiter nach innen.
 
     **Jede Aufnahme für sich.** Eine, die scheitert, nimmt die anderen nicht
     mit; sie steht in `fehler` und ist unverändert geblieben. Ein Auftrag über
@@ -248,8 +219,12 @@ def schreiben(auftrag: Auftrag, sprecher: SprecherId, db: Datenbank, ablage: Abl
         if aufnahme is None or aufnahme.speaker_id != sprecher or aufnahme.status != "ok":
             fehler[grenze.id] = "Unbekannte Aufnahme."
             continue
+        vorlage = db.get(Vorlage, aufnahme.prompt_id)
+        if vorlage is None:
+            fehler[grenze.id] = "Zu dieser Aufnahme fehlt die Vorlage."
+            continue
         try:
-            zuschnitt.schneide(ablage, aufnahme, grenze.start_s, grenze.ende_s)
+            zuschnitt.schneide(ablage, aufnahme, vorlage, grenze.start_s, grenze.ende_s)
         except klang.AudioFehler as ursache:
             db.rollback()
             fehler[grenze.id] = str(ursache)
@@ -264,38 +239,6 @@ def schreiben(auftrag: Auftrag, sprecher: SprecherId, db: Datenbank, ablage: Abl
         geschrieben += 1
 
         # Die Fassungen nach dem Commit; scheitern sie, holt die Auswertung sie nach.
-        try:
-            augmentierung.stelle_alle_her(ablage, aufnahme)
-        except klang.AudioFehler:
-            pass
-
-    return Ergebnis(geschrieben=geschrieben, fehler=fehler)
-
-
-@router.post("/zuruecknehmen", response_model=Ergebnis, dependencies=[Schluessel])
-def zuruecknehmen(auftrag: Auftrag, sprecher: SprecherId, db: Datenbank, ablage: Ablage) -> Ergebnis:
-    """Zuschnitte verwerfen; ab dann gelten wieder die Originale.
-
-    Das Original liegt unverändert da. Dieselben Schritte wie beim Schreiben -
-    auch das Zurücknehmen ändert die Arbeitsdatei. `grenzen` trägt hier nur
-    Kennungen.
-    """
-    geschrieben = 0
-    fehler: dict[str, str] = {}
-
-    for grenze in auftrag.grenzen:
-        aufnahme = db.get(Aufnahme, grenze.id)
-        if aufnahme is None or aufnahme.speaker_id != sprecher:
-            fehler[grenze.id] = "Unbekannte Aufnahme."
-            continue
-        if not zuschnitt.nimm_zurueck(ablage, aufnahme):
-            continue
-
-        augmentierung.loesche(ablage, aufnahme)
-        db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme.id))
-        db.commit()
-        geschrieben += 1
-
         try:
             augmentierung.stelle_alle_her(ablage, aufnahme)
         except klang.AudioFehler:
@@ -462,7 +405,6 @@ def loeschen(auftrag: Auftrag, sprecher: SprecherId, db: Datenbank, ablage: Abla
 
         ablage.loesche(aufnahme.blob)
         augmentierung.loesche(ablage, aufnahme)
-        zuschnitt.loesche(ablage, aufnahme)
         db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme.id))
         vorlage_id = aufnahme.prompt_id
         db.delete(aufnahme)

@@ -5,12 +5,11 @@ Geprüft wird in drei Lagen, weil es drei Zusagen sind:
 * **Der Schlüssel.** Ohne gesetzten `WORTLAUT_EDITOR_KEY` ist diese Ansicht
   vollständig zu, auch für einen gültigen Sprecherzugang.
 * **Der Schnitt.** Was herauskommt, ist Byte für Byte der Ausschnitt des
-  Originals - kein Umkodieren, kein Generationsverlust, und das Original
-  bleibt, wo es war.
-* **Die Regel.** Ab dem Schnitt arbeitet jede App mit der geschnittenen Datei:
+  Originals - kein Umkodieren, kein Generationsverlust - und liegt an dessen
+  Stelle.
+* **Die Folgen.** Nach dem Schnitt arbeitet jede App mit der gekürzten Datei:
   die Auswertung, das Anhören, der Datensatz und das Manifest eines
-  Trainingslaufs. Das ist der Teil, der sich still verlieren könnte - eine App,
-  die ihn vergisst, trainiert weiter auf der Stille.
+  Trainingslaufs. Abwandlungen und Messwerte am alten Ton sind weg.
 """
 
 from __future__ import annotations
@@ -27,7 +26,7 @@ from apps.hoeren.backend import deps
 from apps.hoeren.backend.config import einstellungen
 from apps.hoeren.backend.db.models import Aufnahme, Erkennung, jetzt
 from apps.hoeren.backend.main import app
-from apps.hoeren.backend.services import augmentierung, zuschnitt
+from apps.hoeren.backend.services import augmentierung
 
 EDITOR_KEY = "test-zuschnitt"
 
@@ -123,13 +122,11 @@ class TestAnsicht:
         # Der Vorschlag setzt hinter der Stille an, aber mit Luft davor.
         assert 0.1 < eine["vorschlag_start_s"] < 0.3
         assert eine["vorschlag_ende_s"] == pytest.approx(4.0, abs=0.05)
-        assert eine["zuschnitt_start_s"] is None
         assert eine["text"]
 
-    def test_zeigt_das_original_auch_nach_dem_schnitt(
+    def test_zeigt_nach_dem_schnitt_die_gekuerzte_datei(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
     ) -> None:
-        """Sonst ließe ein zu enger Schnitt sich nie wieder aufmachen."""
         kennung = nimm_auf(schneider, sprecher, audio_datei)
         schneider.post(
             f"/api/zuschnitt/schreiben?sprecher={sprecher}",
@@ -139,12 +136,9 @@ class TestAnsicht:
         eine = schneider.get(f"/api/zuschnitt/aufnahmen?sprecher={sprecher}").json()["aufnahmen"][
             0
         ]
-        # Die Kurve bleibt vier Sekunden breit; nur die Grenzen stehen enger.
-        assert eine["dauer_s"] == pytest.approx(4.0, abs=0.05)
-        assert eine["zuschnitt_start_s"] == pytest.approx(1.0, abs=0.001)
-        assert eine["zuschnitt_ende_s"] == pytest.approx(2.0, abs=0.001)
+        assert eine["dauer_s"] == pytest.approx(1.0, abs=0.05)
 
-    def test_original_endpunkt_liefert_das_ungeschnittene(
+    def test_original_endpunkt_liefert_die_datei(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict, tmp_path: Path
     ) -> None:
         kennung = nimm_auf(schneider, sprecher, audio_datei)
@@ -157,18 +151,18 @@ class TestAnsicht:
             f"/api/zuschnitt/aufnahmen/{kennung}/original?sprecher={sprecher}"
         )
         assert antwort.status_code == 200
-        original = tmp_path / "data" / corpus.audio_relpfad(sprecher, kennung)
-        assert antwort.content == original.read_bytes()
+        datei = tmp_path / "data" / corpus.audio_relpfad(sprecher, kennung)
+        assert antwort.content == datei.read_bytes()
 
 
 class TestSchnitt:
-    def test_schneidet_verlustfrei_und_laesst_das_original(
+    def test_schneidet_verlustfrei_und_ueberschreibt_das_original(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict, tmp_path: Path
     ) -> None:
         """Byte für Byte derselbe Ausschnitt - kein Umkodieren, kein Verlust."""
         kennung = nimm_auf(schneider, sprecher, audio_datei)
-        original = tmp_path / "data" / corpus.audio_relpfad(sprecher, kennung)
-        vorher = original.read_bytes()
+        datei = tmp_path / "data" / corpus.audio_relpfad(sprecher, kennung)
+        vorher = rahmen(datei)
 
         antwort = schneider.post(
             f"/api/zuschnitt/schreiben?sprecher={sprecher}",
@@ -177,50 +171,53 @@ class TestSchnitt:
         assert antwort.status_code == 200
         assert antwort.json() == {"geschrieben": 1, "fehler": {}}
 
-        # Das Original ist unangetastet.
-        assert original.read_bytes() == vorher
-
-        geschnitten = tmp_path / "data" / corpus.zuschnitt_relpfad(sprecher, kennung)
-        assert geschnitten.is_file()
-        # Und der Inhalt ist genau der Byte-Bereich aus dem Original.
+        # An derselben Stelle liegt genau der Byte-Bereich aus dem Original.
         rate, breite = 16_000, 2
-        assert rahmen(geschnitten) == rahmen(original)[1 * rate * breite : 3 * rate * breite]
+        assert rahmen(datei) == vorher[1 * rate * breite : 3 * rate * breite]
 
     def test_rundet_nach_aussen(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict, tmp_path: Path
     ) -> None:
         """Lieber ein Rahmen zu viel als ein angeschnittener Abtastwert."""
         kennung = nimm_auf(schneider, sprecher, audio_datei)
+        datei = tmp_path / "data" / corpus.audio_relpfad(sprecher, kennung)
+        vorher = rahmen(datei)
         # Grenzen, die zwischen zwei Abtastwerte fallen (16 kHz → 62,5 µs).
         schneider.post(
             f"/api/zuschnitt/schreiben?sprecher={sprecher}",
             json={"grenzen": [{"id": kennung, "start_s": 1.000_03, "ende_s": 2.000_03}]},
         )
 
-        eine = schneider.get(f"/api/zuschnitt/aufnahmen?sprecher={sprecher}").json()["aufnahmen"][
-            0
-        ]
         # Anfang abwärts, Ende aufwärts - der Ausschnitt ist eher zu lang.
-        assert eine["zuschnitt_start_s"] <= 1.000_03
-        assert eine["zuschnitt_ende_s"] >= 2.000_03
+        breite = 2
+        assert rahmen(datei) == vorher[16_000 * breite : 32_001 * breite]
 
-    def test_zweiter_schnitt_geht_wieder_vom_original_aus(
+    def test_zweiter_schnitt_kuerzt_die_gekuerzte_datei(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict, tmp_path: Path
     ) -> None:
-        """Sonst wanderte die Grenze mit jedem Durchgang nach innen."""
+        """Das Original ist nach dem ersten Schnitt weg; der zweite geht von dessen Ergebnis aus."""
         kennung = nimm_auf(schneider, sprecher, audio_datei)
-        for grenzen in ([1.0, 2.0], [0.5, 3.5]):
+        datei = tmp_path / "data" / corpus.audio_relpfad(sprecher, kennung)
+        vorher = rahmen(datei)
+        for grenzen in ([1.0, 3.0], [0.5, 1.5]):
             schneider.post(
                 f"/api/zuschnitt/schreiben?sprecher={sprecher}",
                 json={"grenzen": [{"id": kennung, "start_s": grenzen[0], "ende_s": grenzen[1]}]},
             )
 
-        geschnitten = tmp_path / "data" / corpus.zuschnitt_relpfad(sprecher, kennung)
-        with wave.open(str(geschnitten), "rb") as datei:
-            dauer = datei.getnframes() / datei.getframerate()
-        # Drei Sekunden - hätte der zweite Schnitt den ersten als Quelle
-        # genommen, wären es höchstens die eine Sekunde von vorher.
-        assert dauer == pytest.approx(3.0, abs=0.01)
+        rate, breite = 16_000, 2
+        assert rahmen(datei) == vorher[int(1.5 * rate) * breite : int(2.5 * rate) * breite]
+
+    def test_die_zeile_beschreibt_die_neue_datei(
+        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
+    ) -> None:
+        kennung = nimm_auf(schneider, sprecher, audio_datei)
+        schneider.post(
+            f"/api/zuschnitt/schreiben?sprecher={sprecher}",
+            json={"grenzen": [{"id": kennung, "start_s": 1.0, "ende_s": 3.0}]},
+        )
+        with Session(deps.engine_fuer(sprecher)) as sitzung:
+            assert sitzung.get(Aufnahme, kennung).dauer_s == pytest.approx(2.0, abs=0.01)
 
     def test_leerer_ausschnitt_wird_abgewiesen(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
@@ -252,33 +249,9 @@ class TestSchnitt:
         assert antwort.json()["geschrieben"] == 2
         assert list(antwort.json()["fehler"]) == ["rec_gibtsnicht"]
 
-    def test_zuruecknehmen_stellt_das_original_wieder_her(
-        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict, tmp_path: Path
-    ) -> None:
-        """Ein Zuschnitt ohne Rückweg wäre ein Unfall mit Bedenkzeit."""
-        kennung = nimm_auf(schneider, sprecher, audio_datei)
-        schneider.post(
-            f"/api/zuschnitt/schreiben?sprecher={sprecher}",
-            json={"grenzen": [{"id": kennung, "start_s": 1.0, "ende_s": 2.0}]},
-        )
-        geschnitten = tmp_path / "data" / corpus.zuschnitt_relpfad(sprecher, kennung)
-        assert geschnitten.is_file()
 
-        antwort = schneider.post(
-            f"/api/zuschnitt/zuruecknehmen?sprecher={sprecher}",
-            json={"grenzen": [{"id": kennung, "start_s": 0, "ende_s": 0}]},
-        )
-        assert antwort.json()["geschrieben"] == 1
-        assert not geschnitten.exists()
-
-        eine = schneider.get(f"/api/zuschnitt/aufnahmen?sprecher={sprecher}").json()["aufnahmen"][
-            0
-        ]
-        assert eine["zuschnitt_start_s"] is None
-
-
-class TestRegel:
-    """Ab dem Schnitt arbeitet jede App mit der geschnittenen Datei."""
+class TestFolgen:
+    """Nach dem Schnitt arbeitet jede App mit der gekürzten Datei."""
 
     def _mit_zuschnitt(
         self, schneider: TestClient, sprecher: str, audio_datei: dict
@@ -291,37 +264,14 @@ class TestRegel:
         assert antwort.json()["geschrieben"] == 1
         return kennung
 
-    def test_arbeitsblob_zeigt_auf_den_zuschnitt(
-        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
-    ) -> None:
-        kennung = self._mit_zuschnitt(schneider, sprecher, audio_datei)
-        with Session(deps.engine_fuer(sprecher)) as sitzung:
-            aufnahme = sitzung.get(Aufnahme, kennung)
-            assert zuschnitt.arbeitsblob(aufnahme) == corpus.zuschnitt_relpfad(sprecher, kennung)
-            assert zuschnitt.arbeitsdauer(aufnahme) == pytest.approx(1.0, abs=0.01)
-            # Die Fassung `original` der Auswertung ist dieselbe Datei.
-            assert augmentierung.relpfad(aufnahme, augmentierung.ORIGINAL) == zuschnitt.arbeitsblob(
-                aufnahme
-            )
-
-    def test_ohne_zuschnitt_bleibt_es_beim_original(
-        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
-    ) -> None:
-        kennung = nimm_auf(schneider, sprecher, audio_datei)
-        with Session(deps.engine_fuer(sprecher)) as sitzung:
-            aufnahme = sitzung.get(Aufnahme, kennung)
-            assert zuschnitt.arbeitsblob(aufnahme) == aufnahme.blob
-            assert zuschnitt.arbeitsdauer(aufnahme) == aufnahme.dauer_s
-
-    def test_anhoeren_liefert_den_zuschnitt(
+    def test_anhoeren_liefert_die_gekuerzte_datei(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict, tmp_path: Path
     ) -> None:
-        """Wer eine Aufnahme anhört, soll hören, was gilt."""
         kennung = self._mit_zuschnitt(schneider, sprecher, audio_datei)
         antwort = schneider.get(f"/api/recordings/{kennung}/audio?sprecher={sprecher}")
         assert antwort.status_code == 200
-        geschnitten = tmp_path / "data" / corpus.zuschnitt_relpfad(sprecher, kennung)
-        assert antwort.content == geschnitten.read_bytes()
+        datei = tmp_path / "data" / corpus.audio_relpfad(sprecher, kennung)
+        assert antwort.content == datei.read_bytes()
 
     def test_abwandlungen_entstehen_aus_dem_zuschnitt(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict, tmp_path: Path
@@ -342,8 +292,8 @@ class TestRegel:
     def test_messwerte_werden_verworfen(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
     ) -> None:
-        """Eine Zahl vom ungeschnittenen Ton beschriebe eine Datei, mit der
-        niemand mehr arbeitet - und die Auswertung hielte sie für erledigt."""
+        """Eine Zahl vom alten Ton beschriebe eine Datei, die es nicht mehr
+        gibt - und die Auswertung hielte sie für erledigt."""
         kennung = nimm_auf(schneider, sprecher, audio_datei)
         with Session(deps.engine_fuer(sprecher)) as sitzung:
             sitzung.add(
@@ -376,8 +326,6 @@ class TestRegel:
     def test_datensatz_traegt_den_zuschnitt(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict, tmp_path: Path
     ) -> None:
-        """Wer den Datensatz mitnimmt, bekommt denselben Ton, auf dem hier
-        trainiert wird."""
         import io
         import zipfile
 
@@ -385,15 +333,14 @@ class TestRegel:
         antwort = schneider.get(f"/api/konto/datensatz?sprecher={sprecher}")
         assert antwort.status_code == 200
 
-        geschnitten = tmp_path / "data" / corpus.zuschnitt_relpfad(sprecher, kennung)
+        datei = tmp_path / "data" / corpus.audio_relpfad(sprecher, kennung)
         with zipfile.ZipFile(io.BytesIO(antwort.content)) as archiv:
             enthalten = archiv.read(f"{sprecher}/audio/{kennung}.wav")
-        assert enthalten == geschnitten.read_bytes()
+        assert enthalten == datei.read_bytes()
 
     def test_trainingsmanifest_traegt_den_zuschnitt(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
     ) -> None:
-        """Die Regel gilt auch dort, wo eine andere App den Korpus liest."""
         from apps.lernen.backend.services import aufteilung, auftraege
 
         kennung = self._mit_zuschnitt(schneider, sprecher, audio_datei)
@@ -403,41 +350,8 @@ class TestRegel:
                 proben[0], augmentierung.ORIGINAL, "vorlage", sprecher
             )
 
-        assert zeile["audio"] == f"audio/zuschnitt/{kennung}.wav"
+        assert zeile["audio"] == f"audio/{kennung}.wav"
         assert zeile["dauer_s"] == pytest.approx(1.0, abs=0.01)
-
-    def test_zuschnitt_geht_beim_verwerfen_mit(
-        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict, tmp_path: Path
-    ) -> None:
-        """Dieselbe Stimme, nur kürzer - derselbe Gesundheitsdatensatz."""
-        kennung = self._mit_zuschnitt(schneider, sprecher, audio_datei)
-        geschnitten = tmp_path / "data" / corpus.zuschnitt_relpfad(sprecher, kennung)
-        assert geschnitten.is_file()
-
-        assert (
-            schneider.delete(f"/api/recordings/{kennung}?sprecher={sprecher}").status_code == 204
-        )
-        assert not geschnitten.exists()
-
-
-class TestNachholen:
-    def test_fehlende_datei_wird_beim_auflisten_nachgeschnitten(
-        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict, tmp_path: Path
-    ) -> None:
-        """Ein Bestand, dem die Datei abhandenkam, holt sich hier selbst ein."""
-        kennung = nimm_auf(schneider, sprecher, audio_datei)
-        schneider.post(
-            f"/api/zuschnitt/schreiben?sprecher={sprecher}",
-            json={"grenzen": [{"id": kennung, "start_s": 1.0, "ende_s": 2.0}]},
-        )
-        geschnitten = tmp_path / "data" / corpus.zuschnitt_relpfad(sprecher, kennung)
-        vorher = geschnitten.read_bytes()
-        geschnitten.unlink()
-
-        schneider.get(f"/api/zuschnitt/aufnahmen?sprecher={sprecher}")
-
-        # Byte für Byte dieselbe Datei: derselbe Schnitt aus derselben Quelle.
-        assert geschnitten.read_bytes() == vorher
 
 
 def _teile(schneider: TestClient, sprecher: str, kennung: str, **abweichend) -> dict:
@@ -576,7 +490,6 @@ class TestLoeschen:
             vorlage_id = sitzung.get(Aufnahme, kennung).prompt_id
         dateien = [
             tmp_path / "data" / corpus.audio_relpfad(sprecher, kennung),
-            tmp_path / "data" / corpus.zuschnitt_relpfad(sprecher, kennung),
         ] + [
             tmp_path / "data" / corpus.variante_relpfad(sprecher, kennung, abwandlung.name)
             for abwandlung in augmentierung.ABWANDLUNGEN

@@ -32,9 +32,8 @@ class Einstellungen(Grundeinstellungen):
     auth_token: str = ""
     # Aufsicht: jeden Korpus einsehen, sichern, löschen.
     admin_token: str = ""
-    # Zuschnitt (`api/zuschnitt.py`): Er entscheidet für jede folgende Messung
-    # und jedes Training, welcher Ton gilt, und verwirft Messwerte - das trägt
-    # der Sprecherzugang auf einem Telefon allein nicht.
+    # Zuschnitt (`api/zuschnitt.py`): Er überschreibt Aufnahmen und verwirft
+    # Messwerte - das trägt der Sprecherzugang auf einem Telefon allein nicht.
     editor_key: str = ""
 
     # Welche Erkenner antreten, in der Reihenfolge der Anzeige

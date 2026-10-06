@@ -25,7 +25,6 @@ from wortlaut import augmentierung as klangwandel
 from wortlaut import corpus, storage
 
 from ..db.models import Aufnahme
-from . import zuschnitt
 
 # Durchgereicht für den Rest der App.
 ORIGINAL = klangwandel.ORIGINAL
@@ -36,12 +35,11 @@ ABWANDLUNGEN = klangwandel.ABWANDLUNGEN
 def relpfad(aufnahme: Aufnahme, variante: str) -> str:
     """Der Blob zu einer Fassung dieser Aufnahme.
 
-    `original` ist die Arbeitsdatei - der Zuschnitt, wenn es einen gibt, sonst
-    der Blob (`services/zuschnitt.py`). Hier und nicht bei jedem Aufrufer,
-    damit Auswertung, Anhören und Abwandlung dieselbe Datei meinen.
+    Hier und nicht bei jedem Aufrufer, damit Auswertung, Anhören und
+    Abwandlung dieselbe Datei meinen.
     """
     if variante == ORIGINAL:
-        return zuschnitt.arbeitsblob(aufnahme)
+        return aufnahme.blob
     return corpus.variante_relpfad(aufnahme.speaker_id, aufnahme.id, variante)
 
 
@@ -76,8 +74,7 @@ def stelle_alle_her(ablage: storage.Ablage, aufnahme: Aufnahme) -> list[str]:
         for abwandlung in ABWANDLUNGEN
         if stelle_her(
             ablage,
-            # Die Arbeitsdatei, sonst gäbe es dieselbe Äußerung in zwei Längen.
-            quelle_blob=zuschnitt.arbeitsblob(aufnahme),
+            quelle_blob=aufnahme.blob,
             ziel_blob=relpfad(aufnahme, abwandlung.name),
             variante=abwandlung.name,
             keim=aufnahme.id,

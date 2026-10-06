@@ -365,18 +365,19 @@ wird, ist diese Person. Ein Sprachmodell zu fragen, wo abweichende Sprache
 anfängt, träfe dieselbe Annahme, an der die Diktierfunktion des Telefons
 scheitert; und über dem Vorschlag sitzt ohnehin ein Mensch.
 
-**Geschrieben wird erst nach der Rückfrage**, je Aufnahme:
+**Geschrieben wird erst nach der Rückfrage**, und die warnt: **Der Zuschnitt
+überschreibt das Original.** Was außerhalb der Linien liegt, ist danach weg;
+rückgängig machen lässt sich das nicht. Je Aufnahme:
 
-1. Die Datei entsteht aus dem Original, verlustfrei.
-2. Die Grenzen kommen in die Zeile; ab hier gilt der Zuschnitt überall.
-3. Die Varianten werden aus der neuen Arbeitsdatei neu gerechnet.
+1. Die Datei wird verlustfrei gekürzt und ersetzt das Original.
+2. Dauer, Pegel, Stille und Hinweise der Zeile kommen aus der neuen Datei.
+3. Die Varianten werden aus ihr neu gerechnet.
 4. Die Messwerte der Aufnahme werden gelöscht, übernommene Faltungen
    eingeschlossen; der nächste Auswertungslauf rechnet neu.
 
-Das Original bleibt; **Zuschnitt zurücknehmen** stellt es wieder her.
-Geschnitten wird immer aus dem Original, sonst wanderte die Grenze nach innen.
 Bei 16 kHz mono PCM ist ein Rahmen zwei Byte, geschnitten wird auf ganze
-Rahmen, nach außen gerundet, ohne Blenden.
+Rahmen, nach außen gerundet, ohne Blenden. Ein zweiter Schnitt kann nur
+weiter nach innen.
 
 ### Editieren - teilen oder berichtigen
 
@@ -395,16 +396,16 @@ es jemand löscht. Die Teile tragen sein Datum und einen Sortierschlüssel
 
 ### Löschen im Zuschnitt
 
-**Löschen** nimmt markierte Aufnahmen ganz aus dem Bestand: Zeile, Original,
-Zuschnitt, Varianten, Messwerte - und die Vorlage, wenn keine andere Aufnahme
+**Löschen** nimmt markierte Aufnahmen ganz aus dem Bestand: Zeile, Datei,
+Varianten, Messwerte - und die Vorlage, wenn keine andere Aufnahme
 mehr an ihr hängt. Anders als Verwerfen, das die Vorlage wieder offen macht.
 Gedacht für das Original nach dem Teilen.
 
 ### Der Schlüssel
 
 Vor allen Wegen des Zuschnitts steht zusätzlich `WORTLAUT_EDITOR_KEY`
-(`X-Editor-Key`), auch vor den lesenden: Der Zuschnitt entscheidet für jede
-folgende Messung und jedes Training, welcher Ton gilt. Eingetragen wird er
+(`X-Editor-Key`), auch vor den lesenden: Der Zuschnitt überschreibt
+Aufnahmen. Eingetragen wird er
 unter „Zugangsdaten"; ob er gilt, sagt `GET /api/zugang` (`bearbeiten`). Nur
 dann steht der Weg in den Zuschnitt in „Meine Daten", sonst ein Verweis auf
 die Zugangsdaten. Leer heißt abgeschaltet; dann fehlt der Punkt ganz.
@@ -447,11 +448,11 @@ hat. Die Faltungen werden beim Öffnen der Seite übernommen
 - **Gekannt** hat ein Stand, was sein Lauf gelernt und gemessen hat -
   bei einem Kernlauf nur den Kern (`_gehoert_im_lauf`) - samt Teilen und
   Kopien davon (`verwandte`).
-- **Eine Faltung gilt nur für den Ton, auf dem sie gemessen wurde.** Ist die
-  Aufnahme seither zugeschnitten, wird sie nicht übernommen und, wo sie steht,
-  weggeräumt (`vergiss_ueberholte_faltungen`); ohne Zuschnitt kommt sie
-  zurück. Die Stelle bleibt dann leer und zählt weder als offen noch als
-  erledigt.
+- **Eine Faltung gilt nur für den Ton, auf dem sie gemessen wurde.** Hat die
+  Aufnahme seither eine andere Dauer, weil sie zugeschnitten wurde, wird die
+  Faltung nicht übernommen und, wo sie steht, weggeräumt
+  (`vergiss_ueberholte_faltungen`). Die Stelle bleibt dann leer und zählt
+  weder als offen noch als erledigt.
 - **Ohne Gewichte tritt ein Stand nicht an**, und ein gelöschter räumt seine
   Zeilen (`vergiss_verschwundene_staende`, im Lauf `noch_da`).
 - **Übernommene Zeilen gelten nie als offen** - ihre Rechenzeit stammt von der
@@ -604,11 +605,10 @@ POST   /api/auswertung/stopp                Gerechnetes bleibt
 Zuschnitt - zusätzlich `X-Editor-Key`:
 
 ```
-GET    /api/zuschnitt/aufnahmen?ab=&anzahl= Kurve, Vorschlag, bisheriger Schnitt
+GET    /api/zuschnitt/aufnahmen?ab=&anzahl= Kurve und Vorschlag
 GET    /api/zuschnitt/aufnahmen/{id}        eine Aufnahme - für „Editieren"
 GET    /api/zuschnitt/aufnahmen/{id}/original
 POST   /api/zuschnitt/schreiben             { grenzen: [{ id, start_s, ende_s }] }
-POST   /api/zuschnitt/zuruecknehmen         { grenzen: [{ id }] }
 POST   /api/zuschnitt/teilen                { id, start_s, teilung_s, ende_s, text_vorn, text_hinten } → { ids }
 POST   /api/zuschnitt/loeschen              { grenzen: [{ id }] }
 ```

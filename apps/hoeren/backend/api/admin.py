@@ -22,7 +22,7 @@ from wortlaut import corpus, sicherung
 from ..config import einstellungen
 from ..db.models import Aufnahme, Sprecher
 from ..deps import Ablage, Aufsicht, engine_fuer, vergiss_engine
-from ..services import augmentierung, ausleitung, loeschung, pin, uebersicht, zuschnitt
+from ..services import augmentierung, ausleitung, loeschung, pin, uebersicht
 from ..services.pin import PinAenderung, PinAntwort
 from ..services.uebersicht import (
     SEITE,
@@ -214,9 +214,8 @@ def loesche_aufnahme(sprecher_id: str, aufnahme_id: str, ablage: Ablage) -> None
         _hole(sitzung, sprecher_id)
         aufnahme = _hole_aufnahme(sitzung, aufnahme_id)
         ablage.loesche(aufnahme.blob)
-        # Fassungen und Zuschnitt sind dieselbe Stimme.
+        # Die Fassungen sind dieselbe Stimme.
         augmentierung.loesche(ablage, aufnahme)
-        zuschnitt.loesche(ablage, aufnahme)
         sitzung.delete(aufnahme)
         sitzung.commit()
 
@@ -236,7 +235,6 @@ def loesche_alle_aufnahmen(
         for aufnahme in alle:
             ablage.loesche(aufnahme.blob)
             augmentierung.loesche(ablage, aufnahme)
-            zuschnitt.loesche(ablage, aufnahme)
         sitzung.execute(delete(Aufnahme))
         sitzung.commit()
         return {"geloescht": len(alle)}

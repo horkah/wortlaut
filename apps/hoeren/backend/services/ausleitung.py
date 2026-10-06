@@ -38,10 +38,6 @@ def abgeleitet(sprecher_ids: Iterable[str]) -> sicherung.Abgeleitetes:
     * **Vorlesungen** (`korpus/…/vorlesen/`), beim nächsten Vorlesen;
     * **Messwerte** (Tabelle `erkennungen`), mit dem nächsten Auswertungslauf.
 
-    **Zuschnitte bleiben drin.** Nachschneiden dürfte nur „hören", der
-    Zuschnitt ist aber auch die Arbeitsdatei von „lernen", das den Korpus nur
-    liest (Grundentscheidung 6). Und er ist kürzer als sein Original.
-
     Modellstände und Laufverzeichnisse stehen gar nicht erst in
     `loeschung.datenverzeichnisse()`.
     """
