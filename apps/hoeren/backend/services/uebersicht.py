@@ -222,6 +222,20 @@ def sitzungen_seite(
     )
 
 
+def aufnahmezeiten(sitzung: Session) -> list[str]:
+    """Wann jede gültige Aufnahme entstand, älteste zuerst - für den Kalender.
+
+    Nur die Zeitpunkte, roh in UTC: Auf welchen Tag eine Aufnahme fällt,
+    hängt von der Zeitzone des Betrachters ab, und die kennt nur der Browser
+    (`packages/ui/zeit.ts`). Gezählt wird wie in den Kennzahlen - verworfene
+    Aufnahmen nicht.
+    """
+    abfrage = (
+        select(Aufnahme.erstellt).where(Aufnahme.status == "ok").order_by(Aufnahme.erstellt)
+    )
+    return list(sitzung.scalars(abfrage))
+
+
 def aufnahmen_seite(
     sitzung: Session, ablage: storage.Ablage, ab: int = 0, anzahl: int = SEITE
 ) -> AufnahmenAntwort:

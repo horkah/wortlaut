@@ -11,12 +11,13 @@
    * sich umbenennen und beides mitnehmen, Sicherung wie Datensatz.
    */
   import AudioPlayer from '$ui/AudioPlayer.svelte';
+  import Kalender from '$ui/Kalender.svelte';
   import Pager from '$ui/Pager.svelte';
   import Papierkorb from '$ui/Papierkorb.svelte';
   import Warnzeichen from '$ui/Warnzeichen.svelte';
   import { ZUGANGSDATEN_PFAD, ZUSCHNITT_PFAD } from '$ui/apps';
   import { merkePin, schloss, vergissPin } from '$ui/pin.svelte';
-  import { dauer, tag, tagUndZeit } from '$ui/zeit';
+  import { datum, dauer, tag } from '$ui/zeit';
   import {
     aufnahmeVerwerfen,
     meinDatensatz,
@@ -24,12 +25,11 @@
     meineAufnahmeAudio,
     meineAufnahmen,
     meineSicherung,
-    meineSitzungen,
+    meineAufnahmezeiten,
     michUmbenennen,
     pinSetzen,
     pinStand,
     type AufsichtAufnahme,
-    type AufsichtSitzung,
     type Konto,
   } from '../lib/api';
   import { gehZu, lage } from '../lib/zustand.svelte';
@@ -56,10 +56,18 @@
 
   let daten = $state<Konto | null>(null);
 
-  let sitzungen = $state<AufsichtSitzung[]>([]);
-  let sitzungenSeite = $state(1);
-  let sitzungenGesamt = $state(0);
-  const sitzungenSeiten = $derived(Math.max(1, Math.ceil(sitzungenGesamt / PRO_SEITE)));
+  // Wann jede gültige Aufnahme entstand (UTC, älteste zuerst) - Stoff für
+  // die Zeile über den Sitzungen und den Kalender darunter.
+  let zeiten = $state<string[]>([]);
+  // Je Tag in der Zeitzone des Betrachters, wie viele es waren.
+  const proTag = $derived.by(() => {
+    const zaehlung = new Map<string, number>();
+    for (const zeit of zeiten) {
+      const schluessel = tag(zeit);
+      zaehlung.set(schluessel, (zaehlung.get(schluessel) ?? 0) + 1);
+    }
+    return zaehlung;
+  });
 
   let aufnahmen = $state<AufsichtAufnahme[]>([]);
   let aufnahmenSeite = $state(1);
@@ -73,10 +81,8 @@
   // Der Browser hielte sonst Dutzende Aufnahmen im Speicher.
   let hoerprobe = $state<{ id: string; adresse: string } | null>(null);
 
-  async function ladeSitzungen() {
-    const seite = await meineSitzungen((sitzungenSeite - 1) * PRO_SEITE, PRO_SEITE, meinePin);
-    sitzungen = seite.sitzungen;
-    sitzungenGesamt = seite.gesamt;
+  async function ladeZeiten() {
+    zeiten = await meineAufnahmezeiten(meinePin);
   }
 
   async function ladeAufnahmen() {
@@ -89,7 +95,7 @@
     fehler = '';
     try {
       daten = await meinKonto(meinePin);
-      await Promise.all([ladeSitzungen(), ladeAufnahmen()]);
+      await Promise.all([ladeZeiten(), ladeAufnahmen()]);
     } catch (ursache) {
       fehler = ursache instanceof Error ? ursache.message : String(ursache);
     }
@@ -132,7 +138,7 @@
       merkePin(pinEingabe);
       pinEingabe = '';
       stand = 'offen';
-      await Promise.all([ladeSitzungen(), ladeAufnahmen()]);
+      await Promise.all([ladeZeiten(), ladeAufnahmen()]);
     } catch {
       pinFehler = 'Falsche PIN.';
     }
@@ -201,15 +207,6 @@
     );
   }
 
-  async function wechsleSitzungenSeite(seite: number) {
-    sitzungenSeite = seite;
-    try {
-      await ladeSitzungen();
-    } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
-    }
-  }
-
   async function wechsleAufnahmenSeite(seite: number) {
     aufnahmenSeite = seite;
     try {
@@ -264,7 +261,8 @@
       `verwerfen-${aufnahme.id}`,
       async () => {
         await aufnahmeVerwerfen(aufnahme.id);
-        await ladeAufnahmen();
+        // Auch Kennzahlen und Kalender: Eine verworfene Aufnahme zählt nicht mehr.
+        await lade();
       },
       'Aufnahme verworfen.',
     );
@@ -383,10 +381,10 @@
   </div>
 
   <!--
-    Kurzes zuerst, Langes ans Ende. Sitzungen und Aufnahmen sind Listen, die
-    über Seiten laufen; alles, was man einmal einstellt, stünde dahinter
-    außer Sicht. Die PIN stand dort - hinter allen Listen, am Ende einer
-    Seite, die je nach Korpus sehr lang ist.
+    Kurzes zuerst, Langes ans Ende. Die Aufnahmen sind eine Liste, die über
+    Seiten läuft; alles, was man einmal einstellt, stünde dahinter außer
+    Sicht. Die PIN stand dort - hinter allen Listen, am Ende einer Seite, die
+    je nach Korpus sehr lang ist.
 
     Die Einsicht der Aufsicht hatte es schon richtig herum; jetzt sind beide
     Ansichten desselben Profils auch in der Reihenfolge dieselben.
@@ -443,15 +441,28 @@
     </p>
   </div>
 
+  <!--
+    Eine Zeile statt einer Liste: Die Sitzungen einzeln aufzuzählen sagte
+    Zeile für Zeile, was der Kalender darunter auf einen Blick zeigt - an
+    welchen Tagen geübt wurde. Gezählt wird wie in den Kennzahlen oben.
+  -->
   <h2>Sitzungen</h2>
-  {#each sitzungen as sitzung (sitzung.id)}
-    <div class="karte gedaempft">
-      {tagUndZeit(sitzung.begonnen)} · {sitzung.aufnahmen} Aufnahme(n)
-    </div>
-  {:else}
-    <p class="gedaempft">Keine Sitzung.</p>
-  {/each}
-  <Pager seite={sitzungenSeite} gesamtSeiten={sitzungenSeiten} aendere={wechsleSitzungenSeite} />
+  <div class="karte">
+    {#if zeiten.length}
+      {@const von = datum(zeiten[0])}
+      {@const bis = datum(zeiten[zeiten.length - 1])}
+      <p class="sitzungszeile">
+        {zahlen.sitzungen}
+        {zahlen.sitzungen === 1 ? 'Sitzung' : 'Sitzungen'}
+        {von === bis ? `am ${von}` : `im Zeitraum ${von} – ${bis}`} mit insgesamt
+        {zahlen.aufnahmen}
+        {zahlen.aufnahmen === 1 ? 'Aufnahme' : 'Aufnahmen'}.
+      </p>
+      <Kalender tage={proTag} />
+    {:else}
+      <p>Noch keine Aufnahme.</p>
+    {/if}
+  </div>
 
   <h2>Aufnahmen</h2>
   <!--
@@ -524,6 +535,9 @@
   }
   .titel h2 {
     margin: 0;
+  }
+  .sitzungszeile {
+    margin: 0 0 1.25rem;
   }
   /* Die Kennzahlen als Reihe kleiner Blöcke: Sie werden überflogen, nicht
      gelesen - die Zahl groß, ihre Bedeutung klein darunter. */

@@ -427,6 +427,10 @@ export const meinKonto = (pin?: string) => anfrage<Konto>('/konto', mitPin(pin))
 export const meineSitzungen = (ab = 0, anzahl = 10, pin?: string) =>
   anfrage<Sitzungenseite>(`/konto/sessions?ab=${ab}&anzahl=${anzahl}`, mitPin(pin));
 
+/** Wann jede eigene gültige Aufnahme entstand, UTC, älteste zuerst. */
+export const meineAufnahmezeiten = (pin?: string) =>
+  anfrage<string[]>('/konto/aufnahmezeiten', mitPin(pin));
+
 export const meineAufnahmen = (ab = 0, anzahl = 10, pin?: string) =>
   anfrage<Aufnahmenseite>(`/konto/recordings?ab=${ab}&anzahl=${anzahl}`, mitPin(pin));
 
