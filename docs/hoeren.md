@@ -255,11 +255,14 @@ steht an einer Stelle (`services/loeschung.py`), die auch
 
 ## Meine Daten
 
-Dieselben Profildaten, Textquellen, Sitzungen und Aufnahmen, die die Aufsicht
-sähe (`api/konto.py`), für den Sprecher selbst - aus dem vorgelegten Zugang,
-ohne Kennung in der Adresse. Sitzungen stehen hier nur mit Aufnahmen darin,
-mit Datum und Uhrzeit in der Zeitzone des Betrachters. Kurzes zuerst (Name,
-Kennzahlen, Ausleiten, PIN), die langen Listen danach.
+Dieselben Profildaten, Sitzungen und Aufnahmen, die die Aufsicht sähe
+(`api/konto.py`), für den Sprecher selbst - aus dem vorgelegten Zugang, ohne
+Kennung in der Adresse. Die Textquellen stehen nur als Summe da (wie viele,
+wie viele Einheiten, wie viele aktiv) mit einem Verweis auf den Reiter
+„Textquelle"; die Liste selbst führt nur er. Sitzungen stehen hier nur mit
+Aufnahmen darin, mit Datum und Uhrzeit in der Zeitzone des Betrachters.
+Kurzes zuerst (Name, Kennzahlen, Ausleiten, PIN, Textquellen), die langen
+Listen danach.
 
 Gelöscht wird hier nur einzeln - eine Aufnahme verwerfen wie beim Aufnehmen.
 `schreiben` verlinkt auf dieselbe Seite.

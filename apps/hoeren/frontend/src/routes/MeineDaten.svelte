@@ -3,7 +3,9 @@
    * Ein Sprecher sieht seine eigenen Daten an - dieselbe Ansicht, die die
    * Aufsicht für ihn hätte (`Einsicht.svelte`), nur auf die eigene Kennung
    * beschränkt. Genau **eine** Karte von dort fehlt hier: die beiden
-   * Löschstufen „alle Aufnahmen" und „diesen Sprecher vollständig". Alles Übrige darf
+   * Löschstufen „alle Aufnahmen" und „diesen Sprecher vollständig". Und die
+   * Textquellen stehen nur als Summe da, denn ein Sprecher hat - anders als
+   * die Aufsicht - ihren eigenen Reiter „Textquelle". Alles Übrige darf
    * jeder über seine eigenen Daten - ansehen, anhören, eine einzelne Aufnahme
    * verwerfen (dasselbe Verwerfen wie beim Aufnehmen, `Aufnahme.svelte`),
    * sich umbenennen und beides mitnehmen, Sicherung wie Datensatz.
@@ -318,6 +320,9 @@
 {:else}
   {@const person = daten.sprecher}
   {@const zahlen = person.kennzahlen}
+  {@const quellen = daten.quellen}
+  {@const aktiv = quellen.filter((quelle) => quelle.aktiv).length}
+  {@const einheiten = quellen.reduce((summe, quelle) => summe + quelle.einheiten, 0)}
 
   <!--
     Der Knopf steht beim Namen, denn der Name ist, was er ändert. Er stand
@@ -376,10 +381,10 @@
   </div>
 
   <!--
-    Kurzes zuerst, Langes ans Ende. Textquellen, Sitzungen und Aufnahmen sind
-    Listen, die über Seiten laufen; alles, was man einmal einstellt, stünde
-    dahinter außer Sicht. Die PIN stand dort - hinter allen drei Listen, am
-    Ende einer Seite, die je nach Korpus sehr lang ist.
+    Kurzes zuerst, Langes ans Ende. Sitzungen und Aufnahmen sind Listen, die
+    über Seiten laufen; alles, was man einmal einstellt, stünde dahinter
+    außer Sicht. Die PIN stand dort - hinter allen Listen, am Ende einer
+    Seite, die je nach Korpus sehr lang ist.
 
     Die Einsicht der Aufsicht hatte es schon richtig herum; jetzt sind beide
     Ansichten desselben Profils auch in der Reihenfolge dieselben.
@@ -414,18 +419,27 @@
     </form>
   </div>
 
+  <!--
+    Nur die Summe, nicht die Liste: Die Quellen selbst stehen im Reiter
+    „Textquelle", und dort kann man auch etwas mit ihnen tun - abstellen,
+    wieder aufnehmen, löschen. Eine zweite, stumme Abschrift hier hieße, zwei
+    Listen gleich zu halten, und zeigte doch nur weniger.
+  -->
   <h2>Textquellen</h2>
-  {#each daten.quellen as quelle (quelle.id)}
-    <div class="karte">
-      <strong>{quelle.titel}</strong>
-      <div class="gedaempft">
-        {quelle.art} · {quelle.einheiten} Einheiten · {quelle.aktiv ? 'aktiv' : 'stillgelegt'} ·
-        {tag(quelle.erstellt)}
-      </div>
-    </div>
-  {:else}
-    <p class="gedaempft">Keine Textquelle.</p>
-  {/each}
+  <div class="karte">
+    {#if quellen.length}
+      <p>
+        {quellen.length}
+        {quellen.length === 1 ? 'Textquelle' : 'Textquellen'} mit zusammen {einheiten} Einheiten -
+        {aktiv} aktiv, {quellen.length - aktiv} abgestellt.
+      </p>
+    {:else}
+      <p>Noch keine Textquelle.</p>
+    {/if}
+    <p class="gedaempft">
+      Anlegen, abstellen und löschen unter <a href="#/quelle">Textquelle</a>.
+    </p>
+  </div>
 
   <h2>Sitzungen</h2>
   {#each sitzungen as sitzung (sitzung.id)}
