@@ -13,14 +13,10 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from wortlaut import corpus, registry
+from wortlaut import corpus, laeufe, registry
 
 from apps.lernen.backend.config import sprecher_relpfad as lernen_relpfad
 from apps.schreiben.backend.config import sprecher_relpfad as diktate_relpfad
-
-# Laufverzeichnisse von „lernen", erkannt an ihrer Datei mit der Sprecher-ID.
-SCHNAPPSCHUESSE = "snapshots"
-SCHNAPPSCHUSS_MARKE = "sprecher.txt"
 
 
 def datenverzeichnisse(sprecher_id: str) -> list[str]:
@@ -61,13 +57,13 @@ def loesche(datenverzeichnis: Path, sprecher_id: str) -> list[Path]:
 
 def schnappschuesse(datenverzeichnis: Path, sprecher_id: str) -> list[Path]:
     """Schnappschüsse dieses Sprechers, erkannt an ihrer `sprecher.txt`."""
-    wurzel = datenverzeichnis / SCHNAPPSCHUESSE
+    wurzel = laeufe.wurzel(datenverzeichnis)
     if not wurzel.is_dir():
         return []
     return [
         verzeichnis
         for verzeichnis in sorted(wurzel.iterdir())
-        if (marke := verzeichnis / SCHNAPPSCHUSS_MARKE).is_file()
+        if (marke := verzeichnis / laeufe.SPRECHER_MARKE).is_file()
         and marke.read_text(encoding="utf-8").strip() == sprecher_id
     ]
 
@@ -78,11 +74,11 @@ def ohne_marke(datenverzeichnis: Path) -> list[Path]:
     Übergangen hinterließe er Stimmdaten, mitgenommen träfe er womöglich
     fremde - also wird er gemeldet.
     """
-    wurzel = datenverzeichnis / SCHNAPPSCHUESSE
+    wurzel = laeufe.wurzel(datenverzeichnis)
     if not wurzel.is_dir():
         return []
     return [
         verzeichnis
         for verzeichnis in sorted(wurzel.iterdir())
-        if verzeichnis.is_dir() and not (verzeichnis / SCHNAPPSCHUSS_MARKE).exists()
+        if verzeichnis.is_dir() and not (verzeichnis / laeufe.SPRECHER_MARKE).exists()
     ]
