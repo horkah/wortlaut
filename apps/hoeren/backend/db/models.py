@@ -29,9 +29,6 @@ class Sprecher(Basis):
     name: Mapped[str]
     sprache: Mapped[str]
     erstellt: Mapped[str]
-    # Ungenutzt und immer 1,0: Vorgespult wird je Modellstand, nicht je
-    # Sprecher (`012_ohne_profiltempo.sql`).
-    tempo: Mapped[float] = mapped_column(default=1.0)
     # Prüfwert des Sprecherzugangs, siehe `wortlaut.zugang`. NULL heißt:
     # zurückgezogen - dann kommt niemand an diesen Korpus heran.
     zugang_hash: Mapped[str | None] = mapped_column(default=None)
