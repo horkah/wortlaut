@@ -39,9 +39,9 @@ Auswertung in `hören` und die Bewertung eines Laufs im Trainer. Ihre
 Rechenzeiten stehen in derselben Tafel; zwischen Karte und Prozessor liegt das
 Zehn- bis Zwanzigfache.
 
-**`int8_float16` statt `float16`**, weil die Auswertung alle Modelle
-gleichzeitig hält, `large-v3` darunter - in `float16` gut sechs Gigabyte, neben
-einem Training und dem Sprachmodell auf derselben Karte.
+**`int8_float16` statt `float16`**, weil `large-v3` in `float16` gut sechs
+Gigabyte belegt - zu viel neben einem Training und dem Sprachmodell auf
+derselben Karte.
 
 **Ist die Karte voll**, weicht die Erkennung auf den Prozessor aus und
 schreibt das neben jede Messung; die Modelltafel vergleicht dann die
