@@ -14,7 +14,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 from wortlaut import db, registry, storage, tempo
@@ -141,21 +141,14 @@ def _vorgelegt(authorization: Annotated[str | None, Header()] = None) -> str:
 
     Durchgereicht bis in den Postausgang (`services/outbox.py`).
     """
-    return (authorization or "").removeprefix("Bearer ")
+    return zugangsdienst.aus_kopf(authorization)
 
 
-def _wer_ruft(vorgelegt: Annotated[str, Depends(_vorgelegt)]) -> zugangsdienst.Sprecherzugang:
-    """Die Kennung aus dem Vorgelegten ableiten - die einzige Stelle, die das tut.
-
-    Nur der Sprecherzugang - diese App spricht für einen Menschen.
-    """
-    wer = zugangsdienst.pruefe(einstellungen().data_dir, vorgelegt)
-    if wer is None:
-        raise HTTPException(
-            status_code=401,
-            detail="Dieser Zugang gilt nicht. Diktieren kann, wer den persönlichen Link geöffnet hat.",
-        )
-    return wer
+def _wer_ruft(
+    authorization: Annotated[str | None, Header()] = None,
+) -> zugangsdienst.Sprecherzugang:
+    """Nur der Sprecherzugang - diese App spricht für einen Menschen."""
+    return zugangsdienst.verlange_sprecher(einstellungen().data_dir, authorization)
 
 
 def _sprecher_id(wer: Annotated[zugangsdienst.Sprecherzugang, Depends(_wer_ruft)]) -> str:

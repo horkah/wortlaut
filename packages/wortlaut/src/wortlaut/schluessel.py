@@ -30,6 +30,15 @@ FALSCH = "falsch"
 GILT = "gilt"
 
 
+def gleich(vorgelegt: str, erwartet: str) -> bool:
+    """Zeitkonstanter Vergleich über die UTF-8-Bytes.
+
+    In Bytes, weil `compare_digest` Nicht-ASCII-Zeichenketten abweist - ein
+    Umlaut im Token ergäbe sonst 500 statt 401.
+    """
+    return secrets.compare_digest(vorgelegt.encode("utf-8"), erwartet.encode("utf-8"))
+
+
 @dataclass(frozen=True)
 class Schluessel:
     name: str
@@ -44,8 +53,7 @@ class Schluessel:
             return AUS
         if not vorgelegt:
             return FEHLT
-        gleich = secrets.compare_digest(vorgelegt.encode("utf-8"), erwartet.encode("utf-8"))
-        return GILT if gleich else FALSCH
+        return GILT if gleich(vorgelegt, erwartet) else FALSCH
 
     def verlange(self, erwartet: str, vorgelegt: str | None) -> None:
         """Der Wächter: 401, wenn der Schlüssel nicht gilt."""
