@@ -14,8 +14,6 @@ from wortlaut.einstellungen import AUSWERTUNG_MODELLE, Grundeinstellungen
 
 
 class Einstellungen(Grundeinstellungen):
-    storage: str = "local"
-
     # Textquelle „LLM". Leer heißt: abgeschaltet, es bleibt der Textupload.
     llm_provider: str = ""
     llm_api_key: str = ""

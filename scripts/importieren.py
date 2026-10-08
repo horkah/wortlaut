@@ -76,7 +76,7 @@ def main() -> int:
         raise SystemExit(f"Kein Ordner: {ordner}")
 
     konfiguration = einstellungen()
-    ablage = storage.oeffne_ablage(konfiguration.storage, konfiguration.data_dir)
+    ablage = storage.LokaleAblage(konfiguration.data_dir)
     pfad = corpus.datenbank_pfad(konfiguration.data_dir, sprecher_id)
     # Vor dem Migrieren: Das legte eine fehlende Datenbank sonst still an.
     if not pfad.is_file():

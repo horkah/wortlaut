@@ -37,8 +37,6 @@ def audio_relpfad(sprecher_id: str, abschnitt_id: str) -> str:
 
 
 class Einstellungen(Grundeinstellungen):
-    storage: str = "local"
-
     # Ein fester Stand `<sprecher_id>/<version>` für alle - zum Erproben. Leer:
     # die Freigabe aus „lernen" (`registry.freigegeben`), sonst `asr_modell`.
     modell_ref: str = ""
