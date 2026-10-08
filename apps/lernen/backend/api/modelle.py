@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from wortlaut import augmentierung, laeufe as lauf_layout, registry, streuung
+from wortlaut import laeufe as lauf_layout, registry, streuung
 
 from ..config import einstellungen
 from ..deps import Korpus, SprecherId
@@ -83,34 +83,6 @@ MASSE = [
 ]
 
 
-class FassungAntwort(BaseModel):
-    schluessel: str
-    name: str
-    erklaerung: str
-
-
-FASSUNGEN = [
-    FassungAntwort(
-        schluessel=messwerte.ALLE,
-        name="Alle Fassungen",
-        erklaerung="Original und Abwandlungen zusammen - die Zahl, die einen Stand beschreibt.",
-    ),
-    FassungAntwort(
-        schluessel=augmentierung.ORIGINAL,
-        name="Original",
-        erklaerung="Die Aufnahme, wie sie gesprochen wurde.",
-    ),
-    *(
-        FassungAntwort(
-            schluessel=abwandlung.name,
-            name=abwandlung.titel,
-            erklaerung=abwandlung.erklaerung,
-        )
-        for abwandlung in augmentierung.ABWANDLUNGEN
-    ),
-]
-
-
 def _vorbehalt(manifest: dict) -> str:
     """Was gegen diesen Stand spricht - in einem Satz, sonst leer.
 
@@ -146,7 +118,6 @@ class ModellAntwort(BaseModel):
     herkunft: str
     basismodell: str
     methode: str | None
-    daten: str | None
     erstellt: str | None
     version: str | None
     # Der kurze Code (`K7M2Q`, `registry.kurzkennung`); `null` bei einem Grundmodell.
@@ -161,31 +132,30 @@ class ModellAntwort(BaseModel):
     # Worauf gemessen wurde; leer bei Unbekanntem oder Gemischtem. Betrifft nur
     # die Rechenzeit.
     rechenwerk: str
-    # fassung -> maß -> Wert.
-    werte: dict[str, dict[str, float]]
-    # fassung -> wie viele Einheiten in diesem Mittel stecken.
-    einheiten: dict[str, int]
-    # fassung -> maß -> Vertrauensbereich; leer bei `?intervall=aus`.
-    intervalle: dict[str, dict[str, dict]] = {}
-    # fassung -> maß -> gepaarter Abstand zu `vergleich_mit`.
-    unterschied: dict[str, dict[str, dict]] = {}
+    # maß -> Wert.
+    werte: dict[str, float]
+    # Wie viele Aufnahmen in diesen Mitteln stecken.
+    aufnahmen: int
+    # maß -> Vertrauensbereich; leer bei `?intervall=aus`.
+    intervalle: dict[str, dict] = {}
+    # maß -> gepaarter Abstand zu `vergleich_mit`.
+    unterschied: dict[str, dict] = {}
 
 
 class UebersichtAntwort(BaseModel):
     modelle: list[ModellAntwort]
     masse: list[MassAntwort]
-    fassungen: list[FassungAntwort]
     # Leer: die Vorgabe der Installation.
     freigegeben: str
-    # Aufnahmen, und Einheiten (Aufnahme mal Fassung), die alle gemessen haben.
+    # Alle Aufnahmen, und die, die jedes Modell gemessen hat.
     messaufnahmen: int
-    gemeinsame_einheiten: int
+    gemeinsame_aufnahmen: int
     # `false`: Jede Zeile rechnet auf ihrem eigenen Boden.
     vergleichbar: bool
     # Ob alle messenden Modelle dasselbe Rechenwerk nennen.
     zeit_vergleichbar: bool
     hinweis: str
-    # `aus`, `aufnahme` oder `einheit`.
+    # `aus` oder `aufnahme`.
     intervall: str = streuung.AUS
     # Gegen welches Modell gepaart verglichen wurde.
     vergleich_mit: str = ""
@@ -272,7 +242,7 @@ def _stand_herkunft(manifest: dict) -> str:
     )
 
 
-# Aus oder je Aufnahme - die Ziehung je Einheit wäre hier zu schmal.
+# Aus oder je Aufnahme.
 ANGEBOTEN = (streuung.AUS, streuung.BLOCK_AUFNAHME)
 
 
@@ -286,9 +256,7 @@ def uebersicht(
     """Alle Modelle mit ihren Zahlen auf den gemeinsamen Aufnahmen.
 
     `intervall=aufnahme` legt neben jede Zahl ihren Bereich
-    (`wortlaut/streuung.py`); die Zahlen selbst bleiben dieselben. Gezogen
-    wird blockweise je Aufnahme - ihre Fassungen sind nicht unabhängig, und je
-    Einheit gezogen wäre der Bereich etwa halb so breit wie der richtige.
+    (`wortlaut/streuung.py`); die Zahlen selbst bleiben dieselben.
 
     `vergleich_mit` paart jede andere Zeile gegen ein Modell: Differenz mit
     Bereich und p-Wert - schärfer als zwei überlappende Bereiche.
@@ -306,8 +274,8 @@ def uebersicht(
     staende = registry.alle_staende(konfiguration.data_dir, sprecher)
     # Die Zeile eines Standes, dessen Endmodell nicht alle Faltungen mittelt,
     # rechnet nur mit den gemittelten. Den gemeinsamen Boden bestimmt weiter
-    # seine volle Reihe - die übrigen Zeilen verlieren dadurch keine Einheit,
-    # auch wenn seine dann auf weniger Einheiten steht als ihre. Der Hinweis
+    # seine volle Reihe - die übrigen Zeilen verlieren dadurch keine Aufnahme,
+    # auch wenn seine dann auf weniger Aufnahmen steht als ihre. Der Hinweis
     # unter dem Namen sagt es.
     gezeigt: dict[str, messwerte.Messreihe] = {}
     hinweise: dict[str, str] = {}
@@ -332,8 +300,8 @@ def uebersicht(
     # Das Tempo trennt nichts: Ein Stand bringt es mit, „schreiben" spult
     # beim Diktieren genauso vor (`schreiben/deps.tempo_fuer`). Es gehört zum
     # Modell, nicht zu den Prüfbedingungen.
-    gemeinsam = messwerte.gemeinsame_einheiten(list(reihen.values()))
-    # Mindestens zwei gemessene Modelle auf denselben Einheiten. Sonst rechnet
+    gemeinsam = messwerte.gemeinsame_aufnahmen(list(reihen.values()))
+    # Mindestens zwei gemessene Modelle auf denselben Aufnahmen. Sonst rechnet
     # jede Zeile auf ihrem, und der Hinweis sagt es.
     messende = [ref for ref, reihe in reihen.items() if reihe.werte]
     vergleichbar = len(messende) > 1 and bool(gemeinsam)
@@ -356,7 +324,6 @@ def uebersicht(
             rechenwerk=reihe.werk,
             basismodell=str(manifest.get("basismodell", ref)),
             methode=manifest.get("methode"),
-            daten=manifest.get("daten"),
             erstellt=manifest.get("erstellt"),
             version=str(manifest["id"]).split("/", 1)[-1] if manifest.get("id") else None,
             kennung=(
@@ -369,7 +336,7 @@ def uebersicht(
             job_id=manifest.get("job_id"),
             freigegeben=ref == freigegeben,
             werte=reihe.mittel(boden),
-            einheiten=reihe.einheiten_je_fassung(boden),
+            aufnahmen=reihe.anzahl(boden),
             intervalle=reihe.intervalle(boden, intervall),
             # Nicht gegen sich selbst.
             unterschied=(
@@ -398,10 +365,9 @@ def uebersicht(
     return UebersichtAntwort(
         modelle=modelle,
         masse=MASSE,
-        fassungen=FASSUNGEN,
         freigegeben=freigegeben,
         messaufnahmen=len(aufnahmen),
-        gemeinsame_einheiten=len(gemeinsam),
+        gemeinsame_aufnahmen=len(gemeinsam),
         vergleichbar=vergleichbar,
         zeit_vergleichbar=zeit_vergleichbar,
         hinweis=_hinweis(aufnahmen, reihen, namen, staende),
@@ -416,7 +382,7 @@ def uebersicht(
 def bodenbegrenzer(reihen: dict[str, messwerte.Messreihe]) -> tuple[str, int, int]:
     """Welche Zeile den gemeinsamen Boden schmal hält - und wie breit er ohne sie wäre.
 
-    Jede Zahl läuft über die Einheiten, die alle gemessen haben - also ändert
+    Jede Zahl läuft über die Aufnahmen, die alle gemessen haben - also ändert
     das Verschwinden einer Zeile jede andere Zahl, bei einem Stand mit wenig
     gehörten Aufnahmen um ein Zehntel WER und mehr. Die Ansicht sagt das vor
     dem Löschen.
@@ -424,14 +390,14 @@ def bodenbegrenzer(reihen: dict[str, messwerte.Messreihe]) -> tuple[str, int, in
     `("", boden, boden)`, wenn keine Zeile den Boden nennenswert schmälert.
     """
     messende = {ref: reihe for ref, reihe in reihen.items() if reihe.werte}
-    jetzt = len(messwerte.gemeinsame_einheiten(list(messende.values())))
+    jetzt = len(messwerte.gemeinsame_aufnahmen(list(messende.values())))
     if len(messende) < 2:
         return "", jetzt, jetzt
 
     begrenzer, breiteste = "", jetzt
     for ref in messende:
         ohne = [reihe for schluessel, reihe in messende.items() if schluessel != ref]
-        breite = len(messwerte.gemeinsame_einheiten(ohne))
+        breite = len(messwerte.gemeinsame_aufnahmen(ohne))
         if breite > breiteste:
             begrenzer, breiteste = ref, breite
     # Erst ab einem Viertel mehr Boden - eine Warnung, die immer angeht, liest niemand.
@@ -466,7 +432,7 @@ def _hinweis(
             "Noch kein eigenes Modell. Unter \u201eTraining\u201c wird ein Lauf beauftragt; "
             "sein Stand tritt danach hier gegen die Grundmodelle an."
         )
-    if not messwerte.gemeinsame_einheiten(list(reihen.values())):
+    if not messwerte.gemeinsame_aufnahmen(list(reihen.values())):
         return (
             "Die Zahlen stehen nicht auf demselben Boden: Es gibt keine Aufnahme, "
             "die jedes Modell gemessen hat. Ein erneuter Lauf der Auswertung in "
@@ -476,7 +442,7 @@ def _hinweis(
     begrenzer, jetzt, ohne = bodenbegrenzer(reihen)
     if begrenzer:
         return (
-            f"Alle Zahlen stehen auf {jetzt} gemeinsamen Einheiten - mehr hat "
+            f"Alle Zahlen stehen auf {jetzt} gemeinsamen Aufnahmen - mehr hat "
             f"\u201e{_zeilenname(begrenzer, staende)}\u201c nicht gemessen. Ohne diese "
             f"Zeile wären es {ohne}, und dann fiele jede Zahl der Tabelle anders aus. "
             "Auch beim Löschen."
@@ -533,7 +499,6 @@ class GrundmodellEinzeln(BaseModel):
     # Die Zeile des freigegebenen Modells - `None`, wenn es dieses ist.
     freigabe: ModellAntwort | None
     masse: list[MassAntwort]
-    fassungen: list[FassungAntwort]
     vergleichbar: bool
 
 
@@ -728,7 +693,5 @@ def grundmodell(name: str, korpus: Korpus, sprecher: SprecherId) -> GrundmodellE
         modell=zeile,
         freigabe=freigegebenes,
         masse=MASSE,
-        # Je Fassung einzeln, wie beim gelernten Stand - ohne das Mittel über alle.
-        fassungen=[fassung for fassung in FASSUNGEN if fassung.schluessel != messwerte.ALLE],
         vergleichbar=tafel.vergleichbar,
     )

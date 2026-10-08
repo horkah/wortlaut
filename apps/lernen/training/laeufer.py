@@ -191,8 +191,7 @@ def einmal() -> bool:
         return True
 
     print(
-        f"Auftrag {lauf.job_id}: {lauf.auftrag.get('methode')} · "
-        f"{lauf.auftrag.get('daten')} · Sprecher {lauf.sprecher_id}",
+        f"Auftrag {lauf.job_id}: {laeufe.titel(lauf.auftrag)} · Sprecher {lauf.sprecher_id}",
         flush=True,
     )
     rueckgabe = _fuehre_aus(lauf)

@@ -7,8 +7,7 @@ hier, wie er gewählt wird.
 Werte kommen von dort, wo die Modelltafel sie holt
 (`messwerte.py`): bei einem trainierten Stand aus der Kreuzvalidierung seines
 Laufs, für später dazugekommene Aufnahmen aus der Auswertung in „hören"; bei
-einem freigegebenen Grundmodell allein aus „hören". Gezählt wird die WER des
-Originals - die Aufnahme, wie sie gesprochen wurde, nicht ihre Abwandlung.
+einem freigegebenen Grundmodell allein aus „hören". Gezählt wird die WER.
 
 **Teile und Kopien erben den Wert ihres Originals.** Ein trainierter Stand
 misst sie nicht - derselbe Ton wie eine gelernte Aufnahme
@@ -32,7 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy.orm import Session
-from wortlaut import augmentierung, laeufe, registry, tempo
+from wortlaut import laeufe, registry, tempo
 
 from apps.hoeren.backend.services import zuschnitt
 from apps.lernen.backend.services import messwerte
@@ -129,7 +128,7 @@ def waehle(
     reihe = _werte(datenverzeichnis, korpus, ref, set(staemme) | set(staemme.values()))
 
     def wer_von(kennung: str) -> float | None:
-        wert = reihe.werte.get((kennung, augmentierung.ORIGINAL), {}).get("wer")
+        wert = reihe.werte.get(kennung, {}).get("wer")
         return None if wert is None else float(wert)
 
     wer: dict[str, float] = {}

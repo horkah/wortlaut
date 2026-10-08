@@ -13,11 +13,11 @@ from wortlaut import registry
 
 from apps.lernen.training.bewerten import befund_ueber, freie_version
 
-FALTUNGEN = [{"wer": 0.23, "variante": "original"}] * 10
+FALTUNGEN = [{"wer": 0.23}] * 10
 
 
 def _stichprobe(wer: float, anzahl: int = 6) -> list[dict]:
-    return [{"wer": wer, "variante": "original"}] * anzahl
+    return [{"wer": wer}] * anzahl
 
 
 class TestBefund:
@@ -39,7 +39,7 @@ class TestBefund:
         # Ein schwerer Korpus zieht beide Seiten hoch. Verglichen wird das
         # Verhältnis und nicht eine feste Schwelle - sonst stünde bei jedem
         # schwierigen Sprecher eine Warnung, die nichts meint.
-        schwer = [{"wer": 0.55, "variante": "original"}] * 10
+        schwer = [{"wer": 0.55}] * 10
         assert befund_ueber(_stichprobe(0.5), schwer)["auffaellig"] is False
 
     def test_ausfransen_faellt_auch_ohne_vergleich_auf(self) -> None:
@@ -50,7 +50,7 @@ class TestBefund:
         durch. Genau so sind Femkes vier Stände durchgerutscht, die Sätze
         wiederholen. Mehr Fehler als Wörter ist aber nie in Ordnung.
         """
-        aussichtslos = [{"wer": 0.95, "variante": "original"}] * 10
+        aussichtslos = [{"wer": 0.95}] * 10
         gemischt = [*_stichprobe(0.2, 8), *_stichprobe(1.4, 4)]
         befund = befund_ueber(gemischt, aussichtslos)
         assert befund["grund"] == "ausgefranst"
@@ -76,12 +76,6 @@ class TestBefund:
         assert befund_ueber(_stichprobe(0.6), [])["auffaellig"] is False
         assert befund_ueber(_stichprobe(2.0), [])["grund"] == "ausgefranst"
 
-    def test_verrauschte_fassungen_zaehlen_auf_keiner_seite(self) -> None:
-        # Sie sind schwerer. Eine Seite mit ihnen gegen eine ohne wäre kein
-        # Vergleich, sondern zwei Messungen.
-        gemischt = [*FALTUNGEN, *[{"wer": 0.9, "variante": "rauschen"}] * 10]
-        assert befund_ueber(_stichprobe(0.25), gemischt)["faltungen_wer_median"] == 0.23
-
 
 class TestVorbehalt:
     def test_ohne_pruefung_steht_nichts_da(self) -> None:
@@ -100,7 +94,7 @@ class TestVorbehalt:
     def test_ausfransen_bekommt_seinen_eigenen_satz(self) -> None:
         # „Durchgefallen gegen die Faltungen" wäre hier falsch: Gegen sie hat
         # der Stand bestanden. Er redet nur weiter.
-        aussichtslos = [{"wer": 0.95, "variante": "original"}] * 10
+        aussichtslos = [{"wer": 0.95}] * 10
         gemischt = [*_stichprobe(0.2, 8), *_stichprobe(1.4, 4)]
         satz = _vorbehalt({"pruefung": befund_ueber(gemischt, aussichtslos)})
         assert "länger als alles Gesagte" in satz
@@ -138,24 +132,15 @@ class TestFreieVersion:
 
 
 def _messungen(faltung: int, wer: float, anzahl: int = 8) -> list[dict]:
-    zeilen = [
-        {"faltung": faltung, "variante": "original", "wer": wer, "recording_id": f"r{faltung}_{i}"}
-        for i in range(anzahl)
-    ]
-    # Das Rauschen zählt nicht mit - wie in der Plausibilitätsprüfung.
-    return zeilen + [
-        {"faltung": faltung, "variante": "rauschen", "wer": 5.0, "recording_id": f"r{faltung}_{i}"}
+    return [
+        {"faltung": faltung, "wer": wer, "recording_id": f"r{faltung}_{i}"}
         for i in range(anzahl)
     ]
 
 
 def _grund(zeilen: list[dict], wer_je_faltung: dict[int, float]) -> dict:
     """Die WER des Grundmodells je Aufnahme - je Faltung eine Schwierigkeit."""
-    return {
-        (z["recording_id"], "original"): wer_je_faltung[z["faltung"]]
-        for z in zeilen
-        if z["variante"] == "original"
-    }
+    return {z["recording_id"]: wer_je_faltung[z["faltung"]] for z in zeilen}
 
 
 class TestWelcheFaltungen:

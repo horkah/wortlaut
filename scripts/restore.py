@@ -99,8 +99,8 @@ def _nenne_ausgelassenes(manifest: dict) -> None:
     """Was diese Sicherung bewusst nicht enthält - bevor es jemand vermisst.
 
     Ohne diese Zeilen sähe ein zurückgespielter Bestand nach einem Schaden aus:
-    keine abgewandelten Fassungen, leere Kurven in der Auswertung. Beides ist
-    gewollt und kommt mit dem nächsten Lauf zurück (`services/ausleitung.py`).
+    keine Vorlesungen, leere Kurven in der Auswertung. Beides ist gewollt und
+    kommt von selbst zurück (`services/ausleitung.py`).
     """
     ausgelassen = manifest.get("ausgelassen") or {}
     verzeichnisse = ausgelassen.get("verzeichnisse") or []

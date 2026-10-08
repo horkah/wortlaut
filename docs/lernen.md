@@ -85,7 +85,7 @@ Grundmodell plus B·A; ihr Mittel ist genau das Grundmodell plus das Mittel der
 ist nicht das Mittel der Produkte.
 
 **Was schiefging, bleibt draußen** (`endmodell.pruefe_faltungen`), gemessen an
-den Originalen, die die Faltung zurückhielt:
+den Aufnahmen, die die Faltung zurückhielt:
 
 | Grund | wann |
 |---|---|
@@ -139,7 +139,6 @@ Optionscode. Die Vorgabe ist jeweils der erste Wert.
 | Methode | Volles Feintuning, LoRA | wie viel Freiheit das Modell bekommt |
 | LoRA-Ziele | q, v; alle Projektionen; nur Encoder; nur Decoder | wo der Zusatz sitzt - nur mit LoRA |
 | LoRA-Rang | 32, 8, 64 | wie groß er ist, α wächst mit - nur mit LoRA |
-| Datensatz | Nur Originale, Mit Abwandlungen | ob die gemessenen Fassungen mitgelernt werden |
 | Auswahl | Alle Aufnahmen, Kernauswahl | siehe [Die Kernauswahl](#die-kernauswahl) |
 | Korrekturen | Gewicht 0,5, 0,25, 0,75, 1,0, aus dem Verlauf | womit Korrekturen aus „schreiben" zählen |
 | Selbsttraining | aus, unbestätigte Diktate | ob das freigegebene Modell unbestätigte Diktate beschriftet und sie mitlernen |
@@ -196,8 +195,8 @@ Für einen Korpus mit vielen fehlerhaften oder verrauschten Aufnahmen: Ein Lauf
 mit **Kernauswahl** (`K`) lernt nur auf den besten 70 % und soll ein stabiles
 Kernmodell werden (`laeufe.KERN_ANTEIL`).
 
-**Die besten nach dem freigegebenen Modell.** Gezählt wird die WER des
-Originals, aus denselben Quellen wie in der Modelltafel: bei einem trainierten
+**Die besten nach dem freigegebenen Modell.** Gezählt wird die WER, aus
+denselben Quellen wie in der Modelltafel: bei einem trainierten
 Stand aus seiner Kreuzvalidierung und für später dazugekommene Aufnahmen aus
 der Auswertung in „hören", bei einem Grundmodell allein aus „hören". Teile und
 Kopien erben den Wert ihres Originals. Bei gleicher WER entscheidet die
@@ -205,11 +204,11 @@ Kennung.
 
 **Wie viele, steht beim Auftrag fest** - 70 % aller Aufnahmen, aufgerundet
 (`laeufe.kern_anzahl`). Die Übersicht zeigt von Anfang an, worauf gerechnet
-wird: „205 von 292 Aufnahmen · 410 von 584 Proben".
+wird: „205 von 292 Aufnahmen".
 
 **Fehlende Werte misst der Trainer vorher nach.** Hat das freigegebene Modell
 eine Aufnahme nie gehört, steht sie in der Kernauswahl als `offen`. Vor der
-ersten Faltung hört das Modell sie auf dem Original und mit seinem Tempo
+ersten Faltung hört das Modell sie mit seinem Tempo
 (Stufe „Kernauswahl", `bewerten.vervollstaendige_kern`); erst dann wird
 gewählt. Abgewiesen wird ein Auftrag nur, wenn nichts freigegeben ist oder die
 Gewichte des freigegebenen Standes fehlen.
@@ -245,7 +244,6 @@ Glied, wenn sie nicht auf ihrer Vorgabe steht:
 | Methode | Volles Feintuning, LoRA | `V`, `L` |
 | LoRA-Ziele | q, v; alle; Encoder; Decoder | –, `Z`, `Ze`, `Zd` |
 | LoRA-Rang | 32, 8, 64 | –, `R8`, `R64` |
-| Datensatz | Nur Originale, Mit Abwandlungen | –, `A` |
 | Auswahl | Alle Aufnahmen, Kernauswahl | –, `K` |
 | Korrekturen | 0,5, 0,25, 0,75, 1,0, Verlauf | –, `Q25`, `Q75`, `Q1`, `Qv` |
 | Selbsttraining | aus, an | –, `U` |
@@ -257,8 +255,14 @@ Glied, wenn sie nicht auf ihrer Vorgabe steht:
 | Abschluss | bester, Mittel, WiSE-FT, beides | –, `C`, `I`, `CI` |
 | Kontext | aus, Vokabular | –, `X` |
 
-`ML-A-K-SRP-Ts-C` ist whisper-medium mit LoRA, mit Abwandlungen, auf dem Kern,
-voller Augmentierung, gesuchtem Tempo und Checkpoint-Mittel.
+`ML-K-SRP-Ts-C` ist whisper-medium mit LoRA, auf dem Kern, voller
+Augmentierung, gesuchtem Tempo und Checkpoint-Mittel.
+
+**`A` tragen Läufe, die auch auf Rauschkopien lernten**: je Aufnahme eine
+Kopie mit weißem Rauschen, 20 dB unter dem Signal, mitgelernt und mitgemessen.
+Angeboten wird das nicht; ihre Stände gelten weiter. Ihre Zahlen zählen nur
+die Aufnahmen selbst (`laeufe.aufnahme_selbst`), und ihr Steckbrief nennt die
+Rauschkopien.
 
 Hinter dem Code steht die **Folge**: die Zahl der gelernten Aufnahmen - bei
 der Kernauswahl die des Kerns, `ML-K-E-SRP-CI/205` - und ein Buchstabe,
@@ -356,8 +360,8 @@ Baseline.
 Die Frage ist, ob das Training das Modell besser gemacht hat. Die Baseline
 liegt schon da: die Messungen des unveränderten Grundmodells in der
 Auswertung von „hören" - dasselbe Modell, dieselben Aufnahmen, dieselbe
-Rechnung (`wortlaut/metriken.py`). Verglichen wird je Fassung und nur, was
-beide Seiten gemessen haben; jede Aufnahme des Standes stammt aus der Faltung,
+Rechnung (`wortlaut/metriken.py`). Verglichen wird nur, was beide Seiten
+gemessen haben; jede Aufnahme des Standes stammt aus der Faltung,
 die sie nicht kannte.
 
 ---
@@ -373,9 +377,8 @@ sortiert.
 (Grundmodelle, dazu jeder Stand auf den Aufnahmen, die er nicht kannte) und
 aus der Bewertung jedes Laufs (`services/messwerte.py`).
 
-**Verglichen wird nur, was alle gemessen haben.** Die Einheit ist das Paar aus
-Aufnahme und Fassung; jedes Mittel läuft über die Schnittmenge aller Modelle,
-die überhaupt gemessen haben. Die Zeile über der Tafel nennt, wie viele das
+**Verglichen wird nur, was alle gemessen haben.** Jedes Mittel läuft über die
+Aufnahmen, die alle Modelle mit Messungen haben. Die Zeile über der Tafel nennt, wie viele das
 sind. Die Zahl eines Modells ist damit keine Eigenschaft dieses Modells
 allein: Fällt eine Zeile weg, wächst die Schnittmenge, und jede Zahl ändert
 sich. Begrenzt eine einzelne Zeile den Boden um mehr als ein Viertel, nennt
@@ -387,7 +390,7 @@ dem, was sie hat, und die Seite sagt es.
 Tafel dient der Wahl dessen, was ausgeliefert wird, und eine ausgelassene
 Faltung hat dazu nichts beigetragen. Ihre Aufnahmen fehlen dann nur in seiner
 Zeile; den gemeinsamen Boden der übrigen schmälern sie nicht. Die Zeilen
-stehen damit nicht mehr auf genau denselben Einheiten - darum steht unter dem
+stehen damit nicht mehr auf genau denselben Aufnahmen - darum steht unter dem
 Namen „nur 5 von 6 Faltungen". Die Zahl in der Einzelansicht des Laufs zählt
 weiter alle: Sie beschreibt das Training.
 
@@ -395,17 +398,11 @@ weiter alle: Sie beschreibt das Training.
 Rechenwerk. Nennen nicht alle Zeilen dasselbe, vergleicht die Spalte nicht:
 keine Bestmarke, jede Zahl mit ihrer Maschine.
 
-Eine Auswahl wechselt die **Fassung** - alle zusammen, **Original** oder
-**Rauschen**. Liegen Original und Rauschen weit auseinander, verträgt ein
-Modell eine Aufnahmesituation, statt den Sprecher zu verstehen.
-
 ### Wie weit die Zahlen tragen
 
 **Sicherheit** schaltet unter jeder Zahl den 95-%-Bereich ein, als Bootstrap
-über 2000 Ziehungen je Aufnahme (`wortlaut/streuung.py`) - die Fassungen einer
-Aufnahme sind Messungen an einem Gegenstand; je Messung gezogen wäre der
-Bereich zu schmal. **Gegen** paart jede Zeile mit
-einem gewählten Modell und zeigt den Abstand mit p-Wert; das ist schärfer als
+über 2000 Ziehungen je Aufnahme (`wortlaut/streuung.py`). **Gegen** paart
+jede Zeile mit einem gewählten Modell und zeigt den Abstand mit p-Wert; das ist schärfer als
 zwei überlappende Bereiche. Eingeschaltet ändert sich keine Zahl - der Bereich
 tritt daneben. Überlappen sich bester und zweitbester Wert einer Spalte, trägt
 sie ein `≈`. Ein fertiger Lauf schreibt seine Bereiche ins Manifest.
@@ -434,8 +431,8 @@ liegt**, aus dem Modellcache gelesen: die CTranslate2-Fassung mit Revision,
 Ladezeitpunkt und Größe, das Rechenwerk der Auswertung, ob und wie `lernen`
 darauf trainiert, welche eigenen Stände darauf gewachsen sind und ob es
 freigegeben ist. Die Parameterzahl wird an den Gewichten gegengeprüft
-(float16, zwei Byte je Parameter). Darunter seine Zahlen aus der Tafel, je
-Fassung neben denen des freigegebenen Modells.
+(float16, zwei Byte je Parameter). Darunter seine Zahlen aus der Tafel, neben
+denen des freigegebenen Modells.
 
 ---
 
@@ -450,14 +447,14 @@ Sprecher (`services/register.py`, Schema mit Erklärung jeder Spalte in
 | Tabelle | Was | woher |
 |---|---|---|
 | `laeufe` | Auftrag, Zustand samt Metriken und Bootstrap-Intervall, Manifest des Modells (Rezept, Abschluss, Endmodell, Grundmodell daneben, Plausibilitätsprüfung), Kernauswahl, Protokoll, Umgebung, wann gelöscht | Laufverzeichnis, Registry, Läufer |
-| `daten` | jede Zeile des Manifests: Aufnahme, Fassung, Faltung, Gewicht, Herkunft, Text wie damals, SHA-256 der Audiodatei | `manifest.jsonl` |
+| `daten` | jede Zeile des Manifests: Aufnahme, Faltung, Gewicht, Herkunft, Text wie damals, SHA-256 der Audiodatei | `manifest.jsonl` |
 | `messungen` | was ein Modell aus einer Aufnahme machte: `faltung` aus der Kreuzvalidierung, `endmodell` aus der Auswertung von „hören" | `bewertung.jsonl`, Tabelle `erkennungen` |
 | `ereignisse` | Verlust je Schritt, Validierung je Durchgang, Stufen, gescheiterte Faltungen | `fortschritt.jsonl` |
 
 Die Sicht `uebersicht` zeigt je Lauf die Eckdaten ohne JSON.
 
 **Welche Läufe vergleichbar sind, sagt `datensatz`**: ein Fingerabdruck über
-Aufnahme, Fassung, Faltung, Herkunft, Text und Audiodatei jeder Zeile von
+Aufnahme, Faltung, Herkunft, Text und Audiodatei jeder Zeile von
 `daten` (`register.datensatz`). Gleich heißt: dieselben Daten, dieselben
 Faltungen - zwei solche Läufe unterscheiden sich nur in ihren Optionen, und
 der gepaarte Vergleich ihrer `messungen` (`streuung.unterschied`) misst deren

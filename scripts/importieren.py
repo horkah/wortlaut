@@ -10,7 +10,7 @@ in der Reihenfolge der Zahlen im Namen (S. 8 vor S. 10).
 
 Der Ton geht denselben Weg wie beim Aufnehmen im Browser (`api/recordings.py`):
 ffmpeg macht daraus 16 kHz Mono-WAV, gemessen wird am Ergebnis, abgelegt wird
-erst danach, und die abgewandelten Fassungen kommen gleich mit.
+erst danach.
 
 **Lange Aufnahmen sind hier gewollt.** Eine Buchseite am Stück dauert eine bis
 zwei Minuten, weit mehr als eine Einheit. Zerlegt wird sie danach in der
@@ -39,7 +39,7 @@ from wortlaut.text import chunker
 
 from apps.hoeren.backend.config import einstellungen
 from apps.hoeren.backend.db.models import Aufnahme, Sprecher, Textquelle, Vorlage, jetzt
-from apps.hoeren.backend.services import augmentierung, faltungen, quality
+from apps.hoeren.backend.services import faltungen, quality
 from apps.hoeren.backend.services.prompt_queue import naechste_position
 
 TONENDUNGEN = (".m4a", ".mp3", ".wav", ".ogg", ".opus", ".flac")
@@ -159,11 +159,6 @@ def main() -> int:
             sitzung.add(aufnahme)
             faltungen.vergib(sitzung, aufnahme)
             sitzung.commit()
-
-            try:
-                augmentierung.stelle_alle_her(ablage, aufnahme)
-            except audio.AudioFehler as ursache:
-                print(f"  {ton.name}: Fassungen später ({ursache})")
             print(f"  {ton.name}: {aufnahme_id}, {befund.dauer_s:.1f} s, {len(text.split())} Wörter")
 
     return 0

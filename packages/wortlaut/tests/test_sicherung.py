@@ -35,12 +35,12 @@ def _bestand(wurzel: Path, *, mit_tabelle: bool = True) -> None:
     _datenbank(wurzel / "korpus/spr_a/hoeren.sqlite", mit_tabelle=mit_tabelle)
     (wurzel / "korpus/spr_a/audio").mkdir(parents=True, exist_ok=True)
     (wurzel / "korpus/spr_a/audio/rec_1.wav").write_bytes(b"gesprochen")
-    (wurzel / "korpus/spr_a/audio/varianten").mkdir(parents=True, exist_ok=True)
-    (wurzel / "korpus/spr_a/audio/varianten/rec_1.rauschen.wav").write_bytes(b"gerechnet")
+    (wurzel / "korpus/spr_a/vorlesen").mkdir(parents=True, exist_ok=True)
+    (wurzel / "korpus/spr_a/vorlesen/prm_1.stimme.wav").write_bytes(b"gerechnet")
 
 
 AUSGELASSEN = sicherung.Abgeleitetes(
-    verzeichnisse=("korpus/spr_a/audio/varianten",),
+    verzeichnisse=("korpus/spr_a/vorlesen",),
     tabellen={"hoeren.sqlite": ("erkennungen",)},
 )
 
@@ -57,7 +57,7 @@ class TestAuslassen:
         ziel = sicherung.schreibe_archiv(
             tmp_path / "data", ["korpus/spr_a"], tmp_path / "alles.tgz"
         )
-        assert any("varianten" in name for name in _namen(ziel))
+        assert any("vorlesen" in name for name in _namen(ziel))
 
     def test_genanntes_verzeichnis_bleibt_draussen(self, tmp_path: Path) -> None:
         _bestand(tmp_path / "data")
@@ -65,20 +65,20 @@ class TestAuslassen:
             tmp_path / "data", ["korpus/spr_a"], tmp_path / "s.tgz", ohne=AUSGELASSEN
         )
         namen = _namen(ziel)
-        assert not [name for name in namen if "varianten" in name]
+        assert not [name for name in namen if "vorlesen" in name]
         assert "daten/korpus/spr_a/audio/rec_1.wav" in namen
 
     def test_ein_aehnlicher_name_ist_kein_treffer(self, tmp_path: Path) -> None:
-        # `varianten-alt/` ist nicht `varianten/`. Verglichen wird deshalb auf
+        # `vorlesen-alt/` ist nicht `vorlesen/`. Verglichen wird deshalb auf
         # der Grenze zwischen zwei Pfadstücken, nicht auf dem Zeichen davor.
         _bestand(tmp_path / "data")
-        (tmp_path / "data/korpus/spr_a/audio/varianten-alt").mkdir()
-        (tmp_path / "data/korpus/spr_a/audio/varianten-alt/rec_1.wav").write_bytes(b"ton")
+        (tmp_path / "data/korpus/spr_a/vorlesen-alt").mkdir()
+        (tmp_path / "data/korpus/spr_a/vorlesen-alt/prm_1.wav").write_bytes(b"ton")
 
         ziel = sicherung.schreibe_archiv(
             tmp_path / "data", ["korpus/spr_a"], tmp_path / "s.tgz", ohne=AUSGELASSEN
         )
-        assert "daten/korpus/spr_a/audio/varianten-alt/rec_1.wav" in _namen(ziel)
+        assert "daten/korpus/spr_a/vorlesen-alt/prm_1.wav" in _namen(ziel)
 
 
 class TestGeleerteTabellen:
@@ -136,7 +136,7 @@ class TestManifest:
         )
         manifest = sicherung.lies_manifest(archiv)
         assert manifest["ausgelassen"] == {
-            "verzeichnisse": ["korpus/spr_a/audio/varianten"],
+            "verzeichnisse": ["korpus/spr_a/vorlesen"],
             "tabellen": {"hoeren.sqlite": ["erkennungen"]},
         }
 

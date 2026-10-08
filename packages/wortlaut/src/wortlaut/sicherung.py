@@ -14,7 +14,7 @@ Eine Sicherung ist ein `.tar.gz`, das den Datenbestand so enthält, wie er unter
 die richtige Stelle. `tar xzf` kommt so weit wie `scripts/restore.py`.
 
 Gesichert wird, was ein Mensch hervorgebracht hat. Was eine Maschine daraus
-rechnet - Varianten, Vorlesungen, Messwerte (`Abgeleitetes`) -, bleibt
+rechnet - Vorlesungen, Messwerte (`Abgeleitetes`) -, bleibt
 draußen und kommt nach dem Zurückspielen von selbst wieder. `sicherung.json`
 nennt das Ausgelassene unter `ausgelassen`.
 

@@ -9,7 +9,7 @@ auch den lesenden: Der Zuschnitt überschreibt Aufnahmen, und das trägt der
 Sprecherzugang auf einem Telefon nicht; schon die Ansicht ist die Werkbank.
 
 **Beim Schreiben**, je Aufnahme: die Datei überschrieben, die Zeile aus der
-neuen Datei nachgeführt, die Abwandlungen neu, die Messwerte weg - auch
+neuen Datei nachgeführt, die Messwerte weg - auch
 übernommene Faltungen, wie beim Verwerfen (`api/recordings.py`). Der nächste
 Auswertungslauf rechnet neu.
 
@@ -34,7 +34,7 @@ from wortlaut.text import chunker
 from ..config import einstellungen
 from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
 from ..deps import Ablage, Datenbank, Sprache, SprecherId
-from ..services import augmentierung, quality, zuschnitt
+from ..services import quality, zuschnitt
 from ..services.prompt_queue import naechste_position
 
 router = APIRouter(prefix="/api/zuschnitt", tags=["Zuschnitt"])
@@ -230,19 +230,10 @@ def schreiben(auftrag: Auftrag, sprecher: SprecherId, db: Datenbank, ablage: Abl
             fehler[grenze.id] = str(ursache)
             continue
 
-        # Die Abwandlungen weg - `stelle_her` ließe vorhandene stehen.
-        augmentierung.loesche(ablage, aufnahme)
-
         # Die Messwerte am alten Ton weg, sonst gälten sie als erledigt.
         db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme.id))
         db.commit()
         geschrieben += 1
-
-        # Die Fassungen nach dem Commit; scheitern sie, holt die Auswertung sie nach.
-        try:
-            augmentierung.stelle_alle_her(ablage, aufnahme)
-        except klang.AudioFehler:
-            pass
 
     return Ergebnis(geschrieben=geschrieben, fehler=fehler)
 
@@ -333,7 +324,6 @@ def teilen(
     stamm = original.sortierschluessel or original.id
     erste = _naechste_nummer(db, stamm)
     position = naechste_position(db, sprecher)
-    teile: list[Aufnahme] = []
     for nummer, (kennung, ziel, befund, (_, text)) in enumerate(
         zip(kennungen, ziele, befunde, stuecke, strict=True), start=erste
     ):
@@ -372,15 +362,7 @@ def teilen(
             erstellt=original.erstellt,
         )
         db.add(teil)
-        teile.append(teil)
     db.commit()
-
-    # Wie beim Hochladen: nach dem Commit.
-    for teil in teile:
-        try:
-            augmentierung.stelle_alle_her(ablage, teil)
-        except klang.AudioFehler:
-            pass
 
     return Teile(ids=kennungen)
 
@@ -404,7 +386,6 @@ def loeschen(auftrag: Auftrag, sprecher: SprecherId, db: Datenbank, ablage: Abla
             continue
 
         ablage.loesche(aufnahme.blob)
-        augmentierung.loesche(ablage, aufnahme)
         db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme.id))
         vorlage_id = aufnahme.prompt_id
         db.delete(aufnahme)

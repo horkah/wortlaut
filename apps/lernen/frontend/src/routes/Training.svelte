@@ -47,7 +47,6 @@
   let methode = $state(gemerkt.methode);
   let loraZiele = $state(gemerkt.loraZiele);
   let loraRang = $state(gemerkt.loraRang);
-  let datensatz = $state(gemerkt.datensatz);
   let auswahl = $state(gemerkt.auswahl);
   let korrekturgewicht = $state(gemerkt.korrekturgewicht);
   let selbsttraining = $state(gemerkt.selbsttraining);
@@ -65,7 +64,6 @@
       methode,
       loraZiele,
       loraRang,
-      datensatz,
       auswahl,
       korrekturgewicht,
       selbsttraining,
@@ -166,7 +164,6 @@
           ['Methode', daten.methoden, (lauf) => lauf.methode],
           ['LoRA-Ziele', daten.lora_ziele, (lauf) => lauf.lora_ziele],
           ['LoRA-Rang', daten.lora_raenge, (lauf) => lauf.lora_rang],
-          ['Datensatz', daten.datensaetze, (lauf) => lauf.daten],
           ['Auswahl', daten.auswahlen, (lauf) => lauf.auswahl],
           ['Korrekturen', daten.korrekturgewichte, (lauf) => lauf.korrekturgewicht],
           ['Selbsttraining', daten.selbsttraininge, (lauf) => lauf.selbsttraining],
@@ -243,7 +240,7 @@
               lauf.methode,
               lauf.lora_ziele || 'qv',
               lauf.lora_rang || '32',
-              lauf.daten,
+              lauf.rauschkopie ? 'A' : '',
               lauf.auswahl || 'alle',
               lauf.korrekturgewicht || '0.5',
               lauf.selbsttraining || 'aus',
@@ -272,7 +269,7 @@
       methode,
       bestellteZiele,
       bestellterRang,
-      datensatz,
+      '',
       auswahl,
       korrekturgewicht,
       selbsttraining,
@@ -375,7 +372,6 @@
           methode,
           lora_ziele: bestellteZiele,
           lora_rang: bestellterRang,
-          daten: datensatz,
           auswahl,
           korrekturgewicht,
           selbsttraining,
@@ -661,16 +657,6 @@
         {/each}
       </fieldset>
 
-      <fieldset>
-        <legend>Datensatz</legend>
-        {#each daten.datensaetze as wahl (wahl.schluessel)}
-          <label class="option">
-            <input type="radio" bind:group={datensatz} value={wahl.schluessel} />
-            {@render option(wahl, prozent('Datensatz', wahl))}
-          </label>
-        {/each}
-      </fieldset>
-
       <!-- Beim Kern ist er der ganze Korpus des Laufs: Die übrigen Aufnahmen
            sieht erst das Endmodell, in der Auswertung von „hören"
            (`wortlaut/laeufe.py`, „Die Auswahl"). -->
@@ -740,8 +726,7 @@
         {/each}
       </fieldset>
 
-      <!-- Online, je Durchgang neu gewürfelt - anders als „Datensatz", der
-           abgelegte Fassungen als eigene Proben hinzunimmt. -->
+      <!-- Online, je Durchgang neu gewürfelt. -->
       <fieldset>
         <legend>Augmentierung</legend>
         {#each daten.augmentierungen as wahl (wahl.schluessel)}

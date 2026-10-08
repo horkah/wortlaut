@@ -61,7 +61,7 @@ def lauf(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
             (diktate / f"{name}.wav").write_bytes(b"RIFF")
         zeilen.append(
             {"audio": f"../../diktate/{SPRECHER}/audio/{name}.wav", "text": "",
-             "quelle": "selbst", "variante": "original", "faltung": None, "recording_id": name}
+             "quelle": "selbst", "faltung": None, "recording_id": name}
         )
     (verzeichnis / laeufe.MANIFEST).write_text(
         "".join(json.dumps(zeile) + "\n" for zeile in zeilen), encoding="utf-8"

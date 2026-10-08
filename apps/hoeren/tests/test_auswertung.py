@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from wortlaut import augmentierung, laeufe, registry
+from wortlaut import laeufe, registry
 from wortlaut.whisper import Transkript
 
 from sqlalchemy import select
@@ -32,10 +32,8 @@ MODELLE = "small,medium"
 # Was eine übernommene Faltungszeile sagt - daran ist sie von einer hier
 # gerechneten zu unterscheiden.
 AUS_DER_FALTUNG = "aus der Faltung"
-# Zwei Modelle mal alle Fassungen: So viele Zeilen entstehen je Aufnahme. Die
-# Zahl der Fassungen kommt aus `augmentierung`, keine Kopie hier.
-FASSUNGEN = len(augmentierung.VARIANTEN)
-JE_AUFNAHME = 2 * FASSUNGEN
+# Zwei Modelle: So viele Zeilen entstehen je Aufnahme.
+JE_AUFNAHME = 2
 
 
 # Vor dem Ersetzen durch den Platzhalter (`_erkenner`) - für die Karte.
@@ -153,7 +151,7 @@ class TestOhneAufnahmen:
 
 
 class TestLauf:
-    def test_rechnet_jede_fassung_jeder_aufnahme_durch_jedes_modell(
+    def test_rechnet_jede_aufnahme_durch_jedes_modell(
         self, klient: TestClient, quelle: str, sprich, antworten: dict
     ) -> None:
         vorlage = sprich()
@@ -162,7 +160,7 @@ class TestLauf:
 
         stand = _laufe_bis_fertig(klient)
 
-        # Zwei Aufnahmen, zwei Modelle, alle Fassungen.
+        # Zwei Aufnahmen, zwei Modelle.
         assert stand["gesamt"] == 2 * JE_AUFNAHME
         assert stand["erledigt"] == 2 * JE_AUFNAHME
         assert stand["fehler"] is None
@@ -193,56 +191,25 @@ class TestLauf:
         assert wechsel == ["small", "medium"]
         assert len(gefragt) == 2 * JE_AUFNAHME
 
-    def test_misst_jede_fassung_einzeln(
+    def test_je_modell_eine_messung(
         self, klient: TestClient, quelle: str, sprich, antworten: dict
     ) -> None:
         sprich()
         antworten.update({"small": "etwas", "medium": "etwas"})
         _laufe_bis_fertig(klient)
 
-        antwort = klient.get("/api/auswertung").json()
-        gemessen = antwort["punkte"][0]["werte"]
+        gemessen = klient.get("/api/auswertung").json()["punkte"][0]["werte"]
         assert set(gemessen) == {"small", "medium"}
-        # Die Fassungen kommen vom Server, samt Namen und Erklärung - die
-        # Oberfläche führt keine eigene Liste.
-        namen = [eintrag["schluessel"] for eintrag in antwort["varianten"]]
-        assert namen == list(augmentierung.VARIANTEN)
-        assert set(gemessen["small"]) == set(namen)
+        assert gemessen["small"]["wer"] == 1.0
 
-    def test_die_abgewandelten_fassungen_liegen_geordnet_im_korpus(
+    def test_verworfene_aufnahme_nimmt_ihr_audio_mit(
         self, klient: TestClient, quelle: str, sprich, antworten: dict, tmp_path: Path
     ) -> None:
-        # Jede Fassung trägt erst die Aufnahme, dann ihren Namen, und sie liegt
-        # nicht bei den Aufnahmen, sondern darunter. Damit kann keine Datei mit
-        # einer Aufnahme verwechselt werden, und ein sortiertes Verzeichnis
-        # liegt nach Aufnahmen geordnet da.
-        sprich()
-        aufnahme = _erste(klient)
-        antworten.update({"small": "etwas", "medium": "etwas"})
-        _laufe_bis_fertig(klient)
-
-        korpus = tmp_path / "data" / "korpus"
-        varianten = sorted(pfad.name for pfad in korpus.rglob("varianten/*.wav"))
-        assert varianten == sorted(
-            f"{aufnahme}.{abwandlung.name}.wav"
-            for abwandlung in augmentierung.ABWANDLUNGEN
-        )
-        # Das Original bleibt, wo es war: `audio/` ist unverändert das, was in
-        # der Datenbank steht.
-        assert [pfad.name for pfad in sorted(korpus.rglob("audio/*.wav"))] == [
-            f"{aufnahme}.wav"
-        ]
-
-    def test_verworfene_aufnahme_nimmt_ihre_fassungen_mit(
-        self, klient: TestClient, quelle: str, sprich, antworten: dict, tmp_path: Path
-    ) -> None:
-        # Eine abgewandelte Fassung ist dieselbe Stimme, nur
-        # verrauscht - wer die Aufnahme wegwirft, hat nicht drei Kopien gemeint.
         sprich()
         antworten.update({"small": "etwas", "medium": "etwas"})
         _laufe_bis_fertig(klient)
         korpus = tmp_path / "data" / "korpus"
-        assert list(korpus.rglob("varianten/*.wav"))
+        assert list(korpus.rglob("*.wav"))
 
         assert klient.delete(f"/api/recordings/{_erste(klient)}").status_code == 204
         assert not list(korpus.rglob("*.wav"))
@@ -266,12 +233,9 @@ class TestLauf:
         _laufe_bis_fertig(klient)
 
         werte = klient.get("/api/auswertung").json()["punkte"][0]["werte"]
-        assert werte["medium"]["original"]["genauigkeit"] == pytest.approx(100.0)
-        assert werte["medium"]["original"]["wer"] == 0
-        assert (
-            werte["small"]["original"]["genauigkeit"]
-            < werte["medium"]["original"]["genauigkeit"]
-        )
+        assert werte["medium"]["genauigkeit"] == pytest.approx(100.0)
+        assert werte["medium"]["wer"] == 0
+        assert werte["small"]["genauigkeit"] < werte["medium"]["genauigkeit"]
 
     def test_zweiter_lauf_rechnet_nichts_doppelt(
         self, klient: TestClient, quelle: str, sprich, antworten: dict
@@ -355,13 +319,11 @@ class TestLauf:
 
         stand = _laufe_bis_fertig(klient)
 
-        # Übersprungen wird fassungsweise: Das Modell scheitert an jeder
-        # Fassung, und jede wird einzeln vermerkt statt die Aufnahme als Ganzes.
-        assert stand["uebersprungen"] == FASSUNGEN
+        assert stand["uebersprungen"] == 1
         assert "Modell nicht ladbar" in (stand["fehler"] or "")
-        # Das andere Modell ist trotzdem durchgelaufen, und zwar vollständig.
+        # Das andere Modell ist trotzdem durchgelaufen.
         werte = klient.get("/api/auswertung").json()["punkte"][0]["werte"]
-        assert len(werte["medium"]) == FASSUNGEN
+        assert "medium" in werte
         assert "small" not in werte
 
 
@@ -438,60 +400,8 @@ class TestKarte:
         assert auswertung._transkriptoren == {}
 
 
-class TestNachtraeglich:
-    """Aufnahmen, die vor der Einführung der Fassungen im Korpus lagen.
-
-    Nachgestellt, indem die Dateien wieder verschwinden - für den Server ist
-    das derselbe Fall wie ein Korpus, in dem es sie nie gab.
-    """
-
-    def test_der_lauf_holt_fehlende_fassungen_nach(
-        self, klient: TestClient, quelle: str, sprich, antworten: dict, tmp_path: Path
-    ) -> None:
-        sprich()
-        korpus = tmp_path / "data" / "korpus"
-        for pfad in korpus.rglob("varianten/*.wav"):
-            pfad.unlink()
-
-        antworten.update({"small": "etwas", "medium": "etwas"})
-        stand = _laufe_bis_fertig(klient)
-
-        assert stand["erledigt"] == JE_AUFNAHME
-        assert len(list(korpus.rglob("varianten/*.wav"))) == len(augmentierung.ABWANDLUNGEN)
-
-    def test_das_skript_holt_sie_fuer_alle_korpora_nach(
-        self, klient: TestClient, quelle: str, sprich, tmp_path: Path
-    ) -> None:
-        # `scripts/augmentieren.py` ist der Weg, das vor einem Lauf und für
-        # alle Sprecher auf einmal zu tun.
-        from scripts import augmentieren
-
-        sprich()
-        korpus = tmp_path / "data" / "korpus"
-        vorher = {pfad.name: pfad.read_bytes() for pfad in korpus.rglob("varianten/*.wav")}
-        for pfad in korpus.rglob("varianten/*.wav"):
-            pfad.unlink()
-
-        assert augmentieren.main() == 0
-
-        nachher = {pfad.name: pfad.read_bytes() for pfad in korpus.rglob("varianten/*.wav")}
-        # Byte für Byte dieselben Dateien: Das Rauschen hängt an der Kennung
-        # der Aufnahme und nicht am Zufall des Tages. Ohne das wäre eine
-        # wiederholte Messung keine Wiederholung.
-        assert nachher == vorher
-
-    def test_ein_zweiter_lauf_des_skripts_rechnet_nichts_neu(
-        self, klient: TestClient, quelle: str, sprich
-    ) -> None:
-        from scripts import augmentieren
-
-        sprich()
-        assert augmentieren.main() == 0
-        assert augmentieren.main() == 0
-
-
 class TestVergleich:
-    def test_zeigt_vorlage_und_jede_fassung(
+    def test_zeigt_vorlage_und_jedes_modell(
         self, klient: TestClient, quelle: str, sprich, antworten: dict
     ) -> None:
         vorlage = sprich()
@@ -501,15 +411,9 @@ class TestVergleich:
         vergleich = klient.get(f"/api/auswertung/{_erste(klient)}").json()
         assert vergleich["nummer"] == 1
         assert vergleich["referenz"] == vorlage
-        # In der Reihenfolge der Konfiguration, nicht in der der Datenbank -
-        # und Fassung innen, Modell außen.
-        assert [(e["modell"], e["variante"]) for e in vergleich["erkennungen"]] == [
-            (modell, fassung)
-            for modell in ("small", "medium")
-            for fassung in augmentierung.VARIANTEN
-        ]
-        # Die erste Zeile des zweiten Modells - das ist die, die trifft.
-        assert vergleich["erkennungen"][FASSUNGEN]["text"] == vorlage
+        # In der Reihenfolge der Konfiguration, nicht in der der Datenbank.
+        assert [e["modell"] for e in vergleich["erkennungen"]] == ["small", "medium"]
+        assert vergleich["erkennungen"][1]["text"] == vorlage
 
     def test_unbekannte_aufnahme_ist_vierhundertvier(self, klient: TestClient) -> None:
         assert klient.get("/api/auswertung/rec_gibtesnicht").status_code == 404
@@ -661,29 +565,27 @@ class TestTrainierteStaende:
             daten = einstellungen().data_dir
             job = "job_probe"
             sprecher = _sprecher(klient)
-            ref = f"{sprecher}/20260912T1420-lora-original"
+            ref = f"{sprecher}/20260912T1420-lora"
             verzeichnis = laeufe.lauf_verzeichnis(daten, job)
             verzeichnis.mkdir(parents=True, exist_ok=True)
             for aufnahme_id in aufnahmen:
-                for fassung in augmentierung.VARIANTEN:
-                    laeufe.haenge_an(
-                        verzeichnis / laeufe.BEWERTUNG,
-                        {
-                            "recording_id": aufnahme_id,
-                            "variante": fassung,
-                            "text": AUS_DER_FALTUNG,
-                            "wer": 0.25,
-                            "cer": 0.1,
-                            "mer": 0.25,
-                            "wil": 0.3,
-                            "genauigkeit": 70.0,
-                            "rechenzeit_s": 9.0,
-                            # Ein anderes Rechenwerk als dieses hier - genau
-                            # der Fall, in dem eine gerechnete Zeile als offen
-                            # gälte und eine übernommene nicht.
-                            "rechenwerk": "cuda/float16",
-                        },
-                    )
+                laeufe.haenge_an(
+                    verzeichnis / laeufe.BEWERTUNG,
+                    {
+                        "recording_id": aufnahme_id,
+                        "text": AUS_DER_FALTUNG,
+                        "wer": 0.25,
+                        "cer": 0.1,
+                        "mer": 0.25,
+                        "wil": 0.3,
+                        "genauigkeit": 70.0,
+                        "rechenzeit_s": 9.0,
+                        # Ein anderes Rechenwerk als dieses hier - genau der
+                        # Fall, in dem eine gerechnete Zeile als offen gälte
+                        # und eine übernommene nicht.
+                        "rechenwerk": "cuda/float16",
+                    },
+                )
             # Wie ein echter Lauf: Das Manifest sagt, auf welchem Ton er sie kannte.
             from apps.hoeren.backend.db.models import Aufnahme
 
@@ -693,13 +595,12 @@ class TestTrainierteStaende:
                         verzeichnis / laeufe.MANIFEST,
                         {
                             "recording_id": aufnahme_id,
-                            "variante": augmentierung.ORIGINAL,
                             "audio": f"audio/{aufnahme_id}.wav",
                             "dauer_s": db.get(Aufnahme, aufnahme_id).dauer_s,
                         },
                     )
             registry.schreibe_stand(
-                daten, {"id": ref, "job_id": job, "methode": "lora", "daten": "original"}
+                daten, {"id": ref, "job_id": job, "methode": "lora"}
             )
             if mit_gewichten:
                 registry.ct2_verzeichnis(daten, ref).mkdir(parents=True, exist_ok=True)
@@ -727,7 +628,7 @@ class TestTrainierteStaende:
     def test_er_bekommt_seine_kurzkennung_als_beschriftung(
         self, klient: TestClient, quelle: str, sprich, lege_stand_an
     ) -> None:
-        # `spr_…/20260912T1420-lora-original` trägt keine Achse der Welt, und
+        # `spr_…/20260912T1420-lora` trägt keine Achse der Welt, und
         # ein vorangestelltes Wort stünde in jeder Zeile dasselbe da.
         sprich()
         ref = lege_stand_an()
@@ -751,8 +652,8 @@ class TestTrainierteStaende:
         uebersicht = klient.get("/api/auswertung").json()
         assert uebersicht["punkte"][0]["werte"][ref] != {}
         # Die Faltungen zählen als erledigt; offen sind nur die Grundmodelle.
-        assert uebersicht["stand"]["erledigt"] == FASSUNGEN
-        assert uebersicht["stand"]["gesamt"] == FASSUNGEN * 3
+        assert uebersicht["stand"]["erledigt"] == 1
+        assert uebersicht["stand"]["gesamt"] == 3
 
     def test_faltungen_werden_uebernommen_statt_gerechnet(
         self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an
@@ -769,7 +670,7 @@ class TestTrainierteStaende:
             for zeile in klient.get(f"/api/auswertung/{aufnahme}").json()["erkennungen"]
             if zeile["modell"] == ref
         ]
-        assert len(vom_stand) == FASSUNGEN
+        assert len(vom_stand) == 1
         # Aus der Faltung und nicht vom Platzhalter-Erkenner - für den steht in
         # `antworten` unter dieser Kennung nichts, er würde also scheitern.
         assert {zeile["text"] for zeile in vom_stand} == {AUS_DER_FALTUNG}
@@ -806,7 +707,7 @@ class TestTrainierteStaende:
     ) -> None:
         """Ein Lauf hält nicht an einer Liste fest, die beim Anstoßen stimmte.
 
-        Sonst liefe er je Aufnahme und Fassung in denselben Fehler - einige
+        Sonst liefe er je Aufnahme in denselben Fehler - einige
         hundert Mal, und am Ende stünde eine große Zahl „übersprungen".
         """
         sprich()
@@ -935,7 +836,6 @@ class TestTrainierteStaende:
             laeufe.lauf_verzeichnis(einstellungen().data_dir, "job_probe") / laeufe.MANIFEST,
             {
                 "recording_id": aufnahme,
-                "variante": augmentierung.ORIGINAL,
                 "audio": f"audio/{aufnahme}.wav",
                 "dauer_s": 1.0,
             },
@@ -994,7 +894,7 @@ class TestTrainierteStaende:
         stand = _laufe_bis_fertig(klient)
         # Original und zwei Teile für die Grundmodelle, die Faltung des
         # Originals für den Stand - und nichts sonst.
-        assert stand["erledigt"] == stand["gesamt"] == 3 * JE_AUFNAHME + FASSUNGEN
+        assert stand["erledigt"] == stand["gesamt"] == 3 * JE_AUFNAHME + 1
         for teil in teile:
             assert self._vom_stand(klient, teil, ref) == []
             assert len(klient.get(f"/api/auswertung/{teil}").json()["erkennungen"]) == JE_AUFNAHME
@@ -1043,7 +943,6 @@ class TestTrainierteStaende:
                     id="erk_alt",
                     recording_id=vorn,
                     modell=ref,
-                    variante=augmentierung.ORIGINAL,
                     text="aus dem Gedächtnis",
                     wer=0.0,
                     cer=0.0,

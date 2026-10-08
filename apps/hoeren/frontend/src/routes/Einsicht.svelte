@@ -309,8 +309,8 @@
     </div>
     <p class="gedaempft">
       <strong>Sicherung:</strong> Datenbank und Aufnahmen, zurückzuspielen mit
-      <code>scripts/restore.py</code>. Ohne Abwandlungen und Messwerte - die rechnet ein
-      Auswertungslauf neu.<br />
+      <code>scripts/restore.py</code>. Ohne Messwerte - die rechnet ein Auswertungslauf
+      neu.<br />
       <strong>Datensatz:</strong> je Aufnahme WAV und Text, für fremde Werkzeuge. Keine Sicherung.
     </p>
   </div>

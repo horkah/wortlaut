@@ -71,8 +71,7 @@ augmentierung:
   # Nachhall von Wohnzimmer bis gefliestem Flur.
   raum_wahrscheinlichkeit: 0.5
   raum_nachhall_s: [0.05, 0.35]
-  # Von „kaum zu hören" bis „stört deutlich"; die gemessene Fassung `rauschen`
-  # (fest 20 dB) liegt darin.
+  # Von „kaum zu hören" bis „stört deutlich".
   rausch_wahrscheinlichkeit: 0.5
   rausch_abstand_db: [10.0, 35.0]
   # Nur in `voll`. Bei dysarthrischer Sprache ist das Tempo ein Merkmal des

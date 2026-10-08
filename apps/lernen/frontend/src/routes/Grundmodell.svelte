@@ -33,10 +33,7 @@
 
   const modell = $derived(daten?.modell ?? null);
   const freigabe = $derived(daten?.freigabe ?? null);
-  // Nur Fassungen, zu denen dieses Modell etwas gemessen hat.
-  const fassungen = $derived(
-    (daten?.fassungen ?? []).filter((fassung) => modell?.werte[fassung.schluessel]),
-  );
+  const gemessen = $derived(Object.keys(modell?.werte ?? {}).length > 0);
 
   $effect(() => {
     const gewuenscht = name;
@@ -52,8 +49,8 @@
       });
   });
 
-  function wert(zeile: Modell | null, fassung: string, mass: string): number | null {
-    return zeile?.werte[fassung]?.[mass] ?? null;
+  function wert(zeile: Modell | null, mass: string): number | null {
+    return zeile?.werte[mass] ?? null;
   }
 
   function zahl(roh: number | null, mass: Mass): string {
@@ -142,7 +139,7 @@
     </dl>
   </details>
 
-  {#if fassungen.length && modell}
+  {#if gemessen && modell}
     <h3>Auf den Aufnahmen dieses Menschen</h3>
     <p class="gedaempft">
       Dieselben Zahlen wie in der Modelltabelle, über dieselben Aufnahmen. Ein Grundmodell hat
@@ -157,47 +154,44 @@
       {/if}
     </p>
 
-    {#each fassungen as fassung (fassung.schluessel)}
-      <h4>{fassung.name}</h4>
-      <table class="vergleich">
-        <thead>
-          <tr>
-            <th scope="col">Maß</th>
-            <th scope="col">Dieses Modell</th>
-            {#if freigabe}
-              <th scope="col">Freigegeben</th>
-              <th scope="col">Abstand</th>
-            {/if}
-          </tr>
-        </thead>
-        <tbody>
-          {#each daten.masse as mass (mass.schluessel)}
-            {@const dieses = wert(modell, fassung.schluessel, mass.schluessel)}
-            {@const frei = wert(freigabe, fassung.schluessel, mass.schluessel)}
-            {#if dieses !== null}
-              <tr>
-                <th scope="row" title={mass.erklaerung}>{mass.name}</th>
-                <td class="stark">{zahl(dieses, mass)}</td>
-                {#if freigabe}
-                  <td>{zahl(frei, mass)}</td>
-                  <td
-                    class:besser={besser(mass, dieses, frei) === true}
-                    class:schlechter={besser(mass, dieses, frei) === false}
-                  >
-                    {abstand(mass, dieses, frei)}
-                  </td>
-                {/if}
-              </tr>
-            {/if}
-          {/each}
-        </tbody>
-      </table>
-      <p class="gedaempft klein">
-        Über {modell.einheiten[fassung.schluessel] ?? 0}
-        {(modell.einheiten[fassung.schluessel] ?? 0) === 1 ? 'Messung' : 'Messungen'}{#if !daten.vergleichbar}
-          - noch kein gemeinsamer Boden mit den anderen Modellen{/if}.
-      </p>
-    {/each}
+    <table class="vergleich">
+      <thead>
+        <tr>
+          <th scope="col">Maß</th>
+          <th scope="col">Dieses Modell</th>
+          {#if freigabe}
+            <th scope="col">Freigegeben</th>
+            <th scope="col">Abstand</th>
+          {/if}
+        </tr>
+      </thead>
+      <tbody>
+        {#each daten.masse as mass (mass.schluessel)}
+          {@const dieses = wert(modell, mass.schluessel)}
+          {@const frei = wert(freigabe, mass.schluessel)}
+          {#if dieses !== null}
+            <tr>
+              <th scope="row" title={mass.erklaerung}>{mass.name}</th>
+              <td class="stark">{zahl(dieses, mass)}</td>
+              {#if freigabe}
+                <td>{zahl(frei, mass)}</td>
+                <td
+                  class:besser={besser(mass, dieses, frei) === true}
+                  class:schlechter={besser(mass, dieses, frei) === false}
+                >
+                  {abstand(mass, dieses, frei)}
+                </td>
+              {/if}
+            </tr>
+          {/if}
+        {/each}
+      </tbody>
+    </table>
+    <p class="gedaempft klein">
+      Über {modell.aufnahmen}
+      {modell.aufnahmen === 1 ? 'Aufnahme' : 'Aufnahmen'}{#if !daten.vergleichbar}
+        - noch kein gemeinsamer Boden mit den anderen Modellen{/if}.
+    </p>
 
     <p class="gedaempft">
       Hervorgehoben heißt: Hier ist dieses Grundmodell besser als das freigegebene. Die Rechenzeit gilt für
@@ -286,11 +280,6 @@
   .zurueck {
     margin: 0 0 0.4rem;
     font-size: 0.9rem;
-  }
-
-  h4 {
-    margin: 1rem 0 0.2rem;
-    font-size: 0.95rem;
   }
 
   .vergleich {

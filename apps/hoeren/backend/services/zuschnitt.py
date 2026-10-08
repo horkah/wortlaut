@@ -34,7 +34,7 @@ def schneide(
     """Die Aufnahme auf [start, ende) kürzen und die Zeile nachführen.
 
     Die Datei wird ersetzt; Dauer, Pegel, Stille und Hinweise kommen aus der
-    neuen. Abwandlungen und Messwerte am alten Ton räumt der Aufrufer weg.
+    neuen. Die Messwerte am alten Ton räumt der Aufrufer weg.
     """
     quelle = ablage.pfad(aufnahme.blob)
     if not quelle.is_file():

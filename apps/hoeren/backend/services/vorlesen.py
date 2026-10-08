@@ -1,8 +1,7 @@
 """Die vorgelesene Fassung einer Vorlage: anlegen, finden, wegräumen.
 
 Wie ein Satz zu Klang wird, steht in `wortlaut/vorlesen.py`; hier steht, wo
-die Dateien im Korpus liegen und wann sie entstehen und verschwinden - nach
-demselben Muster wie die Abwandlungen (`services/augmentierung.py`):
+die Dateien im Korpus liegen und wann sie entstehen und verschwinden:
 
 * **Bei Bedarf.** Beim ersten Druck auf den Knopf entsteht die Datei;
   `scripts/vorlesen.py` rechnet auf Wunsch alles vorab.

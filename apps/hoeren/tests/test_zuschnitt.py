@@ -26,7 +26,6 @@ from apps.hoeren.backend import deps
 from apps.hoeren.backend.config import einstellungen
 from apps.hoeren.backend.db.models import Aufnahme, Erkennung, jetzt
 from apps.hoeren.backend.main import app
-from apps.hoeren.backend.services import augmentierung
 
 EDITOR_KEY = "test-zuschnitt"
 
@@ -273,22 +272,6 @@ class TestFolgen:
         datei = tmp_path / "data" / corpus.audio_relpfad(sprecher, kennung)
         assert antwort.content == datei.read_bytes()
 
-    def test_abwandlungen_entstehen_aus_dem_zuschnitt(
-        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict, tmp_path: Path
-    ) -> None:
-        """Sonst hörte ein Training dieselbe Äußerung in zwei Längen."""
-        kennung = self._mit_zuschnitt(schneider, sprecher, audio_datei)
-        for abwandlung in augmentierung.ABWANDLUNGEN:
-            datei = (
-                tmp_path
-                / "data"
-                / corpus.variante_relpfad(sprecher, kennung, abwandlung.name)
-            )
-            assert datei.is_file()
-            with wave.open(str(datei), "rb") as offen:
-                dauer = offen.getnframes() / offen.getframerate()
-            assert dauer == pytest.approx(1.0, abs=0.01)
-
     def test_messwerte_werden_verworfen(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
     ) -> None:
@@ -301,7 +284,6 @@ class TestFolgen:
                     id="erk_test",
                     recording_id=kennung,
                     modell="small",
-                    variante=augmentierung.ORIGINAL,
                     text="irgendetwas",
                     wer=0.2,
                     cer=0.1,
@@ -346,9 +328,7 @@ class TestFolgen:
         kennung = self._mit_zuschnitt(schneider, sprecher, audio_datei)
         with Session(deps.engine_fuer(sprecher)) as korpus:
             proben = aufteilung.proben(korpus)
-            zeile = auftraege._manifestzeile(
-                proben[0], augmentierung.ORIGINAL, "vorlage", sprecher
-            )
+            zeile = auftraege._manifestzeile(proben[0], "vorlage", sprecher)
 
         assert zeile["audio"] == f"audio/{kennung}.wav"
         assert zeile["dauer_s"] == pytest.approx(1.0, abs=0.01)
@@ -488,12 +468,7 @@ class TestLoeschen:
         )
         with Session(deps.engine_fuer(sprecher)) as sitzung:
             vorlage_id = sitzung.get(Aufnahme, kennung).prompt_id
-        dateien = [
-            tmp_path / "data" / corpus.audio_relpfad(sprecher, kennung),
-        ] + [
-            tmp_path / "data" / corpus.variante_relpfad(sprecher, kennung, abwandlung.name)
-            for abwandlung in augmentierung.ABWANDLUNGEN
-        ]
+        dateien = [tmp_path / "data" / corpus.audio_relpfad(sprecher, kennung)]
         assert all(datei.is_file() for datei in dateien)
 
         antwort = schneider.post(

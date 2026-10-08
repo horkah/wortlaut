@@ -4,8 +4,6 @@
 #   make migrate                 Datenbanken anlegen bzw. fortschreiben
 #                                (im Container: python scripts/migrate.py -
 #                                 dort gibt es weder make noch uv)
-#   make augmentieren            abgewandelte Fassungen aller Aufnahmen rechnen
-#                                (entstehen sonst von selbst, nur später)
 #   make dev APP=hoeren          Backend und Vite parallel starten
 #   make dev APP=schreiben       dasselbe für „schreiben" (Backend :8001, Vite :5174)
 #   make dev APP=lernen          dasselbe für „lernen" (Backend :8002, Vite :5175)
@@ -33,7 +31,7 @@ PORT ?= $(if $(filter schreiben,$(APP)),8001,$(if $(filter lernen,$(APP)),8002,8
 FRONTEND     = apps/$(APP)/frontend
 NODE_MODULES = $(FRONTEND)/node_modules
 
-.PHONY: test dev backend frontend install migrate augmentieren trainer train rerun release
+.PHONY: test dev backend frontend install migrate trainer train rerun release
 
 test:
 	uv run pytest
@@ -60,9 +58,6 @@ $(NODE_MODULES): $(FRONTEND)/package-lock.json
 migrate:
 	uv run python scripts/migrate.py
 
-augmentieren:
-	uv run python scripts/augmentieren.py
-
 # Der Läufer ohne Container - für die Entwicklung auf einer Maschine mit
 # Karte. Er braucht torch, transformers und peft; die stecken nicht in den
 # Abhängigkeiten dieses Projekts, sondern im Abbild unter
@@ -75,7 +70,7 @@ trainer:
 # Zustand und Protokoll mitlesen, bis er endet. Gerechnet wird im Läufer
 # (Trainings-Container oder `make trainer`), nicht hier. Im Betrieb:
 #   docker compose exec wortlaut python scripts/trainieren.py <sprecher> <rezept> …
-# ACHSEN ändert Vorgaben des Auftrags, etwa ACHSEN="dauer=geduldig daten=augmentiert".
+# ACHSEN ändert Vorgaben des Auftrags, etwa ACHSEN="dauer=geduldig auswahl=kern".
 train:
 	@test -n "$(SPEAKER)" -a -n "$(RECIPE)" || (echo "Aufruf: make train SPEAKER=spr_… RECIPE=whisper_lora [MODELL=large-v3]" && exit 1)
 	uv run python scripts/trainieren.py $(SPEAKER) $(RECIPE) --grundmodell $(MODELL) $(ACHSEN)

@@ -231,9 +231,9 @@
     if (
       !confirm(
         `${auswahl.length} Aufnahme(n) endgültig löschen?\n\n` +
-          'Gelöscht werden die Aufnahme, ihre Datei samt Abwandlungen ' +
-          'und alle Messwerte. Hängt an ihrer Vorlage keine andere Aufnahme, geht auch ' +
-          'die Vorlage - der Satz kommt nicht wieder in die Warteschlange.\n\n' +
+          'Gelöscht werden die Aufnahme, ihre Datei und alle Messwerte. ' +
+          'Hängt an ihrer Vorlage keine andere Aufnahme, geht auch die Vorlage - ' +
+          'der Satz kommt nicht wieder in die Warteschlange.\n\n' +
           'Das lässt sich nicht rückgängig machen. Wer den Satz neu sprechen will, ' +
           'verwirft die Aufnahme stattdessen in „Meine Daten".',
       )

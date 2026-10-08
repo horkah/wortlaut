@@ -11,11 +11,6 @@ gelernt hat.
 
 **Jede Zeile trägt ihre Faltung** (`services/aufteilung.py`): Sie misst in
 dieser und lernt in den anderen fünf.
-
-**Je Fassung eine Zeile, immer alle** (`wortlaut/augmentierung.py`). Ob die
-Abwandlung mitlernt, entscheidet der Trainer am Auftrag (`daten`); gemessen
-wird auf allen Fassungen, wie in der Auswertung von „hören" - sonst wäre die
-Baseline ein anderer Versuch.
 """
 
 from __future__ import annotations
@@ -29,7 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy.orm import Session
-from wortlaut import augmentierung, corpus, ids, laeufe, registry
+from wortlaut import corpus, ids, laeufe, registry
 
 from apps.hoeren.backend.db.models import Textquelle
 from apps.lernen.backend.config import einstellungen
@@ -71,7 +66,6 @@ class Auftrag:
 
     sprecher_id: str
     methode: str
-    daten: str
     basismodell: str
     # Die Sprache des Profils, im Auftrag statt in der Umgebung. Ohne Vorgabe:
     # Ein vergessenes Feld fiele sonst still auf Deutsch zurück.
@@ -101,25 +95,18 @@ def _quelle_von(korpus: Session, probe: Probe) -> str:
 
 def _manifestzeile(
     probe: Probe,
-    variante: str,
     quelle: str,
     sprecher_id: str,
     korrekturgewicht: str = laeufe.GEWICHT_VORGABE,
 ) -> dict[str, Any]:
     # Relativ zum Korpus, damit sich ein Schnappschuss kopieren lässt.
     innerhalb = corpus.sprecher_relpfad(sprecher_id)
-    voll = (
-        probe.aufnahme.blob
-        if variante == augmentierung.ORIGINAL
-        else corpus.variante_relpfad(sprecher_id, probe.aufnahme.id, variante)
-    )
     anlaeufe = probe.aufnahme.anlaeufe
     return {
-        "audio": voll.removeprefix(f"{innerhalb}/"),
+        "audio": probe.aufnahme.blob.removeprefix(f"{innerhalb}/"),
         "text": probe.vorlage.text,
         "quelle": quelle,
         "modus": probe.aufnahme.modus,
-        "variante": variante,
         "dauer_s": probe.aufnahme.dauer_s,
         "gewicht": gewicht_fuer(quelle, korrekturgewicht, anlaeufe),
         # Nur bei Korrekturen: wie oft in „schreiben" gesprochen.
@@ -160,7 +147,6 @@ def unbeschriftete_diktate(datenverzeichnis: Path, sprecher_id: str) -> list[dic
             "text": "",
             "quelle": laeufe.QUELLE_SELBST,
             "modus": "frei",
-            "variante": augmentierung.ORIGINAL,
             "dauer_s": float(dauer),
             "gewicht": GEWICHTE[laeufe.QUELLE_SELBST],
             # Keine Faltung: gelernt in jeder, gemessen in keiner.
@@ -177,24 +163,19 @@ def schreibe_manifest(
     korpus: Session,
     proben: list[Probe],
     sprecher_id: str,
-    daten: str,
     korrekturgewicht: str = laeufe.GEWICHT_VORGABE,
     unbeschriftet: list[dict[str, Any]] | None = None,
 ) -> dict[str, int]:
     """Das Manifest schreiben; gibt zurück, wie viele Zeilen je Faltung entstanden.
 
-    Immer alle Fassungen, unabhängig von `daten` - was gelernt wird, entscheidet
-    der Trainer (`training/daten.py`). Unbeschriftetes Audio zählt eigens
-    (`selbst`), nicht in `gesamt`.
+    Unbeschriftetes Audio zählt eigens (`selbst`), nicht in `gesamt`.
     """
     gezaehlt = {str(faltung): 0 for faltung in range(laeufe.FALTUNGEN)}
     with ziel.open("w", encoding="utf-8") as datei:
         for probe in proben:
-            quelle = _quelle_von(korpus, probe)
-            for variante in augmentierung.VARIANTEN:
-                zeile = _manifestzeile(probe, variante, quelle, sprecher_id, korrekturgewicht)
-                datei.write(json.dumps(zeile, ensure_ascii=False) + "\n")
-                gezaehlt[str(probe.faltung)] += 1
+            zeile = _manifestzeile(probe, _quelle_von(korpus, probe), sprecher_id, korrekturgewicht)
+            datei.write(json.dumps(zeile, ensure_ascii=False) + "\n")
+            gezaehlt[str(probe.faltung)] += 1
         gezaehlt["gesamt"] = sum(gezaehlt.values())
         for zeile in unbeschriftet or []:
             datei.write(json.dumps(zeile, ensure_ascii=False) + "\n")
@@ -230,7 +211,6 @@ def beauftrage(
         korpus,
         proben,
         auftrag.sprecher_id,
-        auftrag.daten,
         auftrag.korrekturgewicht,
         unbeschriftete_diktate(datenverzeichnis, auftrag.sprecher_id)
         if auftrag.selbsttraining == laeufe.SELBST_AN
@@ -248,7 +228,6 @@ def beauftrage(
         "methode": auftrag.methode,
         "lora_ziele": auftrag.lora_ziele,
         "lora_rang": auftrag.lora_rang,
-        "daten": auftrag.daten,
         "auswahl": auftrag.auswahl,
         "korrekturgewicht": auftrag.korrekturgewicht,
         "selbsttraining": auftrag.selbsttraining,
@@ -295,7 +274,6 @@ class Bestellung:
     methode: str
     lora_ziele: str = laeufe.ZIELE_QV
     lora_rang: str = laeufe.RANG_VORGABE
-    daten: str = laeufe.NUR_ORIGINAL
     auswahl: str = laeufe.AUSWAHL_ALLE
     korrekturgewicht: str = laeufe.GEWICHT_VORGABE
     selbsttraining: str = laeufe.SELBST_AUS
@@ -328,7 +306,6 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
         (bestellung.methode, laeufe.METHODEN, "Methode"),
         (bestellung.lora_ziele, laeufe.LORA_ZIELE, "LoRA-Ziele"),
         (bestellung.lora_rang, laeufe.LORA_RAENGE, "LoRA-Rang"),
-        (bestellung.daten, laeufe.DATENSAETZE, "Datensatz"),
         (bestellung.auswahl, laeufe.AUSWAHLEN, "Auswahl"),
         (bestellung.korrekturgewicht, laeufe.KORREKTURGEWICHTE, "Korrekturgewicht"),
         (bestellung.selbsttraining, laeufe.SELBSTTRAINING, "Selbsttraining"),
@@ -398,7 +375,6 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
             methode=bestellung.methode,
             lora_ziele=bestellung.lora_ziele,
             lora_rang=bestellung.lora_rang,
-            daten=bestellung.daten,
             auswahl=bestellung.auswahl,
             korrekturgewicht=bestellung.korrekturgewicht,
             selbsttraining=bestellung.selbsttraining,

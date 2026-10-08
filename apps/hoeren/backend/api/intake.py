@@ -22,7 +22,7 @@ from wortlaut.text import chunker
 
 from ..db.models import Aufnahme, Textquelle, Vorlage, jetzt
 from ..deps import Ablage, Datenbank, Sprache, SprecherId
-from ..services import augmentierung, faltungen
+from ..services import faltungen
 from ..services.prompt_queue import naechste_position
 
 router = APIRouter(prefix="/api/korpus", tags=["Korpus"])
@@ -104,12 +104,6 @@ async def nimm_korrektur_an(
     db.add(aufnahme)
     faltungen.vergib(db, aufnahme)
     db.commit()
-
-    # Die Fassungen gleich mit; ein Fehlschlag kostet nicht die Aufnahme.
-    try:
-        augmentierung.stelle_alle_her(ablage, aufnahme)
-    except klang.AudioFehler:
-        pass
 
     return IntakeAntwort(aufnahme_id=aufnahme_id, prompt_id=vorlage.id, neu=True)
 

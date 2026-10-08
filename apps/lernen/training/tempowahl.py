@@ -29,7 +29,6 @@ from typing import Any
 
 from wortlaut import metriken, tempo
 from wortlaut.text import chunker
-from wortlaut.augmentierung import ORIGINAL
 
 # Unten dicht, oben weit: Zwischen 1,0 und 2,0 entscheidet sich das meiste.
 RASTER = (0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0)
@@ -100,12 +99,9 @@ def aus_dauern(zeilen: list[dict[str, Any]], bericht) -> Ergebnis:
     Kostet nichts: keine Erkennung, kein Modell, keine Karte. Nur Arithmetik
     über Zeilen, die ohnehin gelesen sind.
     """
-    original = [zeile for zeile in zeilen if str(zeile.get("variante")) == ORIGINAL]
-    ton = sum(float(zeile.get("dauer_s") or 0.0) for zeile in original)
-    text = sum(
-        chunker.dauer(str(zeile.get("text") or "")) + ZUSCHLAG_S for zeile in original
-    )
-    if not original or ton <= 0 or text <= 0:
+    ton = sum(float(zeile.get("dauer_s") or 0.0) for zeile in zeilen)
+    text = sum(chunker.dauer(str(zeile.get("text") or "")) + ZUSCHLAG_S for zeile in zeilen)
+    if not zeilen or ton <= 0 or text <= 0:
         return Ergebnis(
             faktor=tempo.VORGABE,
             art="geschaetzt",
@@ -116,12 +112,12 @@ def aus_dauern(zeilen: list[dict[str, Any]], bericht) -> Ergebnis:
     faktor = auf_stufe(roh)
     bericht.sage(
         f"  Tempo geschätzt: {ton:.0f} s Ton auf {text:.0f} s Text "
-        f"({len(original)} Aufnahmen) → {roh:.2f} → {faktor:g}"
+        f"({len(zeilen)} Aufnahmen) → {roh:.2f} → {faktor:g}"
     )
     return Ergebnis(
         faktor=faktor,
         art="geschaetzt",
-        proben=len(original),
+        proben=len(zeilen),
         ton_s=round(ton, 1),
         text_s=round(text, 1),
         roh=round(roh, 4),
@@ -167,15 +163,11 @@ def zusammengelegt(faltungen: list[dict[str, Any]]) -> tuple[float | None, list[
 
 
 def stichprobe(zeilen: list[dict[str, Any]], faltung: int | None) -> list[dict[str, Any]]:
-    """Ein paar Lernzeilen dieser Faltung - im Original und gewürfelt, aber fest.
-
-    Nur Originale - Abwandlungen fragen etwas anderes.
-    """
-    original = [zeile for zeile in zeilen if str(zeile.get("variante")) == ORIGINAL]
-    if len(original) <= PROBEN:
-        return original
+    """Ein paar Lernzeilen dieser Faltung - gewürfelt, aber fest."""
+    if len(zeilen) <= PROBEN:
+        return zeilen
     wuerfel = random.Random(KEIM + (faltung or 0))
-    return wuerfel.sample(original, PROBEN)
+    return wuerfel.sample(zeilen, PROBEN)
 
 
 def waehle(
@@ -200,7 +192,7 @@ def waehle(
 
     proben = stichprobe(zeilen, faltung)
     if not proben:
-        return Ergebnis(faktor=tempo.VORGABE, hinweis="Keine Originalaufnahmen zur Wahl.")
+        return Ergebnis(faktor=tempo.VORGABE, hinweis="Keine Aufnahmen zur Wahl.")
 
     from apps.lernen.backend.config import einstellungen
 

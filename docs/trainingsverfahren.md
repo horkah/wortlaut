@@ -33,10 +33,10 @@ schiefgingen - kein siebtes Training.
 | # | Schritt | Wo |
 |---|---|---|
 | 1 | Sechs Faltungen je Stamm | `apps/hoeren/backend/services/faltungen.py`, `apps/lernen/backend/services/aufteilung.py` |
-| 2 | Manifest: Pfad, Text, Herkunft, Gewicht, Faltung je Probe und Fassung | `apps/lernen/backend/services/auftraege.py` (`_manifestzeile`) |
+| 2 | Manifest: Pfad, Text, Herkunft, Gewicht, Faltung je Probe | `apps/lernen/backend/services/auftraege.py` (`_manifestzeile`) |
 | 3 | Kernauswahl vervollständigen (nur `K`) | `apps/lernen/training/bewerten.py` (`vervollstaendige_kern`) |
 | 3a | Unbestätigte Diktate beschriften (nur `U`) | `apps/lernen/training/selbsttraining.py` (`beschrifte`) |
-| 4 | Lern- und Messzeilen einer Faltung | `apps/lernen/training/daten.py` (`zeilen_fuer_faltung`) |
+| 4 | Lern- und Messzeilen einer Faltung | `wortlaut/laeufe.py` (`zeilen_fuer_faltung`) |
 | 5 | WAV → Log-Mel, Augmentierung, Marken, Stapel | `daten.py` (`Proben`, `Stapler`), `klangwandel.py` |
 | 5a | Encoder-Fenster kürzen und zurückbringen (nur `F`) | `fenster.py` |
 | 6 | Tempo schätzen oder suchen | `tempowahl.py` |
@@ -104,8 +104,8 @@ WENN Selbsttraining:
     behalte, was es sicher genug hört                 # selbsttraining.beschrifte
 
 FÜR f = 1 … 6:
-    D_lern ← Zeilen außerhalb von Faltung f            # je nach Datensatz nur Originale
-    D_mess ← Zeilen in Faltung f, alle Fassungen, nur Vorlagen   # Korrekturen lernen nur
+    D_lern ← Zeilen außerhalb von Faltung f
+    D_mess ← Zeilen in Faltung f, nur Vorlagen         # Korrekturen lernen nur
     θ_f, ergebnis_f ← TRAINIERE(θ_grund, D_lern, D_mess, R)
     M_f ← nach_CTranslate2(θ_f)                        # samt Startprompt aus D_lern, wenn bestellt
     FÜR jede Zeile z in D_mess:
@@ -446,14 +446,9 @@ Mittelwert über viele trägt.
 |---|---|
 | `intervall(bloecke)` | 95-%-Bereich eines Mittelwerts, 2000 Ziehungen |
 | `unterschied(bloecke)` | zwei Reihen gepaart: Differenz, Bereich, p-Wert |
-| `bilde` / `bilde_paare` | Messungen zu Blöcken bündeln |
+| `bilde` / `bilde_paare` | Messungen je Aufnahme zu Blöcken bündeln |
 | `Verfahren.marke` | das Verfahren als Zeichenkette, gespeichert neben jedem Bereich |
 
-* **Blockweise je Aufnahme.** Die Fassungen einer Aufnahme sind nicht
-  unabhängig; der Bereich je Einheit ist auf diesen Daten etwa halb so breit
-  wie der richtige (`packages/wortlaut/tests/test_streuung.py`). Die
-  Bibliothek kennt ihn als `einheit`, weil die Literatur ihn rechnet; die
-  Modelltafel bietet nur den Schalter für den Bereich je Aufnahme.
 * **Fester Keim.** Dieselbe Messreihe ergibt auf jeder Maschine denselben
   Bereich; gleich viele Blöcke bekommen dieselben Ziehungen, was den
   gepaarten Vergleich erst möglich macht.

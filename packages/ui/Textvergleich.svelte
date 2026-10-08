@@ -19,7 +19,7 @@
    * zerfällt der Satz in Schnipsel aus Gestrichenem und Fettem, und gerade
    * das schlechteste Modell - das interessanteste - wird am schlechtesten
    * lesbar. Dann hilft nur der glatte Text. Umgeschaltet wird nicht hier,
-   * sondern von der Ansicht, die alle Fassungen nebeneinander zeigt.
+   * sondern von der Ansicht, die alle Modelle untereinander zeigt.
    */
   import { vergleiche } from './diff';
 
@@ -30,8 +30,7 @@
   }: { vorlage: string; erkannt: string; hervorheben?: boolean } = $props();
 
   // Nur gerechnet, wenn es auch gezeigt wird: Abgeschaltet steht der Text
-  // schon da, und ein Diff über drei Fassungen je Aufnahme wäre Arbeit für
-  // nichts.
+  // schon da, und ein Diff je Modell wäre Arbeit für nichts.
   const stuecke = $derived(hervorheben ? vergleiche(vorlage, erkannt) : []);
 </script>
 

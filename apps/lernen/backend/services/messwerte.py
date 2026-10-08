@@ -9,21 +9,19 @@ Grundmodelle haben nichts gelernt.
 
 **Hier wird nur zusammengetragen**, beides aus `wortlaut/metriken.py`:
 
-* Für die Grundmodelle die Auswertung von „hören" - jede Aufnahme durch `base`,
-  `small`, `medium` und `large-v3`, in allen Fassungen
-  (`apps/hoeren/backend/api/auswertung.py`).
+* Für die Grundmodelle die Auswertung von „hören" - jede Aufnahme durch jedes
+  Grundmodell (`apps/hoeren/backend/api/auswertung.py`).
 * Für jeden trainierten Stand die `bewertung.jsonl` seines Laufs - dieselben
-  Aufnahmen, dieselben Fassungen, dieselben Maße
-  (`apps/lernen/training/bewerten.py`).
+  Aufnahmen, dieselben Maße (`apps/lernen/training/bewerten.py`).
 
 **Die Rechenzeit vergleicht sich nur im selben Rechenwerk**
 (`wortlaut/rechenwerk.py`): Auf dem Prozessor braucht dasselbe Modell das
 Zehn- bis Zwanzigfache.
 
-**Verglichen wird nur, was alle gemessen haben.** Die Einheit ist das Paar aus
-Aufnahme und Fassung; jedes Mittel läuft über die Schnittmenge aller Modelle
-mit Messungen - sonst läge ein Unterschied an der Auswahl. Ist sie leer,
-rechnet jedes Modell auf seinem, und die Ansicht sagt es dazu.
+**Verglichen wird nur, was alle gemessen haben.** Jedes Mittel läuft über die
+Aufnahmen, die alle Modelle mit Messungen haben - sonst läge ein Unterschied
+an der Auswahl. Ist die Schnittmenge leer, rechnet jedes Modell auf seinem,
+und die Ansicht sagt es dazu.
 """
 
 from __future__ import annotations
@@ -32,7 +30,7 @@ from dataclasses import dataclass, field
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from wortlaut import augmentierung, laeufe, streuung
+from wortlaut import laeufe, streuung
 
 from apps.hoeren.backend.db.models import Erkennung
 from apps.hoeren.backend.services.auswertung import FALTUNG, gueltige_aufnahmen
@@ -44,25 +42,19 @@ MASSE = ("genauigkeit", "wer", "cer", "mer", "wil", "rechenzeit_s")
 # Bei diesem Maß ist größer besser; bei allen übrigen kleiner.
 HOCH_IST_GUT = {"genauigkeit"}
 
-# Die Zusammenfassung über alle Fassungen - kein Fassungsname.
-ALLE = "alle"
-
-# Eine Messeinheit: diese Aufnahme in dieser Fassung.
-Einheit = tuple[str, str]
-
 
 @dataclass
 class Messreihe:
-    """Was ein Modell erreicht hat, Einheit für Einheit."""
+    """Was ein Modell erreicht hat, Aufnahme für Aufnahme."""
 
-    werte: dict[Einheit, dict[str, float]] = field(default_factory=dict)
+    werte: dict[str, dict[str, float]] = field(default_factory=dict)
     # Worauf gemessen wurde - `cuda/int8_float16`, `cpu/int8`, leer wenn
     # unbekannt. Eine Menge: Wich ein Lauf auf den Prozessor aus, ist seine
     # Rechenzeit eine Mischung, und das soll sichtbar sein.
     werke: set[str] = field(default_factory=set)
-    # Welche Faltung eine Einheit gehört hat - nur bei einem trainierten Stand,
-    # und nur bei Messungen aus seiner Kreuzvalidierung.
-    faltungen: dict[Einheit, int] = field(default_factory=dict)
+    # Welche Faltung eine Aufnahme gehört hat - nur bei einem trainierten
+    # Stand, und nur bei Messungen aus seiner Kreuzvalidierung.
+    faltungen: dict[str, int] = field(default_factory=dict)
 
     @property
     def werk(self) -> str:
@@ -76,80 +68,47 @@ class Messreihe:
         Aufgenommenem - bleiben.
         """
         behalten = {
-            schluessel: werte
-            for schluessel, werte in self.werte.items()
-            if schluessel not in self.faltungen or self.faltungen[schluessel] in faltungen
+            kennung: werte
+            for kennung, werte in self.werte.items()
+            if kennung not in self.faltungen or self.faltungen[kennung] in faltungen
         }
         return Messreihe(
             werte=behalten,
             werke=set(self.werke),
-            faltungen={s: f for s, f in self.faltungen.items() if s in behalten},
+            faltungen={k: f for k, f in self.faltungen.items() if k in behalten},
         )
 
-    def mittel(self, einheiten: set[Einheit]) -> dict[str, dict[str, float]]:
-        """Die Mittel je Fassung und über alles - über genau diese Einheiten.
+    def mittel(self, aufnahmen: set[str]) -> dict[str, float]:
+        """Die Mittel je Maß - über genau diese Aufnahmen; leer ohne gemeinsame."""
+        gemeinsam = sorted(aufnahmen & set(self.werte))
+        return _mittelwerte([self.werte[kennung] for kennung in gemeinsam]) if gemeinsam else {}
 
-        Fassungen ohne gemeinsame Einheit fehlen, statt eine Null zu behaupten.
-        """
-        gemeinsam = sorted(einheiten & set(self.werte))
-        if not gemeinsam:
-            return {}
-
-        nach_fassung: dict[str, list[dict[str, float]]] = {ALLE: []}
-        for schluessel in gemeinsam:
-            _aufnahme, fassung = schluessel
-            nach_fassung.setdefault(fassung, []).append(self.werte[schluessel])
-            nach_fassung[ALLE].append(self.werte[schluessel])
-
-        return {
-            fassung: _mittelwerte(zeilen)
-            for fassung, zeilen in nach_fassung.items()
-            if zeilen
-        }
-
-    def _je_fassung(self, einheiten: set[Einheit]) -> dict[str, list[Einheit]]:
-        """Die gemeinsamen Einheiten nach Fassung, plus die Sammelreihe `alle`."""
-        gemeinsam = sorted(einheiten & set(self.werte))
-        nach_fassung: dict[str, list[Einheit]] = {ALLE: []}
-        for schluessel in gemeinsam:
-            _aufnahme, fassung = schluessel
-            nach_fassung.setdefault(fassung, []).append(schluessel)
-            nach_fassung[ALLE].append(schluessel)
-        return {fassung: liste for fassung, liste in nach_fassung.items() if liste}
-
-    def intervalle(
-        self, einheiten: set[Einheit], blockart: str = streuung.AUS
-    ) -> dict[str, dict[str, dict]]:
+    def intervalle(self, aufnahmen: set[str], blockart: str = streuung.AUS) -> dict[str, dict]:
         """Zu jedem Mittel aus `mittel` der Bereich, in dem es liegen dürfte.
 
         Zusätzlich - `mittel` bleibt unverändert; `AUS` (die Vorgabe) gibt
-        nichts. Gezogen wird je Aufnahme: Ihre Fassungen sind Messungen an
-        einem Gegenstand (`wortlaut/streuung.py`).
+        nichts (`wortlaut/streuung.py`).
         """
         if blockart == streuung.AUS:
             return {}
         verfahren = streuung.Verfahren(blockart=blockart)
-        ergebnis: dict[str, dict[str, dict]] = {}
-        for fassung, schluessel_liste in self._je_fassung(einheiten).items():
-            je_mass: dict[str, dict] = {}
-            for mass in MASSE:
-                paare = [
-                    (aufnahme, self.werte[schluessel][mass])
-                    for schluessel in schluessel_liste
-                    for aufnahme, _fassung in (schluessel,)
-                    if self.werte[schluessel].get(mass) is not None
-                ]
-                bereich = streuung.intervall(streuung.bilde(paare, blockart), verfahren)
-                if bereich is not None:
-                    je_mass[mass] = bereich.als_dict()
-            if je_mass:
-                ergebnis[fassung] = je_mass
+        gemeinsam = sorted(aufnahmen & set(self.werte))
+        ergebnis: dict[str, dict] = {}
+        for mass in MASSE:
+            paare = [
+                (kennung, self.werte[kennung][mass])
+                for kennung in gemeinsam
+                if self.werte[kennung].get(mass) is not None
+            ]
+            bereich = streuung.intervall(streuung.bilde(paare), verfahren)
+            if bereich is not None:
+                ergebnis[mass] = bereich.als_dict()
         return ergebnis
 
     def unterschied_zu(
-        self, andere: Messreihe, einheiten: set[Einheit], blockart: str = streuung.AUS
-    ) -> dict[str, dict[str, dict]]:
-        """Diese Reihe gegen eine andere - gepaart, auf denselben Einheiten.
+        self, andere: Messreihe, aufnahmen: set[str], blockart: str = streuung.AUS
+    ) -> dict[str, dict]:
+        """Diese Reihe gegen eine andere - gepaart, auf denselben Aufnahmen.
 
         In der Differenz fällt heraus, was beide gleich trifft - etwa eine
         schwer verständliche Aufnahme; zwei getrennte Bereiche überlappten
@@ -159,34 +118,24 @@ class Messreihe:
         if blockart == streuung.AUS:
             return {}
         verfahren = streuung.Verfahren(blockart=blockart)
-        # Nur Einheiten, die beide gemessen haben - sonst wäre es kein Paar.
-        gemeinsam = einheiten & set(self.werte) & set(andere.werte)
-        ergebnis: dict[str, dict[str, dict]] = {}
-        for fassung, schluessel_liste in self._je_fassung(gemeinsam).items():
-            je_mass: dict[str, dict] = {}
-            for mass in MASSE:
-                drillinge = [
-                    (aufnahme, self.werte[schluessel][mass], andere.werte[schluessel][mass])
-                    for schluessel in schluessel_liste
-                    for aufnahme, _fassung in (schluessel,)
-                    if self.werte[schluessel].get(mass) is not None
-                    and andere.werte[schluessel].get(mass) is not None
-                ]
-                gemessen = streuung.unterschied(
-                    streuung.bilde_paare(drillinge, blockart), verfahren
-                )
-                if gemessen is not None:
-                    je_mass[mass] = gemessen.als_dict()
-            if je_mass:
-                ergebnis[fassung] = je_mass
+        # Nur Aufnahmen, die beide gemessen haben - sonst wäre es kein Paar.
+        gemeinsam = sorted(aufnahmen & set(self.werte) & set(andere.werte))
+        ergebnis: dict[str, dict] = {}
+        for mass in MASSE:
+            drillinge = [
+                (kennung, self.werte[kennung][mass], andere.werte[kennung][mass])
+                for kennung in gemeinsam
+                if self.werte[kennung].get(mass) is not None
+                and andere.werte[kennung].get(mass) is not None
+            ]
+            gemessen = streuung.unterschied(streuung.bilde_paare(drillinge), verfahren)
+            if gemessen is not None:
+                ergebnis[mass] = gemessen.als_dict()
         return ergebnis
 
-    def einheiten_je_fassung(self, einheiten: set[Einheit]) -> dict[str, int]:
-        gezaehlt: dict[str, int] = {ALLE: 0}
-        for _aufnahme, fassung in sorted(einheiten & set(self.werte)):
-            gezaehlt[fassung] = gezaehlt.get(fassung, 0) + 1
-            gezaehlt[ALLE] += 1
-        return gezaehlt
+    def anzahl(self, aufnahmen: set[str]) -> int:
+        """Wie viele dieser Aufnahmen gemessen sind."""
+        return len(aufnahmen & set(self.werte))
 
 
 def _mittelwerte(zeilen: list[dict[str, float]]) -> dict[str, float]:
@@ -211,12 +160,10 @@ def grundmodelle(korpus: Session, namen: list[str], aufnahmen: set[str]) -> dict
 
     for zeile in korpus.scalars(
         select(Erkennung).where(
-            Erkennung.modell.in_(namen),
-            Erkennung.recording_id.in_(aufnahmen),
-            Erkennung.variante.in_(augmentierung.VARIANTEN),
+            Erkennung.modell.in_(namen), Erkennung.recording_id.in_(aufnahmen)
         )
     ):
-        reihen[zeile.modell].werte[(zeile.recording_id, zeile.variante)] = {
+        reihen[zeile.modell].werte[zeile.recording_id] = {
             mass: float(getattr(zeile, mass)) for mass in MASSE
         }
         reihen[zeile.modell].werke.add(zeile.rechenwerk)
@@ -238,38 +185,35 @@ def stand(
     über der ersten; wo beide dieselbe Aufnahme nennen, steht dasselbe.
     """
     reihe = Messreihe()
-    for zeile in laeufe.lies_zeilen(lauf.verzeichnis / laeufe.BEWERTUNG):
+    for zeile in laeufe.bewertungszeilen(lauf.verzeichnis):
         kennung = str(zeile.get("recording_id", ""))
         if not kennung or (aufnahmen and kennung not in aufnahmen):
             continue
-        fassung = str(zeile.get("variante") or augmentierung.ORIGINAL)
-        reihe.werte[(kennung, fassung)] = {
+        reihe.werte[kennung] = {
             mass: float(zeile[mass]) for mass in MASSE if zeile.get(mass) is not None
         }
         reihe.werke.add(str(zeile.get("rechenwerk", "")))
         if zeile.get("faltung") is not None:
-            reihe.faltungen[(kennung, fassung)] = int(zeile["faltung"])
+            reihe.faltungen[kennung] = int(zeile["faltung"])
 
     if korpus is not None and ref:
         for zeile in korpus.scalars(
             select(Erkennung).where(
-                Erkennung.modell == ref,
-                Erkennung.recording_id.in_(aufnahmen or {""}),
-                Erkennung.variante.in_(augmentierung.VARIANTEN),
+                Erkennung.modell == ref, Erkennung.recording_id.in_(aufnahmen or {""})
             )
         ):
-            reihe.werte[(zeile.recording_id, zeile.variante)] = {
+            reihe.werte[zeile.recording_id] = {
                 mass: float(getattr(zeile, mass)) for mass in MASSE
             }
             reihe.werke.add(zeile.rechenwerk)
             # Hier gemessen hat der ausgelieferte Stand, keine Faltung.
             if zeile.herkunft != FALTUNG:
-                reihe.faltungen.pop((zeile.recording_id, zeile.variante), None)
+                reihe.faltungen.pop(zeile.recording_id, None)
     return reihe
 
 
-def gemeinsame_einheiten(reihen: list[Messreihe]) -> set[Einheit]:
-    """Die Paare aus Aufnahme und Fassung, die **jedes** messende Modell hat.
+def gemeinsame_aufnahmen(reihen: list[Messreihe]) -> set[str]:
+    """Die Aufnahmen, die **jedes** messende Modell hat.
 
     Modelle ohne Messung bleiben außen vor, sonst wäre die Schnittmenge leer.
     """

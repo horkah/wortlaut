@@ -29,7 +29,7 @@ from apps.lernen.backend.services import kernauswahl
 from apps.lernen.backend.services.aufteilung import Probe
 from apps.lernen.training.bewerten import vervollstaendige_kern
 
-KERN = {"methode": "lora", "daten": "original", "auswahl": "kern"}
+KERN = {"methode": "lora", "auswahl": "kern"}
 
 
 class PlatzhalterErkenner:
@@ -87,7 +87,7 @@ def _stand_mit_werten(
     klient: TestClient, datenverzeichnis: Path, sprecher: str, wer: dict[str, float]
 ) -> str:
     """Einen fertigen Lauf nachstellen, dessen Faltungen diese WER gemessen haben."""
-    lauf = klient.post("/lernen/api/laeufe", json={"methode": "lora", "daten": "original"})
+    lauf = klient.post("/lernen/api/laeufe", json={"methode": "lora"})
     assert lauf.status_code == 201, lauf.text
     job_id = lauf.json()["job_id"]
     verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, job_id)
@@ -99,7 +99,6 @@ def _stand_mit_werten(
             verzeichnis / laeufe.BEWERTUNG,
             {
                 "recording_id": kennung,
-                "variante": zeile["variante"],
                 "faltung": zeile["faltung"],
                 "wer": wer[kennung],
                 "cer": 0.0,
@@ -117,7 +116,6 @@ def _stand_mit_werten(
             "sprecher_id": sprecher,
             "basismodell": "openai/whisper-small",
             "methode": "lora",
-            "daten": "original",
             "job_id": job_id,
             "status": "fertig",
         },
@@ -227,7 +225,7 @@ class TestWahl:
     def test_ohne_kern_bleibt_alles_wie_es_war(
         self, klient: TestClient, aufnahmen: list[str], datenverzeichnis: Path
     ) -> None:
-        lauf = klient.post("/lernen/api/laeufe", json={"methode": "lora", "daten": "original"})
+        lauf = klient.post("/lernen/api/laeufe", json={"methode": "lora"})
         assert lauf.status_code == 201
         assert lauf.json()["auswahl"] == "alle"
         assert lauf.json()["code"] == f"SL/{len(aufnahmen)}"
@@ -284,14 +282,14 @@ class TestNachmessen:
         original = next(
             zeile
             for zeile in laeufe.manifestzeilen(verzeichnis)
-            if zeile["recording_id"] == aufnahmen[-1] and zeile["variante"] == "original"
+            if zeile["recording_id"] == aufnahmen[-1]
         )
         erkenner = HoertNachVorlage({Path(original["audio"]).name: original["text"]})
         bericht = StummerBericht()
 
         vervollstaendige_kern(verzeichnis, datenverzeichnis, auftrag, bericht, erkenner)
 
-        # Gehört wurde genau die offene Aufnahme, auf ihrem Original.
+        # Gehört wurde genau die offene Aufnahme.
         assert erkenner.gehoert == [Path(original["audio"]).name]
         assert bericht.stufen == ["kernauswahl"]
         auswahl = _kernauswahl(datenverzeichnis, lauf["job_id"])

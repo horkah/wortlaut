@@ -19,7 +19,7 @@ def _auftrag(datenverzeichnis: Path, job_id: str, sprecher: str = "spr_a") -> Pa
     verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, job_id)
     laeufe.schreibe_json(
         verzeichnis / laeufe.AUFTRAG,
-        {"job_id": job_id, "sprecher_id": sprecher, "methode": "lora", "daten": "original"},
+        {"job_id": job_id, "sprecher_id": sprecher, "methode": "lora"},
     )
     return verzeichnis
 
@@ -70,11 +70,9 @@ class TestMessenNurVorlagen:
     @staticmethod
     def _manifest(verzeichnis: Path) -> None:
         zeilen = [
-            {"recording_id": "rec_a", "faltung": 0, "quelle": "vorlage", "variante": "original"},
-            {"recording_id": "rec_a", "faltung": 0, "quelle": "vorlage", "variante": "rauschen"},
-            {"recording_id": "rec_k", "faltung": 0, "quelle": "korrektur", "variante": "original"},
-            {"recording_id": "rec_k", "faltung": 0, "quelle": "korrektur", "variante": "rauschen"},
-            {"recording_id": "rec_b", "faltung": 1, "quelle": "vorlage", "variante": "original"},
+            {"recording_id": "rec_a", "faltung": 0, "quelle": "vorlage"},
+            {"recording_id": "rec_k", "faltung": 0, "quelle": "korrektur"},
+            {"recording_id": "rec_b", "faltung": 1, "quelle": "vorlage"},
         ]
         (verzeichnis / laeufe.MANIFEST).write_text(
             "\n".join(json.dumps({**zeile, "audio": f"{zeile['recording_id']}.wav"}) for zeile in zeilen),
@@ -82,43 +80,65 @@ class TestMessenNurVorlagen:
         )
 
     @staticmethod
-    def _kennungen(zeilen: list[dict]) -> list[tuple[str, str]]:
-        return [(zeile["recording_id"], zeile["variante"]) for zeile in zeilen]
+    def _kennungen(zeilen: list[dict]) -> list[str]:
+        return [zeile["recording_id"] for zeile in zeilen]
 
     def test_eine_korrektur_wird_nie_gemessen(self, tmp_path: Path) -> None:
         self._manifest(tmp_path)
-        lern, mess = laeufe.zeilen_fuer_faltung(tmp_path, 0, laeufe.NUR_ORIGINAL)
-        assert self._kennungen(mess) == [("rec_a", "original"), ("rec_a", "rauschen")]
+        lern, mess = laeufe.zeilen_fuer_faltung(tmp_path, 0)
+        assert self._kennungen(mess) == ["rec_a"]
         # Auch in ihrer eigenen Faltung lernt sie mit - gemessen wird dort ja nicht an ihr.
-        assert self._kennungen(lern) == [("rec_k", "original"), ("rec_b", "original")]
-
-    def test_mit_varianten_lernt_die_korrektur_in_allen_fassungen(self, tmp_path: Path) -> None:
-        self._manifest(tmp_path)
-        lern, _ = laeufe.zeilen_fuer_faltung(tmp_path, 1, laeufe.MIT_VARIANTEN)
-        assert ("rec_k", "rauschen") in self._kennungen(lern)
-        assert ("rec_b", "original") not in self._kennungen(lern)
+        assert self._kennungen(lern) == ["rec_k", "rec_b"]
 
     def test_das_endmodell_misst_nichts(self, tmp_path: Path) -> None:
         self._manifest(tmp_path)
-        lern, mess = laeufe.zeilen_fuer_faltung(tmp_path, None, laeufe.NUR_ORIGINAL)
+        lern, mess = laeufe.zeilen_fuer_faltung(tmp_path, None)
         assert mess == []
-        assert {kennung for kennung, _ in self._kennungen(lern)} == {"rec_a", "rec_k", "rec_b"}
+        assert set(self._kennungen(lern)) == {"rec_a", "rec_k", "rec_b"}
 
     def test_der_umfang_zaehlt_training_und_messung_getrennt(self, tmp_path: Path) -> None:
         self._manifest(tmp_path)
-        umfang = laeufe.umfang(tmp_path, {"daten": laeufe.NUR_ORIGINAL})
+        umfang = laeufe.umfang(tmp_path, {})
         assert umfang is not None
-        # Gelernt nur die Originale, die Korrektur eingeschlossen.
         assert umfang.lernen == {"vorlage": 2, "korrektur": 1}
         assert umfang.lernproben == 3
-        assert umfang.lern_fassungen == ("original",)
-        # Gemessen jede Fassung, aber nur an Vorlagen.
-        assert (umfang.messen, umfang.mess_aufnahmen) == (3, 2)
-        assert umfang.mess_fassungen == ("original", "rauschen")
+        # Gemessen nur an Vorlagen.
+        assert (umfang.messen, umfang.mess_aufnahmen) == (2, 2)
 
     def test_beim_kern_vor_der_wahl_kein_umfang(self, tmp_path: Path) -> None:
         self._manifest(tmp_path)
         assert laeufe.umfang(tmp_path, {"auswahl": laeufe.AUSWAHL_KERN}) is None
+
+
+class TestRauschkopien:
+    """Läufe mit `daten = augmentiert` führen zu jeder Aufnahme eine Kopie mit Rauschen.
+
+    Gelesen wird nur die Aufnahme selbst - in Manifest und Bewertung.
+    """
+
+    def test_das_manifest_nennt_nur_die_aufnahme(self, tmp_path: Path) -> None:
+        zeilen = [
+            {"recording_id": "rec_a", "variante": "original", "audio": "audio/rec_a.wav"},
+            {"recording_id": "rec_a", "variante": "rauschen", "audio": "audio/varianten/x.wav"},
+        ]
+        (tmp_path / laeufe.MANIFEST).write_text(
+            "\n".join(json.dumps(zeile) for zeile in zeilen), encoding="utf-8"
+        )
+        assert [zeile["audio"] for zeile in laeufe.manifestzeilen(tmp_path)] == ["audio/rec_a.wav"]
+
+    def test_die_bewertung_nennt_nur_die_aufnahme(self, tmp_path: Path) -> None:
+        for variante in ("original", "rauschen"):
+            laeufe.haenge_an(
+                tmp_path / laeufe.BEWERTUNG, {"recording_id": "rec_a", "variante": variante}
+            )
+        laeufe.haenge_an(tmp_path / laeufe.BEWERTUNG, {"recording_id": "rec_b"})
+        assert [z["recording_id"] for z in laeufe.bewertungszeilen(tmp_path)] == ["rec_a", "rec_b"]
+
+    def test_der_code_traegt_weiter_ein_a(self) -> None:
+        auftrag = {"basismodell": "openai/whisper-medium", "methode": "lora"}
+        assert laeufe.optionscode({**auftrag, "daten": "augmentiert"}) == "ML-A"
+        assert laeufe.optionscode({**auftrag, "daten": "original"}) == "ML"
+        assert laeufe.mit_rauschkopie({**auftrag, "daten": "augmentiert"})
 
 
 class TestWarteschlange:
@@ -224,7 +244,7 @@ class TestVokabular:
 
 class TestOptionscode:
     def test_nur_vorgaben_ergibt_grundmodell_und_methode(self) -> None:
-        auftrag = {"basismodell": "openai/whisper-small", "methode": "lora", "daten": "original"}
+        auftrag = {"basismodell": "openai/whisper-small", "methode": "lora"}
         assert laeufe.optionscode(auftrag) == "SL"
 
     def test_jede_gewaehlte_achse_ist_ein_glied(self) -> None:
@@ -233,7 +253,6 @@ class TestOptionscode:
             "methode": "lora",
             "lora_ziele": "decoder",
             "lora_rang": "64",
-            "daten": "augmentiert",
             "auswahl": "kern",
             "korrekturgewicht": "verlauf",
             "selbsttraining": "an",
@@ -245,7 +264,7 @@ class TestOptionscode:
             "abschluss": "beides",
             "kontext": "vokabular",
         }
-        assert laeufe.optionscode(auftrag) == "ML-Zd-R64-A-K-Qv-U-E-W-F-SRP-Ts-CI-X"
+        assert laeufe.optionscode(auftrag) == "ML-Zd-R64-K-Qv-U-E-W-F-SRP-Ts-CI-X"
 
     def test_die_alte_tempowahl_zaehlt_als_aus(self) -> None:
         auftrag = {"basismodell": "openai/whisper-small", "methode": "full",
@@ -290,7 +309,8 @@ class TestOptionscode:
         tafeln = (
             laeufe.CODE_LORA_ZIELE,
             laeufe.CODE_LORA_RANG,
-            laeufe.CODE_DATENSATZ,
+            # Der Code der Läufe mit Rauschkopie.
+            {laeufe.MIT_RAUSCHKOPIE: "A"},
             laeufe.CODE_AUSWAHL,
             laeufe.CODE_KORREKTURGEWICHT,
             laeufe.CODE_SELBSTTRAINING,
@@ -311,7 +331,6 @@ class TestOptionscode:
         assert set(laeufe.CODE_METHODE) == set(laeufe.METHODEN)
         assert set(laeufe.CODE_LORA_ZIELE) == set(laeufe.LORA_ZIELE)
         assert set(laeufe.CODE_LORA_RANG) == set(laeufe.LORA_RAENGE)
-        assert set(laeufe.CODE_DATENSATZ) == set(laeufe.DATENSAETZE)
         assert set(laeufe.CODE_AUSWAHL) == set(laeufe.AUSWAHLEN)
         assert set(laeufe.CODE_KORREKTURGEWICHT) == set(laeufe.KORREKTURGEWICHTE)
         assert set(laeufe.CODE_SELBSTTRAINING) == set(laeufe.SELBSTTRAINING)
@@ -326,7 +345,7 @@ class TestOptionscode:
 
 class TestKern:
     def test_ohne_kern_wird_auf_allem_gelernt(self, tmp_path: Path) -> None:
-        assert laeufe.kern_aus(tmp_path, {"daten": "original"}) is None
+        assert laeufe.kern_aus(tmp_path, {}) is None
         assert laeufe.kern_aus(tmp_path, {"auswahl": "alle"}) is None
 
     def test_der_kern_kommt_aus_der_kernauswahl(self, tmp_path: Path) -> None:
@@ -377,12 +396,12 @@ class TestSelbstbeschriftet:
         verzeichnis = _auftrag(tmp_path, "job_1")
         zeilen = [
             {"audio": f"a{nummer}.wav", "text": f"Satz {nummer}", "quelle": "vorlage",
-             "variante": "original", "faltung": nummer % laeufe.FALTUNGEN,
+             "faltung": nummer % laeufe.FALTUNGEN,
              "recording_id": f"rec_{nummer}"}
             for nummer in range(laeufe.FALTUNGEN)
         ] + [
             {"audio": "../../diktate/spr/audio/seg_1.wav", "text": "", "quelle": "selbst",
-             "variante": "original", "faltung": None, "recording_id": "seg_1"},
+             "faltung": None, "recording_id": "seg_1"},
         ]
         with (verzeichnis / laeufe.MANIFEST).open("w", encoding="utf-8") as datei:
             for zeile in zeilen:
@@ -397,13 +416,13 @@ class TestSelbstbeschriftet:
             {"zeilen": {"../../diktate/spr/audio/seg_1.wav": {"text": "Hallo", "aufgenommen": True}}},
         )
         for faltung in (*range(laeufe.FALTUNGEN), None):
-            lern, mess = laeufe.zeilen_fuer_faltung(verzeichnis, faltung, laeufe.NUR_ORIGINAL)
+            lern, mess = laeufe.zeilen_fuer_faltung(verzeichnis, faltung)
             assert [z["text"] for z in lern if z["quelle"] == "selbst"] == ["Hallo"]
             assert all(z["quelle"] != "selbst" for z in mess)
 
     def test_ohne_beschriftung_fehlt_sie(self, tmp_path: Path) -> None:
         verzeichnis = self._lauf(tmp_path, None)
-        lern, _ = laeufe.zeilen_fuer_faltung(verzeichnis, 0, laeufe.NUR_ORIGINAL)
+        lern, _ = laeufe.zeilen_fuer_faltung(verzeichnis, 0)
         assert all(z["quelle"] != "selbst" for z in lern)
 
     def test_unsicher_gehoert_lernt_nicht(self, tmp_path: Path) -> None:
@@ -411,7 +430,7 @@ class TestSelbstbeschriftet:
             tmp_path,
             {"zeilen": {"../../diktate/spr/audio/seg_1.wav": {"text": "Hallo", "aufgenommen": False}}},
         )
-        lern, _ = laeufe.zeilen_fuer_faltung(verzeichnis, 0, laeufe.NUR_ORIGINAL)
+        lern, _ = laeufe.zeilen_fuer_faltung(verzeichnis, 0)
         assert all(z["quelle"] != "selbst" for z in lern)
 
     def test_auch_beim_kern(self, tmp_path: Path) -> None:
@@ -420,7 +439,7 @@ class TestSelbstbeschriftet:
             {"zeilen": {"../../diktate/spr/audio/seg_1.wav": {"text": "Hallo", "aufgenommen": True}}},
         )
         lern, _ = laeufe.zeilen_fuer_faltung(
-            verzeichnis, 0, laeufe.NUR_ORIGINAL, kern={"rec_1": 1}
+            verzeichnis, 0, kern={"rec_1": 1}
         )
         assert sorted(z["recording_id"] for z in lern) == ["rec_1", "seg_1"]
 
