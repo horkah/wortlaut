@@ -3,7 +3,6 @@
     data/korpus/<sprecher_id>/
     ├── audio/<aufnahme_id>.wav                  16 kHz mono, PCM 16 bit
     ├── hoeren.sqlite                            Vorlagen, Aufnahmen, Sitzungen
-
     └── vorlesen/<vorlage>.<stimme>.wav          vom Server vorgelesen
 
 Je Sprecher eine Datenbank: „lernen" liest genau eine Datei, eine Löschung
