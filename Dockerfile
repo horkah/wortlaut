@@ -2,9 +2,9 @@
 # „schreiben" unter /schreiben, alle drei hinter einem uvicorn (siehe
 # apps/gesamt.py).
 #
-# Die Dockerfiles unter apps/ bleiben daneben bestehen - sie sind der Weg, die
-# Apps getrennt zu betreiben. Dieses hier ist der Weg für einen einzelnen
-# Wirt: ein Abbild, ein Port, eine Regel im Reverse Proxy.
+# Die Dockerfiles unter apps/ sind der Weg, die Apps getrennt zu betreiben.
+# Dieses hier ist der Weg für einen einzelnen Wirt: ein Abbild, ein Port, eine
+# Regel im Reverse Proxy.
 #
 # Was hier **nicht** drin ist: torch und alles, was ein Feintuning braucht.
 # „lernen" liefert hier nur seine Oberfläche aus und legt Aufträge an;
@@ -78,15 +78,12 @@ RUN apt-get update \
 
 # Tesseract mit **einem** Rechenfaden - und warum das schneller ist.
 #
-# Ein Bild wird viermal gelesen (zwei Fassungen, zwei Seitenarten, siehe
-# `wortlaut/text/ocr.py`). Nacheinander dauert das auf diesem Wirt 5,7
-# Sekunden. Nebeneinander sollte es schneller sein, und es war langsamer:
-# **8,3 Sekunden**. Der Grund ist Tesseracts eigene Parallelität - jede der
-# vier Ausführungen greift über OpenMP nach allen Kernen, und sie nehmen sie
-# einander weg.
-#
-# Mit `OMP_THREAD_LIMIT=1` je Ausführung, vier davon nebeneinander: **1,6
-# Sekunden**, bei Zeichen für Zeichen demselben Ergebnis.
+# Ein Bild wird mehrfach gelesen, je Fassung und Seitenart einmal
+# (`wortlaut/text/ocr.py`). Nebeneinander gelesen ist das ohne Grenze langsamer
+# als nacheinander - gemessen an vier Durchgängen 8,3 gegen 5,7 Sekunden -,
+# denn jede Ausführung greift über OpenMP nach allen Kernen, und sie nehmen
+# sie einander weg. Mit `OMP_THREAD_LIMIT=1` je Ausführung: **1,6 Sekunden**,
+# bei Zeichen für Zeichen demselben Ergebnis.
 #
 # Warum ein Hüllskript und keine Umgebungsvariable des Containers: Die Grenze
 # gilt für OpenMP überhaupt, und in diesem Abbild rechnet auch Whisper. Ob ihm
@@ -100,31 +97,24 @@ RUN printf '#!/bin/sh\n# Siehe Dockerfile: ein Faden je Aufruf, dafür mehrere A
 
 WORKDIR /srv/wortlaut
 
-# Erst das, was die Installation braucht, dann die Installation, dann der Rest.
-# Die Reihenfolge ist der Unterschied zwischen zwei Sekunden und vier Minuten:
-# `pip install` holt gut anderthalb Gigabyte CUDA-Räder, und jede Zeile davor,
-# die sich ändert, lässt ihn von vorn beginnen. Solange die Apps über dem
-# Befehl standen, tat das auch eine einzige geänderte Zeile im Frontend - also
-# so gut wie jede Änderung an diesem Projekt.
+# Erst die Abhängigkeiten, dann der Code - der Unterschied zwischen zwei
+# Sekunden und vier Minuten: `pip install` holt gut anderthalb Gigabyte
+# CUDA-Räder, und jede Zeile davor, die sich ändert, lässt ihn von vorn
+# beginnen - ein geändertes Wort in Frontend oder `wortlaut/` ebenso.
 #
-# Danach stand die Bibliothek darüber, und das war die zweite Hälfte desselben
-# Fehlers: Ein geändertes Wort in `wortlaut/` lud 1,35 GB cuBLAS und cuDNN neu,
-# obwohl sich an keiner Abhängigkeit etwas geändert hatte. Gemessen: 234
-# Sekunden für eine Zeile.
-#
-# Deshalb jetzt in zwei Schritten. Zuerst die Abhängigkeiten, und zwar über
-# einen **Platzhalter**: hatchling will das Paketverzeichnis sehen, um ein Rad
-# zu bauen (siehe `[tool.hatch.build.targets.wheel]` in pyproject.toml), der
-# Inhalt ist ihm dabei gleich. Diese Schicht hängt damit allein an
-# pyproject.toml - an der Datei, in der die Abhängigkeiten tatsächlich stehen.
+# Die Abhängigkeiten deshalb über einen **Platzhalter**: hatchling will das
+# Paketverzeichnis sehen, um ein Rad zu bauen (siehe
+# `[tool.hatch.build.targets.wheel]` in pyproject.toml), der Inhalt ist ihm
+# dabei gleich. Diese Schicht hängt damit allein an pyproject.toml - an der
+# Datei, in der die Abhängigkeiten tatsächlich stehen.
 COPY pyproject.toml README.md LICENSE ./
 RUN mkdir -p packages/wortlaut/src/wortlaut \
     && touch packages/wortlaut/src/wortlaut/__init__.py
 
 # `.[asr,gpu,vorlesen,ocr]` ist das Projekt samt faster-whisper, den
-# CUDA-Bibliotheken, Piper und der Zeichenerkennung (siehe pyproject.toml). Die ersten beiden sind in
-# diesem Abbild Pflicht: „schreiben" läuft hier mit, und die Auswertung von
-# „hören" ebenso.
+# CUDA-Bibliotheken, Piper und der Zeichenerkennung (siehe pyproject.toml).
+# Die ersten beiden sind in diesem Abbild Pflicht: „schreiben" läuft hier mit,
+# und die Auswertung von „hören" ebenso.
 #
 # Piper ist es nicht - ohne liest der Browser vor -, wiegt aber
 # wenige Megabyte und teilt sich onnxruntime mit faster-whisper. Die Stimmen
@@ -144,7 +134,7 @@ RUN mkdir -p packages/wortlaut/src/wortlaut \
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install ".[asr,gpu,vorlesen,ocr]"
 
-# Und jetzt die Bibliothek selbst über den Platzhalter. `--no-deps`, weil oben
+# Dann die Bibliothek selbst über den Platzhalter. `--no-deps`, weil oben
 # schon alles steht; `--force-reinstall`, weil die Fassung dieselbe ist (0.1.0)
 # und pip sonst „ist schon da" sagt und den Platzhalter stehen ließe.
 #
