@@ -464,7 +464,7 @@
 <p class="gedaempft">
   Jede Aufnahme ist zugleich eine Prüfaufgabe: Was vorgelesen werden sollte, steht daneben. Hier
   laufen mehrere Erkenner über dieselben Aufnahmen, und was sie daraus machen, wird mit der Vorlage
-  verglichen.
+  verglichen. Korrekturen aus „schreiben" fehlen: Ihr Text ist selbst die Ausgabe eines Erkenners.
 </p>
 
 {#if fehler}
