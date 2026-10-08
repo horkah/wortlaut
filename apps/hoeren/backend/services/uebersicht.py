@@ -156,17 +156,24 @@ def profil(
     )
 
 
-def quellen(sitzung: Session) -> list[QuelleAntwort]:
+def quellen_mit_einheiten(sitzung: Session, *bedingungen) -> list[tuple[Textquelle, int]]:
+    """Die Textquellen mit der Zahl ihrer Vorlagen, älteste zuerst."""
     anzahl = (
         select(Vorlage.source_id, func.count().label("einheiten"))
         .group_by(Vorlage.source_id)
         .subquery()
     )
-    zeilen = sitzung.execute(
-        select(Textquelle, func.coalesce(anzahl.c.einheiten, 0))
-        .outerjoin(anzahl, anzahl.c.source_id == Textquelle.id)
-        .order_by(Textquelle.erstellt)
-    ).all()
+    return list(
+        sitzung.execute(
+            select(Textquelle, func.coalesce(anzahl.c.einheiten, 0))
+            .outerjoin(anzahl, anzahl.c.source_id == Textquelle.id)
+            .where(*bedingungen)
+            .order_by(Textquelle.erstellt)
+        ).tuples()
+    )
+
+
+def quellen(sitzung: Session) -> list[QuelleAntwort]:
     return [
         QuelleAntwort(
             id=quelle.id,
@@ -177,7 +184,7 @@ def quellen(sitzung: Session) -> list[QuelleAntwort]:
             einheiten=einheiten,
             erstellt=quelle.erstellt,
         )
-        for quelle, einheiten in zeilen
+        for quelle, einheiten in quellen_mit_einheiten(sitzung)
     ]
 
 

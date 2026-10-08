@@ -20,6 +20,7 @@ from ..config import einstellungen
 from ..db.models import Aufnahme, Textquelle, Vorlage, jetzt
 from ..deps import Datenbank, Sprache, SprecherId
 from ..services.prompt_queue import naechste_position
+from ..services.uebersicht import quellen_mit_einheiten
 
 router = APIRouter(prefix="/api/sources", tags=["Textquellen"])
 
@@ -231,18 +232,10 @@ def aus_text(
 
 @router.get("", response_model=list[QuellenAntwort])
 def liste(sprecher: SprecherId, db: Datenbank) -> list[QuellenAntwort]:
-    anzahl = (
-        select(Vorlage.source_id, func.count().label("einheiten"))
-        .group_by(Vorlage.source_id)
-        .subquery()
-    )
-    zeilen = db.execute(
-        select(Textquelle, func.coalesce(anzahl.c.einheiten, 0))
-        .outerjoin(anzahl, anzahl.c.source_id == Textquelle.id)
-        .where(Textquelle.speaker_id == sprecher)
-        .order_by(Textquelle.erstellt)
-    ).all()
-    return [_als_antwort(quelle, einheiten) for quelle, einheiten in zeilen]
+    return [
+        _als_antwort(quelle, einheiten)
+        for quelle, einheiten in quellen_mit_einheiten(db, Textquelle.speaker_id == sprecher)
+    ]
 
 
 def _hole(db: Session, sprecher: str, quelle_id: str) -> Textquelle:
