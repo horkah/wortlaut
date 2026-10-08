@@ -212,16 +212,16 @@ def lora_rang_aus(auftrag: dict[str, Any]) -> str:
 
 # ── Läufe mit Rauschkopie ───────────────────────────────────────────────────
 #
-# Läufe mit `daten = augmentiert` (Code `A`) lernten auf jeder Aufnahme und
-# einer Kopie mit weißem Rauschen 20 dB darunter und maßen auf beiden. Manifest
-# und Bewertung führen die Kopie als eigene Zeile (`variante = rauschen`);
-# gelesen wird nur die Aufnahme selbst (`aufnahme_selbst`). Angeboten wird
+# Läufe mit `daten = augmentiert` (Code `A`) lernten auch auf je einer Kopie
+# jeder Aufnahme mit weißem Rauschen 20 dB darunter. Ihr Manifest führt die
+# Kopie als eigene Zeile (`variante = rauschen`); gelesen wird nur die
+# Aufnahme selbst (`aufnahme_selbst`). Gemessen ist nur an ihr. Angeboten wird
 # das nicht.
 MIT_RAUSCHKOPIE = "augmentiert"
 
 
 def aufnahme_selbst(zeile: dict[str, Any]) -> bool:
-    """Ob eine Zeile aus Manifest oder Bewertung die Aufnahme selbst meint, keine Rauschkopie."""
+    """Ob eine Zeile des Manifests die Aufnahme selbst meint, keine Rauschkopie."""
     return str(zeile.get("variante") or "original") == "original"
 
 
@@ -917,7 +917,7 @@ def manifestzeilen(verzeichnis: Path) -> Iterator[dict[str, Any]]:
 
 def bewertungszeilen(verzeichnis: Path) -> list[dict[str, Any]]:
     """Die Messungen der Faltungen eines Laufs - je Aufnahme eine."""
-    return [zeile for zeile in lies_zeilen(verzeichnis / BEWERTUNG) if aufnahme_selbst(zeile)]
+    return lies_zeilen(verzeichnis / BEWERTUNG)
 
 
 # Gemessen wird nur, was nach einer Vorlage gesprochen wurde. Eine Korrektur

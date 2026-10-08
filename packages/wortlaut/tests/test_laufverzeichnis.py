@@ -113,7 +113,7 @@ class TestMessenNurVorlagen:
 class TestRauschkopien:
     """Läufe mit `daten = augmentiert` führen zu jeder Aufnahme eine Kopie mit Rauschen.
 
-    Gelesen wird nur die Aufnahme selbst - in Manifest und Bewertung.
+    Gelesen wird nur die Aufnahme selbst.
     """
 
     def test_das_manifest_nennt_nur_die_aufnahme(self, tmp_path: Path) -> None:
@@ -125,14 +125,6 @@ class TestRauschkopien:
             "\n".join(json.dumps(zeile) for zeile in zeilen), encoding="utf-8"
         )
         assert [zeile["audio"] for zeile in laeufe.manifestzeilen(tmp_path)] == ["audio/rec_a.wav"]
-
-    def test_die_bewertung_nennt_nur_die_aufnahme(self, tmp_path: Path) -> None:
-        for variante in ("original", "rauschen"):
-            laeufe.haenge_an(
-                tmp_path / laeufe.BEWERTUNG, {"recording_id": "rec_a", "variante": variante}
-            )
-        laeufe.haenge_an(tmp_path / laeufe.BEWERTUNG, {"recording_id": "rec_b"})
-        assert [z["recording_id"] for z in laeufe.bewertungszeilen(tmp_path)] == ["rec_a", "rec_b"]
 
     def test_der_code_traegt_weiter_ein_a(self) -> None:
         auftrag = {"basismodell": "openai/whisper-medium", "methode": "lora"}
