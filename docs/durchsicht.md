@@ -16,7 +16,9 @@ Projekt kürzer, leichter zu pflegen und leichter zu erweitern wird.
 
 Jeder Befund hat eine Kennung: **F** Fehler, **T** toter Code, **R**
 Redundanz, **K** Kommentar oder Dokumentation. Die Spalte „Stand" sagt, was
-daraus wurde.
+daraus wurde, mit dem Commit der Behebung. Bilanz der Abarbeitung: knapp 1 000
+Zeilen weniger (842 dazu, 1 836 weg), die 829 Tests und `svelte-check` aller
+drei Frontends ohne Befund; zwei Befunde bleiben bewusst offen (T-07, R-11).
 
 ---
 
@@ -24,38 +26,38 @@ daraus wurde.
 
 | Kennung | Befund | Gewicht | Stand |
 |---|---|---|---|
-| F-01 | Merkliste der Auswertung mit falschem Typ | klein | |
-| F-02 | Warnung von `svelte-check` in „schreiben" | klein | |
-| T-01 | Weiterlernen auf einem Stand: vorbereitet, nie beauftragt | groß | |
-| T-02 | `GET /api/konto/sessions` ohne Aufrufer | mittel | |
-| T-03 | Einzelansicht eines Laufs liefert alle Wahllisten mit | mittel | |
-| T-04 | `scripts/folge_nachtragen.py` hat seine Arbeit getan | mittel | |
-| T-05 | Spalte `speakers.tempo` ungenutzt | mittel | |
-| T-06 | Ablage `s3`: vorbereitet, nie gebaut | klein | |
-| T-07 | Vorlesemotor austauschbar für genau einen Motor | mittel | |
-| T-08 | Einzelne unbenutzte Namen | klein | |
-| R-01 | Jede Trainingsachse an rund zwanzig Stellen aufgezählt | groß | |
-| R-02 | Die Maße fünfmal definiert | mittel | |
-| R-03 | Aufnahme aus Befund: viermal von Hand kopiert | mittel | |
-| R-04 | Zuschnitt: dreimal dieselbe Vorprüfung und Schreibfolge | klein | |
-| R-05 | Zugang und Schlüssel: dreimal derselbe Vergleich und Kopf | mittel | |
-| R-06 | Ein Stand über seine Kennung lesen: an fünf Stellen | klein | |
-| R-07 | Einheiten je Quelle zweimal gezählt | klein | |
-| R-08 | Kommalisten an drei Stellen zerlegt | klein | |
-| R-09 | Konstanten und Hilfen, die es in der Bibliothek schon gibt | klein | |
-| R-10 | Fehlertext im Frontend 48-mal ausgeschrieben | mittel | |
-| R-11 | „Einsicht" und „Meine Daten" führen dieselbe Logik zweimal | mittel | |
-| R-12 | Bootstrap: zweimal dieselbe Ziehung | klein | |
-| R-13 | Audio: ffmpeg-Aufruf und Pegelrechnung doppelt | klein | |
-| R-14 | Vorlesung und Hörprobe: zwei gleiche Funktionen | klein | |
-| R-15 | Auswertung: Erledigt-Bedingung und Gütefelder doppelt | klein | |
-| R-16 | Status `ok`/`verworfen` als Literal an vielen Stellen | klein | |
-| K-01 | Auswertung: Moduldocstring beschreibt den alten Ablauf | mittel | |
-| K-02 | „Alle Modelle gleichzeitig im Speicher" - stimmt nicht mehr | mittel | |
-| K-03 | Verzeichnisbäume mit Lücke | klein | |
-| K-04 | Dockerfiles erzählen ihre Geschichte | klein | |
-| K-05 | Weitere Kommentare mit Historie oder falscher Auskunft | klein | |
-| K-06 | Gliederung von `wortlaut/laeufe.py` | klein | |
+| F-01 | Merkliste der Auswertung mit falschem Typ | klein | behoben, `ba5306a` |
+| F-02 | Warnung von `svelte-check` in „schreiben" | klein | behoben, `c5518d4` |
+| T-01 | Weiterlernen auf einem Stand: vorbereitet, nie beauftragt | groß | behoben, `0f7ef62` |
+| T-02 | `GET /api/konto/sessions` ohne Aufrufer | mittel | behoben, `24a3868` |
+| T-03 | Einzelansicht eines Laufs liefert alle Wahllisten mit | mittel | behoben, `4904418` |
+| T-04 | `scripts/folge_nachtragen.py` hat seine Arbeit getan | mittel | behoben, `86ce4f6` |
+| T-05 | Spalte `speakers.tempo` ungenutzt | mittel | behoben, `d8a974b` |
+| T-06 | Ablage `s3`: vorbereitet, nie gebaut | klein | behoben, `e2a7379` |
+| T-07 | Vorlesemotor austauschbar für genau einen Motor | mittel | offen - Entscheidung |
+| T-08 | Einzelne unbenutzte Namen | klein | behoben, `fc7f272` |
+| R-01 | Jede Trainingsachse an rund zwanzig Stellen aufgezählt | groß | behoben, `b66f63b` |
+| R-02 | Die Maße fünfmal definiert | mittel | behoben, `9269954` |
+| R-03 | Aufnahme aus Befund: viermal von Hand kopiert | mittel | behoben, `bb0c4ee` |
+| R-04 | Zuschnitt: dreimal dieselbe Vorprüfung und Schreibfolge | klein | behoben, `6b970b2` |
+| R-05 | Zugang und Schlüssel: dreimal derselbe Vergleich und Kopf | mittel | behoben, `bb95aba` |
+| R-06 | Ein Stand über seine Kennung lesen: an fünf Stellen | klein | behoben, `31a1f12` |
+| R-07 | Einheiten je Quelle zweimal gezählt | klein | behoben, `3b96403` |
+| R-08 | Kommalisten an drei Stellen zerlegt | klein | behoben, `14939c7` |
+| R-09 | Konstanten und Hilfen, die es in der Bibliothek schon gibt | klein | behoben, `2fbe8bf` |
+| R-10 | Fehlertext im Frontend 48-mal ausgeschrieben | mittel | behoben, `49ac66f` |
+| R-11 | „Einsicht" und „Meine Daten" führen dieselbe Logik zweimal | mittel | offen - mit Sichtprüfung |
+| R-12 | Bootstrap: zweimal dieselbe Ziehung | klein | behoben, `044ca1d` |
+| R-13 | Audio: ffmpeg-Aufruf und Pegelrechnung doppelt | klein | behoben, `09ffa1c` |
+| R-14 | Vorlesung und Hörprobe: zwei gleiche Funktionen | klein | behoben, `f56bbc9` |
+| R-15 | Auswertung: Erledigt-Bedingung und Gütefelder doppelt | klein | behoben, `6563e39` |
+| R-16 | Status `ok`/`verworfen` als Literal an vielen Stellen | klein | behoben, `330a1e2` |
+| K-01 | Auswertung: Moduldocstring beschreibt den alten Ablauf | mittel | behoben, `06f355e` |
+| K-02 | „Alle Modelle gleichzeitig im Speicher" - stimmt nicht mehr | mittel | behoben, `1abcebe` |
+| K-03 | Verzeichnisbäume mit Lücke | klein | behoben, `2eac8b2` |
+| K-04 | Dockerfiles erzählen ihre Geschichte | klein | behoben, `bf3f6bd` |
+| K-05 | Weitere Kommentare mit Historie oder falscher Auskunft | klein | behoben, `7f5b73f` |
+| K-06 | Gliederung von `wortlaut/laeufe.py` | klein | behoben, `e10d315` |
 
 ---
 
@@ -103,8 +105,8 @@ Zweige in `laeufe.optionscode`, `laeufe.grundmodell_aus`,
 Zwischenständen, `tests/test_ausgangsstand.py` (bis auf den Test, dass ein
 Auftrag kein solches Feld trägt) und zwei Stellen in `docs/`.
 
-**Behebung:** alles entfernen. `GrundmodellAntwort`-Felder `grundmodell`
-in `LaufAntwort` bleiben, sie tragen dann immer das Grundmodell.
+**Behebung:** alles entfernen. `LaufAntwort.grundmodell` entfällt mit - es
+wiederholte dann nur noch `basismodell`.
 
 ### T-02 `GET /api/konto/sessions` ohne Aufrufer
 
@@ -200,12 +202,16 @@ dem Aufbau des `Auftrag` dort, dem `inhalt` in `beauftrage`,
 Frontend-Typ, `trainingswahl.ts` und `Training.svelte`. Vergisst man eine
 Stelle, fällt das erst im Lauf oder in der Anzeige auf.
 
-**Behebung:** eine Tafel `laeufe.ACHSEN` - je Achse Feld, Werte, Vorgabe und
-Code - und alles Übrige daraus: `optionscode`, ein Leser `laeufe.achse(auftrag,
-feld)`, die Prüfung in `bestelle`, das Schreiben des Auftrags,
-`_als_antwort`, das Kopieren der Bestellung (`model_dump`) und
-`bewerten._version`. Die Form der API bleibt, damit das Frontend unverändert
-weiterläuft.
+**Behebung:** eine Tafel `laeufe.ACHSEN` - je Achse Feld, Titel, Werte (die
+Vorgabe zuerst) und Code - und alles Übrige daraus: `optionscode`, ein Leser
+`laeufe.achse(auftrag, feld)` statt neun einzelner, die Prüfung in
+`bestelle`, `Auftrag` und `Bestellung` mit einem Wörterbuch der Achsen, das
+Schreiben von Auftrag und Manifest, die Felder von `Bestellung` und
+`LaufAntwort` in der API (`create_model`) und `make train`. Die Form der API
+bleibt, damit das Frontend unverändert weiterläuft. Je Achse bleiben ihre
+Beschriftung (`api/laeufe.py`, `Training.svelte`), ihre Wirkung im Trainer
+und ihr Teil im Namen eines Standes (`bewerten._version`) - das ist keine
+Wiederholung, sondern ihr Inhalt.
 
 ### R-02 Die Maße fünfmal definiert
 
@@ -228,8 +234,10 @@ Die sechs Messwerte eines `audio.Befund` werden in `api/recordings.py`,
 Feld für Feld in die Zeile geschrieben; Annahme, Umwandlung und Ablage einer
 Datei stehen in `recordings` und `intake` gleich.
 
-**Behebung:** `services/aufnahmen.py` mit `befundfelder(befund)` und
-`nimm_an(inhalt, ablage, relpfad) -> Befund`.
+**Behebung:** `services/aufnahmen.nimm_an(eingang, ablage, relpfad) ->
+Befund` für die Annahme; die Felder des Befunds heißen wie die Spalten und
+gehen mit `dataclasses.asdict` in die Zeile. Auch `scripts/importieren.py`
+nimmt diesen Weg.
 
 ### R-04 Zuschnitt: dreimal dieselbe Vorprüfung und Schreibfolge
 
@@ -248,8 +256,9 @@ zeitkonstanten Vergleich über UTF-8 haben `hoeren/deps._gleich` und
 Sprecherzugang" steht in `lernen/deps._zugang` und `schreiben/deps._wer_ruft`
 fast gleich.
 
-**Behebung:** `wortlaut/zugang.aus_kopf()` und `wortlaut/schluessel.gleich()`;
-die Wächter der Apps bleiben, wo sie sind, und rufen diese.
+**Behebung:** `wortlaut/zugang.aus_kopf()`, `wortlaut/schluessel.gleich()` und
+für „lernen" und „schreiben" der gemeinsame Wächter
+`wortlaut/zugang.verlange_sprecher()`.
 
 ### R-06 Ein Stand über seine Kennung lesen: an fünf Stellen
 
@@ -257,7 +266,9 @@ die Wächter der Apps bleiben, wo sie sind, und rufen diese.
 steht in `hoeren/services/auswertung.tempo_fuer` und `gehoert`,
 `schreiben/deps.modellstand`, `modellpfad` und `registry.aktiver_stand`.
 
-**Behebung:** `registry.lies_ref(datenverzeichnis, ref) -> dict | None`.
+**Behebung:** `registry.lies_ref(datenverzeichnis, ref) -> dict` (leer, wo
+nichts zu lesen ist) und `registry.tempo_von(datenverzeichnis, ref)` für den
+Faktor, der an vier Stellen je eigen gelesen wurde.
 
 ### R-07 Einheiten je Quelle zweimal gezählt
 
@@ -289,8 +300,8 @@ wiederholen `laeufe.SCHNAPPSCHUESSE` und `laeufe.SPRECHER_MARKE`;
 in 17 Dateien; „Einsicht" prüft die PIN mit einem eigenen regulären Ausdruck
 neben `gueltigePin` aus `$ui/pin.svelte`; `megabyte` steht zweimal.
 
-**Behebung:** `fehlertext()` in `packages/ui/api.ts`, `gueltigePin` benutzen,
-`megabyte` nach `packages/ui/zeit.ts` (dort steht schon `dauer`).
+**Behebung:** `fehlertext()` in `packages/ui/api.ts`, `gueltigePin` benutzen.
+`megabyte` steht nur in den beiden Ansichten von R-11 und geht mit ihm.
 
 ### R-11 „Einsicht" und „Meine Daten" führen dieselbe Logik zweimal
 
@@ -309,7 +320,7 @@ Nebenher.
 `streuung.intervall` und `streuung.unterschied` rechnen die gezogenen Mittel
 mit denselben fünf Zeilen.
 
-**Behebung:** `_gezogen(bloecke, verfahren)` für beide.
+**Behebung:** `_ziehe` und `_bereich` für beide.
 
 ### R-13 Audio: ffmpeg-Aufruf und Pegelrechnung doppelt
 
@@ -317,8 +328,8 @@ mit denselben fünf Zeilen.
 (mono, 16 kHz, s16, Fehlerbehandlung); `audio.untersuche` und
 `audio.verlauf` rechnen Spitze und Fensterpegel je für sich.
 
-**Behebung:** `audio.ffmpeg(quelle, ziel, *filter)`; `untersuche` rechnet auf
-`verlauf` auf.
+**Behebung:** `audio.wandle_in_wav` nimmt eine Filterkette an und ist der eine
+Aufruf; `untersuche` und `verlauf` rechnen über `_pegel`.
 
 ### R-14 Vorlesung und Hörprobe: zwei gleiche Funktionen
 
@@ -332,7 +343,8 @@ sich nur im Pfad.
 `auswertung._fertig` und `auswertung.zaehle` tragen dieselbe Bedingung
 „dieses Rechenwerk oder übernommene Faltung" und „nur gültige Aufnahmen".
 
-**Behebung:** eine Funktion für die Bedingung. (Die Gütefelder erledigt R-02.)
+**Behebung:** `_erledigt(werk)` für die Bedingung. (Die Gütefelder erledigt
+R-02.)
 
 ### R-16 Status `ok`/`verworfen` als Literal an vielen Stellen
 
