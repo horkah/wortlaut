@@ -35,14 +35,7 @@ def _modell_und_tempo(datenverzeichnis: Path, auftrag: dict[str, Any]) -> tuple[
     modell = registry.freigegeben(datenverzeichnis, sprecher_id)
     if not modell:
         return laeufe.kurzname(str(auftrag.get("basismodell", ""))), tempo.VORGABE
-    if not registry.ist_stand(modell):
-        return modell, tempo.VORGABE
-    besitzer, version = modell.split(registry.TRENNER, 1)
-    try:
-        faktor = float(registry.lies_stand(datenverzeichnis, besitzer, version).get("tempo") or 1.0)
-    except (OSError, ValueError):
-        faktor = tempo.VORGABE
-    return modell, faktor
+    return modell, registry.tempo_von(datenverzeichnis, modell)
 
 
 def _hoere(erkenner, wav: Path, sprache: str, faktor: float):

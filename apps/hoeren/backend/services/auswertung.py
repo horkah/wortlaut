@@ -131,22 +131,6 @@ def messbare_modelle(datenverzeichnis: Path, sprecher_id: str, liste: str) -> li
     return modelle(liste) + staende(datenverzeichnis, sprecher_id)
 
 
-def tempo_fuer(datenverzeichnis: Path, modell: str) -> float:
-    """Mit welchem Faktor vorgespult wird, bevor dieses Modell zuhört.
-
-    Ein Grundmodell nie - die Auswertung ist die Baseline. Ein Stand mit dem
-    Faktor aus seinem Manifest, wie beim Diktieren und in seinen Faltungen.
-    """
-    if not registry.ist_stand(modell):
-        return tempo.VORGABE
-    sprecher_id, version = modell.split(registry.TRENNER, 1)
-    try:
-        manifest = registry.lies_stand(datenverzeichnis, sprecher_id, version)
-    except (OSError, ValueError):
-        return tempo.VORGABE
-    return float(manifest.get("tempo", tempo.VORGABE))
-
-
 def gewichte(datenverzeichnis: Path, modell: str) -> Path:
     """Das Verzeichnis, aus dem faster-whisper einen Stand lädt.
 
@@ -278,12 +262,7 @@ def gehoert(datenverzeichnis: Path, namen: list[str]) -> dict[str, dict[str, Ton
     for name in namen:
         if not registry.ist_stand(name):
             continue
-        sprecher_id, version = name.split(registry.TRENNER, 1)
-        try:
-            job = str(registry.lies_stand(datenverzeichnis, sprecher_id, version).get("job_id", ""))
-        except (OSError, ValueError):
-            continue
-        if job:
+        if job := str(registry.lies_ref(datenverzeichnis, name).get("job_id") or ""):
             ergebnis[name] = _gehoert_im_lauf(laeufe.lauf_verzeichnis(datenverzeichnis, job))
     return ergebnis
 
@@ -559,7 +538,7 @@ def _rechne(
 ) -> Erkennung:
     """Erkennen und messen - der Teil, der rechnet und keine Datenbank anfasst.
 
-    Vorgespult mit dem Faktor des Modells (`tempo_fuer`).
+    Vorgespult mit dem Faktor des Modells (`registry.tempo_von`).
     """
     with tempfile.TemporaryDirectory() as zwischen:
         if tempo.vorspulen_noetig(faktor):
@@ -644,7 +623,7 @@ async def _arbeite(
                 sprache,
                 transkriptor_fuer(posten.modell, geraet, rechenart, datenverzeichnis),
                 werk,
-                tempo_fuer(datenverzeichnis, posten.modell),
+                registry.tempo_von(datenverzeichnis, posten.modell),
             )
         except asyncio.CancelledError:
             raise

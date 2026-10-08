@@ -17,7 +17,7 @@ from typing import Annotated
 from fastapi import Depends, Header
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
-from wortlaut import db, registry, storage, tempo
+from wortlaut import db, registry, storage
 from wortlaut import zugang as zugangsdienst
 from wortlaut.whisper import Transkriptor
 
@@ -93,13 +93,8 @@ def modellstand(
     ref = aktive_ref(konfiguration, sprecher_id)
     if not ref or not registry.ist_stand(ref):
         return None
-
-    ref_sprecher, version = ref.split("/", 1)
-    try:
-        return ref, registry.lies_stand(konfiguration.data_dir, ref_sprecher, version)
-    except (OSError, ValueError):
-        # Fehlt der Stand, sagt `api/model.py` es ausdrücklich.
-        return ref, {}
+    # Fehlt der Stand, ist das Manifest leer, und `api/model.py` sagt es ausdrücklich.
+    return ref, registry.lies_ref(konfiguration.data_dir, ref)
 
 
 def tempo_fuer(konfiguration: Einstellungen, sprecher_id: str) -> float:
@@ -109,10 +104,7 @@ def tempo_fuer(konfiguration: Einstellungen, sprecher_id: str) -> float:
     (`apps/lernen/training/bewerten.py`). Ohne Stand keiner - wie die Baseline
     in der Auswertung von „hören".
     """
-    stand = modellstand(konfiguration, sprecher_id)
-    if stand is None:
-        return tempo.VORGABE
-    return float(stand[1].get("tempo", tempo.VORGABE))
+    return registry.tempo_von(konfiguration.data_dir, aktive_ref(konfiguration, sprecher_id))
 
 
 def modellpfad(konfiguration: Einstellungen, sprecher_id: str) -> Path | str:
@@ -124,8 +116,7 @@ def modellpfad(konfiguration: Einstellungen, sprecher_id: str) -> Path | str:
     if stand is None:
         return aktive_ref(konfiguration, sprecher_id) or konfiguration.asr_modell
     # Auch ohne lesbares Manifest: kein stilles Ausweichen aufs Grundmodell.
-    ref_sprecher, version = stand[0].split("/", 1)
-    return registry.stand_verzeichnis(konfiguration.data_dir, ref_sprecher, version) / "ct2"
+    return registry.ct2_verzeichnis(konfiguration.data_dir, stand[0])
 
 
 def zwischenspeicher_leeren() -> None:
