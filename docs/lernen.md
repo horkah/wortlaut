@@ -266,8 +266,7 @@ Hinter dem Code steht die **Folge**: die Zahl der gelernten Aufnahmen - bei
 der Kernauswahl die des Kerns, `ML-K-E-SRP-CI/205` - und ein Buchstabe,
 sobald es Code und Zahl schon gibt - `/43`, `/43b`, `/43c`, nach
 `z` weiter mit `aa` (`laeufe.titel`). Vergeben wird sie beim Auftrag, einer
-über dem höchsten noch vorhandenen Buchstaben, und danach nie geändert.
-`scripts/folge_nachtragen.py` trägt sie für Läufe ohne Folge nach. Ergebnisse
+über dem höchsten noch vorhandenen Buchstaben, und danach nie geändert. Ergebnisse
 wie das gefundene Tempo oder α gehören nicht zum Code; sie stehen in der
 Nebenzeile und im Steckbrief.
 

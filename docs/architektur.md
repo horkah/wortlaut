@@ -148,7 +148,7 @@ wortlaut/
 │       └── zeit.ts, einstellungen.svelte.ts, app.css, …
 │
 ├── scripts/                       # migrate, vorlesen, importieren, paare_teilen,
-│                                  # folge_nachtragen, restore, purge_speaker
+│                                  # register, trainieren, freigeben, restore, purge_speaker
 ├── tests/                         # was keine einzelne App betrifft
 ├── docs/
 └── data/                          # nicht im Git
