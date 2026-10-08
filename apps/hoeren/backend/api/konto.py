@@ -28,7 +28,6 @@ from ..services.pin import PinAenderung, PinAntwort
 from ..services.uebersicht import (
     AufnahmenAntwort,
     QuelleAntwort,
-    SitzungenAntwort,
     UebersichtAntwort,
     Umbenennung,
 )
@@ -84,23 +83,14 @@ def pin_setzen(aenderung: PinAenderung, db: Datenbank, sprecher: SprecherId) -> 
 def konto(sprecher: SprecherId, db: Datenbank, ablage: Ablage) -> KontoAntwort:
     """Profil, Kennzahlen und Textquellen - die eigenen, wie die Aufsicht sie sieht.
 
-    „Sitzungen" zählt nur die mit Aufnahmen, wie `/sessions`.
+    „Sitzungen" zählt nur die mit Aufnahmen; wer die Seite nur geöffnet hat,
+    hat keine Sitzung erlebt. Die Aufsicht zählt alle.
     """
     person = _hole(db, sprecher)
     return KontoAntwort(
         sprecher=uebersicht.profil(db, person, ablage, nur_sitzungen_mit_aufnahmen=True),
         quellen=uebersicht.quellen(db),
     )
-
-
-@router.get("/sessions", response_model=SitzungenAntwort, dependencies=[Depends(_pruefe_pin)])
-def sitzungen(db: Datenbank, ab: int = 0, anzahl: int = 10) -> SitzungenAntwort:
-    """Die eigenen Sitzungen, jüngste zuerst, seitenweise.
-
-    Ohne die leeren - wer die Seite nur geöffnet hat, hat keine Sitzung
-    erlebt. Die Aufsicht sieht alle.
-    """
-    return uebersicht.sitzungen_seite(db, ab, anzahl, nur_mit_aufnahmen=True)
 
 
 @router.get(

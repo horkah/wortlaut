@@ -563,7 +563,6 @@ DELETE /api/recordings/{id}
 GET    /api/progress
 POST   /api/korpus/intake                   ← von „schreiben"
 GET    /api/konto                           Profil, Kennzahlen, Textquellen    + X-Pin
-GET    /api/konto/sessions?ab=&anzahl=                                         + X-Pin
 GET    /api/konto/recordings?ab=&anzahl=                                       + X-Pin
 GET    /api/konto/aufnahmezeiten            Zeitpunkte gültiger Aufnahmen      + X-Pin
 PATCH  /api/konto                           { name } - umbenennen                   + X-Pin
