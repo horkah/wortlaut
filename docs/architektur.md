@@ -345,7 +345,7 @@ Spalten mit mehr Bedeutung als ihr Name:
 | Frontend | Svelte 5, Vite, TypeScript | kompiliert weg, leicht auf schwachen Geräten |
 | Aufnahme | `MediaRecorder` (Opus), serverseitig ffmpeg → 16 kHz mono WAV | Browser liefern kein WAV |
 | Vorlesen | Piper auf dem Server, sonst Web Speech API | gleicher Klang auf jedem Gerät; ohne Stimme liest der Browser |
-| ASR | faster-whisper, `int8_float16` auf der Karte, sonst `int8` | schnell auf beidem; mehrere Modelle passen gleichzeitig in den Speicher |
+| ASR | faster-whisper, `int8_float16` auf der Karte, sonst `int8` | schnell auf beidem; auch `large-v3` passt neben ein Training auf die Karte |
 | ASR entfernt | OpenAI-kompatibler Endpunkt | ein Adapter für mehrere Anbieter |
 | Training | HF Transformers, PEFT, Accelerate | Standardrezept für Whisper |
 | Zeichenerkennung | Tesseract, lokal | Vorlagen vom Foto, ohne dass ein Bild das Haus verlässt |

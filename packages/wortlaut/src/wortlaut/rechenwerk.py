@@ -8,10 +8,10 @@ Prozessor liegt das Zehn- bis Zwanzigfache. Alle drei fragen deshalb hier.
 
 **`auto`** nimmt die Karte, wenn CTranslate2 eine sieht, sonst den Prozessor.
 
-**`int8_float16` auf der Karte**, weil die Auswertung alle Grundmodelle
-gleichzeitig hält, `large-v3` darunter - in `float16` gut sechs Gigabyte neben
-Training und Sprachmodell auf einer Karte mit elf. Der Verlust fällt neben dem
-Unterschied zweier Modellgrößen nicht ins Gewicht. Auf dem Prozessor `int8`.
+**`int8_float16` auf der Karte**, weil `large-v3` in `float16` gut sechs
+Gigabyte belegt - neben Training und Sprachmodell auf einer Karte mit elf zu
+viel. Der Verlust fällt neben dem Unterschied zweier Modellgrößen nicht ins
+Gewicht. Auf dem Prozessor `int8`.
 
 **Der Rückfall auf den Prozessor** ist Absicht: Ist die Karte belegt, soll ein
 Diktat langsam verstanden werden statt gar nicht (`whisper/local.py`).
