@@ -83,7 +83,7 @@ def geltendes_tempo(auftrag: dict[str, Any], mitgenommen: dict[str, Any] | None)
     mitgenommene. Er geht in Name und Manifest, und „schreiben" spult danach
     beim Diktieren vor.
     """
-    if laeufe.tempowahl_aus(auftrag) != laeufe.TEMPO_AUS:
+    if laeufe.achse(auftrag, "tempowahl") != laeufe.TEMPO_AUS:
         gefunden = (mitgenommen or {}).get("tempo")
         if gefunden is not None:
             return float(gefunden)
@@ -103,36 +103,36 @@ def _version(auftrag: dict[str, Any], faktor: float | None = None) -> str:
         marke = f"{marke}-{grund}"
     name = f"{marke}-{auftrag.get('methode', '?')}"
     # Der Zusatz direkt hinter der Methode, wie im Optionscode.
-    ziele = laeufe.lora_ziele_aus(auftrag)
+    ziele = laeufe.achse(auftrag, "lora_ziele")
     if ziele != laeufe.ZIELE_QV:
         name = f"{name}-{ziele}"
-    rang = laeufe.lora_rang_aus(auftrag)
+    rang = laeufe.achse(auftrag, "lora_rang")
     if rang != laeufe.RANG_VORGABE:
         name = f"{name}-r{rang}"
     # Der Kern hinter dem Zusatz, wie im Optionscode.
-    if laeufe.auswahl_aus(auftrag) == laeufe.AUSWAHL_KERN:
+    if laeufe.achse(auftrag, "auswahl") == laeufe.AUSWAHL_KERN:
         name = f"{name}-kern"
-    gewicht = laeufe.korrekturgewicht_aus(auftrag)
+    gewicht = laeufe.achse(auftrag, "korrekturgewicht")
     if gewicht != laeufe.GEWICHT_VORGABE:
         name = f"{name}-{laeufe.CODE_KORREKTURGEWICHT.get(gewicht, gewicht).lower()}"
-    if laeufe.selbsttraining_aus(auftrag) == laeufe.SELBST_AN:
+    if laeufe.achse(auftrag, "selbsttraining") == laeufe.SELBST_AN:
         name = f"{name}-selbst"
-    art = str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER)
+    art = laeufe.achse(auftrag, "abschluss")
     if art != laeufe.ABSCHLUSS_BESTER:
         name = f"{name}-{art}"
-    abwandlung = str(auftrag.get("augmentierung") or laeufe.AUG_KEINE)
+    abwandlung = laeufe.achse(auftrag, "augmentierung")
     if abwandlung != laeufe.AUG_KEINE:
         name = f"{name}-{abwandlung}"
-    dauer = str(auftrag.get("dauer") or laeufe.DAUER_FEST)
+    dauer = laeufe.achse(auftrag, "dauer")
     if dauer != laeufe.DAUER_FEST:
         name = f"{name}-{dauer}"
-    steuerung = laeufe.steuerung_aus(auftrag)
+    steuerung = laeufe.achse(auftrag, "steuerung")
     if steuerung != laeufe.STEUERUNG_VERLUST:
         name = f"{name}-{steuerung}"
-    fenster = laeufe.fenster_aus(auftrag)
+    fenster = laeufe.achse(auftrag, "fenster")
     if fenster != laeufe.FENSTER_VOLL:
         name = f"{name}-{fenster}"
-    kontext = laeufe.kontext_aus(auftrag)
+    kontext = laeufe.achse(auftrag, "kontext")
     if kontext != laeufe.KONTEXT_AUS:
         name = f"{name}-{kontext}"
     # Zuletzt das Tempo - sonst trügen zwei Stände, die sich nur darin
@@ -270,7 +270,7 @@ def vervollstaendige_kern(
     `erkenner` für die Tests; sonst Stand aus seinen Gewichten, Grundmodell
     über seinen Namen.
     """
-    if laeufe.auswahl_aus(auftrag) != laeufe.AUSWAHL_KERN:
+    if laeufe.achse(auftrag, "auswahl") != laeufe.AUSWAHL_KERN:
         return
     pfad = verzeichnis / laeufe.KERNAUSWAHL
     inhalt = laeufe.lies_json(pfad)
@@ -686,21 +686,10 @@ def gib_frei(
             "sprecher_id": sprecher_id,
             "basismodell": auftrag.get("basismodell"),
             "methode": auftrag.get("methode"),
-            "lora_ziele": laeufe.lora_ziele_aus(auftrag),
-            "lora_rang": laeufe.lora_rang_aus(auftrag),
-            "auswahl": laeufe.auswahl_aus(auftrag),
-            "korrekturgewicht": laeufe.korrekturgewicht_aus(auftrag),
-            "selbsttraining": laeufe.selbsttraining_aus(auftrag),
             # Die Achsen des Auftrags, und daneben, was herauskam.
-            "abschluss": str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER),
-            "augmentierung": str(auftrag.get("augmentierung") or laeufe.AUG_KEINE),
-            "dauer": str(auftrag.get("dauer") or laeufe.DAUER_FEST),
-            "steuerung": laeufe.steuerung_aus(auftrag),
-            "fenster": laeufe.fenster_aus(auftrag),
-            "kontext": laeufe.kontext_aus(auftrag),
+            **{achse.feld: achse.wert(auftrag) for achse in laeufe.ACHSEN},
             # Womit jede Erkennung dieses Standes beginnt (`kontext.py`).
             "startprompt": startprompt(ct2) or "",
-            "tempowahl": laeufe.tempowahl_aus(auftrag),
             # Die Folge (`/43b`), damit der Stand sie auch ohne Lauf trägt.
             laeufe.FOLGE: auftrag.get(laeufe.FOLGE),
             # „schreiben" spult beim Diktieren genauso vor (`wortlaut/tempo.py`).

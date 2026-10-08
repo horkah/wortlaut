@@ -19,7 +19,7 @@ import json
 import os
 import shutil
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -70,19 +70,11 @@ class Auftrag:
     # Die Sprache des Profils, im Auftrag statt in der Umgebung. Ohne Vorgabe:
     # Ein vergessenes Feld fiele sonst still auf Deutsch zurück.
     sprache: str
-    # Die Achsen (`wortlaut/laeufe.py`), jede mit ihrer Vorgabe.
-    lora_ziele: str = laeufe.ZIELE_QV
-    lora_rang: str = laeufe.RANG_VORGABE
-    abschluss: str = laeufe.ABSCHLUSS_BESTER
-    augmentierung: str = laeufe.AUG_KEINE
-    dauer: str = laeufe.DAUER_FEST
-    steuerung: str = laeufe.STEUERUNG_VERLUST
-    fenster: str = laeufe.FENSTER_VOLL
-    tempowahl: str = laeufe.TEMPO_AUS
-    kontext: str = laeufe.KONTEXT_AUS
-    auswahl: str = laeufe.AUSWAHL_ALLE
-    korrekturgewicht: str = laeufe.GEWICHT_VORGABE
-    selbsttraining: str = laeufe.SELBST_AUS
+    # Achse (`laeufe.ACHSEN`) → Wert; eine fehlende steht auf ihrer Vorgabe.
+    achsen: dict[str, str] = field(default_factory=dict)
+
+    def achse(self, feld: str) -> str:
+        return laeufe.achse(self.achsen, feld)
 
 
 def _quelle_von(korpus: Session, probe: Probe) -> str:
@@ -209,13 +201,13 @@ def beauftrage(
         korpus,
         proben,
         auftrag.sprecher_id,
-        auftrag.korrekturgewicht,
+        auftrag.achse("korrekturgewicht"),
         unbeschriftete_diktate(datenverzeichnis, auftrag.sprecher_id)
-        if auftrag.selbsttraining == laeufe.SELBST_AN
+        if auftrag.achse("selbsttraining") == laeufe.SELBST_AN
         else None,
     )
 
-    if auftrag.auswahl == laeufe.AUSWAHL_KERN:
+    if auftrag.achse("auswahl") == laeufe.AUSWAHL_KERN:
         if kernauswahl is None:
             raise ValueError("Der Kern verlangt eine Kernauswahl.")
         laeufe.schreibe_json(verzeichnis / laeufe.KERNAUSWAHL, kernauswahl.als_dict())
@@ -224,20 +216,9 @@ def beauftrage(
         "job_id": job_id,
         "sprecher_id": auftrag.sprecher_id,
         "methode": auftrag.methode,
-        "lora_ziele": auftrag.lora_ziele,
-        "lora_rang": auftrag.lora_rang,
-        "auswahl": auftrag.auswahl,
-        "korrekturgewicht": auftrag.korrekturgewicht,
-        "selbsttraining": auftrag.selbsttraining,
-        "abschluss": auftrag.abschluss,
-        "augmentierung": auftrag.augmentierung,
-        "dauer": auftrag.dauer,
-        "steuerung": auftrag.steuerung,
-        "fenster": auftrag.fenster,
-        "kontext": auftrag.kontext,
+        **{achse.feld: auftrag.achse(achse.feld) for achse in laeufe.ACHSEN},
         "basismodell": auftrag.basismodell,
         "sprache": auftrag.sprache,
-        "tempowahl": auftrag.tempowahl,
         "erstellt": laeufe.jetzt(),
         "zeilen": gezaehlt,
         "aufnahmen": len(proben),
@@ -268,19 +249,9 @@ class Bestellung:
     sprecher_id: str
     sprache: str
     methode: str
-    lora_ziele: str = laeufe.ZIELE_QV
-    lora_rang: str = laeufe.RANG_VORGABE
-    auswahl: str = laeufe.AUSWAHL_ALLE
-    korrekturgewicht: str = laeufe.GEWICHT_VORGABE
-    selbsttraining: str = laeufe.SELBST_AUS
-    abschluss: str = laeufe.ABSCHLUSS_BESTER
-    augmentierung: str = laeufe.AUG_KEINE
-    dauer: str = laeufe.DAUER_FEST
-    steuerung: str = laeufe.STEUERUNG_VERLUST
-    fenster: str = laeufe.FENSTER_VOLL
-    tempowahl: str = laeufe.TEMPO_AUS
-    kontext: str = laeufe.KONTEXT_AUS
     grundmodell: str = ""
+    # Achse → Wert, wie bei `Auftrag`; eine fehlende steht auf ihrer Vorgabe.
+    achsen: dict[str, str] = field(default_factory=dict)
 
 
 class Abgelehnt(Exception):
@@ -298,25 +269,20 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
     jede Achse, das Grundmodell, ob die Methode auf die Karte passt
     (`Einstellungen.methoden_fuer`) und ob es für sechs Faltungen reicht.
     """
+    if unbekannt := sorted(set(bestellung.achsen) - set(laeufe.ACHSE)):
+        raise Abgelehnt(400, f"Unbekannte Achse: {', '.join(unbekannt)}.")
+    achsen = {
+        achse.feld: bestellung.achsen.get(achse.feld) or achse.vorgabe for achse in laeufe.ACHSEN
+    }
     for wert, erlaubt, was in (
         (bestellung.methode, laeufe.METHODEN, "Methode"),
-        (bestellung.lora_ziele, laeufe.LORA_ZIELE, "LoRA-Ziele"),
-        (bestellung.lora_rang, laeufe.LORA_RAENGE, "LoRA-Rang"),
-        (bestellung.auswahl, laeufe.AUSWAHLEN, "Auswahl"),
-        (bestellung.korrekturgewicht, laeufe.KORREKTURGEWICHTE, "Korrekturgewicht"),
-        (bestellung.selbsttraining, laeufe.SELBSTTRAINING, "Selbsttraining"),
-        (bestellung.abschluss, laeufe.ABSCHLUESSE, "Abschluss"),
-        (bestellung.augmentierung, laeufe.AUGMENTIERUNGEN, "Augmentierung"),
-        (bestellung.dauer, laeufe.DAUERN, "Dauer"),
-        (bestellung.steuerung, laeufe.STEUERUNGEN, "Steuergröße"),
-        (bestellung.fenster, laeufe.FENSTER, "Fenster"),
-        (bestellung.tempowahl, laeufe.TEMPI, "Tempowahl"),
-        (bestellung.kontext, laeufe.KONTEXTE, "Kontext"),
+        *((achsen[achse.feld], achse.werte, achse.titel) for achse in laeufe.ACHSEN),
     ):
         if wert not in erlaubt:
             raise Abgelehnt(400, f"Unbekannt ({was}): {wert}. Zur Wahl: {', '.join(erlaubt)}.")
+    ziele, rang = achsen["lora_ziele"], achsen["lora_rang"]
     if bestellung.methode != laeufe.LORA and (
-        bestellung.lora_ziele != laeufe.ZIELE_QV or bestellung.lora_rang != laeufe.RANG_VORGABE
+        ziele != laeufe.ZIELE_QV or rang != laeufe.RANG_VORGABE
     ):
         raise Abgelehnt(400, "LoRA-Ziele und -Rang gibt es nur mit LoRA.")
 
@@ -330,11 +296,11 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
         )
     # Scheiterte sonst erst am Speicher der Karte.
     if bestellung.methode == laeufe.LORA and (
-        f"{bestellung.lora_ziele}/{bestellung.lora_rang}" not in konfiguration.lora_fuer(grundmodell)
+        f"{ziele}/{rang}" not in konfiguration.lora_fuer(grundmodell)
     ):
         raise Abgelehnt(
             400,
-            f"LoRA an „{bestellung.lora_ziele}“ mit Rang {bestellung.lora_rang} passt mit "
+            f"LoRA an „{ziele}“ mit Rang {rang} passt mit "
             f"{laeufe.kurzname(grundmodell)} nicht auf diese Karte.",
         )
     erlaubte = konfiguration.methoden_fuer(grundmodell)
@@ -354,7 +320,7 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
         )
 
     kern = None
-    if bestellung.auswahl == laeufe.AUSWAHL_KERN:
+    if achsen["auswahl"] == laeufe.AUSWAHL_KERN:
         try:
             kern = kernauswahl.waehle(datenverzeichnis, korpus, bestellung.sprecher_id, proben)
         except kernauswahl.KeinKern as ursache:
@@ -367,18 +333,7 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
         Auftrag(
             sprecher_id=bestellung.sprecher_id,
             methode=bestellung.methode,
-            lora_ziele=bestellung.lora_ziele,
-            lora_rang=bestellung.lora_rang,
-            auswahl=bestellung.auswahl,
-            korrekturgewicht=bestellung.korrekturgewicht,
-            selbsttraining=bestellung.selbsttraining,
-            abschluss=bestellung.abschluss,
-            augmentierung=bestellung.augmentierung,
-            dauer=bestellung.dauer,
-            steuerung=bestellung.steuerung,
-            fenster=bestellung.fenster,
-            kontext=bestellung.kontext,
-            tempowahl=bestellung.tempowahl,
+            achsen=achsen,
             basismodell=grundmodell,
             # Für Whispers Sprachmarken und die Bewertung (`wortlaut/sprachen.py`).
             sprache=bestellung.sprache,

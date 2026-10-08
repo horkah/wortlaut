@@ -620,9 +620,9 @@ class TestTempowahl:
 
     def test_alte_auftraege_gelten_als_aus(self) -> None:
         # `wie_eingestellt` in einem Auftrag heißt: ohne Tempowahl.
-        assert laeufe.tempowahl_aus({"tempowahl": "wie_eingestellt"}) == laeufe.TEMPO_AUS
-        assert laeufe.tempowahl_aus({}) == laeufe.TEMPO_AUS
-        assert laeufe.tempowahl_aus({"tempowahl": "geschaetzt"}) == laeufe.TEMPO_GESCHAETZT
+        assert laeufe.achse({"tempowahl": "wie_eingestellt"}, "tempowahl") == laeufe.TEMPO_AUS
+        assert laeufe.achse({}, "tempowahl") == laeufe.TEMPO_AUS
+        assert laeufe.achse({"tempowahl": "geschaetzt"}, "tempowahl") == laeufe.TEMPO_GESCHAETZT
 
     def test_eine_unbekannte_wahl_wird_abgewiesen(
         self, klient: TestClient, quelle: str, sprich

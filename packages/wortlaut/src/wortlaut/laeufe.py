@@ -182,14 +182,6 @@ LORA_MODULE: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
 }
 
 
-def lora_ziele_aus(auftrag: dict[str, Any]) -> str:
-    """Wo der Zusatz eines Auftrags sitzt - `qv`, wenn das Feld fehlt."""
-    return str(auftrag.get("lora_ziele") or ZIELE_QV)
-
-
-def lora_rang_aus(auftrag: dict[str, Any]) -> str:
-    """Der Rang eines Auftrags - die Vorgabe, wenn das Feld fehlt."""
-    return str(auftrag.get("lora_rang") or RANG_VORGABE)
 
 
 # ── Läufe mit Rauschkopie ───────────────────────────────────────────────────
@@ -281,10 +273,6 @@ GEWICHT_VERLAUF = "verlauf"
 KORREKTURGEWICHTE = (GEWICHT_VORGABE, "0.25", "0.75", "1.0", GEWICHT_VERLAUF)
 
 
-def korrekturgewicht_aus(auftrag: dict[str, Any]) -> str:
-    """Wie ein Auftrag Korrekturen gewichtet - `0.5`, wenn das Feld fehlt."""
-    return str(auftrag.get("korrekturgewicht") or GEWICHT_VORGABE)
-
 
 # ── Selbsttraining ──────────────────────────────────────────────────────────
 #
@@ -300,10 +288,6 @@ QUELLE_SELBST = "selbst"
 SELBSTBESCHRIFTUNG = "selbstbeschriftung.json"
 
 
-def selbsttraining_aus(auftrag: dict[str, Any]) -> str:
-    """Ob ein Auftrag selbst beschriftet - `aus`, wenn das Feld fehlt."""
-    return str(auftrag.get("selbsttraining") or SELBST_AUS)
-
 
 def selbstbeschriftung_aus(verzeichnis: Path) -> dict[str, str]:
     """Audio → Text der aufgenommenen Selbstbeschriftungen eines Laufs; leer ohne Datei."""
@@ -314,10 +298,6 @@ def selbstbeschriftung_aus(verzeichnis: Path) -> dict[str, str]:
         if zeile.get("aufgenommen") and str(zeile.get("text") or "").strip()
     }
 
-
-def auswahl_aus(auftrag: dict[str, Any]) -> str:
-    """Die Auswahl eines Auftrags - `alle`, wenn das Feld fehlt."""
-    return str(auftrag.get("auswahl") or AUSWAHL_ALLE)
 
 
 def verteile_kern(kern: Iterable[str], staemme: dict[str, str]) -> dict[str, int]:
@@ -360,7 +340,7 @@ def kern_aus(verzeichnis: Path, auftrag: dict[str, Any]) -> set[str] | None:
     Fehlt die Datei oder ist noch nicht gewählt, ist das ein Fehler, kein
     Rückfall auf alle - der Lauf hieße sonst `K` und wäre etwas anderes.
     """
-    if auswahl_aus(auftrag) != AUSWAHL_KERN:
+    if achse(auftrag, "auswahl") != AUSWAHL_KERN:
         return None
     inhalt = lies_json(verzeichnis / KERNAUSWAHL)
     if inhalt is None:
@@ -413,11 +393,6 @@ TEMPO_OPTIMAL = "optimal"
 TEMPI = (TEMPO_AUS, TEMPO_GESCHAETZT, TEMPO_OPTIMAL)
 
 
-def tempowahl_aus(auftrag: dict[str, Any]) -> str:
-    """Welches Verfahren dieser Auftrag bestellt hat; jeder andere Wert heißt `aus`."""
-    gewaehlt = str(auftrag.get("tempowahl") or TEMPO_AUS)
-    return gewaehlt if gewaehlt in (TEMPO_GESCHAETZT, TEMPO_OPTIMAL) else TEMPO_AUS
-
 # ── Der Abschluss ───────────────────────────────────────────────────────────
 #
 # Was am Ende mit den Gewichten geschieht - eine Achse und keine stille
@@ -440,6 +415,16 @@ ABSCHLUESSE = (
 )
 
 
+def mittelt(abschluss: str) -> bool:
+    """Ob dieser Abschluss mehrere Zwischenstände mittelt."""
+    return abschluss in (ABSCHLUSS_MITTEL, ABSCHLUSS_BEIDES)
+
+
+def interpoliert(abschluss: str) -> bool:
+    """Ob dieser Abschluss gegen das Grundmodell interpoliert."""
+    return abschluss in (ABSCHLUSS_INTERPOLIERT, ABSCHLUSS_BEIDES)
+
+
 # ── Der Kontext beim Dekodieren ─────────────────────────────────────────────
 #
 # Die einzige Achse ohne Einfluss aufs Training (`training/kontext.py`):
@@ -453,19 +438,6 @@ KONTEXT_VOKABULAR = "vokabular"
 KONTEXTE = (KONTEXT_AUS, KONTEXT_VOKABULAR)
 
 
-def kontext_aus(auftrag: dict[str, Any]) -> str:
-    """Der Kontext eines Auftrags - `aus`, wenn das Feld fehlt."""
-    return str(auftrag.get("kontext") or KONTEXT_AUS)
-
-
-def mittelt(abschluss: str) -> bool:
-    """Ob dieser Abschluss mehrere Zwischenstände mittelt."""
-    return abschluss in (ABSCHLUSS_MITTEL, ABSCHLUSS_BEIDES)
-
-
-def interpoliert(abschluss: str) -> bool:
-    """Ob dieser Abschluss gegen das Grundmodell interpoliert."""
-    return abschluss in (ABSCHLUSS_INTERPOLIERT, ABSCHLUSS_BEIDES)
 
 
 # ── Die Augmentierung im Training ───────────────────────────────────────────
@@ -510,10 +482,6 @@ STEUERUNG_WER = "wer"
 STEUERUNGEN = (STEUERUNG_VERLUST, STEUERUNG_WER)
 
 
-def steuerung_aus(auftrag: dict[str, Any]) -> str:
-    """Die Steuergröße eines Auftrags - `verlust`, wenn das Feld fehlt."""
-    return str(auftrag.get("steuerung") or STEUERUNG_VERLUST)
-
 
 # ── Das Fenster des Encoders ────────────────────────────────────────────────
 #
@@ -527,10 +495,6 @@ FENSTER_VOLL = "voll"
 FENSTER_GEKUERZT = "gekuerzt"
 FENSTER = (FENSTER_VOLL, FENSTER_GEKUERZT)
 
-
-def fenster_aus(auftrag: dict[str, Any]) -> str:
-    """Das Encoder-Fenster eines Auftrags - `voll`, wenn das Feld fehlt."""
-    return str(auftrag.get("fenster") or FENSTER_VOLL)
 
 
 # ── Der Optionscode ─────────────────────────────────────────────────────────
@@ -576,6 +540,65 @@ CODE_ABSCHLUSS = {
 CODE_KONTEXT = {KONTEXT_AUS: "", KONTEXT_VOKABULAR: "X"}
 
 
+# ── Die Achsen ──────────────────────────────────────────────────────────────
+#
+# Die eine Tafel aller wählbaren Achsen außer der Methode, in der Reihenfolge
+# ihrer Glieder im Optionscode. Was eine Achse ausmacht - Feld im Auftrag,
+# erlaubte Werte, Vorgabe, Glied -, steht nur hier; Prüfung, Auftrag,
+# Optionscode, Antworten und Manifest lesen es von dort. Eine neue Achse
+# braucht dazu nur noch ihre Beschriftung in der Oberfläche und ihre Wirkung im
+# Trainer.
+
+
+@dataclass(frozen=True)
+class Achse:
+    """Eine Wahl im Auftrag. Der erste Wert ist die Vorgabe."""
+
+    feld: str
+    # Wie die Achse in einer Fehlermeldung heißt.
+    titel: str
+    werte: tuple[str, ...]
+    # Je Wert sein Glied im Optionscode; die Vorgabe hat keines.
+    codes: dict[str, str]
+    # Ein unbekannter Wert zählt als Vorgabe statt als `?` - für Werte, die
+    # ältere Aufträge tragen.
+    nachsichtig: bool = False
+
+    @property
+    def vorgabe(self) -> str:
+        return self.werte[0]
+
+    def wert(self, auftrag: dict[str, Any]) -> str:
+        """Der Wert in diesem Auftrag; fehlt das Feld, die Vorgabe."""
+        gesetzt = str(auftrag.get(self.feld) or self.vorgabe)
+        return self.vorgabe if self.nachsichtig and gesetzt not in self.werte else gesetzt
+
+    def glied(self, auftrag: dict[str, Any]) -> str:
+        return self.codes.get(self.wert(auftrag), "?")
+
+
+ACHSEN = (
+    Achse("lora_ziele", "LoRA-Ziele", LORA_ZIELE, CODE_LORA_ZIELE),
+    Achse("lora_rang", "LoRA-Rang", LORA_RAENGE, CODE_LORA_RANG),
+    Achse("auswahl", "Auswahl", AUSWAHLEN, CODE_AUSWAHL),
+    Achse("korrekturgewicht", "Korrekturgewicht", KORREKTURGEWICHTE, CODE_KORREKTURGEWICHT),
+    Achse("selbsttraining", "Selbsttraining", SELBSTTRAINING, CODE_SELBSTTRAINING),
+    Achse("dauer", "Dauer", DAUERN, CODE_DAUER),
+    Achse("steuerung", "Steuergröße", STEUERUNGEN, CODE_STEUERUNG),
+    Achse("fenster", "Fenster", FENSTER, CODE_FENSTER),
+    Achse("augmentierung", "Augmentierung", AUGMENTIERUNGEN, CODE_AUGMENTIERUNG),
+    Achse("tempowahl", "Tempowahl", TEMPI, CODE_TEMPO, nachsichtig=True),
+    Achse("abschluss", "Abschluss", ABSCHLUESSE, CODE_ABSCHLUSS),
+    Achse("kontext", "Kontext", KONTEXTE, CODE_KONTEXT),
+)
+ACHSE = {achse.feld: achse for achse in ACHSEN}
+
+
+def achse(auftrag: dict[str, Any], feld: str) -> str:
+    """Der Wert einer Achse in einem Auftrag oder Manifest - ohne Feld die Vorgabe."""
+    return ACHSE[feld].wert(auftrag)
+
+
 def grundmodellcode(basismodell: str) -> str:
     """`openai/whisper-medium` → `M`, `…-large-v3` → `L3`, `…-large-v3-turbo` → `L3T`."""
     teile = [teil for teil in kurzname(basismodell).split("-") if teil]
@@ -590,30 +613,14 @@ def grundmodellcode(basismodell: str) -> str:
 def optionscode(auftrag: dict[str, Any]) -> str:
     """Der Optionscode eines Auftrags oder Manifests - die einzige Stelle, die ihn bildet.
 
-    Ein fehlendes Feld zählt als Vorgabe, ein unbekannter Wert wird `?`.
+    Ein fehlendes Feld zählt als Vorgabe, ein unbekannter Wert wird `?`. Das
+    `A` der Läufe mit Rauschkopie steht hinter dem LoRA-Zusatz.
     """
-
-    def glied(tafel: dict[str, str], wert: object, vorgabe: str) -> str:
-        return tafel.get(str(wert or vorgabe), "?")
-
-    kopf = grundmodellcode(str(auftrag.get("basismodell") or "")) + glied(
-        CODE_METHODE, auftrag.get("methode"), "?"
+    kopf = grundmodellcode(str(auftrag.get("basismodell") or "")) + CODE_METHODE.get(
+        str(auftrag.get("methode") or ""), "?"
     )
-    glieder = (
-        glied(CODE_LORA_ZIELE, auftrag.get("lora_ziele"), ZIELE_QV),
-        glied(CODE_LORA_RANG, auftrag.get("lora_rang"), RANG_VORGABE),
-        "A" if mit_rauschkopie(auftrag) else "",
-        glied(CODE_AUSWAHL, auftrag.get("auswahl"), AUSWAHL_ALLE),
-        glied(CODE_KORREKTURGEWICHT, auftrag.get("korrekturgewicht"), GEWICHT_VORGABE),
-        glied(CODE_SELBSTTRAINING, auftrag.get("selbsttraining"), SELBST_AUS),
-        glied(CODE_DAUER, auftrag.get("dauer"), DAUER_FEST),
-        glied(CODE_STEUERUNG, auftrag.get("steuerung"), STEUERUNG_VERLUST),
-        glied(CODE_FENSTER, auftrag.get("fenster"), FENSTER_VOLL),
-        glied(CODE_AUGMENTIERUNG, auftrag.get("augmentierung"), AUG_KEINE),
-        CODE_TEMPO[tempowahl_aus(auftrag)],
-        glied(CODE_ABSCHLUSS, auftrag.get("abschluss"), ABSCHLUSS_BESTER),
-        glied(CODE_KONTEXT, auftrag.get("kontext"), KONTEXT_AUS),
-    )
+    glieder = [achse.glied(auftrag) for achse in ACHSEN]
+    glieder.insert(2, "A" if mit_rauschkopie(auftrag) else "")
     return "-".join([kopf, *(teil for teil in glieder if teil)])
 
 
@@ -657,7 +664,7 @@ def folgenummer(buchstaben: str) -> int:
 def folgezahl(auftrag: dict[str, Any]) -> int:
     """Wie viele Aufnahmen der Lauf sieht - bei der Kernauswahl nur den Kern."""
     aufnahmen = int(auftrag.get("aufnahmen") or 0)
-    return kern_anzahl(aufnahmen) if auswahl_aus(auftrag) == AUSWAHL_KERN else aufnahmen
+    return kern_anzahl(aufnahmen) if achse(auftrag, "auswahl") == AUSWAHL_KERN else aufnahmen
 
 
 def naechste_folge(auftrag: dict[str, Any], vorhandene: Iterable[dict[str, Any]]) -> str:

@@ -332,12 +332,12 @@ def trainiere(
     sprecher_id = str(auftrag["sprecher_id"])
     # Vor dem Laden geprüft, damit ein Tippfehler sofort auffällt.
     art = abschlussrechnung.pruefe(
-        str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER)
+        laeufe.achse(auftrag, "abschluss")
     )
     abwandlung = klangwandel.pruefe(
-        str(auftrag.get("augmentierung") or laeufe.AUG_KEINE)
+        laeufe.achse(auftrag, "augmentierung")
     )
-    dauer = str(auftrag.get("dauer") or laeufe.DAUER_FEST)
+    dauer = laeufe.achse(auftrag, "dauer")
     if dauer not in laeufe.DAUERN:
         raise RuntimeError(
             f"Unbekannte Dauer: {dauer}. Zur Wahl stehen: {', '.join(laeufe.DAUERN)}."
@@ -359,13 +359,13 @@ def trainiere(
         )
     if methode == laeufe.LORA and not laeufe.lora_moeglich(
         basismodell,
-        laeufe.lora_ziele_aus(auftrag),
-        laeufe.lora_rang_aus(auftrag),
+        laeufe.achse(auftrag, "lora_ziele"),
+        laeufe.achse(auftrag, "lora_rang"),
         diese_karte,
         konfiguration.lernen_reserve_mb,
     ):
         raise RuntimeError(
-            f"LoRA an „{laeufe.lora_ziele_aus(auftrag)}“ mit Rang {laeufe.lora_rang_aus(auftrag)} "
+            f"LoRA an „{laeufe.achse(auftrag, "lora_ziele")}“ mit Rang {laeufe.achse(auftrag, "lora_rang")} "
             f"passt mit {laeufe.kurzname(basismodell)} nicht auf "
             f"{diese_karte.name if diese_karte else 'den Prozessor'}."
         )
@@ -454,7 +454,7 @@ def trainiere(
     # einmal, ins Zwischenlager des Laufs.
     faktor = float(auftrag.get("tempo", tempo.VORGABE))
     tempoergebnis: tempowahl.Ergebnis | None = None
-    gewaehlt = laeufe.tempowahl_aus(auftrag)
+    gewaehlt = laeufe.achse(auftrag, "tempowahl")
     # Das Tempo nur an beschrifteten Aufnahmen: Selbstbeschriftetes hat die
     # Erkennung schon mit einem Tempo gehört.
     fuer_tempo = [
@@ -486,7 +486,7 @@ def trainiere(
     # Das Fenster des Encoders (`fenster.py`): gekürzt nur bis zum Sichern.
     fenster = fensterrechnung.VOLL
     volles_fenster = None
-    if laeufe.fenster_aus(auftrag) == laeufe.FENSTER_GEKUERZT:
+    if laeufe.achse(auftrag, "fenster") == laeufe.FENSTER_GEKUERZT:
         fenster = fensterrechnung.rahmen_fuer(lernzeilen + messzeilen, faktor, rezept, abwandlung)
         if fenster < fensterrechnung.VOLL:
             volles_fenster = fensterrechnung.kuerze(modell, fenster)
@@ -562,7 +562,7 @@ def trainiere(
     # Wonach ausgewählt wird (`steuerung.py`): bei `wer` öfter geprüft, und
     # jede Prüfung dekodiert frei.
     pruefplan = steuergroesse.plane(
-        laeufe.steuerung_aus(auftrag), hat_pruefung, je_durchgang, rezept
+        laeufe.achse(auftrag, "steuerung"), hat_pruefung, je_durchgang, rezept
     )
     if pruefplan.dekodiert:
         bericht.sage(
@@ -719,7 +719,7 @@ def trainiere(
     zerteiler.save_pretrained(gewichte)
     ausleser.save_pretrained(gewichte)
     startprompt: list[str] = []
-    if laeufe.kontext_aus(auftrag) == laeufe.KONTEXT_VOKABULAR:
+    if laeufe.achse(auftrag, "kontext") == laeufe.KONTEXT_VOKABULAR:
         # Nur aus dem, was diese Faltung lernt (`kontext.py`).
         startprompt = kontext.schreibe(gewichte, lernzeilen, zerteiler, rezept)
         bericht.sage(
@@ -1010,7 +1010,7 @@ def _gewaehltes_tempo(gelernt: list[dict[str, Any]], auftrag: dict[str, Any]) ->
     faktoren = [float(k["tempo"]) for k in gelernt if k.get("tempo") is not None]
     if not faktoren:
         return None
-    gewaehlt = laeufe.tempowahl_aus(auftrag)
+    gewaehlt = laeufe.achse(auftrag, "tempowahl")
     if gewaehlt == laeufe.TEMPO_GESCHAETZT:
         # Das Mittel: Über Summen gerechnet sind Ausreißer nicht zu erwarten.
         return tempowahl.auf_stufe(sum(faktoren) / len(faktoren))
@@ -1040,7 +1040,7 @@ def kreuzvalidiere(
     gelernt: list[dict[str, Any]] = []
     gescheitert: list[dict[str, Any]] = []
 
-    gewaehlt = laeufe.tempowahl_aus(auftrag)
+    gewaehlt = laeufe.achse(auftrag, "tempowahl")
     for faltung in range(laeufe.FALTUNGEN):
         bericht.faltung(faltung)
         bericht.sage(f"── Faltung {faltung + 1} von {laeufe.FALTUNGEN}")

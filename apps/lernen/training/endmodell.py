@@ -258,7 +258,7 @@ def baue(
 
     # Der Startprompt der ersten Faltung kennt nur ihre Lerntexte.
     (ziel / STARTPROMPT).unlink(missing_ok=True)
-    if laeufe.kontext_aus(auftrag) == laeufe.KONTEXT_VOKABULAR:
+    if laeufe.achse(auftrag, "kontext") == laeufe.KONTEXT_VOKABULAR:
         from transformers import WhisperTokenizerFast
 
         korpuswurzel = datenverzeichnis / corpus.sprecher_relpfad(str(auftrag["sprecher_id"]))
@@ -283,5 +283,5 @@ def baue(
         "gescheitert": list(mitgenommen.get("gescheitert") or []),
     }
     bericht.ereignis(art="endmodell", **befund)
-    art = str(auftrag.get("abschluss") or laeufe.ABSCHLUSS_BESTER)
+    art = laeufe.achse(auftrag, "abschluss")
     return ziel, befund, _abschlussbild([k for k in gelernt if k["faltung"] in behalten], art)

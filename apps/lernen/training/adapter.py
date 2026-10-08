@@ -61,8 +61,8 @@ class Adapter:
 
 def pruefe(auftrag: dict[str, Any]) -> None:
     """Rang und Ziele nur bei LoRA und nur aus der Wahl - sonst sofort ein Fehler."""
-    ziele = laeufe.lora_ziele_aus(auftrag)
-    rang = laeufe.lora_rang_aus(auftrag)
+    ziele = laeufe.achse(auftrag, "lora_ziele")
+    rang = laeufe.achse(auftrag, "lora_rang")
     if ziele not in laeufe.LORA_ZIELE:
         raise RuntimeError(
             f"Unbekannte LoRA-Ziele: {ziele}. Zur Wahl: {', '.join(laeufe.LORA_ZIELE)}."
@@ -80,8 +80,8 @@ def adapter_fuer(rezept: dict[str, Any], auftrag: dict[str, Any]) -> Adapter:
     """Der Zusatz, den dieser Auftrag bekommt."""
     pruefe(auftrag)
     einstellung = rezept.get("lora") or {}
-    rang = int(laeufe.lora_rang_aus(auftrag))
-    module, teile = ZIELE[laeufe.lora_ziele_aus(auftrag)]
+    rang = int(laeufe.achse(auftrag, "lora_rang"))
+    module, teile = ZIELE[laeufe.achse(auftrag, "lora_ziele")]
     return Adapter(
         rang=rang,
         alpha=round(rang * float(einstellung.get("alpha_je_rang", ALPHA_JE_RANG))),
