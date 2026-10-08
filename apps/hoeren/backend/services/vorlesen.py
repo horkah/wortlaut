@@ -55,18 +55,7 @@ def stelle_her(
     text = str(vorlage.text or "").strip()
     if not text:
         return None
-
-    blob = relpfad(vorlage, stimme)
-    if ablage.pfad(blob).is_file():
-        return blob
-
-    try:
-        motorkopf = klangwandel.motor_fuer(stimmenverzeichnis, motor)
-        # Direkt in die Ablage - der Motor schreibt über eine Entwurfsdatei.
-        motorkopf.sprich(text, stimme, ablage.pfad(blob))
-    except klangwandel.VorlesenFehler:
-        return None
-    return blob
+    return _gesprochen(ablage, relpfad(vorlage, stimme), text, stimme, stimmenverzeichnis, motor)
 
 
 def stelle_probe_her(
@@ -82,6 +71,21 @@ def stelle_probe_her(
     Unter der Kennung `probe` neben den Vorlesungen, nach derselben Regel.
     """
     blob = corpus.vorlesung_relpfad(sprecher_id, "probe", stimme)
+    return _gesprochen(ablage, blob, text, stimme, stimmenverzeichnis, motor)
+
+
+def _gesprochen(
+    ablage: storage.Ablage,
+    blob: str,
+    text: str,
+    stimme: str,
+    stimmenverzeichnis: Path,
+    motor: str,
+) -> str | None:
+    """Die Datei unter `blob` - vorhanden oder jetzt gesprochen; `None`, wenn es nicht geht.
+
+    Der Motor schreibt über eine Entwurfsdatei direkt in die Ablage.
+    """
     if ablage.pfad(blob).is_file():
         return blob
     try:
@@ -89,4 +93,3 @@ def stelle_probe_her(
     except klangwandel.VorlesenFehler:
         return None
     return blob
-
