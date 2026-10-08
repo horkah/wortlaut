@@ -16,7 +16,7 @@ from sqlalchemy import delete
 from wortlaut import audio as klang
 from wortlaut import corpus, ids
 
-from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
+from ..db.models import GUELTIG, VERWORFEN, Aufnahme, Erkennung, jetzt, Vorlage
 from ..deps import Ablage, Datenbank, SprecherId
 from ..services import aufnahmen, faltungen, quality
 
@@ -77,7 +77,7 @@ async def nimm_auf(
         blob=relpfad,
         **asdict(befund),
         modus=modus,
-        status="ok",
+        status=GUELTIG,
         hinweise=json.dumps(hinweise, ensure_ascii=False),
         externe_id=None,
         erstellt=jetzt(),
@@ -106,7 +106,7 @@ def hoere_ab(
 ) -> FileResponse:
     """Die eigene Aufnahme anhören."""
     aufnahme = db.get(Aufnahme, aufnahme_id)
-    if aufnahme is None or aufnahme.speaker_id != sprecher or aufnahme.status != "ok":
+    if aufnahme is None or aufnahme.speaker_id != sprecher or aufnahme.status != GUELTIG:
         raise HTTPException(status_code=404, detail="Unbekannte Aufnahme")
 
     pfad = ablage.pfad(aufnahme.blob)
@@ -128,8 +128,8 @@ def verwirf(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablag
     if aufnahme is None or aufnahme.speaker_id != sprecher:
         raise HTTPException(status_code=404, detail="Unbekannte Aufnahme")
 
-    if aufnahme.status == "ok":
+    if aufnahme.status == GUELTIG:
         ablage.loesche(aufnahme.blob)
         db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme_id))
-        aufnahme.status = "verworfen"
+        aufnahme.status = VERWORFEN
         db.commit()

@@ -11,7 +11,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
-from ..db.models import Aufnahme, Textquelle, Vorlage
+from ..db.models import GUELTIG, Aufnahme, Textquelle, Vorlage
 from ..deps import Datenbank, SprecherId
 from ..services import prompt_queue
 
@@ -35,7 +35,7 @@ class FortschrittAntwort(BaseModel):
 
 @router.get("", response_model=FortschrittAntwort)
 def fortschritt(sprecher: SprecherId, db: Datenbank) -> FortschrittAntwort:
-    gueltig = (Aufnahme.speaker_id == sprecher, Aufnahme.status == "ok")
+    gueltig = (Aufnahme.speaker_id == sprecher, Aufnahme.status == GUELTIG)
 
     sekunden = db.scalar(select(func.coalesce(func.sum(Aufnahme.dauer_s), 0.0)).where(*gueltig))
     aufnahmen = db.scalar(select(func.count()).select_from(Aufnahme).where(*gueltig))

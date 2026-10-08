@@ -38,7 +38,7 @@ from wortlaut import corpus, db, ids, storage
 from wortlaut.text import chunker
 
 from apps.hoeren.backend.config import einstellungen
-from apps.hoeren.backend.db.models import Aufnahme, Sprecher, Textquelle, Vorlage, jetzt
+from apps.hoeren.backend.db.models import GUELTIG, Aufnahme, jetzt, Sprecher, Textquelle, Vorlage
 from apps.hoeren.backend.services import aufnahmen, faltungen, quality
 from apps.hoeren.backend.services.prompt_queue import naechste_position
 
@@ -140,7 +140,7 @@ def main() -> int:
                 blob=relpfad,
                 **asdict(befund),
                 modus="gelesen",
-                status="ok",
+                status=GUELTIG,
                 hinweise=json.dumps(
                     quality.pruefe(befund, vorlage.dauer_geschaetzt_s), ensure_ascii=False
                 ),

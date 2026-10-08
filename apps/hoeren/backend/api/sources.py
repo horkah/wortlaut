@@ -17,7 +17,7 @@ from wortlaut import ids
 from wortlaut.text import chunker, llm, ocr, upload
 
 from ..config import einstellungen
-from ..db.models import Aufnahme, Textquelle, Vorlage, jetzt
+from ..db.models import GUELTIG, Aufnahme, jetzt, Textquelle, Vorlage
 from ..deps import Datenbank, Sprache, SprecherId
 from ..services.prompt_queue import naechste_position
 from ..services.uebersicht import quellen_mit_einheiten
@@ -286,7 +286,7 @@ def loesche(sprecher: SprecherId, quelle_id: str, db: Datenbank) -> None:
     gueltige = db.scalar(
         select(func.count())
         .select_from(Aufnahme)
-        .where(Aufnahme.prompt_id.in_(vorlagen), Aufnahme.status == "ok")
+        .where(Aufnahme.prompt_id.in_(vorlagen), Aufnahme.status == GUELTIG)
     )
     if gueltige:
         raise HTTPException(

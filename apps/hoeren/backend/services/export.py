@@ -28,7 +28,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from wortlaut import storage
 
-from ..db.models import Aufnahme, Sprecher, Textquelle, Vorlage
+from ..db.models import GUELTIG, Aufnahme, Sprecher, Textquelle, Vorlage
 from . import zuschnitt
 
 # `file_name` und `transcription` vorn und englisch: das `audiofolder`-Format
@@ -93,7 +93,7 @@ def _zeilen(sitzung: Session, sprecher_id: str) -> list[tuple[dict[str, object],
         select(Aufnahme, Vorlage, Textquelle)
         .join(Vorlage, Vorlage.id == Aufnahme.prompt_id)
         .join(Textquelle, Textquelle.id == Vorlage.source_id)
-        .where(Aufnahme.speaker_id == sprecher_id, Aufnahme.status == "ok")
+        .where(Aufnahme.speaker_id == sprecher_id, Aufnahme.status == GUELTIG)
         .order_by(*zuschnitt.reihenfolge())
     ).all()
 
