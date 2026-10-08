@@ -56,9 +56,9 @@ def stand_aus_lauf(datenverzeichnis: Path, job_id: str) -> dict[str, Any]:
     lauf = laeufe.lies_lauf(datenverzeichnis, job_id)
     if lauf is None:
         raise NichtFreigebbar(f"Kein Lauf {job_id} unter {laeufe.wurzel(datenverzeichnis)}.")
-    for manifest in registry.alle_staende(datenverzeichnis, lauf.sprecher_id):
-        if manifest.get("job_id") == job_id:
-            return manifest
-    raise NichtFreigebbar(
-        f"Lauf {job_id} hat keinen Stand - Zustand: {lauf.zustand.get('status', 'wartet')}."
-    )
+    stand = registry.stand_zu_lauf(datenverzeichnis, lauf.sprecher_id, job_id)
+    if stand is None:
+        raise NichtFreigebbar(
+            f"Lauf {job_id} hat keinen Stand - Zustand: {lauf.zustand.get('status', 'wartet')}."
+        )
+    return stand

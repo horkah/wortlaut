@@ -48,7 +48,7 @@ def baseline(korpus: Session, aufnahmen: set[str], basismodell: str) -> dict[str
 
     `openai/whisper-small` heißt in der Auswertung `small`.
     """
-    kurz = basismodell.rsplit("/", 1)[-1].removeprefix("whisper-")
+    kurz = laeufe.kurzname(basismodell)
     return {
         zeile.recording_id: zeile
         for zeile in korpus.scalars(

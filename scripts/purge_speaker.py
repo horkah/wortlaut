@@ -24,6 +24,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from wortlaut import laeufe
+
 from apps.hoeren.backend.config import einstellungen
 from apps.hoeren.backend.services import loeschung
 
@@ -43,7 +45,7 @@ def main() -> int:
 
     for verzeichnis in loeschung.ohne_marke(datenverzeichnis):
         print(
-            f"Achtung: {verzeichnis} hat keine {loeschung.SCHNAPPSCHUSS_MARKE} "
+            f"Achtung: {verzeichnis} hat keine {laeufe.SPRECHER_MARKE} "
             "- bitte von Hand prüfen."
         )
 
