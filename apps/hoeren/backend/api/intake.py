@@ -9,8 +9,7 @@ eine abgenickte Maschinenausgabe, also schwächere Daten: eigene Quelle
 from __future__ import annotations
 
 import json
-import tempfile
-from pathlib import Path
+from dataclasses import asdict
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -22,7 +21,7 @@ from wortlaut.text import chunker
 
 from ..db.models import Aufnahme, Textquelle, Vorlage, jetzt
 from ..deps import Ablage, Datenbank, Sprache, SprecherId
-from ..services import faltungen
+from ..services import aufnahmen, faltungen
 from ..services.prompt_queue import naechste_position
 
 router = APIRouter(prefix="/api/korpus", tags=["Korpus"])
@@ -58,16 +57,10 @@ async def nimm_korrektur_an(
 
     aufnahme_id = ids.neue_id("rec")
     relpfad = corpus.audio_relpfad(sprecher, aufnahme_id)
-    with tempfile.TemporaryDirectory() as verzeichnis:
-        eingang = Path(verzeichnis) / "eingang"
-        eingang.write_bytes(await audio.read())
-        wav = Path(verzeichnis) / "aufnahme.wav"
-        try:
-            klang.wandle_in_wav(eingang, wav)
-            befund = klang.untersuche(wav)
-        except klang.AudioFehler as fehler:
-            raise HTTPException(status_code=400, detail=str(fehler)) from fehler
-        ablage.lege_ab(relpfad, wav)
+    try:
+        befund = aufnahmen.nimm_an(await audio.read(), ablage, relpfad)
+    except klang.AudioFehler as fehler:
+        raise HTTPException(status_code=400, detail=str(fehler)) from fehler
 
     vorlage = Vorlage(
         id=ids.neue_id("prm"),
@@ -87,12 +80,7 @@ async def nimm_korrektur_an(
         speaker_id=sprecher,
         session_id=None,
         blob=relpfad,
-        dauer_s=befund.dauer_s,
-        pegel_dbfs=befund.pegel_dbfs,
-        spitze_dbfs=befund.spitze_dbfs,
-        clipping_anteil=befund.clipping_anteil,
-        stille_vorn_s=befund.stille_vorn_s,
-        stille_hinten_s=befund.stille_hinten_s,
+        **asdict(befund),
         # Frei gesprochen: weder abgelesen noch nachgesprochen.
         modus="frei",
         status="ok",

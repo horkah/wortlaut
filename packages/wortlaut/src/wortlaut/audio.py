@@ -27,7 +27,10 @@ class AudioFehler(RuntimeError):
 
 @dataclass(frozen=True)
 class Befund:
-    """Messwerte einer Aufnahme. Bewertet werden sie erst in `services/quality.py`."""
+    """Messwerte einer Aufnahme. Bewertet werden sie erst in `services/quality.py`.
+
+    Die Felder heißen wie die Spalten von `recordings` in „hören".
+    """
 
     dauer_s: float
     pegel_dbfs: float  # mittlerer Pegel (RMS)
