@@ -14,15 +14,10 @@ from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from wortlaut import laeufe
+from wortlaut import laeufe, metriken
 
 from apps.hoeren.backend.db.models import Erkennung
 
-# Benannt wie in „hören".
-MASSE = ("genauigkeit", "wer", "cer", "mer", "wil")
-
-# Bei diesem Maß ist größer besser; bei allen übrigen kleiner.
-HOCH_IST_GUT = {"genauigkeit"}
 
 
 @dataclass(frozen=True)
@@ -39,7 +34,7 @@ class Gegenueber:
         """Ob der trainierte Stand gewonnen hat. `None`, solange eines fehlt."""
         if self.baseline is None or self.trainiert is None:
             return None
-        if self.mass in HOCH_IST_GUT:
+        if self.mass in metriken.HOCH_IST_GUT:
             return self.trainiert > self.baseline
         return self.trainiert < self.baseline
 
@@ -85,7 +80,10 @@ def gegenueber(lauf: laeufe.Lauf, korpus: Session) -> list[Gegenueber]:
     gemeinsam = sorted(set(nachher_zeilen) & set(vorher_zeilen))
     if not gemeinsam:
         return []
-    return [_gegenueber(mass, gemeinsam, vorher_zeilen, nachher_zeilen) for mass in MASSE]
+    return [
+        _gegenueber(mass, gemeinsam, vorher_zeilen, nachher_zeilen)
+        for mass in metriken.GUETEFELDER
+    ]
 
 
 def _gegenueber(

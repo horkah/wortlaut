@@ -30,17 +30,14 @@ from dataclasses import dataclass, field
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from wortlaut import laeufe, streuung
+from wortlaut import laeufe, metriken, streuung
 
 from apps.hoeren.backend.db.models import Erkennung
 from apps.hoeren.backend.services.auswertung import FALTUNG, gueltige_aufnahmen
 
 
 # Die Maße einer Zeile, benannt wie in „hören".
-MASSE = ("genauigkeit", "wer", "cer", "mer", "wil", "rechenzeit_s")
-
-# Bei diesem Maß ist größer besser; bei allen übrigen kleiner.
-HOCH_IST_GUT = {"genauigkeit"}
+MASSE = metriken.MESSFELDER
 
 
 @dataclass
@@ -113,7 +110,7 @@ class Messreihe:
         In der Differenz fällt heraus, was beide gleich trifft - etwa eine
         schwer verständliche Aufnahme; zwei getrennte Bereiche überlappten
         deshalb oft trotz belastbarem Unterschied. Diese Reihe minus `andere`;
-        die Richtung steht in `HOCH_IST_GUT`.
+        die Richtung steht in `metriken.HOCH_IST_GUT`.
         """
         if blockart == streuung.AUS:
             return {}

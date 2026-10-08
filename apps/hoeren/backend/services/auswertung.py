@@ -215,9 +215,6 @@ class Posten:
         return (self.aufnahme_id, self.modell)
 
 
-# Was eine übernommene Faltungszeile mitbringen muss.
-_MASSE = ("wer", "cer", "mer", "wil", "genauigkeit")
-
 # Der Ton, auf dem ein Lauf eine Aufnahme kannte: Pfad und Dauer aus dem
 # Manifest. `None`, wenn das Manifest fehlt.
 Ton = tuple[str, float] | None
@@ -396,7 +393,7 @@ def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -
                 continue
             if (kennung, ref) in vorhanden:
                 continue
-            if any(zeile.get(mass) is None for mass in _MASSE):
+            if any(zeile.get(mass) is None for mass in metriken.GUETEFELDER):
                 continue
             db.add(
                 Erkennung(
@@ -404,7 +401,7 @@ def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -
                     recording_id=kennung,
                     modell=ref,
                     text=str(zeile.get("text") or ""),
-                    **{mass: float(zeile[mass]) for mass in _MASSE},
+                    **{mass: float(zeile[mass]) for mass in metriken.GUETEFELDER},
                     rechenzeit_s=float(zeile.get("rechenzeit_s") or 0.0),
                     # Das Rechenwerk des Trainers - die Rechenzeit ist dann nicht
                     # vergleichbar (`zeit_vergleichbar` in „lernen").
@@ -583,11 +580,7 @@ def _rechne(
         recording_id=posten.aufnahme_id,
         modell=posten.modell,
         text=transkript.text,
-        wer=guete.wer,
-        cer=guete.cer,
-        mer=guete.mer,
-        wil=guete.wil,
-        genauigkeit=guete.genauigkeit,
+        **guete.als_dict(),
         rechenzeit_s=dauer,
         rechenwerk=werk,
         tempo=faktor,
