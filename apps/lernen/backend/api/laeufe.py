@@ -472,20 +472,6 @@ class EinzelAntwort(BaseModel):
     lauf: LaufAntwort
     # Jede Achse benannt, auch die auf Vorgabe (`steckbrief`).
     steckbrief: list[SteckbriefZeile]
-    methoden: list[WahlAntwort]
-    lora_ziele: list[WahlAntwort]
-    lora_raenge: list[WahlAntwort]
-    auswahlen: list[WahlAntwort]
-    korrekturgewichte: list[WahlAntwort]
-    selbsttraininge: list[WahlAntwort]
-    abschluesse: list[WahlAntwort]
-    augmentierungen: list[WahlAntwort]
-    dauern: list[WahlAntwort]
-    steuerungen: list[WahlAntwort]
-    fenster: list[WahlAntwort]
-    tempi: list[WahlAntwort]
-    kontexte: list[WahlAntwort]
-    grundmodelle: list[GrundmodellAntwort]
     kurve_training: list[PunktAntwort]
     kurve_validierung: list[PunktAntwort]
     # je Maß Baseline und trainiert
@@ -1235,20 +1221,6 @@ def einzeln(job_id: str, korpus: Korpus, sprecher: SprecherId) -> EinzelAntwort:
     return EinzelAntwort(
         lauf=_als_antwort(lauf),
         steckbrief=steckbrief(lauf),
-        methoden=METHODEN,
-        lora_ziele=LORA_ZIELE,
-        lora_raenge=LORA_RAENGE,
-        auswahlen=AUSWAHLEN,
-        korrekturgewichte=KORREKTURGEWICHTE,
-        selbsttraininge=SELBSTTRAININGE,
-        abschluesse=ABSCHLUESSE,
-        augmentierungen=AUGMENTIERUNGEN,
-        dauern=DAUERN,
-        steuerungen=STEUERUNGEN,
-        fenster=FENSTER,
-        tempi=TEMPI,
-        kontexte=KONTEXTE,
-        grundmodelle=_grundmodelle(),
         kurve_training=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["training"]],
         kurve_validierung=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["validierung"]],
         vergleich=[

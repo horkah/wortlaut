@@ -234,20 +234,6 @@ export type Laufeinzeln = {
   lauf: Lauf;
   /** Jede Achse benannt, auch die auf Vorgabe - vom Server beschriftet. */
   steckbrief: SteckbriefZeile[];
-  methoden: Wahl[];
-  lora_ziele: Wahl[];
-  lora_raenge: Wahl[];
-  auswahlen: Wahl[];
-  korrekturgewichte: Wahl[];
-  selbsttraininge: Wahl[];
-  abschluesse: Wahl[];
-  augmentierungen: Wahl[];
-  dauern: Wahl[];
-  steuerungen: Wahl[];
-  fenster: Wahl[];
-  tempi: Wahl[];
-  kontexte: Wahl[];
-  grundmodelle: Grundmodell[];
   kurve_training: Punkt[];
   kurve_validierung: Punkt[];
   /** Je Maß Baseline und trainiert. */
