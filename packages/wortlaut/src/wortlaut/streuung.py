@@ -212,35 +212,51 @@ def bilde_paare(drillinge: Iterable[tuple[str, float, float]]) -> list[list[tupl
 # ── Die beiden Rechnungen ───────────────────────────────────────────────────
 
 
-def intervall(
-    bloecke: Sequence[Sequence[float]], verfahren: Verfahren | None = None
-) -> Intervall | None:
-    """Der Vertrauensbereich des Mittelwerts über alle Werte aller Blöcke.
+def _ziehe(
+    bloecke: Sequence[Sequence[float]], art: Verfahren
+) -> tuple[float, list[float], int] | None:
+    """Mittel, sortierte Mittel aller Ziehungen und Zahl der Einheiten - `None` bei zu wenig.
 
-    `None` bei zu wenigen Blöcken. Der Mittelwert ist exakt der gewöhnliche;
-    der Bootstrap schätzt nur seine Streuung.
+    Der Mittelwert ist exakt der gewöhnliche; die Ziehungen schätzen nur, wie
+    weit er streut.
     """
-    art = verfahren or Verfahren()
     summen = [sum(block) for block in bloecke]
     anzahlen = [len(block) for block in bloecke]
     einheiten = sum(anzahlen)
     if len(bloecke) < MINDESTENS or not einheiten:
         return None
-
-    mittel = sum(summen) / einheiten
     hole_summe = summen.__getitem__
     hole_anzahl = anzahlen.__getitem__
     gezogen = sorted(
         sum(map(hole_summe, zug)) / sum(map(hole_anzahl, zug))
         for zug in zuege(len(bloecke), art.ziehungen, art.keim)
     )
+    return sum(summen) / einheiten, gezogen, einheiten
 
+
+def _bereich(gezogen: Sequence[float], art: Verfahren) -> tuple[float, float]:
+    """Die Perzentile des Niveaus - 2,5 und 97,5 bei 95 %."""
     rand = (1.0 - art.niveau) / 2.0
+    return (
+        round(_perzentil(gezogen, rand), STELLEN),
+        round(_perzentil(gezogen, 1.0 - rand), STELLEN),
+    )
+
+
+def intervall(
+    bloecke: Sequence[Sequence[float]], verfahren: Verfahren | None = None
+) -> Intervall | None:
+    """Der Vertrauensbereich des Mittelwerts über alle Werte aller Blöcke; `None` bei zu wenig."""
+    art = verfahren or Verfahren()
+    if (gezogen := _ziehe(bloecke, art)) is None:
+        return None
+    mittel, ziehungen, einheiten = gezogen
+    unten, oben = _bereich(ziehungen, art)
     return Intervall(
         mittel=round(mittel, STELLEN),
-        unten=round(_perzentil(gezogen, rand), STELLEN),
-        oben=round(_perzentil(gezogen, 1.0 - rand), STELLEN),
-        streuung=round(_streuung(gezogen, sum(gezogen) / len(gezogen)), STELLEN),
+        unten=unten,
+        oben=oben,
+        streuung=round(_streuung(ziehungen, sum(ziehungen) / len(ziehungen)), STELLEN),
         bloecke=len(bloecke),
         einheiten=einheiten,
         verfahren=art,
@@ -258,29 +274,19 @@ def unterschied(
     """
     art = verfahren or Verfahren()
     differenzen = [[links - rechts for links, rechts in block] for block in bloecke]
-    summen = [sum(block) for block in differenzen]
-    anzahlen = [len(block) for block in differenzen]
-    einheiten = sum(anzahlen)
-    if len(bloecke) < MINDESTENS or not einheiten:
+    if (gezogen := _ziehe(differenzen, art)) is None:
         return None
+    mittel, ziehungen, einheiten = gezogen
 
-    mittel = sum(summen) / einheiten
-    hole_summe = summen.__getitem__
-    hole_anzahl = anzahlen.__getitem__
-    gezogen = sorted(
-        sum(map(hole_summe, zug)) / sum(map(hole_anzahl, zug))
-        for zug in zuege(len(bloecke), art.ziehungen, art.keim)
-    )
+    nicht_groesser = sum(1 for wert in ziehungen if wert <= 0.0)
+    nicht_kleiner = len(ziehungen) - sum(1 for wert in ziehungen if wert < 0.0)
+    p = 2.0 * (min(nicht_groesser, nicht_kleiner) + 1) / (len(ziehungen) + 1)
 
-    nicht_groesser = sum(1 for wert in gezogen if wert <= 0.0)
-    nicht_kleiner = len(gezogen) - sum(1 for wert in gezogen if wert < 0.0)
-    p = 2.0 * (min(nicht_groesser, nicht_kleiner) + 1) / (len(gezogen) + 1)
-
-    rand = (1.0 - art.niveau) / 2.0
+    unten, oben = _bereich(ziehungen, art)
     return Unterschied(
         differenz=round(mittel, STELLEN),
-        unten=round(_perzentil(gezogen, rand), STELLEN),
-        oben=round(_perzentil(gezogen, 1.0 - rand), STELLEN),
+        unten=unten,
+        oben=oben,
         p=round(min(p, 1.0), 4),
         bloecke=len(bloecke),
         einheiten=einheiten,
