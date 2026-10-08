@@ -17,6 +17,11 @@
 
 import { mitZugang } from './zugang';
 
+/** Was ein Fehlschlag zu sagen hat - der Satz des Servers, sonst der Fehler selbst. */
+export function fehlertext(ursache: unknown): string {
+  return ursache instanceof Error ? ursache.message : String(ursache);
+}
+
 export class ApiFehler extends Error {
   constructor(
     readonly status: number,

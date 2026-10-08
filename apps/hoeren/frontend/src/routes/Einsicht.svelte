@@ -8,6 +8,8 @@
    * genau der Griff, den es hier nicht geben soll. Wer zwei Korpora ansehen
    * will, öffnet sie nacheinander.
    */
+  import { fehlertext } from '$ui/api';
+  import { gueltigePin } from '$ui/pin.svelte';
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Pager from '$ui/Pager.svelte';
   import Papierkorb from '$ui/Papierkorb.svelte';
@@ -75,7 +77,7 @@
       daten = await ladeEinsicht(sprecherId);
       await Promise.all([ladeSitzungen(), ladeAufnahmen()]);
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -84,7 +86,7 @@
     try {
       await ladeSitzungen();
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -93,7 +95,7 @@
     try {
       await ladeAufnahmen();
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -106,7 +108,7 @@
       await arbeit();
       meldung = danach;
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       laeuft = '';
     }
@@ -145,8 +147,7 @@
     ereignis.preventDefault();
     const neue = neuePin.trim();
 
-    // Validierung: genau 4 Ziffern
-    if (!neue || neue.length !== 4 || !/^[0-9]{4}$/.test(neue)) {
+    if (!gueltigePin(neue)) {
       fehler = 'Die PIN muss aus genau 4 Ziffern bestehen.';
       return;
     }

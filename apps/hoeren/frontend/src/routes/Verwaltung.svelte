@@ -11,7 +11,7 @@
    * Weg in seine Daten (`Einsicht.svelte`).
    */
   import { dauer } from '$ui/zeit';
-  import { ApiFehler } from '$ui/api';
+  import { ApiFehler, fehlertext } from '$ui/api';
   import { inDieZwischenablage } from '$ui/zwischenablage';
   import {
     alleSprecher,
@@ -58,7 +58,7 @@
       sprecher = beaufsichtigt ? await alleSprecher() : await sprecherListe();
     } catch (ursache) {
       if (ursache instanceof ApiFehler && ursache.status === 401) await ladeZugang();
-      else fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      else fehler = fehlertext(ursache);
     }
   }
 
@@ -70,7 +70,7 @@
       name = '';
       await gib_aus(neuer.id);
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -88,7 +88,7 @@
       };
       await lade();
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -101,7 +101,7 @@
       if (frisch?.sprecher_id === person.id) frisch = null;
       await lade();
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -120,7 +120,7 @@
       await sicherungGesamt();
       meldung = 'Gesamtsicherung heruntergeladen.';
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       packt = false;
     }

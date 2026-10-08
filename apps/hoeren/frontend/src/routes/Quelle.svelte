@@ -4,6 +4,7 @@
    * ein hochgeladener Text. Beides wird zu Sprecheinheiten geschnitten und
    * hinten an die Warteschlange gehängt.
    */
+  import { fehlertext } from '$ui/api';
   import Papierkorb from '$ui/Papierkorb.svelte';
   import {
     erkennungMoeglich,
@@ -91,7 +92,7 @@
       await arbeit();
       await lade();
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       laeuft = false;
     }
@@ -258,7 +259,7 @@
       setTimeout(() => URL.revokeObjectURL(adresse), 60_000);
     } catch (ursache) {
       tab?.close();
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 

@@ -10,13 +10,14 @@
    * verwerfen (dasselbe Verwerfen wie beim Aufnehmen, `Aufnahme.svelte`),
    * sich umbenennen und beides mitnehmen, Sicherung wie Datensatz.
    */
+  import { fehlertext } from '$ui/api';
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Kalender from '$ui/Kalender.svelte';
   import Pager from '$ui/Pager.svelte';
   import Papierkorb from '$ui/Papierkorb.svelte';
   import Warnzeichen from '$ui/Warnzeichen.svelte';
   import { ZUGANGSDATEN_PFAD, ZUSCHNITT_PFAD } from '$ui/apps';
-  import { merkePin, schloss, vergissPin } from '$ui/pin.svelte';
+  import { gueltigePin, merkePin, schloss, vergissPin } from '$ui/pin.svelte';
   import { datum, dauer, tag } from '$ui/zeit';
   import {
     aufnahmeVerwerfen,
@@ -97,7 +98,7 @@
       daten = await meinKonto(meinePin);
       await Promise.all([ladeZeiten(), ladeAufnahmen()]);
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -116,7 +117,7 @@
       }
       if (stand === 'offen') await lade();
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -124,8 +125,7 @@
     ereignis.preventDefault();
     pinFehler = '';
 
-    // Validierung: genau 4 Ziffern
-    if (!pinEingabe || pinEingabe.length !== 4 || !/^[0-9]{4}$/.test(pinEingabe)) {
+    if (!gueltigePin(pinEingabe)) {
       pinFehler = 'Die PIN muss aus genau 4 Ziffern bestehen.';
       return;
     }
@@ -148,8 +148,7 @@
     ereignis.preventDefault();
     const neue = neuePin.trim();
 
-    // Validierung: genau 4 Ziffern
-    if (!neue || neue.length !== 4 || !/^[0-9]{4}$/.test(neue)) {
+    if (!gueltigePin(neue)) {
       fehler = 'Die PIN muss aus genau 4 Ziffern bestehen.';
       return;
     }
@@ -212,7 +211,7 @@
     try {
       await ladeAufnahmen();
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -225,7 +224,7 @@
       await arbeit();
       meldung = danach;
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       laeuft = '';
     }

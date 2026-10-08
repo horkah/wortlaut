@@ -11,6 +11,7 @@
    * Die beste Zahl jeder Spalte fällt auch ohne Sortieren ins Auge, farbig und
    * mit einem Wort im `title`.
    */
+  import { fehlertext } from '$ui/api';
   import { ANZEIGE_GEBIET } from '$ui/sprache';
   import { zeitpunkt } from '$ui/zeit';
   import { onMount } from 'svelte';
@@ -165,7 +166,7 @@
       uebersicht = await ladeModelle(blockart, gegen);
       fehler = '';
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       geladen = true;
     }
@@ -200,7 +201,7 @@
       // das sofort sagen und nicht erst beim nächsten Öffnen.
       diktat = await ladeDiktatmodell();
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       arbeitet = '';
     }

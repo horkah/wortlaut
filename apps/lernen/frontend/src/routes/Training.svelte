@@ -12,6 +12,7 @@
    * Fertige Läufe stehen als Modelle in der Modelltafel; hier nur, was noch
    * arbeitet oder scheiterte.
    */
+  import { fehlertext } from '$ui/api';
   import { onMount } from 'svelte';
   import {
     beauftrage as beauftrageLauf,
@@ -361,7 +362,7 @@
       daten = await ladeLaeufe();
       fehler = '';
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -389,7 +390,7 @@
       await hole();
       fehler = '';
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       bestellt = '';
     }
@@ -413,7 +414,7 @@
       await halteAn(lauf.job_id);
       await hole();
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -424,7 +425,7 @@
       await hole();
       fehler = '';
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -436,7 +437,7 @@
       await hole();
       fehler = '';
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       loescht = '';
     }

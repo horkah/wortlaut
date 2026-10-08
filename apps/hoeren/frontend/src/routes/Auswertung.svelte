@@ -16,6 +16,7 @@
    *
    * ECharts (`lib/diagramm.ts`) wird erst hier geladen.
    */
+  import { fehlertext } from '$ui/api';
   import { onMount } from 'svelte';
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Textvergleich from '$ui/Textvergleich.svelte';
@@ -360,7 +361,7 @@
       gewaehlt = await ladeVergleich(punkt.aufnahme_id);
     } catch (ursache) {
       gewaehlt = null;
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       vergleichLaeuft = false;
     }
@@ -373,7 +374,7 @@
       // Sobald wieder gerechnet wird, ist die Quittung von vorhin überholt.
       if (daten.stand.laeuft) meldung = '';
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -400,7 +401,7 @@
           : 'Noch keine Aufnahmen, an denen sich etwas messen ließe.';
       }
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       laeuftGerade = '';
     }
@@ -412,7 +413,7 @@
       await auswertungStoppen();
       await hole();
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       laeuftGerade = '';
     }
