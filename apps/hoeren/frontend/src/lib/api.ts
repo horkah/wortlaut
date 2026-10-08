@@ -395,13 +395,13 @@ async function blobMitNamen(pfad: string, optionen: RequestInit = {}): Promise<[
 // ── Konto ───────────────────────────────────────────────────────────────────
 //
 // Ein Sprecher sieht sich selbst - dieselben Formen wie oben bei der Aufsicht
-// (`Uebersicht`, `AufsichtQuelle`, `Sitzungenseite`, `Aufnahmenseite`), denn
+// (`Uebersicht`, `AufsichtQuelle`, `Aufnahmenseite`), denn
 // der Server füllt sie über dieselbe Zählung (`services/uebersicht.py`). Nur
 // der Weg ist ein anderer: keine Kennung in der Adresse, sie steckt im
 // vorgelegten Zugang. Anhören und Verwerfen einer Aufnahme laufen weiter über
 // `meineAufnahmeAudio` und `aufnahmeVerwerfen` weiter oben.
 //
-// Ist eine PIN gesetzt, verlangen die drei lesenden Wege sie zusätzlich als
+// Ist eine PIN gesetzt, verlangen die lesenden Wege sie zusätzlich als
 // `X-Pin`-Kopfzeile - deshalb der optionale `pin`-Parameter unten. `pinStand`
 // selbst bleibt ungeschützt: Er beantwortet ja gerade die Frage, ob überhaupt
 // nach einer PIN gefragt werden muss.
@@ -418,9 +418,6 @@ export const pinSetzen = (pin: string | null) =>
   anfrage<PinStand>('/konto/pin', alsJson({ pin }, 'PATCH'));
 
 export const meinKonto = (pin?: string) => anfrage<Konto>('/konto', mitPin(pin));
-
-export const meineSitzungen = (ab = 0, anzahl = 10, pin?: string) =>
-  anfrage<Sitzungenseite>(`/konto/sessions?ab=${ab}&anzahl=${anzahl}`, mitPin(pin));
 
 /** Wann jede eigene gültige Aufnahme entstand, UTC, älteste zuerst. */
 export const meineAufnahmezeiten = (pin?: string) =>

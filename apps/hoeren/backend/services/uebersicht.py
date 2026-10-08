@@ -135,8 +135,7 @@ def profil(
 ) -> UebersichtAntwort:
     """Profil und Kennzahlen eines Sprechers.
 
-    `nur_sitzungen_mit_aufnahmen` zählt wie `sitzungen_seite` mit
-    `nur_mit_aufnahmen` auflistet.
+    `nur_sitzungen_mit_aufnahmen` lässt leere Sitzungen aus der Zahl.
     """
     gueltig = Aufnahme.status == "ok"
     sitzungsfilter = (_HAT_AUFNAHMEN,) if nur_sitzungen_mit_aufnahmen else ()
@@ -182,14 +181,9 @@ def quellen(sitzung: Session) -> list[QuelleAntwort]:
     ]
 
 
-def sitzungen_seite(
-    sitzung: Session, ab: int = 0, anzahl: int = SEITE, nur_mit_aufnahmen: bool = False
-) -> SitzungenAntwort:
-    """Die Sitzungen eines Sprechers, jüngste zuerst, seitenweise.
-
-    `nur_mit_aufnahmen` lässt die leeren draußen, auch aus der Gesamtzahl.
-    """
-    gesamt_abfrage = select(func.count()).select_from(Sitzung)
+def sitzungen_seite(sitzung: Session, ab: int = 0, anzahl: int = SEITE) -> SitzungenAntwort:
+    """Die Sitzungen eines Sprechers, jüngste zuerst, seitenweise - auch die leeren."""
+    gesamt = sitzung.scalar(select(func.count()).select_from(Sitzung)) or 0
     aufnahmen_pro_sitzung = (
         select(Aufnahme.session_id, func.count().label("aufnahmen"))
         .group_by(Aufnahme.session_id)
@@ -202,10 +196,6 @@ def sitzungen_seite(
         .offset(max(ab, 0))
         .limit(min(max(anzahl, 1), SEITE))
     )
-    if nur_mit_aufnahmen:
-        gesamt_abfrage = gesamt_abfrage.where(_HAT_AUFNAHMEN)
-        seite = seite.where(_HAT_AUFNAHMEN)
-    gesamt = sitzung.scalar(gesamt_abfrage) or 0
     zeilen = sitzung.execute(seite).all()
     return SitzungenAntwort(
         gesamt=gesamt,
