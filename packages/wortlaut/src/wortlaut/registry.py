@@ -4,7 +4,7 @@
     ├── freigabe.json               welches Modell dieser Mensch benutzt
     └── <version>/
         ├── manifest.json
-        ├── ct2/                    für faster-whisper exportiert
+        └── ct2/                    für faster-whisper exportiert
 
 Ein Modellstand ist ein Verzeichnis, das sich kopieren und sichern lässt.
 „lernen" schreibt die Registry, „schreiben" liest sie; das Format gehört an
@@ -21,7 +21,6 @@ Freigabedatei.
 from __future__ import annotations
 
 import hashlib
-
 import json
 import shutil
 from pathlib import Path
