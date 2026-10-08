@@ -26,6 +26,7 @@
    * wird bis dahin wie im Zuschnitt aus der geladenen Datei (`$ui/ausschnitt`),
    * ohne vorläufige Dateien auf dem Server.
    */
+  import { fehlertext } from '$ui/api';
   import Pegelverlauf from '$ui/Pegelverlauf.svelte';
   import { spiele, stoppe, vergiss } from '$ui/ausschnitt';
   import { tag } from '$ui/zeit';
@@ -156,7 +157,7 @@
       bearbeitet = false;
       aufnahme = eine;
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -204,7 +205,7 @@
       });
     } catch (ursache) {
       spielt = '';
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -239,7 +240,7 @@
       });
       gehZu(ZUSCHNITT_PFAD);
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       laeuft = false;
     }

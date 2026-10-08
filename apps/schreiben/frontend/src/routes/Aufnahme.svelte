@@ -7,6 +7,7 @@
    * läuft auf dem Server und braucht je nach Modell ein paar Sekunden. Diese
    * Wartezeit muss man sehen, sonst drückt jemand ein zweites Mal.
    */
+  import { fehlertext } from '$ui/api';
   import Recorder from '$ui/Recorder.svelte';
   import { einstellungen } from '$ui/einstellungen.svelte';
   import { entsperreVorlesen } from '$ui/speak';
@@ -34,7 +35,7 @@
       setzeSitzung(await diktieren(sitzung.id, aufnahme));
       gehZu('/ergebnis');
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       stand = 'bereit';
     }

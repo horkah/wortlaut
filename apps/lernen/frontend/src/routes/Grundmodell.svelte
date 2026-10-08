@@ -14,6 +14,7 @@
    * daneben: Die Frage vor einem Grundmodell ist meist, ob es das eigene
    * schlägt - nicht umgekehrt wie beim Lauf, der sich gegen seine Baseline misst.
    */
+  import { fehlertext } from '$ui/api';
   import { ANZEIGE_GEBIET } from '$ui/sprache';
   import { zeitpunkt } from '$ui/zeit';
   import { MODELLE_PFAD } from '$ui/apps';
@@ -45,7 +46,7 @@
         if (gewuenscht === name) daten = antwort;
       })
       .catch((ursache) => {
-        fehler = ursache instanceof Error ? ursache.message : String(ursache);
+        fehler = fehlertext(ursache);
       });
   });
 

@@ -10,6 +10,7 @@
    * eingesprochen und neu transkribiert, alle anderen bleiben unberührt. Das
    * ist der Grund, warum Abschnitte einzeln mit Audio gespeichert werden.
    */
+  import { fehlertext } from '$ui/api';
   import { untrack } from 'svelte';
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Recorder from '$ui/Recorder.svelte';
@@ -102,7 +103,7 @@
     } catch (ursache) {
       // Ein Abbruch mitten im Satz meldet sich hier ebenfalls; das ist kein
       // Fehler, der jemanden interessiert.
-      if (liest) fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      if (liest) fehler = fehlertext(ursache);
     } finally {
       liest = false;
       gesprochen = null;
@@ -137,7 +138,7 @@
       setzeSitzung(await abschnittNeuSprechen(bearbeitet.id, aufnahme));
       bearbeitetId = null;
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       stand = 'bereit';
     }
@@ -153,7 +154,7 @@
       versand = await bestaetigen(sitzung.id);
       setzeSitzung(await sitzungHolen(sitzung.id));
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       stand = 'bereit';
     }
@@ -165,7 +166,7 @@
       const bericht = await postausgangSenden();
       versand = { eingestellt: 0, ...bericht };
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       stand = 'bereit';
     }

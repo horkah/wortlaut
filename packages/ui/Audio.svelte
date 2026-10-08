@@ -13,6 +13,7 @@
    * Grund steht der Zugang dieses Browsers ebenfalls nicht hier, sondern unter
    * `ZUGANGSDATEN_PFAD`.
    */
+  import { fehlertext } from './api';
   import Mikrofontest from './Mikrofontest.svelte';
   import {
     beiStimmenAenderung,
@@ -128,7 +129,7 @@
         stimmprobe,
       );
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 </script>

@@ -11,7 +11,7 @@
    * Jüngstes oben. Eine Ausnahme samt Stapel steht eingeklappt unter ihrer
    * Zeile - wer sie braucht, klappt sie auf.
    */
-  import { api } from './api';
+  import { api, fehlertext } from './api';
   import { mitSchluessel } from './schluessel.svelte';
   import { zeitpunkt } from './zeit';
 
@@ -52,7 +52,7 @@
       tage = antwort.tage;
       fehler = '';
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       laedt = false;
     }

@@ -13,6 +13,7 @@
    * halbfertige. Solange oben eine Kurve wächst, gibt es unten nichts zu
    * sehen - und das ist besser, als eine Zahl zu zeigen, die sich noch ändert.
    */
+  import { fehlertext } from '$ui/api';
   import { zeitpunkt } from '$ui/zeit';
   import { onMount } from 'svelte';
   import { einstellungen } from '$ui/einstellungen.svelte';
@@ -235,7 +236,7 @@
       baut = false;
       fehler =
         'Das Diagramm konnte nicht geladen werden: ' +
-        (ursache instanceof Error ? ursache.message : String(ursache));
+        fehlertext(ursache);
     }
   }
 
@@ -244,7 +245,7 @@
       daten = await ladeLauf(jobId);
       fehler = '';
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -259,7 +260,7 @@
     try {
       if (await loescheNachRueckfrage(lauf)) gehZu(ziel);
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       loescht = false;
     }

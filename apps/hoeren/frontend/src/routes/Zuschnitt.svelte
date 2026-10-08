@@ -35,7 +35,7 @@
     zuschnittSchreiben,
     type Zuschnittaufnahme,
   } from '../lib/api';
-  import { ApiFehler } from '$ui/api';
+  import { ApiFehler, fehlertext } from '$ui/api';
   import { ladeZugang } from '$ui/lage.svelte';
   import { gehZu, lage } from '../lib/zustand.svelte';
   import { MEINE_DATEN_PFAD, EDITIEREN_ROUTE, ZUGANGSDATEN_PFAD } from '$ui/apps';
@@ -124,7 +124,7 @@
       // Hat sich der Schlüssel inzwischen geändert, sagt die Auskunft es neu -
       // und die Ansicht zeigt den Weg zu den Zugangsdaten statt einer leeren Liste.
       if (ursache instanceof ApiFehler && ursache.status === 401) await ladeZugang();
-      else fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      else fehler = fehlertext(ursache);
     }
   }
 
@@ -187,7 +187,7 @@
       );
     } catch (ursache) {
       spielt = '';
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   }
 
@@ -260,7 +260,7 @@
       }
       await lade();
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     } finally {
       laeuft = '';
     }

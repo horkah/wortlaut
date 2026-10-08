@@ -3,6 +3,7 @@
    * Wie gemessen wird: was mit den Aufnahmen beim Trainieren und Messen
    * geschieht. Die Aufnahmen selbst stehen unter „Meine Daten".
    */
+  import { fehlertext } from '$ui/api';
   import { onMount } from 'svelte';
   import { MEINE_DATEN_PFAD } from '$ui/apps';
   import { aufteilung as ladeAufteilung, type Aufteilung } from '../lib/api';
@@ -27,7 +28,7 @@
     try {
       daten = await ladeAufteilung();
     } catch (ursache) {
-      fehler = ursache instanceof Error ? ursache.message : String(ursache);
+      fehler = fehlertext(ursache);
     }
   });
 </script>
