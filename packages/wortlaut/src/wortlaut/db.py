@@ -6,8 +6,8 @@ Drei Aufgaben, bewusst getrennt:
   diesen Anwendungsfall wichtig sind - vor allem WAL, damit „lernen" lesen
   kann, während „hören" schreibt.
 * `wende_migrationen_an()` spielt nummerierte `.sql`-Dateien ein und merkt sich
-  in `schema_migrations`, welche schon liefen. Kein Alembic: bei fünf Tabellen
-  wäre die Migrationsmaschinerie größer als das Schema.
+  in `schema_migrations`, welche schon liefen. Kein Alembic: bei einer Handvoll
+  Tabellen wäre die Migrationsmaschinerie größer als das Schema.
 * `sichere_kopie()` zieht eine in sich stimmige Kopie einer laufenden Datenbank
   - die Grundlage jeder Sicherung (siehe `wortlaut/sicherung.py`).
 """

@@ -28,7 +28,7 @@ def datenverzeichnisse(sprecher_id: str) -> list[str]:
     return [
         corpus.sprecher_relpfad(sprecher_id),
         diktate_relpfad(sprecher_id),
-        # `lernen/<sprecher>`, falls vorhanden - Aufnahmekennungen ohne Stimme.
+        # Das Register der Läufe (`lernen/<sprecher>`), falls vorhanden.
         lernen_relpfad(sprecher_id),
     ]
 

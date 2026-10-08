@@ -62,15 +62,13 @@ class Motor(Protocol):
 
 
 # ── Piper ───────────────────────────────────────────────────────────────────
-
-
-# ── Die Meldung „Missing phoneme from id map: ̧" ist kein Fehler ─────────────
 #
-# espeak-ng liefert das ç zerlegt (`c` plus U+0327), und die kleineren
-# deutschen Modelle (Kerstin, Pavoque, Ramona, Karlsson, Eva) führen das
-# Häkchen nicht - Piper meldet das bei jedem ich-Laut. Setzt man das `ç`
-# wieder zusammen, verschwindet die Meldung, und der Klang wird schlechter;
-# durch Whisper zurückgelesen:
+# Die Meldung „Missing phoneme from id map: ̧" ist kein Fehler. espeak-ng
+# liefert das ç zerlegt (`c` plus U+0327), und die kleineren deutschen Modelle
+# (Kerstin, Pavoque, Ramona, Karlsson, Eva) führen das Häkchen nicht - Piper
+# meldet das bei jedem ich-Laut. Setzt man das `ç` wieder zusammen,
+# verschwindet die Meldung, und der Klang wird schlechter; durch Whisper
+# zurückgelesen:
 #
 #     Vorlage          Ich möchte nicht, dass mich niemand versteht.
 #     mit `ç`          Ihr Mütte näht, dass mir niemand versteht.
