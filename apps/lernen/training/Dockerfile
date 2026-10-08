@@ -53,13 +53,14 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # hat die Schnittstelle des Trainers mehrfach umgebaut, und
 # `Seq2SeqTrainer.compute_loss` bekommt erst ab 4.46 das Argument
 # `num_items_in_batch`, auf das der gewichtete Verlust in `finetune.py`
-# eingestellt ist.
+# eingestellt ist. `av` ist gedeckelt wie in pyproject.toml (Extra `asr`).
 RUN --mount=type=cache,target=/root/.cache/pip \
         pip install \
         "transformers>=4.46,<5" \
         "peft>=0.13" \
         "accelerate>=1.0" \
         "faster-whisper>=1.1" \
+        "av<19" \
         "pyyaml>=6" \
         "sqlalchemy>=2.0" \
         "pydantic-settings>=2.4"
