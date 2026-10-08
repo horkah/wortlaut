@@ -122,15 +122,3 @@ export function vergleiche(vorher: string, nachher: string): Stueck[] {
   }
   return vergleiche_teile(woerter(vorher), woerter(nachher));
 }
-
-/** Wie viele Zeichen unverändert blieben - für eine Zeile Zusammenfassung. */
-export function gleichanteil(stuecke: Stueck[]): number {
-  let gleich = 0;
-  let gesamt = 0;
-  for (const stueck of stuecke) {
-    const laenge = Array.from(stueck.text).length;
-    gesamt += laenge;
-    if (stueck.art === 'gleich') gleich += laenge;
-  }
-  return gesamt ? gleich / gesamt : 1;
-}

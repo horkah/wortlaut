@@ -7,7 +7,7 @@ schreibt nichts in den Korpus.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient

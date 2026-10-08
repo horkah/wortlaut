@@ -37,9 +37,6 @@ class Einstellungen(Grundeinstellungen):
     # Dieselbe Liste wie in der Auswertung von „hören" - von dort stammen die
     # Zahlen der Modelltafel.
     auswertung_modelle: str = AUSWERTUNG_MODELLE
-    # Worauf trainiert wird. Anders als beim Erkennen gibt es kein Ausweichen
-    # auf den Prozessor - dort dauerte es Tage.
-    lernen_geraet: str = "cuda"
     # Wie oft der Läufer nach Aufträgen sieht, in Sekunden.
     lernen_takt_s: int = 5
     # Was ein Lauf auf der Karte für die Erkenner des Webdienstes übrig lässt

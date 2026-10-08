@@ -36,8 +36,6 @@ AUS = "aus"
 # Je Aufnahme ziehen.
 BLOCK_AUFNAHME = "aufnahme"
 
-BLOCKARTEN = (AUS, BLOCK_AUFNAHME)
-
 # ── Die Zahlen des Verfahrens ───────────────────────────────────────────────
 #
 # Konstanten, keine Konfiguration: Wer sie ändert, ändert jede damit gerechnete

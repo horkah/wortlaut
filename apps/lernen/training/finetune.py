@@ -24,7 +24,6 @@ damit „lernen" weiß, was passt, bevor der erste Lauf kommt.
 from __future__ import annotations
 
 import gc
-import json
 import logging
 import math
 import shutil

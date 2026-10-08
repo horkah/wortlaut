@@ -97,10 +97,9 @@ class TestRegistry:
         assert registry.lies_stand(tmp_path, "spr_1", "2026-08-15T1420")["status"] == "draft"
         assert len(registry.alle_staende(tmp_path, "spr_1")) == 2
         # „schreiben" wird auf genau einen Stand festgenagelt.
-        assert registry.aktiver_stand(tmp_path, "spr_1")["id"] == "spr_1/2026-08-16T0900"
+        assert registry.freigegeben(tmp_path, "spr_1") == "spr_1/2026-08-16T0900"
 
-    def test_ohne_modelle_kein_aktiver_stand(self, tmp_path: Path) -> None:
-        assert registry.aktiver_stand(tmp_path, "spr_unbekannt") is None
+    def test_ohne_modelle_nichts_freigegeben(self, tmp_path: Path) -> None:
         assert registry.freigegeben(tmp_path, "spr_unbekannt") == ""
 
 
@@ -130,8 +129,6 @@ class TestFreigabe:
         registry.gib_frei(tmp_path, "spr_1", "medium")
 
         assert registry.freigegeben(tmp_path, "spr_1") == "medium"
-        # Kein Stand ist mehr freigegeben - `aktiver_stand` sagt das auch.
-        assert registry.aktiver_stand(tmp_path, "spr_1") is None
         assert registry.lies_stand(tmp_path, "spr_1", "erster")["status"] == "zurueckgezogen"
 
     def test_leere_kennung_nimmt_die_freigabe_zurueck(self, tmp_path: Path) -> None:
@@ -139,7 +136,6 @@ class TestFreigabe:
         registry.gib_frei(tmp_path, "spr_1", "")
 
         assert registry.freigegeben(tmp_path, "spr_1") == ""
-        assert registry.aktiver_stand(tmp_path, "spr_1") is None
 
     def test_ohne_freigabedatei_zaehlen_die_manifeste(self, tmp_path: Path) -> None:
         # Eine Installation, die vor der Freigabedatei schon einen Stand

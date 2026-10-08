@@ -28,7 +28,6 @@ import subprocess
 import sys
 import threading
 import time
-from pathlib import Path
 
 from wortlaut import fehlerlog, laeufe
 

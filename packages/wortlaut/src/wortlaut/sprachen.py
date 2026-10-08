@@ -49,10 +49,6 @@ def normiere(kuerzel: str) -> str:
     return kuerzel.strip().replace("_", "-").split("-", 1)[0].lower()
 
 
-def ist_unterstuetzt(kuerzel: str) -> bool:
-    return normiere(kuerzel) in UNTERSTUETZT
-
-
 def pruefe(kuerzel: str) -> str:
     """Die normierte Sprache - oder `UnbekannteSprache`. Der Weg von außen herein."""
     normiert = normiere(kuerzel)

@@ -184,14 +184,3 @@ def gib_frei(datenverzeichnis: Path, sprecher_id: str, ref: str) -> str:
             schreibe_stand(datenverzeichnis, stand)
     return ref
 
-
-def aktiver_stand(datenverzeichnis: Path, sprecher_id: str) -> dict[str, Any] | None:
-    """Der freigegebene **Stand** - `None`, wenn ein Grundmodell freigegeben ist."""
-    ref = freigegeben(datenverzeichnis, sprecher_id)
-    if not ref or not ist_stand(ref):
-        return None
-    ref_sprecher, version = ref.split(TRENNER, 1)
-    try:
-        return lies_stand(datenverzeichnis, ref_sprecher, version)
-    except (OSError, ValueError):
-        return None

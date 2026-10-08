@@ -682,7 +682,6 @@ class TestGemeinsamerBoden:
 
     def test_die_tafel_sagt_es_vorher(self, klient: TestClient, baseline, fertiger_lauf) -> None:
         from apps.lernen.backend.api.modelle import _hinweis
-        from apps.lernen.backend.services.messwerte import Messreihe
 
         reihen = {"small": self._reihe(100), "spr/gross": self._reihe(100),
                   "spr/schmal": self._reihe(20)}

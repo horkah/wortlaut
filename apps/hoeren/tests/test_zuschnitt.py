@@ -25,7 +25,6 @@ from wortlaut import corpus
 from apps.hoeren.backend import deps
 from apps.hoeren.backend.config import einstellungen
 from apps.hoeren.backend.db.models import Aufnahme, Erkennung, jetzt
-from apps.hoeren.backend.main import app
 
 EDITOR_KEY = "test-zuschnitt"
 
@@ -363,7 +362,7 @@ class TestTeilen:
         antwort = schneider.get(f"/api/zuschnitt/aufnahmen/{kennung}?sprecher={sprecher}")
         assert antwort.status_code == 200
         assert antwort.json()["id"] == kennung
-        assert schneider.get(f"/api/zuschnitt/aufnahmen/rec_gibtsnicht").status_code == 404
+        assert schneider.get("/api/zuschnitt/aufnahmen/rec_gibtsnicht").status_code == 404
 
     def test_die_teile_liegen_lueckenlos_aneinander(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict, tmp_path: Path
