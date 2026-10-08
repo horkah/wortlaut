@@ -18,7 +18,6 @@ Schreibens ins falsche Verzeichnis.
 
 from __future__ import annotations
 
-import secrets
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Annotated
@@ -26,7 +25,7 @@ from typing import Annotated
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
-from wortlaut import corpus, db, sprachen, storage
+from wortlaut import corpus, db, schluessel, sprachen, storage
 from wortlaut import zugang as zugangsdienst
 
 from .config import einstellungen
@@ -70,23 +69,10 @@ def vergiss_engine(sprecher_id: str) -> None:
         engine.dispose()
 
 
-def _vorgelegt(authorization: str | None) -> str:
-    return (authorization or "").removeprefix("Bearer ")
-
-
-def _gleich(vorgelegt: str, erwartet: str) -> bool:
-    """Zeitkonstanter Vergleich über die UTF-8-Bytes.
-
-    In Bytes, weil `compare_digest` Nicht-ASCII-Zeichenketten abweist - ein
-    Umlaut im Token ergäbe sonst 500 statt 401.
-    """
-    return secrets.compare_digest(vorgelegt.encode("utf-8"), erwartet.encode("utf-8"))
-
-
 def _ist_aufsicht(vorgelegt: str) -> bool:
     """Der Aufsichtstoken, falls einer gesetzt ist. Leer = abgeschaltet."""
     erwartet = einstellungen().admin_token
-    return bool(erwartet) and _gleich(vorgelegt, erwartet)
+    return bool(erwartet) and schluessel.gleich(vorgelegt, erwartet)
 
 
 def _pruefe_aufsicht(authorization: Annotated[str | None, Header()] = None) -> None:
@@ -99,7 +85,7 @@ def _pruefe_aufsicht(authorization: Annotated[str | None, Header()] = None) -> N
             status_code=401,
             detail="Die Aufsicht ist abgeschaltet: WORTLAUT_ADMIN_TOKEN ist nicht gesetzt.",
         )
-    if not _ist_aufsicht(_vorgelegt(authorization)):
+    if not _ist_aufsicht(zugangsdienst.aus_kopf(authorization)):
         raise HTTPException(status_code=401, detail="Nicht angemeldet")
 
 
@@ -110,7 +96,7 @@ def _pruefe_verwaltung(authorization: Annotated[str | None, Header()] = None) ->
     Installation weiß, ob sie Entwicklung ist, und ein vergessener Token darf
     nicht die großzügigste Einstellung sein.
     """
-    vorgelegt = _vorgelegt(authorization)
+    vorgelegt = zugangsdienst.aus_kopf(authorization)
     if _ist_aufsicht(vorgelegt):
         return
     if not einstellungen().auth_token:
@@ -124,13 +110,13 @@ def _pruefe_verwaltung(authorization: Annotated[str | None, Header()] = None) ->
             status_code=401, detail="Das ist ein Sprecherzugang, kein Verwalterzugang."
         )
 
-    if not _gleich(vorgelegt, einstellungen().auth_token):
+    if not schluessel.gleich(vorgelegt, einstellungen().auth_token):
         raise HTTPException(status_code=401, detail="Nicht angemeldet")
 
 
 def _wer_ruft(authorization: Annotated[str | None, Header()] = None) -> Zugang:
     """Die Kennung aus dem Vorgelegten ableiten - die einzige Stelle, die das tut."""
-    vorgelegt = _vorgelegt(authorization)
+    vorgelegt = zugangsdienst.aus_kopf(authorization)
     # Die Aufsicht zuerst, sonst fiele sie in die Verwaltung.
     if _ist_aufsicht(vorgelegt):
         return Zugang(art="aufsicht")

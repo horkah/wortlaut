@@ -44,6 +44,11 @@ def pruefwert(geheimnis: str) -> str:
     return hashlib.sha256(geheimnis.encode("utf-8")).hexdigest()
 
 
+def aus_kopf(authorization: str | None) -> str:
+    """Das Vorgelegte aus `Authorization: Bearer …` - leer, wenn nichts kam."""
+    return (authorization or "").removeprefix("Bearer ")
+
+
 def zerlege(vorgelegt: str) -> tuple[str, str] | None:
     """`(sprecher_id, geheimnis)` - oder None, wenn das kein Sprecherzugang ist.
 
@@ -111,3 +116,22 @@ def pruefe(datenverzeichnis: Path, vorgelegt: str) -> Sprecherzugang | None:
         name=zeile[0] or "",
         sprache=zeile[2] or sprachen.VORGABE,
     )
+
+
+def verlange_sprecher(datenverzeichnis: Path, authorization: str | None) -> Sprecherzugang:
+    """Der Wächter von „lernen" und „schreiben": nur ein gültiger Sprecherzugang, sonst 401.
+
+    Ein Verwalter- oder Aufsichtstoken soll nicht wie ein abgelaufener
+    persönlicher Link klingen; die Form entscheidet das ohne Datenbank.
+    """
+    from fastapi import HTTPException
+
+    vorgelegt = aus_kopf(authorization)
+    if zerlege(vorgelegt) is None:
+        raise HTTPException(
+            status_code=401, detail="Für diesen Weg braucht es den Zugang eines Sprechers."
+        )
+    wer = pruefe(datenverzeichnis, vorgelegt)
+    if wer is None:
+        raise HTTPException(status_code=401, detail="Dieser Zugang gilt nicht mehr.")
+    return wer

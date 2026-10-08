@@ -55,18 +55,7 @@ def _zugang(
     und Aufsicht schauen in „hören". `wortlaut.zugang.pruefe` öffnet den Korpus
     lesend (`mode=ro`).
     """
-    vorgelegt = (authorization or "").removeprefix("Bearer ")
-    # Ein Verwalter- oder Aufsichtstoken soll nicht wie ein abgelaufener
-    # persönlicher Link klingen; die Form entscheidet das ohne Datenbank.
-    if zugangsdienst.zerlege(vorgelegt) is None:
-        raise HTTPException(
-            status_code=401, detail="Für diesen Weg braucht es den Zugang eines Sprechers."
-        )
-
-    wer = zugangsdienst.pruefe(einstellungen().data_dir, vorgelegt)
-    if wer is None:
-        raise HTTPException(status_code=401, detail="Dieser Zugang gilt nicht mehr.")
-    return wer
+    return zugangsdienst.verlange_sprecher(einstellungen().data_dir, authorization)
 
 
 def _sprecher_id(wer: Annotated[zugangsdienst.Sprecherzugang, Depends(_zugang)]) -> str:
