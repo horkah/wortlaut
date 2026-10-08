@@ -13,11 +13,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi.testclient import TestClient
-from wortlaut import sprachen
 
 from apps.schreiben.backend.main import app
 
-from conftest import NAME, lege_sprecher_an
+from conftest import lege_sprecher_an
 
 
 class TestOhneZugang:

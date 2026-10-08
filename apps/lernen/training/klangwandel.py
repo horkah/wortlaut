@@ -62,9 +62,6 @@ VORGABEN: dict[str, Any] = {
 }
 
 
-def stufe_aus(rezept: dict[str, Any], vorgabe: str = KEINE) -> str:
-    """Die im Rezept genannte Stufe - für den Fall, dass ein Rezept eine setzt."""
-    return str((rezept.get("augmentierung") or {}).get("stufe", vorgabe))
 
 
 def einstellungen_aus(rezept: dict[str, Any]) -> dict[str, Any]:

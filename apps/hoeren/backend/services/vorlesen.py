@@ -24,7 +24,6 @@ from ..db.models import Vorlage
 
 # Durchgereicht, damit der Rest der App eine Adresse für diese Begriffe hat.
 Stimme = klangwandel.Stimme
-VorlesenFehler = klangwandel.VorlesenFehler
 bietet = klangwandel.bietet
 
 
@@ -91,11 +90,3 @@ def stelle_probe_her(
         return None
     return blob
 
-
-def loesche(ablage: storage.Ablage, vorlage: Vorlage, stimmen_schluessel: list[str]) -> None:
-    """Alle vorgelesenen Fassungen dieser Vorlage entfernen.
-
-    Gerufen, wenn eine Vorlage verschwindet.
-    """
-    for stimme in stimmen_schluessel:
-        ablage.loesche(relpfad(vorlage, stimme))

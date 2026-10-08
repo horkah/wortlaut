@@ -22,9 +22,6 @@ from typing import Protocol
 
 from . import sprachen
 
-# Dieselbe Abtastrate wie überall (`audio.py`).
-RATE = 16_000
-
 # Zwischen Motor und Stimme: `piper/de_DE-thorsten-high`.
 TRENNER = "/"
 
@@ -173,8 +170,6 @@ class PiperMotor:
             with wave.open(str(entwurf), "wb") as datei:
                 # `synthesize_wav` schreibt die ganze Datei samt Kopf.
                 sprecher.synthesize_wav(text, datei)
-        except VorlesenFehler:
-            raise
         except Exception as ursache:  # was immer onnx wirft
             entwurf.unlink(missing_ok=True)
             raise VorlesenFehler(f"Piper konnte nicht sprechen: {ursache}") from ursache

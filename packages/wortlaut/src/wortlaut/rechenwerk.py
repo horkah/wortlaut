@@ -29,7 +29,6 @@ from functools import lru_cache
 AUTO = "auto"
 CUDA = "cuda"
 CPU = "cpu"
-GERAETE = (AUTO, CUDA, CPU)
 
 # Was auf dem jeweiligen Gerät gerechnet wird, wenn niemand etwas anderes sagt.
 # Beide Male die kleinste Darstellung, die das Modell nicht hörbar verschlechtert.

@@ -48,7 +48,6 @@ export type Modell = {
 
 export type Versand = { eingestellt: number; gesendet: number; offen: number; fehler: string | null };
 
-export type PostausgangStand = { offen: number; gesendet: number; letzter_fehler: string | null };
 
 /**
  * Alle Wege dieser App liegen unter ihrem Pfad, die API eingeschlossen.
@@ -97,8 +96,6 @@ export const abschnittVorgelesen = async (abschnitt: string, stimme: string) =>
 
 export const bestaetigen = (sitzung: string) =>
   anfrage<Versand>(`/sessions/${sitzung}/bestaetigen`, { method: 'POST' });
-
-export const postausgang = () => anfrage<PostausgangStand>('/outbox');
 
 export const postausgangSenden = () =>
   anfrage<Omit<Versand, 'eingestellt'>>('/outbox/senden', { method: 'POST' });
