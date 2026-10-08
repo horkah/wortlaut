@@ -128,6 +128,7 @@ make release JOB=job_01J8…                        # freigeben - „schreiben" 
 | [Kernbericht](docs/kernbericht.md) | Kernauswahl gegen alle Aufnahmen, Stand 27.09.2026 |
 | [Optionenbericht](docs/optionenbericht.md) | was die neuen Trainingsoptionen bringen, laufend ergänzt, Stand 28.09.2026 |
 | [Wirkungsbericht](docs/wirkungsbericht.md) | Nutzen, Schaden und Kosten jeder Option über alle Läufe im Register, Datenmenge, Stand 02.10.2026 |
+| [Durchsicht](docs/durchsicht.md) | toter Code, Redundanz, veraltete Kommentare - Befunde mit Kennung, Stand 09.10.2026 |
 
 ---
 
