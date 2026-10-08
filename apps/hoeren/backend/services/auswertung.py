@@ -74,7 +74,7 @@ class _Lauf:
     stand: Stand
     # Was in diesem Lauf nicht ging - nur im Speicher, beim nächsten Lauf
     # wird es neu versucht.
-    uebersprungen: set[tuple[str, str, str]] = field(default_factory=set)
+    uebersprungen: set[tuple[str, str]] = field(default_factory=set)
 
 
 # Ein Lauf zur Zeit, über alle Sprecher - zwei wären zusammen langsamer.
@@ -758,7 +758,7 @@ def starte(
             )
 
     stand_neu = Stand(laeuft=True, sprecher_id=sprecher_id)
-    uebersprungen: set[tuple[str, str, str]] = set()
+    uebersprungen: set[tuple[str, str]] = set()
     aufgabe = asyncio.create_task(
         _mit_freier_karte_danach(
             engine,
