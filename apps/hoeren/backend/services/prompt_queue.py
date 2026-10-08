@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ..db.models import Aufnahme, Textquelle, Vorlage
+from ..db.models import GUELTIG, Aufnahme, Textquelle, Vorlage
 
 
 @dataclass(frozen=True)
@@ -57,7 +57,7 @@ def naechste(
     bleiben: Sonst zeigte jeder Aufruf eine andere Einheit, und ein Neuladen
     mitten im Ablesen risse einem den Satz weg.
     """
-    erledigte_vorlagen = select(Aufnahme.prompt_id).where(Aufnahme.status == "ok")
+    erledigte_vorlagen = select(Aufnahme.prompt_id).where(Aufnahme.status == GUELTIG)
     offene = aus_aktiven_quellen(sprecher_id)
 
     # Zähler und Warteschlange müssen dieselbe Menge meinen, sonst steht dort
@@ -66,7 +66,7 @@ def naechste(
     erledigt = db.scalar(
         select(func.count(func.distinct(Aufnahme.prompt_id))).where(
             Aufnahme.speaker_id == sprecher_id,
-            Aufnahme.status == "ok",
+            Aufnahme.status == GUELTIG,
             Aufnahme.prompt_id.in_(offene),
         )
     )
@@ -114,7 +114,7 @@ def _gestreut(
     erledigte = set(
         db.scalars(
             select(Aufnahme.prompt_id).where(
-                Aufnahme.speaker_id == sprecher_id, Aufnahme.status == "ok"
+                Aufnahme.speaker_id == sprecher_id, Aufnahme.status == GUELTIG
             )
         ).all()
     )

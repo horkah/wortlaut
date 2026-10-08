@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from wortlaut import storage
 
-from ..db.models import Aufnahme, Sitzung, Sprecher, Textquelle, Vorlage
+from ..db.models import GUELTIG, VERWORFEN, Aufnahme, Sitzung, Sprecher, Textquelle, Vorlage
 from . import zuschnitt
 
 # Höchstens so viele Zeilen je Seite.
@@ -137,7 +137,7 @@ def profil(
 
     `nur_sitzungen_mit_aufnahmen` lässt leere Sitzungen aus der Zahl.
     """
-    gueltig = Aufnahme.status == "ok"
+    gueltig = Aufnahme.status == GUELTIG
     sitzungsfilter = (_HAT_AUFNAHMEN,) if nur_sitzungen_mit_aufnahmen else ()
     bloecke = sitzung.scalars(select(Aufnahme.blob).where(gueltig)).all()
     dauer = select(func.coalesce(func.sum(Aufnahme.dauer_s), 0.0)).where(gueltig)
@@ -146,7 +146,7 @@ def profil(
         pin_gesetzt=sprecher.pin_hash is not None,
         kennzahlen=Kennzahlen(
             aufnahmen=_zaehle(sitzung, Aufnahme, gueltig),
-            verworfen=_zaehle(sitzung, Aufnahme, Aufnahme.status == "verworfen"),
+            verworfen=_zaehle(sitzung, Aufnahme, Aufnahme.status == VERWORFEN),
             sekunden=float(sitzung.scalar(dauer) or 0.0),
             quellen=_zaehle(sitzung, Textquelle),
             einheiten=_zaehle(sitzung, Vorlage),
@@ -228,7 +228,7 @@ def aufnahmezeiten(sitzung: Session) -> list[str]:
     Aufnahmen nicht.
     """
     abfrage = (
-        select(Aufnahme.erstellt).where(Aufnahme.status == "ok").order_by(Aufnahme.erstellt)
+        select(Aufnahme.erstellt).where(Aufnahme.status == GUELTIG).order_by(Aufnahme.erstellt)
     )
     return list(sitzung.scalars(abfrage))
 

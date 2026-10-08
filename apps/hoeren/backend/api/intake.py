@@ -19,7 +19,7 @@ from wortlaut import audio as klang
 from wortlaut import corpus, ids
 from wortlaut.text import chunker
 
-from ..db.models import Aufnahme, Textquelle, Vorlage, jetzt
+from ..db.models import GUELTIG, Aufnahme, jetzt, Textquelle, Vorlage
 from ..deps import Ablage, Datenbank, Sprache, SprecherId
 from ..services import aufnahmen, faltungen
 from ..services.prompt_queue import naechste_position
@@ -83,7 +83,7 @@ async def nimm_korrektur_an(
         **asdict(befund),
         # Frei gesprochen: weder abgelesen noch nachgesprochen.
         modus="frei",
-        status="ok",
+        status=GUELTIG,
         hinweise=json.dumps([], ensure_ascii=False),
         externe_id=externe_id,
         anlaeufe=anlaeufe,

@@ -22,6 +22,14 @@ class Basis(DeclarativeBase):
     pass
 
 
+# Der Zustand einer Aufnahme. Nur eine gültige zählt - gemessen, gelernt,
+# exportiert. Verworfen ist ein Fehlversuch: Er ginge sonst als schlechte Note
+# eines Modells durch, obwohl der Sprecher selbst gesagt hat, dass es so nicht
+# zählen soll; sein Audio ist gelöscht, die Zeile bleibt als Spur.
+GUELTIG = "ok"
+VERWORFEN = "verworfen"
+
+
 class Sprecher(Basis):
     __tablename__ = "speakers"
 
@@ -87,7 +95,7 @@ class Aufnahme(Basis):
     stille_vorn_s: Mapped[float]
     stille_hinten_s: Mapped[float]
     modus: Mapped[str]  # gelesen | nachgesprochen | frei
-    status: Mapped[str]  # ok | verworfen
+    status: Mapped[str]  # GUELTIG | VERWORFEN
     hinweise: Mapped[str]  # JSON-Liste
     externe_id: Mapped[str | None]
     # Leer, außer bei Teilen: Kennung des Originals mit angehängter Nummer.

@@ -33,7 +33,7 @@ from wortlaut import corpus, ids, schluessel
 from wortlaut.text import chunker
 
 from ..config import einstellungen
-from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
+from ..db.models import GUELTIG, Aufnahme, Erkennung, jetzt, Vorlage
 from ..deps import Ablage, Datenbank, Sprache, SprecherId
 from ..services import quality, zuschnitt
 from ..services.prompt_queue import naechste_position
@@ -123,7 +123,7 @@ def aufnahmen(
     sollen sie nicht verschieben. Der Verlauf wird nur für die gezeigte Seite
     gerechnet. Ohne Audio entfällt eine Aufnahme.
     """
-    gueltig = Aufnahme.status == "ok"
+    gueltig = Aufnahme.status == GUELTIG
     gesamt = db.scalar(select(func.count()).select_from(Aufnahme).where(gueltig)) or 0
     treffer = db.execute(
         select(Aufnahme, Vorlage)
@@ -169,7 +169,7 @@ def _zeile(ablage: Ablage, aufnahme: Aufnahme, vorlage: Vorlage) -> ZuschnittAnt
 def _eigene(db: Datenbank, sprecher: str, aufnahme_id: str) -> Aufnahme:
     """Eine brauchbare Aufnahme dieses Sprechers - oder 404."""
     aufnahme = db.get(Aufnahme, aufnahme_id)
-    if aufnahme is None or aufnahme.speaker_id != sprecher or aufnahme.status != "ok":
+    if aufnahme is None or aufnahme.speaker_id != sprecher or aufnahme.status != GUELTIG:
         raise HTTPException(status_code=404, detail="Unbekannte Aufnahme")
     return aufnahme
 
@@ -217,7 +217,7 @@ def schreiben(auftrag: Auftrag, sprecher: SprecherId, db: Datenbank, ablage: Abl
 
     for grenze in auftrag.grenzen:
         aufnahme = db.get(Aufnahme, grenze.id)
-        if aufnahme is None or aufnahme.speaker_id != sprecher or aufnahme.status != "ok":
+        if aufnahme is None or aufnahme.speaker_id != sprecher or aufnahme.status != GUELTIG:
             fehler[grenze.id] = "Unbekannte Aufnahme."
             continue
         vorlage = db.get(Vorlage, aufnahme.prompt_id)
@@ -347,7 +347,7 @@ def teilen(
             blob=ziel,
             **asdict(befund),
             modus=original.modus,
-            status="ok",
+            status=GUELTIG,
             hinweise=json.dumps(
                 quality.pruefe(befund, neue_vorlage.dauer_geschaetzt_s), ensure_ascii=False
             ),

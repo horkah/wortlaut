@@ -16,9 +16,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from wortlaut import laeufe
 
-from ..db.models import Aufnahme, Faltung, jetzt
+from ..db.models import GUELTIG, Aufnahme, Faltung, jetzt
 from . import zuschnitt
-from .auswertung import GUELTIG
 
 
 def zuordnung(db: Session, staemme: list[str]) -> dict[str, int]:

@@ -41,15 +41,10 @@ from sqlalchemy.orm import Session
 from wortlaut import einstellungen, ids, laeufe, metriken, rechenwerk, registry, storage, tempo
 from wortlaut.whisper import Transkriptor
 
-from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
+from ..db.models import GUELTIG, Aufnahme, Erkennung, Vorlage, jetzt
 from . import zuschnitt
 
 _log = logging.getLogger(__name__)
-
-# Nur brauchbare Aufnahmen: Was verworfen wurde, ist kein Prüfstück, sondern
-# ein Fehlversuch - und ginge als schlechte Note eines Modells durch, obwohl
-# der Sprecher selbst gesagt hat, dass es so nicht zählen soll.
-GUELTIG = "ok"
 
 
 @dataclass
