@@ -34,7 +34,10 @@ dependencies = [
 # läuft in einem eigenen Abbild (`apps/lernen/training/Dockerfile`).
 #     uv sync --extra asr --extra gpu
 [project.optional-dependencies]
-asr = ["faster-whisper>=1.1"]
+# `av` gedeckelt: faster-whisper 1.2 öffnet jede Audiodatei mit
+# `av.open(..., metadata_errors=…)`, und PyAV 19 kennt das Argument nicht -
+# jede Erkennung scheitert dann mit einem TypeError.
+asr = ["faster-whisper>=1.1", "av<19"]
 # Vorlesen auf dem Server (`wortlaut/vorlesen.py`). Piper rechnet auf dem
 # Prozessor und braucht keine Karte; die Stimmen selbst liegen nicht hier,
 # sondern im Modellspeicher (`scripts/vorlesen.py`).

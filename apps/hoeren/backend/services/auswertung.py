@@ -30,6 +30,7 @@ als offen (`_fertig`).
 from __future__ import annotations
 
 import asyncio
+import logging
 import tempfile
 import time
 from dataclasses import dataclass, field, replace
@@ -42,6 +43,8 @@ from wortlaut.whisper import Transkriptor
 
 from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
 from . import zuschnitt
+
+_log = logging.getLogger(__name__)
 
 # Nur brauchbare Aufnahmen: Was verworfen wurde, ist kein Prüfstück, sondern
 # ein Fehlversuch - und ginge als schlechte Note eines Modells durch, obwohl
@@ -636,6 +639,7 @@ async def _arbeite(
             # Die übrigen Aufnahmen sind davon unberührt.
             uebersprungen.add(posten.marke)
             zustand.fehler = f"Audio fehlt: {posten.blob}"
+            _log.warning("Auswertung: %s", zustand.fehler)
             continue
 
         try:
@@ -654,6 +658,10 @@ async def _arbeite(
         except Exception as ursache:  # noqa: BLE001 - was immer das Modell wirft
             uebersprungen.add(posten.marke)
             zustand.fehler = f"{registry.beschriftung(posten.modell)}: {ursache}"
+            # Ins Fehlerprotokoll, samt Ablauf - die Ansicht zeigt nur den Satz.
+            _log.error(
+                "Auswertung: %s an Aufnahme %s", zustand.fehler, posten.aufnahme_id, exc_info=True
+            )
             continue
 
         with Session(engine) as db:
@@ -779,6 +787,7 @@ def starte(
         ursache = beendet.exception()
         if ursache is not None:
             stand_neu.fehler = str(ursache)
+            _log.error("Auswertung abgebrochen: %s", ursache, exc_info=ursache)
 
     aufgabe.add_done_callback(_fertig_gemeldet)
     return stand_neu

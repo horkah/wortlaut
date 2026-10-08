@@ -10,6 +10,7 @@ Modell zu laden kostete je Test Minuten.
 
 from __future__ import annotations
 
+import logging
 import shutil
 import time
 from collections.abc import Callable, Iterator
@@ -325,6 +326,19 @@ class TestLauf:
         werte = klient.get("/api/auswertung").json()["punkte"][0]["werte"]
         assert "medium" in werte
         assert "small" not in werte
+
+    def test_der_fehler_steht_im_fehlerprotokoll(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict, caplog
+    ) -> None:
+        vorlage = sprich()
+        antworten.update({"small": RuntimeError("Modell nicht ladbar"), "medium": vorlage})
+
+        with caplog.at_level(logging.WARNING):
+            _laufe_bis_fertig(klient)
+
+        eintrag = next(e for e in caplog.records if "Modell nicht ladbar" in e.getMessage())
+        assert eintrag.levelno == logging.ERROR
+        assert eintrag.exc_info is not None
 
 
 class EntladbarerErkenner:

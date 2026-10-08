@@ -1469,6 +1469,7 @@ dependencies = [
 
 [package.optional-dependencies]
 asr = [
+    { name = "av" },
     { name = "faster-whisper" },
 ]
 gpu = [
@@ -1494,6 +1495,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anthropic", specifier = ">=0.40" },
+    { name = "av", marker = "extra == 'asr'", specifier = "<19" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "faster-whisper", marker = "extra == 'asr'", specifier = ">=1.1" },
     { name = "httpx", specifier = ">=0.27" },
