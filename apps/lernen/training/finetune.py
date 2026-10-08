@@ -42,7 +42,6 @@ from . import abschluss as abschlussrechnung
 from . import adapter as zusatz
 from . import fenster as fensterrechnung
 from . import kontext
-from . import ausgangsstand
 from . import tempowahl
 from . import klangwandel
 from . import karte
@@ -385,15 +384,12 @@ def trainiere(
     zerteiler = WhisperTokenizerFast.from_pretrained(
         basismodell, language=sprache, task="transcribe"
     )
-    # Gewichte vom Grundmodell oder Ausgangsstand (`ausgangsstand.py`);
-    # Zerteiler und Ausleser bleiben die des Grundmodells.
-    gewichtsquelle = ausgangsstand.quelle(verzeichnis, datenverzeichnis, auftrag, bericht)
     # Bei LoRA das eingefrorene Grundmodell in halber Genauigkeit, der Zusatz
     # bleibt float32 (`autocast_adapter_dtype` unten) - bei `large-v3` drei
     # Gigabyte weniger (`kartenplan.py`). Die Aufmerksamkeit immer über `sdpa`.
     halb = methode == laeufe.LORA and gemischt
     modell = WhisperForConditionalGeneration.from_pretrained(
-        gewichtsquelle,
+        basismodell,
         attn_implementation="sdpa",
         dtype=_torchtyp(kartenplan.genauigkeit(diese_karte)) if halb else torch.float32,
     )
@@ -474,7 +470,7 @@ def trainiere(
         tempoergebnis = tempowahl.waehle(
             fuer_tempo,
             korpuswurzel,
-            ausgangsstand.erkenner(datenverzeichnis, auftrag),
+            laeufe.kurzname(basismodell),
             sprache,
             bericht,
             faltung,
@@ -703,8 +699,7 @@ def trainiere(
         modell=modell,
         trainer=trainer,
         rezept=rezept,
-        # Interpoliert wird zum Anfang des Trainings, also ggf. zum Ausgangsstand.
-        basismodell=gewichtsquelle,
+        basismodell=basismodell,
         arbeitsstand=ausgabe,
         hat_pruefung=hat_pruefung,
         bericht=bericht,

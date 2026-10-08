@@ -232,9 +232,6 @@ def _stand_herkunft(manifest: dict) -> str:
     (`packages/ui/zeit.ts`).
     """
     grund = f"whisper-{lauf_layout.kurzname(str(manifest.get('basismodell', '?')))}"
-    ausgang = str(manifest.get(lauf_layout.AUSGANGSSTAND) or "")
-    if ausgang:
-        grund = f"{registry.beschriftung(ausgang)} auf {grund}"
     return " · ".join(
         teil
         for teil in (f"aus {grund}", _abschluss_befund(manifest), _tempo_befund(manifest))

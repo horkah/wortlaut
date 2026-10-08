@@ -160,7 +160,7 @@
   const achsen = $derived.by((): [string, (Wahl | Grundmodell)[], (lauf: Lauf) => string][] =>
     daten
       ? [
-          ['Grundmodell', daten.grundmodelle, (lauf) => lauf.grundmodell],
+          ['Grundmodell', daten.grundmodelle, (lauf) => lauf.basismodell],
           ['Methode', daten.methoden, (lauf) => lauf.methode],
           ['LoRA-Ziele', daten.lora_ziele, (lauf) => lauf.lora_ziele],
           ['LoRA-Rang', daten.lora_raenge, (lauf) => lauf.lora_rang],
@@ -236,7 +236,7 @@
         .map(
           (lauf) =>
             [
-              lauf.grundmodell,
+              lauf.basismodell,
               lauf.methode,
               lauf.lora_ziele || 'qv',
               lauf.lora_rang || '32',

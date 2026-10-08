@@ -105,8 +105,6 @@ export type Lauf = {
   tempo_endgueltig: boolean;
   /** Das Whisper-Modell darunter - gegen das misst die Baseline. */
   basismodell: string;
-  /** Worauf aufgesetzt wurde, als Schlüssel der Wahl: Grundmodell oder trainierter Stand. */
-  grundmodell: string;
   erstellt: string;
   /** wartet | laeuft | fertig | gescheitert | abgebrochen */
   status: string;

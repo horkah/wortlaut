@@ -153,9 +153,7 @@ Optionscode. Die Vorgabe ist jeweils der erste Wert.
 Was welche Wahl im Einzelnen rechnet, steht in
 [Das Trainingsverfahren](trainingsverfahren.md). Welche Grundmodelle zur Wahl
 stehen, steht in `WORTLAUT_LERNEN_GRUNDMODELLE`; jedes muss auch in
-`WORTLAUT_AUSWERTUNG_MODELLE` stehen, sonst fehlt seine Baseline. Auf einem
-trainierten Stand weiterzulernen ist im Trainer vorbereitet
-(`training/ausgangsstand.py`), wird aber nicht angeboten.
+`WORTLAUT_AUSWERTUNG_MODELLE` stehen, sonst fehlt seine Baseline.
 
 **Welche Methode mit welchem Modell geht, entscheidet die Karte**
 (`wortlaut/kartenplan.py`). Der Läufer meldet sie beim Start

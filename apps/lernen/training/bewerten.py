@@ -101,10 +101,6 @@ def _version(auftrag: dict[str, Any], faktor: float | None = None) -> str:
     grund = laeufe.kurzname(str(auftrag.get("basismodell", "")))
     if grund and grund != VORGABE_GRUNDMODELL:
         marke = f"{marke}-{grund}"
-    # Der Ausgangsstand mit seiner Kennung.
-    ausgang = str(auftrag.get(laeufe.AUSGANGSSTAND) or "")
-    if ausgang:
-        marke = f"{marke}-{registry.beschriftung(ausgang)}"
     name = f"{marke}-{auftrag.get('methode', '?')}"
     # Der Zusatz direkt hinter der Methode, wie im Optionscode.
     ziele = laeufe.lora_ziele_aus(auftrag)
@@ -689,8 +685,6 @@ def gib_frei(
             "id": f"{sprecher_id}/{version}",
             "sprecher_id": sprecher_id,
             "basismodell": auftrag.get("basismodell"),
-            # Leer ohne Ausgangsstand.
-            laeufe.AUSGANGSSTAND: auftrag.get(laeufe.AUSGANGSSTAND) or "",
             "methode": auftrag.get("methode"),
             "lora_ziele": laeufe.lora_ziele_aus(auftrag),
             "lora_rang": laeufe.lora_rang_aus(auftrag),
