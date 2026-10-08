@@ -437,30 +437,28 @@ def gueltige_aufnahmen(db: Session) -> list[tuple[Aufnahme, Vorlage]]:
     )
 
 
-def _geltende():
-    """Die Kennungen der brauchbaren Aufnahmen - als Unterabfrage.
+def _erledigt(werk: str) -> tuple:
+    """Wann eine Zeile als gemessen zählt - für `where(*_erledigt(werk))`.
 
-    An jeder Zählung, damit `erledigt` nie Zeilen verworfener Aufnahmen
-    mitzählt - unabhängig davon, dass das Verwerfen sie wegräumt.
+    Nur an einer brauchbaren Aufnahme, damit nie Zeilen verworfener
+    mitzählen, unabhängig davon, dass das Verwerfen sie wegräumt. Und nur **auf
+    dem Rechenwerk, das gerade gilt**: Eine Zeile aus einem anderen oder
+    unbekannten gilt als offen, ihre Rechenzeit passte nicht neben die
+    übrigen. Ausgenommen sind übernommene Faltungen - die Faltungsmodelle gibt
+    es nicht mehr, und der Stand kennt diese Aufnahmen.
     """
-    return select(Aufnahme.id).where(Aufnahme.status == GUELTIG)
+    return (
+        Erkennung.recording_id.in_(select(Aufnahme.id).where(Aufnahme.status == GUELTIG)),
+        (Erkennung.rechenwerk == werk) | (Erkennung.herkunft == FALTUNG),
+    )
 
 
 def _fertig(db: Session, werk: str) -> set[tuple[str, str]]:
-    """Was schon gemessen ist - **auf dem Rechenwerk, das gerade gilt**.
-
-    Eine Zeile aus einem anderen oder unbekannten Rechenwerk gilt als offen:
-    Ihre Rechenzeit passte nicht neben die übrigen. Ausgenommen sind
-    übernommene Faltungen - die Faltungsmodelle gibt es nicht mehr, und der
-    Stand kennt diese Aufnahmen.
-    """
+    """Was schon gemessen ist (`_erledigt`)."""
     return {
         (zeile.recording_id, zeile.modell)
         for zeile in db.execute(
-            select(Erkennung.recording_id, Erkennung.modell).where(
-                Erkennung.recording_id.in_(_geltende()),
-                (Erkennung.rechenwerk == werk) | (Erkennung.herkunft == FALTUNG),
-            )
+            select(Erkennung.recording_id, Erkennung.modell).where(*_erledigt(werk))
         ).all()
     }
 
@@ -510,13 +508,7 @@ def zaehle(
         db.scalar(
             select(func.count())
             .select_from(Erkennung)
-            .where(
-                Erkennung.modell.in_(namen),
-                # Siehe `_geltende`.
-                Erkennung.recording_id.in_(_geltende()),
-                # Wie in `_fertig`.
-                (Erkennung.rechenwerk == werk) | (Erkennung.herkunft == FALTUNG),
-            )
+            .where(Erkennung.modell.in_(namen), *_erledigt(werk))
         )
         or 0
     )
