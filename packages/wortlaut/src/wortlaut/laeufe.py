@@ -62,6 +62,7 @@ GEWICHTE = "gewichte"
 VORGESPULT = "vorgespult"
 ZWISCHENSTAENDE = (ARBEITSSTAND, GEWICHTE, VORGESPULT)
 
+
 # ── Die Faltungen ───────────────────────────────────────────────────────────
 #
 # Sechsfache Kreuzvalidierung über alle Aufnahmen: Je Faltung lernt ein Modell
@@ -101,6 +102,7 @@ VOLL = "full"
 LORA = "lora"
 METHODEN = (VOLL, LORA)
 
+
 # ── Grundmodelle ────────────────────────────────────────────────────────────
 #
 # Worauf feingetunt wird. `small` ist die Vorgabe: die kleinste Stufe, die
@@ -109,7 +111,6 @@ METHODEN = (VOLL, LORA)
 def kurzname(basismodell: str) -> str:
     """`openai/whisper-medium` → `medium` - so heißt es überall in den Tabellen."""
     return basismodell.rsplit("/", 1)[-1].removeprefix("whisper-")
-
 
 
 def lora_moeglich(
@@ -182,8 +183,6 @@ LORA_MODULE: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
 }
 
 
-
-
 # ── Läufe mit Rauschkopie ───────────────────────────────────────────────────
 #
 # Läufe mit `daten = augmentiert` (Code `A`) lernten auch auf je einer Kopie
@@ -202,6 +201,7 @@ def aufnahme_selbst(zeile: dict[str, Any]) -> bool:
 def mit_rauschkopie(auftrag: dict[str, Any]) -> bool:
     """Ob ein Lauf auch auf Rauschkopien gelernt hat."""
     return str(auftrag.get("daten") or "") == MIT_RAUSCHKOPIE
+
 
 # ── Die Auswahl ─────────────────────────────────────────────────────────────
 #
@@ -257,47 +257,6 @@ def waehle_kern(wer: dict[str, float]) -> list[str]:
     """
     rangfolge = sorted(wer, key=lambda kennung: (wer[kennung], kennung))
     return rangfolge[: kern_anzahl(len(wer))]
-
-
-# ── Die Korrekturen ─────────────────────────────────────────────────────────
-#
-# Eine Korrektur aus „schreiben" ist eine abgenickte Maschinenausgabe; wie
-# stark sie zählt, ist eine Achse (`services/auftraege.gewicht_fuer` in
-# „lernen"):
-#
-# `0.5`, `0.25`, `0.75`, `1.0`   Ein festes Gewicht für jede Korrektur.
-# `verlauf`   Aus der Zahl der Anläufe in „schreiben": unverändert bestätigt
-#             zählt wenig, nachgesprochen viel.
-GEWICHT_VORGABE = "0.5"
-GEWICHT_VERLAUF = "verlauf"
-KORREKTURGEWICHTE = (GEWICHT_VORGABE, "0.25", "0.75", "1.0", GEWICHT_VERLAUF)
-
-
-
-# ── Selbsttraining ──────────────────────────────────────────────────────────
-#
-# Unbeschriftetes Audio - Diktate, die in „schreiben" nie bestätigt wurden -
-# beschriftet das freigegebene Modell vor der ersten Faltung; was es sicher
-# genug hört, lernt gewichtet mit (`training/selbsttraining.py`). Gemessen
-# wird es nie, und die Beschriftung steht in `SELBSTBESCHRIFTUNG`.
-SELBST_AUS = "aus"
-SELBST_AN = "an"
-SELBSTTRAINING = (SELBST_AUS, SELBST_AN)
-# Die Herkunft solcher Zeilen im Manifest, neben `vorlage` und `korrektur`.
-QUELLE_SELBST = "selbst"
-SELBSTBESCHRIFTUNG = "selbstbeschriftung.json"
-
-
-
-def selbstbeschriftung_aus(verzeichnis: Path) -> dict[str, str]:
-    """Audio → Text der aufgenommenen Selbstbeschriftungen eines Laufs; leer ohne Datei."""
-    inhalt = lies_json(verzeichnis / SELBSTBESCHRIFTUNG) or {}
-    return {
-        str(audio): str(zeile["text"])
-        for audio, zeile in dict(inhalt.get("zeilen") or {}).items()
-        if zeile.get("aufgenommen") and str(zeile.get("text") or "").strip()
-    }
-
 
 
 def verteile_kern(kern: Iterable[str], staemme: dict[str, str]) -> dict[str, int]:
@@ -373,6 +332,45 @@ def kernfaltungen_aus(verzeichnis: Path, auftrag: dict[str, Any]) -> dict[str, i
         if str(zeile.get("recording_id")) in kern
     }
 
+
+# ── Die Korrekturen ─────────────────────────────────────────────────────────
+#
+# Eine Korrektur aus „schreiben" ist eine abgenickte Maschinenausgabe; wie
+# stark sie zählt, ist eine Achse (`services/auftraege.gewicht_fuer` in
+# „lernen"):
+#
+# `0.5`, `0.25`, `0.75`, `1.0`   Ein festes Gewicht für jede Korrektur.
+# `verlauf`   Aus der Zahl der Anläufe in „schreiben": unverändert bestätigt
+#             zählt wenig, nachgesprochen viel.
+GEWICHT_VORGABE = "0.5"
+GEWICHT_VERLAUF = "verlauf"
+KORREKTURGEWICHTE = (GEWICHT_VORGABE, "0.25", "0.75", "1.0", GEWICHT_VERLAUF)
+
+
+# ── Selbsttraining ──────────────────────────────────────────────────────────
+#
+# Unbeschriftetes Audio - Diktate, die in „schreiben" nie bestätigt wurden -
+# beschriftet das freigegebene Modell vor der ersten Faltung; was es sicher
+# genug hört, lernt gewichtet mit (`training/selbsttraining.py`). Gemessen
+# wird es nie, und die Beschriftung steht in `SELBSTBESCHRIFTUNG`.
+SELBST_AUS = "aus"
+SELBST_AN = "an"
+SELBSTTRAINING = (SELBST_AUS, SELBST_AN)
+# Die Herkunft solcher Zeilen im Manifest, neben `vorlage` und `korrektur`.
+QUELLE_SELBST = "selbst"
+SELBSTBESCHRIFTUNG = "selbstbeschriftung.json"
+
+
+def selbstbeschriftung_aus(verzeichnis: Path) -> dict[str, str]:
+    """Audio → Text der aufgenommenen Selbstbeschriftungen eines Laufs; leer ohne Datei."""
+    inhalt = lies_json(verzeichnis / SELBSTBESCHRIFTUNG) or {}
+    return {
+        str(audio): str(zeile["text"])
+        for audio, zeile in dict(inhalt.get("zeilen") or {}).items()
+        if zeile.get("aufgenommen") and str(zeile.get("text") or "").strip()
+    }
+
+
 # ── Die Geschwindigkeit ─────────────────────────────────────────────────────
 #
 # Dysarthrische Sprache ist oft verlangsamt, und Whisper versteht sie
@@ -438,8 +436,6 @@ KONTEXT_VOKABULAR = "vokabular"
 KONTEXTE = (KONTEXT_AUS, KONTEXT_VOKABULAR)
 
 
-
-
 # ── Die Augmentierung im Training ───────────────────────────────────────────
 #
 # Was mit einer Lernprobe beim Laden geschieht, gewürfelt und nirgends
@@ -482,7 +478,6 @@ STEUERUNG_WER = "wer"
 STEUERUNGEN = (STEUERUNG_VERLUST, STEUERUNG_WER)
 
 
-
 # ── Das Fenster des Encoders ────────────────────────────────────────────────
 #
 # Whisper hört immer 30 Sekunden; bei Sätzen von drei bis fünf Sekunden geht
@@ -494,7 +489,6 @@ STEUERUNGEN = (STEUERUNG_VERLUST, STEUERUNG_WER)
 FENSTER_VOLL = "voll"
 FENSTER_GEKUERZT = "gekuerzt"
 FENSTER = (FENSTER_VOLL, FENSTER_GEKUERZT)
-
 
 
 # ── Der Optionscode ─────────────────────────────────────────────────────────
