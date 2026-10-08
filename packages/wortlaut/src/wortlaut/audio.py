@@ -61,11 +61,11 @@ class Verlauf:
     dauer_s: float
 
 
-def wandle_in_wav(quelle: Path, ziel: Path) -> None:
-    """Beliebiges Eingangsformat → 16 kHz, mono, PCM 16 bit.
+def wandle_in_wav(quelle: Path, ziel: Path, filterkette: str = "") -> None:
+    """Beliebiges Eingangsformat → 16 kHz, mono, PCM 16 bit - auf Wunsch durch eine Filterkette.
 
     ffmpeg erkennt das Eingangsformat selbst; der Browser darf also liefern,
-    was er mag.
+    was er mag. Ausgeschrieben wird ausdrücklich, nicht nach der Endung.
     """
     ziel.parent.mkdir(parents=True, exist_ok=True)
     # Schalter und Wert gehören paarweise in eine Zeile:
@@ -73,6 +73,7 @@ def wandle_in_wav(quelle: Path, ziel: Path) -> None:
     befehl = [
         "ffmpeg", "-nostdin", "-loglevel", "error", "-y",
         "-i", str(quelle),
+        *(["-filter:a", filterkette] if filterkette else []),
         "-ac", "1",                 # mono
         "-ar", str(ABTASTRATE),     # 16 kHz
         "-sample_fmt", "s16",       # PCM 16 bit
@@ -120,20 +121,20 @@ def _schwelle(spitze: float) -> float:
     return max(spitze * 10 ** (-35 / 20), VOLLAUSSCHLAG * 10 ** (-60 / 20))
 
 
+def _pegel(werte: array.array) -> tuple[float, list[float], float]:
+    """Spitze, RMS je Fenster und Sprachschwelle - dieselben Zahlen für Messung und Kurve."""
+    spitze = float(max(max(werte), -min(werte)))
+    return spitze, _fensterpegel(werte) or [spitze], _schwelle(spitze)
+
+
 def untersuche(wav: Path) -> Befund:
     """Misst Dauer, Pegel, Clipping und Randstille einer WAV-Datei."""
     werte, abtastrate = _lies(wav)
-
-    spitze = max(max(werte), -min(werte))
+    spitze, fenster_rms, schwelle = _pegel(werte)
     # „Am Anschlag" heißt hier: die obersten 0,1 % des Wertebereichs. Genau
     # 32767 zu prüfen wäre zu streng, weil die Umwandlung leicht rundet.
     am_anschlag = sum(1 for wert in werte if abs(wert) >= 32700)
-
-    # Pegelverlauf in 20-ms-Fenstern; daraus RMS und die Randstille.
-    fenster_rms = _fensterpegel(werte) or [float(spitze)]
     gesamt_rms = math.sqrt(sum(r * r for r in fenster_rms) / len(fenster_rms))
-
-    schwelle = _schwelle(spitze)
     fenster_dauer = FENSTER / abtastrate
 
     def stille_am_anfang(werte_folge: list[float]) -> float:
@@ -167,12 +168,11 @@ def verlauf(wav: Path) -> Verlauf:
     Werte - fein genug für eine Sprechpause, klein genug für JSON.
     """
     werte, abtastrate = _lies(wav)
-    spitze = float(max(max(werte), -min(werte)))
-    fenster_rms = _fensterpegel(werte) or [spitze]
+    _, fenster_rms, schwelle = _pegel(werte)
     return Verlauf(
         fenster_s=FENSTER / abtastrate,
         werte=tuple(rms / VOLLAUSSCHLAG for rms in fenster_rms),
-        schwelle=_schwelle(spitze) / VOLLAUSSCHLAG,
+        schwelle=schwelle / VOLLAUSSCHLAG,
         dauer_s=len(werte) / abtastrate,
     )
 

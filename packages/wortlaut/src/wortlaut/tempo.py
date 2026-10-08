@@ -20,10 +20,9 @@ im Abbild (`audio.py`).
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
-from .audio import ABTASTRATE, AudioFehler
+from .audio import AudioFehler, wandle_in_wav
 
 VORGABE = 1.0
 
@@ -68,30 +67,11 @@ def in_spanne(faktor: float) -> float:
 
 
 def spule_vor(quelle: Path, ziel: Path, faktor: float) -> None:
-    """Dieselbe Aufnahme schneller, bei gleicher Tonhöhe.
-
-    Ausgeschrieben ausdrücklich als 16 kHz mono PCM 16 bit wie überall
-    (`audio.py`); ffmpeg richtete sich sonst nach der Endung.
-    """
+    """Dieselbe Aufnahme schneller, bei gleicher Tonhöhe - als 16 kHz mono PCM 16 bit."""
     if not vorspulen_noetig(faktor):
         raise AudioFehler(f"Bei Faktor {faktor:g} ist nichts vorzuspulen.")
     if not SPANNE[0] <= faktor <= SPANNE[1]:
         raise AudioFehler(
             f"Faktor {faktor:g} liegt außerhalb von {SPANNE[0]:g} bis {SPANNE[1]:g}."
         )
-    ziel.parent.mkdir(parents=True, exist_ok=True)
-    # Schalter und Wert gehören paarweise in eine Zeile:
-    # fmt: off
-    befehl = [
-        "ffmpeg", "-nostdin", "-loglevel", "error", "-y",
-        "-i", str(quelle),
-        "-filter:a", filterkette(faktor),
-        "-ac", "1",
-        "-ar", str(ABTASTRATE),
-        "-sample_fmt", "s16",
-        str(ziel),
-    ]
-    # fmt: on
-    ergebnis = subprocess.run(befehl, capture_output=True, text=True, check=False)
-    if ergebnis.returncode != 0:
-        raise AudioFehler(f"ffmpeg ist gescheitert: {ergebnis.stderr.strip()[:500]}")
+    wandle_in_wav(quelle, ziel, filterkette(faktor))
