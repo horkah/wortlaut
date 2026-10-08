@@ -30,6 +30,11 @@ from . import rechenwerk
 AUSWERTUNG_MODELLE = "small,medium,large-v3"
 
 
+def liste(text: str) -> list[str]:
+    """Eine kommagetrennte Einstellung als Liste, leere Einträge weggelassen."""
+    return [teil.strip() for teil in text.split(",") if teil.strip()]
+
+
 class Grundeinstellungen(BaseSettings):
     """Die Felder, die jede App führt. Jede erbt und legt ihre eigenen dazu."""
 

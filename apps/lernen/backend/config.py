@@ -12,7 +12,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 from wortlaut import kartenplan, laeufe
-from wortlaut.einstellungen import AUSWERTUNG_MODELLE, Grundeinstellungen
+from wortlaut.einstellungen import AUSWERTUNG_MODELLE, Grundeinstellungen, liste
 
 # `lernen/<sprecher>` - das Register der Läufe (`services/register.py`).
 # Gesichert und gelöscht mit dem Sprecher (`hoeren/services/loeschung.py`),
@@ -52,7 +52,7 @@ class Einstellungen(Grundeinstellungen):
         Die Vorgabe ist immer dabei, auch wenn sie in
         `WORTLAUT_LERNEN_GRUNDMODELLE` fehlt.
         """
-        genannt = [teil.strip() for teil in self.lernen_grundmodelle.split(",") if teil.strip()]
+        genannt = liste(self.lernen_grundmodelle)
         return [self.lernen_basismodell] + [
             modell for modell in genannt if modell != self.lernen_basismodell
         ]

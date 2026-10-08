@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from wortlaut import laeufe, registry
+from wortlaut.einstellungen import liste
 
 from apps.lernen.backend.config import einstellungen
 
@@ -28,7 +29,7 @@ def grundmodellnamen() -> list[str]:
     Es ist die Baseline.
     """
     konfiguration = einstellungen()
-    namen = [teil.strip() for teil in konfiguration.auswertung_modelle.split(",") if teil.strip()]
+    namen = liste(konfiguration.auswertung_modelle)
     kurz = laeufe.kurzname(konfiguration.lernen_basismodell)
     if kurz not in namen:
         namen.append(kurz)

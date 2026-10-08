@@ -38,7 +38,7 @@ from pathlib import Path
 
 from sqlalchemy import Engine, delete, func, select
 from sqlalchemy.orm import Session
-from wortlaut import ids, laeufe, metriken, rechenwerk, registry, storage, tempo
+from wortlaut import einstellungen, ids, laeufe, metriken, rechenwerk, registry, storage, tempo
 from wortlaut.whisper import Transkriptor
 
 from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
@@ -90,11 +90,6 @@ GEMESSEN = "gemessen"
 FALTUNG = "faltung"
 
 
-def modelle(liste: str) -> list[str]:
-    """Die konfigurierte Modellreihe als Liste, leere Einträge weggelassen."""
-    return [name.strip() for name in liste.split(",") if name.strip()]
-
-
 def staende(datenverzeichnis: Path, sprecher_id: str) -> list[str]:
     """Die trainierten Stände dieses Sprechers, jüngster zuletzt.
 
@@ -128,7 +123,7 @@ def messbare_modelle(datenverzeichnis: Path, sprecher_id: str, liste: str) -> li
 
     Die Grundmodelle aus der Konfiguration und die Stände dieses Menschen.
     """
-    return modelle(liste) + staende(datenverzeichnis, sprecher_id)
+    return einstellungen.liste(liste) + staende(datenverzeichnis, sprecher_id)
 
 
 def gewichte(datenverzeichnis: Path, modell: str) -> Path:
