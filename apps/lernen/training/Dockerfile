@@ -39,9 +39,8 @@ WORKDIR /srv/wortlaut
 # Der Mount ist der Radspeicher von pip - außerhalb des Abbilds, also ohne
 # Gewicht darin. Er ist die Versicherung gegen den Tag, an dem diese Schicht
 # doch neu gebaut wird: Dann kommen die zweieinhalb Gigabyte von der Platte
-# und nicht aus dem Netz. Genau dafür steht hier kein `--no-cache-dir` mehr;
-# es hat nie ein Byte im Abbild gespart, sondern nur den Weg ins Netz
-# erzwungen.
+# und nicht aus dem Netz. Ein `--no-cache-dir` spart im Abbild kein Byte, es
+# erzwingt nur den Weg ins Netz.
 RUN --mount=type=cache,target=/root/.cache/pip \
         pip install \
         --index-url https://download.pytorch.org/whl/cu121 \
