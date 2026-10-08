@@ -8,9 +8,10 @@ gegen die Vorlage.
   Oberfläche fragt den Stand ab.
 * **Von Hand angestoßen**, nie beim Hochfahren - ein Neustart bände sonst
   ungefragt Rechenzeit.
-* **Aufnahmeweise, nicht modellweise**, damit die ersten Punkte sofort
-  vergleichen. Alle Erkenner liegen dafür gleichzeitig im Speicher
-  (`_transkriptoren`).
+* **Modellweise.** Ein Modell rechnet alles, was für es offen ist, dann
+  kommt das nächste (`offene_posten`); auf der Karte liegt nur eines
+  (`transkriptor_fuer`). Ein Modell zu laden kostet bis zu einer halben
+  Minute, und neben einem großen Stand ist für ein zweites kein Platz.
 * **Danach ist die Karte frei.** Endet ein Lauf, nimmt `gib_karte_frei` alle
   Erkenner herunter - der Trainer will die ganze Karte und fragt nicht, wer
   sie hält.
@@ -24,7 +25,7 @@ Messung seiner Kreuzvalidierung (`uebernimm_faltungen`, `herkunft =
 'faltung'`); alles andere rechnet der ausgelieferte Stand selbst, wie ein
 Grundmodell. Beide Male misst die Zeile, wie gut er etwas hört, das er nicht
 kannte. Übernommene Zeilen tragen das Rechenwerk des Trainers und gelten nie
-als offen (`_fertig`).
+als offen (`_erledigt`).
 """
 
 from __future__ import annotations
@@ -567,7 +568,7 @@ async def _arbeite(
     `_lauf`. Je Posten eine eigene Sitzung - eine offene hielte stundenlang
     eine Schreibsperre, während womöglich aufgenommen wird.
     """
-    # Einmal aufgelöst und fest - der Maßstab für „erledigt" (`_fertig`).
+    # Einmal aufgelöst und fest - der Maßstab für „erledigt" (`_erledigt`).
     werk = rechenwerk.marke(*rechenwerk.waehle(geraet, rechenart))
 
     while True:
