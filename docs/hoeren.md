@@ -416,6 +416,13 @@ Vorlage vergleichen (`services/auswertung.py`). Die Zahlen sind die Baseline
 für `lernen`. Gemessen wird ein Korpus, der des Zugangs; verworfene Aufnahmen
 zählen nicht.
 
+**Korrekturen aus „schreiben" misst kein Modell.** Ihr Text ist die Ausgabe
+eines Erkenners, so oft neu gesprochen, bis sie stimmte, und dann abgenickt -
+an ihr gemessen, zählte ein Modell dessen Fehler als richtig. Ein Stand hat sie
+zudem gelernt, und keine Faltung misst sie. Sie fehlen deshalb in Kurve,
+Kennzahlen und Zählung, für Grundmodelle wie für Stände; gelernt wird an ihnen
+weiter.
+
 Es treten an die Grundmodelle aus `WORTLAUT_AUSWERTUNG_MODELLE`:
 
 | Modell | wofür |

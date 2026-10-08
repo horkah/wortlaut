@@ -3,7 +3,8 @@
 Gefragt ist eine Rangfolge - welches Modell *diesem* Menschen am besten
 zuhört -, und die braucht einen gemeinsamen Boden.
 
-**Der Boden sind alle Aufnahmen.** Jede Zahl eines trainierten Standes stammt
+**Der Boden sind alle Aufnahmen außer den Korrekturen**
+(`gemessene_aufnahmen` in „hören"). Jede Zahl eines trainierten Standes stammt
 aus der Faltung, die diese Aufnahme zurückhielt (`aufteilung.py`); die
 Grundmodelle haben nichts gelernt.
 
@@ -33,7 +34,7 @@ from sqlalchemy.orm import Session
 from wortlaut import laeufe, metriken, streuung
 
 from apps.hoeren.backend.db.models import Erkennung
-from apps.hoeren.backend.services.auswertung import FALTUNG, gueltige_aufnahmen
+from apps.hoeren.backend.services.auswertung import FALTUNG, gemessene_aufnahmen
 
 
 # Die Maße einer Zeile, benannt wie in „hören".
@@ -145,8 +146,8 @@ def _mittelwerte(zeilen: list[dict[str, float]]) -> dict[str, float]:
 
 
 def messaufnahmen(korpus: Session) -> set[str]:
-    """Die Aufnahmen, an denen gemessen wird: alle gültigen."""
-    return {aufnahme.id for aufnahme, _vorlage in gueltige_aufnahmen(korpus)}
+    """Die Aufnahmen, an denen gemessen wird: alle gültigen außer den Korrekturen."""
+    return {aufnahme.id for aufnahme, _vorlage in gemessene_aufnahmen(korpus)}
 
 
 def grundmodelle(korpus: Session, namen: list[str], aufnahmen: set[str]) -> dict[str, Messreihe]:

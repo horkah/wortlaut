@@ -169,14 +169,14 @@ def _stand(db: Datenbank, sprecher: str) -> StandAntwort:
 
 
 def _nummeriert(db: Datenbank) -> list[tuple[int, Aufnahme, Vorlage]]:
-    """Die brauchbaren Aufnahmen, von 1 an durchgezählt, älteste zuerst.
+    """Die gemessenen Aufnahmen, von 1 an durchgezählt, älteste zuerst.
 
     Die Nummer ist die x-Achse, gezählt aus dem, was gilt - ohne Lücken.
     """
     return [
         (nummer, aufnahme, vorlage)
         for nummer, (aufnahme, vorlage) in enumerate(
-            auswertung.gueltige_aufnahmen(db), start=1
+            auswertung.gemessene_aufnahmen(db), start=1
         )
     ]
 

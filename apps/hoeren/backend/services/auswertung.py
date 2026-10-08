@@ -2,7 +2,7 @@
 
 Zu jeder Aufnahme steht die Vorlage daneben; jede ist damit eine Prüfaufgabe.
 Diese Datei schickt jede brauchbare Aufnahme durch jedes Modell und misst
-gegen die Vorlage.
+gegen die Vorlage - jede außer den Korrekturen (`gemessene_aufnahmen`).
 
 * **Im Hintergrund**, denn ein Lauf dauert Minuten bis Stunden; die
   Oberfläche fragt den Stand ab.
@@ -42,7 +42,7 @@ from sqlalchemy.orm import Session
 from wortlaut import einstellungen, ids, laeufe, metriken, rechenwerk, registry, storage, tempo
 from wortlaut.whisper import Transkriptor
 
-from ..db.models import GUELTIG, Aufnahme, Erkennung, Vorlage, jetzt
+from ..db.models import GUELTIG, Aufnahme, Erkennung, Textquelle, Vorlage, jetzt
 from . import zuschnitt
 
 _log = logging.getLogger(__name__)
@@ -421,7 +421,8 @@ def vergiss_verschwundene_staende(db: Session, datenverzeichnis: Path, sprecher_
 def gueltige_aufnahmen(db: Session) -> list[tuple[Aufnahme, Vorlage]]:
     """Alle brauchbaren Aufnahmen mit ihrer Vorlage, älteste zuerst.
 
-    Die Reihenfolge ist die Nummerierung der Kurve.
+    Auch die Korrekturen - gelernt wird an jeder. Gemessen wird an
+    `gemessene_aufnahmen`.
     """
     return list(
         db.execute(
@@ -433,18 +434,46 @@ def gueltige_aufnahmen(db: Session) -> list[tuple[Aufnahme, Vorlage]]:
     )
 
 
+# Woran nicht gemessen wird: Eine Korrektur aus „schreiben" trägt als Text die
+# Ausgabe eines Erkenners, so oft neu gesprochen, bis sie stimmte, und dann
+# abgenickt. An ihr gemessen, zählte ein Modell die Fehler dieses Erkenners als
+# richtig - und ein Stand hat sie ohnehin gelernt, ohne dass eine Faltung sie
+# misst (`wortlaut/laeufe.GEMESSENE_QUELLE`). Also misst kein Modell an ihr.
+UNGEMESSEN = "korrektur"
+
+
+def _messbar():
+    """Die Abfrage hinter `gemessene_aufnahmen` - auch für `_erledigt`."""
+    return (
+        select(Aufnahme, Vorlage)
+        .join(Vorlage, Vorlage.id == Aufnahme.prompt_id)
+        .join(Textquelle, Textquelle.id == Vorlage.source_id)
+        .where(Aufnahme.status == GUELTIG, Textquelle.art != UNGEMESSEN)
+    )
+
+
+def gemessene_aufnahmen(db: Session) -> list[tuple[Aufnahme, Vorlage]]:
+    """Die Aufnahmen, an denen jedes Modell gemessen wird, älteste zuerst.
+
+    Die brauchbaren ohne die Korrekturen (`UNGEMESSEN`). Die Reihenfolge ist
+    die Nummerierung der Kurve.
+    """
+    return list(db.execute(_messbar().order_by(*zuschnitt.reihenfolge())).all())
+
+
 def _erledigt(werk: str) -> tuple:
     """Wann eine Zeile als gemessen zählt - für `where(*_erledigt(werk))`.
 
-    Nur an einer brauchbaren Aufnahme, damit nie Zeilen verworfener
-    mitzählen, unabhängig davon, dass das Verwerfen sie wegräumt. Und nur **auf
+    Nur an einer gemessenen Aufnahme (`gemessene_aufnahmen`), damit nie
+    Zeilen verworfener mitzählen, unabhängig davon, dass das Verwerfen sie
+    wegräumt, und nie Zeilen an Korrekturen. Und nur **auf
     dem Rechenwerk, das gerade gilt**: Eine Zeile aus einem anderen oder
     unbekannten gilt als offen, ihre Rechenzeit passte nicht neben die
     übrigen. Ausgenommen sind übernommene Faltungen - die Faltungsmodelle gibt
     es nicht mehr, und der Stand kennt diese Aufnahmen.
     """
     return (
-        Erkennung.recording_id.in_(select(Aufnahme.id).where(Aufnahme.status == GUELTIG)),
+        Erkennung.recording_id.in_(_messbar().with_only_columns(Aufnahme.id)),
         (Erkennung.rechenwerk == werk) | (Erkennung.herkunft == FALTUNG),
     )
 
@@ -477,7 +506,7 @@ def offene_posten(
     """
     erledigt = _fertig(db, werk)
     gesperrt = verwandte(db, bekannt or {})
-    aufnahmen = gueltige_aufnahmen(db)
+    aufnahmen = gemessene_aufnahmen(db)
     return [
         Posten(aufnahme_id=aufnahme.id, blob=aufnahme.blob, referenz=vorlage.text, modell=modell)
         for modell in namen
