@@ -14,11 +14,6 @@
    * Median und Mittel** (`kennzahlen`) - ihr Auseinanderfallen ist der
    * Einbruch als Zahl.
    *
-   * **Im Bild je Modell der beste Wert** über die Fassungen
-   * (`wortlaut/augmentierung.py`) - was das Modell herausholt, wenn der Ton
-   * stimmt; „am besten" je nach Maß größer oder kleiner. Jede Fassung steht in
-   * der Tabelle.
-   *
    * ECharts (`lib/diagramm.ts`) wird erst hier geladen.
    */
   import { onMount } from 'svelte';
@@ -48,10 +43,6 @@
   const PUNKTFARBEN = ['#d55e00', '#0072b2', '#009e73', '#cc79a7', '#8a5aa8'];
   const PUNKTFORMEN = ['circle', 'diamond', 'triangle', 'rect', 'pin'];
 
-  // Die Zeile zur Kurve (Bestwert über alle Fassungen) - ein Zeichen, das in
-  // keiner Kennung vorkommt.
-  const BESTE = '*';
-
   let daten = $state<Auswertung | null>(null);
   let fehler = $state('');
   let laeuftGerade = $state('');
@@ -72,47 +63,45 @@
   let vergleichLaeuft = $state(false);
 
   /**
-   * Die Aufnahme zum Mithören - genau die Fassung, deren Texte darunter stehen.
+   * Die Aufnahme zum Mithören.
    *
    * Ohne Knopf davor - es ist eine einzige, anders als die Liste in „Meine
    * Daten". Als Blob, weil `<audio src>` den Zugang nicht mitschickt. Die
    * Kennung verhindert, dass ein spätes Laden eine neuere Wahl übertönt.
    */
-  let hoerprobe = $state<{ schluessel: string; adresse: string } | null>(null);
+  let hoerprobe = $state<{ aufnahmeId: string; adresse: string } | null>(null);
 
   function vergissHoerprobe() {
     if (hoerprobe) URL.revokeObjectURL(hoerprobe.adresse);
     hoerprobe = null;
   }
 
-  async function ladeHoerprobe(aufnahmeId: string, fassung: string) {
-    const schluessel = `${aufnahmeId}.${fassung}`;
-    if (hoerprobe?.schluessel === schluessel) return;
+  async function ladeHoerprobe(aufnahmeId: string) {
+    if (hoerprobe?.aufnahmeId === aufnahmeId) return;
     vergissHoerprobe();
     try {
-      const inhalt = await meineAufnahmeAudio(aufnahmeId, fassung);
-      // Noch dieselbe Aufnahme und dieselbe Fassung? Sonst ist das hier die
-      // Antwort auf eine Frage, die niemand mehr stellt.
-      if (gewaehlt?.aufnahme_id === aufnahmeId && gewaehlteFassung === fassung) {
-        hoerprobe = { schluessel, adresse: URL.createObjectURL(inhalt) };
+      const inhalt = await meineAufnahmeAudio(aufnahmeId);
+      // Noch dieselbe Aufnahme? Sonst ist das hier die Antwort auf eine
+      // Frage, die niemand mehr stellt.
+      if (gewaehlt?.aufnahme_id === aufnahmeId) {
+        hoerprobe = { aufnahmeId, adresse: URL.createObjectURL(inhalt) };
       }
     } catch {
-      // Noch nicht gerechnet: kein Abspieler, keine Meldung.
+      // Kein Audio: kein Abspieler, keine Meldung.
       vergissHoerprobe();
     }
   }
 
-  // Nachladen, sobald sich Aufnahme oder Fassung ändert - und aufräumen, wenn
-  // die Ansicht geht: Ein nicht freigegebenes Objekt-URL hält die ganze
+  // Nachladen, sobald sich die Aufnahme ändert - und aufräumen, wenn die
+  // Ansicht geht: Ein nicht freigegebenes Objekt-URL hält die ganze
   // Audiodatei im Speicher.
   $effect(() => {
     const aufnahmeId = gewaehlt?.aufnahme_id;
-    const fassung = gewaehlteFassung;
     if (!aufnahmeId) {
       vergissHoerprobe();
       return;
     }
-    ladeHoerprobe(aufnahmeId, fassung);
+    ladeHoerprobe(aufnahmeId);
   });
 
   $effect(() => () => vergissHoerprobe());
@@ -121,9 +110,6 @@
   // Wortlaut, wenn ein Satz sonst in Schnipsel zerfällt. Ein Griff zwischen
   // zwei Blicken, keine Vorliebe unter „Darstellung".
   let hervorheben = $state(true);
-
-  // Welche Fassung im Textvergleich gelesen wird - eine, Vorgabe das Original.
-  let gewaehlteFassung = $state('original');
 
   let huelle = $state<HTMLDivElement | null>(null);
   // Das Diagramm selbst, ohne `$state`: ECharts führt seinen eigenen Zustand,
@@ -137,7 +123,6 @@
    * Der Name, der dasteht: Grundmodellname oder Kurzkennung des Standes.
    */
   const benannt = $derived((modell: string) => daten?.beschriftungen?.[modell] ?? modell);
-  const varianten = $derived(daten?.varianten ?? []);
 
   /**
    * Welches Modell den Balken bekommt: das, womit „schreiben" diktiert -
@@ -151,13 +136,6 @@
         : modelle.includes('small')
           ? 'small'
           : (modelle[Math.floor((modelle.length - 1) / 2)] ?? ''),
-  );
-
-  // Je Modell stehen alle Fassungen da; gelesen wird eine.
-  const gelesen = $derived(
-    (gewaehlt?.erkennungen ?? []).filter(
-      (erkennung) => erkennung.variante === gewaehlteFassung,
-    ),
   );
 
   const stand = $derived(daten?.stand ?? null);
@@ -175,28 +153,10 @@
     return wert || ersatz;
   }
 
-  type Werte = Record<string, Record<string, Record<string, number>>>;
-
-  function wertVon(punkt: { werte: Werte }, modell: string, variante: string) {
+  function wertVon(punkt: { werte: Record<string, Record<string, number>> }, modell: string) {
     // `null`, nicht `0`: Nicht gerechnet ist nicht nichts verstanden.
-    const gemessen = punkt.werte[modell]?.[variante]?.[metrik];
+    const gemessen = punkt.werte[modell]?.[metrik];
     return gemessen === undefined ? null : gemessen;
-  }
-
-  /**
-   * Der Bestwert eines Modells über alle Fassungen - die Zahl in der Kurve.
-   *
-   * Bei der Genauigkeit der größte, sonst der kleinste. Gezählt wird, was
-   * gerechnet ist - während eines Laufs wächst es mit.
-   */
-  function bestesVon(punkt: { werte: Werte }, modell: string) {
-    const gemessen = Object.values(punkt.werte[modell] ?? {})
-      .map((fassung) => fassung[metrik])
-      .filter((wert): wert is number => wert !== undefined);
-    if (!gemessen.length) return null;
-    return aktuelleMetrik?.hoch_ist_gut === false
-      ? Math.min(...gemessen)
-      : Math.max(...gemessen);
   }
 
   /**
@@ -215,21 +175,14 @@
     return modell === balkenmodell ? akzent : PUNKTFARBEN[nummer % PUNKTFARBEN.length];
   }
 
-  /** Eine Zeile der Tabelle: eine Reihe von Werten, zu zwei Zahlen gerafft. */
+  /** Eine Zeile der Tabelle: die Werte eines Modells, zu zwei Zahlen gerafft. */
   type Kennzahl = {
-    schluessel: string;
-    name: string;
+    modell: string;
+    nummer: number;
     /** Wie viele Aufnahmen dahinterstehen - ohne die sind die Zahlen nicht zu lesen. */
     anzahl: number;
     median: number;
     mittel: number;
-  };
-
-  /** Ein Modell mit seinen Zeilen: die beste der Fassungen, dann jede einzeln. */
-  type Modellzahlen = {
-    modell: string;
-    nummer: number;
-    zeilen: Kennzahl[];
   };
 
   function median(werte: number[]): number {
@@ -240,10 +193,10 @@
       : (sortiert[mitte - 1] + sortiert[mitte]) / 2;
   }
 
-  function gerafft(schluessel: string, name: string, werte: number[]): Kennzahl {
+  function gerafft(modell: string, nummer: number, werte: number[]): Kennzahl {
     return {
-      schluessel,
-      name,
+      modell,
+      nummer,
       anzahl: werte.length,
       median: werte.length ? median(werte) : 0,
       mittel: werte.length ? werte.reduce((summe, wert) => summe + wert, 0) / werte.length : 0,
@@ -251,41 +204,25 @@
   }
 
   /**
-   * Median und Mittel je Modell und Fassung, im gerade gewählten Maß.
+   * Median und Mittel je Modell, im gerade gewählten Maß.
    *
    * Das Mittel nimmt jeden Ausreißer mit, der Median zeigt den Normalfall -
-   * weit auseinander heißt: Das Modell verreißt einzelne Aufnahmen. Je
-   * Fassung eine Zeile, denn ihr Abstand zeigt, ob ein Modell beim Rauschen
-   * einbricht. Obendrüber die Zeile zur Kurve: Der Median der Bestwerte ist
-   * nicht der beste der Mediane. Im Browser gerechnet - die Daten sind da.
+   * weit auseinander heißt: Das Modell verreißt einzelne Aufnahmen. Im
+   * Browser gerechnet - die Daten sind da.
    */
-  const kennzahlen = $derived<Modellzahlen[]>(
+  const kennzahlen = $derived<Kennzahl[]>(
     modelle
-      .map((modell, nummer) => {
-        const punkte = daten?.punkte ?? [];
-        const gefiltert = (werte: (number | null)[]) =>
-          werte.filter((wert): wert is number => wert !== null);
-        return {
+      .map((modell, nummer) =>
+        gerafft(
           modell,
           nummer,
-          zeilen: [
-            gerafft(
-              BESTE,
-              'Bestwert',
-              gefiltert(punkte.map((punkt) => bestesVon(punkt, modell))),
-            ),
-            ...varianten.map((variante) =>
-              gerafft(
-                variante.schluessel,
-                variante.name,
-                gefiltert(punkte.map((punkt) => wertVon(punkt, modell, variante.schluessel))),
-              ),
-            ),
-          ],
-        };
-      })
+          (daten?.punkte ?? [])
+            .map((punkt) => wertVon(punkt, modell))
+            .filter((wert): wert is number => wert !== null),
+        ),
+      )
       // Ohne Erkennung keine Zeile.
-      .filter((gruppe) => gruppe.zeilen[0].anzahl > 0),
+      .filter((zeile) => zeile.anzahl > 0),
   );
 
   function option() {
@@ -297,7 +234,7 @@
     const einheit = aktuelleMetrik?.einheit ?? '';
 
     const reihen = modelle.map((modell, nummer) => {
-      const werte = punkte.map((punkt) => bestesVon(punkt, modell));
+      const werte = punkte.map((punkt) => wertVon(punkt, modell));
       if (modell === balkenmodell) {
         return {
           id: modell,
@@ -634,9 +571,6 @@
     <p class="gedaempft">
       {aktuelleMetrik.erklaerung}
       {aktuelleMetrik.hoch_ist_gut ? 'Höher ist besser.' : 'Niedriger ist besser.'}
-      Im Bild steht je Modell sein bester Wert - die Aufnahme wird in jeder
-      Fassung gemessen, einmal wie gesprochen und einmal je Abwandlung. Alle
-      stehen in der Tabelle darunter.
     </p>
   {/if}
 
@@ -646,75 +580,53 @@
       <thead>
         <tr>
           <th scope="col">Modell</th>
-          <th scope="col">Fassung</th>
           <th scope="col">Median</th>
           <th scope="col">Mittel</th>
           <th scope="col">Aufnahmen</th>
         </tr>
       </thead>
-      <!-- Je Modell ein `tbody` - die Zeilen gehören zusammen, auch für Vorlesestimmen. -->
-      {#each kennzahlen as gruppe (gruppe.modell)}
-        <tbody>
-          {#each gruppe.zeilen as zeile, stelle (zeile.schluessel)}
-            <tr class:beste={zeile.schluessel === BESTE}>
-              {#if stelle === 0}
-                <!-- Der Name steht einmal und gilt für die Zeilen darunter.
-                     Dieselbe Farbe wie im Bild, und für den Balken ein Rechteck
-                     statt eines Punktes: So findet man die Zeile zur Reihe auch
-                     dann, wenn man Farben nicht unterscheiden kann. -->
-                <th scope="rowgroup" rowspan={gruppe.zeilen.length}>
-                  <span
-                    class="marker"
-                    class:balken={gruppe.modell === balkenmodell}
-                    style="background: {reihenfarbe(gruppe.modell, gruppe.nummer, 'var(--akzent)')}"
-                    aria-hidden="true"
-                  ></span>
-                  <!-- Der Name führt in die Einzelansicht in „lernen" -
-                       dieselbe wie aus der Modelltafel: ein Stand in seinen
-                       Lauf, ein Grundmodell in seinen Steckbrief. Ein Stand
-                       ohne Lauf (gelöscht) bleibt ohne Link. -->
-                  {#if daten?.laeufe?.[gruppe.modell]}
-                    <a href={laufUrl(daten.laeufe[gruppe.modell])}>{benannt(gruppe.modell)}</a>
-                  {:else if !gruppe.modell.includes('/')}
-                    <a href={grundmodellUrl(gruppe.modell)}>{benannt(gruppe.modell)}</a>
-                  {:else}
-                    {benannt(gruppe.modell)}
-                  {/if}
-                </th>
+      <tbody>
+        {#each kennzahlen as zeile (zeile.modell)}
+          <tr>
+            <!-- Dieselbe Farbe wie im Bild, und für den Balken ein Rechteck
+                 statt eines Punktes: So findet man die Zeile zur Reihe auch
+                 dann, wenn man Farben nicht unterscheiden kann. -->
+            <th scope="row">
+              <span
+                class="marker"
+                class:balken={zeile.modell === balkenmodell}
+                style="background: {reihenfarbe(zeile.modell, zeile.nummer, 'var(--akzent)')}"
+                aria-hidden="true"
+              ></span>
+              <!-- Der Name führt in die Einzelansicht in „lernen" - dieselbe
+                   wie aus der Modelltafel: ein Stand in seinen Lauf, ein
+                   Grundmodell in seinen Steckbrief. Ein Stand ohne Lauf
+                   (gelöscht) bleibt ohne Link. -->
+              {#if daten?.laeufe?.[zeile.modell]}
+                <a href={laufUrl(daten.laeufe[zeile.modell])}>{benannt(zeile.modell)}</a>
+              {:else if !zeile.modell.includes('/')}
+                <a href={grundmodellUrl(zeile.modell)}>{benannt(zeile.modell)}</a>
+              {:else}
+                {benannt(zeile.modell)}
               {/if}
-              <th scope="row" class="fassung">{zeile.name}</th>
-              <td>{zeige(zeile.median)}</td>
-              <td>{zeige(zeile.mittel)}</td>
-              <td class="wenig">{zeile.anzahl}</td>
-            </tr>
-          {/each}
-        </tbody>
-      {/each}
+            </th>
+            <td>{zeige(zeile.median)}</td>
+            <td>{zeige(zeile.mittel)}</td>
+            <td class="wenig">{zeile.anzahl}</td>
+          </tr>
+        {/each}
+      </tbody>
     </table>
     <p class="gedaempft">
       Über alle gerechneten Aufnahmen. Median = Normalfall, Mittel = mit
       Ausreißern. Weit auseinander heißt: Das Modell verreißt einzelne
       Aufnahmen - welche, zeigt die Kurve.
     </p>
-    <p class="gedaempft">
-      Die Fassungen sind dieselbe Aufnahme unter veränderten Bedingungen:
-    </p>
-    <ul class="fassungsliste gedaempft">
-      {#each varianten as variante (variante.schluessel)}
-        <li><strong>{variante.name}</strong> - {variante.erklaerung}</li>
-      {/each}
-    </ul>
-    <p class="gedaempft">
-      Dicht beieinander: Das Modell versteht den Sprecher. Weit auseinander: Es
-      verträgt nur eine bestimmte Aufnahmesituation. Der Bestwert oben ist je
-      Aufnahme der beste über alle Fassungen - und damit nicht der beste der
-      Mediane darunter.
-    </p>
   {/if}
 
   <p class="gedaempft">
     Auf eine Spalte tippen zeigt die Vorlage und darunter, was jedes Modell
-    daraus gemacht hat - eine Fassung zur Zeit, umschaltbar.
+    daraus gemacht hat.
   </p>
 {/if}
 
@@ -732,39 +644,13 @@
   <div class="karte">
     <p class="marke">Vorlage</p>
     <p class="vorlage">{gewaehlt.referenz}</p>
-    <!-- Erst selbst hinhören; der Abspieler folgt der Fassungswahl. -->
+    <!-- Erst selbst hinhören. -->
     {#if hoerprobe}
-      <AudioPlayer
-        quelle={hoerprobe.adresse}
-        beschriftung={varianten.length > 1
-          ? `Gehört: ${varianten.find((v) => v.schluessel === gewaehlteFassung)?.name ?? gewaehlteFassung}`
-          : 'Die Aufnahme'}
-      />
+      <AudioPlayer quelle={hoerprobe.adresse} beschriftung="Die Aufnahme" />
     {/if}
   </div>
 
-  {#if varianten.length > 1}
-    <!-- Schalter statt Auswahlliste - man springt zwischen den Fassungen. -->
-    <div class="fassungen" role="group" aria-label="Fassung der Aufnahme">
-      {#each varianten as variante (variante.schluessel)}
-        <button
-          type="button"
-          class="knopf schmal"
-          class:haupt={gewaehlteFassung === variante.schluessel}
-          aria-pressed={gewaehlteFassung === variante.schluessel}
-          title={variante.erklaerung}
-          onclick={() => (gewaehlteFassung = variante.schluessel)}
-        >
-          {variante.name}
-        </button>
-      {/each}
-    </div>
-    <p class="gedaempft">
-      {varianten.find((variante) => variante.schluessel === gewaehlteFassung)?.erklaerung ?? ''}
-    </p>
-  {/if}
-
-  {#each gelesen as erkennung (erkennung.modell)}
+  {#each gewaehlt.erkennungen as erkennung (erkennung.modell)}
     <div class="karte">
       <p class="marke">
         {benannt(erkennung.modell)}
@@ -777,8 +663,8 @@
     </div>
   {/each}
 
-  {#if !gelesen.length}
-    <p class="gedaempft">Für diese Fassung ist noch nichts gerechnet.</p>
+  {#if !gewaehlt.erkennungen.length}
+    <p class="gedaempft">Für diese Aufnahme ist noch nichts gerechnet.</p>
   {/if}
 
   {#if hervorheben}
@@ -789,7 +675,7 @@
     </p>
   {:else}
     <p class="gedaempft">
-      Jede Fassung so, wie das Modell sie geschrieben hat. Die Zahlen daneben stehen unverändert -
+      Jeder Text so, wie das Modell ihn geschrieben hat. Die Zahlen daneben stehen unverändert -
       gemessen wird immer gegen die Vorlage, ob die Abweichungen nun ausgezeichnet sind oder nicht.
     </p>
   {/if}
@@ -879,12 +765,6 @@
     min-width: min(100%, 28rem);
   }
 
-  .fassungsliste {
-    margin: 0.2rem 0 0.6rem;
-    padding-left: 1.2rem;
-    line-height: 1.5;
-  }
-
   .kennzahlen th,
   .kennzahlen td {
     padding: 0.35rem 0.9rem 0.35rem 0;
@@ -911,44 +791,6 @@
 
   .kennzahlen .wenig {
     color: var(--gedaempft);
-  }
-
-  /* Die Fassungen eines Modells stehen eingerückt unter seinem Namen - sie
-     gehören dazu und sind nicht selbst Modelle. */
-  .kennzahlen .fassung {
-    font-weight: 400;
-    color: var(--gedaempft);
-    padding-right: 1.2rem;
-  }
-
-  /* Die Zeile zur Kurve, hervorgehoben wie die Reihe im Bild. */
-  .kennzahlen .beste .fassung,
-  .kennzahlen .beste td {
-    font-weight: 600;
-    color: inherit;
-  }
-
-  /* Nur zwischen den Modellen eine Linie, nicht zwischen ihren Fassungen:
-     Sonst zerfiele die Gruppe in fünf gleich schwere Zeilen. */
-  .kennzahlen tbody th,
-  .kennzahlen tbody td {
-    border-bottom: none;
-  }
-
-  .kennzahlen tbody {
-    border-bottom: 1px solid var(--rand);
-  }
-
-  .fassungen {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    margin: 0.8rem 0 0.4rem;
-  }
-
-  .fassungen .schmal {
-    padding: 0.35rem 0.7rem;
-    font-size: 0.9rem;
   }
 
   .marker {

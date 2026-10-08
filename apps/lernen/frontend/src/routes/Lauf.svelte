@@ -61,8 +61,7 @@
   // dritte Reihe auf eigener Achse, denn WER und Verlust haben keine gemeinsame Skala.
   const mitWer = $derived(pruefung.some((punkt) => punkt.wer !== null && punkt.wer !== undefined));
   const hatKurve = $derived(kurve.length > 0);
-  const vergleich = $derived(daten?.vergleich ?? {});
-  const fassungen = $derived(Object.keys(vergleich));
+  const vergleich = $derived(daten?.vergleich ?? []);
 
   // Die gewählten Farben als **ein** Wert; `einstellungen.farben` selbst zu
   // lesen meldet nur an, dass es das Feld gibt, nicht seinen Inhalt - eine
@@ -75,11 +74,6 @@
     cer: 'Zeichenfehlerrate',
     mer: 'Trefferfehlerrate',
     wil: 'Wortinformationsverlust',
-  };
-
-  const FASSUNGSNAMEN: Record<string, string> = {
-    original: 'Original',
-    rauschen: 'Mit Rauschen',
   };
 
   function farbe(name: string, ersatz: string): string {
@@ -386,46 +380,37 @@
     </p>
   {/if}
 
-  {#if fassungen.length}
+  {#if vergleich.length}
     <h3>Gegen die Baseline</h3>
     <p class="gedaempft">
       Dieselben Aufnahmen, die das jeweilige Faltungsmodell nie gesehen hat - einmal durch das unveränderte
       {lauf.basismodell} (gemessen in der Auswertung von „hören") und einmal durch diesen Stand.
     </p>
 
-    {#each fassungen as fassung (fassung)}
-      <h4>{FASSUNGSNAMEN[fassung] ?? fassung}</h4>
-      <table class="vergleich">
-        <thead>
+    <table class="vergleich">
+      <thead>
+        <tr>
+          <th scope="col">Maß</th>
+          <th scope="col">Baseline</th>
+          <th scope="col">Dieser Stand</th>
+          <th scope="col">Unterschied</th>
+        </tr>
+      </thead>
+      <tbody>
+        {#each vergleich as eintrag (eintrag.mass)}
           <tr>
-            <th scope="col">Maß</th>
-            <th scope="col">Baseline</th>
-            <th scope="col">Dieser Stand</th>
-            <th scope="col">Unterschied</th>
+            <th scope="row">{MASSNAMEN[eintrag.mass] ?? eintrag.mass}</th>
+            <td>{zeige(eintrag.mass, eintrag.baseline)}</td>
+            <td class="stark">{zeige(eintrag.mass, eintrag.trainiert)}</td>
+            <td class:besser={eintrag.besser === true} class:schlechter={eintrag.besser === false}>
+              {unterschied(eintrag.mass, eintrag.baseline, eintrag.trainiert)}
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          {#each vergleich[fassung] as eintrag (eintrag.mass)}
-            <tr>
-              <th scope="row">{MASSNAMEN[eintrag.mass] ?? eintrag.mass}</th>
-              <td>{zeige(eintrag.mass, eintrag.baseline)}</td>
-              <td class="stark">{zeige(eintrag.mass, eintrag.trainiert)}</td>
-              <td class:besser={eintrag.besser === true} class:schlechter={eintrag.besser === false}>
-                {unterschied(eintrag.mass, eintrag.baseline, eintrag.trainiert)}
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-      <p class="gedaempft klein">
-        Über {vergleich[fassung][0]?.anzahl ?? 0} Aufnahmen - nur solche, die beide Seiten
-        gemessen haben.
-      </p>
-    {/each}
-
-    <p class="gedaempft">
-      Liegen die Fassungen dicht beieinander, hat das Modell den Sprecher verstanden. Gewinnt
-      es beim Original und verliert beim Rauschen, hat es die Aufnahmesituation gelernt.
+        {/each}
+      </tbody>
+    </table>
+    <p class="gedaempft klein">
+      Über {vergleich[0]?.anzahl ?? 0} Aufnahmen - nur solche, die beide Seiten gemessen haben.
     </p>
   {:else if lauf.status === 'fertig'}
     <p class="hinweise">
@@ -549,11 +534,6 @@
     text-align: center;
     padding: 1rem;
     pointer-events: none;
-  }
-
-  h4 {
-    margin: 1rem 0 0.2rem;
-    font-size: 0.95rem;
   }
 
   .vergleich {

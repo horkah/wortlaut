@@ -449,13 +449,7 @@ def trainiere(
         keim=KEIM + (faltung or 0),
     )
     kern = laeufe.kernfaltungen_aus(verzeichnis, auftrag)
-    lernzeilen, messzeilen = laeufe.zeilen_fuer_faltung(
-        verzeichnis,
-        faltung,
-        str(auftrag.get("daten") or laeufe.NUR_ORIGINAL),
-        korpuswurzel,
-        kern,
-    )
+    lernzeilen, messzeilen = laeufe.zeilen_fuer_faltung(verzeichnis, faltung, korpuswurzel, kern)
     if kern is not None:
         bericht.sage(
             f"Kernauswahl: nur der Kern ({len(kern)} Aufnahmen) - "

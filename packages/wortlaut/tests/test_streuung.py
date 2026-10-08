@@ -12,19 +12,12 @@ import random
 from wortlaut import streuung
 
 
-def _messreihe(aufnahmen: int = 40, fassungen: int = 4) -> list[tuple[str, float]]:
-    """Eine Reihe mit dem Zuschnitt dieses Projekts: je Aufnahme mehrere Fassungen.
-
-    Die Fassungen einer Aufnahme liegen dicht beieinander - genau das macht sie
-    abhängig und ist der Grund für die blockweise Ziehung.
-    """
+def _messreihe(aufnahmen: int = 40) -> list[tuple[str, float]]:
+    """Eine Reihe mit dem Zuschnitt dieses Projekts: je Aufnahme ein Wert."""
     wuerfel = random.Random(4711)
-    reihe = []
-    for nummer in range(aufnahmen):
-        niveau = max(0.0, wuerfel.gauss(0.15, 0.1))
-        for _ in range(fassungen):
-            reihe.append((f"rec{nummer:03d}", max(0.0, niveau + wuerfel.gauss(0.0, 0.01))))
-    return reihe
+    return [
+        (f"rec{nummer:03d}", max(0.0, wuerfel.gauss(0.15, 0.1))) for nummer in range(aufnahmen)
+    ]
 
 
 def test_mittel_bleibt_der_mittelwert():
@@ -52,25 +45,6 @@ def test_derselbe_bereich_bei_jedem_aufruf():
     erst = streuung.intervall(streuung.bilde(reihe))
     nochmal = streuung.intervall(streuung.bilde(list(reversed(reihe))))
     assert erst == nochmal
-
-
-def test_blockweise_ist_breiter_als_naiv():
-    """Die Fassungen einer Aufnahme sind mehrere Messungen an einem Gegenstand.
-
-    Wer sie einzeln zieht, bekommt einen zu schmalen Bereich - und damit einen
-    Vorsprung, den es nicht gibt. Das ist der ganze Grund für `BLOCK_AUFNAHME`.
-    """
-    reihe = _messreihe()
-    blockweise = streuung.intervall(
-        streuung.bilde(reihe, streuung.BLOCK_AUFNAHME),
-        streuung.Verfahren(blockart=streuung.BLOCK_AUFNAHME),
-    )
-    naiv = streuung.intervall(
-        streuung.bilde(reihe, streuung.BLOCK_EINHEIT),
-        streuung.Verfahren(blockart=streuung.BLOCK_EINHEIT),
-    )
-    assert blockweise is not None and naiv is not None
-    assert blockweise.breite > naiv.breite
 
 
 def test_ohne_unterschied_kein_belegter_unterschied():

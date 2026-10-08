@@ -15,7 +15,7 @@ der Mittel ist nicht das Mittel der Produkte.
 
 **Was schiefging, bleibt draußen** (`pruefe_faltungen`): eine Faltung ohne
 Gewichte (abgebrochen), eine, die ausfranst (mehr Fehler als Wörter auf einem
-Viertel ihrer Originale), und eine, die gemessen am Grundmodell auf denselben
+Viertel ihrer Aufnahmen), und eine, die gemessen am Grundmodell auf denselben
 Aufnahmen weit hinter den anderen liegt. Dieselben Schwellen wie die
 Plausibilitätsprüfung (`bewerten.befund_ueber`), die danach trotzdem läuft.
 Ihre Messungen bleiben in der Zahl des Laufs - sie beschreibt das Verfahren;
@@ -33,7 +33,7 @@ import statistics
 from pathlib import Path
 from typing import Any
 
-from wortlaut import augmentierung, corpus, laeufe
+from wortlaut import corpus, laeufe
 from wortlaut.whisper.local import STARTPROMPT
 
 from .bewerten import AUSGEFRANST_ANTEIL, PRUEF_SPIELRAUM, _grundzeilen
@@ -54,14 +54,13 @@ def pruefe_faltungen(
     zeilen: list[dict[str, Any]],
     faltungen: list[int],
     vorhanden: set[int],
-    grundmodell: dict[tuple[str, str], float] | None = None,
+    grundmodell: dict[str, float] | None = None,
 ) -> tuple[list[int], list[dict[str, Any]]]:
     """Welche Faltungen ins Mittel gehen - und welche warum nicht.
 
     `zeilen` sind die Messungen aller Faltungen (`bewerten.bewerte_faltung`),
     `vorhanden` die Faltungen, deren Gewichte daliegen, `grundmodell` die WER
-    des unveränderten Grundmodells je (Aufnahme, Fassung) aus „hören". Gezählt
-    werden nur Originale, wie in der Plausibilitätsprüfung.
+    des unveränderten Grundmodells je Aufnahme aus „hören".
 
     **Ausreißer am Verhältnis zum Grundmodell, nicht an der WER.** Die WER
     einer Faltung hängt vor allem daran, wie schwer ihre zurückgehaltenen
@@ -73,11 +72,11 @@ def pruefe_faltungen(
     wer_je: dict[int, list[float]] = {}
     grund_je: dict[int, list[tuple[float, float]]] = {}
     for zeile in zeilen:
-        if str(zeile.get("variante")) != augmentierung.ORIGINAL or zeile.get("faltung") is None:
+        if zeile.get("faltung") is None:
             continue
         faltung = int(zeile["faltung"])
         wer_je.setdefault(faltung, []).append(float(zeile["wer"]))
-        schluessel = (str(zeile.get("recording_id")), augmentierung.ORIGINAL)
+        schluessel = str(zeile.get("recording_id"))
         if grundmodell and schluessel in grundmodell:
             grund_je.setdefault(faltung, []).append((float(zeile["wer"]), grundmodell[schluessel]))
 
@@ -264,11 +263,7 @@ def baue(
 
         korpuswurzel = datenverzeichnis / corpus.sprecher_relpfad(str(auftrag["sprecher_id"]))
         alle, _ = laeufe.zeilen_fuer_faltung(
-            verzeichnis,
-            None,
-            str(auftrag.get("daten") or laeufe.NUR_ORIGINAL),
-            korpuswurzel,
-            laeufe.kernfaltungen_aus(verzeichnis, auftrag),
+            verzeichnis, None, korpuswurzel, laeufe.kernfaltungen_aus(verzeichnis, auftrag)
         )
         woerter = kontext.schreibe(
             ziel,

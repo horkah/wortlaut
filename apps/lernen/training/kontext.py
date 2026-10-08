@@ -41,18 +41,12 @@ MINDESTTEILE = 3
 
 
 def texte_fuer(zeilen: Iterable[dict[str, Any]]) -> list[str]:
-    """Die Texte der Lernzeilen, je Aufnahme einmal - ohne Selbstbeschriftetes."""
-    gesehen: set[str] = set()
-    texte = []
-    for zeile in zeilen:
-        if str(zeile.get("quelle")) == laeufe.QUELLE_SELBST:
-            continue
-        kennung = str(zeile.get("recording_id") or zeile.get("audio"))
-        if kennung in gesehen:
-            continue
-        gesehen.add(kennung)
-        texte.append(str(zeile.get("text") or ""))
-    return texte
+    """Die Texte der Lernzeilen - ohne Selbstbeschriftetes."""
+    return [
+        str(zeile.get("text") or "")
+        for zeile in zeilen
+        if str(zeile.get("quelle")) != laeufe.QUELLE_SELBST
+    ]
 
 
 def vokabular(

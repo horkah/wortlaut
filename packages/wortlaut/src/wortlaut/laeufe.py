@@ -6,7 +6,7 @@ ein Verzeichnis je Auftrag:
 
     data/snapshots/<job_id>/
     ├── sprecher.txt          die Sprecher-ID - die Zusage an die Löschung
-    ├── manifest.jsonl        der Schnappschuss: je Zeile eine Probe in einer Fassung
+    ├── manifest.jsonl        der Schnappschuss: je Zeile eine Probe
     ├── kernauswahl.json      nur bei Kernauswahl
     ├── auftrag.json          was zu tun ist - zuletzt geschrieben
     ├── zustand.json          was daraus geworden ist - vom Trainer
@@ -37,7 +37,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from wortlaut import augmentierung, kartenplan, registry
+from wortlaut import kartenplan, registry
 
 SCHNAPPSCHUESSE = "snapshots"
 SPRECHER_MARKE = "sprecher.txt"
@@ -96,10 +96,9 @@ def verteile(staemme: Iterable[str]) -> list[int]:
     return [rang[stamm] % FALTUNGEN for stamm in staemme]
 
 
-# ── Methode und Datensatz ───────────────────────────────────────────────────
+# ── Methode ─────────────────────────────────────────────────────────────────
 #
-# Zwei Achsen: wie trainiert wird (alle Gewichte oder ein LoRA-Zusatz) und
-# womit (nur Originale oder auch die gemessenen Fassungen).
+# Wie trainiert wird: alle Gewichte oder ein LoRA-Zusatz.
 VOLL = "full"
 LORA = "lora"
 METHODEN = (VOLL, LORA)
@@ -211,9 +210,24 @@ def lora_rang_aus(auftrag: dict[str, Any]) -> str:
     return str(auftrag.get("lora_rang") or RANG_VORGABE)
 
 
-NUR_ORIGINAL = "original"
-MIT_VARIANTEN = "augmentiert"
-DATENSAETZE = (NUR_ORIGINAL, MIT_VARIANTEN)
+# ── Läufe mit Rauschkopie ───────────────────────────────────────────────────
+#
+# Läufe mit `daten = augmentiert` (Code `A`) lernten auf jeder Aufnahme und
+# einer Kopie mit weißem Rauschen 20 dB darunter und maßen auf beiden. Manifest
+# und Bewertung führen die Kopie als eigene Zeile (`variante = rauschen`);
+# gelesen wird nur die Aufnahme selbst (`aufnahme_selbst`). Angeboten wird
+# das nicht.
+MIT_RAUSCHKOPIE = "augmentiert"
+
+
+def aufnahme_selbst(zeile: dict[str, Any]) -> bool:
+    """Ob eine Zeile aus Manifest oder Bewertung die Aufnahme selbst meint, keine Rauschkopie."""
+    return str(zeile.get("variante") or "original") == "original"
+
+
+def mit_rauschkopie(auftrag: dict[str, Any]) -> bool:
+    """Ob ein Lauf auch auf Rauschkopien gelernt hat."""
+    return str(auftrag.get("daten") or "") == MIT_RAUSCHKOPIE
 
 # ── Die Auswahl ─────────────────────────────────────────────────────────────
 #
@@ -475,8 +489,7 @@ def interpoliert(abschluss: str) -> bool:
 # ── Die Augmentierung im Training ───────────────────────────────────────────
 #
 # Was mit einer Lernprobe beim Laden geschieht, gewürfelt und nirgends
-# abgelegt (`training/klangwandel.py`). `daten` dagegen sagt, welche Fassungen
-# überhaupt gelernt werden.
+# abgelegt (`training/klangwandel.py`).
 #
 # `keine`      Die Probe, wie sie im Manifest steht.
 # `masken`     SpecAugment: Zeit- und Frequenzbalken ins Spektrogramm.
@@ -552,7 +565,6 @@ CODE_METHODE = {VOLL: "V", LORA: "L"}
 # Z = Ziele des Zusatzes, R = Rang.
 CODE_LORA_ZIELE = {ZIELE_QV: "", ZIELE_ALLE: "Z", ZIELE_ENCODER: "Ze", ZIELE_DECODER: "Zd"}
 CODE_LORA_RANG = {rang: "" if rang == RANG_VORGABE else f"R{rang}" for rang in LORA_RAENGE}
-CODE_DATENSATZ = {NUR_ORIGINAL: "", MIT_VARIANTEN: "A"}
 CODE_AUSWAHL = {AUSWAHL_ALLE: "", AUSWAHL_KERN: "K"}
 # Q = Gewicht der Korrekturen (`Q25` = 0,25, `Q1` = 1, `Qv` = aus dem Verlauf), U = unbeschriftet.
 CODE_KORREKTURGEWICHT = {
@@ -614,7 +626,7 @@ def optionscode(auftrag: dict[str, Any]) -> str:
     glieder = (
         glied(CODE_LORA_ZIELE, auftrag.get("lora_ziele"), ZIELE_QV),
         glied(CODE_LORA_RANG, auftrag.get("lora_rang"), RANG_VORGABE),
-        glied(CODE_DATENSATZ, auftrag.get("daten"), NUR_ORIGINAL),
+        "A" if mit_rauschkopie(auftrag) else "",
         glied(CODE_AUSWAHL, auftrag.get("auswahl"), AUSWAHL_ALLE),
         glied(CODE_KORREKTURGEWICHT, auftrag.get("korrekturgewicht"), GEWICHT_VORGABE),
         glied(CODE_SELBSTTRAINING, auftrag.get("selbsttraining"), SELBST_AUS),
@@ -899,8 +911,13 @@ def manifestzeilen(verzeichnis: Path) -> Iterator[dict[str, Any]]:
         return
     with pfad.open(encoding="utf-8") as datei:
         for roh in datei:
-            if roh.strip():
-                yield json.loads(roh)
+            if roh.strip() and aufnahme_selbst(zeile := json.loads(roh)):
+                yield zeile
+
+
+def bewertungszeilen(verzeichnis: Path) -> list[dict[str, Any]]:
+    """Die Messungen der Faltungen eines Laufs - je Aufnahme eine."""
+    return [zeile for zeile in lies_zeilen(verzeichnis / BEWERTUNG) if aufnahme_selbst(zeile)]
 
 
 # Gemessen wird nur, was nach einer Vorlage gesprochen wurde. Eine Korrektur
@@ -913,7 +930,6 @@ GEMESSENE_QUELLE = "vorlage"
 def zeilen_fuer_faltung(
     verzeichnis: Path,
     faltung: int | None,
-    daten: str,
     korpus: Path | None = None,
     kern: dict[str, int] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -923,9 +939,8 @@ def zeilen_fuer_faltung(
     Kreuzvalidierung: Kein Modell hört, woran es gemessen wird.
 
     `faltung = None` gibt alle Lernzeilen und keine Messzeile - woraus das
-    Endmodell seinen Startprompt nimmt (`training/endmodell.py`). Gemessen wird auf allen Fassungen und nur an
-    Vorlagen (`GEMESSENE_QUELLE`), gelernt je nach `daten` - Modelle
-    unterscheiden sich nur in ihren Trainingsdaten.
+    Endmodell seinen Startprompt nimmt (`training/endmodell.py`). Gemessen wird
+    nur an Vorlagen (`GEMESSENE_QUELLE`).
 
     Mit `kern` (Kernaufnahme → Faltung, `kernfaltungen_aus`) ist der Kern der
     ganze Korpus: Der Rest fehlt in Lern- und Messzeilen, die auch das
@@ -958,8 +973,7 @@ def zeilen_fuer_faltung(
         gemessen = str(zeile.get("quelle", GEMESSENE_QUELLE)) == GEMESSENE_QUELLE
         if faltung is not None and ihre == faltung and gemessen:
             mess.append(zeile)
-            continue
-        if daten == MIT_VARIANTEN or str(zeile.get("variante")) == augmentierung.ORIGINAL:
+        else:
             lern.append(zeile)
     return lern, mess
 
@@ -971,10 +985,8 @@ class Umfang:
     # Herkunft (`vorlage`, `korrektur`, `selbst`) → Proben.
     lernen: dict[str, int]
     lern_aufnahmen: int
-    lern_fassungen: tuple[str, ...]
     messen: int
     mess_aufnahmen: int
-    mess_fassungen: tuple[str, ...]
 
     @property
     def lernproben(self) -> int:
@@ -991,20 +1003,15 @@ def umfang(verzeichnis: Path, auftrag: dict[str, Any]) -> Umfang | None:
         kern = kernfaltungen_aus(verzeichnis, auftrag)
     except RuntimeError:
         return None
-    daten = str(auftrag.get("daten") or NUR_ORIGINAL)
-    lern, _ = zeilen_fuer_faltung(verzeichnis, None, daten, kern=kern)
+    lern, _ = zeilen_fuer_faltung(verzeichnis, None, kern=kern)
     mess = [
         zeile
         for faltung in range(FALTUNGEN)
-        for zeile in zeilen_fuer_faltung(verzeichnis, faltung, daten, kern=kern)[1]
+        for zeile in zeilen_fuer_faltung(verzeichnis, faltung, kern=kern)[1]
     ]
 
     def aufnahme(zeile: dict[str, Any]) -> str:
         return str(zeile.get("recording_id") or zeile["audio"])
-
-    def fassungen(zeilen: list[dict[str, Any]]) -> tuple[str, ...]:
-        da = {str(zeile.get("variante") or augmentierung.ORIGINAL) for zeile in zeilen}
-        return tuple(name for name in augmentierung.VARIANTEN if name in da)
 
     lernen: dict[str, int] = {}
     for zeile in lern:
@@ -1013,8 +1020,6 @@ def umfang(verzeichnis: Path, auftrag: dict[str, Any]) -> Umfang | None:
     return Umfang(
         lernen=lernen,
         lern_aufnahmen=len({aufnahme(zeile) for zeile in lern}),
-        lern_fassungen=fassungen(lern),
         messen=len(mess),
         mess_aufnahmen=len({aufnahme(zeile) for zeile in mess}),
-        mess_fassungen=fassungen(mess),
     )

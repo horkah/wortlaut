@@ -10,7 +10,7 @@ Aufnahme steckt in fünf der sechs, darum ist es nicht ehrlich messbar. Die Zahl
 daneben ist die der Faltungen.
 
 Gemessen im Trainer, wo das Modell schon auf der Karte liegt, mit
-`wortlaut/metriken.py` wie die Baseline in „hören", auf allen Fassungen.
+`wortlaut/metriken.py` wie die Baseline in „hören".
 """
 
 from __future__ import annotations
@@ -23,7 +23,6 @@ from pathlib import Path
 from typing import Any
 
 from wortlaut import (
-    augmentierung,
     corpus,
     laeufe,
     metriken,
@@ -114,8 +113,7 @@ def _version(auftrag: dict[str, Any], faktor: float | None = None) -> str:
     rang = laeufe.lora_rang_aus(auftrag)
     if rang != laeufe.RANG_VORGABE:
         name = f"{name}-r{rang}"
-    name = f"{name}-{auftrag.get('daten', '?')}"
-    # Der Kern hinter dem Datensatz, wie im Optionscode.
+    # Der Kern hinter dem Zusatz, wie im Optionscode.
     if laeufe.auswahl_aus(auftrag) == laeufe.AUSWAHL_KERN:
         name = f"{name}-kern"
     gewicht = laeufe.korrekturgewicht_aus(auftrag)
@@ -232,14 +230,11 @@ def bewerte_faltung(
     # Beim Kern nur seine Aufnahmen auf seinen Faltungen; den Rest hört das
     # Endmodell in „hören" (`wortlaut/laeufe.py`, „Die Auswahl").
     _lern, zeilen = laeufe.zeilen_fuer_faltung(
-        verzeichnis,
-        faltung,
-        str(auftrag.get("daten") or laeufe.NUR_ORIGINAL),
-        kern=laeufe.kernfaltungen_aus(verzeichnis, auftrag),
+        verzeichnis, faltung, kern=laeufe.kernfaltungen_aus(verzeichnis, auftrag)
     )
 
     bericht.stufe("bewerten", test_zeilen=len(zeilen))
-    bericht.sage(f"Faltung {faltung + 1}: {len(zeilen)} Zeilen über alle Fassungen")
+    bericht.sage(f"Faltung {faltung + 1}: {len(zeilen)} Aufnahmen")
 
     # Der Pfad, damit sicher dieser Stand lädt. Gerät und Rechenart wie in
     # „hören" und „schreiben" (`wortlaut/rechenwerk.py`), damit Rechenzeiten
@@ -271,8 +266,8 @@ def vervollstaendige_kern(
     """Was dem Auswahlmodell fehlt, nachmessen - und dann den Kern wählen.
 
     Die `offen`en Aufnahmen der Kernauswahl (`services/kernauswahl.py`) hört
-    das Auswahlmodell vor der ersten Faltung, im Original und mit seinem Tempo
-    wie in der Auswertung von „hören". Dann wird gewählt und verteilt
+    das Auswahlmodell vor der ersten Faltung, mit seinem Tempo wie in der
+    Auswertung von „hören". Dann wird gewählt und verteilt
     (`laeufe.mit_kern`). Ein fertiger Kern bleibt - auch nach einem Neustart
     (`services/auftraege.UEBERNOMMEN`).
 
@@ -294,13 +289,11 @@ def vervollstaendige_kern(
     modell = str(inhalt.get("modell") or "")
     faktor = float(inhalt.get("tempo") or tempo.VORGABE)
     offen = {str(kennung) for kennung in inhalt.get("offen") or []}
-    # Das Original jeder offenen Aufnahme; Verworfenes fällt heraus
-    # (`laeufe.zeilen_fuer_faltung`).
+    # Jede offene Aufnahme; Verworfenes fällt heraus (`laeufe.zeilen_fuer_faltung`).
     zeilen = [
         zeile
         for zeile in laeufe.manifestzeilen(verzeichnis)
         if str(zeile.get("recording_id")) in offen
-        and str(zeile.get("variante")) == augmentierung.ORIGINAL
         and (korpuswurzel / str(zeile["audio"])).is_file()
     ]
 
@@ -362,7 +355,6 @@ def _eine_zeile(
     guete = metriken.bewerte(str(zeile["text"]), transkript.text)
     return {
         "recording_id": zeile.get("recording_id"),
-        "variante": zeile.get("variante"),
         "text": transkript.text,
         "wer": guete.wer,
         "cer": guete.cer,
@@ -394,16 +386,11 @@ def befund_ueber(
 ) -> dict[str, Any]:
     """Das Urteil über eine Prüfstichprobe - die Rechnung ohne das Rechnen.
 
-    Zwei Mediane über Originale: das Endmodell auf Bekanntem, seine Faltungen
-    auf Ungehörtem. Das Endmodell hat den leichteren Teil und muss mindestens
+    Zwei Mediane: das Endmodell auf Bekanntem, seine Faltungen auf Ungehörtem. Das Endmodell hat den leichteren Teil und muss mindestens
     gleichauf liegen.
     """
     eigen = statistics.median(float(z["wer"]) for z in gemessen) if gemessen else 0.0
-    ungehoert = [
-        float(z["wer"])
-        for z in faltungszeilen
-        if str(z.get("variante")) == augmentierung.ORIGINAL
-    ]
+    ungehoert = [float(z["wer"]) for z in faltungszeilen]
     faltungen = statistics.median(ungehoert) if ungehoert else 0.0
     # Ausgaben länger als alles Gesagte: Der Stand redet weiter.
     ausgefranst = sum(1 for z in gemessen if float(z["wer"]) > 1.0)
@@ -454,8 +441,7 @@ def pruefe_endmodell(
         for zeile in laeufe.manifestzeilen(verzeichnis)
         # Verworfenes fehlt, wie beim Lernen (`laeufe.zeilen_fuer_faltung`);
         # Selbstbeschriftetes hat keinen Text, an dem sich prüfen ließe.
-        if str(zeile.get("variante")) == augmentierung.ORIGINAL
-        and str(zeile.get("quelle")) != laeufe.QUELLE_SELBST
+        if str(zeile.get("quelle")) != laeufe.QUELLE_SELBST
         and (korpuswurzel / str(zeile["audio"])).is_file()
         and (kern is None or str(zeile.get("recording_id")) in kern)
     ]
@@ -536,8 +522,7 @@ def _streuung(zeilen: list[dict[str, Any]], blockart: str) -> dict[str, Any]:
     """Zu jedem Mittel der Bereich, in dem er liegen dürfte - blockweise gezogen.
 
     Hier, wo alle Einzelmessungen vorliegen, damit der Stand seine Streuung
-    auch ohne `bewertung.jsonl` trägt. Je Aufnahme gezogen - ihre Fassungen
-    sind Messungen an einem Gegenstand (`wortlaut/streuung.py`).
+    auch ohne `bewertung.jsonl` trägt (`wortlaut/streuung.py`).
     """
     if blockart == streuung.AUS:
         return {}
@@ -549,7 +534,7 @@ def _streuung(zeilen: list[dict[str, Any]], blockart: str) -> dict[str, Any]:
             for zeile in zeilen
             if zeile.get(name) is not None
         ]
-        bereich = streuung.intervall(streuung.bilde(paare, blockart), verfahren)
+        bereich = streuung.intervall(streuung.bilde(paare), verfahren)
         if bereich is not None:
             ergebnis[name] = bereich.als_dict()
     return ergebnis
@@ -558,10 +543,9 @@ def _streuung(zeilen: list[dict[str, Any]], blockart: str) -> dict[str, Any]:
 def _zusammengefasst(
     zeilen: list[dict[str, Any]], blockart: str = streuung.BLOCK_AUFNAHME
 ) -> dict[str, Any]:
-    """Die Mittel über alle gemessenen Zeilen und Fassungen - fürs Manifest.
+    """Die Mittel über alle gemessenen Aufnahmen - fürs Manifest.
 
-    Je Fassung liegt es in `bewertung.jsonl`; `streuung` sagt, wie weit die
-    Mittel tragen.
+    `streuung` sagt, wie weit die Mittel tragen.
     """
     if not zeilen:
         return {"test_einheiten": 0}
@@ -582,8 +566,8 @@ def _zusammengefasst(
     }
 
 
-def _grundzeilen(datenverzeichnis: Path, sprecher_id: str, modell: str) -> dict[tuple[str, str], dict]:
-    """Was „hören" für dieses Grundmodell gemessen hat - je Aufnahme und Fassung.
+def _grundzeilen(datenverzeichnis: Path, sprecher_id: str, modell: str) -> dict[str, dict]:
+    """Was „hören" für dieses Grundmodell gemessen hat - je Aufnahme.
 
     Nur lesend: Den Korpus schreibt „hören" allein (Grundentscheidung 6).
     """
@@ -593,9 +577,9 @@ def _grundzeilen(datenverzeichnis: Path, sprecher_id: str, modell: str) -> dict[
     verbindung = sqlite3.connect(f"file:{pfad}?mode=ro", uri=True)
     try:
         return {
-            (str(aufnahme), str(variante)): {"wer": float(wer), "cer": float(cer)}
-            for aufnahme, variante, wer, cer in verbindung.execute(
-                "SELECT recording_id, variante, wer, cer FROM erkennungen WHERE modell = ?",
+            str(aufnahme): {"wer": float(wer), "cer": float(cer)}
+            for aufnahme, wer, cer in verbindung.execute(
+                "SELECT recording_id, wer, cer FROM erkennungen WHERE modell = ?",
                 (modell,),
             )
         }
@@ -620,7 +604,7 @@ def gegen_grundmodell(
     gemeinsam = [
         (zeile, grund[schluessel])
         for zeile in zeilen
-        if (schluessel := (str(zeile.get("recording_id")), str(zeile.get("variante")))) in grund
+        if (schluessel := str(zeile.get("recording_id"))) in grund
     ]
     ergebnis: dict[str, Any] = {
         "modell": kurz,
@@ -710,7 +694,6 @@ def gib_frei(
             "methode": auftrag.get("methode"),
             "lora_ziele": laeufe.lora_ziele_aus(auftrag),
             "lora_rang": laeufe.lora_rang_aus(auftrag),
-            "daten": auftrag.get("daten"),
             "auswahl": laeufe.auswahl_aus(auftrag),
             "korrekturgewicht": laeufe.korrekturgewicht_aus(auftrag),
             "selbsttraining": laeufe.selbsttraining_aus(auftrag),

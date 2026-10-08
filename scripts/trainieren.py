@@ -41,7 +41,6 @@ REZEPTE = Path(__file__).resolve().parents[1] / "apps" / "lernen" / "training" /
 ACHSEN = (
     "lora_ziele",
     "lora_rang",
-    "daten",
     "auswahl",
     "korrekturgewicht",
     "selbsttraining",

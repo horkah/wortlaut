@@ -36,7 +36,6 @@ export type Modell = {
   ref: string;
   basismodell: string;
   methode: string | null;
-  daten: string | null;
   erstellt: string | null;
   wer: number | null;
   laufzeit: string;

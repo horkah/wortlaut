@@ -19,7 +19,7 @@ from wortlaut import rechenwerk, registry
 from ..config import einstellungen
 from ..db.models import Aufnahme, Erkennung, Sprecher, Vorlage
 from ..deps import Ablage, Datenbank, SprecherId, engine_fuer
-from ..services import augmentierung, auswertung
+from ..services import auswertung
 
 router = APIRouter(prefix="/api/auswertung", tags=["Auswertung"])
 
@@ -89,31 +89,6 @@ METRIKEN = [
 ]
 
 
-class VarianteAntwort(BaseModel):
-    """Eine Fassung der Aufnahme, aus `wortlaut/augmentierung.py`."""
-
-    schluessel: str
-    name: str
-    erklaerung: str
-
-
-VARIANTEN = [
-    VarianteAntwort(
-        schluessel=augmentierung.ORIGINAL,
-        name="Original",
-        erklaerung="Die Aufnahme, wie sie gesprochen wurde.",
-    ),
-    *(
-        VarianteAntwort(
-            schluessel=abwandlung.name,
-            name=abwandlung.titel,
-            erklaerung=abwandlung.erklaerung,
-        )
-        for abwandlung in augmentierung.ABWANDLUNGEN
-    ),
-]
-
-
 class StandAntwort(BaseModel):
     laeuft: bool
     erledigt: int
@@ -126,7 +101,7 @@ class StandAntwort(BaseModel):
 
 
 class PunktAntwort(BaseModel):
-    """Eine Aufnahme in der Kurve: ihre Nummer und die Maße je Modell und Fassung.
+    """Eine Aufnahme in der Kurve: ihre Nummer und die Maße je Modell.
 
     Alles Gemessene; die Ansicht wählt, sodass ein Maßwechsel keine Anfrage
     braucht.
@@ -136,8 +111,8 @@ class PunktAntwort(BaseModel):
     aufnahme_id: str
     dauer_s: float
     erstellt: str
-    # modell -> fassung -> maß -> Wert; ein fehlender Eintrag ist nicht gerechnet.
-    werte: dict[str, dict[str, dict[str, float]]]
+    # modell -> maß -> Wert; ein fehlender Eintrag ist nicht gerechnet.
+    werte: dict[str, dict[str, float]]
 
 
 class AuswertungAntwort(BaseModel):
@@ -147,7 +122,6 @@ class AuswertungAntwort(BaseModel):
     # Stand -> der Lauf, aus dem er kam: der Weg in seine Einzelansicht in
     # „lernen". Ein Grundmodell hat keinen.
     laeufe: dict[str, str] = {}
-    varianten: list[VarianteAntwort]
     metriken: list[MetrikAntwort]
     stand: StandAntwort
     punkte: list[PunktAntwort]
@@ -155,7 +129,6 @@ class AuswertungAntwort(BaseModel):
 
 class ErkennungAntwort(BaseModel):
     modell: str
-    variante: str
     text: str
     wer: float
     cer: float
@@ -248,15 +221,9 @@ def uebersicht(db: Datenbank, sprecher: SprecherId) -> AuswertungAntwort:
     # Vor den Messwerten: Was der Stand zählt, steht dann auch in der Kurve.
     stand = _stand(db, sprecher)
     namen = _namen(sprecher)
-    nach_aufnahme: dict[str, dict[str, dict[str, dict[str, float]]]] = {}
-    for erkennung in db.scalars(
-        select(Erkennung).where(
-            Erkennung.modell.in_(namen),
-            Erkennung.variante.in_(augmentierung.VARIANTEN),
-        )
-    ):
-        je_modell = nach_aufnahme.setdefault(erkennung.recording_id, {})
-        je_modell.setdefault(erkennung.modell, {})[erkennung.variante] = {
+    nach_aufnahme: dict[str, dict[str, dict[str, float]]] = {}
+    for erkennung in db.scalars(select(Erkennung).where(Erkennung.modell.in_(namen))):
+        nach_aufnahme.setdefault(erkennung.recording_id, {})[erkennung.modell] = {
             "wer": erkennung.wer,
             "cer": erkennung.cer,
             "mer": erkennung.mer,
@@ -269,7 +236,6 @@ def uebersicht(db: Datenbank, sprecher: SprecherId) -> AuswertungAntwort:
         modelle=namen,
         beschriftungen=_beschriftungen(namen),
         laeufe=_laeufe(sprecher),
-        varianten=VARIANTEN,
         metriken=METRIKEN,
         stand=stand,
         punkte=[
@@ -335,7 +301,7 @@ def vergleich(aufnahme_id: str, db: Datenbank, sprecher: SprecherId) -> Vergleic
             continue
 
         gerechnet = {
-            (erkennung.modell, erkennung.variante): erkennung
+            erkennung.modell: erkennung
             for erkennung in db.scalars(
                 select(Erkennung).where(Erkennung.recording_id == aufnahme_id)
             )
@@ -345,11 +311,10 @@ def vergleich(aufnahme_id: str, db: Datenbank, sprecher: SprecherId) -> Vergleic
             aufnahme_id=aufnahme.id,
             referenz=vorlage.text,
             dauer_s=aufnahme.dauer_s,
-            # In der Reihenfolge der Konfiguration, Modell außen, Fassung innen.
+            # In der Reihenfolge der Konfiguration.
             erkennungen=[
                 ErkennungAntwort(
                     modell=name,
-                    variante=variante,
                     text=zeile.text,
                     wer=zeile.wer,
                     cer=zeile.cer,
@@ -359,8 +324,7 @@ def vergleich(aufnahme_id: str, db: Datenbank, sprecher: SprecherId) -> Vergleic
                     rechenzeit_s=zeile.rechenzeit_s,
                 )
                 for name in namen
-                for variante in augmentierung.VARIANTEN
-                if (zeile := gerechnet.get((name, variante))) is not None
+                if (zeile := gerechnet.get(name)) is not None
             ],
         )
 

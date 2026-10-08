@@ -50,7 +50,7 @@ class TestWahl:
         schluessel = [g["schluessel"] for g in klient.get("/lernen/api/laeufe").json()["grundmodelle"]]
         assert REF not in schluessel
         antwort = klient.post(
-            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original", "grundmodell": REF}
+            "/lernen/api/laeufe", json={"methode": "lora", "grundmodell": REF}
         )
         assert antwort.status_code == 400
 
@@ -58,7 +58,7 @@ class TestWahl:
         self, klient: TestClient, datenverzeichnis: Path, quelle: str, sprich
     ) -> None:
         sprich(6)
-        lauf = klient.post("/lernen/api/laeufe", json={"methode": "lora", "daten": "original"}).json()
+        lauf = klient.post("/lernen/api/laeufe", json={"methode": "lora"}).json()
         verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"])
         auftrag = json.loads((verzeichnis / laeufe.AUFTRAG).read_text(encoding="utf-8"))
         assert "ausgangsstand" not in auftrag

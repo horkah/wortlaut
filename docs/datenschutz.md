@@ -50,8 +50,7 @@ steht in der Oberfläche über dem Auswahlfeld, wo jemand zögert.
   Ihr Audio bleibt, wo es liegt; der Lauf nennt es im Manifest und legt die
   Beschriftung des Modells in `selbstbeschriftung.json` - beides unter der
   Sprecher-Marke des Laufs und mit ihm gelöscht. Voreingestellt ist es aus.
-- Abgewandelte Fassungen und vorgelesene Sätze gehen mit ihrer Aufnahme und
-  ihrem Sprecher.
+- Vorgelesene Sätze gehen mit ihrem Sprecher.
 - Fehlermeldungen enthalten Pfade, keine Transkripte oder Audioinhalte.
 
 ## Was der Aufbau zusichert

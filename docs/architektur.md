@@ -64,7 +64,7 @@ ist die Werkbank. Leer heißt abgeschaltet, nicht offen.
 wortlaut/
 ├── Dockerfile                     # ein Abbild für alle drei Apps
 ├── compose.yaml
-├── Makefile                       # test, dev, migrate, augmentieren, trainer, train
+├── Makefile                       # test, dev, migrate, trainer, train
 ├── pyproject.toml
 ├── conftest.py                    # geteilte Testbausteine
 ├── .env.example
@@ -78,8 +78,8 @@ wortlaut/
 │   │   │   ├── api/               # speakers, zugang, admin, konto, sources,
 │   │   │   │                      # prompts, recordings, zuschnitt, progress,
 │   │   │   │                      # auswertung, intake, sprachen, system
-│   │   │   ├── services/          # prompt_queue, quality, zuschnitt, augmentierung,
-│   │   │   │                      # faltungen, auswertung, vorlesen, uebersicht, pin,
+│   │   │   ├── services/          # prompt_queue, quality, zuschnitt, faltungen,
+│   │   │   │                      # auswertung, vorlesen, uebersicht, pin,
 │   │   │   │                      # export, ausleitung, loeschung
 │   │   │   └── db/                # models.py, migrations/
 │   │   ├── frontend/src/routes/   # Verwaltung, Quelle, Aufnahme, Fortschritt,
@@ -123,7 +123,6 @@ wortlaut/
 ├── packages/
 │   ├── wortlaut/src/wortlaut/     # Python-Bibliothek aller Apps
 │   │   ├── audio.py               # 16 kHz mono, Pegel, Schnitt, Stimmgrenzen
-│   │   ├── augmentierung.py       # die gemessenen Fassungen einer Aufnahme
 │   │   ├── corpus.py              # Korpus-Layout
 │   │   ├── laeufe.py              # Laufverzeichnis, Achsen, Optionscode
 │   │   ├── registry.py            # Modellstände und Freigabe
@@ -149,8 +148,7 @@ wortlaut/
 │       ├── Pegelverlauf.svelte, ausschnitt.ts, Textvergleich.svelte, diff.ts
 │       └── zeit.ts, einstellungen.svelte.ts, app.css, …
 │
-├── scripts/                       # migrate, augmentieren, varianten_aufraeumen,
-│                                  # vorlesen, importieren, paare_teilen,
+├── scripts/                       # migrate, vorlesen, importieren, paare_teilen,
 │                                  # folge_nachtragen, restore, purge_speaker
 ├── tests/                         # was keine einzelne App betrifft
 ├── docs/
@@ -167,23 +165,18 @@ SQLite im WAL-Modus erlaubt gleichzeitige Leser.
 ```
 data/korpus/<sprecher_id>/
 ├── hoeren.sqlite                            # Vorlagen, Aufnahmen, Sitzungen, Messwerte
-├── audio/
-│   ├── <aufnahme_id>.wav                    # was gesprochen wurde, 16 kHz mono PCM
-│   └── varianten/<aufnahme_id>.<fassung>.wav   # abgewandelt, gerechnet
+├── audio/<aufnahme_id>.wav                  # was gesprochen wurde, 16 kHz mono PCM
 └── vorlesen/<vorlage>.<stimme>.wav          # vom Server vorgelesene Sätze
 ```
 
 `audio/` enthält genau, was in `recordings.blob` steht - was ein Mensch
-gesprochen hat. Alles darunter ist abgeleitet und lässt sich neu rechnen.
+gesprochen hat. Alles daneben ist abgeleitet und lässt sich neu rechnen.
 
 **Ein Zuschnitt überschreibt die Aufnahme.** Je Aufnahme gibt es eine Datei,
 und mit ihr arbeitet jede App: Auswertung, Trainingsmanifest, Datensatz,
 Anhören. Geschnitten wird verlustfrei auf ganze Abtastwerte, nach außen
 gerundet (`apps/hoeren/backend/services/zuschnitt.py`); die Zeile beschreibt
 danach die gekürzte Datei. Was außerhalb der Grenzen lag, ist weg.
-
-**Die Varianten stecken nicht in der Sicherung.** Eine fehlende holt sich die
-Auswertung selbst.
 
 Eine Datenbank je Sprecher: `lernen` liest eine Datei, eine Löschung entfernt
 ein Verzeichnis, und jeder Weg in `hören` braucht seinen Sprecher.
@@ -206,7 +199,7 @@ data/snapshots/
 ├── karte.json                # vom Trainer: seine Karte - „lernen" bietet an, was passt
 └── <job_id>/
     ├── sprecher.txt          # die Sprecher-ID - für die Löschung
-    ├── manifest.jsonl        # der eingefrorene Korpus: eine Zeile je Probe und Fassung
+    ├── manifest.jsonl        # der eingefrorene Korpus: eine Zeile je Probe
     ├── kernauswahl.json      # nur bei Kernauswahl
     ├── auftrag.json          # zuletzt geschrieben - erst damit ist der Lauf offen
     ├── zustand.json          # vom Trainer: Status, Stufe, Faltung, Zuschnitt
@@ -216,7 +209,7 @@ data/snapshots/
 
 ```json
 {"audio":"audio/rec_01J8….wav","text":"…","quelle":"vorlage","modus":"gelesen",
- "variante":"original","dauer_s":4.8,"gewicht":1.0,"faltung":3,"recording_id":"rec_01J8…"}
+ "dauer_s":4.8,"gewicht":1.0,"faltung":3,"recording_id":"rec_01J8…"}
 ```
 
 Der Schnappschuss macht einen Lauf reproduzierbar, während weiter aufgenommen
@@ -241,10 +234,10 @@ data/modelle/<sprecher_id>/
 
 ```json
 {
-  "id": "spr_7f2a/20260912T1420-medium-lora-original-beides-voll-geduldig-2.25x",
+  "id": "spr_7f2a/20260912T1420-medium-lora-beides-voll-geduldig-2.25x",
   "sprecher_id": "spr_7f2a",
   "basismodell": "openai/whisper-medium",
-  "methode": "lora", "daten": "original", "auswahl": "alle",
+  "methode": "lora", "auswahl": "alle",
   "abschluss": "beides", "augmentierung": "voll", "dauer": "geduldig",
   "tempowahl": "optimal", "tempo": 2.25,
   "abschluss_bericht": { "art": "beides", "alpha": 0.2, "…": "…" },
@@ -256,8 +249,8 @@ data/modelle/<sprecher_id>/
 }
 ```
 
-Die Version nennt Zeit, Grundmodell (außer `small`), Methode und Datensatz,
-dahinter jede Achse, die nicht auf ihrer Vorgabe steht, zuletzt das Tempo.
+Die Version nennt Zeit, Grundmodell (außer `small`) und Methode, dahinter
+jede Achse, die nicht auf ihrer Vorgabe steht, zuletzt das Tempo.
 Angezeigt wird ein Stand mit seiner Kurzkennung (`K7M2Q`,
 `registry.kurzkennung`) und seinem Optionscode (siehe
 [lernen](lernen.md#der-optionscode)).
@@ -269,7 +262,7 @@ Höchstens ein Modell je Sprecher ist freigegeben; mit ihm diktiert
 steht die Freigabe in einer eigenen Datei:
 
 ```json
-{ "ref": "spr_7f2a/20260912T1420-lora-original" }
+{ "ref": "spr_7f2a/20260912T1420-lora" }
 ```
 
 Eine Standkennung `<sprecher_id>/<version>` oder ein Grundmodellname wie
@@ -299,7 +292,7 @@ Die Zeile unter dem Aufnahmeknopf nennt dauerhaft, welches Modell arbeitet.
 | `prompts` | eine Sprecheinheit, fortlaufende Position über alle Quellen |
 | `sessions` | Aufnahmesitzung |
 | `recordings` | Blob, Messwerte, Modus, Status, Kennung aus „schreiben" |
-| `erkennungen` | je Aufnahme, Modell und Fassung eine Messung, mit Rechenwerk und Herkunft |
+| `erkennungen` | je Aufnahme und Modell eine Messung, mit Rechenwerk und Herkunft |
 | `faltungen` | je Stamm seine Faltung der Kreuzvalidierung, vergeben mit seiner ersten Aufnahme |
 
 **lernen** arbeitet ohne Datenbank: Läufe und Stände sind Verzeichnisse, die

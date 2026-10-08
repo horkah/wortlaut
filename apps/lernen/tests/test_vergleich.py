@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from wortlaut import augmentierung, laeufe, registry
+from wortlaut import laeufe, registry
 from wortlaut.whisper import Transkript
 
 from apps.hoeren.backend.services import auswertung
@@ -98,7 +98,6 @@ def _lauf_fertigstellen(
             verzeichnis / laeufe.BEWERTUNG,
             {
                 "recording_id": zeile["recording_id"],
-                "variante": zeile["variante"],
                 "faltung": zeile["faltung"],
                 "text": zeile["text"],
                 "wer": 0.1,
@@ -110,7 +109,7 @@ def _lauf_fertigstellen(
             },
         )
 
-    version = f"20260912T1200-lora-original-{genauigkeit:.0f}"
+    version = f"20260912T1200-lora-{genauigkeit:.0f}"
     registry.schreibe_stand(
         datenverzeichnis,
         {
@@ -118,7 +117,6 @@ def _lauf_fertigstellen(
             "sprecher_id": sprecher_id,
             "basismodell": "openai/whisper-small",
             "methode": "lora",
-            "daten": "original",
             "job_id": job_id,
             "erstellt": "2026-09-12T12:00:00+00:00",
             "metriken": {"wer": 0.1, "genauigkeit": genauigkeit, "test_einheiten": 8},
@@ -136,7 +134,7 @@ def _lauf_fertigstellen(
 @pytest.fixture
 def fertiger_lauf(klient: TestClient, aufnahmen: list[str], datenverzeichnis, sprecher: str):
     lauf = klient.post(
-        "/lernen/api/laeufe", json={"methode": "lora", "daten": "original"}
+        "/lernen/api/laeufe", json={"methode": "lora"}
     ).json()
     version = _lauf_fertigstellen(
         datenverzeichnis, lauf["job_id"], sprecher, genauigkeit=88.0
@@ -145,17 +143,14 @@ def fertiger_lauf(klient: TestClient, aufnahmen: list[str], datenverzeichnis, sp
 
 
 class TestVergleich:
-    def test_stellt_jede_fassung_der_baseline_gegenueber(
+    def test_stellt_den_stand_der_baseline_gegenueber(
         self, klient: TestClient, baseline: None, fertiger_lauf
     ) -> None:
         job_id, _ = fertiger_lauf
         antwort = klient.get(f"/lernen/api/laeufe/{job_id}").json()
 
-        assert set(antwort["vergleich"]) == set(augmentierung.VARIANTEN)
         genauigkeit = next(
-            eintrag
-            for eintrag in antwort["vergleich"]["original"]
-            if eintrag["mass"] == "genauigkeit"
+            eintrag for eintrag in antwort["vergleich"] if eintrag["mass"] == "genauigkeit"
         )
         # Der Platzhalter hört Unsinn, der nachgestellte Stand trifft fast -
         # also hat sich etwas verbessert.
@@ -168,7 +163,7 @@ class TestVergleich:
     ) -> None:
         job_id, _ = fertiger_lauf
         antwort = klient.get(f"/lernen/api/laeufe/{job_id}").json()
-        wer = next(e for e in antwort["vergleich"]["original"] if e["mass"] == "wer")
+        wer = next(e for e in antwort["vergleich"] if e["mass"] == "wer")
         assert wer["trainiert"] < wer["baseline"]
         assert wer["besser"] is True
 
@@ -179,20 +174,16 @@ class TestVergleich:
         # trainierte Stand allein da - und die Ansicht behauptet keine
         # Verbesserung gegen eine Zahl, die es nicht gibt.
         job_id, _ = fertiger_lauf
-        assert klient.get(f"/lernen/api/laeufe/{job_id}").json()["vergleich"] == {}
+        assert klient.get(f"/lernen/api/laeufe/{job_id}").json()["vergleich"] == []
 
     def test_verglichen_wird_nur_was_beide_gemessen_haben(
         self, klient: TestClient, baseline: None, fertiger_lauf
     ) -> None:
         job_id, _ = fertiger_lauf
         antwort = klient.get(f"/lernen/api/laeufe/{job_id}").json()
-        anzahlen = {
-            eintrag["anzahl"]
-            for eintraege in antwort["vergleich"].values()
-            for eintrag in eintraege
-        }
-        # Je Fassung dieselbe Zahl auf beiden Seiten - sonst stünde ein Mittel
-        # über zwanzig gegen eines über achtzehn.
+        anzahlen = {eintrag["anzahl"] for eintrag in antwort["vergleich"]}
+        # Dieselbe Zahl auf beiden Seiten - sonst stünde ein Mittel über
+        # zwanzig gegen eines über achtzehn.
         assert anzahlen and 0 not in anzahlen
 
 
@@ -225,7 +216,6 @@ class TestModelluebersicht:
             "/lernen/api/laeufe",
             json={
                 "methode": "lora",
-                "daten": "augmentiert",
                 "abschluss": "beides",
                 "tempowahl": "optimal",
             },
@@ -233,7 +223,7 @@ class TestModelluebersicht:
         _lauf_fertigstellen(datenverzeichnis, lauf["job_id"], sprecher, genauigkeit=88.0)
 
         # Das Manifest kennt die Tempowahl nicht; der Code kommt aus dem Auftrag.
-        assert lauf["code"] == "SL-A-Ts-CI/9"
+        assert lauf["code"] == "SL-Ts-CI/9"
         eigene = [
             modell
             for modell in klient.get("/lernen/api/modelle").json()["modelle"]
@@ -249,16 +239,12 @@ class TestModelluebersicht:
         antwort = klient.get("/lernen/api/modelle").json()
 
         assert antwort["vergleichbar"] is True
-        assert antwort["gemeinsame_einheiten"] > 0
+        assert antwort["gemeinsame_aufnahmen"] > 0
         # Jede Zeile, die überhaupt gemessen hat, rechnet über genau diese
-        # Einheiten - sonst stünde ein Mittel über zwanzig gegen eines über
+        # Aufnahmen - sonst stünde ein Mittel über zwanzig gegen eines über
         # achtzehn, und der Unterschied läge an der Auswahl statt am Modell.
-        gezaehlt = {
-            modell["einheiten"]["alle"]
-            for modell in antwort["modelle"]
-            if modell["werte"]
-        }
-        assert gezaehlt == {antwort["gemeinsame_einheiten"]}
+        gezaehlt = {modell["aufnahmen"] for modell in antwort["modelle"] if modell["werte"]}
+        assert gezaehlt == {antwort["gemeinsame_aufnahmen"]}
 
     def test_ein_stand_zaehlt_nur_die_gemittelten_faltungen(
         self,
@@ -269,7 +255,7 @@ class TestModelluebersicht:
         sprecher: str,
     ) -> None:
         lauf = klient.post(
-            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original"}
+            "/lernen/api/laeufe", json={"methode": "lora"}
         ).json()
         verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"])
         erste = json.loads(
@@ -292,8 +278,8 @@ class TestModelluebersicht:
         # Die ausgelassene Faltung fehlt nur in der Zeile ihres Standes - die
         # Grundmodelle rechnen weiter über den ganzen Boden.
         assert eigen["faltungen_hinweis"] == "nur 5 von 6 Faltungen"
-        assert 0 < eigen["einheiten"]["alle"] < antwort["gemeinsame_einheiten"]
-        assert grund["einheiten"]["alle"] == antwort["gemeinsame_einheiten"]
+        assert 0 < eigen["aufnahmen"] < antwort["gemeinsame_aufnahmen"]
+        assert grund["aufnahmen"] == antwort["gemeinsame_aufnahmen"]
         assert grund["faltungen_hinweis"] == ""
 
     def test_der_nachgestellte_stand_schlaegt_den_platzhalter(
@@ -305,8 +291,8 @@ class TestModelluebersicht:
         eigen = next(modell for modell in modelle if modell["art"] == "trainiert")
         grund = next(modell for modell in modelle if modell["ref"] == "small")
 
-        assert eigen["werte"]["alle"]["genauigkeit"] == pytest.approx(88.0)
-        assert grund["werte"]["alle"]["genauigkeit"] < eigen["werte"]["alle"]["genauigkeit"]
+        assert eigen["werte"]["genauigkeit"] == pytest.approx(88.0)
+        assert grund["werte"]["genauigkeit"] < eigen["werte"]["genauigkeit"]
 
     def test_ohne_auswertung_steht_es_dort(self, klient: TestClient, fertiger_lauf) -> None:
         # Die Auswertung in „hören" ist hier nie gelaufen: Dann hat kein
@@ -338,7 +324,7 @@ class TestModelluebersicht:
     ) -> None:
         _, erste = fertiger_lauf
         zweiter = klient.post(
-            "/lernen/api/laeufe", json={"methode": "full", "daten": "augmentiert"}
+            "/lernen/api/laeufe", json={"methode": "full"}
         ).json()
         zweite = _lauf_fertigstellen(
             datenverzeichnis, zweiter["job_id"], sprecher, genauigkeit=91.0
@@ -517,10 +503,9 @@ class TestVertrauensbereiche:
         ]
         # Und der Mittelwert im Bereich ist derselbe wie der in der Tabelle.
         for modell in mit["modelle"]:
-            for fassung, masse in modell["intervalle"].items():
-                for mass, bereich in masse.items():
-                    assert bereich["mittel"] == modell["werte"][fassung][mass]
-                    assert bereich["unten"] <= bereich["mittel"] <= bereich["oben"]
+            for mass, bereich in modell["intervalle"].items():
+                assert bereich["mittel"] == modell["werte"][mass]
+                assert bereich["unten"] <= bereich["mittel"] <= bereich["oben"]
 
     def test_gepaart_gegen_ein_genanntes_modell(
         self, klient: TestClient, baseline, fertiger_lauf
@@ -581,7 +566,7 @@ class TestSteckbrief:
 
         # Vollständig heißt vollständig: Wer wissen will, womit gerechnet
         # wurde, soll für keine Einstellung „steht nicht da" lesen.
-        for begriff in ("Grundmodell", "Methode", "Datensatz", "Augmentierung",
+        for begriff in ("Grundmodell", "Methode", "Auswahl", "Augmentierung",
                         "Vorspulen", "Abschluss"):
             assert begriff in felder, f"„{begriff}“ fehlt im Steckbrief."
 
@@ -592,6 +577,23 @@ class TestSteckbrief:
         # Kein Etikett doppelt: Ein Hinweis trägt eine Angabe oder fehlt.
         hinweise = {z["begriff"]: z["hinweis"] for z in antwort["steckbrief"]}
         assert not hinweise["Grundmodell"]
+
+    def test_ein_lauf_mit_rauschkopien_sagt_es(
+        self, klient: TestClient, fertiger_lauf, datenverzeichnis
+    ) -> None:
+        job_id, _version = fertiger_lauf
+        begriffe = lambda: [  # noqa: E731
+            zeile["begriff"]
+            for zeile in klient.get(f"/lernen/api/laeufe/{job_id}").json()["steckbrief"]
+        ]
+        assert "Rauschkopien" not in begriffe()
+
+        pfad = laeufe.lauf_verzeichnis(datenverzeichnis, job_id) / laeufe.AUFTRAG
+        laeufe.schreibe_json(pfad, {**laeufe.lies_json(pfad), "daten": laeufe.MIT_RAUSCHKOPIE})
+        assert "Rauschkopien" in begriffe()
+        lauf = klient.get(f"/lernen/api/laeufe/{job_id}").json()["lauf"]
+        assert lauf["rauschkopie"] is True
+        assert lauf["code"].startswith("SL-A")
 
     def test_zeitstempel_gehen_roh_hinaus(self, klient: TestClient, fertiger_lauf) -> None:
         """Der Server formatiert keine Uhrzeit - er kennt die Zeitzone nicht.
@@ -618,7 +620,7 @@ class TestSteckbrief:
         from wortlaut import laeufe as l
 
         lauf = klient.post(
-            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original"}
+            "/lernen/api/laeufe", json={"methode": "lora"}
         ).json()
         pfad = l.lauf_verzeichnis(datenverzeichnis, lauf["job_id"]) / l.AUFTRAG
         alt = l.lies_json(pfad)
@@ -638,19 +640,19 @@ class TestSteckbrief:
 class TestGemeinsamerBoden:
     """Die Zahl eines Modells hängt daran, welche anderen es gibt - und das muss dastehen.
 
-    Die Tafel rechnet jede Zahl über die Einheiten, die **alle** Modelle
+    Die Tafel rechnet jede Zahl über die Aufnahmen, die **alle** Modelle
     gemessen haben. Das ist der Sinn der Sache: Zwei Wortfehlerraten über
     verschiedene Aufnahmen sind kein Vergleich. Die Folge erwartet nur niemand:
     Verschwindet eine Zeile, wächst der Boden, und jede andere Zahl ändert
     sich. An einem echten Korpus waren das 0,15 WER auf einen Schlag.
     """
 
-    def _reihe(self, einheiten: int) -> object:
+    def _reihe(self, aufnahmen: int) -> object:
         from apps.lernen.backend.services.messwerte import Messreihe
 
         reihe = Messreihe()
-        for nummer in range(einheiten):
-            reihe.werte[(f"rec_{nummer:03d}", "original")] = {"wer": 0.5}
+        for nummer in range(aufnahmen):
+            reihe.werte[f"rec_{nummer:03d}"] = {"wer": 0.5}
         reihe.werke.add("cuda/int8_float16")
         return reihe
 

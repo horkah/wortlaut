@@ -1,10 +1,7 @@
 """Das Korpus-Layout - ein Verzeichnis, kein Dienst.
 
     data/korpus/<sprecher_id>/
-    ├── audio/
-    │   ├── <aufnahme_id>.wav                    16 kHz mono, PCM 16 bit
-    │   └── varianten/
-    │       └── <aufnahme_id>.<variante>.wav     abgewandelte Fassungen
+    ├── audio/<aufnahme_id>.wav                  16 kHz mono, PCM 16 bit
     ├── hoeren.sqlite                            Vorlagen, Aufnahmen, Sitzungen
 
     └── vorlesen/<vorlage>.<stimme>.wav          vom Server vorgelesen
@@ -14,11 +11,8 @@ entfernt ein Verzeichnis. Diese Datei ist die einzige Stelle, die das Layout
 kennt.
 
 In `audio/` liegt genau, was `recordings.blob` nennt - was ein Mensch
-gesprochen hat. Alles Abgeleitete liegt darunter oder daneben und lässt sich
-neu rechnen; kein Werkzeug muss den Unterschied am Dateinamen erraten. Pfade
-abgeleiteter Dateien folgen aus Kennung und Name und stehen in keiner Tabelle.
-Aufnahmekennungen enthalten keinen Punkt, also bleibt `<aufnahme>.<variante>`
-eindeutig und sortiert nach Aufnahmen.
+gesprochen hat. Alles Abgeleitete liegt daneben und lässt sich neu rechnen;
+seine Pfade folgen aus Kennung und Name und stehen in keiner Tabelle.
 """
 
 from __future__ import annotations
@@ -27,7 +21,6 @@ from pathlib import Path
 
 KORPUS = "korpus"
 DATENBANKNAME = "hoeren.sqlite"
-VARIANTENORDNER = "audio/varianten"
 
 
 def sprecher_relpfad(sprecher_id: str) -> str:
@@ -36,17 +29,6 @@ def sprecher_relpfad(sprecher_id: str) -> str:
 
 def audio_relpfad(sprecher_id: str, aufnahme_id: str) -> str:
     return f"{KORPUS}/{sprecher_id}/audio/{aufnahme_id}.wav"
-
-
-def varianten_relpfad(sprecher_id: str) -> str:
-    """Wo alle abgewandelten Fassungen eines Sprechers liegen - die Sicherung
-    lässt das Verzeichnis draußen."""
-    return f"{KORPUS}/{sprecher_id}/{VARIANTENORDNER}"
-
-
-def variante_relpfad(sprecher_id: str, aufnahme_id: str, variante: str) -> str:
-    """Wo die abgewandelte Fassung einer Aufnahme liegt."""
-    return f"{KORPUS}/{sprecher_id}/{VARIANTENORDNER}/{aufnahme_id}.{variante}.wav"
 
 
 VORLESENORDNER = "vorlesen"

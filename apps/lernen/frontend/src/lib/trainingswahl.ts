@@ -18,7 +18,6 @@ export type Trainingswahl = {
   methode: string;
   loraZiele: string;
   loraRang: string;
-  datensatz: string;
   auswahl: string;
   korrekturgewicht: string;
   selbsttraining: string;
@@ -37,7 +36,6 @@ export const VORGABE: Trainingswahl = {
   methode: 'lora',
   loraZiele: 'qv',
   loraRang: '32',
-  datensatz: 'original',
   auswahl: 'alle',
   korrekturgewicht: '0.5',
   selbsttraining: 'aus',
@@ -62,7 +60,6 @@ export function trainingswahl(): Trainingswahl {
       methode: gelesen.methode ?? VORGABE.methode,
       loraZiele: gelesen.loraZiele ?? VORGABE.loraZiele,
       loraRang: gelesen.loraRang ?? VORGABE.loraRang,
-      datensatz: gelesen.datensatz ?? VORGABE.datensatz,
       auswahl: gelesen.auswahl ?? VORGABE.auswahl,
       korrekturgewicht: gelesen.korrekturgewicht ?? VORGABE.korrekturgewicht,
       selbsttraining: gelesen.selbsttraining ?? VORGABE.selbsttraining,

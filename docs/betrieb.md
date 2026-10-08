@@ -79,7 +79,7 @@ Die Platte gehört vor Docker in den Systemstart, in der `/etc/fstab` über
 LABEL=backup  /backup  ext4  defaults,x-systemd.before=docker.service  0  2
 ```
 
-### Migrationen und Varianten
+### Migrationen und Skripte
 
 Ein Update braucht keinen Handgriff: Jede Datenbank holt sich ihr Schema beim
 ersten Zugriff. Für alle auf einmal, oder um zu sehen, was offen war:
@@ -92,8 +92,6 @@ Im Container gibt es weder `make` noch `uv`. Daneben:
 
 | Skript | Zweck |
 |---|---|
-| `scripts/augmentieren.py` | die Variante `rauschen` aller Aufnahmen vorab rechnen (`make augmentieren`) |
-| `scripts/varianten_aufraeumen.py` | Dateien von Fassungen entfernen, die `augmentierung.VARIANTEN` nicht mehr nennt; `--wirklich` löscht |
 | `scripts/vorlesen.py` | Stimmen holen (`--hole <stimme>`), alle Vorlagen vorab sprechen |
 | `scripts/importieren.py` | Paare aus Ton und Text von außerhalb als Textquelle übernehmen |
 | `scripts/paare_teilen.py` | zu lange Paare aus Ton und Text vor dem Import in Stücke unter 30 s teilen, bevorzugt an Satzenden und in der Stille |
@@ -138,7 +136,7 @@ docker compose exec wortlaut python scripts/freigeben.py job_01J8…
 
 Auf einer Maschine mit `uv` dasselbe als `make train SPEAKER=spr_7f2a
 RECIPE=whisper_lora` (Vorgabe `MODELL=large-v3`, weitere Achsen mit
-`ACHSEN="dauer=geduldig daten=augmentiert"`) und `make release JOB=…`. Das
+`ACHSEN="dauer=geduldig auswahl=kern"`) und `make release JOB=…`. Das
 Skript liest das Protokoll mit, bis der Lauf endet, und nennt am Ende WER und
 CER neben denen des unveränderten Grundmodells; Strg-C beendet nur das
 Zusehen. Freigegeben diktiert „schreiben" ab dem nächsten Diktat damit.

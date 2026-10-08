@@ -71,10 +71,11 @@ export type Lauf = {
   /** Alle Achsen als Optionscode, etwa `ML-A-C` (`wortlaut/laeufe.optionscode`). */
   code: string;
   methode: string;
+  /** Ob der Lauf auch auf Kopien mit Rauschen lernte (Code `A`). */
+  rauschkopie: boolean;
   /** Nur bei LoRA: wo der Zusatz sitzt (qv | alle | encoder | decoder) und sein Rang. */
   lora_ziele: string;
   lora_rang: string;
-  daten: string;
   /** Worauf gelernt wurde: alle | kern (`wortlaut/laeufe.py`, „Die Auswahl"). */
   auswahl: string;
   /** Womit Korrekturen zählen: 0.5 | 0.25 | 0.75 | 1.0 | verlauf. */
@@ -163,7 +164,7 @@ export type Intervall = {
   oben: number;
   /** Der Standardfehler des Mittelwerts - die Streuung der Ziehungen. */
   streuung: number;
-  /** Über wie viele Aufnahmen gezogen wurde und wie viele Messungen darin lagen. */
+  /** Über wie viele Aufnahmen gezogen wurde. */
   bloecke: number;
   einheiten: number;
   /** Womit gerechnet wurde, z. B. `bootstrap/aufnahme/2000/0.95/20260913`. */
@@ -198,7 +199,6 @@ export type Laufliste = {
   methoden: Wahl[];
   lora_ziele: Wahl[];
   lora_raenge: Wahl[];
-  datensaetze: Wahl[];
   auswahlen: Wahl[];
   korrekturgewichte: Wahl[];
   selbsttraininge: Wahl[];
@@ -239,7 +239,6 @@ export type Laufeinzeln = {
   methoden: Wahl[];
   lora_ziele: Wahl[];
   lora_raenge: Wahl[];
-  datensaetze: Wahl[];
   auswahlen: Wahl[];
   korrekturgewichte: Wahl[];
   selbsttraininge: Wahl[];
@@ -253,8 +252,8 @@ export type Laufeinzeln = {
   grundmodelle: Grundmodell[];
   kurve_training: Punkt[];
   kurve_validierung: Punkt[];
-  /** Fassung → die Maße, Baseline und trainiert. */
-  vergleich: Record<string, Gegenueber[]>;
+  /** Je Maß Baseline und trainiert. */
+  vergleich: Gegenueber[];
   protokoll: string;
 };
 
@@ -270,13 +269,6 @@ export type Mass = {
   stellen: number;
 };
 
-/** Eine Fassung der Aufnahme: das Original oder eine seiner Abwandlungen. */
-export type Fassung = {
-  schluessel: string;
-  name: string;
-  erklaerung: string;
-};
-
 /** Eine Zeile der Modelltabelle: ein Grundmodell oder ein trainierter Stand. */
 export type Modell = {
   ref: string;
@@ -286,7 +278,6 @@ export type Modell = {
   herkunft: string;
   basismodell: string;
   methode: string | null;
-  daten: string | null;
   erstellt: string | null;
   version: string | null;
   /** Der kurze Code dieses Standes (`K7M2Q`); null bei einem Grundmodell. */
@@ -299,29 +290,28 @@ export type Modell = {
   freigegeben: boolean;
   /** Worauf gemessen wurde: `cuda/int8_float16`, `cpu/int8`, leer = unbekannt oder gemischt. */
   rechenwerk: string;
-  /** Fassung → Maß → Wert. Leer heißt: auf den gemeinsamen Testaufnahmen nichts. */
-  werte: Record<string, Record<string, number>>;
-  /** Fassung → wie viele Messeinheiten in diesem Mittel stecken. */
-  einheiten: Record<string, number>;
-  /** Fassung → Maß → Vertrauensbereich. Leer, solange keiner angefordert wurde. */
-  intervalle: Record<string, Record<string, Intervall>>;
-  /** Fassung → Maß → der gepaarte Abstand zum gewählten Vergleichsmodell. */
-  unterschied: Record<string, Record<string, Unterschied>>;
+  /** Maß → Wert. Leer heißt: auf den gemeinsamen Testaufnahmen nichts. */
+  werte: Record<string, number>;
+  /** Wie viele Aufnahmen in diesen Mitteln stecken. */
+  aufnahmen: number;
+  /** Maß → Vertrauensbereich. Leer, solange keiner angefordert wurde. */
+  intervalle: Record<string, Intervall>;
+  /** Maß → der gepaarte Abstand zum gewählten Vergleichsmodell. */
+  unterschied: Record<string, Unterschied>;
 };
 
 export type Modelluebersicht = {
   modelle: Modell[];
   masse: Mass[];
-  fassungen: Fassung[];
   freigegeben: string;
   messaufnahmen: number;
-  gemeinsame_einheiten: number;
+  gemeinsame_aufnahmen: number;
   /** `false` heißt: Die Zahlen stehen nicht auf demselben Boden. */
   vergleichbar: boolean;
   /** `false` heißt: Die Rechenzeiten stammen von verschiedenen Maschinen. */
   zeit_vergleichbar: boolean;
   hinweis: string;
-  /** Welche Blockart gerechnet wurde: `aus`, `aufnahme` oder `einheit`. */
+  /** Ob Bereiche gerechnet wurden: `aus` oder `aufnahme`. */
   intervall: string;
   /** Gegen welches Modell gepaart verglichen wurde; leer heißt: gegen keines. */
   vergleich_mit: string;
@@ -347,7 +337,6 @@ export type Grundmodelleinzeln = {
   modell: Modell | null;
   freigabe: Modell | null;
   masse: Mass[];
-  fassungen: Fassung[];
   vergleichbar: boolean;
 };
 
@@ -390,7 +379,6 @@ export type Bestellung = {
   methode: string;
   lora_ziele: string;
   lora_rang: string;
-  daten: string;
   auswahl: string;
   korrekturgewicht: string;
   selbsttraining: string;

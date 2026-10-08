@@ -19,7 +19,7 @@ from wortlaut import corpus, ids
 
 from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
 from ..deps import Ablage, Datenbank, SprecherId
-from ..services import augmentierung, faltungen, quality
+from ..services import faltungen, quality
 
 router = APIRouter(prefix="/api/recordings", tags=["Aufnahmen"])
 
@@ -99,13 +99,6 @@ async def nimm_auf(
     faltungen.vergib(db, aufnahme)
     db.commit()
 
-    # Die Fassungen nach dem Commit: Scheitern sie, steht die Aufnahme
-    # trotzdem, und der Auswertungslauf holt sie nach.
-    try:
-        augmentierung.stelle_alle_her(ablage, aufnahme)
-    except klang.AudioFehler:
-        pass
-
     return AufnahmeAntwort(
         id=aufnahme.id,
         prompt_id=prompt_id,
@@ -123,28 +116,21 @@ def hoere_ab(
     aufnahme_id: str,
     db: Datenbank,
     ablage: Ablage,
-    fassung: str = augmentierung.ORIGINAL,
 ) -> FileResponse:
-    """Die eigene Aufnahme anhören - das Original oder eine ihrer Fassungen.
-
-    Die Fassungen, damit man in der Auswertung selbst hört, was ein Modell
-    nicht verstanden hat. Gerechnet wird hier nichts; fehlt eine, kommt 404.
-    """
+    """Die eigene Aufnahme anhören."""
     aufnahme = db.get(Aufnahme, aufnahme_id)
     if aufnahme is None or aufnahme.speaker_id != sprecher or aufnahme.status != "ok":
         raise HTTPException(status_code=404, detail="Unbekannte Aufnahme")
-    if fassung not in augmentierung.VARIANTEN:
-        raise HTTPException(status_code=404, detail=f"Unbekannte Fassung: {fassung}")
 
-    pfad = ablage.pfad(augmentierung.relpfad(aufnahme, fassung))
+    pfad = ablage.pfad(aufnahme.blob)
     if not pfad.is_file():
-        raise HTTPException(status_code=404, detail="Diese Fassung liegt noch nicht vor.")
+        raise HTTPException(status_code=404, detail="Zu dieser Aufnahme liegt kein Audio mehr.")
     return FileResponse(pfad, media_type="audio/wav")
 
 
 @router.delete("/{aufnahme_id}", status_code=204)
 def verwirf(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage) -> None:
-    """Verwerfen: Audio, Fassungen und Messwerte löschen, die Zeile
+    """Verwerfen: Audio und Messwerte löschen, die Zeile
     als `verworfen` behalten. Die Vorlage wird wieder offen.
 
     Der erkannte Text ist dieselbe Äußerung in Schrift und geht mit, auch
@@ -157,8 +143,6 @@ def verwirf(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablag
 
     if aufnahme.status == "ok":
         ablage.loesche(aufnahme.blob)
-        # Die Fassungen sind dieselbe Stimme.
-        augmentierung.loesche(ablage, aufnahme)
         db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme_id))
         aufnahme.status = "verworfen"
         db.commit()

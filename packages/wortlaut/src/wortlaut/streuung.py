@@ -9,10 +9,8 @@ breiter als die meisten Unterschiede, um die es geht.
 unabhängig noch gleich schwer (eine WER über drei Wörter springt in
 Dritteln); der Bootstrap braucht nichts davon (Bisani/Ney, ICASSP 2004).
 
-**Blockweise.** Die Fassungen einer Aufnahme sind Messungen an einem
-Gegenstand; einzeln gezogen ergäben sie ein zu schmales Intervall. Gezogen
-wird deshalb je Aufnahme (Liu u. a., Interspeech 2020). Die Ziehung je
-Einheit bleibt als `BLOCK_EINHEIT` wählbar, weil die Literatur sie rechnet.
+**Je Aufnahme ein Block.** Gezogen wird nach der Kennung der Aufnahme, die
+der Aufrufer mitgibt.
 
 **Fester Keim.** Die Ziehungen hängen allein an der Anzahl der Blöcke:
 dieselbe Messreihe, derselbe Bereich, auf jeder Maschine. Gleich viele Blöcke
@@ -35,16 +33,10 @@ from functools import lru_cache
 # Was der Aufrufer einstellen darf; `AUS` ist überall die Vorgabe.
 AUS = "aus"
 
-# Je Aufnahme ziehen, mit allen ihren Fassungen. Die richtige Wahl, wenn die
-# Messreihe mehrere Fassungen derselben Aufnahme enthält.
+# Je Aufnahme ziehen.
 BLOCK_AUFNAHME = "aufnahme"
 
-# Je Messeinheit ziehen - die naive Ziehung. Zu schmal, sobald Fassungen
-# derselben Aufnahme in der Reihe stehen; wählbar, weil sie das in der
-# Literatur übliche Verfahren ist.
-BLOCK_EINHEIT = "einheit"
-
-BLOCKARTEN = (AUS, BLOCK_AUFNAHME, BLOCK_EINHEIT)
+BLOCKARTEN = (AUS, BLOCK_AUFNAHME)
 
 # ── Die Zahlen des Verfahrens ───────────────────────────────────────────────
 #
@@ -199,30 +191,20 @@ def _streuung(werte: Sequence[float], mittel: float) -> float:
 # ── Blöcke bilden ───────────────────────────────────────────────────────────
 
 
-def bilde(paare: Iterable[tuple[str, float]], blockart: str = BLOCK_AUFNAHME) -> list[list[float]]:
+def bilde(paare: Iterable[tuple[str, float]]) -> list[list[float]]:
     """Werte zu Blöcken bündeln - nach dem Schlüssel, den der Aufrufer mitgibt.
 
-    Der Schlüssel ist die Kennung der Aufnahme; bei `BLOCK_EINHEIT` bekommt
-    jeder Wert seinen Block. Sortiert nach Schlüssel, damit dieselben
-    Ziehungen dieselben Werte treffen.
+    Der Schlüssel ist die Kennung der Aufnahme. Sortiert nach Schlüssel, damit
+    dieselben Ziehungen dieselben Werte treffen.
     """
-    if blockart == BLOCK_EINHEIT:
-        return [[wert] for _schluessel, wert in sorted(paare, key=lambda eintrag: eintrag[0])]
     nach_schluessel: dict[str, list[float]] = {}
     for schluessel, wert in paare:
         nach_schluessel.setdefault(schluessel, []).append(wert)
     return [nach_schluessel[schluessel] for schluessel in sorted(nach_schluessel)]
 
 
-def bilde_paare(
-    drillinge: Iterable[tuple[str, float, float]], blockart: str = BLOCK_AUFNAHME
-) -> list[list[tuple[float, float]]]:
-    """Dasselbe für zwei Reihen an denselben Einheiten - je Einheit ein Paar."""
-    if blockart == BLOCK_EINHEIT:
-        return [
-            [(links, rechts)]
-            for _schluessel, links, rechts in sorted(drillinge, key=lambda eintrag: eintrag[0])
-        ]
+def bilde_paare(drillinge: Iterable[tuple[str, float, float]]) -> list[list[tuple[float, float]]]:
+    """Dasselbe für zwei Reihen an denselben Aufnahmen - je Aufnahme ein Paar."""
     nach_schluessel: dict[str, list[tuple[float, float]]] = {}
     for schluessel, links, rechts in drillinge:
         nach_schluessel.setdefault(schluessel, []).append((links, rechts))

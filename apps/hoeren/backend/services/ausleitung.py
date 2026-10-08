@@ -34,7 +34,6 @@ def abgeleitet(sprecher_ids: Iterable[str]) -> sicherung.Abgeleitetes:
     Textquellen, Diktate, Profil. Draußen bleiben Rechenergebnisse, die von
     selbst zurückkommen:
 
-    * **Varianten** (`korpus/…/audio/varianten/`), sobald jemand misst;
     * **Vorlesungen** (`korpus/…/vorlesen/`), beim nächsten Vorlesen;
     * **Messwerte** (Tabelle `erkennungen`), mit dem nächsten Auswertungslauf.
 
@@ -42,10 +41,7 @@ def abgeleitet(sprecher_ids: Iterable[str]) -> sicherung.Abgeleitetes:
     `loeschung.datenverzeichnisse()`.
     """
     return sicherung.Abgeleitetes(
-        verzeichnisse=(
-            *(corpus.varianten_relpfad(kennung) for kennung in sprecher_ids),
-            *(corpus.vorlesen_relpfad(kennung) for kennung in sprecher_ids),
-        ),
+        verzeichnisse=tuple(corpus.vorlesen_relpfad(kennung) for kennung in sprecher_ids),
         tabellen={corpus.DATENBANKNAME: (Erkennung.__tablename__,)},
     )
 

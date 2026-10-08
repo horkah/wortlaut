@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 from pydantic import BaseModel
-from wortlaut import registry
+from wortlaut import laeufe, registry
 
 from ..config import einstellungen
 from ..deps import SprecherId, aktive_ref, modellstand
@@ -26,7 +26,6 @@ class ModellAntwort(BaseModel):
     ref: str
     basismodell: str
     methode: str | None  # full | lora, aus dem Manifest
-    daten: str | None  # original | augmentiert, aus dem Manifest
     erstellt: str | None
     # Die WER aus dem Manifest, über die eigenen Einheiten des Laufs - nicht die
     # Zahl der Modelltafel (gemeinsamer Boden), darum in keiner Beschriftung.
@@ -52,7 +51,6 @@ def _antwort(sprecher: str) -> ModellAntwort:
             ref=name,
             basismodell=name,
             methode=None,
-            daten=None,
             erstellt=None,
             wer=None,
             laufzeit=konfiguration.asr,
@@ -68,7 +66,6 @@ def _antwort(sprecher: str) -> ModellAntwort:
             ref=ref,
             basismodell="?",
             methode=None,
-            daten=None,
             erstellt=None,
             wer=None,
             laufzeit=konfiguration.asr,
@@ -80,15 +77,12 @@ def _antwort(sprecher: str) -> ModellAntwort:
     wer = metriken.get("wer")
     erstellt = manifest.get("erstellt")
     methode = {"full": "voll", "lora": "LoRA"}.get(str(manifest.get("methode")), "")
-    daten = {"original": "Originale", "augmentiert": "mit Abwandlungen"}.get(
-        str(manifest.get("daten")), ""
-    )
+    daten = "mit Rauschkopien" if laeufe.mit_rauschkopie(manifest) else ""
     return ModellAntwort(
         sprecher_id=sprecher,
         ref=ref,
         basismodell=str(manifest.get("basismodell", "?")),
         methode=manifest.get("methode"),
-        daten=manifest.get("daten"),
         erstellt=erstellt,
         wer=wer,
         laufzeit=konfiguration.asr,

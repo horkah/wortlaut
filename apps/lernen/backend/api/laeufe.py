@@ -21,7 +21,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
-from wortlaut import augmentierung, kartenplan, laeufe as lauf_layout, registry, schluessel
+from wortlaut import kartenplan, laeufe as lauf_layout, registry, schluessel
 
 from ..config import einstellungen
 from ..deps import Korpus, Sprache, SprecherId, korpus_engine
@@ -114,22 +114,6 @@ LORA_RAENGE = [
     )
     for rang in lauf_layout.LORA_RAENGE
 ]
-
-DATENSAETZE = [
-    WahlAntwort(
-        schluessel=lauf_layout.NUR_ORIGINAL,
-        name="Nur Originale",
-        erklaerung="Eine Probe je Aufnahme.",
-        code=lauf_layout.CODE_DATENSATZ[lauf_layout.NUR_ORIGINAL],
-    ),
-    WahlAntwort(
-        schluessel=lauf_layout.MIT_VARIANTEN,
-        name="Mit Abwandlungen",
-        erklaerung="Dazu jede abgelegte Abwandlung als eigene Probe.",
-        code=lauf_layout.CODE_DATENSATZ[lauf_layout.MIT_VARIANTEN],
-    ),
-]
-
 
 AUSWAHLEN = [
     WahlAntwort(
@@ -391,7 +375,6 @@ def _sprechername(sprecher_id: str) -> str:
 
 class Bestellung(BaseModel):
     methode: str
-    daten: str
     # Nur bei LoRA; bei vollem Training die Vorgaben.
     lora_ziele: str = lauf_layout.ZIELE_QV
     lora_rang: str = lauf_layout.RANG_VORGABE
@@ -424,7 +407,8 @@ class LaufAntwort(BaseModel):
     # (`/43b`, `lauf_layout.titel`).
     code: str
     methode: str
-    daten: str
+    # Ob der Lauf auch auf Rauschkopien lernte (`lauf_layout.MIT_RAUSCHKOPIE`).
+    rauschkopie: bool = False
     # Die Achsen; fehlt eine im Auftrag, galt ihre Vorgabe.
     lora_ziele: str = lauf_layout.ZIELE_QV
     lora_rang: str = lauf_layout.RANG_VORGABE
@@ -507,7 +491,6 @@ class EinzelAntwort(BaseModel):
     methoden: list[WahlAntwort]
     lora_ziele: list[WahlAntwort]
     lora_raenge: list[WahlAntwort]
-    datensaetze: list[WahlAntwort]
     auswahlen: list[WahlAntwort]
     korrekturgewichte: list[WahlAntwort]
     selbsttraininge: list[WahlAntwort]
@@ -521,8 +504,8 @@ class EinzelAntwort(BaseModel):
     grundmodelle: list[GrundmodellAntwort]
     kurve_training: list[PunktAntwort]
     kurve_validierung: list[PunktAntwort]
-    # fassung -> die Maße, Baseline und trainiert
-    vergleich: dict[str, list[GegenueberAntwort]]
+    # je Maß Baseline und trainiert
+    vergleich: list[GegenueberAntwort]
     protokoll: str
 
 
@@ -531,7 +514,6 @@ class ListeAntwort(BaseModel):
     methoden: list[WahlAntwort]
     lora_ziele: list[WahlAntwort]
     lora_raenge: list[WahlAntwort]
-    datensaetze: list[WahlAntwort]
     auswahlen: list[WahlAntwort]
     korrekturgewichte: list[WahlAntwort]
     selbsttraininge: list[WahlAntwort]
@@ -657,9 +639,9 @@ def _marke(pfad: Path) -> float:
 
 @lru_cache(maxsize=256)
 def _umfang_gemerkt(
-    verzeichnis: Path, daten: str, auswahl: str, _marken: tuple[float, ...]
+    verzeichnis: Path, auswahl: str, _marken: tuple[float, ...]
 ) -> lauf_layout.Umfang | None:
-    return lauf_layout.umfang(verzeichnis, {"daten": daten, "auswahl": auswahl})
+    return lauf_layout.umfang(verzeichnis, {"auswahl": auswahl})
 
 
 def _umfang(lauf: lauf_layout.Lauf, auswahl: str | None = None) -> lauf_layout.Umfang | None:
@@ -672,10 +654,7 @@ def _umfang(lauf: lauf_layout.Lauf, auswahl: str | None = None) -> lauf_layout.U
         for name in (lauf_layout.MANIFEST, lauf_layout.KERNAUSWAHL, lauf_layout.SELBSTBESCHRIFTUNG)
     )
     return _umfang_gemerkt(
-        lauf.verzeichnis,
-        str(lauf.auftrag.get("daten") or lauf_layout.NUR_ORIGINAL),
-        auswahl or lauf_layout.auswahl_aus(lauf.auftrag),
-        marken,
+        lauf.verzeichnis, auswahl or lauf_layout.auswahl_aus(lauf.auftrag), marken
     )
 
 
@@ -715,9 +694,9 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         sprecher_id=lauf.sprecher_id,
         code=lauf_layout.titel(lauf.auftrag),
         methode=str(lauf.auftrag.get("methode", "")),
+        rauschkopie=lauf_layout.mit_rauschkopie(lauf.auftrag),
         lora_ziele=lauf_layout.lora_ziele_aus(lauf.auftrag),
         lora_rang=lauf_layout.lora_rang_aus(lauf.auftrag),
-        daten=str(lauf.auftrag.get("daten", "")),
         auswahl=lauf_layout.auswahl_aus(lauf.auftrag),
         korrekturgewicht=lauf_layout.korrekturgewicht_aus(lauf.auftrag),
         selbsttraining=lauf_layout.selbsttraining_aus(lauf.auftrag),
@@ -892,18 +871,8 @@ def _endmodell_im_steckbrief(manifest: dict) -> tuple[str, str]:
     )
 
 
-FASSUNGSNAMEN = {
-    augmentierung.ORIGINAL: "Original",
-    **{abwandlung.name: abwandlung.titel for abwandlung in augmentierung.ABWANDLUNGEN},
-}
-
-
 def _anzahl(zahl: int, eins: str, mehr: str) -> str:
     return f"{zahl} {eins if zahl == 1 else mehr}"
-
-
-def _fassungen(namen: tuple[str, ...]) -> str:
-    return ", ".join(FASSUNGSNAMEN.get(name, name) for name in namen)
 
 
 def _training_im_steckbrief(umfang: lauf_layout.Umfang) -> tuple[str, str]:
@@ -918,7 +887,6 @@ def _training_im_steckbrief(umfang: lauf_layout.Umfang) -> tuple[str, str]:
         else "",
         f"{_anzahl(korrekturen, 'Korrektur', 'Korrekturen')} in allen" if korrekturen else "",
         f"{selbst} selbst beschriftet in allen" if selbst else "",
-        _fassungen(umfang.lern_fassungen),
     ]
     return (
         f"{_anzahl(umfang.lernproben, 'Probe', 'Proben')} aus "
@@ -936,7 +904,6 @@ def _messung_im_steckbrief(umfang: lauf_layout.Umfang) -> tuple[str, str]:
     ]
     teile = [
         "nur Vorlagen, jede einmal von der Faltung, die sie nicht kannte",
-        _fassungen(umfang.mess_fassungen),
         f"{' und '.join(nicht)} nicht: ihr Text stammt von der Erkennung selbst" if nicht else "",
     ]
     return (
@@ -1017,7 +984,13 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
     else:
         dazu("Methode", _wahlname(METHODEN, methode))
 
-    dazu("Datensatz", _wahlname(DATENSAETZE, str(auftrag.get("daten", ""))))
+    if lauf_layout.mit_rauschkopie(auftrag):
+        dazu(
+            "Rauschkopien",
+            "mitgelernt und mitgemessen",
+            "je Aufnahme eine Kopie mit weißem Rauschen, 20 dB unter dem Signal - "
+            "Proben und Zahlen hier zählen nur die Aufnahmen",
+        )
     dazu("Auswahl", *_auswahl_im_steckbrief(lauf))
     dazu(
         "Korrekturen",
@@ -1207,7 +1180,6 @@ def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         methoden=METHODEN,
         lora_ziele=LORA_ZIELE,
         lora_raenge=LORA_RAENGE,
-        datensaetze=DATENSAETZE,
         auswahlen=AUSWAHLEN,
         korrekturgewichte=KORREKTURGEWICHTE,
         selbsttraininge=SELBSTTRAININGE,
@@ -1260,7 +1232,6 @@ def beauftrage(
                 methode=bestellung.methode,
                 lora_ziele=bestellung.lora_ziele,
                 lora_rang=bestellung.lora_rang,
-                daten=bestellung.daten,
                 auswahl=bestellung.auswahl,
                 korrekturgewicht=bestellung.korrekturgewicht,
                 selbsttraining=bestellung.selbsttraining,
@@ -1291,7 +1262,6 @@ def einzeln(job_id: str, korpus: Korpus, sprecher: SprecherId) -> EinzelAntwort:
         methoden=METHODEN,
         lora_ziele=LORA_ZIELE,
         lora_raenge=LORA_RAENGE,
-        datensaetze=DATENSAETZE,
         auswahlen=AUSWAHLEN,
         korrekturgewichte=KORREKTURGEWICHTE,
         selbsttraininge=SELBSTTRAININGE,
@@ -1305,19 +1275,16 @@ def einzeln(job_id: str, korpus: Korpus, sprecher: SprecherId) -> EinzelAntwort:
         grundmodelle=_grundmodelle(),
         kurve_training=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["training"]],
         kurve_validierung=[PunktAntwort(**_punkt(zeile)) for zeile in kurven["validierung"]],
-        vergleich={
-            fassung: [
-                GegenueberAntwort(
-                    mass=eintrag.mass,
-                    baseline=eintrag.baseline,
-                    trainiert=eintrag.trainiert,
-                    besser=eintrag.besser,
-                    anzahl=eintrag.anzahl,
-                )
-                for eintrag in eintraege
-            ]
-            for fassung, eintraege in vergleich.je_fassung(lauf, korpus).items()
-        },
+        vergleich=[
+            GegenueberAntwort(
+                mass=eintrag.mass,
+                baseline=eintrag.baseline,
+                trainiert=eintrag.trainiert,
+                besser=eintrag.besser,
+                anzahl=eintrag.anzahl,
+            )
+            for eintrag in vergleich.gegenueber(lauf, korpus)
+        ],
         # Nur das Ende - dort steht, woran es scheiterte.
         protokoll=protokoll.read_text(encoding="utf-8")[-4000:] if protokoll.is_file() else "",
     )

@@ -204,15 +204,10 @@ export const aufnahmeVerwerfen = (aufnahme: string) =>
 /**
  * Eine eigene Aufnahme anhören - für „Meine Daten" und die Auswertung.
  *
- * `fassung` wählt zwischen dem Original und den drei Abwandlungen (siehe
- * `varianten` in der Auswertung). Ausgelassen heißt Original; das ist der Fall
- * in „Meine Daten", wo es nur die gesprochene Aufnahme gibt.
- *
  * Als Blob und nicht als Adresse im `src`: Die Datei hängt am Zugang, und ein
  * `<audio src>` schickt keine Kopfzeilen mit.
  */
-export const meineAufnahmeAudio = (aufnahme: string, fassung?: string) =>
-  blob(`/recordings/${aufnahme}/audio${fassung ? `?fassung=${encodeURIComponent(fassung)}` : ''}`);
+export const meineAufnahmeAudio = (aufnahme: string) => blob(`/recordings/${aufnahme}/audio`);
 
 // ── Vorlesen ────────────────────────────────────────────────────────────────
 
@@ -454,7 +449,7 @@ export const meinDatensatz = (pin?: string) => lade('/konto/datensatz', mitPin(p
 // ── Auswertung ──────────────────────────────────────────────────────────────
 //
 // Wie gut verschiedene Modelle diesem Sprecher zuhören, gemessen an seinen
-// eigenen Aufnahmen und drei Abwandlungen davon (`backend/api/auswertung.py`). Zwei Auskünfte, absichtlich
+// eigenen Aufnahmen (`backend/api/auswertung.py`). Zwei Auskünfte, absichtlich
 // getrennt: `auswertung()` liefert die Zahlen für die Kurve und wird abgefragt,
 // solange die Seite offen ist; `vergleich()` liefert die Texte einer einzelnen
 // Aufnahme und erst auf Klick. Die Texte in jede Abfrage zu packen hieße, bei
@@ -482,24 +477,17 @@ export type Laufstand = {
   fremder_lauf: boolean;
 };
 
-/** Eine Fassung der Aufnahme: das Original oder eine seiner Abwandlungen. */
-export type Variante = {
-  schluessel: string;
-  name: string;
-  erklaerung: string;
-};
-
 export type Punkt = {
   nummer: number;
   aufnahme_id: string;
   dauer_s: number;
   erstellt: string;
   /**
-   * modell → fassung → maß → Wert. Fehlt ein Eintrag, ist er noch nicht
+   * modell → maß → Wert. Fehlt ein Eintrag, ist er noch nicht
    * gerechnet. Der Server rechnet hier nichts zusammen: Welche Zahl die Kurve
    * zeigt, hängt am gewählten Maß, und die Tabelle zeigt ohnehin jede.
    */
-  werte: Record<string, Record<string, Record<string, number>>>;
+  werte: Record<string, Record<string, number>>;
 };
 
 export type Auswertung = {
@@ -513,7 +501,6 @@ export type Auswertung = {
   beschriftungen: Record<string, string>;
   /** Stand -> sein Lauf in „lernen" (`laufUrl`); Grundmodelle fehlen. */
   laeufe: Record<string, string>;
-  varianten: Variante[];
   metriken: Metrik[];
   stand: Laufstand;
   punkte: Punkt[];
@@ -521,7 +508,6 @@ export type Auswertung = {
 
 export type Erkennung = {
   modell: string;
-  variante: string;
   text: string;
   wer: number;
   cer: number;

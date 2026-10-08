@@ -28,7 +28,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from wortlaut import augmentierung, corpus, sicherung
+from wortlaut import corpus, sicherung
 
 from apps.hoeren.backend.config import einstellungen
 from apps.hoeren.backend.db.models import Aufnahme, Erkennung
@@ -213,19 +213,6 @@ class TestSicherung:
         # steckt schon in der gesicherten Datenbank.
         assert not [name for name in namen if name.endswith(("-wal", "-shm"))]
 
-    def test_abgewandelte_fassungen_bleiben_draussen(
-        self, aufsicht: TestClient, bespielt: str, tmp_path: Path
-    ) -> None:
-        # Auf der Platte liegen sie - drei je Aufnahme, gerechnet beim
-        # Hochladen (`services/augmentierung.py`).
-        varianten = tmp_path / "data" / corpus.varianten_relpfad(bespielt)
-        assert len(list(varianten.glob("*.wav"))) == 2 * len(augmentierung.ABWANDLUNGEN)
-
-        # In der Sicherung nicht: Sie sind gerechnet und nicht gesprochen, und
-        # sie wären drei Viertel des Archivs.
-        namen = _namen(aufsicht.get(f"/api/admin/speakers/{bespielt}/sicherung").content)
-        assert not [name for name in namen if corpus.VARIANTENORDNER in name]
-
     def test_messwerte_der_auswertung_bleiben_draussen(
         self, aufsicht: TestClient, bespielt: str, tmp_path: Path
     ) -> None:
@@ -261,7 +248,6 @@ class TestSicherung:
 
         with closing(sqlite3.connect(corpus.datenbank_pfad(tmp_path / "data", bespielt))) as db:
             assert db.execute("SELECT count(*) FROM erkennungen").fetchone()[0] == 2
-        assert list((tmp_path / "data" / corpus.varianten_relpfad(bespielt)).glob("*.wav"))
 
     def test_manifest_nennt_den_sprecher(self, aufsicht: TestClient, bespielt: str) -> None:
         manifest = _manifest(aufsicht.get(f"/api/admin/speakers/{bespielt}/sicherung").content)
@@ -270,10 +256,7 @@ class TestSicherung:
         assert manifest["dateien"]  # mit Größe und Prüfsumme je Datei
         # Und es schreibt hin, was fehlt - wer in einem Jahr auspackt, soll das
         # nicht für einen Schaden halten.
-        assert manifest["ausgelassen"]["verzeichnisse"] == [
-            corpus.varianten_relpfad(bespielt),
-            corpus.vorlesen_relpfad(bespielt),
-        ]
+        assert manifest["ausgelassen"]["verzeichnisse"] == [corpus.vorlesen_relpfad(bespielt)]
         assert manifest["ausgelassen"]["tabellen"] == {corpus.DATENBANKNAME: ["erkennungen"]}
 
     def test_gesamtsicherung_enthaelt_alle_sprecher(
@@ -392,8 +375,7 @@ class TestLoeschen:
         assert antwort.json() == {"geloescht": 2}
 
         # Das Profil und die Warteschlange stehen noch - das ist „neu
-        # anfangen", nicht „Person löschen". Kein Ton bleibt übrig, auch keine
-        # abgewandelte Fassung: Gesucht wird deshalb rekursiv. Die leeren
+        # anfangen", nicht „Person löschen". Kein Ton bleibt übrig; die leeren
         # Verzeichnisse dürfen stehen bleiben - sie tragen nichts.
         audio = tmp_path / "data" / corpus.sprecher_relpfad(bespielt) / "audio"
         assert not list(audio.rglob("*.wav"))
@@ -467,7 +449,6 @@ def _miss(sprecher_id: str) -> None:
                     id=f"erk_{nummer}",
                     recording_id=aufnahme.id,
                     modell="small",
-                    variante=augmentierung.ORIGINAL,
                     text="was das Modell gehört hat",
                     wer=0.1,
                     cer=0.1,

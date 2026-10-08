@@ -1,8 +1,8 @@
 """Die Auswertung: Wie gut hören verschiedene Modelle diesem Sprecher zu?
 
 Zu jeder Aufnahme steht die Vorlage daneben; jede ist damit eine Prüfaufgabe.
-Diese Datei schickt jede brauchbare Aufnahme in jeder Fassung
-(`wortlaut/augmentierung.py`) durch jedes Modell und misst gegen die Vorlage.
+Diese Datei schickt jede brauchbare Aufnahme durch jedes Modell und misst
+gegen die Vorlage.
 
 * **Im Hintergrund**, denn ein Lauf dauert Minuten bis Stunden; die
   Oberfläche fragt den Stand ab.
@@ -15,8 +15,7 @@ Diese Datei schickt jede brauchbare Aufnahme in jeder Fassung
   Erkenner herunter - der Trainer will die ganze Karte und fragt nicht, wer
   sie hält.
 * **Wiederholbar.** Fertig ist, was in `erkennungen` steht; ein zweiter Lauf
-  rechnet nur, was fehlt, und fehlende Fassungen entstehen unterwegs
-  (`services/augmentierung.py`).
+  rechnet nur, was fehlt.
 
 **Wer antritt:** die Grundmodelle aus der Konfiguration und jeder trainierte
 Stand dieses Sprechers mit Gewichten. Ein Stand misst nie, was er gelernt hat
@@ -38,11 +37,11 @@ from pathlib import Path
 
 from sqlalchemy import Engine, delete, func, select
 from sqlalchemy.orm import Session
-from wortlaut import corpus, ids, laeufe, metriken, rechenwerk, registry, storage, tempo
+from wortlaut import ids, laeufe, metriken, rechenwerk, registry, storage, tempo
 from wortlaut.whisper import Transkriptor
 
 from ..db.models import Aufnahme, Erkennung, Vorlage, jetzt
-from . import augmentierung, zuschnitt
+from . import zuschnitt
 
 # Nur brauchbare Aufnahmen: Was verworfen wurde, ist kein Prüfstück, sondern
 # ein Fehlversuch - und ginge als schlechte Note eines Modells durch, obwohl
@@ -59,7 +58,7 @@ class Stand:
     erledigt: int = 0
     gesamt: int = 0
     uebersprungen: int = 0
-    # Woran gerade gerechnet wird - Modell und Fassung, damit sichtbar ist,
+    # Woran gerade gerechnet wird - das Modell, damit sichtbar ist,
     # dass es vorangeht, auch wenn eine Aufnahme lange braucht.
     aktuell: str = ""
     fehler: str | None = None
@@ -200,24 +199,17 @@ def gib_karte_frei() -> None:
 
 @dataclass(frozen=True)
 class Posten:
-    """Eine offene Rechenaufgabe: diese Fassung dieser Aufnahme durch dieses Modell."""
+    """Eine offene Rechenaufgabe: diese Aufnahme durch dieses Modell."""
 
     aufnahme_id: str
-    # Die Datei der Aufnahme - aus ihr entstehen fehlende Abwandlungen.
     blob: str
-    # Die Datei, die dieses Mal durch das Modell geht - beim Original dieselbe,
-    # sonst die abgewandelte Fassung daneben. Hier ausgerechnet und nicht im
-    # Lauf: Dafür braucht es die Aufnahme mit ihrem Sprecher, und die steht nur
-    # hier, solange die Sitzung offen ist.
-    variante_blob: str
     referenz: str
     modell: str
-    variante: str
 
     @property
-    def marke(self) -> tuple[str, str, str]:
+    def marke(self) -> tuple[str, str]:
         """Was diesen Posten eindeutig macht - der Schlüssel für „schon gerechnet"."""
-        return (self.aufnahme_id, self.modell, self.variante)
+        return (self.aufnahme_id, self.modell)
 
 
 # Was eine übernommene Faltungszeile mitbringen muss.
@@ -262,12 +254,12 @@ def _gehoert_im_lauf(verzeichnis: Path) -> dict[str, Ton]:
         kern = None
 
     gehoert: dict[str, Ton] = {}
-    for zeile in laeufe.lies_zeilen(bewertung):
+    for zeile in laeufe.bewertungszeilen(verzeichnis):
         if kennung := str(zeile.get("recording_id") or ""):
             gehoert.setdefault(kennung, None)
     for zeile in laeufe.manifestzeilen(verzeichnis):
         kennung = str(zeile.get("recording_id") or "")
-        if not kennung or zeile.get("variante", augmentierung.ORIGINAL) != augmentierung.ORIGINAL:
+        if not kennung:
             continue
         if kern is not None and kennung not in kern:
             continue
@@ -375,11 +367,9 @@ def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -
     Gibt zurück, wie viele Zeilen neu dazukamen.
     """
     vorhanden = {
-        (zeile.recording_id, zeile.modell, zeile.variante)
+        (zeile.recording_id, zeile.modell)
         for zeile in db.execute(
-            select(Erkennung.recording_id, Erkennung.modell, Erkennung.variante).where(
-                Erkennung.herkunft == FALTUNG
-            )
+            select(Erkennung.recording_id, Erkennung.modell).where(Erkennung.herkunft == FALTUNG)
         ).all()
     }
     gueltig = {aufnahme.id: aufnahme for aufnahme, _ in gueltige_aufnahmen(db)}
@@ -393,16 +383,15 @@ def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -
         verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, job)
         faktor = float(manifest.get("tempo", tempo.VORGABE))
         damals = _gehoert_im_lauf(verzeichnis)
-        for zeile in laeufe.lies_zeilen(verzeichnis / laeufe.BEWERTUNG):
+        for zeile in laeufe.bewertungszeilen(verzeichnis):
             kennung = str(zeile.get("recording_id") or "")
-            fassung = str(zeile.get("variante") or augmentierung.ORIGINAL)
             # Nur was heute gilt - gelöschte und verworfene Aufnahmen nicht.
             if not kennung or kennung not in gueltig:
                 continue
             # Nur auf dem Ton, der heute gilt (`derselbe_ton`).
             if not derselbe_ton(gueltig[kennung], damals.get(kennung)):
                 continue
-            if (kennung, ref, fassung) in vorhanden:
+            if (kennung, ref) in vorhanden:
                 continue
             if any(zeile.get(mass) is None for mass in _MASSE):
                 continue
@@ -411,7 +400,6 @@ def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -
                     id=ids.neue_id("erk"),
                     recording_id=kennung,
                     modell=ref,
-                    variante=fassung,
                     text=str(zeile.get("text") or ""),
                     **{mass: float(zeile[mass]) for mass in _MASSE},
                     rechenzeit_s=float(zeile.get("rechenzeit_s") or 0.0),
@@ -423,7 +411,7 @@ def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -
                     erstellt=jetzt(),
                 )
             )
-            vorhanden.add((kennung, ref, fassung))
+            vorhanden.add((kennung, ref))
             neu += 1
     if neu:
         db.commit()
@@ -484,7 +472,7 @@ def _geltende():
     return select(Aufnahme.id).where(Aufnahme.status == GUELTIG)
 
 
-def _fertig(db: Session, werk: str) -> set[tuple[str, str, str]]:
+def _fertig(db: Session, werk: str) -> set[tuple[str, str]]:
     """Was schon gemessen ist - **auf dem Rechenwerk, das gerade gilt**.
 
     Eine Zeile aus einem anderen oder unbekannten Rechenwerk gilt als offen:
@@ -493,9 +481,9 @@ def _fertig(db: Session, werk: str) -> set[tuple[str, str, str]]:
     Stand kennt diese Aufnahmen.
     """
     return {
-        (zeile.recording_id, zeile.modell, zeile.variante)
+        (zeile.recording_id, zeile.modell)
         for zeile in db.execute(
-            select(Erkennung.recording_id, Erkennung.modell, Erkennung.variante).where(
+            select(Erkennung.recording_id, Erkennung.modell).where(
                 Erkennung.recording_id.in_(_geltende()),
                 (Erkennung.rechenwerk == werk) | (Erkennung.herkunft == FALTUNG),
             )
@@ -511,7 +499,7 @@ def offene_posten(
 ) -> list[Posten]:
     """Was noch zu rechnen ist, in der Reihenfolge, in der gerechnet wird.
 
-    Modell, dann Aufnahme, dann Fassung: Ein Modell rechnet alles, was für es
+    Modell, dann Aufnahme: Ein Modell rechnet alles, was für es
     offen ist, bevor das nächste drankommt - in der Reihenfolge von `namen`.
     Ein Modell zu laden kostet bis zu einer halben Minute; je Aufnahme
     gewechselt, käme jedes in jeder Runde wieder an die Reihe.
@@ -523,22 +511,11 @@ def offene_posten(
     gesperrt = verwandte(db, bekannt or {})
     aufnahmen = gueltige_aufnahmen(db)
     return [
-        posten
+        Posten(aufnahme_id=aufnahme.id, blob=aufnahme.blob, referenz=vorlage.text, modell=modell)
         for modell in namen
         for aufnahme, vorlage in aufnahmen
         if aufnahme.id not in gesperrt.get(modell, ())
-        for variante in augmentierung.VARIANTEN
-        if (
-            posten := Posten(
-                aufnahme_id=aufnahme.id,
-                blob=aufnahme.blob,
-                variante_blob=augmentierung.relpfad(aufnahme, variante),
-                referenz=vorlage.text,
-                modell=modell,
-                variante=variante,
-            )
-        ).marke
-        not in erledigt
+        and (aufnahme.id, modell) not in erledigt
     ]
 
 
@@ -551,17 +528,16 @@ def zaehle(
     """(erledigt, gesamt) - beides aus der Datenbank, nie aus einem Zähler.
 
     Ein mitlaufender Zähler wäre nach einem Neustart falsch. `gesamt` ist
-    erledigt plus offen, nicht Aufnahmen mal Modelle mal Fassungen - leere
+    erledigt plus offen, nicht Aufnahmen mal Modelle - leere
     Stellen eines Standes zählen weder als das eine noch als das andere.
     """
-    # Nur konfigurierte Modelle und Fassungen, sonst stünde der Balken über 100 %.
+    # Nur konfigurierte Modelle, sonst stünde der Balken über 100 %.
     erledigt = (
         db.scalar(
             select(func.count())
             .select_from(Erkennung)
             .where(
                 Erkennung.modell.in_(namen),
-                Erkennung.variante.in_(augmentierung.VARIANTEN),
                 # Siehe `_geltende`.
                 Erkennung.recording_id.in_(_geltende()),
                 # Wie in `_fertig`.
@@ -603,7 +579,6 @@ def _rechne(
         id=ids.neue_id("erk"),
         recording_id=posten.aufnahme_id,
         modell=posten.modell,
-        variante=posten.variante,
         text=transkript.text,
         wer=guete.wer,
         cer=guete.cer,
@@ -626,7 +601,7 @@ async def _arbeite(
     geraet: str,
     rechenart: str,
     zustand: Stand,
-    uebersprungen: set[tuple[str, str, str]],
+    uebersprungen: set[tuple[str, str]],
     datenverzeichnis: Path,
 ) -> None:
     """Der Lauf selbst: einen Posten nach dem anderen, bis nichts mehr offen ist.
@@ -655,7 +630,7 @@ async def _arbeite(
             return
 
         posten = offen[0]
-        zustand.aktuell = f"{registry.beschriftung(posten.modell)} · {posten.variante}"
+        zustand.aktuell = registry.beschriftung(posten.modell)
 
         if not ablage.pfad(posten.blob).is_file():
             # Die übrigen Aufnahmen sind davon unberührt.
@@ -664,21 +639,11 @@ async def _arbeite(
             continue
 
         try:
-            # Eine fehlende Fassung entsteht hier, im Arbeitsfaden.
-            await asyncio.to_thread(
-                augmentierung.stelle_her,
-                ablage,
-                quelle_blob=posten.blob,
-                ziel_blob=posten.variante_blob,
-                variante=posten.variante,
-                keim=posten.aufnahme_id,
-            )
-
             # Im Arbeitsfaden, sonst stünde die Ereignisschleife.
             erkennung = await asyncio.to_thread(
                 _rechne,
                 posten,
-                ablage.pfad(posten.variante_blob),
+                ablage.pfad(posten.blob),
                 sprache,
                 transkriptor_fuer(posten.modell, geraet, rechenart, datenverzeichnis),
                 werk,
@@ -688,19 +653,16 @@ async def _arbeite(
             raise
         except Exception as ursache:  # noqa: BLE001 - was immer das Modell wirft
             uebersprungen.add(posten.marke)
-            zustand.fehler = (
-                f"{registry.beschriftung(posten.modell)} · {posten.variante}: {ursache}"
-            )
+            zustand.fehler = f"{registry.beschriftung(posten.modell)}: {ursache}"
             continue
 
         with Session(engine) as db:
-            # Eine Zeile aus einem anderen Rechenwerk weicht - je Aufnahme,
-            # Modell und Fassung steht genau eine da.
+            # Eine Zeile aus einem anderen Rechenwerk weicht - je Aufnahme
+            # und Modell steht genau eine da.
             db.execute(
                 delete(Erkennung).where(
                     Erkennung.recording_id == posten.aufnahme_id,
                     Erkennung.modell == posten.modell,
-                    Erkennung.variante == posten.variante,
                 )
             )
             db.add(erkennung)

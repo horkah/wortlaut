@@ -29,7 +29,7 @@ def _zeilen(datenverzeichnis: Path, sprecher: str, sql: str, *werte) -> list[tup
 def fertig(klient: TestClient, quelle: str, sprich, datenverzeichnis, sprecher: str):
     """Ein durchgelaufener Lauf samt Modell: `(job_id, modell)`."""
     sprich(9)
-    lauf = klient.post("/lernen/api/laeufe", json={"methode": "lora", "daten": "original"}).json()
+    lauf = klient.post("/lernen/api/laeufe", json={"methode": "lora"}).json()
     version = _lauf_fertigstellen(datenverzeichnis, lauf["job_id"], sprecher, genauigkeit=88.0)
     return lauf["job_id"], f"{sprecher}/{version}"
 
@@ -112,13 +112,13 @@ class TestDatensatz:
         # Gleiche Daten, andere Option - genau das Paar, das eine Option misst.
         sprich(9)
         gleich = [
-            klient.post("/lernen/api/laeufe", json={"methode": methode, "daten": "original"})
+            klient.post("/lernen/api/laeufe", json={"methode": methode})
             .json()["job_id"]
             for methode in ("lora", "full")
         ]
         sprich(3)
         mehr = klient.post(
-            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original"}
+            "/lernen/api/laeufe", json={"methode": "lora"}
         ).json()["job_id"]
         for job_id in (*gleich, mehr):
             register.trage_ein(datenverzeichnis, job_id)
@@ -157,9 +157,9 @@ class TestLoeschen:
         aufnahme = laeufe.lies_zeilen(verzeichnis / laeufe.MANIFEST)[0]["recording_id"]
         with closing(sqlite3.connect(corpus.datenbank_pfad(datenverzeichnis, sprecher))) as korpus:
             korpus.execute(
-                "INSERT INTO erkennungen (id, recording_id, modell, variante, text, wer, cer,"
+                "INSERT INTO erkennungen (id, recording_id, modell, text, wer, cer,"
                 " mer, wil, genauigkeit, rechenzeit_s, rechenwerk, tempo, herkunft, erstellt)"
-                " VALUES ('erk_1', ?, ?, 'original', 'neu gehört', 0.2, 0.1, 0.2, 0.3, 80.0,"
+                " VALUES ('erk_1', ?, ?, 'neu gehört', 0.2, 0.1, 0.2, 0.3, 80.0,"
                 " 0.5, 'cpu/int8', 1.0, 'gemessen', '2026-10-02T00:00:00+00:00')",
                 (aufnahme, modell),
             )

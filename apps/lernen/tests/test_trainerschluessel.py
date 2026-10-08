@@ -22,7 +22,7 @@ from apps.lernen.tests.conftest import TRAINERSCHLUESSEL
 
 
 def _bestellung() -> dict[str, str]:
-    return {"methode": "lora", "daten": "original"}
+    return {"methode": "lora"}
 
 
 class TestBeauftragen:
@@ -69,7 +69,7 @@ class TestBeauftragen:
         sprich(6)
         antwort = klient.post(
             "/lernen/api/laeufe",
-            json={"methode": "zauberei", "daten": "original"},
+            json={"methode": "zauberei"},
             headers={"X-Trainer-Key": "daneben"},
         )
         assert antwort.status_code == 401

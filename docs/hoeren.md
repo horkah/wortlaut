@@ -212,7 +212,6 @@ rechnet, bleibt draußen und kommt von selbst zurück:
 |---|---|---|
 | Modellstände `modelle/` | ~1 GB je Stand | einen Trainingslauf |
 | Laufverzeichnisse `snapshots/` | je Lauf ein Verzeichnis | einen Trainingslauf |
-| Varianten `audio/varianten/` | etwa so viel wie das Audio | den nächsten Auswertungslauf |
 | vorgelesene Sätze `vorlesen/` | wenige MB | das nächste Vorlesen |
 | Tabelle `erkennungen` | wächst mit jedem Modell | denselben Lauf |
 
@@ -240,12 +239,11 @@ von Hugging Face erwartet. Der Datensatz ist keine Sicherung, und die
 
 | | was verschwindet | was bleibt |
 |---|---|---|
-| eine Aufnahme | Audio samt Varianten und Zeile; die Einheit wird wieder offen | alles andere |
+| eine Aufnahme | Audio und Zeile; die Einheit wird wieder offen | alles andere |
 | alle Aufnahmen eines Sprechers | jedes Audio, jede Aufnahmezeile | Profil, Textquellen, Warteschlange |
 | ein Sprecher | Korpus, Diktate, Modellstände, Laufverzeichnisse | nichts |
 
-Varianten gehen immer mit: Sie sind dieselbe Stimme und derselbe
-Gesundheitsdatensatz. Eine Stufe „alle Sprecher" gibt es nicht. Die beiden
+Eine Stufe „alle Sprecher" gibt es nicht. Die beiden
 großen Stufen verlangen die Kennung ein zweites Mal (`?bestaetigung=…`); die
 Oberfläche lässt dafür den Namen abschreiben. Was zu einer Person gehört,
 steht an einer Stelle (`services/loeschung.py`), die auch
@@ -371,8 +369,7 @@ rückgängig machen lässt sich das nicht. Je Aufnahme:
 
 1. Die Datei wird verlustfrei gekürzt und ersetzt das Original.
 2. Dauer, Pegel, Stille und Hinweise der Zeile kommen aus der neuen Datei.
-3. Die Varianten werden aus ihr neu gerechnet.
-4. Die Messwerte der Aufnahme werden gelöscht, übernommene Faltungen
+3. Die Messwerte der Aufnahme werden gelöscht, übernommene Faltungen
    eingeschlossen; der nächste Auswertungslauf rechnet neu.
 
 Bei 16 kHz mono PCM ist ein Rahmen zwei Byte, geschnitten wird auf ganze
@@ -397,7 +394,7 @@ es jemand löscht. Die Teile tragen sein Datum und einen Sortierschlüssel
 ### Löschen im Zuschnitt
 
 **Löschen** nimmt markierte Aufnahmen ganz aus dem Bestand: Zeile, Datei,
-Varianten, Messwerte - und die Vorlage, wenn keine andere Aufnahme
+Messwerte - und die Vorlage, wenn keine andere Aufnahme
 mehr an ihr hängt. Anders als Verwerfen, das die Vorlage wieder offen macht.
 Gedacht für das Original nach dem Teilen.
 
@@ -461,24 +458,6 @@ hat. Die Faltungen werden beim Öffnen der Seite übernommen
 Angezeigt wird ein Stand mit seiner Kurzkennung (`K7M2Q`,
 `registry.beschriftung`).
 
-### Zwei Fassungen je Aufnahme
-
-Eine Aufnahme ist ein einzelner Fall - dieser Pegel, dieser Raum. Gemessen
-wird deshalb auch eine Abwandlung (`wortlaut/augmentierung.py`):
-
-| Fassung | was sie tut | wonach sie fragt |
-| --- | --- | --- |
-| `original` | nichts | der Ausgangswert |
-| `rauschen` | weißes Rauschen, 20 dB unter der Aufnahme | hält es einem Lüfter, einer Straße stand? |
-
-Liegen beide Zahlen dicht beieinander, versteht das Modell den Sprecher.
-Das Rauschen liegt in festem Abstand zur Aufnahme, nicht auf festem Pegel, und
-ist mit der Kennung der Aufnahme als Keim gewürfelt - wiederholbar auf jeder
-Maschine. Die Fassung liegt unter `audio/varianten/`, entsteht beim Hochladen
-oder spätestens, wenn ein Lauf sie braucht (`make augmentieren` zieht es vor),
-und geht beim Löschen mit. Womit **trainiert** wird, ist eine andere Frage
-(siehe [Das Trainingsverfahren](trainingsverfahren.md#augmentierung-zur-laufzeit)).
-
 ### Vier Maße und eine Zahl
 
 `wortlaut/metriken.py`:
@@ -504,14 +483,12 @@ Leerzeichen. Der Rohtext wird gespeichert und angezeigt.
 
 ### Der Lauf
 
-Ein Hintergrundlauf rechnet die offenen Tripel aus Aufnahme, Modell und
-Fassung:
+Ein Hintergrundlauf rechnet die offenen Paare aus Aufnahme und Modell:
 
 * **Von Hand angestoßen**, nie beim Hochfahren.
 * **Ist nichts offen, läuft nichts**, und der Knopf sagt „Nichts Neues zu
   rechnen".
-* **Modellweise**: Ein Modell rechnet alle offenen Aufnahmen und Fassungen,
-  dann kommt das nächste, in der Reihenfolge von `WORTLAUT_AUSWERTUNG_MODELLE`
+* **Modellweise**: Ein Modell rechnet alle offenen Aufnahmen, dann kommt das nächste, in der Reihenfolge von `WORTLAUT_AUSWERTUNG_MODELLE`
   und danach die eigenen Stände. So lädt jedes Modell einmal je Lauf.
 * **Ein Erkenner auf der Karte.** Kommt das nächste Modell an die Reihe, geht
   das vorige herunter (`transkriptor_fuer`). Mehrere nebeneinander ließen
@@ -533,16 +510,15 @@ Fassung:
 
 Eine Kurve über die Aufnahmen, lückenlos von 1 an gezählt. Je Aufnahme ein
 Wert je Modell, eines als Balken, die übrigen als Punkte; Auswahllisten
-wechseln Maß und Balkenmodell. Im Bild steht je Modell der **bessere** Wert
-der Fassungen - was es aus der Aufnahme herausholt, wenn der Ton stimmt. Was
-noch nicht gerechnet ist, bleibt leer statt null.
+wechseln Maß und Balkenmodell. Was noch nicht gerechnet ist, bleibt leer
+statt null.
 
-Darunter die Bilanz: **Median und Mittel** im gewählten Maß, je Fassung und
-für den Bestwert. Liegen sie weit auseinander, verreißt ein Modell einzelne
+Darunter die Bilanz: **Median und Mittel** je Modell im gewählten Maß. Liegen
+sie weit auseinander, verreißt ein Modell einzelne
 Aufnahmen, statt gleichmäßig schlechter zu sein.
 
-Ein Tipp in eine Spalte zeigt die Aufnahme: einen Abspieler für die gewählte
-Fassung, die Vorlage und je Modell den erkannten Text, eine Fassung zur Zeit.
+Ein Tipp in eine Spalte zeigt die Aufnahme: einen Abspieler, die Vorlage und
+je Modell den erkannten Text.
 Unterschiede sind zeichenweise ausgezeichnet - fehlend grau durchgestrichen,
 hinzugekommen farbig und fett, als `<del>`/`<ins>` (`packages/ui/diff.ts`); ein
 Schalter zeigt den glatten Text.
@@ -582,7 +558,7 @@ GET    /api/prompts/{id}/vorlesung          die Vorlage als Audio vom Server
 GET    /api/vorlesen/stimmen                die Serverstimmen der Profilsprache
 GET    /api/vorlesen/probe?stimme=          Hörprobe an einem festen Satz
 POST   /api/recordings                      multipart: audio, prompt_id, modus
-GET    /api/recordings/{id}/audio?fassung=  Original oder eine Abwandlung
+GET    /api/recordings/{id}/audio           die eigene Aufnahme
 DELETE /api/recordings/{id}
 GET    /api/progress
 POST   /api/korpus/intake                   ← von „schreiben"
@@ -597,7 +573,7 @@ GET    /api/konto/pin                       { gesetzt }
 GET    /api/konto/pin/pruefung              204, wenn die vorgelegte PIN stimmt
 PATCH  /api/konto/pin                       { pin } - vier Ziffern oder null
 GET    /api/auswertung                      Kurve und Stand - ohne Texte
-GET    /api/auswertung/{aufnahme}           Vorlage und jede erkannte Fassung
+GET    /api/auswertung/{aufnahme}           Vorlage und der erkannte Text je Modell
 POST   /api/auswertung/start
 POST   /api/auswertung/stopp                Gerechnetes bleibt
 ```

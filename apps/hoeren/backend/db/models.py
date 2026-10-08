@@ -103,7 +103,7 @@ class Aufnahme(Basis):
 class Erkennung(Basis):
     """Was ein Modell aus einer Aufnahme gemacht hat, samt Maßen dagegen.
 
-    Je Aufnahme, Modell und Fassung eine Zeile; gerechnet in
+    Je Aufnahme und Modell eine Zeile; gerechnet in
     `wortlaut/metriken.py`.
     """
 
@@ -112,8 +112,6 @@ class Erkennung(Basis):
     id: Mapped[str] = mapped_column(primary_key=True)
     recording_id: Mapped[str] = mapped_column(ForeignKey("recordings.id"))
     modell: Mapped[str]
-    # `original` oder eine Abwandlung aus `wortlaut/augmentierung.py`.
-    variante: Mapped[str]
     text: Mapped[str]
     wer: Mapped[float]
     cer: Mapped[float]

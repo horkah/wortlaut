@@ -22,7 +22,7 @@ from apps.lernen.training import laeufer
 
 def _beauftrage(klient: TestClient, **weiteres: str) -> dict:
     antwort = klient.post(
-        "/lernen/api/laeufe", json={"methode": "lora", "daten": "original", **weiteres}
+        "/lernen/api/laeufe", json={"methode": "lora", **weiteres}
     )
     assert antwort.status_code == 201, antwort.text
     return antwort.json()

@@ -7,8 +7,7 @@ Spektrogramm an jeder Stelle verändert. Vier Griffe, gestaffelt:
 * **Masken** (SpecAugment) - Balken ins fertige Spektrogramm; das Modell lernt,
   aus dem Rest zu schließen. Kostet praktisch nichts.
 * **Raum** - Faltung mit einer abklingenden Impulsantwort: Abstand, Wand, Zimmer.
-* **Rauschen** - bei gewürfeltem Abstand, anders als die gemessene Fassung
-  `rauschen` mit festen 20 dB.
+* **Rauschen** - weißes Rauschen bei gewürfeltem Abstand zur Aufnahme.
 * **Tempo** - schneller oder langsamer, Tonhöhe und Dauer zugleich. Zuletzt,
   weil das Tempo dysarthrischer Sprache ein Merkmal des Sprechers ist; ob es
   zu verwürfeln hilft, misst die eigene Stufe.
@@ -20,8 +19,8 @@ darin liegt die Wirkung.
 **Die Validierung bleibt unverändert:** Sie wählt Durchgang und α
 (`abschluss.py`) und soll das Modell messen, nicht den Würfel.
 
-Mit numpy statt wie `wortlaut/augmentierung.py`: Die Faltung über die
-Fourier-Transformation braucht zwei Millisekunden statt einer halben Sekunde.
+Mit numpy: Die Faltung über die Fourier-Transformation braucht zwei
+Millisekunden.
 """
 
 from __future__ import annotations
@@ -126,8 +125,7 @@ def raum(welle: np.ndarray, nachhall_s: float, wuerfel: np.random.Generator) -> 
 def rauschen(welle: np.ndarray, abstand_db: float, wuerfel: np.random.Generator) -> np.ndarray:
     """Weißes Rauschen im genannten Abstand zur Aufnahme selbst.
 
-    Relativ, wie in `wortlaut/augmentierung.py`: Ein fester Pegel träfe leise
-    Aufnahmen härter.
+    Relativ: Ein fester Pegel träfe leise Aufnahmen härter.
     """
     leistung = float(np.sqrt(np.mean(welle.astype(np.float64) ** 2)))
     if leistung < 1e-9:

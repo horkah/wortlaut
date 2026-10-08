@@ -38,7 +38,7 @@ class TestFremdeLaeufe:
         self, klient: TestClient, fremder: TestClient, quelle: str, sprich
     ) -> None:
         sprich(6)
-        klient.post("/lernen/api/laeufe", json={"methode": "lora", "daten": "original"})
+        klient.post("/lernen/api/laeufe", json={"methode": "lora"})
         assert fremder.get("/lernen/api/laeufe").json()["laeufe"] == []
 
     def test_ein_fremder_lauf_ist_auch_einzeln_unbekannt(
@@ -49,7 +49,7 @@ class TestFremdeLaeufe:
         # die Auskunft, dass es existiert.
         sprich(6)
         meiner = klient.post(
-            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original"}
+            "/lernen/api/laeufe", json={"methode": "lora"}
         ).json()["job_id"]
         assert fremder.get(f"/lernen/api/laeufe/{meiner}").status_code == 404
         assert fremder.post(f"/lernen/api/laeufe/{meiner}/abbruch").status_code == 404
@@ -84,7 +84,7 @@ class TestKorpusBleibtUnberuehrt:
             pfad.relative_to(korpus): pfad.stat().st_mtime_ns for pfad in korpus.rglob("*.wav")
         }
 
-        klient.post("/lernen/api/laeufe", json={"methode": "full", "daten": "augmentiert"})
+        klient.post("/lernen/api/laeufe", json={"methode": "full"})
 
         nachher = {
             pfad.relative_to(korpus): pfad.stat().st_mtime_ns for pfad in korpus.rglob("*.wav")
@@ -111,7 +111,7 @@ class TestLoeschung:
         from apps.hoeren.backend.services import loeschung
 
         sprich(6)
-        klient.post("/lernen/api/laeufe", json={"methode": "lora", "daten": "original"})
+        klient.post("/lernen/api/laeufe", json={"methode": "lora"})
 
         # Der Schnappschuss liegt jetzt da; eine eigene Datenbank hat „lernen" nicht.
         assert loeschung.schnappschuesse(datenverzeichnis, sprecher)
@@ -132,7 +132,7 @@ class TestLoeschung:
         from apps.hoeren.backend.services import loeschung
 
         sprich(6)
-        klient.post("/lernen/api/laeufe", json={"methode": "full", "daten": "original"})
+        klient.post("/lernen/api/laeufe", json={"methode": "full"})
         assert not loeschung.ohne_marke(datenverzeichnis)
 
 
@@ -145,7 +145,7 @@ class TestLoeschenBleibtBeimEigenen:
         # erst recht keine Gelegenheit, es wegzuräumen.
         sprich(6)
         meiner = klient.post(
-            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original"}
+            "/lernen/api/laeufe", json={"methode": "lora"}
         ).json()["job_id"]
 
         # Mit Trainerschlüssel - sonst endete es schon vor der Frage, wem er gehört.

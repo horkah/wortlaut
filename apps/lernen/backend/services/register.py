@@ -50,7 +50,6 @@ ENDMODELL = "endmodell"
 # Was in eine eigene Spalte kommt; alles Übrige einer Zeile steht in `weitere`.
 _DATENSPALTEN = (
     "recording_id",
-    "variante",
     "faltung",
     "gewicht",
     "quelle",
@@ -62,7 +61,6 @@ _DATENSPALTEN = (
 _MESSSPALTEN = (
     "faltung",
     "recording_id",
-    "variante",
     "text",
     "wer",
     "cer",
@@ -196,7 +194,7 @@ def trage_ein(
             )
         }
         register.execute("DELETE FROM daten WHERE job_id = ?", (job_id,))
-        for nummer, zeile in enumerate(laeufe.lies_zeilen(lauf.verzeichnis / laeufe.MANIFEST)):
+        for nummer, zeile in enumerate(laeufe.manifestzeilen(lauf.verzeichnis)):
             werte, weitere = _aufgeteilt(zeile, _DATENSPALTEN)
             audio = zeile.get("audio")
             sha = fingerabdruecke.get((nummer, audio))
@@ -216,7 +214,7 @@ def trage_ein(
         register.execute(
             "DELETE FROM messungen WHERE job_id = ? AND herkunft = ?", (job_id, FALTUNG)
         )
-        for nummer, zeile in enumerate(laeufe.lies_zeilen(lauf.verzeichnis / laeufe.BEWERTUNG)):
+        for nummer, zeile in enumerate(laeufe.bewertungszeilen(lauf.verzeichnis)):
             _messung(register, job_id, FALTUNG, nummer, zeile)
 
         register.execute("DELETE FROM ereignisse WHERE job_id = ?", (job_id,))
@@ -229,7 +227,7 @@ def trage_ein(
 
 
 # Was einen Datensatz ausmacht - das Gewicht nicht, es ist eine Achse des Auftrags.
-_DATENSATZ = ("recording_id", "variante", "faltung", "quelle", "text", "audio_sha256")
+_DATENSATZ = ("recording_id", "faltung", "quelle", "text", "audio_sha256")
 
 
 def datensatz(register: sqlite3.Connection, job_id: str) -> str:
@@ -301,9 +299,9 @@ def _erkennungen(datenverzeichnis: Path, sprecher_id: str, modell: str) -> list[
         return [
             dict(zeile)
             for zeile in korpus.execute(
-                "SELECT recording_id, variante, text, wer, cer, mer, wil, genauigkeit,"
+                "SELECT recording_id, text, wer, cer, mer, wil, genauigkeit,"
                 " rechenzeit_s, rechenwerk, tempo, erstellt FROM erkennungen"
-                " WHERE modell = ? AND herkunft = 'gemessen' ORDER BY recording_id, variante",
+                " WHERE modell = ? AND herkunft = 'gemessen' ORDER BY recording_id",
                 (modell,),
             )
         ]

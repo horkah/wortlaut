@@ -14,7 +14,7 @@ import os
 import time
 
 from fastapi.testclient import TestClient
-from wortlaut import augmentierung, kartenplan, laeufe, sprachen
+from wortlaut import kartenplan, laeufe, sprachen
 
 
 def _manifest(datenverzeichnis, job_id: str) -> list[dict]:
@@ -35,15 +35,15 @@ def _altere(verzeichnis, sekunden: float) -> None:
             os.utime(datei, (wann, wann))
 
 
-def _beauftrage(klient: TestClient, methode: str = "lora", daten: str = "original") -> dict:
-    antwort = klient.post("/lernen/api/laeufe", json={"methode": methode, "daten": daten})
+def _beauftrage(klient: TestClient, methode: str = "lora") -> dict:
+    antwort = klient.post("/lernen/api/laeufe", json={"methode": methode})
     assert antwort.status_code == 201, antwort.text
     return antwort.json()
 
 
 class TestBeauftragen:
     def test_ohne_aufnahmen_gibt_es_nichts_zu_lernen(self, klient: TestClient) -> None:
-        antwort = klient.post("/lernen/api/laeufe", json={"methode": "lora", "daten": "original"})
+        antwort = klient.post("/lernen/api/laeufe", json={"methode": "lora"})
         assert antwort.status_code == 409
         assert not klient.get("/lernen/api/laeufe").json()["bereit"]
 
@@ -52,7 +52,7 @@ class TestBeauftragen:
     ) -> None:
         sprich(6)
         antwort = klient.post(
-            "/lernen/api/laeufe", json={"methode": "zauberei", "daten": "original"}
+            "/lernen/api/laeufe", json={"methode": "zauberei"}
         )
         assert antwort.status_code == 400
 
@@ -64,7 +64,6 @@ class TestBeauftragen:
             "/lernen/api/laeufe",
             json={
                 "methode": "lora",
-                "daten": "original",
                 "grundmodell": "openai/whisper-medium",
             },
         )
@@ -81,7 +80,6 @@ class TestBeauftragen:
             "/lernen/api/laeufe",
             json={
                 "methode": "full",
-                "daten": "original",
                 "grundmodell": "openai/whisper-medium",
             },
         )
@@ -93,7 +91,7 @@ class TestBeauftragen:
     ) -> None:
         # Ohne die Achse gilt ihre Vorgabe.
         sprich(6)
-        lauf = _beauftrage(klient, "lora", "original")
+        lauf = _beauftrage(klient, "lora")
         liste = klient.get("/lernen/api/laeufe").json()
         assert lauf["basismodell"] == liste["basismodell"]
 
@@ -103,7 +101,7 @@ class TestBeauftragen:
         sprich(6)
         antwort = klient.post(
             "/lernen/api/laeufe",
-            json={"methode": "lora", "daten": "original", "grundmodell": "openai/whisper-riesig"},
+            json={"methode": "lora", "grundmodell": "openai/whisper-riesig"},
         )
         assert antwort.status_code == 400
 
@@ -135,7 +133,7 @@ class TestBeauftragen:
         assert nach_name["whisper-large-v3"] == ["full", "lora"]
         antwort = klient.post(
             "/lernen/api/laeufe",
-            json={"methode": "full", "daten": "original", "grundmodell": "openai/whisper-medium"},
+            json={"methode": "full", "grundmodell": "openai/whisper-medium"},
         )
         assert antwort.status_code == 201, antwort.text
 
@@ -143,12 +141,11 @@ class TestBeauftragen:
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis
     ) -> None:
         sprich(6)
-        lauf = _beauftrage(klient, "full", "augmentiert")
+        lauf = _beauftrage(klient, "full")
 
         verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, lauf["job_id"])
         auftrag = json.loads((verzeichnis / laeufe.AUFTRAG).read_text(encoding="utf-8"))
         assert auftrag["methode"] == "full"
-        assert auftrag["daten"] == "augmentiert"
         assert auftrag["basismodell"] == "openai/whisper-small"
         # Aus dem Profil und nicht aus der Umgebung: Der Trainer setzt daraus
         # die erzwungenen Marken von Whisper, und die Bewertung misst in
@@ -176,7 +173,7 @@ class TestManifest:
         # hörte ein Modell die Aufnahme, an der es gemessen wird - und das
         # sieht gut aus.
         sprich(12)
-        lauf = _beauftrage(klient, "lora", "augmentiert")
+        lauf = _beauftrage(klient, "lora")
 
         zeilen = _manifest(datenverzeichnis, lauf["job_id"])
         je_aufnahme: dict[str, set[int]] = {}
@@ -205,7 +202,7 @@ class TestManifest:
                 teil.erstellt = erstellt
             db.commit()
 
-        zeilen = _manifest(datenverzeichnis, _beauftrage(klient, "lora", "original")["job_id"])
+        zeilen = _manifest(datenverzeichnis, _beauftrage(klient, "lora")["job_id"])
         faltung = {z["recording_id"]: z["faltung"] for z in zeilen}
         assert faltung[original] == faltung[vorn] == faltung[hinten]
         # Und keine Faltung bleibt leer.
@@ -216,31 +213,19 @@ class TestManifest:
     ) -> None:
         # Keine Aufnahme bleibt ohne, keine Faltung leer.
         sprich(12)
-        lauf = _beauftrage(klient, "lora", "original")
+        lauf = _beauftrage(klient, "lora")
 
         zeilen = _manifest(datenverzeichnis, lauf["job_id"])
         vergeben = sorted({z["faltung"] for z in zeilen})
         assert vergeben == list(range(laeufe.FALTUNGEN))
 
-    def test_alle_fassungen_stehen_im_manifest(
-        self, klient: TestClient, quelle: str, sprich, datenverzeichnis
-    ) -> None:
-        # Auch beim Lauf „nur Originale": Gemessen wird immer auf allen
-        # Fassungen, gelernt je nach Auftrag - und die Auswahl trifft der
-        # Trainer, nicht das Manifest. Der Schnappschuss ist der Korpus, nicht
-        # die Anweisung.
-        sprich(6)
-        for daten in ("original", "augmentiert"):
-            zeilen = _manifest(datenverzeichnis, _beauftrage(klient, "lora", daten)["job_id"])
-            assert {z["variante"] for z in zeilen} == set(augmentierung.VARIANTEN)
-
-    def test_das_manifest_ist_fuer_beide_datensaetze_dasselbe(
+    def test_je_aufnahme_eine_zeile(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis
     ) -> None:
         sprich(6)
-        schlicht = _manifest(datenverzeichnis, _beauftrage(klient, "lora", "original")["job_id"])
-        reich = _manifest(datenverzeichnis, _beauftrage(klient, "lora", "augmentiert")["job_id"])
-        assert len(schlicht) == len(reich)
+        zeilen = _manifest(datenverzeichnis, _beauftrage(klient, "lora")["job_id"])
+        assert len(zeilen) == len({z["recording_id"] for z in zeilen}) == 6
+        assert all("variante" not in zeile for zeile in zeilen)
 
     def test_jede_zeile_zeigt_auf_eine_vorhandene_datei(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis, sprecher: str
@@ -248,7 +233,7 @@ class TestManifest:
         from wortlaut import corpus
 
         sprich(6)
-        lauf = _beauftrage(klient, "lora", "augmentiert")
+        lauf = _beauftrage(klient, "lora")
         korpus = datenverzeichnis / corpus.sprecher_relpfad(sprecher)
         for zeile in _manifest(datenverzeichnis, lauf["job_id"]):
             assert (korpus / zeile["audio"]).is_file(), zeile["audio"]
@@ -358,7 +343,6 @@ class TestLoeschen:
                 "sprecher_id": sprecher,
                 "job_id": lauf["job_id"],
                 "methode": "lora",
-                "daten": "original",
                 "basismodell": "openai/whisper-small",
                 "erstellt": "2026-09-12T12:00:00+00:00",
                 "status": "fertig",
@@ -529,7 +513,7 @@ class TestTempowahl:
     ) -> None:
         sprich(6)
         antwort = klient.post(
-            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original", "tempowahl": "optimal"}
+            "/lernen/api/laeufe", json={"methode": "lora", "tempowahl": "optimal"}
         )
         assert antwort.status_code == 201, antwort.text
 
@@ -549,7 +533,7 @@ class TestTempowahl:
     ) -> None:
         sprich(6)
         antwort = klient.post(
-            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original", "tempowahl": "optimal"}
+            "/lernen/api/laeufe", json={"methode": "lora", "tempowahl": "optimal"}
         )
         verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, antwort.json()["job_id"])
         # So sieht es aus, wenn der Trainer `bericht.merke(tempo=…)` geschrieben hat.
@@ -567,7 +551,7 @@ class TestTempowahl:
         sprich(6)
         antwort = klient.post(
             "/lernen/api/laeufe",
-            json={"methode": "lora", "daten": "original", "tempowahl": "optimal"},
+            json={"methode": "lora", "tempowahl": "optimal"},
         ).json()
         verzeichnis = laeufe.lauf_verzeichnis(datenverzeichnis, antwort["job_id"])
 
@@ -605,7 +589,7 @@ class TestTempowahl:
         soll = chunker.dauer(text) + ZUSCHLAG_S
         for faktor in (1.0, 1.5, 2.0, 3.0):
             zeilen = [
-                {"variante": "original", "text": text, "dauer_s": soll * faktor}
+                {"text": text, "dauer_s": soll * faktor}
             ] * 8
             assert aus_dauern(zeilen, Bericht()).faktor == auf_stufe(faktor)
 
@@ -620,7 +604,7 @@ class TestTempowahl:
             def sage(self, _text: str) -> None:
                 pass
 
-        zeilen = [{"variante": "original", "text": "Kurz.", "dauer_s": 60.0}] * 5
+        zeilen = [{"text": "Kurz.", "dauer_s": 60.0}] * 5
         assert aus_dauern(zeilen, Bericht()).faktor == tempo.SPANNE[1]
 
     def test_ohne_dauern_gilt_eins(self) -> None:
@@ -646,7 +630,7 @@ class TestTempowahl:
         sprich(6)
         antwort = klient.post(
             "/lernen/api/laeufe",
-            json={"methode": "lora", "daten": "original", "tempowahl": "schneller!"},
+            json={"methode": "lora", "tempowahl": "schneller!"},
         )
         assert antwort.status_code == 400
         assert "Tempowahl" in antwort.json()["detail"]
@@ -671,7 +655,7 @@ class TestSteuerung:
     ) -> None:
         sprich(6)
         antwort = klient.post(
-            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original", "steuerung": "wer"}
+            "/lernen/api/laeufe", json={"methode": "lora", "steuerung": "wer"}
         )
         assert antwort.status_code == 201, antwort.text
         assert antwort.json()["steuerung"] == laeufe.STEUERUNG_WER
@@ -685,7 +669,7 @@ class TestSteuerung:
         sprich(6)
         antwort = klient.post(
             "/lernen/api/laeufe",
-            json={"methode": "lora", "daten": "original", "steuerung": "gefuehl"},
+            json={"methode": "lora", "steuerung": "gefuehl"},
         )
         assert antwort.status_code == 400
         assert "Steuergröße" in antwort.json()["detail"]
@@ -697,7 +681,7 @@ class TestKontext:
     ) -> None:
         sprich(6)
         antwort = klient.post(
-            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original", "kontext": "vokabular"}
+            "/lernen/api/laeufe", json={"methode": "lora", "kontext": "vokabular"}
         )
         assert antwort.status_code == 201, antwort.text
         assert antwort.json()["kontext"] == laeufe.KONTEXT_VOKABULAR
@@ -710,7 +694,7 @@ class TestFenster:
     ) -> None:
         sprich(6)
         antwort = klient.post(
-            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original", "fenster": "gekuerzt"}
+            "/lernen/api/laeufe", json={"methode": "lora", "fenster": "gekuerzt"}
         )
         assert antwort.status_code == 201, antwort.text
         assert antwort.json()["fenster"] == laeufe.FENSTER_GEKUERZT
@@ -727,7 +711,7 @@ class TestLoraZusatz:
         sprich(6)
         antwort = klient.post(
             "/lernen/api/laeufe",
-            json={"methode": "lora", "daten": "original", "lora_ziele": "encoder", "lora_rang": "8"},
+            json={"methode": "lora", "lora_ziele": "encoder", "lora_rang": "8"},
         )
         assert antwort.status_code == 201, antwort.text
         lauf = antwort.json()
@@ -742,7 +726,7 @@ class TestLoraZusatz:
         sprich(6)
         antwort = klient.post(
             "/lernen/api/laeufe",
-            json={"methode": "full", "daten": "original", "lora_ziele": "alle"},
+            json={"methode": "full", "lora_ziele": "alle"},
         )
         assert antwort.status_code == 400
         assert "nur mit LoRA" in antwort.json()["detail"]
@@ -752,7 +736,7 @@ class TestLoraZusatz:
     ) -> None:
         sprich(6)
         antwort = klient.post(
-            "/lernen/api/laeufe", json={"methode": "lora", "daten": "original", "lora_rang": "7"}
+            "/lernen/api/laeufe", json={"methode": "lora", "lora_rang": "7"}
         )
         assert antwort.status_code == 400
         assert "LoRA-Rang" in antwort.json()["detail"]
@@ -795,7 +779,7 @@ class TestKorrekturen:
         self._korrektur(hoeren, "seg_1", 3)
         antwort = klient.post(
             "/lernen/api/laeufe",
-            json={"methode": "lora", "daten": "original", "korrekturgewicht": "0.25"},
+            json={"methode": "lora", "korrekturgewicht": "0.25"},
         )
         assert antwort.status_code == 201, antwort.text
         assert self._gewichte(datenverzeichnis, antwort.json()["job_id"]) == {3: 0.25}
@@ -811,7 +795,7 @@ class TestKorrekturen:
         self._korrektur(hoeren, "seg_3", None)
         antwort = klient.post(
             "/lernen/api/laeufe",
-            json={"methode": "lora", "daten": "original", "korrekturgewicht": "verlauf"},
+            json={"methode": "lora", "korrekturgewicht": "verlauf"},
         )
         assert antwort.status_code == 201, antwort.text
         assert self._gewichte(datenverzeichnis, antwort.json()["job_id"]) == {
@@ -826,7 +810,7 @@ class TestKorrekturen:
         sprich(6)
         antwort = klient.post(
             "/lernen/api/laeufe",
-            json={"methode": "lora", "daten": "original", "korrekturgewicht": "0.25"},
+            json={"methode": "lora", "korrekturgewicht": "0.25"},
         )
         assert {z["gewicht"] for z in _manifest(datenverzeichnis, antwort.json()["job_id"])} == {1.0}
 
@@ -875,7 +859,7 @@ class TestSelbsttraining:
 
         antwort = klient.post(
             "/lernen/api/laeufe",
-            json={"methode": "lora", "daten": "original", "selbsttraining": "an"},
+            json={"methode": "lora", "selbsttraining": "an"},
         )
         assert antwort.status_code == 201, antwort.text
         lauf = antwort.json()

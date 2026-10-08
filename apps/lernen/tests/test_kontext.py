@@ -42,10 +42,9 @@ class TestVokabular:
 
 
 class TestTexte:
-    def test_je_aufnahme_einmal_und_ohne_selbstbeschriftetes(self) -> None:
+    def test_ohne_selbstbeschriftetes(self) -> None:
         zeilen = [
-            {"recording_id": "rec_1", "variante": "original", "text": "Erster Satz"},
-            {"recording_id": "rec_1", "variante": "rauschen", "text": "Erster Satz"},
+            {"recording_id": "rec_1", "text": "Erster Satz"},
             {"recording_id": "seg_1", "quelle": laeufe.QUELLE_SELBST, "text": "Geraten"},
             {"recording_id": "rec_2", "quelle": "korrektur", "text": "Bestätigt"},
         ]

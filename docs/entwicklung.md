@@ -57,9 +57,9 @@ deutsche Wort benutzt.
 in UTC ab und schickt sie so hinaus; lesbar werden sie in `packages/ui/zeit.ts`.
 Der Server kennt die Zeitzone des Lesers nicht.
 
-**Keine Beschriftung, die eine Anzahl festschreibt.** „Bestwert", nicht „Beste
-der vier" - die Zahl ändert sich, und die Überschrift lügt dann, ohne dass ein
-Test anschlägt. Wo eine Zahl gebraucht wird, kommt sie aus den Daten.
+**Keine Beschriftung, die eine Anzahl festschreibt.** „Kreuzvalidierung",
+nicht „Sechsfache Kreuzvalidierung" - die Zahl ändert sich, und die
+Überschrift lügt dann, ohne dass ein Test anschlägt. Wo eine Zahl gebraucht wird, kommt sie aus den Daten.
 
 **Nur der aktuelle Stand.** Code, Kommentare, Doku und Oberfläche beschreiben,
 was gilt und warum - nicht, wie es vorher war. Die Geschichte steht in der

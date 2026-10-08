@@ -33,18 +33,13 @@
   let geladen = $state(false);
   let arbeitet = $state('');
 
-  // Vorgabe „Original": ob ein Stand den Sprecher verstanden hat. „Rauschen"
-  // zeigt die Aufnahmesituation, „Alle Fassungen" beides zusammen.
-  let fassung = $state('original');
   // Die Richtung folgt aus dem Maß.
   let sortiertNach = $state('genauigkeit');
 
   /**
    * Ob ein Vertrauensbereich neben jede Zahl tritt.
    *
-   * Zugeschaltet, nie von selbst: Die Zahlen bleiben dieselben. Gezogen wird
-   * blockweise je Aufnahme - die Fassungen einer Aufnahme sind Messungen an
-   * einem Gegenstand.
+   * Zugeschaltet, nie von selbst: Die Zahlen bleiben dieselben.
    */
   let sicherheit = $state(false);
   const blockart = $derived(sicherheit ? 'aufnahme' : 'aus');
@@ -62,20 +57,16 @@
 
   const masse = $derived(uebersicht?.masse ?? []);
 
-  const fassungen = $derived(uebersicht?.fassungen ?? []);
-  const gewaehlteFassung = $derived(fassungen.find((f) => f.schluessel === fassung));
-
   function wert(modell: Modell, mass: string): number | null {
-    const werte = modell.werte[fassung];
-    return werte && werte[mass] !== undefined ? werte[mass] : null;
+    return modell.werte[mass] ?? null;
   }
 
   function bereich(modell: Modell, mass: string): Intervall | null {
-    return modell.intervalle?.[fassung]?.[mass] ?? null;
+    return modell.intervalle?.[mass] ?? null;
   }
 
   function abstand(modell: Modell, mass: string): Unterschied | null {
-    return modell.unterschied?.[fassung]?.[mass] ?? null;
+    return modell.unterschied?.[mass] ?? null;
   }
 
   /** `0,003` statt `0.003` - und unterhalb der Auflösung ehrlich als „<".  */
@@ -153,8 +144,8 @@
     return !(erster.um.unten <= zweiter.um.oben && zweiter.um.unten <= erster.um.oben);
   }
 
-  const einheiten = $derived(
-    Math.max(0, ...(uebersicht?.modelle ?? []).map((modell) => modell.einheiten[fassung] ?? 0)),
+  const gemessen = $derived(
+    Math.max(0, ...(uebersicht?.modelle ?? []).map((modell) => modell.aufnahmen)),
   );
 
   /**
@@ -256,9 +247,8 @@
 
       {#if laufend}
         <!-- Dieselben Zahlen wie in der Zeile unten, aus derselben Rechnung
-             und über dieselben Messeinheiten - sie folgen deshalb auch der
-             Fassungswahl. Zwei Quellen für dieselbe Auskunft wären zwei
-             Gelegenheiten, verschiedene zu geben. -->
+             und über dieselben Aufnahmen. Zwei Quellen für dieselbe Auskunft
+             wären zwei Gelegenheiten, verschiedene zu geben. -->
         <p class="kennzahlen">
           {#each masse as mass (mass.schluessel)}
             {@const roh = wert(laufend, mass.schluessel)}
@@ -269,9 +259,8 @@
           {/each}
         </p>
         <p class="gedaempft klein">
-          Gemessen wie in der Tabelle unten - {gewaehlteFassung?.name ?? 'alle Fassungen'},
-          {laufend.einheiten[fassung] ?? 0}
-          {(laufend.einheiten[fassung] ?? 0) === 1 ? 'Messung' : 'Messungen'}.
+          Gemessen wie in der Tabelle unten, an {laufend.aufnahmen}
+          {laufend.aufnahmen === 1 ? 'Aufnahme' : 'Aufnahmen'}.
         </p>
       {/if}
 
@@ -282,27 +271,18 @@
     <p class="gedaempft klein">
       {#if uebersicht.vergleichbar}
         Gemessen an {uebersicht.messaufnahmen} Testaufnahmen, die kein Modell je zum Lernen gesehen
-        hat - {einheiten}
-        {einheiten === 1 ? 'Messung' : 'Messungen'} je Modell, für alle dieselben.
+        hat - {gemessen} je Modell, für alle dieselben.
       {:else}
         Noch kein gemeinsamer Boden: Jede Zeile rechnet auf dem, was sie hat.
       {/if}
     </p>
-    <label class="fassungswahl">
-      <span>Fassung</span>
-      <select bind:value={fassung}>
-        {#each fassungen as eintrag (eintrag.schluessel)}
-          <option value={eintrag.schluessel}>{eintrag.name}</option>
-        {/each}
-      </select>
-    </label>
     <!-- Ändert nichts an den Zahlen, legt eine zweite Zeile darunter. -->
-    <label class="fassungswahl">
+    <label class="regler">
       <span>Sicherheit</span>
       <input type="checkbox" role="switch" bind:checked={sicherheit} onchange={hole} />
     </label>
     {#if sicherheit}
-      <label class="fassungswahl">
+      <label class="regler">
         <span>Gegen</span>
         <select bind:value={gegen} onchange={hole}>
           <option value="">keines</option>
@@ -314,14 +294,9 @@
     {/if}
   </div>
 
-  {#if gewaehlteFassung}
-    <p class="gedaempft klein hinweiszeile">{gewaehlteFassung.erklaerung}</p>
-  {/if}
-
   {#if sicherheit}
     <p class="gedaempft klein hinweiszeile">
-      95-%-Bereich aus 2000 Ziehungen, blockweise über die Aufnahmen - ihre Fassungen sind
-      nicht unabhängig.
+      95-%-Bereich aus 2000 Ziehungen über die Aufnahmen.
       {#if uebersicht.vergleich_mit}
         {@const verglichen = uebersicht.modelle.find(
           (m) => m.ref === uebersicht!.vergleich_mit,
@@ -434,14 +409,14 @@
                     <span
                       class="streuung"
                       class:belegt={um.belegt}
-                      title="Gepaarter Abstand auf denselben {um.einheiten} Messungen aus {um.bloecke} Aufnahmen: {zahl(um.differenz, mass)} (95 %: {zahl(um.unten, mass)} bis {zahl(um.oben, mass)}), p = {pWert(um.p)}. {um.belegt ? 'Der Bereich schließt die Null aus - der Abstand ist belegt.' : 'Der Bereich enthält die Null - der Abstand kann Zufall sein.'} Verfahren: {um.marke}"
+                      title="Gepaarter Abstand auf denselben {um.bloecke} Aufnahmen: {zahl(um.differenz, mass)} (95 %: {zahl(um.unten, mass)} bis {zahl(um.oben, mass)}), p = {pWert(um.p)}. {um.belegt ? 'Der Bereich schließt die Null aus - der Abstand ist belegt.' : 'Der Bereich enthält die Null - der Abstand kann Zufall sein.'} Verfahren: {um.marke}"
                     >
                       {um.differenz >= 0 ? '+' : '−'}{zahl(Math.abs(um.differenz), mass)} · p {pWert(um.p)}
                     </span>
                   {:else if drum}
                     <span
                       class="streuung"
-                      title="95-%-Bereich aus {drum.einheiten} Messungen über {drum.bloecke} Aufnahmen; Standardfehler {drum.streuung}. Verfahren: {drum.marke}"
+                      title="95-%-Bereich über {drum.bloecke} Aufnahmen; Standardfehler {drum.streuung}. Verfahren: {drum.marke}"
                     >
                       {zahl(drum.unten, mass)} – {zahl(drum.oben, mass)}
                     </span>
@@ -469,7 +444,7 @@
     </table>
   </div>
 
-  {#if !uebersicht.zeit_vergleichbar && uebersicht.modelle.some((m) => m.werte[fassung])}
+  {#if !uebersicht.zeit_vergleichbar && uebersicht.modelle.some((m) => Object.keys(m.werte).length)}
     <p class="warnung">
       Rechenzeiten von verschiedenen Rechenwerken - nicht vergleichbar (Prozessor: zehn- bis
       zwanzigfach). Die Marke steht an jeder Zahl. Ein neuer Auswertungslauf in „hören“ misst
@@ -569,8 +544,7 @@
     font-size: 0.78rem;
   }
 
-  /* Was gemessen wurde, links; welche Fassung gezeigt wird, rechts. Beides
-     gehört zusammen: Die eine Zeile sagt, worauf sich die andere bezieht. */
+  /* Was gemessen wurde, links; die Regler rechts. */
   .messgrundlage {
     display: flex;
     flex-wrap: wrap;
@@ -585,7 +559,7 @@
     flex: 1 1 14rem;
   }
 
-  .fassungswahl {
+  .regler {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -593,13 +567,13 @@
     flex: none;
   }
 
-  .fassungswahl span {
+  .regler span {
     display: inline;
     margin: 0;
     font-size: 0.85rem;
   }
 
-  .fassungswahl select {
+  .regler select {
     width: auto;
     margin: 0;
   }
