@@ -163,7 +163,6 @@ def _ablage() -> storage.Ablage:
     return storage.LokaleAblage(einstellungen().data_dir)
 
 
-# Kurzschreibweisen für die Signaturen der Endpunkte.
 def _sprache(
     sprecher_id: Annotated[str, Depends(_sprecher_id)],
     sitzung: Annotated[Session, Depends(_sprecher_sitzung)],
@@ -176,6 +175,7 @@ def _sprache(
     return sprecher.sprache if sprecher is not None else sprachen.VORGABE
 
 
+# Kurzschreibweisen für die Signaturen der Endpunkte.
 SprecherId = Annotated[str, Depends(_sprecher_id)]
 Sprache = Annotated[str, Depends(_sprache)]
 Datenbank = Annotated[Session, Depends(_sprecher_sitzung)]

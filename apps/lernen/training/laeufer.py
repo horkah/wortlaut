@@ -34,8 +34,8 @@ from wortlaut import fehlerlog, laeufe
 from apps.lernen.backend.config import einstellungen
 from apps.lernen.backend.services import register
 
-# Ins Fehlerprotokoll (`wortlaut/fehlerlog.py`); die übrigen Zeilen gehen wie
-# bisher nur ins Container-Log.
+# Ins Fehlerprotokoll (`wortlaut/fehlerlog.py`); die übrigen Zeilen gehen nur
+# ins Container-Log.
 _log = logging.getLogger("wortlaut.trainer")
 
 
