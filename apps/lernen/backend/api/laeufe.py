@@ -987,9 +987,9 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
     if lauf_layout.mit_rauschkopie(auftrag):
         dazu(
             "Rauschkopien",
-            "mitgelernt und mitgemessen",
+            "mitgelernt",
             "je Aufnahme eine Kopie mit weißem Rauschen, 20 dB unter dem Signal - "
-            "Proben und Zahlen hier zählen nur die Aufnahmen",
+            "gezählt und gemessen sind nur die Aufnahmen",
         )
     dazu("Auswahl", *_auswahl_im_steckbrief(lauf))
     dazu(

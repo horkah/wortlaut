@@ -259,9 +259,9 @@ Glied, wenn sie nicht auf ihrer Vorgabe steht:
 Augmentierung, gesuchtem Tempo und Checkpoint-Mittel.
 
 **`A` tragen Läufe, die auch auf Rauschkopien lernten**: je Aufnahme eine
-Kopie mit weißem Rauschen, 20 dB unter dem Signal, mitgelernt und mitgemessen.
-Angeboten wird das nicht; ihre Stände gelten weiter. Ihre Zahlen zählen nur
-die Aufnahmen selbst (`laeufe.aufnahme_selbst`), und ihr Steckbrief nennt die
+Kopie mit weißem Rauschen, 20 dB unter dem Signal. Angeboten wird das nicht;
+ihre Stände gelten weiter. Gemessen ist nur an den Aufnahmen selbst, gezählt
+werden nur sie (`laeufe.aufnahme_selbst`), und ihr Steckbrief nennt die
 Rauschkopien.
 
 Hinter dem Code steht die **Folge**: die Zahl der gelernten Aufnahmen - bei
