@@ -21,6 +21,7 @@ nicht.
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -344,12 +345,7 @@ def teilen(
             speaker_id=sprecher,
             session_id=original.session_id,
             blob=ziel,
-            dauer_s=befund.dauer_s,
-            pegel_dbfs=befund.pegel_dbfs,
-            spitze_dbfs=befund.spitze_dbfs,
-            clipping_anteil=befund.clipping_anteil,
-            stille_vorn_s=befund.stille_vorn_s,
-            stille_hinten_s=befund.stille_hinten_s,
+            **asdict(befund),
             modus=original.modus,
             status="ok",
             hinweise=json.dumps(

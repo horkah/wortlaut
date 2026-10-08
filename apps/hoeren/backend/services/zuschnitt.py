@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import tempfile
 import wave
+from dataclasses import asdict
 from pathlib import Path
 
 from sqlalchemy import func
@@ -51,12 +52,8 @@ def schneide(
         befund = klang.untersuche(entwurf)
         ablage.lege_ab(aufnahme.blob, entwurf)
 
-    aufnahme.dauer_s = befund.dauer_s
-    aufnahme.pegel_dbfs = befund.pegel_dbfs
-    aufnahme.spitze_dbfs = befund.spitze_dbfs
-    aufnahme.clipping_anteil = befund.clipping_anteil
-    aufnahme.stille_vorn_s = befund.stille_vorn_s
-    aufnahme.stille_hinten_s = befund.stille_hinten_s
+    for feld, wert in asdict(befund).items():
+        setattr(aufnahme, feld, wert)
     aufnahme.hinweise = json.dumps(
         quality.pruefe(befund, vorlage.dauer_geschaetzt_s), ensure_ascii=False
     )

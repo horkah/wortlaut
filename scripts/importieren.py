@@ -26,7 +26,7 @@ from __future__ import annotations
 import json
 import re
 import sys
-import tempfile
+from dataclasses import asdict
 from pathlib import Path
 
 # Ausführbar ohne Installation: Repository-Wurzel in den Suchpfad legen.
@@ -34,12 +34,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from wortlaut import audio, corpus, db, ids, storage
+from wortlaut import corpus, db, ids, storage
 from wortlaut.text import chunker
 
 from apps.hoeren.backend.config import einstellungen
 from apps.hoeren.backend.db.models import Aufnahme, Sprecher, Textquelle, Vorlage, jetzt
-from apps.hoeren.backend.services import faltungen, quality
+from apps.hoeren.backend.services import aufnahmen, faltungen, quality
 from apps.hoeren.backend.services.prompt_queue import naechste_position
 
 TONENDUNGEN = (".m4a", ".mp3", ".wav", ".ogg", ".opus", ".flac")
@@ -119,11 +119,7 @@ def main() -> int:
 
             aufnahme_id = ids.neue_id("rec")
             relpfad = corpus.audio_relpfad(sprecher_id, aufnahme_id)
-            with tempfile.TemporaryDirectory() as verzeichnis:
-                wav = Path(verzeichnis) / "aufnahme.wav"
-                audio.wandle_in_wav(ton, wav)
-                befund = audio.untersuche(wav)
-                ablage.lege_ab(relpfad, wav)
+            befund = aufnahmen.nimm_an(ton, ablage, relpfad)
 
             vorlage = Vorlage(
                 id=ids.neue_id("prm"),
@@ -142,12 +138,7 @@ def main() -> int:
                 speaker_id=sprecher_id,
                 session_id=None,
                 blob=relpfad,
-                dauer_s=befund.dauer_s,
-                pegel_dbfs=befund.pegel_dbfs,
-                spitze_dbfs=befund.spitze_dbfs,
-                clipping_anteil=befund.clipping_anteil,
-                stille_vorn_s=befund.stille_vorn_s,
-                stille_hinten_s=befund.stille_hinten_s,
+                **asdict(befund),
                 modus="gelesen",
                 status="ok",
                 hinweise=json.dumps(
