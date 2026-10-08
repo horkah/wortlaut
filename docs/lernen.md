@@ -131,7 +131,10 @@ neben dem Stand; die Freigabe blockiert er nicht.
 ## Die Achsen eines Auftrags
 
 Jede Achse steht im Auftrag, im Manifest des Standes und als Glied im
-Optionscode. Die Vorgabe ist jeweils der erste Wert.
+Optionscode. Die Vorgabe ist jeweils der erste Wert. Feld, Werte, Vorgabe und
+Glied stehen an einer Stelle, der Tafel `laeufe.ACHSEN`; Prüfung, Auftrag,
+Antworten und Manifest lesen dort. Eine neue Achse braucht dazu ihre
+Beschriftung (`api/laeufe.py`, `Training.svelte`) und ihre Wirkung im Trainer.
 
 | Achse | Werte | wofür |
 |---|---|---|

@@ -68,7 +68,7 @@ def beschrifte(
     Eine vorhandene Datei bleibt - dieselbe Beschriftung für alle sieben
     Trainings. `erkenner` für die Tests.
     """
-    if laeufe.selbsttraining_aus(auftrag) != laeufe.SELBST_AN:
+    if laeufe.achse(auftrag, "selbsttraining") != laeufe.SELBST_AN:
         return
     pfad = verzeichnis / laeufe.SELBSTBESCHRIFTUNG
     if pfad.is_file():

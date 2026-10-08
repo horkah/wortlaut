@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, create_model
 from wortlaut import kartenplan, laeufe as lauf_layout, registry, schluessel
 
 from ..config import einstellungen
@@ -359,24 +359,17 @@ def _grundmodelle() -> list[GrundmodellAntwort]:
     return antworten
 
 
-class Bestellung(BaseModel):
+# Je Achse ein Feld mit ihrer Vorgabe (`lauf_layout.ACHSEN`) - in Bestellung und
+# Antwort dieselben. LoRA-Ziele und -Rang gelten nur bei LoRA.
+Achsenfelder = create_model(
+    "Achsenfelder", **{achse.feld: (str, achse.vorgabe) for achse in lauf_layout.ACHSEN}
+)
+
+
+class Bestellung(Achsenfelder):
     methode: str
-    # Nur bei LoRA; bei vollem Training die Vorgaben.
-    lora_ziele: str = lauf_layout.ZIELE_QV
-    lora_rang: str = lauf_layout.RANG_VORGABE
-    # Die übrigen Achsen mit ihren Vorgaben.
-    abschluss: str = lauf_layout.ABSCHLUSS_BESTER
-    augmentierung: str = lauf_layout.AUG_KEINE
-    dauer: str = lauf_layout.DAUER_FEST
-    steuerung: str = lauf_layout.STEUERUNG_VERLUST
-    fenster: str = lauf_layout.FENSTER_VOLL
-    tempowahl: str = lauf_layout.TEMPO_AUS
-    kontext: str = lauf_layout.KONTEXT_AUS
     # Leer: die Vorgabe des Servers.
     grundmodell: str = ""
-    auswahl: str = lauf_layout.AUSWAHL_ALLE
-    korrekturgewicht: str = lauf_layout.GEWICHT_VORGABE
-    selbsttraining: str = lauf_layout.SELBST_AUS
 
 
 class StandHinweis(BaseModel):
@@ -386,7 +379,7 @@ class StandHinweis(BaseModel):
     freigegeben: bool
 
 
-class LaufAntwort(BaseModel):
+class LaufAntwort(Achsenfelder):
     job_id: str
     sprecher_id: str
     # Der Titel des Laufs: alle Achsen als Optionscode, dahinter die Folge
@@ -395,19 +388,6 @@ class LaufAntwort(BaseModel):
     methode: str
     # Ob der Lauf auch auf Rauschkopien lernte (`lauf_layout.MIT_RAUSCHKOPIE`).
     rauschkopie: bool = False
-    # Die Achsen; fehlt eine im Auftrag, galt ihre Vorgabe.
-    lora_ziele: str = lauf_layout.ZIELE_QV
-    lora_rang: str = lauf_layout.RANG_VORGABE
-    auswahl: str = lauf_layout.AUSWAHL_ALLE
-    korrekturgewicht: str = lauf_layout.GEWICHT_VORGABE
-    selbsttraining: str = lauf_layout.SELBST_AUS
-    abschluss: str
-    augmentierung: str
-    dauer: str
-    steuerung: str = lauf_layout.STEUERUNG_VERLUST
-    fenster: str = lauf_layout.FENSTER_VOLL
-    tempowahl: str = lauf_layout.TEMPO_AUS
-    kontext: str = lauf_layout.KONTEXT_AUS
     # Das Tempo, mit dem gerechnet wurde; `null`, solange die Suche läuft.
     tempo: float | None = None
     # Während der Suche der Median des bisher Gefundenen - dann `false`.
@@ -555,7 +535,7 @@ def _anteil(lauf: lauf_layout.Lauf) -> float | None:
     endmodell = "faltung" in zustand and zustand.get("faltung") is None
     nummer = trainings - 1 if endmodell else int(zustand.get("faltung") or 0)
 
-    sucht = lauf_layout.tempowahl_aus(lauf.auftrag) == lauf_layout.TEMPO_OPTIMAL
+    sucht = lauf_layout.achse(lauf.auftrag, "tempowahl") == lauf_layout.TEMPO_OPTIMAL
     stufen = (
         list(ENDSTUFEN)
         if endmodell
@@ -624,13 +604,13 @@ def _umfang(lauf: lauf_layout.Lauf, auswahl: str | None = None) -> lauf_layout.U
         for name in (lauf_layout.MANIFEST, lauf_layout.KERNAUSWAHL, lauf_layout.SELBSTBESCHRIFTUNG)
     )
     return _umfang_gemerkt(
-        lauf.verzeichnis, auswahl or lauf_layout.auswahl_aus(lauf.auftrag), marken
+        lauf.verzeichnis, auswahl or lauf_layout.achse(lauf.auftrag, "auswahl"), marken
     )
 
 
 def _kernumfang(lauf: lauf_layout.Lauf) -> dict[str, int]:
     """Auf wie vielen Aufnahmen ein Kernlauf lernt - leer bei allen."""
-    if lauf_layout.auswahl_aus(lauf.auftrag) != lauf_layout.AUSWAHL_KERN:
+    if lauf_layout.achse(lauf.auftrag, "auswahl") != lauf_layout.AUSWAHL_KERN:
         return {}
     inhalt = lauf_layout.lies_json(lauf.verzeichnis / lauf_layout.KERNAUSWAHL) or {}
     aufnahmen = int(lauf.auftrag.get("aufnahmen", 0))
@@ -665,18 +645,8 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         code=lauf_layout.titel(lauf.auftrag),
         methode=str(lauf.auftrag.get("methode", "")),
         rauschkopie=lauf_layout.mit_rauschkopie(lauf.auftrag),
-        lora_ziele=lauf_layout.lora_ziele_aus(lauf.auftrag),
-        lora_rang=lauf_layout.lora_rang_aus(lauf.auftrag),
-        auswahl=lauf_layout.auswahl_aus(lauf.auftrag),
-        korrekturgewicht=lauf_layout.korrekturgewicht_aus(lauf.auftrag),
-        selbsttraining=lauf_layout.selbsttraining_aus(lauf.auftrag),
-        abschluss=str(lauf.auftrag.get("abschluss") or lauf_layout.ABSCHLUSS_BESTER),
-        augmentierung=str(lauf.auftrag.get("augmentierung") or lauf_layout.AUG_KEINE),
-        dauer=str(lauf.auftrag.get("dauer") or lauf_layout.DAUER_FEST),
-        steuerung=lauf_layout.steuerung_aus(lauf.auftrag),
-        fenster=lauf_layout.fenster_aus(lauf.auftrag),
-        tempowahl=lauf_layout.tempowahl_aus(lauf.auftrag),
-        kontext=lauf_layout.kontext_aus(lauf.auftrag),
+        # Fehlt eine Achse im Auftrag, galt ihre Vorgabe.
+        **{achse.feld: achse.wert(lauf.auftrag) for achse in lauf_layout.ACHSEN},
         tempo=_tempo_des_laufs(lauf),
         tempo_endgueltig=bool(lauf.zustand.get("tempo_endgueltig", True)),
         basismodell=str(lauf.auftrag.get("basismodell", "")),
@@ -796,7 +766,7 @@ def _abschlusstext(manifest: dict) -> str:
 
 def _auswahl_im_steckbrief(lauf: lauf_layout.Lauf) -> tuple[str, str]:
     """Die Auswahl als Wert und Hinweis: beim Kern wie viele, nach wem, bis wohin."""
-    auswahl = lauf_layout.auswahl_aus(lauf.auftrag)
+    auswahl = lauf_layout.achse(lauf.auftrag, "auswahl")
     name = _wahlname(AUSWAHLEN, auswahl)
     if auswahl != lauf_layout.AUSWAHL_KERN:
         return name, ""
@@ -884,7 +854,7 @@ def _messung_im_steckbrief(umfang: lauf_layout.Umfang) -> tuple[str, str]:
 
 def _selbst_im_steckbrief(lauf: lauf_layout.Lauf) -> tuple[str, str]:
     """Das Selbsttraining als Wert und Hinweis: wie viele aufgenommen, nach wem."""
-    wahl = lauf_layout.selbsttraining_aus(lauf.auftrag)
+    wahl = lauf_layout.achse(lauf.auftrag, "selbsttraining")
     name = _wahlname(SELBSTTRAININGE, wahl)
     if wahl != lauf_layout.SELBST_AN:
         return name, ""
@@ -933,9 +903,9 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
     methode = str(auftrag.get("methode", ""))
     if methode == lauf_layout.LORA:
         # Rang und α aus dem Manifest, solange er rechnet aus dem Auftrag.
-        rang = rezept.get("lora_rang") or lauf_layout.lora_rang_aus(auftrag)
+        rang = rezept.get("lora_rang") or lauf_layout.achse(auftrag, "lora_rang")
         alpha = rezept.get("lora_alpha")
-        ziele = lauf_layout.lora_ziele_aus(auftrag)
+        ziele = lauf_layout.achse(auftrag, "lora_ziele")
         wo = " und ".join(rezept.get("lora_teile") or [])
         dazu(
             "Methode",
@@ -956,7 +926,7 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
     dazu("Auswahl", *_auswahl_im_steckbrief(lauf))
     dazu(
         "Korrekturen",
-        _wahlname(KORREKTURGEWICHTE, lauf_layout.korrekturgewicht_aus(auftrag)),
+        _wahlname(KORREKTURGEWICHTE, lauf_layout.achse(auftrag, "korrekturgewicht")),
         "Vorlagen zählen 1",
     )
     dazu("Selbsttraining", *_selbst_im_steckbrief(lauf))
@@ -966,7 +936,7 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
         dazu("Training", *_training_im_steckbrief(umfang))
         dazu("Messung", *_messung_im_steckbrief(umfang))
 
-    stufe = str(auftrag.get("augmentierung") or lauf_layout.AUG_KEINE)
+    stufe = lauf_layout.achse(auftrag, "augmentierung")
     dazu(
         "Augmentierung",
         AUGMENTIERUNG_GRIFFE.get(stufe, _wahlname(AUGMENTIERUNGEN, stufe)),
@@ -976,7 +946,7 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
     )
 
     faktor = _tempo_des_laufs(lauf)
-    gesucht = lauf_layout.tempowahl_aus(auftrag)
+    gesucht = lauf_layout.achse(auftrag, "tempowahl")
     endgueltig = bool(zustand.get("tempo_endgueltig", True))
     if faktor is None:
         dazu("Vorspulen", "wird gesucht", "noch keine Faltung durch")
@@ -1033,10 +1003,10 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
     gelaufen = kv.get("durchgaenge")
     obergrenze = (
         rezept.get("epochen_hoechstens")
-        if str(auftrag.get("dauer")) == lauf_layout.DAUER_GEDULDIG
+        if lauf_layout.achse(auftrag, "dauer") == lauf_layout.DAUER_GEDULDIG
         else rezept.get("epochen")
     )
-    geduldig = str(auftrag.get("dauer")) == lauf_layout.DAUER_GEDULDIG
+    geduldig = lauf_layout.achse(auftrag, "dauer") == lauf_layout.DAUER_GEDULDIG
     if gelaufen is not None:
         # Die Obergrenze nur aus dem Manifest - die Rezeptdatei kann sich
         # seit dem Lauf geändert haben.
@@ -1048,14 +1018,14 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
             f"Median der Faltungen · Geduld {geduld}" if geduldig and geduld else "Median der Faltungen",
         )
     else:
-        dazu("Dauer", _wahlname(DAUERN, str(auftrag.get("dauer") or lauf_layout.DAUER_FEST)))
-    steuerung = lauf_layout.steuerung_aus(auftrag)
+        dazu("Dauer", _wahlname(DAUERN, lauf_layout.achse(auftrag, "dauer")))
+    steuerung = lauf_layout.achse(auftrag, "steuerung")
     dazu(
         "Steuergröße",
         _wahlname(STEUERUNGEN, steuerung),
         "wählt Checkpoint, Abbruch und α",
     )
-    if lauf_layout.fenster_aus(auftrag) == lauf_layout.FENSTER_GEKUERZT:
+    if lauf_layout.achse(auftrag, "fenster") == lauf_layout.FENSTER_GEKUERZT:
         sekunden = zustand.get("fenster_s")
         dazu(
             "Fenster",
@@ -1065,7 +1035,7 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
 
     dazu("Abschluss", _abschlusstext(manifest))
     dazu("Endmodell", *_endmodell_im_steckbrief(manifest))
-    if lauf_layout.kontext_aus(auftrag) == lauf_layout.KONTEXT_VOKABULAR:
+    if lauf_layout.achse(auftrag, "kontext") == lauf_layout.KONTEXT_VOKABULAR:
         woerter = [wort for wort in str(manifest.get("startprompt") or "").split(", ") if wort]
         dazu(
             "Startprompt",
@@ -1108,7 +1078,7 @@ def _tempo_des_laufs(lauf: lauf_layout.Lauf) -> float | None:
     gewaehlt = lauf.zustand.get("tempo")
     if gewaehlt is not None:
         return float(gewaehlt)
-    if lauf_layout.tempowahl_aus(lauf.auftrag) != lauf_layout.TEMPO_AUS:
+    if lauf_layout.achse(lauf.auftrag, "tempowahl") != lauf_layout.TEMPO_AUS:
         return None
     return float(lauf.auftrag.get("tempo", 1.0))
 
@@ -1192,19 +1162,8 @@ def beauftrage(
                 sprecher_id=sprecher,
                 sprache=sprache,
                 methode=bestellung.methode,
-                lora_ziele=bestellung.lora_ziele,
-                lora_rang=bestellung.lora_rang,
-                auswahl=bestellung.auswahl,
-                korrekturgewicht=bestellung.korrekturgewicht,
-                selbsttraining=bestellung.selbsttraining,
-                abschluss=bestellung.abschluss,
-                augmentierung=bestellung.augmentierung,
-                dauer=bestellung.dauer,
-                steuerung=bestellung.steuerung,
-                fenster=bestellung.fenster,
-                tempowahl=bestellung.tempowahl,
-                kontext=bestellung.kontext,
                 grundmodell=bestellung.grundmodell,
+                achsen=bestellung.model_dump(exclude={"methode", "grundmodell"}),
             ),
         )
     except auftraege.Abgelehnt as ursache:

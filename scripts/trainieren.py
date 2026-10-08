@@ -38,20 +38,6 @@ from apps.lernen.backend.config import einstellungen
 from apps.lernen.backend.services import auftraege
 
 REZEPTE = Path(__file__).resolve().parents[1] / "apps" / "lernen" / "training" / "rezepte"
-ACHSEN = (
-    "lora_ziele",
-    "lora_rang",
-    "auswahl",
-    "korrekturgewicht",
-    "selbsttraining",
-    "abschluss",
-    "augmentierung",
-    "dauer",
-    "steuerung",
-    "fenster",
-    "tempowahl",
-    "kontext",
-)
 TAKT_S = 5.0
 # Wie lange ein Auftrag warten darf, bis der Hinweis auf den Läufer kommt.
 LAEUFER_HINWEIS_NACH_S = 60.0
@@ -78,8 +64,10 @@ def achsen_aus(angaben: list[str]) -> dict[str, str]:
     achsen: dict[str, str] = {}
     for angabe in angaben:
         achse, _, wert = angabe.partition("=")
-        if achse not in ACHSEN or not wert:
-            raise SystemExit(f"Unbekannt: {angabe}. Möglich: {', '.join(f'{a}=…' for a in ACHSEN)}.")
+        if achse not in laeufe.ACHSE or not wert:
+            raise SystemExit(
+                f"Unbekannt: {angabe}. Möglich: {', '.join(f'{a}=…' for a in laeufe.ACHSE)}."
+            )
         achsen[achse] = wert
     return achsen
 
@@ -145,7 +133,7 @@ def main() -> int:
                     sprache=sprecher.sprache,
                     methode=methode,
                     grundmodell=grundmodell_aus(wahl.grundmodell) if wahl.grundmodell else "",
-                    **achsen_aus(wahl.achsen),
+                    achsen=achsen_aus(wahl.achsen),
                 ),
             )
         except auftraege.Abgelehnt as ursache:

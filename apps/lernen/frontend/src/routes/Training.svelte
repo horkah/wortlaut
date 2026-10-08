@@ -228,6 +228,7 @@
    * Welche Bestellungen schon gerechnet sind, mit allen Achsen - für den Satz
    * neben dem Knopf. Wer denselben Lauf mit einem anderen Abschluss bestellt,
    * hat etwas Neues bestellt und soll nicht lesen, das sei schon gerechnet.
+   * Jede Achse kommt vom Server, fehlt sie im Auftrag, mit ihrer Vorgabe.
    */
   const gerechnetGenau = $derived(
     new Set(
@@ -238,19 +239,19 @@
             [
               lauf.basismodell,
               lauf.methode,
-              lauf.lora_ziele || 'qv',
-              lauf.lora_rang || '32',
+              lauf.lora_ziele,
+              lauf.lora_rang,
               lauf.rauschkopie ? 'A' : '',
-              lauf.auswahl || 'alle',
-              lauf.korrekturgewicht || '0.5',
-              lauf.selbsttraining || 'aus',
-              lauf.abschluss || 'bester',
-              lauf.augmentierung || 'keine',
-              lauf.dauer || 'fest',
-              lauf.steuerung || 'verlust',
-              lauf.fenster || 'voll',
-              lauf.tempowahl || 'wie_eingestellt',
-              lauf.kontext || 'aus',
+              lauf.auswahl,
+              lauf.korrekturgewicht,
+              lauf.selbsttraining,
+              lauf.abschluss,
+              lauf.augmentierung,
+              lauf.dauer,
+              lauf.steuerung,
+              lauf.fenster,
+              lauf.tempowahl,
+              lauf.kontext,
             ].join('/'),
         ),
     ),
