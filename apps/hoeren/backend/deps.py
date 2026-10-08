@@ -174,7 +174,7 @@ def _sprecher_sitzung(sprecher_id: Annotated[str, Depends(_sprecher_id)]) -> Ite
 
 
 def _ablage() -> storage.Ablage:
-    return storage.oeffne_ablage(einstellungen().storage, einstellungen().data_dir)
+    return storage.LokaleAblage(einstellungen().data_dir)
 
 
 # Kurzschreibweisen für die Signaturen der Endpunkte.

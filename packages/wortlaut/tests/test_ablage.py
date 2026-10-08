@@ -10,7 +10,6 @@ import sqlite3
 import time
 from pathlib import Path
 
-import pytest
 from wortlaut import corpus, db, ids, registry, storage
 
 MIGRATION = """
@@ -63,7 +62,7 @@ class TestDatenbank:
 
 class TestAblage:
     def test_verschiebt_und_loescht(self, tmp_path: Path) -> None:
-        ablage = storage.oeffne_ablage("local", tmp_path)
+        ablage = storage.LokaleAblage(tmp_path)
         quelle = tmp_path / "temp.wav"
         quelle.write_bytes(b"klang")
 
@@ -75,12 +74,6 @@ class TestAblage:
         ablage.loesche("korpus/spr_1/audio/rec_1.wav")
         assert not ablage.pfad("korpus/spr_1/audio/rec_1.wav").exists()
         ablage.loesche("korpus/spr_1/audio/rec_1.wav")  # zweimal löschen ist erlaubt
-
-    def test_meldet_unbekannte_arten(self, tmp_path: Path) -> None:
-        with pytest.raises(NotImplementedError):
-            storage.oeffne_ablage("s3", tmp_path)
-        with pytest.raises(ValueError):
-            storage.oeffne_ablage("ftp", tmp_path)
 
 
 class TestKorpus:

@@ -167,7 +167,7 @@ def hole(stimme: str, ziel: Path) -> int:
 def lies_alles_vor(stimme: str) -> int:
     """Jede Vorlage jedes Korpus in dieser Stimme; gibt die neuen zurück."""
     konfiguration = einstellungen()
-    ablage = storage.oeffne_ablage(konfiguration.storage, konfiguration.data_dir)
+    ablage = storage.LokaleAblage(konfiguration.data_dir)
     sprecher = corpus.sprecher_ids(konfiguration.data_dir)
     if not sprecher:
         print(f"Keine Korpora unter {konfiguration.data_dir / corpus.KORPUS} - nichts zu tun.")

@@ -1,7 +1,8 @@
-"""Blob-Ablage: lokal oder S3-kompatibel.
+"""Blob-Ablage: Dateien unter dem Datenverzeichnis.
 
 Alle Pfade sind relativ zur Wurzel der Ablage (`korpus/spr_…/audio/rec_….wav`),
-damit der Fachcode nichts über das Dateisystem des Servers wissen muss.
+damit der Fachcode nichts über das Dateisystem des Servers wissen muss. Eine
+andere Ablage - etwa S3 - müsste nur das Protokoll `Ablage` erfüllen.
 """
 
 from __future__ import annotations
@@ -43,14 +44,3 @@ class LokaleAblage:
     def loesche(self, relpfad: str) -> None:
         self.pfad(relpfad).unlink(missing_ok=True)
 
-
-def oeffne_ablage(art: str, wurzel: Path) -> Ablage:
-    """Fabrik für `WORTLAUT_STORAGE`."""
-    if art == "local":
-        return LokaleAblage(wurzel)
-    if art == "s3":
-        # Bewusst noch nicht gebaut: solange ein Server genügt, ist die lokale
-        # Ablage die einfachere und für Gesundheitsdaten die engere Lösung.
-        # Eine S3-Umsetzung müsste nur das Protokoll `Ablage` erfüllen.
-        raise NotImplementedError("S3-Ablage ist noch nicht umgesetzt (siehe storage.py)")
-    raise ValueError(f"Unbekannte Ablageart: {art!r}")

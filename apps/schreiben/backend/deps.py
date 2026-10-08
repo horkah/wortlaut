@@ -173,7 +173,7 @@ def _sitzung(sprecher_id: Annotated[str, Depends(_sprecher_id)]) -> Iterator[Ses
 
 
 def _ablage() -> storage.Ablage:
-    return storage.oeffne_ablage(einstellungen().storage, einstellungen().data_dir)
+    return storage.LokaleAblage(einstellungen().data_dir)
 
 
 def _transkriptor(sprecher_id: Annotated[str, Depends(_sprecher_id)]) -> Transkriptor:

@@ -16,7 +16,6 @@ cp .env.example .env
 | Variable | Vorgabe | Was sie tut |
 |---|---|---|
 | `WORTLAUT_DATA_DIR` | `./data` | Korpora, Diktate, Läufe, Modelle; im Container immer `/srv/wortlaut/data` |
-| `WORTLAUT_STORAGE` | `local` | Blob-Ablage; `s3` ist vorbereitet, nicht umgesetzt |
 | `WORTLAUT_STIMMEN_DIR` | `./modellcache/stimmen` | Piper-Stimmen fürs Vorlesen; ohne Stimme liest der Browser |
 | `WORTLAUT_VORLESEN_MOTOR` | `piper` | welcher Motor spricht |
 | `WORTLAUT_MODELLCACHE` | `./data/modellcache` | *Compose:* Grundmodelle von Hugging Face auf dem Wirt |
