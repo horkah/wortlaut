@@ -80,8 +80,6 @@ class Auftrag:
     fenster: str = laeufe.FENSTER_VOLL
     tempowahl: str = laeufe.TEMPO_AUS
     kontext: str = laeufe.KONTEXT_AUS
-    # Leer: das unveränderte `basismodell`.
-    ausgangsstand: str = ""
     auswahl: str = laeufe.AUSWAHL_ALLE
     korrekturgewicht: str = laeufe.GEWICHT_VORGABE
     selbsttraining: str = laeufe.SELBST_AUS
@@ -244,8 +242,6 @@ def beauftrage(
         "zeilen": gezaehlt,
         "aufnahmen": len(proben),
     }
-    if auftrag.ausgangsstand:
-        inhalt[laeufe.AUSGANGSSTAND] = auftrag.ausgangsstand
     # Die Folge hinter dem Optionscode (`/43`, `/43b`, …), einmal vergeben
     # (`wortlaut/laeufe.py`). Stände zählen mit, falls einer seinen Lauf überlebt hat.
     inhalt[laeufe.FOLGE] = laeufe.naechste_folge(
@@ -326,8 +322,6 @@ def bestelle(datenverzeichnis: Path, korpus: Session, bestellung: Bestellung) ->
 
     konfiguration = einstellungen()
     grundmodell = bestellung.grundmodell or konfiguration.lernen_basismodell
-    # Nur Whisper-Modelle. Ein Ausgangsstand (`Auftrag.ausgangsstand`,
-    # `training/ausgangsstand.py`) kann der Trainer, angeboten wird er nicht.
     if grundmodell not in konfiguration.grundmodelle():
         raise Abgelehnt(
             400,

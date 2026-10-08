@@ -24,7 +24,7 @@ from pydantic import BaseModel
 from wortlaut import kartenplan, laeufe as lauf_layout, registry, schluessel
 
 from ..config import einstellungen
-from ..deps import Korpus, Sprache, SprecherId, korpus_engine
+from ..deps import Korpus, Sprache, SprecherId
 from ..services import aufteilung, auftraege, vergleich
 
 router = APIRouter(prefix="/lernen/api/laeufe", tags=["Läufe"])
@@ -359,20 +359,6 @@ def _grundmodelle() -> list[GrundmodellAntwort]:
     return antworten
 
 
-def _sprechername(sprecher_id: str) -> str:
-    """Wem ein Ausgangsstand gehört - leer, wenn sich das nicht sagen lässt."""
-    from sqlalchemy.orm import Session
-
-    from apps.hoeren.backend.db.models import Sprecher
-
-    try:
-        with Session(korpus_engine(sprecher_id)) as sitzung:
-            eintrag = sitzung.get(Sprecher, sprecher_id)
-            return eintrag.name if eintrag is not None else ""
-    except Exception:  # noqa: BLE001 - ein fehlender Name kostet die Wahl nicht
-        return ""
-
-
 class Bestellung(BaseModel):
     methode: str
     # Nur bei LoRA; bei vollem Training die Vorgaben.
@@ -426,10 +412,8 @@ class LaufAntwort(BaseModel):
     tempo: float | None = None
     # Während der Suche der Median des bisher Gefundenen - dann `false`.
     tempo_endgueltig: bool = True
+    # Das Whisper-Modell darunter - gegen das misst die Baseline.
     basismodell: str
-    # Worauf aufgesetzt wurde (`GrundmodellAntwort`): Grundmodell oder
-    # Ausgangsstand. Die Baseline misst `basismodell`.
-    grundmodell: str = ""
     erstellt: str
     status: str
     # Woran gerade gearbeitet wird: laden, tempowahl, training, abschluss,
@@ -710,7 +694,6 @@ def _als_antwort(lauf: lauf_layout.Lauf) -> LaufAntwort:
         tempo=_tempo_des_laufs(lauf),
         tempo_endgueltig=bool(lauf.zustand.get("tempo_endgueltig", True)),
         basismodell=str(lauf.auftrag.get("basismodell", "")),
-        grundmodell=lauf_layout.grundmodell_aus(lauf.auftrag),
         erstellt=str(lauf.auftrag.get("erstellt", "")),
         status=lauf.status,
         stufe=str(lauf.zustand.get("stufe", "")),
@@ -959,13 +942,6 @@ def steckbrief(lauf: lauf_layout.Lauf) -> list[SteckbriefZeile]:
 
     # ── Was gelernt wurde ───────────────────────────────────────────────────
     dazu("Grundmodell", str(auftrag.get("basismodell", "")))
-    ausgang = str(auftrag.get(lauf_layout.AUSGANGSSTAND) or "")
-    if ausgang:
-        dazu(
-            "Ausgangsstand",
-            registry.beschriftung(ausgang),
-            hinweis=_sprechername(ausgang.split(registry.TRENNER, 1)[0]),
-        )
 
     rezept = dict(manifest.get("rezept") or {})
     methode = str(auftrag.get("methode", ""))

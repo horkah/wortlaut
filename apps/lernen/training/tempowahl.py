@@ -180,9 +180,7 @@ def waehle(
 ) -> Ergebnis:
     """Den Faktor mit dem kleinsten WER am Grundmodell; `1.0`, wenn nichts geht.
 
-    `modell` ist, was faster-whisper laden soll: der kurze Name des
-    Grundmodells oder das Verzeichnis eines Ausgangsstands
-    (`ausgangsstand.erkenner`).
+    `modell` ist der kurze Name des Grundmodells, wie faster-whisper ihn lädt.
 
     Scheitert die Suche, gilt 1,0 und der Hinweis sagt warum - der Lauf geht weiter.
     """
@@ -197,7 +195,7 @@ def waehle(
     from apps.lernen.backend.config import einstellungen
 
     geraet, rechenart = einstellungen().rechenwerk()
-    # Das Modell am Anfang des Feintunings: Grundmodell oder Ausgangsstand.
+    # Das Modell am Anfang des Feintunings.
     erkenner = LokalerTranskriptor(modell, geraet=geraet, rechenart=rechenart)
 
     # Eine eigene Stufe, damit die Übersicht sagt, was die Minute füllt.

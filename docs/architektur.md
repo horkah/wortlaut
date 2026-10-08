@@ -103,7 +103,6 @@ wortlaut/
 │   │   │   ├── klangwandel.py     # Augmentierung zur Laufzeit
 │   │   │   ├── tempowahl.py       # Vorspulfaktor schätzen oder suchen
 │   │   │   ├── abschluss.py       # Checkpoint-Mittel und WiSE-FT
-│   │   │   ├── ausgangsstand.py   # auf einem trainierten Stand aufsetzen
 │   │   │   ├── bewerten.py        # Faltungen messen, Kern wählen, Stand eintragen
 │   │   │   ├── karte.py           # auf eine belegte Karte warten
 │   │   │   ├── endmodell.py       # das Mittel der Faltungen, Ausreißer draußen

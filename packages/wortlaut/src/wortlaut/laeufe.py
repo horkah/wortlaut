@@ -14,7 +14,7 @@ ein Verzeichnis je Auftrag:
     ├── bewertung.jsonl       je Zeile eine Messung einer Faltung
     ├── protokoll.txt         die rohe Ausgabe
     ├── halt                  der Wunsch, anzuhalten
-    └── arbeitsstand/, gewichte/, vorgespult/, ausgang/   nur während des Laufs
+    └── arbeitsstand/, gewichte/, vorgespult/   nur während des Laufs
 
 Keine Tabelle daneben: Was der Trainer tut, steht dort, wo er schreibt - eine
 Zeile, die „läuft" sagt, während nichts mehr läuft, kann es so nicht geben.
@@ -37,7 +37,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from wortlaut import kartenplan, registry
+from wortlaut import kartenplan
 
 SCHNAPPSCHUESSE = "snapshots"
 SPRECHER_MARKE = "sprecher.txt"
@@ -55,14 +55,12 @@ HALT = "halt"
 
 # Was nur während eines Laufs gebraucht wird und Gigabyte wiegen kann (siehe
 # `raeume_zwischenstaende_auf`): der Arbeitsstand des Trainers samt Optimierer,
-# die Rohgewichte vor der Umwandlung, die vorgespulten Fassungen
-# (`wortlaut/tempo.py`) und die zurückgerechneten Gewichte eines
-# Ausgangsstands (`training/ausgangsstand.py`).
+# die Rohgewichte vor der Umwandlung und die vorgespulten Fassungen
+# (`wortlaut/tempo.py`).
 ARBEITSSTAND = "arbeitsstand"
 GEWICHTE = "gewichte"
 VORGESPULT = "vorgespult"
-AUSGANG = "ausgang"
-ZWISCHENSTAENDE = (ARBEITSSTAND, GEWICHTE, VORGESPULT, AUSGANG)
+ZWISCHENSTAENDE = (ARBEITSSTAND, GEWICHTE, VORGESPULT)
 
 # ── Die Faltungen ───────────────────────────────────────────────────────────
 #
@@ -113,13 +111,6 @@ def kurzname(basismodell: str) -> str:
     return basismodell.rsplit("/", 1)[-1].removeprefix("whisper-")
 
 
-# Ein Lauf kann auf einem trainierten Stand aufsetzen statt auf einem
-# Grundmodell. Der Trainer kann das, angeboten wird es nicht - weiterzulernen
-# brachte keinen Gewinn. Im Auftrag bleibt `basismodell` das Whisper-Modell,
-# auf dem jener Stand gewachsen ist (Zerteiler, Rezept, Speicher), und
-# `ausgangsstand` nennt die Gewichte, mit denen begonnen wird.
-AUSGANGSSTAND = "ausgangsstand"
-
 
 def lora_moeglich(
     basismodell: str,
@@ -145,15 +136,6 @@ def lora_wahlen(
         for rang in LORA_RAENGE
         if lora_moeglich(basismodell, ziele, rang, karte, reserve_mb)
     ]
-
-
-def grundmodell_aus(auftrag: dict[str, Any]) -> str:
-    """Worauf dieser Lauf aufsetzt, so wie es zur Wahl stand.
-
-    Der Ausgangsstand (`spr_…/<version>`), wenn es einen gibt, sonst das
-    Grundmodell (`openai/whisper-small`).
-    """
-    return str(auftrag.get(AUSGANGSSTAND) or auftrag.get("basismodell") or "")
 
 
 def methoden_fuer(
@@ -614,14 +596,8 @@ def optionscode(auftrag: dict[str, Any]) -> str:
     def glied(tafel: dict[str, str], wert: object, vorgabe: str) -> str:
         return tafel.get(str(wert or vorgabe), "?")
 
-    methode = glied(CODE_METHODE, auftrag.get("methode"), "?")
-    ausgang = str(auftrag.get(AUSGANGSSTAND) or "")
-    # Auf einem Stand steht dessen Kennung vorn, abgesetzt: `C6G67-L-…`. Ohne
-    # den Strich läse sich der Buchstabe der Methode als Teil der Kennung.
-    kopf = (
-        f"{registry.beschriftung(ausgang)}-{methode}"
-        if ausgang
-        else grundmodellcode(str(auftrag.get("basismodell") or "")) + methode
+    kopf = grundmodellcode(str(auftrag.get("basismodell") or "")) + glied(
+        CODE_METHODE, auftrag.get("methode"), "?"
     )
     glieder = (
         glied(CODE_LORA_ZIELE, auftrag.get("lora_ziele"), ZIELE_QV),
