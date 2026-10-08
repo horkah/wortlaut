@@ -93,6 +93,27 @@ def lies_stand(datenverzeichnis: Path, sprecher_id: str, version: str) -> dict[s
     return json.loads(pfad.read_text(encoding="utf-8"))
 
 
+def lies_ref(datenverzeichnis: Path, ref: str) -> dict[str, Any]:
+    """Das Manifest zu einer Kennung - leer bei einem Grundmodell oder unlesbarem Stand."""
+    if not ist_stand(ref):
+        return {}
+    sprecher_id, version = ref.split(TRENNER, 1)
+    try:
+        return lies_stand(datenverzeichnis, sprecher_id, version)
+    except (OSError, ValueError):
+        return {}
+
+
+def tempo_von(datenverzeichnis: Path, ref: str) -> float:
+    """Mit welchem Faktor vorgespult wird, bevor dieses Modell zuhört.
+
+    Ein Stand mit dem aus seinem Manifest, auf dem er gelernt hat - beim
+    Diktieren, in der Auswertung und in seinen Faltungen gleich. Ein
+    Grundmodell nie (`wortlaut/tempo.py`).
+    """
+    return float(lies_ref(datenverzeichnis, ref).get("tempo") or 1.0)
+
+
 def schreibe_stand(datenverzeichnis: Path, manifest: dict[str, Any]) -> Path:
     """Legt `manifest.json` an; `id` hat die Form `<sprecher_id>/<version>`."""
     sprecher_id, version = str(manifest["id"]).split("/", 1)

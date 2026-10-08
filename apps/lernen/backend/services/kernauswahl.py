@@ -51,7 +51,7 @@ class Kernauswahl:
     modell: str
     anteil: float
     # Fürs Nachmessen: bei einem Stand sein Lerntempo, bei einem Grundmodell
-    # keins (`hoeren/services/auswertung.tempo_fuer`).
+    # keins (`registry.tempo_von`).
     tempo: float = tempo.VORGABE
     # Jede Aufnahme mit ihrer WER, die außerhalb des Kerns eingeschlossen.
     wer: dict[str, float] = field(default_factory=dict)
@@ -83,29 +83,12 @@ class Kernauswahl:
         return inhalt if self.offen else laeufe.mit_kern(inhalt)
 
 
-def _tempo(datenverzeichnis: Path, ref: str) -> float:
-    """Der Faktor, mit dem dieses Modell hört - wie in der Auswertung von „hören"."""
-    if not registry.ist_stand(ref):
-        return tempo.VORGABE
-    sprecher_id, version = ref.split(registry.TRENNER, 1)
-    try:
-        manifest = registry.lies_stand(datenverzeichnis, sprecher_id, version)
-    except (OSError, ValueError):
-        return tempo.VORGABE
-    return float(manifest.get("tempo", tempo.VORGABE))
-
-
 def _werte(
     datenverzeichnis: Path, korpus: Session, ref: str, aufnahmen: set[str]
 ) -> messwerte.Messreihe:
     """Was das Modell `ref` auf diesen Aufnahmen erreicht hat."""
     if registry.ist_stand(ref):
-        sprecher_id, version = ref.split(registry.TRENNER, 1)
-        try:
-            manifest = registry.lies_stand(datenverzeichnis, sprecher_id, version)
-        except (OSError, ValueError):
-            manifest = {}
-        job_id = str(manifest.get("job_id") or "")
+        job_id = str(registry.lies_ref(datenverzeichnis, ref).get("job_id") or "")
         lauf = laeufe.lies_lauf(datenverzeichnis, job_id) if job_id else None
         if lauf is not None:
             return messwerte.stand(lauf, aufnahmen, korpus, ref)
@@ -158,7 +141,7 @@ def waehle(
     return Kernauswahl(
         modell=ref,
         anteil=laeufe.KERN_ANTEIL,
-        tempo=_tempo(datenverzeichnis, ref),
+        tempo=registry.tempo_von(datenverzeichnis, ref),
         wer=wer,
         geerbt=sorted(geerbt),
         offen=sorted(offen),

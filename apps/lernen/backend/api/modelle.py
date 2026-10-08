@@ -296,11 +296,7 @@ def uebersicht(
             methode=manifest.get("methode"),
             erstellt=manifest.get("erstellt"),
             version=str(manifest["id"]).split("/", 1)[-1] if manifest.get("id") else None,
-            kennung=(
-                registry.kurzkennung(str(manifest["id"]).split("/", 1)[-1])
-                if manifest.get("id")
-                else None
-            ),
+            kennung=registry.beschriftung(str(manifest["id"])) if manifest.get("id") else None,
             vorbehalt=_vorbehalt(manifest),
             faltungen_hinweis=hinweise.get(ref, ""),
             job_id=manifest.get("job_id"),
@@ -620,7 +616,7 @@ def _hier(
             begriff="Eigene Stände darauf",
             wert=str(len(staende)),
             hinweis=", ".join(
-                registry.kurzkennung(str(manifest["id"]).split("/", 1)[-1])
+                registry.beschriftung(str(manifest["id"]))
                 for manifest in staende
                 if manifest.get("id")
             ),

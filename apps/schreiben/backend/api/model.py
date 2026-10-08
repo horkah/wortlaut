@@ -87,7 +87,7 @@ def _antwort(sprecher: str) -> ModellAntwort:
         wer=wer,
         laufzeit=konfiguration.asr,
         trainiert=True,
-        kennung=registry.kurzkennung(ref.split("/", 1)[-1]),
+        kennung=registry.beschriftung(ref),
         # Welches Modell, nicht wie gut - Zahlen stehen nur in der Modelltafel.
         beschriftung=" · ".join(
             teil
