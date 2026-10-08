@@ -37,21 +37,8 @@ def schneide(
     Die Datei wird ersetzt; Dauer, Pegel, Stille und Hinweise kommen aus der
     neuen. Die Messwerte am alten Ton räumt der Aufrufer weg.
     """
-    quelle = ablage.pfad(aufnahme.blob)
-    if not quelle.is_file():
-        raise klang.AudioFehler(f"Audio fehlt: {aufnahme.blob}")
-    if not ende_s > start_s:
-        raise klang.AudioFehler(
-            f"Das Ende muss hinter dem Anfang liegen ({start_s:.2f} bis {ende_s:.2f} s)."
-        )
-
-    # Erst daneben schreiben, dann über das Original legen.
-    with tempfile.TemporaryDirectory() as verzeichnis:
-        entwurf = Path(verzeichnis) / "zuschnitt.wav"
-        klang.schneide_ausschnitt(quelle, entwurf, start_s, ende_s, nach_aussen=True)
-        befund = klang.untersuche(entwurf)
-        ablage.lege_ab(aufnahme.blob, entwurf)
-
+    quelle = _quelle(ablage, aufnahme, start_s, ende_s)
+    befund = _schneide_ab(ablage, quelle, aufnahme.blob, start_s, ende_s)
     for feld, wert in asdict(befund).items():
         setattr(aufnahme, feld, wert)
     aufnahme.hinweise = json.dumps(
@@ -92,14 +79,12 @@ def teile(
 ) -> tuple[klang.Befund, klang.Befund]:
     """Aus dem Original zwei Dateien schneiden: [start, teilung) und [teilung, ende).
 
-    Außen wird nach außen gerundet, die Teilung sitzt auf genau einem Rahmen - aneinandergelegt ergeben die Teile Byte für Byte den
-    Bereich des Originals.
+    Außen wird nach außen gerundet, die Teilung sitzt auf genau einem Rahmen -
+    aneinandergelegt ergeben die Teile Byte für Byte den Bereich des Originals.
 
     Gibt die Befunde beider Teile zurück; abgelegt ist danach beides.
     """
-    quelle = ablage.pfad(aufnahme.blob)
-    if not quelle.is_file():
-        raise klang.AudioFehler(f"Audio fehlt: {aufnahme.blob}")
+    quelle = _quelle(ablage, aufnahme, start_s, ende_s)
     if not start_s < teilung_s < ende_s:
         raise klang.AudioFehler(
             "Die Teilung muss zwischen Anfang und Ende liegen "
@@ -110,16 +95,10 @@ def teile(
     # Ein Viertelrahmen hinter der Grenze: `int` und `floor` landen beide auf
     # demselben Rahmen, keine Gleitkommazahl kippt einen auf den Nachbarn.
     innen = (round(teilung_s * rate) + 0.25) / rate
-
-    with tempfile.TemporaryDirectory() as verzeichnis:
-        vorn = Path(verzeichnis) / "vorn.wav"
-        hinten = Path(verzeichnis) / "hinten.wav"
-        klang.schneide_ausschnitt(quelle, vorn, start_s, innen)
-        klang.schneide_ausschnitt(quelle, hinten, innen, ende_s, nach_aussen=True)
-        befunde = (klang.untersuche(vorn), klang.untersuche(hinten))
-        ablage.lege_ab(ziel_vorn, vorn)
-        ablage.lege_ab(ziel_hinten, hinten)
-    return befunde
+    return (
+        _schneide_ab(ablage, quelle, ziel_vorn, start_s, innen, nach_aussen=False),
+        _schneide_ab(ablage, quelle, ziel_hinten, innen, ende_s),
+    )
 
 
 def kopiere(
@@ -129,6 +108,11 @@ def kopiere(
 
     Für „Editieren", wenn die Teilung auf Anfang oder Ende liegt.
     """
+    return _schneide_ab(ablage, _quelle(ablage, aufnahme, start_s, ende_s), ziel, start_s, ende_s)
+
+
+def _quelle(ablage: storage.Ablage, aufnahme: Aufnahme, start_s: float, ende_s: float) -> Path:
+    """Die Datei der Aufnahme - wenn sie da ist und der Bereich eine Länge hat."""
     quelle = ablage.pfad(aufnahme.blob)
     if not quelle.is_file():
         raise klang.AudioFehler(f"Audio fehlt: {aufnahme.blob}")
@@ -136,9 +120,24 @@ def kopiere(
         raise klang.AudioFehler(
             f"Das Ende muss hinter dem Anfang liegen ({start_s:.2f} bis {ende_s:.2f} s)."
         )
+    return quelle
+
+
+def _schneide_ab(
+    ablage: storage.Ablage,
+    quelle: Path,
+    ziel: str,
+    start_s: float,
+    ende_s: float,
+    nach_aussen: bool = True,
+) -> klang.Befund:
+    """Den Bereich als Datei unter `ziel` ablegen und vermessen.
+
+    Erst daneben schreiben, dann an die Stelle - auch über das Original.
+    """
     with tempfile.TemporaryDirectory() as verzeichnis:
-        entwurf = Path(verzeichnis) / "kopie.wav"
-        klang.schneide_ausschnitt(quelle, entwurf, start_s, ende_s, nach_aussen=True)
+        entwurf = Path(verzeichnis) / "schnitt.wav"
+        klang.schneide_ausschnitt(quelle, entwurf, start_s, ende_s, nach_aussen=nach_aussen)
         befund = klang.untersuche(entwurf)
         ablage.lege_ab(ziel, entwurf)
     return befund
