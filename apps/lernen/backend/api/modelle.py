@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from wortlaut import laeufe as lauf_layout, registry, streuung
+from wortlaut import laeufe as lauf_layout, metriken, registry, streuung
 
 from ..config import einstellungen
 from ..deps import Korpus, SprecherId
@@ -39,47 +39,20 @@ class MassAntwort(BaseModel):
     stellen: int
 
 
+# Was die Tabelle zeigt, mit Einheit und Nachkommastellen.
+_DARSTELLUNG = {"genauigkeit": (" %", 1), "wer": ("", 3), "cer": ("", 3), "rechenzeit_s": (" s", 2)}
 MASSE = [
     MassAntwort(
-        schluessel="genauigkeit",
-        name="Genauigkeit",
-        kurz="Genauigkeit",
-        erklaerung="Die vier Fehlermaße zu einer Zahl zusammengefasst, 0 bis 100.",
-        hoch_ist_gut=True,
-        einheit=" %",
-        stellen=1,
-    ),
-    MassAntwort(
-        schluessel="wer",
-        name="Wortfehlerrate (WER)",
-        kurz="WER",
-        erklaerung="Anteil falscher, fehlender und zusätzlicher Wörter.",
-        hoch_ist_gut=False,
-        einheit="",
-        stellen=3,
-    ),
-    MassAntwort(
-        schluessel="cer",
-        name="Zeichenfehlerrate (CER)",
-        kurz="CER",
-        erklaerung="Dasselbe auf Zeichen - feiner, aber blind für den Sinn.",
-        hoch_ist_gut=False,
-        einheit="",
-        stellen=3,
-    ),
-    MassAntwort(
-        schluessel="rechenzeit_s",
-        name="Rechenzeit",
-        kurz="Zeit",
-        erklaerung=(
-            "Sekunden je Aufnahme. Sie hängt an der Maschine: Zwischen Karte und "
-            "Prozessor liegt das Zehn- bis Zwanzigfache. Vergleichbar nur, wenn "
-            "alle Zeilen dasselbe Rechenwerk nennen."
-        ),
-        hoch_ist_gut=False,
-        einheit=" s",
-        stellen=2,
-    ),
+        schluessel=mass.schluessel,
+        name=mass.name,
+        kurz=mass.kurz,
+        erklaerung=mass.erklaerung,
+        hoch_ist_gut=mass.hoch_ist_gut,
+        einheit=_DARSTELLUNG[mass.schluessel][0],
+        stellen=_DARSTELLUNG[mass.schluessel][1],
+    )
+    for mass in metriken.MASSE
+    if mass.schluessel in _DARSTELLUNG
 ]
 
 

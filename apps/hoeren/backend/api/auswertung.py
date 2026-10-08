@@ -14,7 +14,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
-from wortlaut import rechenwerk, registry
+from wortlaut import metriken, rechenwerk, registry
 
 from ..config import einstellungen
 from ..db.models import Aufnahme, Erkennung, Sprecher, Vorlage
@@ -37,55 +37,26 @@ class MetrikAntwort(BaseModel):
     obergrenze: float | None
 
 
+# Wie die Kurve jedes Maß zeigt: Einheit und feste Achsengrenze - `None` bei
+# WER und CER, die über 1 steigen können.
+_DARSTELLUNG = {
+    "genauigkeit": ("%", 100),
+    "wer": ("", None),
+    "cer": ("", None),
+    "mer": ("", 1),
+    "wil": ("", 1),
+    "rechenzeit_s": ("s", None),
+}
 METRIKEN = [
     MetrikAntwort(
-        schluessel="genauigkeit",
-        name="Genauigkeit",
-        erklaerung="Die vier Maße unten zu einer Zahl zusammengefasst, 0 bis 100.",
-        hoch_ist_gut=True,
-        einheit="%",
-        obergrenze=100,
-    ),
-    MetrikAntwort(
-        schluessel="wer",
-        name="Wortfehlerrate (WER)",
-        erklaerung="Anteil falscher, fehlender und zusätzlicher Wörter.",
-        hoch_ist_gut=False,
-        einheit="",
-        obergrenze=None,
-    ),
-    MetrikAntwort(
-        schluessel="cer",
-        name="Zeichenfehlerrate (CER)",
-        erklaerung="Dasselbe auf Zeichen - feiner, aber blind für den Sinn.",
-        hoch_ist_gut=False,
-        einheit="",
-        obergrenze=None,
-    ),
-    MetrikAntwort(
-        schluessel="mer",
-        name="Trefferfehlerrate (MER)",
-        erklaerung="Fehler im Verhältnis zu allem Gesagten; nie über 1.",
-        hoch_ist_gut=False,
-        einheit="",
-        obergrenze=1,
-    ),
-    MetrikAntwort(
-        schluessel="wil",
-        name="Wortinformationsverlust (WIL)",
-        erklaerung="Wie viel Wortinformation verloren ging; nie über 1.",
-        hoch_ist_gut=False,
-        einheit="",
-        obergrenze=1,
-    ),
-    MetrikAntwort(
-        schluessel="rechenzeit_s",
-        name="Rechenzeit",
-        erklaerung="Sekunden je Aufnahme - die andere Hälfte jeder Modellwahl.",
-        hoch_ist_gut=False,
-        einheit="s",
-        obergrenze=None,
-    ),
+        schluessel=mass.schluessel,
+        name=mass.name,
+        erklaerung=mass.erklaerung,
+        hoch_ist_gut=mass.hoch_ist_gut,
+        einheit=_DARSTELLUNG[mass.schluessel][0],
+        obergrenze=_DARSTELLUNG[mass.schluessel][1],
+    )
+    for mass in metriken.MASSE
 ]
 
 
@@ -224,12 +195,7 @@ def uebersicht(db: Datenbank, sprecher: SprecherId) -> AuswertungAntwort:
     nach_aufnahme: dict[str, dict[str, dict[str, float]]] = {}
     for erkennung in db.scalars(select(Erkennung).where(Erkennung.modell.in_(namen))):
         nach_aufnahme.setdefault(erkennung.recording_id, {})[erkennung.modell] = {
-            "wer": erkennung.wer,
-            "cer": erkennung.cer,
-            "mer": erkennung.mer,
-            "wil": erkennung.wil,
-            "genauigkeit": erkennung.genauigkeit,
-            "rechenzeit_s": erkennung.rechenzeit_s,
+            feld: getattr(erkennung, feld) for feld in metriken.MESSFELDER
         }
 
     return AuswertungAntwort(
@@ -316,12 +282,7 @@ def vergleich(aufnahme_id: str, db: Datenbank, sprecher: SprecherId) -> Vergleic
                 ErkennungAntwort(
                     modell=name,
                     text=zeile.text,
-                    wer=zeile.wer,
-                    cer=zeile.cer,
-                    mer=zeile.mer,
-                    wil=zeile.wil,
-                    genauigkeit=zeile.genauigkeit,
-                    rechenzeit_s=zeile.rechenzeit_s,
+                    **{feld: getattr(zeile, feld) for feld in metriken.MESSFELDER},
                 )
                 for name in namen
                 if (zeile := gerechnet.get(name)) is not None

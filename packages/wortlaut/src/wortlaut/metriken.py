@@ -233,3 +233,48 @@ def bewerte(referenz: str, hypothese: str) -> Guete:
     return Guete(
         wer=wer, cer=cer, mer=mer, wil=wil, genauigkeit=genauigkeit(wer, cer, mer, wil)
     )
+
+
+# ── Die Maße, wie sie heißen ────────────────────────────────────────────────
+#
+# Name, Erklärung und Richtung jedes Maßes - einmal, für Auswertung und
+# Modelltafel. Wie eine Ansicht ein Maß darstellt (Einheit, Stellen, Achse),
+# steht bei ihr.
+
+
+@dataclass(frozen=True)
+class Mass:
+    schluessel: str
+    name: str
+    kurz: str
+    erklaerung: str
+    hoch_ist_gut: bool = False
+
+
+# Was `bewerte` liefert, in der Reihenfolge der Anzeige - die Felder von `Guete`.
+GUETE = (
+    Mass(
+        "genauigkeit",
+        "Genauigkeit",
+        "Genauigkeit",
+        "Die vier Fehlermaße zu einer Zahl zusammengefasst, 0 bis 100.",
+        hoch_ist_gut=True,
+    ),
+    Mass("wer", "Wortfehlerrate (WER)", "WER", "Anteil falscher, fehlender und zusätzlicher Wörter."),
+    Mass("cer", "Zeichenfehlerrate (CER)", "CER", "Dasselbe auf Zeichen - feiner, aber blind für den Sinn."),
+    Mass("mer", "Trefferfehlerrate (MER)", "MER", "Fehler im Verhältnis zu allem Gesagten; nie über 1."),
+    Mass("wil", "Wortinformationsverlust (WIL)", "WIL", "Wie viel Wortinformation verloren ging; nie über 1."),
+)
+RECHENZEIT = Mass(
+    "rechenzeit_s",
+    "Rechenzeit",
+    "Zeit",
+    "Sekunden je Aufnahme. Sie hängt an der Maschine: Zwischen Karte und Prozessor "
+    "liegt das Zehn- bis Zwanzigfache - vergleichbar nur auf demselben Rechenwerk.",
+)
+# Jedes Maß einer Erkennung, die Rechenzeit zuletzt.
+MASSE = (*GUETE, RECHENZEIT)
+GUETEFELDER = tuple(mass.schluessel for mass in GUETE)
+MESSFELDER = tuple(mass.schluessel for mass in MASSE)
+# Bei diesen Maßen ist größer besser; bei allen übrigen kleiner.
+HOCH_IST_GUT = frozenset(mass.schluessel for mass in MASSE if mass.hoch_ist_gut)
