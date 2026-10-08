@@ -10,6 +10,7 @@
    * eingesprochen und neu transkribiert, alle anderen bleiben unberührt. Das
    * ist der Grund, warum Abschnitte einzeln mit Audio gespeichert werden.
    */
+  import { untrack } from 'svelte';
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Recorder from '$ui/Recorder.svelte';
   import SegmentList from '$ui/SegmentList.svelte';
@@ -231,8 +232,11 @@
   // Nur mit einer Stimme vom Server: Die Gerätestimme spricht auf dem iPhone
   // nur aus einem Tippen heraus, und dieses Vorlesen beginnt Sekunden nach dem
   // letzten. Mit ihr bleibt es beim Knopf.
-  if (einstellungen.liestVonSelbst && istServestimme(einstellungen.stimmeUri) && !bestaetigt)
-    lies();
+  // Einmal beim Öffnen, nicht bei jeder Änderung - daher `untrack`.
+  untrack(() => {
+    if (einstellungen.liestVonSelbst && istServestimme(einstellungen.stimmeUri) && !bestaetigt)
+      lies();
+  });
 </script>
 
 <div class="reihe kopfzeile">
