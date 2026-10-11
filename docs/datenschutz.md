@@ -57,8 +57,9 @@ steht in der Oberfläche über dem Auswahlfeld, wo jemand zögert.
 
 - **`lernen` schreibt den Korpus nie** - es gibt keinen Weg dafür, und ein
   Test hält das fest (`apps/lernen/tests/test_trennung.py`).
-- **Der Trainings-Container hängt an keinem Netz**; er spricht nur mit dem
-  Datenverzeichnis.
+- **Der Trainings-Container schickt nichts hinaus.** Aus dem Netz holt er
+  nur die Grundmodelle, mit Ollama spricht er nur, um die Karte freizubekommen;
+  Aufnahmen und Texte liest und schreibt er allein im Datenverzeichnis.
 - **Kein Korpus öffnet sich über eine behauptete Kennung** - sie wird aus dem
   Zugang abgeleitet (siehe unten).
 

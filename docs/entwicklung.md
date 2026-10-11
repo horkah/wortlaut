@@ -91,7 +91,7 @@ und der braucht eine Karte:
 ```bash
 docker compose --profile training up -d training   # im Betrieb
 make trainer                                       # auf dieser Maschine
-make train JOB=job_01J8…                           # einen Auftrag ohne Warteschlange
+make rerun JOB=job_01J8…                           # einen Auftrag ohne Läufer, hier und sofort
 ```
 
 `make trainer` setzt `torch`, `transformers`, `peft` und `accelerate` voraus.

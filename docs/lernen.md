@@ -43,8 +43,8 @@ Trainings und mittelt sie:
 | Endmodell | - (Mittel der Faltungen) | nichts, nur geprüft |
 
 Danach ist jede Aufnahme genau einmal von einem Modell gehört worden, das sie
-nie gelernt hat; diese Messungen sind die Zahl des Laufs. Die Faltung wird bei
-jedem Auftrag gerechnet und steht im Manifest.
+nie gelernt hat; diese Messungen sind die Zahl des Laufs. Die Faltung jeder
+Aufnahme steht im Manifest des Laufs.
 
 **Gemessen wird an Vorlagen und geprüften Korrekturen** (`laeufe.gemessen`).
 Eine ungeprüfte Korrektur aus „schreiben" trägt als Text eine abgenickte

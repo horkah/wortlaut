@@ -64,7 +64,7 @@ ist die Werkbank. Leer heißt abgeschaltet, nicht offen.
 wortlaut/
 ├── Dockerfile                     # ein Abbild für alle drei Apps
 ├── compose.yaml
-├── Makefile                       # test, dev, migrate, trainer, train
+├── Makefile                       # test, dev, migrate, trainer, train, release, rerun
 ├── pyproject.toml
 ├── conftest.py                    # geteilte Testbausteine
 ├── .env.example
@@ -77,10 +77,10 @@ wortlaut/
 │   │   │   ├── main.py, config.py, deps.py
 │   │   │   ├── api/               # speakers, zugang, admin, konto, sources,
 │   │   │   │                      # prompts, recordings, zuschnitt, progress,
-│   │   │   │                      # auswertung, intake, sprachen, system
-│   │   │   ├── services/          # prompt_queue, quality, zuschnitt, faltungen,
-│   │   │   │                      # auswertung, vorlesen, uebersicht, pin,
-│   │   │   │                      # export, ausleitung, loeschung
+│   │   │   │                      # auswertung, intake, sprachen, system, fehlerlog
+│   │   │   ├── services/          # prompt_queue, aufnahmen, quality, zuschnitt,
+│   │   │   │                      # faltungen, auswertung, vorlesen, uebersicht,
+│   │   │   │                      # pin, export, ausleitung, loeschung
 │   │   │   └── db/                # models.py, migrations/
 │   │   ├── frontend/src/routes/   # Verwaltung, Quelle, Aufnahme, Fortschritt,
 │   │   │                          # Auswertung, MeineDaten, Einsicht, Editieren
@@ -90,8 +90,8 @@ wortlaut/
 │   │   ├── backend/
 │   │   │   ├── main.py, config.py, deps.py
 │   │   │   ├── api/               # aufteilung, laeufe, modelle
-│   │   │   ├── services/          # aufteilung, auftraege, kernauswahl,
-│   │   │   │                      # messwerte, register, vergleich
+│   │   │   ├── services/          # aufteilung, auftraege, kernauswahl, freigabe,
+│   │   │   │                      # grundmodelle, messwerte, register, vergleich
 │   │   │   └── db/migrations/     # das Register der Läufe
 │   │   ├── frontend/src/routes/   # Training, Lauf, Modelle
 │   │   ├── training/              # was auf der Karte läuft - eigenes Abbild
@@ -99,8 +99,13 @@ wortlaut/
 │   │   │   ├── laeufer.py         # nimmt Aufträge, einen nach dem anderen
 │   │   │   ├── finetune.py        # Kreuzvalidierung, dann Mitteln und Eintragen
 │   │   │   ├── daten.py           # Manifest → Merkmale und Marken
+│   │   │   ├── adapter.py         # LoRA-Ziele und -Rang
 │   │   │   ├── klangwandel.py     # Augmentierung zur Laufzeit
+│   │   │   ├── fenster.py         # Encoder auf die längste Aufnahme gekürzt
 │   │   │   ├── tempowahl.py       # Vorspulfaktor schätzen oder suchen
+│   │   │   ├── steuerung.py       # Steuergröße: Verlust oder WER
+│   │   │   ├── kontext.py         # Startprompt aus dem Vokabular
+│   │   │   ├── selbsttraining.py  # unbestätigte Diktate selbst beschriftet
 │   │   │   ├── abschluss.py       # Checkpoint-Mittel und WiSE-FT
 │   │   │   ├── bewerten.py        # Faltungen messen, Kern wählen, Stand eintragen
 │   │   │   ├── karte.py           # auf eine belegte Karte warten
@@ -123,6 +128,7 @@ wortlaut/
 │   │   ├── audio.py               # 16 kHz mono, Pegel, Schnitt, Stimmgrenzen
 │   │   ├── corpus.py              # Korpus-Layout
 │   │   ├── laeufe.py              # Laufverzeichnis, Achsen, Optionscode
+│   │   ├── kartenplan.py          # was auf welche Karte passt
 │   │   ├── registry.py            # Modellstände und Freigabe
 │   │   ├── metriken.py            # WER, CER, MER, WIL, Genauigkeit
 │   │   ├── streuung.py            # Bootstrap-Bereiche und gepaarte Vergleiche
@@ -131,6 +137,8 @@ wortlaut/
 │   │   ├── sprachen.py            # die unterstützten Sprachen
 │   │   ├── vorlesen.py            # Sprachsynthese, Motor austauschbar
 │   │   ├── zugang.py              # Sprecherzugang: Form, Prüfwert, Prüfung
+│   │   ├── schluessel.py          # Trainer- und Bearbeitungsschlüssel
+│   │   ├── fehlerlog.py           # das Fehlerprotokoll der letzten Tage
 │   │   ├── einstellungen.py       # was alle Apps gleich aus der Umgebung lesen
 │   │   ├── db.py, ids.py, storage.py, sicherung.py, systemlage.py, web.py
 │   │   ├── text/                  # llm, upload, ocr, chunker
@@ -147,7 +155,8 @@ wortlaut/
 │       └── zeit.ts, einstellungen.svelte.ts, app.css, …
 │
 ├── scripts/                       # migrate, vorlesen, importieren, paare_teilen,
-│                                  # register, trainieren, freigeben, restore, purge_speaker
+│                                  # alte_originale, register, trainieren, freigeben,
+│                                  # restore, purge_speaker
 ├── tests/                         # was keine einzelne App betrifft
 ├── docs/
 └── data/                          # nicht im Git

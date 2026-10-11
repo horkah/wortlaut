@@ -73,9 +73,10 @@ und ein Schlüssel hinterlegt ist):
 
 **a) Eigener Text (funktioniert immer, ohne API-Schlüssel)**
 1. Unter „Eigener Text“ eine `.txt`- oder `.md`-Datei mit mindestens ein
-   paar Sätzen wählen, **Hochladen**.
-2. Erwartet: Quelle erscheint unter „Vorhandene Quellen“ mit Art, Anzahl
-   Einheiten und Zeitstempel; Knopf „Zur Aufnahme“ erscheint.
+   paar Sätzen wählen.
+2. Erwartet: Die Datei wird sofort gelesen, ohne weiteren Knopf. Die Quelle
+   erscheint unter „Vorhandene Quellen“ mit Art, Anzahl Einheiten und
+   Zeitstempel; Knopf „Zur Aufnahme“ erscheint.
 
 **b) Thema per Sprachmodell (nur mit gesetztem `WORTLAUT_LLM_PROVIDER` /
 `WORTLAUT_LLM_API_KEY`)**
@@ -137,8 +138,8 @@ und ein Schlüssel hinterlegt ist):
 
 ## 5. Mikrofon
 
-Die Einstellungen über den Menüknopf (☰) rechts oben öffnen; der Abschnitt
-„Mikrofon“ steht ganz oben. Derselbe Knopf steht in „schreiben“ an derselben
+Menüknopf (☰) rechts oben → **Audio**; der Abschnitt „Mikrofon“ steht ganz
+oben. Derselbe Knopf steht in „schreiben“ an derselben
 Stelle und führt zu genau derselben Ansicht - beide Apps zeigen sie aus dem
 gemeinsamen Rahmen (`packages/ui/Rahmen.svelte`).
 
