@@ -426,10 +426,13 @@ Randstille (`services/quality.py`) - der Editor bietet keine Grenze an, die die
 Prüfung danach als Stille meldet:
 
 * RMS in 20-ms-Fenstern;
-* Stimme ist, was 10 dB über dem Rauschboden der Datei liegt - dem Median der
-  leisesten 10 % der Fenster. Nicht feste dBFS: Die Verstärkung beim Aufnehmen
-  (bis 20×) verschiebt Stimme und Raum gleichermaßen. Höchstens 20 dB unter
-  der Spitze, damit eine Aufnahme ohne Pause nicht als Stille gilt;
+* die Schwelle liegt in dB in der Mitte zwischen dem Rauschboden der Datei -
+  dem Median der leisesten 10 % der Fenster - und ihrem lautesten Fenster.
+  Nicht feste dBFS: Die Verstärkung beim Aufnehmen (bis 20×) verschiebt
+  Stimme und Raum gleichermaßen. Mindestens 8 dB über dem Boden, damit
+  Rauschen bei schlechtem Abstand nicht als Stimme zählt, und mindestens
+  6 dB unter dem lautesten Fenster, damit eine Aufnahme ohne Pause nicht als
+  Stille gilt;
 * Luft nach außen: 150 ms vor dem ersten, 200 ms nach dem letzten lauten
   Fenster, an den Dateigrenzen gestutzt. Lieber zu viel Rand als zu wenig -
   bei Dysarthrie sind leise An- und Auslaute häufig.
