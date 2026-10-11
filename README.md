@@ -15,7 +15,8 @@ nicht das, was ein Sprachmodell für plausibel hält.
 > Geschichte steht allein in der Commit-History. Ausgenommen sind datierte
 > Berichte wie der [Modellbericht](docs/modellbericht.md), der
 > [Kernbericht](docs/kernbericht.md), der [Optionenbericht](docs/optionenbericht.md)
-> und der [Wirkungsbericht](docs/wirkungsbericht.md).
+> der [Wirkungsbericht](docs/wirkungsbericht.md) und die
+> [Durchsicht](docs/durchsicht.md).
 
 ---
 
@@ -81,8 +82,8 @@ der Maus darauf verweilt, liest, wie der Abschnitt darunter gemeint ist.
 
 ## Ausprobieren
 
-Python 3.12 mit [uv](https://docs.astral.sh/uv/), Node 20 und **ffmpeg im
-Pfad**. Ohne Grafikkarte läuft alles, nur langsamer.
+Python 3.12 mit [uv](https://docs.astral.sh/uv/), Node 20 oder neuer und
+**ffmpeg im Pfad**. Ohne Grafikkarte läuft alles, nur langsamer.
 
 ```bash
 cp .env.example .env

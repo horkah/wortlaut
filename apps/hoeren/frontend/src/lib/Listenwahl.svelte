@@ -41,7 +41,7 @@
   const SORTIERUNGEN: { schluessel: Listenwahl['sortierung']; name: string }[] = [
     { schluessel: 'geaendert', name: 'Editiert' },
     { schluessel: 'aufgenommen', name: 'Aufgenommen' },
-    { schluessel: 'qualitaet', name: 'Qualität' },
+    { schluessel: 'qualitaet', name: 'Genauigkeit' },
   ];
 
   let offen = $state(false);

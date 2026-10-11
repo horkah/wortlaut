@@ -633,7 +633,7 @@ class TestTempowahl:
             json={"methode": "lora", "tempowahl": "schneller!"},
         )
         assert antwort.status_code == 400
-        assert "Tempowahl" in antwort.json()["detail"]
+        assert "(Tempo)" in antwort.json()["detail"]
 
 
 class TestSteuerung:

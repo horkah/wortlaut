@@ -106,7 +106,7 @@
   }
 
   /**
-   * Zurück aus dem Editor, sortiert nach „Editiert" oder „Qualität": Die
+   * Zurück aus dem Editor, sortiert nach „Editiert" oder „Genauigkeit": Die
    * bearbeitete Aufnahme ist jetzt woanders - die Liste sortiert neu und geht
    * zu ihr. Ist sie fort (geteilt), steht die Liste oben.
    */

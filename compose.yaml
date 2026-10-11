@@ -152,10 +152,11 @@ services:
       start_period: 5m
       retries: 3
 
-  # Der Trainer. Er beantwortet keine Anfrage und hängt an keinem Netz: Alles,
-  # was er braucht, steht im Datenverzeichnis, und alles, was er hervorbringt,
-  # legt er dort wieder ab (`data/snapshots/` und `data/modelle/` - zwei Pfade,
-  # die auf dem Wirt nicht im Volume liegen, siehe unten). Deshalb teilt er
+  # Der Trainer. Er beantwortet keine Anfrage und ist von außen nicht
+  # erreichbar: Alles, was er braucht, steht im Datenverzeichnis, und alles,
+  # was er hervorbringt, legt er dort wieder ab (`data/snapshots/` und
+  # `data/modelle/` - zwei Pfade, die auf dem Wirt nicht im Volume liegen,
+  # siehe unten). Deshalb teilt er
   # sich mit `wortlaut` nur die Ablage - und deshalb kann jeder von beiden neu
   # starten, ohne den anderen mitzunehmen.
   #

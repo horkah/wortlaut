@@ -308,7 +308,7 @@ Browser:
 
 Der Editor blättert in dieser Reihenfolge, wie sie beim Öffnen galt
 (`GET /api/konto/recordings/reihenfolge`); neu sortiert wird erst beim
-Zurückkommen. Sortiert die Liste nach „Editiert" oder „Qualität", geht sie
+Zurückkommen. Sortiert die Liste nach „Editiert" oder „Genauigkeit", geht sie
 dann zur neuen Stelle der zuletzt bearbeiteten Aufnahme.
 
 Gelöscht wird hier nur einzeln und nur die Aufnahme - Ton und Messwerte,
@@ -642,7 +642,8 @@ Ein Hintergrundlauf rechnet die offenen Paare aus Aufnahme und Modell:
 
 ### Die Ansicht
 
-Eine Kurve über die Aufnahmen, lückenlos von 1 an gezählt. Je Aufnahme ein
+Eine Kurve über die Aufnahmen in der Reihenfolge, in der sie aufgenommen
+wurden, lückenlos von 1 an gezählt (`zuschnitt.reihenfolge`). Je Aufnahme ein
 Wert je Modell, eines als Balken, die übrigen als Punkte; Auswahllisten
 wechseln Maß und Balkenmodell. Was noch nicht gerechnet ist, bleibt leer
 statt null.
@@ -698,7 +699,8 @@ DELETE /api/recordings/{id}
 GET    /api/progress
 POST   /api/korpus/intake                   ← von „schreiben"
 GET    /api/konto                           Profil, Kennzahlen, Textquellen    + X-Pin
-GET    /api/konto/recordings?ab=&anzahl=                                       + X-Pin
+GET    /api/konto/recordings?ab=&anzahl=&sortierung=&richtung=&quelle=&arten=  + X-Pin
+GET    /api/konto/recordings/reihenfolge    Kennungen in derselben Wahl - für den Editor + X-Pin
 GET    /api/konto/aufnahmezeiten            Zeitpunkte gültiger Aufnahmen      + X-Pin
 PATCH  /api/konto                           { name } - umbenennen                   + X-Pin
 GET    /api/konto/sicherung                 .tgz des eigenen Stands                 + X-Pin
@@ -745,6 +747,8 @@ GET    /api/zugang                          { art, sprecher_id, name, sprache, t
                                             je Recht aus|fehlt|falsch|gilt, nach X-Trainer-Key und X-Editor-Key
 GET    /api/sprachen                        die unterstützten Sprachen
 GET    /api/system                          Maschine und Auslastung - für „System"
+GET    /api/fehlerlog                       die letzten sieben Tage - Verwaltung, Aufsicht
+                                            oder X-Trainer-Key
 GET    /gesundheit
 ```
 

@@ -37,8 +37,9 @@ Frontends werden beim Bauen gebaut und mit ausgeliefert.
 
 **Der Trainer** (`training`) steht hinter `profiles: [training]`: Ohne das
 Profil wird er weder gebaut noch gestartet noch gestoppt.
-`COMPOSE_PROFILES=training` in der `.env` nimmt ihn immer mit. Er hängt an
-keinem Netz und spricht nur mit dem Datenverzeichnis.
+`COMPOSE_PROFILES=training` in der `.env` nimmt ihn immer mit. Von außen ist
+er nicht erreichbar; aus dem Netz holt er nur Grundmodelle, Ollama bittet er
+um die Karte, und Aufträge kommen über das Datenverzeichnis.
 
 **Ollama** (`ollama`) liefert die Textquelle, im internen Netz, auf derselben
 Karte.
