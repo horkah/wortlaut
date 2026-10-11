@@ -322,6 +322,10 @@ dazu, steht es da - „23 Aufnahmen sind dazugekommen, seit zuletzt etwas fertig
 trainiert wurde". Von selbst angestoßen wird nichts: Ein Lauf belegt die Karte
 und friert einen Stand des Korpus ein, und das soll jemand entscheiden.
 
+**Die Erklärungen der Achsen** stehen als Blase an der Überschrift jeder Achse
+(`ACHSE` in `Training.svelte`), die der einzelnen Wahl an der Option und an
+ihrem Balken im Equalizer - beide aus `erklaerung` in `api/laeufe.py`.
+
 **Beauftragen verlangt den Trainerschlüssel.** Eingetragen wird er unter
 „Zugangsdaten", wie der Bearbeitungsschlüssel, einmal für alle Apps
 (`packages/ui/schluessel.svelte.ts`). Er geht als `X-Trainer-Key` nur mit dem

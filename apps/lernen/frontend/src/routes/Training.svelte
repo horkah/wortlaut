@@ -12,6 +12,7 @@
    * Fertige Läufe stehen als Modelle in der Modelltafel; hier nur, was noch
    * arbeitet oder scheiterte.
    */
+  import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import { onMount } from 'svelte';
   import {
@@ -156,7 +157,44 @@
     ),
   );
 
-  type Regler = { schluessel: string; code: string; titel: string; anzahl: number };
+  /**
+   * Was eine Achse entscheidet - an ihrer Überschrift. Was die einzelne Wahl
+   * bedeutet, sagt der Server (`erklaerung` je Wahl, `api/laeufe.py`); sie
+   * steht an der Option und an ihrem Balken im Equalizer.
+   */
+  const ACHSE: Record<string, string> = {
+    Grundmodell:
+      'Das unveränderte Whisper, von dem der Lauf ausgeht. Größer versteht von Haus aus mehr, rechnet aber langsamer - im Training und bei jedem Diktat. Was mit welcher Methode auf die Karte passt, entscheidet ihr Speicher.',
+    Methode: 'Wie viel vom Grundmodell sich ändern darf.',
+    'LoRA-Ziele':
+      'Wo der LoRA-Zusatz sitzt. Encoder gegen Decoder beantwortet eine inhaltliche Frage: Abweichende Aussprache ist ein Encoder-, abweichender Wortschatz ein Decoder-Problem. Nur mit LoRA.',
+    'LoRA-Rang':
+      'Wie groß der LoRA-Zusatz ist. α wächst mit dem Rang, damit ein kleinerer Rang nicht zugleich eine größere Lernrate heißt. Nur mit LoRA.',
+    Auswahl: 'Auf welchen Aufnahmen der Lauf lernt und gemessen wird.',
+    Korrekturen:
+      'Wie stark Texte aus „schreiben“ zählen, die beim Diktieren bestätigt wurden. Sie sind die Quelle, die im Betrieb nicht versiegt, aber unsicherer als eine Aufnahme nach Vorlage.',
+    Selbsttraining: 'Ob auch Diktate mitlernen, deren Text nie bestätigt wurde.',
+    Epochen: 'Wie lange trainiert wird.',
+    Steuergröße:
+      'Woran der beste Zwischenstand, der Schluss beim Early Stopping und das α von WiSE-FT gewählt werden. Je feiner an der Validierung gewählt wird, desto optimistischer wird ihre Zahl.',
+    Fenster: 'Wie viel Audio der Encoder im Training sieht. Ausgeliefert wird immer mit 30 Sekunden.',
+    Augmentierung:
+      'Wie die Lernproben in jedem Durchgang neu abgewandelt werden, damit das Modell die Stimme lernt und nicht die Aufnahmen. Die Validierung bleibt unverändert.',
+    Tempo:
+      'Ob vorgespult wird. Verlangsamte Sprache versteht Whisper vorgespult oft besser. Der Faktor gehört zum Modell: „schreiben“ spult beim Diktieren genauso vor.',
+    Abschluss:
+      'Was am Ende mit den Gewichten geschieht. Steht das Ergebnis schlechter da als der Anfang, gilt der Anfang.',
+    Kontext:
+      'Ob jede Erkennung mit einer Liste der Wörter beginnt, die für diese Person einschlägig sind. Die einzige Wahl ohne Training: Sie wirkt beim Hören, überall, wo der Stand hört.',
+  };
+
+  type Regler = {
+    schluessel: string;
+    code: string;
+    titel: string;
+    erklaerung: string;
+    anzahl: number;
+  };
 
   const achsen = $derived.by((): [string, (Wahl | Grundmodell)[], (lauf: Lauf) => string][] =>
     daten
@@ -199,6 +237,7 @@
           schluessel: `${achse}/${wahl.schluessel}`,
           code: wahl.code,
           titel: `${achse}: ${wahl.name}`,
+          erklaerung: wahl.erklaerung,
           anzahl: anzahlen.get(`${achse}/${wahl.schluessel}`) ?? 0,
         })),
     ),
@@ -575,10 +614,10 @@
 
 <h2>Training</h2>
 
-<!-- Die Erklärung einer Option steht im Mauszeiger, sichtbar nur, was die
+<!-- Die Erklärung einer Option steht in ihrer Blase, sichtbar nur, was die
      Wahl sperrt. -->
 {#snippet option(wahl: Wahl | Grundmodell, anteil: string, sperre = '')}
-  <span title={wahl.erklaerung || undefined}>
+  <span use:erklaert={wahl.erklaerung}>
     <strong>{wahl.name}</strong>
     {#if wahl.code}<code class="glied">{wahl.code}</code>{/if}
     {#if anteil}<small class="anteil" title="Anteil der gezählten Modelle">{anteil}</small>{/if}
@@ -594,7 +633,7 @@
          (`wortlaut/laeufe.optionscode`). -->
     <div class="wahlen">
       <fieldset>
-        <legend>Grundmodell</legend>
+        <legend use:erklaert={ACHSE.Grundmodell}>Grundmodell</legend>
         {#each daten.grundmodelle as wahl (wahl.schluessel)}
           <label class="option">
             <input
@@ -608,7 +647,7 @@
       </fieldset>
 
       <fieldset>
-        <legend>Methode</legend>
+        <legend use:erklaert={ACHSE.Methode}>Methode</legend>
         {#each daten.methoden as wahl (wahl.schluessel)}
           {@const geht = erlaubteMethoden.includes(wahl.schluessel)}
           <label class="option" class:nichtmoeglich={!geht}>
@@ -629,7 +668,7 @@
 
       <!-- Nur mit LoRA (`training/adapter.py`). -->
       <fieldset disabled={!mitLora}>
-        <legend>LoRA-Ziele</legend>
+        <legend use:erklaert={ACHSE['LoRA-Ziele']}>LoRA-Ziele</legend>
         {#each daten.lora_ziele as wahl (wahl.schluessel)}
           {@const geht = loraGeht(wahl.schluessel, loraRang)}
           <label class="option" class:nichtmoeglich={!mitLora || !geht}>
@@ -646,7 +685,7 @@
       </fieldset>
 
       <fieldset disabled={!mitLora}>
-        <legend>LoRA-Rang</legend>
+        <legend use:erklaert={ACHSE['LoRA-Rang']}>LoRA-Rang</legend>
         {#each daten.lora_raenge as wahl (wahl.schluessel)}
           {@const geht = loraGeht(loraZiele, wahl.schluessel)}
           <label class="option" class:nichtmoeglich={!mitLora || !geht}>
@@ -666,7 +705,7 @@
            sieht erst das Endmodell, in der Auswertung von „hören"
            (`wortlaut/laeufe.py`, „Die Auswahl"). -->
       <fieldset>
-        <legend>Auswahl</legend>
+        <legend use:erklaert={ACHSE.Auswahl}>Auswahl</legend>
         {#each daten.auswahlen as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={auswahl} value={wahl.schluessel} />
@@ -677,7 +716,7 @@
 
       <!-- Nur Korrekturen aus „schreiben"; Vorlagen zählen immer 1. -->
       <fieldset>
-        <legend>Korrekturen</legend>
+        <legend use:erklaert={ACHSE.Korrekturen}>Korrekturen</legend>
         {#each daten.korrekturgewichte as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={korrekturgewicht} value={wahl.schluessel} />
@@ -688,7 +727,7 @@
 
       <!-- Lernt nur mit, gemessen wird es nie (`training/selbsttraining.py`). -->
       <fieldset>
-        <legend>Selbsttraining</legend>
+        <legend use:erklaert={ACHSE.Selbsttraining}>Selbsttraining</legend>
         {#each daten.selbsttraininge as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={selbsttraining} value={wahl.schluessel} />
@@ -698,7 +737,7 @@
       </fieldset>
 
       <fieldset>
-        <legend>Epochen</legend>
+        <legend use:erklaert={ACHSE.Epochen}>Epochen</legend>
         {#each daten.dauern as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={dauer} value={wahl.schluessel} />
@@ -710,7 +749,7 @@
       <!-- Wählt besten Checkpoint, Abbruch und α (`wortlaut/laeufe.py`,
            „Wonach ausgewählt wird"). -->
       <fieldset>
-        <legend>Steuergröße</legend>
+        <legend use:erklaert={ACHSE.Steuergröße}>Steuergröße</legend>
         {#each daten.steuerungen as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={steuerung} value={wahl.schluessel} />
@@ -722,7 +761,7 @@
       <!-- Nur im Training; ausgeliefert wird immer mit 30 Sekunden
            (`training/fenster.py`). -->
       <fieldset>
-        <legend>Fenster</legend>
+        <legend use:erklaert={ACHSE.Fenster}>Fenster</legend>
         {#each daten.fenster as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={fenster} value={wahl.schluessel} />
@@ -733,7 +772,7 @@
 
       <!-- Online, je Durchgang neu gewürfelt. -->
       <fieldset>
-        <legend>Augmentierung</legend>
+        <legend use:erklaert={ACHSE.Augmentierung}>Augmentierung</legend>
         {#each daten.augmentierungen as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={augmentierung} value={wahl.schluessel} />
@@ -743,7 +782,7 @@
       </fieldset>
 
       <fieldset>
-        <legend>Tempo</legend>
+        <legend use:erklaert={ACHSE.Tempo}>Tempo</legend>
         {#each daten.tempi as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={tempowahl} value={wahl.schluessel} />
@@ -753,7 +792,7 @@
       </fieldset>
 
       <fieldset>
-        <legend>Abschluss</legend>
+        <legend use:erklaert={ACHSE.Abschluss}>Abschluss</legend>
         {#each daten.abschluesse as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={abschluss} value={wahl.schluessel} />
@@ -765,7 +804,7 @@
       <!-- Wirkt nur beim Dekodieren, dort aber überall, wo der Stand hört
            (`training/kontext.py`). -->
       <fieldset>
-        <legend>Kontext</legend>
+        <legend use:erklaert={ACHSE.Kontext}>Kontext</legend>
         {#each daten.kontexte as wahl (wahl.schluessel)}
           <label class="option">
             <input type="radio" bind:group={kontext} value={wahl.schluessel} />
@@ -818,7 +857,7 @@
           <div
             class="regler"
             role="listitem"
-            title={eintrag.titel}
+            use:erklaert={{ titel: eintrag.titel, text: eintrag.erklaerung }}
             aria-label="{eintrag.titel}: {eintrag.anzahl} von {gezaehlt.length}"
           >
             <div class="saeule" aria-hidden="true">
@@ -900,8 +939,6 @@
     margin-bottom: 0.4rem;
   }
 
-  /* Die Begründung steht unter dem Namen und nicht in einem Tooltip: Was die
-     Wahl bedeutet, soll lesen können, wer sie trifft. */
   .option {
     display: flex;
     align-items: flex-start;

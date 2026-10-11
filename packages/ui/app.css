@@ -244,3 +244,8 @@ input[type='checkbox'][role='switch']:focus-visible {
   text-align: left;
   pointer-events: none;
 }
+
+.erklaerung strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
