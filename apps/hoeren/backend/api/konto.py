@@ -102,13 +102,59 @@ def aufnahmezeiten(db: Datenbank) -> list[str]:
     return uebersicht.aufnahmezeiten(db)
 
 
-@router.get("/recordings", response_model=AufnahmenAntwort, dependencies=[Depends(_pruefe_pin)])
-def aufnahmen(db: Datenbank, ablage: Ablage, ab: int = 0, anzahl: int = 10) -> AufnahmenAntwort:
-    """Die eigenen Aufnahmen mit ihrem Text, neueste zuerst, seitenweise.
+def _wahl(quelle: str, status: str, sortierung: str, richtung: str) -> dict:
+    try:
+        return uebersicht.wahl_aus(quelle, status, sortierung, richtung)
+    except ValueError as ursache:
+        raise HTTPException(status_code=400, detail=str(ursache)) from ursache
 
-    Anhören und Verwerfen: `api/recordings.py`.
+
+@router.get("/recordings", response_model=AufnahmenAntwort, dependencies=[Depends(_pruefe_pin)])
+def aufnahmen(
+    db: Datenbank,
+    ablage: Ablage,
+    sprecher: SprecherId,
+    ab: int = 0,
+    anzahl: int = 10,
+    quelle: str = "",
+    status: str = uebersicht.ALLE,
+    sortierung: str = uebersicht.NACH_AENDERUNG,
+    richtung: str = uebersicht.ABSTEIGEND,
+) -> AufnahmenAntwort:
+    """Die eigenen Aufnahmen mit ihrem Text, gefiltert und sortiert, seitenweise.
+
+    Vorgabe: zuletzt geändert zuerst. Anhören und Verwerfen: `api/recordings.py`.
     """
-    return uebersicht.aufnahmen_seite(db, ablage, ab, anzahl)
+    return uebersicht.aufnahmen_seite(
+        db,
+        ablage,
+        ab,
+        anzahl,
+        modell=uebersicht.diktiermodell(sprecher),
+        **_wahl(quelle, status, sortierung, richtung),
+    )
+
+
+@router.get(
+    "/recordings/reihenfolge",
+    response_model=list[uebersicht.Eintrag],
+    dependencies=[Depends(_pruefe_pin)],
+)
+def reihenfolge(
+    db: Datenbank,
+    sprecher: SprecherId,
+    quelle: str = "",
+    status: str = uebersicht.ALLE,
+    sortierung: str = uebersicht.NACH_AENDERUNG,
+    richtung: str = uebersicht.ABSTEIGEND,
+) -> list[uebersicht.Eintrag]:
+    """Alle eigenen Aufnahmen in der Reihenfolge der Liste, nur Kennung und Status.
+
+    Für den Editor: Er blättert in der Reihenfolge, die beim Öffnen galt.
+    """
+    return uebersicht.reihenfolge(
+        db, uebersicht.diktiermodell(sprecher), **_wahl(quelle, status, sortierung, richtung)
+    )
 
 
 @router.patch("", response_model=UebersichtAntwort, dependencies=[Depends(_pruefe_pin)])

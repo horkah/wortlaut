@@ -41,7 +41,7 @@ from wortlaut import corpus, ids, schluessel
 from wortlaut.text import chunker
 
 from ..config import einstellungen
-from ..db.models import GUELTIG, Aufnahme, Erkennung, Textquelle, Vorlage
+from ..db.models import GUELTIG, Aufnahme, Erkennung, Textquelle, Vorlage, jetzt
 from ..deps import Ablage, Datenbank, Sprache, SprecherId
 from ..services import quality, zuschnitt
 
@@ -73,6 +73,8 @@ class ZuschnittAntwort(BaseModel):
     # Was gesagt wurde (`Aufnahme.text_zu`) - Vorbelegung des Textfelds.
     text: str
     erstellt: str
+    # Wann zuletzt gespeichert; leer heißt nie.
+    geaendert: str | None
     dauer_s: float
     # Der Stand der Datei; hängt an der Adresse des Audios, damit der Browser
     # nach einem Schnitt nicht die alte Fassung aus seinem Speicher nimmt.
@@ -138,6 +140,7 @@ def _zeile(
         id=aufnahme.id,
         text=aufnahme.text_zu(vorlage),
         erstellt=aufnahme.erstellt,
+        geaendert=aufnahme.geaendert,
         dauer_s=kurve.dauer_s,
         version=version(ablage, aufnahme),
         korrektur=_ist_korrektur(db, vorlage),
@@ -262,6 +265,7 @@ def _ohne_teilung(
     elif neuer_text:
         zuschnitt.pruefe_neu(aufnahme, erwartet)
     aufnahme.text = text
+    aufnahme.geaendert = jetzt()
     if korrektur:
         aufnahme.validiert = True
     if gekuerzt or neuer_text:
@@ -334,7 +338,9 @@ def _geteilt(
                 vorfahren=zuschnitt.nachfahren_von(original),
                 text=text,
                 validiert=korrektur or bool(original.validiert),
+                # Das Datum der Aufnahme bleibt; geändert ist sie jetzt.
                 erstellt=original.erstellt,
+                geaendert=jetzt(),
             )
         )
     db.flush()

@@ -94,10 +94,12 @@ def sitzungen(sprecher_id: str, ab: int = 0, anzahl: int = SEITE) -> SitzungenAn
 def aufnahmen(
     sprecher_id: str, ablage: Ablage, ab: int = 0, anzahl: int = SEITE
 ) -> AufnahmenAntwort:
-    """Die Aufnahmen eines Sprechers, neueste zuerst, seitenweise."""
+    """Die Aufnahmen eines Sprechers, zuletzt geänderte zuerst, seitenweise."""
     with Session(engine_fuer(sprecher_id)) as sitzung:
         _hole(sitzung, sprecher_id)
-        return uebersicht.aufnahmen_seite(sitzung, ablage, ab, anzahl)
+        return uebersicht.aufnahmen_seite(
+            sitzung, ablage, ab, anzahl, modell=uebersicht.diktiermodell(sprecher_id)
+        )
 
 
 @router.get("/speakers/{sprecher_id}/recordings/{aufnahme_id}/audio")
