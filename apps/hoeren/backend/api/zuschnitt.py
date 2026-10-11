@@ -43,7 +43,7 @@ from wortlaut.text import chunker
 from ..config import einstellungen
 from ..db.models import GUELTIG, Aufnahme, Erkennung, Textquelle, Vorlage, jetzt
 from ..deps import Ablage, Datenbank, Sprache, SprecherId
-from ..services import quality, zuschnitt
+from ..services import quality, uebersicht, zuschnitt
 
 router = APIRouter(prefix="/api/zuschnitt", tags=["Zuschnitt"])
 
@@ -90,6 +90,11 @@ class ZuschnittAntwort(BaseModel):
     # Der Vorschlag nach dem Pegel (`audio.stimmgrenzen`) - für „Auto".
     vorschlag_start_s: float
     vorschlag_ende_s: float
+    # Wie gut das Modell von „schreiben" sie gehört hat - wie in „Meine Daten"
+    # (`services/uebersicht.py`); leer, solange nicht gemessen.
+    qualitaet: float | None = None
+    modell: str = ""
+    skala: uebersicht.Skala = uebersicht.Skala()
 
 
 class Speichern(BaseModel):
@@ -171,6 +176,14 @@ def eine(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage) 
     zeile = _zeile(db, ablage, aufnahme, vorlage) if vorlage is not None else None
     if zeile is None:
         raise HTTPException(status_code=404, detail="Zu dieser Aufnahme liegt kein Audio mehr.")
+    modell = uebersicht.diktiermodell(sprecher)
+    zeile.modell = modell
+    zeile.skala = uebersicht.skala(db, modell)
+    zeile.qualitaet = db.scalar(
+        select(Erkennung.genauigkeit).where(
+            Erkennung.recording_id == aufnahme.id, Erkennung.modell == modell
+        )
+    )
     return zeile
 
 
