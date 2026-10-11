@@ -104,8 +104,10 @@ class TestEigeneDaten:
         assert klient.get(f"/api/recordings/{aufnahme['id']}/audio").status_code == 200
 
         assert klient.delete(f"/api/recordings/{aufnahme['id']}").status_code == 204
-        nach_dem_verwerfen = klient.get("/api/konto/recordings").json()["aufnahmen"][0]
-        assert nach_dem_verwerfen["status"] == "verworfen"
+        # Verworfenes zeigt die Liste nur, wenn danach gefragt wird.
+        assert klient.get("/api/konto/recordings").json()["aufnahmen"] == []
+        nach_dem_verwerfen = klient.get("/api/konto/recordings?arten=verworfen").json()
+        assert nach_dem_verwerfen["aufnahmen"][0]["status"] == "verworfen"
 
 
 class TestPin:

@@ -276,6 +276,32 @@ offen ist immer nur eine. Aufgeklappt stehen dort der Player mit dem Audio,
 der Papierkorb und - nur wenn der Bearbeitungsschlüssel gilt - der Stift, der
 die Aufnahme in **Editieren** öffnet.
 
+Rechts in der Kennzeile steht ein Ring mit der **Genauigkeit**, mit der das
+Modell von „schreiben" die Aufnahme gehört hat (0 bis 100). Die Farbe läuft
+von Rot über Orange, Gelb und Hellgrün nach Dunkelgrün, gemessen an den 10-
+und 90-%-Quantilen dieses Sprechers; Rot liegt nie über 50, Dunkelgrün nie
+unter 85 (`uebersicht.skala`). Ungemessene Aufnahmen tragen keinen Ring.
+
+Über der Liste klappt eine Zeile die **Wahl der Liste** auf, gemerkt im
+Browser:
+
+* **Sortieren** nach der letzten Änderung in „Editieren" (Vorgabe, neueste
+  zuerst; ohne Änderung zählt das Datum der Aufnahme), nach dem Datum der
+  Aufnahme oder nach der Genauigkeit - ungemessene zählen als 0. Ein zweites
+  Tippen auf die gewählte Sortierung kehrt die Richtung um (Pfeil).
+* **Art** - überschneidungsfrei, jede Aufnahme gehört zu genau einer, und
+  jede ist für sich an- und abwählbar, mit ihrer Zahl: gelesen,
+  nachgesprochen, frei, Korrektur geprüft, Korrektur ungeprüft, verworfen.
+  Verworfen ist eine Art für sich, gleich wie gesprochen wurde; eine gültige
+  Korrektur aus „schreiben" zählt nach ihrer Prüfung, jede andere gültige
+  Aufnahme nach ihrem Modus. Anfangs ist alles an außer „verworfen".
+* **Quelle** - eine Textquelle oder alle.
+* **Je Seite** 10, 20, 50 oder 100.
+
+Der Editor blättert in dieser Reihenfolge, wie sie beim Öffnen galt
+(`GET /api/konto/recordings/reihenfolge`); neu sortiert wird erst beim
+Zurückkommen.
+
 Gelöscht wird hier nur einzeln und nur die Aufnahme - Ton und Messwerte,
 nach einer Rückfrage mit Warnzeichen. Der Text bleibt und steht wieder zum
 Aufnehmen an (dasselbe Verwerfen wie beim Aufnehmen, `DELETE

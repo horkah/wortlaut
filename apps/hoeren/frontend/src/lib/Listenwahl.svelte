@@ -6,19 +6,31 @@
    * Zugeklappt eine Zeile, die sagt, was gilt; aufgeklappt Chips je Gruppe.
    * Ein Chip der Sortierung trägt einen Pfeil für die Richtung - ein zweites
    * Tippen auf den gewählten kehrt sie um.
+   *
+   * **Die Arten** sind überschneidungsfrei, jede Aufnahme gehört zu genau
+   * einer; jede ist für sich an- und abwählbar, mit ihrer Zahl. Arten ohne
+   * Aufnahme stehen nicht da.
    */
-  import type { Listenwahl, Quellenwahl } from './api';
+  import {
+    VORGABE_ARTEN,
+    type Aufnahmeart,
+    type Aufnahmenseite,
+    type Listenwahl,
+    type Quellenwahl,
+  } from './api';
 
   let {
     wahl = $bindable(),
     proSeite = $bindable(),
     quellen,
+    arten,
     gesamt,
     aendere,
   }: {
     wahl: Listenwahl;
     proSeite: number;
     quellen: Quellenwahl[];
+    arten: Aufnahmenseite['arten'];
     gesamt: number;
     /** Nach jeder Änderung - die Liste lädt neu. */
     aendere: () => void;
@@ -30,18 +42,29 @@
     { schluessel: 'aufgenommen', name: 'Aufgenommen' },
     { schluessel: 'qualitaet', name: 'Qualität' },
   ];
-  const STATUS: { schluessel: Listenwahl['status']; name: string }[] = [
-    { schluessel: '', name: 'Alle' },
-    { schluessel: 'ok', name: 'Gültig' },
-    { schluessel: 'geprueft', name: 'Geprüft' },
-    { schluessel: 'verworfen', name: 'Verworfen' },
-  ];
+  const NAMEN: Record<Aufnahmeart, string> = {
+    gelesen: 'Gelesen',
+    nachgesprochen: 'Nachgesprochen',
+    frei: 'Frei',
+    korrektur_geprueft: 'Korrektur, geprüft',
+    korrektur_ungeprueft: 'Korrektur, ungeprüft',
+    verworfen: 'Verworfen',
+  };
 
   let offen = $state(false);
 
   const pfeil = (richtung: Listenwahl['richtung']) => (richtung === 'ab' ? '↓' : '↑');
   const sortname = $derived(SORTIERUNGEN.find((s) => s.schluessel === wahl.sortierung)?.name ?? '');
-  const gefiltert = $derived(wahl.quelle !== '' || wahl.status !== '');
+  const sichtbar = $derived(arten.filter((eintrag) => eintrag.anzahl > 0));
+  const vorgabe = (gewaehlt: Aufnahmeart[]) =>
+    gewaehlt.length === VORGABE_ARTEN.length && VORGABE_ARTEN.every((art) => gewaehlt.includes(art));
+  const gefiltert = $derived(wahl.quelle !== '' || !vorgabe(wahl.arten));
+
+  /** Eine Art an oder ab. */
+  function schalte(art: Aufnahmeart) {
+    const an = wahl.arten.includes(art);
+    filtere({ arten: an ? wahl.arten.filter((a) => a !== art) : [...wahl.arten, art] });
+  }
 
   /** Eine Sortierung wählen - die gewählte noch einmal kehrt die Richtung um. */
   function sortiere(schluessel: Listenwahl['sortierung']) {
@@ -104,14 +127,16 @@
       </div>
 
       <div class="gruppe">
-        <span class="marke">Status</span>
+        <span class="marke">Art</span>
         <div class="chips">
-          {#each STATUS as eintrag (eintrag.schluessel)}
+          {#each sichtbar as eintrag (eintrag.art)}
+            {@const an = wahl.arten.includes(eintrag.art)}
             <button
               class="chip"
-              class:gewaehlt={wahl.status === eintrag.schluessel}
-              aria-pressed={wahl.status === eintrag.schluessel}
-              onclick={() => filtere({ status: eintrag.schluessel })}>{eintrag.name}</button
+              class:gewaehlt={an}
+              aria-pressed={an}
+              onclick={() => schalte(eintrag.art)}
+              >{NAMEN[eintrag.art]}<span class="anzahl">{eintrag.anzahl}</span></button
             >
           {/each}
         </div>
@@ -244,6 +269,11 @@
   }
   .pfeil {
     font-weight: bold;
+  }
+  .anzahl {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    font-variant-numeric: tabular-nums;
   }
 
   select {
