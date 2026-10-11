@@ -280,15 +280,18 @@ Rechts in der Kennzeile steht ein Ring mit der **Genauigkeit**, mit der das
 Modell von „schreiben" die Aufnahme gehört hat (0 bis 100). Die Farbe läuft
 von Rot über Orange, Gelb und Hellgrün nach Dunkelgrün, gemessen an den 10-
 und 90-%-Quantilen dieses Sprechers; Rot liegt nie über 50, Dunkelgrün nie
-unter 85 (`uebersicht.skala`). Ungemessene Aufnahmen tragen keinen Ring.
+unter 85 (`uebersicht.skala`). Ungemessene Aufnahmen tragen keinen Ring,
+editierte gelten als 100. In der Kennzeile steht bei einer editierten
+Aufnahme grün und fett **editiert**.
 
 Über der Liste klappt eine Zeile die **Wahl der Liste** auf, gemerkt im
 Browser:
 
-* **Sortieren** nach der letzten Änderung in „Editieren" (Vorgabe, neueste
-  zuerst; ohne Änderung zählt das Datum der Aufnahme), nach dem Datum der
-  Aufnahme oder nach der Genauigkeit - ungemessene zählen als 0. Ein zweites
-  Tippen auf die gewählte Sortierung kehrt die Richtung um (Pfeil).
+* **Sortieren** nach dem letzten Speichern in „Editieren" („Editiert",
+  Vorgabe, neueste zuerst; nie editiert zählt das Datum der Aufnahme), nach
+  dem Datum der Aufnahme oder nach der Genauigkeit - ungemessene zählen als
+  0, editierte als 100. Ein zweites Tippen auf die gewählte Sortierung kehrt
+  die Richtung um (Pfeil).
 * **Art** - überschneidungsfrei, jede Aufnahme gehört zu genau einer, und
   jede ist für sich an- und abwählbar, mit ihrer Zahl: gelesen,
   nachgesprochen, frei, Korrektur geprüft, Korrektur ungeprüft, verworfen.
@@ -300,7 +303,8 @@ Browser:
 
 Der Editor blättert in dieser Reihenfolge, wie sie beim Öffnen galt
 (`GET /api/konto/recordings/reihenfolge`); neu sortiert wird erst beim
-Zurückkommen.
+Zurückkommen. Sortiert die Liste nach „Editiert" oder „Qualität", geht sie
+dann zur neuen Stelle der zuletzt bearbeiteten Aufnahme.
 
 Gelöscht wird hier nur einzeln und nur die Aufnahme - Ton und Messwerte,
 nach einer Rückfrage mit Warnzeichen. Der Text bleibt und steht wieder zum
@@ -393,10 +397,13 @@ liegt.
 
 **Beim Öffnen ist nichts geändert.** Die Linien stehen ganz außen, Teilen ist
 aus, „Speichern" gesperrt, und es gibt einen Knopf zum Hören. Jede Änderung
-schaltet „Speichern" frei; der Knopf (als Tooltip) und eine Warnzeile darüber
-sagen, was sich ändert - gekürzt, geteilt, Text geändert, bei einer Korrektur
+schaltet „Speichern" frei; sein Tooltip und die Rückfrage sagen, was sich
+ändert - gekürzt, geteilt, Text geändert, bei einer ungeprüften Korrektur
 dazu: als geprüft übernommen. Sind die Linien verschoben, kommt ein Knopf für
-den Ausschnitt dazu.
+den Ausschnitt dazu. Über der Kurve stehen Art (gelesen, nachgesprochen, …),
+Datum der Aufnahme, grün und fett **editiert** mit dem Datum des letzten
+Speicherns, die Dauer und rechts der Ring der Genauigkeit wie in „Meine
+Daten".
 
 **Zurück nach „Meine Daten"** steht die Seite, wie sie war: dieselbe Seite der
 Liste, dieselbe Karte offen, dieselbe Stelle im Fenster. Wer mit
@@ -453,9 +460,15 @@ weiter kürzen, teilen und berichtigen, nicht verlängern.
 unberührt. Bei einer Korrektur aus „schreiben" steht in der Vorlage damit
 weiter, was das Modell schrieb, an der Aufnahme, was wirklich gesagt wurde.
 Wo `recordings.text` leer ist, gilt der Text der Vorlage (`Aufnahme.text_zu`) -
-für Anzeige, Datensatz, Auswertung und Trainingsmanifest. Speichern prüft eine
-Korrektur (`recordings.validiert`), auch mit unverändertem Text; eine
-geprüfte zählt in Training und Messung wie eine Vorlage.
+für Anzeige, Datensatz, Auswertung und Trainingsmanifest.
+
+**Gespeichert heißt editiert und geprüft.** Jede gespeicherte Aufnahme trägt
+das Datum (`recordings.geaendert`) und gilt als geprüft
+(`recordings.validiert`) - gleich, ob sie gelesen, nachgesprochen oder aus
+„schreiben" kam; eine Korrektur auch mit unverändertem Text. Eine geprüfte
+Korrektur zählt in Training und Messung wie eine Vorlage. In „Meine Daten"
+zählt eine editierte Aufnahme still als 100 % Genauigkeit
+(`uebersicht.EDITIERT_QUALITAET`) - ein Mensch hat sie gehört und berichtigt.
 
 Ohne Split:
 

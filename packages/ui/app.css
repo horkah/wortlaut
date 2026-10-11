@@ -14,6 +14,8 @@
   --akzent-hell: #e4ece9;
   --warnung: #8a5300;
   --fehler: #b3261e;
+  /* Was ein Mensch geprüft hat - die Marke „editiert" an einer Aufnahme. */
+  --editiert: #1f7a3a;
   --text: #1c1b19;
   --hintergrund: #faf9f7;
   --schrift-familie: system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -248,4 +250,11 @@ input[type='checkbox'][role='switch']:focus-visible {
 .erklaerung strong {
   display: block;
   margin-bottom: 0.2rem;
+}
+
+/* „editiert" an einer Aufnahme: ausnahmsweise farbig und fett - von einem
+   Menschen gehört und berichtigt. */
+.editiert {
+  color: var(--editiert);
+  font-weight: 700;
 }

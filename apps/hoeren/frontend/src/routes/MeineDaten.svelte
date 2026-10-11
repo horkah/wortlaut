@@ -103,6 +103,23 @@
     gehZu(`${EDITIEREN_ROUTE}${kennung}`);
   }
 
+  /**
+   * Zurück aus dem Editor, sortiert nach „Editiert" oder „Qualität": Die
+   * bearbeitete Aufnahme ist jetzt woanders - die Liste sortiert neu und geht
+   * zu ihr. Ist sie fort (geteilt), steht die Liste oben.
+   */
+  async function neueStelle(stelle: Stelle | null): Promise<Stelle | null> {
+    if (!stelle || wahl.sortierung === 'aufgenommen') return stelle;
+    try {
+      const folge = await meineReihenfolge(wahl, meinePin);
+      const nummer = folge.findIndex((eintrag) => eintrag.id === stelle.aufgeklappt);
+      if (nummer < 0) return { seite: 1, aufgeklappt: null, y: 0 };
+      return { seite: Math.floor(nummer / proSeite) + 1, aufgeklappt: stelle.aufgeklappt, y: null };
+    } catch {
+      return stelle;
+    }
+  }
+
   /** Nach dem Laden: Karte wieder auf, Fenster an die alte Stelle - oder zur Karte. */
   async function kehreZurueck(stelle: Stelle) {
     const karte = aufnahmen.find((aufnahme) => aufnahme.id === stelle.aufgeklappt);
@@ -176,7 +193,7 @@
 
   async function lade() {
     fehler = '';
-    const stelle = nimmStelle();
+    const stelle = await neueStelle(nimmStelle());
     if (stelle) aufnahmenSeite = stelle.seite;
     try {
       daten = await meinKonto(meinePin);
@@ -588,6 +605,7 @@
         <span>
           {aufnahme.dauer_s.toFixed(1)} s · {aufnahme.modus} · {tag(aufnahme.erstellt)}
           {#if aufnahme.hinweise.length}<Warnzeichen hinweise={aufnahme.hinweise} />{/if}
+          {#if aufnahme.geaendert}· <span class="editiert">editiert</span>{/if}
           {#if aufnahme.status !== 'ok'}· <strong>{aufnahme.status}</strong>{/if}
         </span>
         {#if aufnahme.qualitaet !== null}

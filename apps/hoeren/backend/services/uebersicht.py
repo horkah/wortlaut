@@ -38,7 +38,8 @@ SEITE = 200
 # Sortiert nach dem Datum der Aufnahme, nach dem der letzten Änderung in
 # „Editieren" (ohne Änderung: das der Aufnahme) oder nach der Genauigkeit, mit
 # der das Modell von „schreiben" sie gehört hat - nicht gemessene zählen still
-# als 0. Vorgabe: zuletzt geändert zuerst.
+# als 0, editierte als 100 (`EDITIERT_QUALITAET`). Vorgabe: zuletzt editiert
+# zuerst.
 NACH_AUFNAHME = "aufgenommen"
 NACH_AENDERUNG = "geaendert"
 NACH_QUALITAET = "qualitaet"
@@ -55,6 +56,10 @@ FREI = "frei"
 KORREKTUR_GEPRUEFT = "korrektur_geprueft"
 KORREKTUR_UNGEPRUEFT = "korrektur_ungeprueft"
 ARTEN = (GELESEN, NACHGESPROCHEN, FREI, KORREKTUR_GEPRUEFT, KORREKTUR_UNGEPRUEFT, VERWORFEN)
+
+# Eine in „Editieren" gespeicherte Aufnahme hat ein Mensch gehört und
+# berichtigt: Sie zählt als 100 - in der Sortierung wie am Ring.
+EDITIERT_QUALITAET = 100.0
 VORGABE_ARTEN = tuple(art for art in ARTEN if art != VERWORFEN)
 
 # Die Farbskala der Genauigkeit an den Karten: Rot am 10-%-, Dunkelgrün am
@@ -345,6 +350,22 @@ def wahl_aus(quelle: str, arten: str, sortierung: str, richtung: str) -> dict:
     }
 
 
+def art_von(aufnahme: Aufnahme, korrektur: bool) -> str:
+    """Die Art einer einzelnen Aufnahme - dieselbe Regel wie `_art`."""
+    if aufnahme.status == VERWORFEN:
+        return VERWORFEN
+    if korrektur:
+        return KORREKTUR_GEPRUEFT if aufnahme.validiert else KORREKTUR_UNGEPRUEFT
+    return aufnahme.modus
+
+
+def _qualitaet():
+    """Die Genauigkeit einer Aufnahme als Ausdruck: editiert 100, sonst gemessen."""
+    return case(
+        (Aufnahme.geaendert.is_not(None), EDITIERT_QUALITAET), else_=Erkennung.genauigkeit
+    )
+
+
 def _art():
     """Die Art einer Aufnahme als Ausdruck der Abfrage (siehe `ARTEN`)."""
     korrektur = Textquelle.art == "korrektur"
@@ -374,7 +395,7 @@ def _liste(
     Die Wahl ist geprüft (`wahl_aus`).
     """
     abfrage = (
-        select(Aufnahme, Vorlage, Textquelle, Erkennung.genauigkeit)
+        select(Aufnahme, Vorlage, Textquelle, _qualitaet())
         .join(Vorlage, Vorlage.id == Aufnahme.prompt_id)
         .join(Textquelle, Textquelle.id == Vorlage.source_id)
         .outerjoin(
@@ -387,7 +408,7 @@ def _liste(
     erstes = {
         NACH_AUFNAHME: Aufnahme.erstellt,
         NACH_AENDERUNG: func.coalesce(Aufnahme.geaendert, Aufnahme.erstellt),
-        NACH_QUALITAET: func.coalesce(Erkennung.genauigkeit, 0.0),
+        NACH_QUALITAET: func.coalesce(_qualitaet(), 0.0),
     }[sortierung]
     merkmale = (erstes, *zuschnitt.reihenfolge())
     return abfrage.order_by(*(m.desc() if absteigend else m.asc() for m in merkmale))

@@ -340,8 +340,11 @@ Spalten mit mehr Bedeutung als ihr Name:
 - `recordings.text`: was in der Aufnahme wirklich gesagt wurde, geschrieben
   von „Editieren"; leer heißt der Text der Vorlage (`Aufnahme.text_zu`). Die
   Vorlage selbst bleibt unberührt.
-- `recordings.validiert`: ob ein Mensch den Text einer Korrektur geprüft hat.
-  Eine geprüfte Korrektur zählt in Training und Messung wie eine Vorlage.
+- `recordings.validiert`: ob ein Mensch die Aufnahme in „Editieren" gehört und
+  gespeichert hat - gleich welcher Art. Eine geprüfte Korrektur zählt in
+  Training und Messung wie eine Vorlage.
+- `recordings.geaendert`: wann zuletzt in „Editieren" gespeichert; gesetzt
+  heißt **editiert**. `erstellt` bleibt das Datum der Aufnahme.
 
 ---
 

@@ -329,6 +329,16 @@ export type Aufnahmeart =
   | 'korrektur_ungeprueft'
   | 'verworfen';
 
+/** Wie eine Art dasteht - in der Liste wie im Editor. */
+export const ARTNAMEN: Record<Aufnahmeart, string> = {
+  gelesen: 'Gelesen',
+  nachgesprochen: 'Nachgesprochen',
+  frei: 'Frei',
+  korrektur_geprueft: 'Korrektur, geprüft',
+  korrektur_ungeprueft: 'Korrektur, ungeprüft',
+  verworfen: 'Verworfen',
+};
+
 /** Was die Liste anfangs zeigt: alles außer dem Verworfenen. */
 export const VORGABE_ARTEN: Aufnahmeart[] = [
   'gelesen',
@@ -642,6 +652,8 @@ export type Zuschnittaufnahme = {
   /** Ob der Text aus dem Sprechen kommt; Speichern prüft ihn dann. */
   korrektur: boolean;
   validiert: boolean;
+  /** Die Art wie in „Meine Daten" - gelesen, nachgesprochen, … */
+  art: Aufnahmeart;
   /** Ein Pegelwert je Fenster, bezogen auf Vollausschlag. */
   verlauf: number[];
   fenster_s: number;

@@ -9,8 +9,8 @@
    *
    * **Beim Öffnen ist nichts geändert.** Die Linien stehen ganz außen, der
    * Teilen-Modus ist aus, „Speichern" gesperrt. Jede Änderung - Linien, Text,
-   * Teilen - schaltet es frei, und Knopf wie Warnzeile sagen, was sich beim
-   * Speichern ändert. „Auto" setzt die Linien an die Grenzen der Stimme, nach
+   * Teilen - schaltet es frei; sein Tooltip und die Rückfrage sagen, was sich
+   * beim Speichern ändert. „Auto" setzt die Linien an die Grenzen der Stimme, nach
    * derselben Rechnung, mit der der Server Randstille meldet
    * (`audio.stimmgrenzen`).
    *
@@ -46,6 +46,7 @@
   import { tag, tagUndZeit } from '$ui/zeit';
   import { EDITIEREN_ROUTE, MEINE_DATEN_PFAD } from '$ui/apps';
   import {
+    ARTNAMEN,
     zuschnittEine,
     zuschnittOriginal,
     zuschnittSpeichern,
@@ -423,8 +424,9 @@
   <div class="karte">
     <div class="reihe lage">
       <span class="gedaempft daten">
-        aufgenommen {tag(aufnahme.erstellt)}
-        {#if aufnahme.geaendert}· geändert {tagUndZeit(aufnahme.geaendert)}{/if}
+        {ARTNAMEN[aufnahme.art]} · aufgenommen {tag(aufnahme.erstellt)}
+        {#if aufnahme.geaendert}· <span class="editiert">editiert</span>
+          {tagUndZeit(aufnahme.geaendert)}{/if}
         · {aufnahme.dauer_s.toFixed(1)} s
       </span>
       {#if aufnahme.qualitaet !== null}
@@ -597,9 +599,6 @@
   </div>
 
   <div class="karte abschluss">
-    {#if aenderungen.length}
-      <p class="hinweise">Beim Speichern: {aenderungen.join(' · ')}.</p>
-    {/if}
     <div class="reihe">
       <button
         class="knopf haupt"
@@ -816,7 +815,4 @@
     margin-top: 1.5rem;
   }
 
-  .hinweise {
-    margin: 0 0 0.75rem;
-  }
 </style>
