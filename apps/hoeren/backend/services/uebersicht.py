@@ -9,15 +9,17 @@ from __future__ import annotations
 
 import json
 import statistics
+from dataclasses import dataclass
 
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
-from wortlaut import storage
+from wortlaut import laeufe, registry, storage
 
 from apps.schreiben.backend.config import einstellungen as schreiben_einstellungen
 from apps.schreiben.backend.deps import aktive_ref
 
+from ..config import einstellungen
 from ..db.models import (
     GUELTIG,
     VERWORFEN,
@@ -38,8 +40,8 @@ SEITE = 200
 # Sortiert nach dem Datum der Aufnahme, nach dem der letzten Änderung in
 # „Editieren" (ohne Änderung: das der Aufnahme) oder nach der Genauigkeit, mit
 # der das Modell von „schreiben" sie gehört hat - nicht gemessene zählen still
-# als 0, editierte als 100 (`EDITIERT_QUALITAET`). Vorgabe: zuletzt editiert
-# zuerst.
+# als 0, editierte still als 100 (`EDITIERT_QUALITAET`). Vorgabe: zuletzt
+# editiert zuerst.
 NACH_AUFNAHME = "aufgenommen"
 NACH_AENDERUNG = "geaendert"
 NACH_QUALITAET = "qualitaet"
@@ -57,8 +59,12 @@ KORREKTUR_GEPRUEFT = "korrektur_geprueft"
 KORREKTUR_UNGEPRUEFT = "korrektur_ungeprueft"
 ARTEN = (GELESEN, NACHGESPROCHEN, FREI, KORREKTUR_GEPRUEFT, KORREKTUR_UNGEPRUEFT, VERWORFEN)
 
-# Eine in „Editieren" gespeicherte Aufnahme hat ein Mensch gehört und
-# berichtigt: Sie zählt als 100 - in der Sortierung wie am Ring.
+# **Editiert** ist eine Aufnahme, die in „Editieren" gespeichert wurde und auf
+# der das Modell von „schreiben" seitdem nicht gelernt hat (`_editiert`). Ein
+# Mensch hat sie gehört und berichtigt; beim Sortieren nach Genauigkeit zählt
+# sie still als 100. Angezeigt wird statt der Zahl die Marke „editiert" - gemessen
+# ist an ihr nichts. Lernt ein neuer Stand auf ihr und wird er freigegeben,
+# gilt wieder, was gemessen ist.
 EDITIERT_QUALITAET = 100.0
 VORGABE_ARTEN = tuple(art for art in ARTEN if art != VERWORFEN)
 
@@ -176,6 +182,9 @@ class AufnahmeAntwort(BaseModel):
     # Die Genauigkeit (0 bis 100), mit der das Modell von „schreiben" diese
     # Aufnahme gehört hat; leer, solange nicht gemessen.
     qualitaet: float | None = None
+    # Editiert und seitdem nicht gelernt (`EDITIERT_QUALITAET`) - dann steht die
+    # Marke statt der Zahl.
+    editiert: bool = False
 
 
 class Skala(BaseModel):
@@ -359,11 +368,59 @@ def art_von(aufnahme: Aufnahme, korrektur: bool) -> str:
     return aufnahme.modus
 
 
-def _qualitaet():
-    """Die Genauigkeit einer Aufnahme als Ausdruck: editiert 100, sonst gemessen."""
-    return case(
-        (Aufnahme.geaendert.is_not(None), EDITIERT_QUALITAET), else_=Erkennung.genauigkeit
+@dataclass(frozen=True)
+class Gelernt:
+    """Worauf ein Stand gelernt hat: die Aufnahmen und wann sein Lauf sie einfror."""
+
+    seit: str
+    aufnahmen: frozenset[str]
+
+
+def gelernt_von(modell: str) -> Gelernt | None:
+    """Was das Modell von „schreiben" gelernt hat - `None` bei einem Grundmodell."""
+    if not registry.ist_stand(modell):
+        return None
+    datenverzeichnis = einstellungen().data_dir
+    try:
+        job = str(registry.lies_ref(datenverzeichnis, modell).get("job_id") or "")
+    except (OSError, ValueError):
+        return None
+    lauf = laeufe.lies_lauf(datenverzeichnis, job) if job else None
+    if lauf is None:
+        return None
+    return Gelernt(
+        seit=str(lauf.auftrag.get("erstellt") or ""),
+        aufnahmen=frozenset(
+            str(zeile.get("recording_id") or "") for zeile in laeufe.manifestzeilen(lauf.verzeichnis)
+        ),
     )
+
+
+def _editiert(gelernt: Gelernt | None):
+    """Ob eine Aufnahme editiert ist, als Ausdruck der Abfrage (siehe `EDITIERT_QUALITAET`)."""
+    gespeichert = Aufnahme.geaendert.is_not(None)
+    if gelernt is None:
+        return gespeichert
+    seitdem_gelernt = and_(
+        Aufnahme.id.in_(gelernt.aufnahmen), Aufnahme.geaendert < gelernt.seit
+    )
+    return and_(gespeichert, ~seitdem_gelernt)
+
+
+def ist_editiert(aufnahme: Aufnahme, gelernt: Gelernt | None) -> bool:
+    """Dieselbe Regel wie `_editiert`, für eine einzelne Aufnahme."""
+    if not aufnahme.geaendert:
+        return False
+    return not (
+        gelernt is not None
+        and aufnahme.id in gelernt.aufnahmen
+        and aufnahme.geaendert < gelernt.seit
+    )
+
+
+def _qualitaet(gelernt: Gelernt | None):
+    """Die Genauigkeit zum Sortieren: editiert 100, sonst gemessen."""
+    return case((_editiert(gelernt), EDITIERT_QUALITAET), else_=Erkennung.genauigkeit)
 
 
 def _art():
@@ -390,12 +447,14 @@ def _liste(
     sortierung: str = NACH_AENDERUNG,
     absteigend: bool = True,
 ):
-    """Die Abfrage hinter Seite und Reihenfolge: gefiltert, sortiert, mit Genauigkeit.
+    """Die Abfrage hinter Seite und Reihenfolge: gefiltert, sortiert, mit
+    Genauigkeit und ob editiert.
 
     Die Wahl ist geprüft (`wahl_aus`).
     """
+    gelernt = gelernt_von(modell)
     abfrage = (
-        select(Aufnahme, Vorlage, Textquelle, _qualitaet())
+        select(Aufnahme, Vorlage, Textquelle, Erkennung.genauigkeit, _editiert(gelernt))
         .join(Vorlage, Vorlage.id == Aufnahme.prompt_id)
         .join(Textquelle, Textquelle.id == Vorlage.source_id)
         .outerjoin(
@@ -408,7 +467,7 @@ def _liste(
     erstes = {
         NACH_AUFNAHME: Aufnahme.erstellt,
         NACH_AENDERUNG: func.coalesce(Aufnahme.geaendert, Aufnahme.erstellt),
-        NACH_QUALITAET: func.coalesce(_qualitaet(), 0.0),
+        NACH_QUALITAET: func.coalesce(_qualitaet(gelernt), 0.0),
     }[sortierung]
     merkmale = (erstes, *zuschnitt.reihenfolge())
     return abfrage.order_by(*(m.desc() if absteigend else m.asc() for m in merkmale))
@@ -498,8 +557,9 @@ def aufnahmen_seite(
                 quelle_titel=quelle.titel,
                 validiert=bool(aufnahme.validiert),
                 qualitaet=genauigkeit,
+                editiert=bool(editiert),
             )
-            for aufnahme, vorlage, quelle, genauigkeit in treffer
+            for aufnahme, vorlage, quelle, genauigkeit, editiert in treffer
         ],
     )
 

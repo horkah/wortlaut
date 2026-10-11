@@ -605,10 +605,11 @@
         <span>
           {aufnahme.dauer_s.toFixed(1)} s · {aufnahme.modus} · {tag(aufnahme.erstellt)}
           {#if aufnahme.hinweise.length}<Warnzeichen hinweise={aufnahme.hinweise} />{/if}
-          {#if aufnahme.geaendert}· <span class="editiert">editiert</span>{/if}
           {#if aufnahme.status !== 'ok'}· <strong>{aufnahme.status}</strong>{/if}
         </span>
-        {#if aufnahme.qualitaet !== null}
+        {#if aufnahme.editiert}
+          <span class="editiert" title="Editiert - noch in keinem Training von {modell}">editiert</span>
+        {:else if aufnahme.qualitaet !== null}
           <Guete wert={aufnahme.qualitaet} {skala} {modell} />
         {/if}
       </div>

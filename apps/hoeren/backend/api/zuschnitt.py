@@ -96,6 +96,8 @@ class ZuschnittAntwort(BaseModel):
     # Wie gut das Modell von „schreiben" sie gehört hat - wie in „Meine Daten"
     # (`services/uebersicht.py`); leer, solange nicht gemessen.
     qualitaet: float | None = None
+    # Editiert und seitdem nicht gelernt - dann steht die Marke statt der Zahl.
+    editiert: bool = False
     modell: str = ""
     skala: uebersicht.Skala = uebersicht.Skala()
 
@@ -183,13 +185,10 @@ def eine(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage) 
     zeile.modell = modell
     zeile.skala = uebersicht.skala(db, modell)
     zeile.art = uebersicht.art_von(aufnahme, zeile.korrektur)
-    zeile.qualitaet = (
-        uebersicht.EDITIERT_QUALITAET
-        if aufnahme.geaendert
-        else db.scalar(
-            select(Erkennung.genauigkeit).where(
-                Erkennung.recording_id == aufnahme.id, Erkennung.modell == modell
-            )
+    zeile.editiert = uebersicht.ist_editiert(aufnahme, uebersicht.gelernt_von(modell))
+    zeile.qualitaet = db.scalar(
+        select(Erkennung.genauigkeit).where(
+            Erkennung.recording_id == aufnahme.id, Erkennung.modell == modell
         )
     )
     return zeile
