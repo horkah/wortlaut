@@ -24,11 +24,13 @@
   let liste = $state<Quelle[]>([]);
   let fehler = $state('');
   let laeuft = $state(false);
+  // Ob gerade eine Datei oder ein Kamerabild gelesen wird - ohne Knopf steht
+  // der Zustand neben dem Feld.
+  let liest = $state(false);
 
   let thema = $state('');
   let altersspanne = $state('Erwachsene');
   let umfang = $state(300);
-  let datei = $state<FileList | null>(null);
 
   /**
    * Der Prüfschritt: Was gelesen oder erkannt wurde, steht hier, bis jemand
@@ -86,6 +88,12 @@
       });
   });
 
+  async function lies(arbeit: () => Promise<unknown>) {
+    liest = true;
+    await fuehreAus(arbeit);
+    liest = false;
+  }
+
   async function fuehreAus(arbeit: () => Promise<unknown>) {
     fehler = '';
     laeuft = true;
@@ -137,24 +145,30 @@
   function ausKamera() {
     const aufgenommen = kamerabild?.[0];
     if (!aufgenommen) return;
-    fuehreAus(async () => {
+    lies(async () => {
       const gelesen = await textErkennen(aufgenommen);
       oeffneEntwurf(gelesen.text, 'Aufnahme', gelesen.herkunft, aufgenommen);
       kamerabild = null;
     });
   }
 
-  const ausDatei = (ereignis: SubmitEvent) => {
-    ereignis.preventDefault();
-    const gewaehlt = datei?.[0];
+  /**
+   * Gelesen wird, sobald eine Datei gewählt ist: Wer sie im Dateidialog
+   * bestätigt hat, hat schon ja gesagt. Danach wird das Feld geleert, damit
+   * dieselbe Datei ein zweites Mal gewählt werden kann.
+   */
+  const ausDatei = (ereignis: Event & { currentTarget: HTMLInputElement }) => {
+    const feld = ereignis.currentTarget;
+    const gewaehlt = feld.files?.[0];
+    feld.value = '';
     if (!gewaehlt) return;
     if (ZUR_ANSICHT.test(gewaehlt.name)) {
-      fuehreAus(async () => {
+      lies(async () => {
         const gelesen = await textErkennen(gewaehlt);
         oeffneEntwurf(gelesen.text, gewaehlt.name, gelesen.herkunft, gewaehlt);
       });
     } else {
-      fuehreAus(() => quelleAusDatei(gewaehlt));
+      lies(() => quelleAusDatei(gewaehlt));
     }
   };
 
@@ -229,7 +243,6 @@
     fuehreAus(async () => {
       await quelleAusText({ text: offen.text, titel: offen.titel, herkunft: offen.herkunft });
       schliesseEntwurf();
-      datei = null;
     });
   };
 
@@ -355,17 +368,12 @@
     entscheidet in diesem Augenblick, ob er ihn hochlädt (`docs/datenschutz.md`).
   -->
   <p class="gedaempft zusage">Die Datei wird nach dem Lesen gelöscht; gespeichert wird nur der Text.</p>
-  <form onsubmit={ausDatei}>
-    <input type="file" accept={annimmt} bind:files={datei} />
-    <button class="knopf" type="submit" disabled={laeuft}>
-      {laeuft ? 'Wird gelesen …' : 'Hochladen'}
-    </button>
+  <form>
+    <input type="file" accept={annimmt} onchange={ausDatei} disabled={laeuft} />
     {#if kannErkennen}
       <!--
-        Klein und ohne Beschriftung, weil das Sinnbild eindeutig ist und die
-        Zeile sonst zwei gleich große Knöpfe hätte - der eine für den
-        gewöhnlichen Weg, der andere für den kurzen. Der Name steht trotzdem
-        da, nur für Vorleseprogramme und den Mauszeiger.
+        Klein und ohne Beschriftung, weil das Sinnbild eindeutig ist. Der Name
+        steht trotzdem da, nur für Vorleseprogramme und den Mauszeiger.
       -->
       <label class="kamera" title="Mit der Kamera aufnehmen">
         <input
@@ -390,6 +398,7 @@
         </svg>
       </label>
     {/if}
+    {#if liest}<span class="gedaempft">Wird gelesen …</span>{/if}
   </form>
 
   <!--
