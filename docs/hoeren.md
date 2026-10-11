@@ -270,8 +270,15 @@ eine Aufnahme fällt, rechnet der Browser in der Zeitzone des Betrachters.
 Kurzes zuerst (Name, Kennzahlen, Ausleiten, PIN, Textquellen, Sitzungen),
 die lange Liste der Aufnahmen danach.
 
-Gelöscht wird hier nur einzeln - eine Aufnahme verwerfen wie beim Aufnehmen.
-`schreiben` verlinkt auf dieselbe Seite.
+Jede Aufnahme ist eine Karte: Text, Dauer, Modus, Tag, Hinweise. Ein Klick
+oder Tippen irgendwo auf die Karte klappt sie auf, ein zweites klappt sie zu;
+offen ist immer nur eine. Aufgeklappt stehen dort der Player mit dem Audio,
+der Papierkorb und - nur wenn der Bearbeitungsschlüssel gilt - der Stift, der
+die Aufnahme in **Editieren** öffnet.
+
+Gelöscht wird hier nur einzeln - eine Aufnahme verwerfen wie beim Aufnehmen,
+nach einer Rückfrage mit Warnzeichen, denn Audio und Messwerte sind danach
+weg. `schreiben` verlinkt auf dieselbe Seite.
 
 ### Eine Vorlage vom Foto
 
@@ -344,68 +351,65 @@ von der Aufsicht.
 
 ---
 
-## Zuschnitt - die Stille an den Rändern
+## Editieren - zuschneiden, teilen, berichtigen
+
+Eine Aufnahme allein, erreichbar über den Stift an einer aufgeklappten Karte
+in „Meine Daten" (`#/editieren/<id>`): der Lautstärkeverlauf mit drei Linien
+(Anfang, gestrichelte Teilung, Ende), der Text Wort für Wort mit anklickbaren
+Lücken, zwei Felder für die Texte der Teile, vier Knöpfe zum Hören (ganz, der
+Ausschnitt zwischen Anfang und Ende, Teil 1, Teil 2). Verschoben wird mit
+Finger, Maus oder Pfeiltasten.
+
+### Zuschneiden - die Stille an den Rändern
 
 Zwischen Knopfdruck und erstem Laut liegt oft eine Sekunde, am Ende mehr. Über
 anderthalb Stunden Korpus summiert sich das zu einer halben Stunde, die
-mittrainiert und mitgemessen wird. Der Zuschnitt ist eine Werkbank, erreichbar
-über **Meine Daten → Zuschnitt öffnen**.
+mittrainiert und mitgemessen wird.
 
-Je Aufnahme eine Karte, älteste zuerst: der Lautstärkeverlauf mit zwei Linien,
-die Vorlage, zwei Knöpfe zum Hören (ganz, oder nur was bliebe). Die Linien
-stehen anfangs, wo der Pegel die Stimme vermutet, mit einem Zehntel Sekunde
-Luft (`wortlaut/audio.stimmgrenzen`, 20-ms-Fenster, Schwelle relativ zur
-Spitze - dieselbe Rechnung wie beim Hochladen). Verschoben wird mit Finger,
-Maus oder Pfeiltasten.
+Anfang und Ende stehen anfangs, wo der Pegel die Stimme vermutet, mit einem
+Zehntel Sekunde Luft (`wortlaut/audio.stimmgrenzen`, 20-ms-Fenster, Schwelle
+relativ zur Spitze - dieselbe Rechnung wie beim Hochladen). „Ganze Aufnahme"
+setzt sie an die Ränder, „Linien zurücksetzen" zurück auf den Vorschlag.
 
 **Kein VAD.** Ein Raum, ein Mikrofon vor dem Mund, eine Äußerung - was laut
 wird, ist diese Person. Ein Sprachmodell zu fragen, wo abweichende Sprache
 anfängt, träfe dieselbe Annahme, an der die Diktierfunktion des Telefons
 scheitert; und über dem Vorschlag sitzt ohnehin ein Mensch.
 
-**Geschrieben wird erst nach der Rückfrage**, und die warnt: **Der Zuschnitt
+**Geschrieben wird erst nach der Rückfrage**, und die warnt: **Zuschneiden
 überschreibt das Original.** Was außerhalb der Linien liegt, ist danach weg;
-rückgängig machen lässt sich das nicht. Je Aufnahme:
+rückgängig machen lässt sich das nicht. Die Teilung spielt dafür keine Rolle.
 
 1. Die Datei wird verlustfrei gekürzt und ersetzt das Original.
 2. Dauer, Pegel, Stille und Hinweise der Zeile kommen aus der neuen Datei.
 3. Die Messwerte der Aufnahme werden gelöscht, übernommene Faltungen
    eingeschlossen; der nächste Auswertungslauf rechnet neu.
 
+Danach steht die gekürzte Fassung in der Ansicht, mit neuem Vorschlag.
+
 Bei 16 kHz mono PCM ist ein Rahmen zwei Byte, geschnitten wird auf ganze
 Rahmen, nach außen gerundet, ohne Blenden. Ein zweiter Schnitt kann nur
 weiter nach innen.
 
-### Editieren - teilen oder berichtigen
+### Teilen und berichtigen
 
-**Editieren …** an jeder Karte öffnet eine Aufnahme allein: drei Linien in der
-Kurve (Anfang, gestrichelte Teilung, Ende), der Text Wort für Wort mit
-anklickbaren Lücken, zwei Felder für die Texte der Teile, drei Knöpfe zum
-Hören. Die Teilung steht anfangs in der längsten Pause, die Textteilung folgt
-ihr an der passendsten Wortgrenze, bis jemand klickt.
+Die Teilung steht anfangs in der längsten Pause, die Textteilung folgt ihr an
+der passendsten Wortgrenze, bis jemand klickt.
 
 Nach der Rückfrage entstehen zwei neue Aufnahmen mit eigener Datei und
 eigener Vorlage; Byte für Byte ergeben sie den Bereich des Originals. Liegt die
 Teilung auf Anfang oder Ende, entsteht eine einzige Kopie - so wird aus
-derselben Ansicht eine Aufnahme mit berichtigtem Text. Das Original bleibt, bis
-es jemand löscht. Die Teile tragen sein Datum und einen Sortierschlüssel
-(`<id>.1`, `<id>.2`), der sie unter ihm hält.
-
-### Löschen im Zuschnitt
-
-**Löschen** nimmt markierte Aufnahmen ganz aus dem Bestand: Zeile, Datei,
-Messwerte - und die Vorlage, wenn keine andere Aufnahme
-mehr an ihr hängt. Anders als Verwerfen, das die Vorlage wieder offen macht.
-Gedacht für das Original nach dem Teilen.
+derselben Ansicht eine Aufnahme mit berichtigtem Text. Das Original bleibt.
+Die Teile tragen sein Datum und einen Sortierschlüssel (`<id>.1`, `<id>.2`),
+der sie bei ihm hält.
 
 ### Der Schlüssel
 
-Vor allen Wegen des Zuschnitts steht zusätzlich `WORTLAUT_EDITOR_KEY`
-(`X-Editor-Key`), auch vor den lesenden: Der Zuschnitt überschreibt
-Aufnahmen. Eingetragen wird er
-unter „Zugangsdaten"; ob er gilt, sagt `GET /api/zugang` (`bearbeiten`). Nur
-dann steht der Weg in den Zuschnitt in „Meine Daten", sonst ein Verweis auf
-die Zugangsdaten. Leer heißt abgeschaltet; dann fehlt der Punkt ganz.
+Vor allen Wegen unter `/api/zuschnitt/…` steht zusätzlich
+`WORTLAUT_EDITOR_KEY` (`X-Editor-Key`), auch vor den lesenden: Zuschneiden
+überschreibt Aufnahmen. Eingetragen wird er unter „Zugangsdaten"; ob er gilt,
+sagt `GET /api/zugang` (`bearbeiten`). Nur dann steht der Stift an den
+Aufnahmen in „Meine Daten". Leer heißt abgeschaltet.
 
 ---
 

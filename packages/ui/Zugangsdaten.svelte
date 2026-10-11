@@ -83,7 +83,7 @@
       recht: 'trainieren',
       was: 'Training beauftragen und neu starten, Läufe samt Modell löschen, Fehlerprotokoll',
     },
-    { art: 'bearbeitung', recht: 'bearbeiten', was: 'Zuschnitt und Editieren der Aufnahmen' },
+    { art: 'bearbeitung', recht: 'bearbeiten', was: 'Aufnahmen zuschneiden, teilen und berichtigen' },
   ];
 
   function standText(recht: Recht, art: Schluesselart): string {

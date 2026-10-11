@@ -138,30 +138,21 @@ export const ZUGANGSDATEN_PFAD = '/zugangsdaten';
 export const MEINE_DATEN_PFAD = '/meine-daten';
 
 /**
- * Wo die Stille an den Rändern der eigenen Aufnahmen weggeschnitten wird.
+ * „Editieren": eine einzelne Aufnahme zuschneiden, teilen oder berichtigt
+ * kopieren - `#/editieren/<id>`.
  *
  * Eine Ansicht von „hören", und zwar **weder Reiter noch Menüpunkt**: Hierher
- * führt ein Knopf aus „Meine Daten", zurück derselbe Weg. Dieselbe Stellung
- * wie die Einsicht der Aufsicht (`EINSICHT_ROUTE` in `zustand.svelte.ts`) und
- * aus demselben Grund - es ist eine Werkbank, keine Station auf dem täglichen
- * Weg. In der Reiterreihe stünde sie neben „Aufnehmen" und „Fortschritt" und
- * wäre damit genauso oft ein Fehlgriff wie eine Hilfe (Grundentscheidung 7).
+ * führt der Stift an einer aufgeklappten Aufnahme in „Meine Daten", zurück
+ * derselbe Weg. Dieselbe Stellung wie die Einsicht der Aufsicht
+ * (`EINSICHT_ROUTE` in `zustand.svelte.ts`) und aus demselben Grund - es ist
+ * eine Werkbank, keine Station auf dem täglichen Weg (Grundentscheidung 7).
  *
- * Der Pfad steht trotzdem hier und nicht in „hören": Ein Ort, den eine App
- * auflöst, gehört in dieselbe Liste wie die anderen - sonst sucht ihn beim
- * nächsten Mal jemand in zwei Dateien.
+ * Die Kennung steht in der Adresse, damit der Zurück-Knopf des Browsers
+ * dorthin führt, woher man kam, und ein Neuladen dieselbe Aufnahme wieder
+ * zeigt. Der Pfad steht hier und nicht in „hören": Ein Ort, den eine App
+ * auflöst, gehört in dieselbe Liste wie die anderen.
  */
-export const ZUSCHNITT_PFAD = '/zuschnitt';
-
-/**
- * „Editieren": eine einzelne Aufnahme teilen oder berichtigt kopieren - `#/zuschnitt/editieren/<id>`.
- *
- * Eine Stufe unter dem Zuschnitt und nur von dort erreichbar, über den Knopf
- * an jeder Karte. Die Kennung steht in der Adresse, damit der Zurück-Knopf
- * des Browsers dorthin führt, woher man kam, und ein Neuladen dieselbe
- * Aufnahme wieder zeigt.
- */
-export const EDITIEREN_ROUTE = `${ZUSCHNITT_PFAD}/editieren/`;
+export const EDITIEREN_ROUTE = '/editieren/';
 
 /**
  * Wo die Grundmodelle über den eigenen Korpus laufen - die Auswertung.

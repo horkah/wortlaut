@@ -83,8 +83,7 @@ wortlaut/
 │   │   │   │                      # export, ausleitung, loeschung
 │   │   │   └── db/                # models.py, migrations/
 │   │   ├── frontend/src/routes/   # Verwaltung, Quelle, Aufnahme, Fortschritt,
-│   │   │                          # Auswertung, MeineDaten, Einsicht, Zuschnitt,
-│   │   │                          # Editieren
+│   │   │                          # Auswertung, MeineDaten, Einsicht, Editieren
 │   │   └── tests/
 │   │
 │   ├── lernen/

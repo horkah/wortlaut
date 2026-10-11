@@ -1,14 +1,19 @@
 <script lang="ts">
   /**
-   * Editieren: eine Aufnahme in zwei neue zerlegen, oder eine Kopie mit
-   * berichtigtem Text anlegen - im Ton und im Text.
+   * Editieren: eine Aufnahme zuschneiden, in zwei neue zerlegen, oder eine
+   * Kopie mit berichtigtem Text anlegen - im Ton und im Text.
    *
-   * Erreichbar aus dem Zuschnitt, über den Knopf „Editieren …" an einer Karte,
-   * und nur von dort. Gezeigt wird genau diese eine Aufnahme: dieselbe Kurve
-   * wie in der Liste, aber mit drei Linien statt zwei - Anfang, Teilung, Ende.
-   * Darunter die Vorlage, Wort für Wort, mit einer anklickbaren Lücke vor dem
-   * ersten, zwischen je zwei und nach dem letzten Wort, und darunter die
-   * beiden Texte als Eingabefelder.
+   * Erreichbar aus „Meine Daten", über den Stift an einer aufgeklappten
+   * Aufnahme, und nur von dort. Gezeigt wird genau diese eine Aufnahme: der
+   * Lautstärkeverlauf mit drei Linien - Anfang, Teilung, Ende. Darunter die
+   * Vorlage, Wort für Wort, mit einer anklickbaren Lücke vor dem ersten,
+   * zwischen je zwei und nach dem letzten Wort, und darunter die beiden Texte
+   * als Eingabefelder.
+   *
+   * **Zuschneiden** kürzt die Aufnahme auf Anfang und Ende und überschreibt
+   * das Original (`api/zuschnitt.py`, `schreiben`); die Teilung spielt dafür
+   * keine Rolle. Was außerhalb lag, ist danach weg, die Messwerte der
+   * Aufnahme ebenso. Danach steht die neue Fassung hier zur weiteren Arbeit.
    *
    * **Die Textteilung folgt der Linie, bis jemand sie selbst setzt.** Anfangs
    * steht sie an der Wortgrenze, die zum Anteil der Zeit am besten passt; wer
@@ -20,21 +25,22 @@
    * **Liegt die Teilung auf Anfang oder Ende**, hat ein Teil keine Länge. Sein
    * Feld wird grau, und gespeichert wird nur der andere, als Kopie.
    *
-   * **Geschrieben wird erst nach der Rückfrage**, und dann entstehen neue
+   * **Geteilt wird erst nach der Rückfrage**, und dann entstehen neue
    * Aufnahmen neben dem Original (`api/zuschnitt.py`, `teilen`). Das Original
-   * bleibt; wer es nicht mehr will, löscht es danach in der Liste. Abgespielt
-   * wird bis dahin wie im Zuschnitt aus der geladenen Datei (`$ui/ausschnitt`),
-   * ohne vorläufige Dateien auf dem Server.
+   * bleibt. Abgespielt wird bis dahin aus der geladenen Datei
+   * (`$ui/ausschnitt`), ohne vorläufige Dateien auf dem Server.
    */
   import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import Pegelverlauf from '$ui/Pegelverlauf.svelte';
+  import Rueckfrage from '$ui/Rueckfrage.svelte';
   import { spiele, stoppe, vergiss } from '$ui/ausschnitt';
   import { tag } from '$ui/zeit';
-  import { EDITIEREN_ROUTE, ZUSCHNITT_PFAD } from '$ui/apps';
+  import { EDITIEREN_ROUTE, MEINE_DATEN_PFAD } from '$ui/apps';
   import {
     zuschnittEine,
     zuschnittOriginal,
+    zuschnittSchreiben,
     zuschnittTeilen,
     type Zuschnittaufnahme,
   } from '../lib/api';
@@ -59,8 +65,11 @@
   let bearbeitet = $state(false);
 
   let fehler = $state('');
-  let spielt = $state<'' | 'ganz' | 'vorn' | 'hinten'>('');
-  let laeuft = $state(false);
+  let meldung = $state('');
+  let spielt = $state<'' | 'ganz' | 'ausschnitt' | 'vorn' | 'hinten'>('');
+  let laeuft = $state<'' | 'zuschneiden' | 'teilen'>('');
+  // Wonach gerade gefragt wird, bevor geschrieben wird.
+  let frage = $state<'' | 'zuschneiden' | 'teilen'>('');
   let datei: Blob | null = null;
 
   const woerter = $derived(aufnahme ? aufnahme.text.split(/\s+/).filter(Boolean) : []);
@@ -70,6 +79,8 @@
   const bereit = $derived(
     (leerVorn || textVorn.trim() !== '') && (leerHinten || textHinten.trim() !== ''),
   );
+  // Zuschneiden ohne etwas wegzunehmen wäre ein Schreiben ohne Wirkung.
+  const schneidbar = $derived(aufnahme !== null && (start > 0 || ende < aufnahme.dauer_s));
   const knopftext = $derived(
     leerVorn
       ? 'Teil 2 als Kopie speichern'
@@ -179,13 +190,19 @@
     ({ start, ende, teilung } = anfangs);
   }
 
+  function ganzeAufnahme() {
+    if (!aufnahme) return;
+    start = 0;
+    ende = aufnahme.dauer_s;
+  }
+
   function allesZuruecksetzen() {
     linienZuruecksetzen();
     textZuruecksetzen();
   }
 
-  /** Abspielen - das Ganze oder einen der beiden Teile. Ein zweiter Druck hält an. */
-  async function hoere(welches: 'ganz' | 'vorn' | 'hinten') {
+  /** Abspielen - das Ganze, den Ausschnitt oder einen der beiden Teile. Ein zweiter Druck hält an. */
+  async function hoere(welches: 'ganz' | 'ausschnitt' | 'vorn' | 'hinten') {
     if (!aufnahme) return;
     if (spielt === welches) {
       stoppe();
@@ -195,9 +212,11 @@
     const [von, bis] =
       welches === 'ganz'
         ? [0, aufnahme.dauer_s]
-        : welches === 'vorn'
-          ? [start, teilung]
-          : [teilung, ende];
+        : welches === 'ausschnitt'
+          ? [start, ende]
+          : welches === 'vorn'
+            ? [start, teilung]
+            : [teilung, ende];
     try {
       spielt = welches;
       datei ??= await zuschnittOriginal(aufnahme.id);
@@ -210,26 +229,45 @@
     }
   }
 
-  async function speichere() {
-    if (!aufnahme || !bereit) return;
-    const zeilen = [
-      ...(leerVorn ? [] : [`Teil 1 (${(teilung - start).toFixed(2)} s): ${textVorn.trim()}`]),
-      ...(leerHinten ? [] : [`Teil 2 (${(ende - teilung).toFixed(2)} s): ${textHinten.trim()}`]),
-    ];
-    const frage =
-      zeilen.length === 2
-        ? 'Diese Aufnahme in zwei neue Aufnahmen teilen?'
-        : `${knopftext.replace(' speichern', '')} speichern?`;
-    if (
-      !confirm(
-        `${frage}\n\n${zeilen.join('\n')}\n\n` +
-          'Neue Aufnahmen tragen das Datum des Originals und stehen in der Liste direkt darunter. ' +
-          'Das Original bleibt erhalten - wer es nicht mehr braucht, löscht es danach im Zuschnitt.',
-      )
-    )
-      return;
+  // Die Zeilen der Rückfrage zum Teilen: welche Teile entstehen, wie lang, mit welchem Text.
+  const teile = $derived([
+    ...(leerVorn ? [] : [`Teil 1 (${(teilung - start).toFixed(2)} s): ${textVorn.trim()}`]),
+    ...(leerHinten ? [] : [`Teil 2 (${(ende - teilung).toFixed(2)} s): ${textHinten.trim()}`]),
+  ]);
+
+  async function zuschneiden() {
+    frage = '';
+    if (!aufnahme || !schneidbar) return;
+    const id = aufnahme.id;
+    stoppe();
+    spielt = '';
     fehler = '';
-    laeuft = true;
+    meldung = '';
+    laeuft = 'zuschneiden';
+    try {
+      const ergebnis = await zuschnittSchreiben([
+        { id, start_s: start, ende_s: ende },
+      ]);
+      const offen = Object.values(ergebnis.fehler);
+      if (offen.length) {
+        fehler = offen.join(' · ');
+        return;
+      }
+      await lade(id);
+      meldung = 'Zugeschnitten.';
+    } catch (ursache) {
+      fehler = fehlertext(ursache);
+    } finally {
+      laeuft = '';
+    }
+  }
+
+  async function teilen() {
+    frage = '';
+    if (!aufnahme || !bereit) return;
+    fehler = '';
+    meldung = '';
+    laeuft = 'teilen';
     try {
       await zuschnittTeilen({
         id: aufnahme.id,
@@ -239,11 +277,11 @@
         text_vorn: leerVorn ? '' : textVorn,
         text_hinten: leerHinten ? '' : textHinten,
       });
-      gehZu(ZUSCHNITT_PFAD);
+      gehZu(MEINE_DATEN_PFAD);
     } catch (ursache) {
       fehler = fehlertext(ursache);
     } finally {
-      laeuft = false;
+      laeuft = '';
     }
   }
 
@@ -259,15 +297,18 @@
 
 <div class="reihe titel">
   <h2
-    use:erklaert={'Die gestrichelte Linie teilt die Aufnahme in zwei, die beiden äußeren bestimmen, was von jedem Teil an den Rändern bleibt. Ein Klick auf eine Lücke im Text setzt die Stelle, an der der Text geteilt wird - auch vor dem ersten oder nach dem letzten Wort. Beide Felder lassen sich berichtigen, wenn anders gesprochen wurde, als dasteht. Liegt die Teilung auf Anfang oder Ende, wird nur der andere Teil gespeichert. Es entstehen neue Aufnahmen, verlustfrei aus dem Original geschnitten; das Original bleibt, gemessen werden die neuen bei der nächsten Auswertung.'}
+    use:erklaert={'Die beiden äußeren Linien bestimmen, was an den Rändern bleibt. Zuschneiden kürzt die Aufnahme auf sie und überschreibt das Original; die Messwerte der Aufnahme werden verworfen, die nächste Auswertung rechnet sie neu. Die gestrichelte Linie teilt die Aufnahme in zwei. Ein Klick auf eine Lücke im Text setzt die Stelle, an der der Text geteilt wird - auch vor dem ersten oder nach dem letzten Wort. Beide Felder lassen sich berichtigen, wenn anders gesprochen wurde, als dasteht. Liegt die Teilung auf Anfang oder Ende, wird nur der andere Teil gespeichert. Es entstehen neue Aufnahmen, verlustfrei aus dem Original geschnitten; das Original bleibt, gemessen werden die neuen bei der nächsten Auswertung.'}
   >
     Editieren
   </h2>
-  <button class="knopf" onclick={() => gehZu(ZUSCHNITT_PFAD)}>Zurück zum Zuschnitt</button>
+  <button class="knopf" onclick={() => gehZu(MEINE_DATEN_PFAD)}>Zurück zu „Meine Daten“</button>
 </div>
 
 {#if fehler}
   <p class="fehler">{fehler}</p>
+{/if}
+{#if meldung}
+  <p class="gedaempft">{meldung}</p>
 {/if}
 
 {#if aufnahme}
@@ -275,9 +316,10 @@
     <div class="reihe kopf">
       <span class="gedaempft">{aufnahme.dauer_s.toFixed(1)} s · {tag(aufnahme.erstellt)}</span>
       <span class="wachsen"></span>
-      <!-- Drei Knöpfe, drei Zeichen: das volle Dreieck für die ganze Aufnahme,
-           und je eines zwischen einer festen und einer gestrichelten Grenze für
-           die beiden Teile - die gestrichelte ist die Teilung, wie in der Kurve. -->
+      <!-- Vier Knöpfe, vier Zeichen: das volle Dreieck für die ganze Aufnahme,
+           eines zwischen zwei festen Grenzen für den Ausschnitt, und je eines
+           zwischen einer festen und einer gestrichelten Grenze für die beiden
+           Teile - die gestrichelte ist die Teilung, wie in der Kurve. -->
       <button
         class="knopf zeichen"
         title="Ganze Aufnahme anhören"
@@ -296,6 +338,27 @@
         {:else}
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3 L13 8 L4 13 Z" /></svg>
         {/if}
+      </button>
+      <button
+        class="knopf zeichen"
+        title="Ausschnitt anhören"
+        aria-label="Ausschnitt anhören"
+        onclick={() => hoere('ausschnitt')}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true"
+          ><rect x="0.5" y="2" width="1.5" height="12" class="grenze" /><rect
+            x="14"
+            y="2"
+            width="1.5"
+            height="12"
+            class="grenze"
+          />{#if spielt === 'ausschnitt'}<rect x="4.5" y="4" width="2.5" height="8" /><rect
+              x="9"
+              y="4"
+              width="2.5"
+              height="8"
+            />{:else}<path d="M5 4 L11.5 8 L5 12 Z" />{/if}</svg
+        >
       </button>
       <button
         class="knopf zeichen"
@@ -419,20 +482,66 @@
         onclick={linienZuruecksetzen}>Linien zurücksetzen</button
       >
       <button class="knopf klein" onclick={allesZuruecksetzen}>Alles zurücksetzen</button>
+      <button
+        class="knopf klein"
+        title="Anfang und Ende an die Ränder der Aufnahme"
+        onclick={ganzeAufnahme}>Ganze Aufnahme</button
+      >
     </div>
   </div>
 
   <div class="karte abschluss">
     <div class="reihe">
-      <button class="knopf haupt" disabled={laeuft || !bereit} onclick={speichere}>
-        {laeuft ? 'Wird gespeichert …' : knopftext}
+      <button
+        class="knopf gefahr"
+        disabled={laeuft !== '' || !schneidbar}
+        onclick={() => (frage = 'zuschneiden')}
+      >
+        {laeuft === 'zuschneiden' ? 'Wird zugeschnitten …' : 'Zuschneiden'}
       </button>
-      <button class="knopf" onclick={() => gehZu(ZUSCHNITT_PFAD)}>Abbrechen</button>
+      <button
+        class="knopf haupt"
+        disabled={laeuft !== '' || !bereit}
+        onclick={() => (frage = 'teilen')}
+      >
+        {laeuft === 'teilen' ? 'Wird gespeichert …' : knopftext}
+      </button>
+      <button class="knopf" onclick={() => gehZu(MEINE_DATEN_PFAD)}>Abbrechen</button>
     </div>
   </div>
 {:else if !fehler}
   <p class="gedaempft">Wird geladen …</p>
 {/if}
+
+<Rueckfrage
+  offen={frage === 'zuschneiden'}
+  titel="Aufnahme zuschneiden?"
+  knopf="Zuschneiden"
+  gefahr
+  onja={zuschneiden}
+  onnein={() => (frage = '')}
+>
+  <p>
+    Die Aufnahme wird auf {start.toFixed(2)} s bis {ende.toFixed(2)} s gekürzt und das Original
+    überschrieben. Was außerhalb der Linien liegt, ist danach weg.
+  </p>
+  <p class="gedaempft">Die Messwerte dieser Aufnahme werden verworfen.</p>
+</Rueckfrage>
+
+<Rueckfrage
+  offen={frage === 'teilen'}
+  titel={teile.length === 2
+    ? 'In zwei Aufnahmen teilen?'
+    : `${knopftext.replace(' speichern', '')} speichern?`}
+  knopf={teile.length === 2 ? 'Teilen' : 'Speichern'}
+  onja={teilen}
+  onnein={() => (frage = '')}
+>
+  {#each teile as zeile (zeile)}
+    <p>{zeile}</p>
+  {/each}
+  <p class="gedaempft">Neue Aufnahmen tragen das Datum des Originals. Das Original bleibt erhalten.</p>
+</Rueckfrage>
 
 <style>
   .titel {
@@ -555,5 +664,9 @@
 
   .abschluss {
     margin-top: 1.5rem;
+  }
+
+  .gefahr {
+    border-color: var(--fehler);
   }
 </style>
