@@ -425,11 +425,14 @@
     <div class="reihe lage">
       <span class="gedaempft daten">
         {ARTNAMEN[aufnahme.art]} · aufgenommen {tag(aufnahme.erstellt)}
-        {#if aufnahme.geaendert}· <span class="editiert">editiert</span>
-          {tagUndZeit(aufnahme.geaendert)}{/if}
+        {#if aufnahme.geaendert}· editiert {tagUndZeit(aufnahme.geaendert)}{/if}
         · {aufnahme.dauer_s.toFixed(1)} s
       </span>
-      {#if aufnahme.qualitaet !== null}
+      {#if aufnahme.editiert}
+        <span class="editiert" title="Editiert - noch in keinem Training von {aufnahme.modell}"
+          >editiert</span
+        >
+      {:else if aufnahme.qualitaet !== null}
         <Guete wert={aufnahme.qualitaet} skala={aufnahme.skala} modell={aufnahme.modell} />
       {/if}
     </div>

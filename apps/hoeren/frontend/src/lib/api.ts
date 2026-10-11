@@ -294,6 +294,8 @@ export type AufsichtAufnahme = {
   validiert: boolean;
   /** Die Genauigkeit des Modells von „schreiben" auf dieser Aufnahme, 0 bis 100; null ungemessen. */
   qualitaet: number | null;
+  /** Editiert und seitdem nicht gelernt - dann steht die Marke statt der Zahl. */
+  editiert: boolean;
 };
 
 export type Einsicht = {
@@ -663,6 +665,8 @@ export type Zuschnittaufnahme = {
   vorschlag_ende_s: number;
   /** Wie gut das Modell von „schreiben" sie gehört hat, 0 bis 100; null ungemessen. */
   qualitaet: number | null;
+  /** Editiert und seitdem nicht gelernt - dann steht die Marke statt der Zahl. */
+  editiert: boolean;
   modell: string;
   skala: Guteskala;
 };
