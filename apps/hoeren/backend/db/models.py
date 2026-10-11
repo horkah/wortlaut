@@ -100,6 +100,8 @@ class Aufnahme(Basis):
     externe_id: Mapped[str | None]
     # Leer, außer bei Teilen: Kennung des Originals mit angehängter Nummer.
     sortierschluessel: Mapped[str | None] = mapped_column(default=None)
+    # JSON-Liste der Kennungen aller Vorfahren, ältester zuerst (`023_vorfahren.sql`).
+    vorfahren: Mapped[str] = mapped_column(default="[]")
     # Nur bei Korrekturen: wie oft in „schreiben" gesprochen, bis bestätigt.
     anlaeufe: Mapped[int | None] = mapped_column(default=None)
     erstellt: Mapped[str]

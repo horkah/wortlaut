@@ -4,11 +4,11 @@ Je Faltung lernt ein Training auf den anderen fünf Sechsteln und misst an
 diesem; danach ist jede Aufnahme einmal von einem Modell gehört, das sie nicht
 kannte - die Zahl der Modelltafel.
 
-**Eine Verwandtschaft ist eine Aufnahme.** Teile und Kopien aus „Editieren"
-sind derselbe Ton (`zuschnitt.stamm`); in verschiedenen Faltungen lernte ein
-Modell, woran es gemessen wird. Die Faltung hängt am Stamm und wird in
-„hören" mit seiner ersten Aufnahme vergeben (`services/faltungen.py`): in
-die Faltung mit der wenigsten Sprache, danach fest.
+**Teile liegen in der Faltung ihres Originals.** Teile und Kopien aus
+„Editieren" tragen dessen Stamm (`zuschnitt.stamm`). Die Faltung hängt am
+Stamm und wird in „hören" mit seiner ersten Aufnahme vergeben
+(`services/faltungen.py`): in die Faltung mit der wenigsten Sprache, danach
+fest.
 
 **Gerechnet bei jedem Auftrag und im Schnappschuss festgehalten**
 (`services/auftraege.py`). In fünf von sechs Faltungen lernt jede Aufnahme

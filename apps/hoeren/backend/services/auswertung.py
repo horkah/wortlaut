@@ -259,21 +259,25 @@ def gehoert(datenverzeichnis: Path, namen: list[str]) -> dict[str, dict[str, Ton
 
 
 def verwandte(db: Session, bekannt: dict[str, dict[str, Ton]]) -> dict[str, set[str]]:
-    """Je Stand alle Aufnahmen, die er kennt - die gehörten **und** ihre Verwandten.
+    """Je Stand alle Aufnahmen, die er kennt - die gehörten **und** ihre Nachfahren.
 
-    Teile und Kopien aus „Editieren" sind derselbe Ton (`zuschnitt.stamm`):
-    Wer das Original kannte, kennt den Teil, und umgekehrt. Ein Verwandter
-    bringt keine Faltung mit; die Stelle bleibt leer, bis ein Lauf ihn misst.
+    Teile und Kopien aus „Editieren" sind Ton ihrer Vorfahren
+    (`zuschnitt.vorfahren`): Wer das Original oder einen Teil dazwischen im
+    Training hatte, kennt jeden Teil daraus, über alle Generationen und auch
+    dann, wenn die Vorfahren längst gelöscht sind. Ein Nachfahr bringt keine
+    Faltung mit; die Stelle bleibt leer, bis ein Lauf ihn misst.
     """
     if not bekannt:
         return {}
-    staemme = {aufnahme.id: zuschnitt.stamm(aufnahme) for aufnahme in db.scalars(select(Aufnahme))}
+    abstammung = {
+        aufnahme.id: zuschnitt.vorfahren(aufnahme) for aufnahme in db.scalars(select(Aufnahme))
+    }
     ergebnis: dict[str, set[str]] = {}
     for modell, gehoerte in bekannt.items():
-        # Eine gelöschte gehörte Aufnahme ist ihr eigener Stamm.
-        gehoerte_staemme = {staemme.get(kennung, kennung) for kennung in gehoerte}
         ergebnis[modell] = set(gehoerte) | {
-            kennung for kennung, stamm in staemme.items() if stamm in gehoerte_staemme
+            kennung
+            for kennung, vorfahren in abstammung.items()
+            if any(vorfahr in gehoerte for vorfahr in vorfahren)
         }
     return ergebnis
 

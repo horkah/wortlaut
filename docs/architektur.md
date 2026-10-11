@@ -331,8 +331,12 @@ Spalten mit mehr Bedeutung als ihr Name:
 - `recordings.sortierschluessel`: leer, außer bei Teilen einer geteilten
   Aufnahme (`<id des Originals>.1`, `.2`). Sortiert wird nach `erstellt`, dann
   nach `COALESCE(sortierschluessel, id)` - Teile stehen an der Stelle ihres
-  Originals, und `zuschnitt.stamm` findet so die Verwandtschaft, auch wenn
-  das Original nach dem Teilen gelöscht ist.
+  Originals, und `zuschnitt.stamm` findet so die Faltung, auch wenn das
+  Original nach dem Teilen gelöscht ist.
+- `recordings.vorfahren`: JSON-Liste der Kennungen aller Vorfahren, ältester
+  zuerst; leer bei einer gewöhnlichen Aufnahme. Sie steht am Teil selbst und
+  bleibt richtig, wenn die Vorfahren gelöscht sind. Ein Stand, der einen
+  davon kannte, wird am Teil nicht gemessen (`auswertung.verwandte`).
 
 ---
 

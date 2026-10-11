@@ -864,15 +864,17 @@ class TestTrainierteStaende:
         monkeypatch.setenv("WORTLAUT_EDITOR_KEY", "test-zuschnitt")
         einstellungen.cache_clear()
 
-        def teile(aufnahme: str, teilung_s: float = 2.0) -> list[str]:
+        def teile(
+            aufnahme: str, teilung_s: float = 2.0, start_s: float = 0.5, ende_s: float = 3.5
+        ) -> list[str]:
             antwort = klient.post(
                 "/api/zuschnitt/teilen",
                 headers={"X-Editor-Key": "test-zuschnitt"},
                 json={
                     "id": aufnahme,
-                    "start_s": 0.5,
+                    "start_s": start_s,
                     "teilung_s": teilung_s,
-                    "ende_s": 3.5,
+                    "ende_s": ende_s,
                     "text_vorn": "vorn",
                     "text_hinten": "hinten",
                 },
@@ -927,10 +929,10 @@ class TestTrainierteStaende:
         _laufe_bis_fertig(klient)
         assert self._vom_stand(klient, kopie, ref) == []
 
-    def test_wer_einen_teil_hatte_kennt_auch_das_geschwister(
+    def test_das_geschwister_eines_gehoerten_teils_misst_er(
         self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an, editiere
     ) -> None:
-        # Beide Teile stammen aus demselben Satz.
+        # Zwei Teile desselben Originals sind verschiedener Ton.
         sprich()
         original = _aufnahmen(klient)[0]
         vorn, hinten = editiere(original)
@@ -938,8 +940,38 @@ class TestTrainierteStaende:
 
         antworten.update({"small": "egal", "medium": "egal", ref: "aus dem Gedächtnis"})
         _laufe_bis_fertig(klient)
-        assert self._vom_stand(klient, hinten, ref) == []
+        assert {z["text"] for z in self._vom_stand(klient, hinten, ref)} == {"aus dem Gedächtnis"}
         assert {z["text"] for z in self._vom_stand(klient, vorn, ref)} == {AUS_DER_FALTUNG}
+
+    def test_enkel_eines_gehoerten_teils_misst_er_nicht(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an, editiere
+    ) -> None:
+        """Der gehörte Teil ist beim Weiterteilen gelöscht - gesperrt bleiben seine Teile."""
+        sprich()
+        original = _aufnahmen(klient)[0]
+        vorn, _ = editiere(original)
+        ref = lege_stand_an(vorn)
+        enkel = editiere(vorn, start_s=0.0, teilung_s=0.75, ende_s=1.5)
+
+        antworten.update({"small": "egal", "medium": "egal", ref: "aus dem Gedächtnis"})
+        _laufe_bis_fertig(klient)
+        for teil in enkel:
+            assert self._vom_stand(klient, teil, ref) == []
+
+    def test_enkel_des_gehoerten_originals_ebenso(
+        self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an, editiere
+    ) -> None:
+        """Original und Zwischenstufe sind gelöscht; die Sperre reicht über beide."""
+        sprich()
+        original = _aufnahmen(klient)[0]
+        ref = lege_stand_an(original)
+        vorn, _ = editiere(original)
+        enkel = editiere(vorn, start_s=0.0, teilung_s=0.75, ende_s=1.5)
+
+        antworten.update({"small": "egal", "medium": "egal", ref: "aus dem Gedächtnis"})
+        _laufe_bis_fertig(klient)
+        for teil in enkel:
+            assert self._vom_stand(klient, teil, ref) == []
 
     def test_ein_gerechneter_teil_von_vorher_wird_weggeraeumt(
         self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an, editiere

@@ -9,10 +9,10 @@ Werte kommen von dort, wo die Modelltafel sie holt
 Laufs, für später dazugekommene Aufnahmen aus der Auswertung in „hören"; bei
 einem freigegebenen Grundmodell allein aus „hören". Gezählt wird die WER.
 
-**Teile und Kopien erben den Wert ihres Originals.** Ein trainierter Stand
-misst sie nicht - derselbe Ton wie eine gelernte Aufnahme
-(`hoeren/services/auswertung.verwandte`); der Wert des Originals stammt aus
-der Faltung, die es zurückhielt.
+**Teile und Kopien erben den Wert ihres nächsten Vorfahren, der einen hat.**
+Ein trainierter Stand misst sie nicht - Ton einer gelernten Aufnahme
+(`hoeren/services/auswertung.verwandte`); der Wert des Vorfahren stammt aus
+der Faltung, die ihn zurückhielt.
 
 **Fehlende Werte misst der Trainer nach, vor der ersten Faltung.** Solche
 Aufnahmen stehen als `offen` in der Kernauswahl, samt Modell und Tempo
@@ -55,7 +55,7 @@ class Kernauswahl:
     tempo: float = tempo.VORGABE
     # Jede Aufnahme mit ihrer WER, die außerhalb des Kerns eingeschlossen.
     wer: dict[str, float] = field(default_factory=dict)
-    # Die Aufnahmen, deren Wert vom Original stammt.
+    # Die Aufnahmen, deren Wert von einem Vorfahren stammt.
     geerbt: list[str] = field(default_factory=list)
     # Die Aufnahmen ohne Wert: Der Trainer misst sie, bevor er wählt.
     offen: list[str] = field(default_factory=list)
@@ -108,7 +108,16 @@ def waehle(
         )
 
     staemme = {probe.aufnahme.id: zuschnitt.stamm(probe.aufnahme) for probe in proben}
-    reihe = _werte(datenverzeichnis, korpus, ref, set(staemme) | set(staemme.values()))
+    # Nächster Vorfahr zuerst.
+    vorfahren = {
+        probe.aufnahme.id: zuschnitt.vorfahren(probe.aufnahme)[::-1] for probe in proben
+    }
+    reihe = _werte(
+        datenverzeichnis,
+        korpus,
+        ref,
+        set(staemme) | {vorfahr for liste in vorfahren.values() for vorfahr in liste},
+    )
 
     def wer_von(kennung: str) -> float | None:
         wert = reihe.werte.get(kennung, {}).get("wer")
@@ -117,10 +126,13 @@ def waehle(
     wer: dict[str, float] = {}
     geerbt: list[str] = []
     offen: list[str] = []
-    for kennung, stamm in staemme.items():
+    for kennung in staemme:
         eigen = wer_von(kennung)
-        if eigen is None and stamm != kennung:
-            eigen = wer_von(stamm)
+        if eigen is None:
+            eigen = next(
+                (wert for vorfahr in vorfahren[kennung] if (wert := wer_von(vorfahr)) is not None),
+                None,
+            )
             if eigen is not None:
                 geerbt.append(kennung)
         if eigen is None:
