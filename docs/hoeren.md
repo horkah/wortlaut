@@ -272,9 +272,12 @@ die lange Liste der Aufnahmen danach.
 
 Jede Aufnahme ist eine Karte: Text, Dauer, Modus, Tag, Hinweise. Ein Klick
 oder Tippen irgendwo auf die Karte klappt sie auf, ein zweites klappt sie zu;
-offen ist immer nur eine. Aufgeklappt stehen dort der Player mit dem Audio,
-der Papierkorb und - nur wenn der Bearbeitungsschlüssel gilt - der Stift, der
-die Aufnahme in **Editieren** öffnet.
+offen ist immer nur eine. Aufgeklappt stehen dort die Wellenform, der
+Papierkorb und - nur wenn der Bearbeitungsschlüssel gilt - der Stift, der die
+Aufnahme in **Editieren** öffnet. Die Wellenform ist dieselbe wie im Editor,
+ohne Linien und Zahlen (`packages/ui/Abspieler.svelte`): Ein Tippen spielt,
+ein zweites hält an, der Cursor läuft mit; das Audio lädt erst das erste
+Tippen.
 
 Rechts in der Kennzeile steht ein Ring mit der **Genauigkeit**, mit der das
 Modell von „schreiben" die Aufnahme gehört hat (0 bis 100). Die Farbe läuft
@@ -678,6 +681,7 @@ GET    /api/vorlesen/stimmen                die Serverstimmen der Profilsprache
 GET    /api/vorlesen/probe?stimme=          Hörprobe an einem festen Satz
 POST   /api/recordings                      multipart: audio, prompt_id, modus
 GET    /api/recordings/{id}/audio           die eigene Aufnahme
+GET    /api/recordings/{id}/verlauf         ihr Lautstärkeverlauf - die Wellenform zum Anhören
 DELETE /api/recordings/{id}
 GET    /api/progress
 POST   /api/korpus/intake                   ← von „schreiben"

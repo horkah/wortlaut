@@ -209,6 +209,12 @@ export const aufnahmeVerwerfen = (aufnahme: string) =>
  */
 export const meineAufnahmeAudio = (aufnahme: string) => blob(`/recordings/${aufnahme}/audio`);
 
+/** Der Lautstärkeverlauf einer eigenen Aufnahme - die Wellenform zum Anhören. */
+export type Wellenform = { dauer_s: number; fenster_s: number; verlauf: number[] };
+
+export const meineWellenform = (aufnahme: string) =>
+  anfrage<Wellenform>(`/recordings/${aufnahme}/verlauf`);
+
 // ── Vorlesen ────────────────────────────────────────────────────────────────
 
 // Welche Stimmen es gibt und die Hörprobe dazu stehen in `$ui/speak`: Die

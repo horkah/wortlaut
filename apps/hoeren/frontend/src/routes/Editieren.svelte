@@ -41,7 +41,7 @@
   import Pegelverlauf from '$ui/Pegelverlauf.svelte';
   import Guete from '../lib/Guete.svelte';
   import Rueckfrage from '$ui/Rueckfrage.svelte';
-  import { spiele, stelle, stoppe, vergiss } from '$ui/ausschnitt';
+  import { folge as folgeCursor, spiele, stoppe, vergiss } from '$ui/ausschnitt';
   import { bewache } from '$ui/route';
   import { tag, tagUndZeit } from '$ui/zeit';
   import { EDITIEREN_ROUTE, MEINE_DATEN_PFAD } from '$ui/apps';
@@ -265,21 +265,15 @@
     try {
       spielt = welches;
       datei ??= await zuschnittOriginal(aufnahme.id, aufnahme.version);
-      await spiele(`${aufnahme.id}@${aufnahme.version}`, datei, von, bis, () => {
+      const schluessel = `${aufnahme.id}@${aufnahme.version}`;
+      await spiele(schluessel, datei, von, bis, () => {
         if (spielt === welches) halte();
       });
-      laufeMit();
+      folgeCursor(schluessel, (sekunde) => (cursor = sekunde));
     } catch (ursache) {
       halte();
       fehler = fehlertext(ursache);
     }
-  }
-
-  /** Der Cursor folgt dem Abspielen, Bild für Bild. */
-  function laufeMit() {
-    const jetzt = stelle();
-    cursor = spielt ? jetzt : null;
-    if (spielt && jetzt !== null) requestAnimationFrame(laufeMit);
   }
 
   /** Leertaste und Tippen auf die Kurve: was zwischen den Linien liegt, an oder aus. */

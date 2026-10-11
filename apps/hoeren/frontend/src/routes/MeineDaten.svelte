@@ -16,7 +16,7 @@
   import { tick } from 'svelte';
   import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
-  import AudioPlayer from '$ui/AudioPlayer.svelte';
+  import Abspieler from '$ui/Abspieler.svelte';
   import Kalender from '$ui/Kalender.svelte';
   import Guete from '../lib/Guete.svelte';
   import Listenwahl from '../lib/Listenwahl.svelte';
@@ -33,6 +33,7 @@
     meinDatensatz,
     meinKonto,
     meineAufnahmeAudio,
+    meineWellenform,
     meineAufnahmen,
     meineReihenfolge,
     VORGABE_ARTEN,
@@ -47,6 +48,7 @@
     type Guteskala,
     type Listenwahl as Wahl,
     type Quellenwahl,
+    type Wellenform,
   } from '../lib/api';
   import { gehZu, lage } from '../lib/zustand.svelte';
 
@@ -170,10 +172,10 @@
   let fehler = $state('');
   let meldung = $state('');
   let laeuft = $state('');
-  // Welche Karte aufgeklappt ist, und ihr Audio. Nur eine auf einmal: Der
-  // Browser hielte sonst Dutzende Aufnahmen im Speicher.
+  // Welche Karte aufgeklappt ist, und ihre Wellenform. Nur eine auf einmal:
+  // Der Browser hielte sonst Dutzende Aufnahmen im Speicher.
   let aufgeklappt = $state<string | null>(null);
-  let hoerprobe = $state<{ id: string; adresse: string } | null>(null);
+  let wellenform = $state<(Wellenform & { id: string }) | null>(null);
   // Die Aufnahme, nach deren Verwerfen gerade gefragt wird.
   let zuVerwerfen = $state<AufsichtAufnahme | null>(null);
 
@@ -320,7 +322,7 @@
 
   async function wechsleAufnahmenSeite(seite: number) {
     aufnahmenSeite = seite;
-    vergissHoerprobe();
+    wellenform = null;
     aufgeklappt = null;
     try {
       await ladeAufnahmen();
@@ -344,14 +346,9 @@
     }
   }
 
-  function vergissHoerprobe() {
-    if (hoerprobe) URL.revokeObjectURL(hoerprobe.adresse);
-    hoerprobe = null;
-  }
-
-  /** Auf- oder zuklappen; aufgeklappt mit geladenem Audio. */
+  /** Auf- oder zuklappen; aufgeklappt mit der Wellenform, das Audio erst beim Abspielen. */
   async function klappe(aufnahme: AufsichtAufnahme) {
-    vergissHoerprobe();
+    wellenform = null;
     if (aufgeklappt === aufnahme.id) {
       aufgeklappt = null;
       return;
@@ -361,11 +358,9 @@
     await tue(
       `hoere-${aufnahme.id}`,
       async () => {
-        const inhalt = await meineAufnahmeAudio(aufnahme.id);
-        // Inzwischen eine andere Karte aufgeklappt: Dieses Audio braucht niemand.
-        if (aufgeklappt === aufnahme.id) {
-          hoerprobe = { id: aufnahme.id, adresse: URL.createObjectURL(inhalt) };
-        }
+        const kurve = await meineWellenform(aufnahme.id);
+        // Inzwischen eine andere Karte aufgeklappt: Diese Kurve braucht niemand.
+        if (aufgeklappt === aufnahme.id) wellenform = { ...kurve, id: aufnahme.id };
       },
       '',
     );
@@ -390,7 +385,7 @@
       `verwerfen-${aufnahme.id}`,
       async () => {
         await aufnahmeVerwerfen(aufnahme.id);
-        vergissHoerprobe();
+        wellenform = null;
         aufgeklappt = null;
         // Auch Kennzahlen und Kalender: Eine verworfene Aufnahme zählt nicht mehr.
         await lade();
@@ -616,8 +611,16 @@
       {#if offen}
         <div class="reihe aufgeklappt">
           <div class="spieler">
-            {#if hoerprobe?.id === aufnahme.id}
-              <AudioPlayer quelle={hoerprobe.adresse} />
+            {#if wellenform?.id === aufnahme.id}
+              <!-- Der Schlüssel trägt Dauer und letztes Speichern: Nach einem
+                   Schnitt ist es eine andere Datei. -->
+              <Abspieler
+                schluessel="{aufnahme.id}@{aufnahme.dauer_s}@{aufnahme.geaendert ?? ''}"
+                verlauf={wellenform.verlauf}
+                fensterS={wellenform.fenster_s}
+                dauerS={wellenform.dauer_s}
+                lade={() => meineAufnahmeAudio(aufnahme.id)}
+              />
             {/if}
           </div>
           {#if aufnahme.status === 'ok'}

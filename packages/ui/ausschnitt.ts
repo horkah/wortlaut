@@ -24,8 +24,9 @@
 
 let werk: AudioContext | null = null;
 let laeuft: AudioBufferSourceNode | null = null;
-// Wo in der Datei das Laufende begann, und wann auf der Uhr des Kontexts.
-let ab = { sekunde: 0, uhr: 0 };
+// Was gerade spielt: unter welchem Schlüssel, ab wo in der Datei, und wann auf
+// der Uhr des Kontexts.
+let ab = { schluessel: '', sekunde: 0, uhr: 0 };
 
 // Dekodiert wird je Aufnahme einmal. Das Ergebnis ist ein Vielfaches der
 // Datei groß (float statt 16 bit), deshalb behält dieser Speicher nur, was
@@ -91,17 +92,34 @@ export async function spiele(
     fertig?.();
   };
   laeuft = quelle;
-  ab = { sekunde: anfang, uhr: werkzeug.currentTime };
+  ab = { schluessel, sekunde: anfang, uhr: werkzeug.currentTime };
   quelle.start(0, anfang, laenge);
 }
 
-/** Wo in der Datei gerade gespielt wird, in Sekunden - `null`, wenn nichts läuft. Für den Cursor. */
-export function stelle(): number | null {
-  if (!laeuft || !werk) return null;
+/**
+ * Wo in der Datei gerade gespielt wird, in Sekunden - `null`, wenn nichts
+ * läuft oder etwas anderes als `schluessel`.
+ */
+export function stelle(schluessel: string): number | null {
+  if (!laeuft || !werk || ab.schluessel !== schluessel) return null;
   return ab.sekunde + (werk.currentTime - ab.uhr);
 }
 
-/** Dekodierte Aufnahmen freigeben - beim Laden einer anderen Fassung und beim Verlassen. */
-export function vergiss(): void {
-  puffer.clear();
+/**
+ * Den Cursor mitführen: `melde` bekommt Bild für Bild die Stelle, solange
+ * `schluessel` spielt, und zuletzt `null`.
+ */
+export function folge(schluessel: string, melde: (sekunde: number | null) => void): void {
+  const schritt = () => {
+    const jetzt = stelle(schluessel);
+    melde(jetzt);
+    if (jetzt !== null) requestAnimationFrame(schritt);
+  };
+  requestAnimationFrame(schritt);
+}
+
+/** Dekodierte Aufnahmen freigeben - eine oder alle; beim Laden einer anderen Fassung und beim Verlassen. */
+export function vergiss(schluessel?: string): void {
+  if (schluessel === undefined) puffer.clear();
+  else puffer.delete(schluessel);
 }

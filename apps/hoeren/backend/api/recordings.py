@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
+from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
@@ -97,6 +98,40 @@ async def nimm_auf(
     )
 
 
+class VerlaufAntwort(BaseModel):
+    """Der Lautstärkeverlauf einer Aufnahme - für die Wellenform beim Anhören."""
+
+    dauer_s: float
+    fenster_s: float
+    # Ein Wert je Fenster, bezogen auf Vollausschlag (`audio.verlauf`).
+    verlauf: list[float]
+
+
+def _eigene_datei(db: Datenbank, ablage: Ablage, sprecher: str, aufnahme_id: str) -> Path:
+    """Die Datei einer eigenen gültigen Aufnahme - oder 404."""
+    aufnahme = db.get(Aufnahme, aufnahme_id)
+    if aufnahme is None or aufnahme.speaker_id != sprecher or aufnahme.status != GUELTIG:
+        raise HTTPException(status_code=404, detail="Unbekannte Aufnahme")
+    pfad = ablage.pfad(aufnahme.blob)
+    if not pfad.is_file():
+        raise HTTPException(status_code=404, detail="Zu dieser Aufnahme liegt kein Audio mehr.")
+    return pfad
+
+
+@router.get("/{aufnahme_id}/verlauf", response_model=VerlaufAntwort)
+def verlauf(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage) -> VerlaufAntwort:
+    """Die Wellenform der eigenen Aufnahme - dieselbe Rechnung wie in „Editieren"."""
+    try:
+        kurve = klang.verlauf(_eigene_datei(db, ablage, sprecher, aufnahme_id))
+    except klang.AudioFehler as ursache:
+        raise HTTPException(status_code=404, detail=str(ursache)) from ursache
+    return VerlaufAntwort(
+        dauer_s=kurve.dauer_s,
+        fenster_s=kurve.fenster_s,
+        verlauf=[round(wert, 5) for wert in kurve.werte],
+    )
+
+
 @router.get("/{aufnahme_id}/audio")
 def hoere_ab(
     sprecher: SprecherId,
@@ -105,13 +140,7 @@ def hoere_ab(
     ablage: Ablage,
 ) -> FileResponse:
     """Die eigene Aufnahme anhören."""
-    aufnahme = db.get(Aufnahme, aufnahme_id)
-    if aufnahme is None or aufnahme.speaker_id != sprecher or aufnahme.status != GUELTIG:
-        raise HTTPException(status_code=404, detail="Unbekannte Aufnahme")
-
-    pfad = ablage.pfad(aufnahme.blob)
-    if not pfad.is_file():
-        raise HTTPException(status_code=404, detail="Zu dieser Aufnahme liegt kein Audio mehr.")
+    pfad = _eigene_datei(db, ablage, sprecher, aufnahme_id)
     # Ein Schnitt überschreibt die Datei unter demselben Pfad - der Browser
     # fragt deshalb jedes Mal nach, ob seine Fassung noch gilt (ETag).
     return FileResponse(pfad, media_type="audio/wav", headers={"Cache-Control": "no-cache"})
