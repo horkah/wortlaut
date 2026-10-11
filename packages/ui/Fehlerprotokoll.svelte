@@ -11,6 +11,7 @@
    * Jüngstes oben. Eine Ausnahme samt Stapel steht eingeklappt unter ihrer
    * Zeile - wer sie braucht, klappt sie auf.
    */
+  import { erklaert } from './erklaerung';
   import { api, fehlertext } from './api';
   import { mitSchluessel } from './schluessel.svelte';
   import { zeitpunkt } from './zeit';
@@ -62,7 +63,11 @@
 </script>
 
 <div class="kopf">
-  <h2>Fehlerprotokoll</h2>
+  <h2
+    use:erklaert={`Warnungen und Fehler von Webdienst, Läufer und Training der letzten ${tage} Tage, das jüngste zuerst. Älteres wird verworfen.`}
+  >
+    Fehlerprotokoll
+  </h2>
   <button class="knopf" onclick={hole} disabled={laedt}>Neu laden</button>
 </div>
 

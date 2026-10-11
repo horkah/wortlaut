@@ -13,6 +13,7 @@
    * Grund steht der Zugang dieses Browsers ebenfalls nicht hier, sondern unter
    * `ZUGANGSDATEN_PFAD`.
    */
+  import { erklaert } from './erklaerung';
   import { fehlertext } from './api';
   import Mikrofontest from './Mikrofontest.svelte';
   import {
@@ -129,7 +130,11 @@
   }
 </script>
 
-<h2>Mikrofon</h2>
+<h2
+  use:erklaert={'Der Test öffnet das Mikrofon und zeigt den Pegel; solange er nicht läuft, hört die App nicht mit. Die Namen der Geräte nennt der Browser erst nach dem ersten Test. Die Verstärkung wirkt vor der Aufzeichnung und steckt in der Aufnahme - auch das Rauschen des Raumes, also so viel wie nötig, nicht so viel wie möglich. Die Pegelregelung gleicht wechselnde Lautstärke aus, hebt einen durchweg zu leisen Eingang aber nicht an.'}
+>
+  Mikrofon
+</h2>
 
 <Mikrofontest
   geraeteId={einstellungen.mikrofonId}
@@ -140,7 +145,11 @@
   onautoPegel={setzeAutoPegel}
 />
 
-<h2>Vorlesen</h2>
+<h2
+  use:erklaert={'Welche Gerätestimmen zur Wahl stehen und wie natürlich sie klingen, bestimmt das Betriebssystem; die Stimmen vom Server klingen auf jedem Gerät gleich. Langsamer ist leichter nachzusprechen, ermüdet aber über eine lange Sitzung. Wer den Text nicht sicher lesen kann, hört beim Vorlesen den Fehler, statt ihn zu suchen. Von selbst liest nur eine Stimme vom Server, eine Gerätestimme auf Tippen.'}
+>
+  Vorlesen
+</h2>
 
 {#if liste.length === 0 && serveliste.length === 0}
   <p class="gedaempft">Keine Stimme für diese Sprache.</p>
@@ -197,7 +206,9 @@
   <p class="fehler">{fehler}</p>
 {/if}
 
-<h2>Zurücksetzen</h2>
+<h2 use:erklaert={'Setzt Mikrofon, Stimme, Tempo und das Vorlesen auf die Vorgaben zurück.'}>
+  Zurücksetzen
+</h2>
 <button class="knopf" onclick={setzeZurueck}>Auf Vorgaben zurücksetzen</button>
 
 <style>

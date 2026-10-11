@@ -16,6 +16,7 @@
    * wiederkommt, startet sie neu, und ein Knopf tut dasselbe. Solange der
    * Reiter im Hintergrund liegt, wird ebenfalls nicht gefragt.
    */
+  import { erklaert } from './erklaerung';
   import { onDestroy } from 'svelte';
   import { ApiFehler, api } from './api';
 
@@ -291,7 +292,7 @@
     </section>
   {:else}
     <section class="karte">
-      <h3>Keine Grafikkarte</h3>
+      <h3 use:erklaert={'Dieser Server sieht keine nvidia-Karte.'}>Keine Grafikkarte</h3>
       <p class="gedaempft">Gerechnet wird auf dem Prozessor.</p>
     </section>
   {/each}

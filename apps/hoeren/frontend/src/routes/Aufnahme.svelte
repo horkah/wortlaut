@@ -8,6 +8,7 @@
    * Der Modus wird mitgeschickt, weil Nachgesprochenes Sprechtempo und
    * Satzmelodie der Vorgabe übernimmt und im Training anders gewichtet gehört.
    */
+  import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import PromptView from '$ui/PromptView.svelte';
@@ -179,7 +180,9 @@
 
       {#if letzte.hinweise.length > 0}
         <div class="hinweise">
-          <strong>Aufgefallen ist:</strong>
+          <strong use:erklaert={'Ein Hinweis, keine Ablehnung - die Aufnahme ist gespeichert.'}>
+            Aufgefallen ist:
+          </strong>
           <ul>
             {#each letzte.hinweise as hinweis}<li>{hinweis}</li>{/each}
           </ul>

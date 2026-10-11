@@ -22,6 +22,7 @@
    * (`lage.trainieren`, `lage.bearbeiten`), und danach richtet sich jede
    * Ansicht.
    */
+  import { erklaert } from './erklaerung';
   import PinSchloss from './PinSchloss.svelte';
   import { SPRECHER_PFAD } from './apps';
   import { gehZu } from './route';
@@ -117,7 +118,13 @@
   }
 </script>
 
-<h2>Zugangsdaten</h2>
+<h2
+  use:erklaert={lage.art === 'sprecher'
+    ? 'Der persönliche Zugang kam über den Link und gilt in allen drei Apps. Geht er verloren, gibt die Verwaltung einen neuen Link aus; der alte gilt dann nicht mehr.'
+    : 'Wer aufnimmt oder diktiert, braucht hier nichts - der persönliche Link genügt. Verwaltung: WORTLAUT_AUTH_TOKEN, Profile anlegen und Links ausgeben. Aufsicht: WORTLAUT_ADMIN_TOKEN im selben Feld, Einsicht in jeden Korpus, umbenennen, sichern, löschen.'}
+>
+  Zugangsdaten
+</h2>
 
 {#snippet formular()}
   <div class="reihe">
@@ -154,7 +161,11 @@
 <PinSchloss>
   {@render zugangsteil()}
 
-  <h2>Rechte dieses Browsers</h2>
+  <h2
+    use:erklaert={'Die Schlüssel sind eigene Geheimnisse neben dem Zugang. Sie bleiben in diesem Browser, auch wenn der Zugang wechselt, und gelten in allen drei Apps.'}
+  >
+    Rechte dieses Browsers
+  </h2>
   <dl class="rechte">
     <dt>Zugang</dt>
     <dd>
@@ -213,7 +224,11 @@
          In **jeder** App, nicht nur in „hören": Es ist derselbe Browser und
          derselbe Zugang, und wo man ihn übergibt, hat mit dem Reiter nichts zu
          tun, auf dem man gerade steht. -->
-    <h2>Diesen Browser übergeben</h2>
+    <h2
+      use:erklaert={'Ein Browser trägt genau einen Zugang. Mit dem Token der Verwaltung oder der Aufsicht gilt der persönliche hier nicht mehr; der persönliche Link holt ihn zurück. Sichern, Umbenennen und Löschen brauchen einen dieser Token, danach steht die Sprecherliste im Menü.'}
+    >
+      Diesen Browser übergeben
+    </h2>
     {#if wechseln}
       <p class="gedaempft">Ersetzt den Zugang von <strong>{lage.name}</strong> in diesem Browser.</p>
       {@render formular()}

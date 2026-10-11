@@ -10,6 +10,7 @@
    * Die Aufsicht sieht dieselbe Seite mit mehr: Umfang je Sprecher und einen
    * Weg in seine Daten (`Einsicht.svelte`).
    */
+  import { erklaert } from '$ui/erklaerung';
   import { dauer } from '$ui/zeit';
   import { ApiFehler, fehlertext } from '$ui/api';
   import { inDieZwischenablage } from '$ui/zwischenablage';
@@ -145,7 +146,11 @@
   <!-- Nur jetzt zu sehen: Gespeichert ist nur der Prüfwert. Wer den Link
        wegklickt, gibt einen neuen aus - und der alte gilt dann nicht mehr. -->
   <div class="karte neuer-zugang">
-    <strong>Zugang ausgegeben</strong>
+    <strong
+      use:erklaert={'Diesen Link auf dem Gerät der Person einmal öffnen und als Lesezeichen ablegen. Später ist er nicht mehr zu sehen; ein neuer Link macht den alten ungültig.'}
+    >
+      Zugang ausgegeben
+    </strong>
     <p class="gedaempft">Nur jetzt sichtbar.</p>
     <code class="link">{frisch.link}</code>
     <div class="reihe">
@@ -211,7 +216,11 @@
 </form>
 
 {#if beaufsichtigt}
-  <h2>Gesamtsicherung</h2>
+  <h2
+    use:erklaert={'Alle Korpora in einer Datei, zurückzuspielen mit scripts/restore.py - ohne Modellstände, die sind groß und neu zu rechnen. Bei großem Bestand dauert das Packen, und der Browser hält die Datei so lange im Speicher; dann besser curl (docs/betrieb.md).'}
+  >
+    Gesamtsicherung
+  </h2>
   <div class="karte">
     <button class="knopf haupt" disabled={packt} onclick={sichereAlles}>
       {packt ? 'Wird gepackt …' : 'Gesamtsicherung herunterladen (.tgz)'}

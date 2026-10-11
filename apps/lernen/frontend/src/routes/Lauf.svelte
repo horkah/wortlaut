@@ -13,6 +13,7 @@
    * halbfertige. Solange oben eine Kurve wächst, gibt es unten nichts zu
    * sehen - und das ist besser, als eine Zahl zu zeigen, die sich noch ändert.
    */
+  import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import { zeitpunkt } from '$ui/zeit';
   import { onMount } from 'svelte';
@@ -371,11 +372,20 @@
   </div>
 
   {#if hatKurve}
-    <p class="gedaempft">Durchgezogen: Training · gestrichelt: Validierung</p>
+    <p
+      class="gedaempft"
+      use:erklaert={'Fallen beide, lernt das Modell; steigt die gestrichelte, lernt es auswendig. Geprüft wird einmal je Durchgang.'}
+    >
+      Durchgezogen: Training · gestrichelt: Validierung
+    </p>
   {/if}
 
   {#if vergleich.length}
-    <h3>Gegen die Baseline</h3>
+    <h3
+      use:erklaert={`Dieselben Aufnahmen, die das jeweilige Faltungsmodell nie gesehen hat - einmal durch das unveränderte ${lauf.basismodell} (gemessen in der Auswertung von „hören“) und einmal durch diesen Stand. Gezählt werden nur Aufnahmen, die beide Seiten gemessen haben.`}
+    >
+      Gegen die Baseline
+    </h3>
 
     <table class="vergleich">
       <thead>

@@ -8,6 +8,7 @@
    * genau der Griff, den es hier nicht geben soll. Wer zwei Korpora ansehen
    * will, öffnet sie nacheinander.
    */
+  import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import { gueltigePin } from '$ui/pin.svelte';
   import AudioPlayer from '$ui/AudioPlayer.svelte';
@@ -281,7 +282,7 @@
     <div><strong>{zahlen.verworfen}</strong><span>verworfen</span></div>
   </div>
 
-  <h2>Ausleiten</h2>
+  <h2 use:erklaert={'Sicherung: Datenbank und Aufnahmen, zurückzuspielen mit scripts/restore.py - ohne Messwerte, die rechnet die Auswertung neu. Datensatz: je Aufnahme WAV und Text, für fremde Werkzeuge; keine Sicherung.'}>Ausleiten</h2>
   <div class="karte">
     <div class="reihe">
       <button
@@ -303,7 +304,11 @@
     </div>
   </div>
 
-  <h2>PIN vor „Meine Daten"</h2>
+  <h2
+    use:erklaert={'Vier Ziffern vor der Ansicht, in der diese Person ihre eigenen Daten sieht - gegen den Klick aus Versehen, nicht als zweites Passwort. Setzen verlangt die alte PIN nicht: Das ist der Rückweg, wenn sie vergessen wurde.'}
+  >
+    PIN vor „Meine Daten"
+  </h2>
   <div class="karte">
     <form class="reihe" onsubmit={pinAendern}>
       <!-- `pattern` als Ausdruck, nicht als Text: In einer Vorlage ist `{4}`
@@ -391,7 +396,11 @@
 
   <!-- Ganz unten und abgesetzt: Was hier steht, ist nicht rückgängig zu
        machen, und niemand soll versehentlich darauf stoßen. -->
-  <h2>Löschen</h2>
+  <h2
+    use:erklaert={'Beides ist endgültig und trifft nur diesen einen Sprecher. Vorher eine Sicherung ziehen - mit ihr lässt sich der Stand zurückholen, ohne sie nicht.'}
+  >
+    Löschen
+  </h2>
   <div class="karte gefahr">
     <p class="gedaempft">Endgültig. Betrifft nur diesen Sprecher.</p>
     <div class="reihe">

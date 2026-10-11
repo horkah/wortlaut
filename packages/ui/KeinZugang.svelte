@@ -14,11 +14,16 @@
    *
    * Eingehängt wird sie vom Rahmen (`Rahmen.svelte`), nicht von den Apps.
    */
+  import { erklaert } from './erklaerung';
   import { ZUGANGSDATEN_PFAD } from './apps';
   import { gehZu } from './route';
 </script>
 
-<h2>Kein Zugang</h2>
+<h2
+  use:erklaert={'Dieser Browser gehört noch zu niemandem. Der persönliche Link, einmal geöffnet, genügt - derselbe in allen drei Apps. Wer verwaltet oder beaufsichtigt, trägt seinen Token unter „Zugangsdaten“ ein; die stehen auch im Menü (☰).'}
+>
+  Kein Zugang
+</h2>
 
 <div class="karte">
   <p>Bitte den persönlichen Link öffnen.</p>
