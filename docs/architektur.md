@@ -148,7 +148,7 @@ wortlaut/
 │       ├── Rahmen.svelte          # Kopf, Inhalt, Fuß, Menü jeder App
 │       ├── apps.ts                # Apps, Reiter, Menü, was sich ausblenden lässt
 │       ├── lage.svelte.ts         # Route und Zugang - ein Zustand für alle
-│       ├── zugang.ts, wer.ts, pin.svelte.ts, api.ts, route.ts, reiter.ts
+│       ├── zugang.ts, wer.ts, pin.svelte.ts, api.ts, route.ts, reiter.ts, hilfe.ts
 │       ├── Audio.svelte, Darstellung.svelte, System.svelte, Zugangsdaten.svelte
 │       ├── Recorder.svelte, Mikrofontest.svelte, mikrofon.ts, speak.ts
 │       ├── Pegelverlauf.svelte, ausschnitt.ts, Textvergleich.svelte, diff.ts

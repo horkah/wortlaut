@@ -36,6 +36,7 @@
     menuePunkte,
     type AppSchluessel,
   } from './apps';
+  import { OHNE_ZUGANG, hilfeAdresse } from './hilfe';
   import { merkeReiter, vorgabeReiter } from './reiter';
   import { ladeZugang, lage } from './lage.svelte';
 
@@ -123,10 +124,20 @@
         : (ansicht ?? ansichten[lage.route] ?? ansichten[vorgabe] ?? null)),
   );
 
+  // Wohin „Hilfe" führt: die Stelle im Handbuch zu dem, was gerade dasteht.
+  // Ohne Zugang steht außerhalb des Menüs immer dieselbe Karte.
+  const hilfe = $derived(
+    hilfeAdresse(
+      app,
+      lage.art === 'keiner' && !MENUEANSICHTEN[lage.route] ? OHNE_ZUGANG : lage.route,
+      offen,
+    ),
+  );
+
   ladeZugang();
 </script>
 
-<Kopfleiste {app} punkte={reiter} {menue} sprecher={angemeldet} route={offen} />
+<Kopfleiste {app} punkte={reiter} {menue} sprecher={angemeldet} route={offen} {hilfe} />
 
 <main>
   {#if Inhalt}

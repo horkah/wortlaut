@@ -7,6 +7,8 @@ hier arbeitet, entscheidet [lernen](lernen.md).
 
 ---
 
+<a id="hilfe-schreiben"></a>
+
 ## Ablauf
 
 1. Die Person spricht; Whisper liefert Text mit Segmentgrenzen.
