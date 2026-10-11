@@ -208,11 +208,6 @@
       {/each}
     </select>
   </label>
-  {#if liste.some((m) => m.name.startsWith('Mikrofon '))}
-    <p class="gedaempft">
-      Die Namen der Geräte nennt der Browser erst, wenn der Test einmal gelaufen ist.
-    </p>
-  {/if}
 {/if}
 
 <div class="reihe">
@@ -234,19 +229,11 @@
     <Pegelanzeige {pegel} beschriftung="Eingangspegel" />
   </div>
   {#if ersatzGeraet}
-    <p class="gedaempft">
-      Das zuletzt gewählte Mikrofon ist nicht da. Es läuft die Vorgabe des Browsers.
-    </p>
+    <p class="gedaempft">Das gewählte Mikrofon fehlt - es läuft die Vorgabe des Browsers.</p>
   {/if}
   {#if misstEin > 0}
-    <p class="gedaempft">
-      Bitte jetzt so sprechen, wie später aufgenommen wird - gleicher Abstand, gleiche Lautstärke.
-    </p>
+    <p class="gedaempft">Jetzt sprechen wie bei der Aufnahme.</p>
   {/if}
-{:else}
-  <p class="gedaempft">
-    Der Test öffnet das Mikrofon und zeigt den Pegel. Solange er nicht läuft, hört die App nicht mit.
-  </p>
 {/if}
 
 {#if probeUrl}
@@ -265,10 +252,6 @@
     oninput={(ereignis) => schiebeVonHand(Number(ereignis.currentTarget.value))}
   />
 </label>
-<p class="gedaempft">
-  Wird vor der Aufzeichnung angewandt und ist in der gespeicherten Aufnahme enthalten. Verstärkt
-  wird alles, auch das Rauschen des Raumes - so viel wie nötig, nicht so viel wie möglich.
-</p>
 
 <label class="kasten">
   <input
@@ -278,10 +261,6 @@
   />
   <span class="dazu">Pegel automatisch nachregeln</span>
 </label>
-<p class="gedaempft">
-  Die Pegelregelung des Browsers gleicht aus, wenn mal lauter und mal leiser gesprochen wird. Sie
-  hebt einen durchweg zu leisen Eingang aber nicht an - dafür ist die Verstärkung da.
-</p>
 
 {#if einmessErgebnis}
   <p class="gedaempft ergebnis">{einmessErgebnis}</p>

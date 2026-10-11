@@ -290,17 +290,9 @@
     Der Prüfschritt. Er tritt an die Stelle des Formulars und steht nicht
     daneben: Er ist der nächste Schritt und keine zweite Möglichkeit.
   -->
-  <p class="gedaempft">
-    {#if entwurf.herkunft === 'erkannt'}
-      <strong>Erkannt, nicht gelesen.</strong> Was hier steht, hat eine Maschine aus dem Bild
-      geraten - sie verwechselt <code>rn</code> mit <code>m</code> und erfindet an Knicken
-      Zeichen. Bitte durchsehen und bessern: Was hier stehen bleibt, wird nachher vorgesprochen
-      und nachgesprochen.
-    {:else}
-      Bitte durchsehen. Kopfzeilen, Seitenzahlen und Fußnoten will niemand vorlesen - was hier
-      wegfällt, wird gar nicht erst zur Vorlage.
-    {/if}
-  </p>
+  {#if entwurf.herkunft === 'erkannt'}
+    <p class="gedaempft">Maschinell erkannt - bitte durchsehen.</p>
+  {/if}
   {#if entwurf.bildUrl}
     <!--
       Die Vorlage selbst, zum Vergleichen - und auf dem iPhone zu mehr: Safari
@@ -311,11 +303,6 @@
     -->
     <figure class="vorlage">
       <img src={entwurf.bildUrl} alt="Die hochgeladene Vorlage" />
-      <figcaption class="gedaempft">
-        Zum Vergleichen. Stimmt wenig davon - schräg fotografiert, Zeilen laufen zusammen? Auf
-        dem iPhone lange auf das Bild drücken: Dessen eigene Texterkennung ist besser und lässt
-        sich auswählen, kopieren und unten einfügen.
-      </figcaption>
     </figure>
   {/if}
 
@@ -337,26 +324,12 @@
     </div>
   </form>
 {:else}
-  <p class="gedaempft">
-    txt, md, pdf, epub oder docx.
-    {#if kannErkennen}
-      Auch ein <strong>Foto</strong> einer Seite oder ein eingescanntes PDF - der Text wird dann
-      erkannt und liegt euch vorher zum Bessern vor. Über das Kamerasymbol geht es unmittelbar
-      aus der Kamera, ohne Umweg über die Mediathek.
-    {/if}
-  </p>
   <!--
-    Der Satz steht hier und nicht in der Datenschutzerklärung, weil hier
+    Der Satz steht hier und nicht nur in der Datenschutzerklärung, weil hier
     gezögert wird: Wer einen Brief oder einen Befund abfotografiert hat,
-    entscheidet in diesem Augenblick, ob er ihn hochlädt. Beide Zusagen sind
-    nachgemessen - im Erkennungsweg steht kein einziger Netzaufruf, und nach
-    der Verarbeitung bleibt nichts im Zwischenspeicher liegen (siehe
-    `docs/datenschutz.md`).
+    entscheidet in diesem Augenblick, ob er ihn hochlädt (`docs/datenschutz.md`).
   -->
-  <p class="gedaempft zusage">
-    Die Datei bleibt auf diesem Server und wird gleich nach dem Lesen wieder gelöscht.
-    Gespeichert wird allein der Text, den ihr danach übernehmt.
-  </p>
+  <p class="gedaempft zusage">Die Datei wird nach dem Lesen gelöscht; gespeichert wird nur der Text.</p>
   <form onsubmit={ausDatei}>
     <input type="file" accept={annimmt} bind:files={datei} />
     <button class="knopf" type="submit" disabled={laeuft}>
@@ -400,9 +373,7 @@
     ohne Knopf, mit derselben Handbewegung wie überall sonst.
   -->
   <label class="einfuegen">
-    <span>
-      … oder hier einfügen{kannErkennen ? ' - Text oder ein Bild aus der Zwischenablage' : ''}
-    </span>
+    <span>… oder hier einfügen</span>
     <textarea
       rows="2"
       placeholder={kannErkennen
@@ -509,8 +480,7 @@
     clip-path: inset(50%);
     white-space: nowrap;
   }
-  /* Eine Zusage, keine Fußnote: dieselbe Größe wie der Hinweis darüber, aber
-     abgesetzt, damit sie nicht mit den Formatangaben verschwimmt. */
+  /* Eine Zusage, keine Fußnote: abgesetzt. */
   .zusage {
     border-left: 3px solid var(--akzent);
     padding-left: 0.6rem;
@@ -528,9 +498,6 @@
     object-fit: contain;
     border-radius: 0.4rem;
     background: var(--gedaempft);
-  }
-  .vorlage figcaption {
-    margin-top: 0.4rem;
   }
   /* Der Entwurf ist zum Lesen da, nicht zum Überfliegen: volle Breite und
      Zeilen, die nicht kleben. */

@@ -292,9 +292,7 @@
   {:else}
     <section class="karte">
       <h3>Keine Grafikkarte</h3>
-      <p class="gedaempft">
-        Dieser Server sieht keine nvidia-Karte - erkannt und diktiert wird auf dem Prozessor.
-      </p>
+      <p class="gedaempft">Gerechnet wird auf dem Prozessor.</p>
     </section>
   {/each}
 

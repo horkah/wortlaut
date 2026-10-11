@@ -69,14 +69,11 @@ def _vorbehalt(manifest: dict) -> str:
     if pruefung.get("grund") == "ausgefranst":
         return (
             f"Geprüft: {pruefung['ausgefranst']} von {pruefung['stichprobe']} Ausgaben sind "
-            "länger als alles Gesagte - dieser Stand wiederholt oder erfindet weiter, und "
-            "zwar auf Aufnahmen, die er gelernt hat. Meist hilft dagegen nur mehr Material."
+            "länger als alles Gesagte."
         )
     return (
-        f"Geprüft und durchgefallen: WER {pruefung['wer_median']:.2f} auf Aufnahmen, die "
-        f"dieser Stand gelernt hat - seine Faltungen standen auf Ungehörtem bei "
-        f"{pruefung['faltungen_wer_median']:.2f}. Die Zahlen rechts stammen von den "
-        "Faltungen und sagen über diesen Stand nichts."
+        f"Geprüft und durchgefallen: WER {pruefung['wer_median']:.2f} auf Gelerntem, "
+        f"die Faltungen {pruefung['faltungen_wer_median']:.2f} auf Ungehörtem."
     )
 
 
@@ -383,35 +380,23 @@ def _hinweis(
     Der nächste Schritt, keine Mängelliste.
     """
     if not aufnahmen:
-        return (
-            "Noch keine Aufnahmen im Korpus. Gemessen wird über alle, sobald in "
-            "\u201ehören\u201c gesprochen wird."
-        )
+        return "Noch keine Aufnahmen."
     if not any(reihen[name].werte for name in namen):
-        return (
-            "Die Grundmodelle haben auf diesen Aufnahmen noch nichts gemessen. "
-            "In \u201ehören\u201c unter \u201eAuswertung\u201c laufen sie über den Korpus - "
-            "danach steht hier eine Baseline, gegen die sich vergleichen lässt."
-        )
+        return "Noch keine Baseline - die Auswertung läuft in \u201ehören\u201c."
     if not staende:
-        return (
-            "Noch kein eigenes Modell. Unter \u201eTraining\u201c wird ein Lauf beauftragt; "
-            "sein Stand tritt danach hier gegen die Grundmodelle an."
-        )
+        return "Noch kein eigenes Modell - beauftragt wird unter \u201eTraining\u201c."
     if not messwerte.gemeinsame_aufnahmen(list(reihen.values())):
         return (
-            "Die Zahlen stehen nicht auf demselben Boden: Es gibt keine Aufnahme, "
-            "die jedes Modell gemessen hat. Ein erneuter Lauf der Auswertung in "
-            "\u201ehören\u201c holt die fehlenden nach."
+            "Keine Aufnahme, die jedes Modell gemessen hat - die Auswertung in "
+            "\u201ehören\u201c holt sie nach."
         )
 
     begrenzer, jetzt, ohne = bodenbegrenzer(reihen)
     if begrenzer:
         return (
-            f"Alle Zahlen stehen auf {jetzt} gemeinsamen Aufnahmen - mehr hat "
-            f"\u201e{_zeilenname(begrenzer, staende)}\u201c nicht gemessen. Ohne diese "
-            f"Zeile wären es {ohne}, und dann fiele jede Zahl der Tabelle anders aus. "
-            "Auch beim Löschen."
+            f"{jetzt} gemeinsame Aufnahmen, begrenzt durch "
+            f"\u201e{_zeilenname(begrenzer, staende)}\u201c - ohne diese Zeile, etwa nach dem "
+            f"Löschen, wären es {ohne}."
         )
     return ""
 

@@ -254,14 +254,7 @@
     <button class="knopf" onclick={() => gehZu('/sprecher')}>← Alle Sprecher</button>
   </div>
 
-  <!--
-    Der Knopf steht beim Namen, denn der Name ist, was er ändert. Er stand
-    einmal in der Karte darunter, zwischen „Sicherung" und „Datensatz" - unter
-    der Überschrift „Ausleiten", die von zwei Dateien zum Herunterladen
-    handelt. Umbenennen lädt nichts herunter; es war dort nur die dritte
-    Handlung, die sonst nirgends hinpasste. Der erklärende Absatz derselben
-    Karte nennt ihn bis heute nicht, und das war der Hinweis.
-  -->
+  <!-- Der Knopf steht beim Namen, denn der Name ist, was er ändert. -->
   <div class="reihe titel">
     <h2>{person.name}</h2>
     <button class="knopf" disabled={laeuft === 'umbenennen'} onclick={benenneUm}>
@@ -273,7 +266,7 @@
     {#if person.zugang_erneuert}
       · Zugang vom {tag(person.zugang_erneuert)}
     {:else}
-      · kein Zugang - für niemanden erreichbar
+      · kein Zugang
     {/if}
     · PIN {person.pin_gesetzt ? 'gesetzt' : 'nicht gesetzt'}
   </p>
@@ -308,22 +301,10 @@
         {laeuft === 'datensatz' ? 'Wird gepackt …' : 'Datensatz (.zip)'}
       </button>
     </div>
-    <p class="gedaempft">
-      <strong>Sicherung:</strong> Datenbank und Aufnahmen, zurückzuspielen mit
-      <code>scripts/restore.py</code>. Ohne Messwerte - die rechnet ein Auswertungslauf
-      neu.<br />
-      <strong>Datensatz:</strong> je Aufnahme WAV und Text, für fremde Werkzeuge. Keine Sicherung.
-    </p>
   </div>
 
   <h2>PIN vor „Meine Daten"</h2>
   <div class="karte">
-    <p class="gedaempft">
-      Sichert die Ansicht, in der diese Person ihre eigenen Daten sieht - gegen den Klick aus
-      Versehen, nicht als zweites Passwort. Setzen oder ändern verlangt die alte PIN nicht: Das
-      ist der Rückweg, wenn sie vergessen wurde.
-    </p>
-    <p class="gedaempft">Geben Sie eine vierstellige PIN ein (4 Ziffern).</p>
     <form class="reihe" onsubmit={pinAendern}>
       <!-- `pattern` als Ausdruck, nicht als Text: In einer Vorlage ist `{4}`
            eine Einsetzung, `pattern="[0-9]{4}"` käme als `[0-9]4` beim Browser
@@ -412,10 +393,7 @@
        machen, und niemand soll versehentlich darauf stoßen. -->
   <h2>Löschen</h2>
   <div class="karte gefahr">
-    <p class="gedaempft">
-      Beides ist endgültig und trifft <strong>nur diesen einen Sprecher</strong>. Vorher eine
-      Sicherung ziehen - mit ihr lässt sich der Stand zurückholen, ohne sie nicht.
-    </p>
+    <p class="gedaempft">Endgültig. Betrifft nur diesen Sprecher.</p>
     <div class="reihe">
       <button
         class="knopf"

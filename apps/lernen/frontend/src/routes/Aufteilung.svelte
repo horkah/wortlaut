@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
-   * Wie gemessen wird: was mit den Aufnahmen beim Trainieren und Messen
-   * geschieht. Die Aufnahmen selbst stehen unter „Meine Daten".
+   * Die Aufteilung der Aufnahmen auf die Faltungen der Kreuzvalidierung
+   * (`docs/lernen.md`). Die Aufnahmen selbst stehen unter „Meine Daten".
    */
   import { fehlertext } from '$ui/api';
   import { onMount } from 'svelte';
@@ -33,7 +33,7 @@
   });
 </script>
 
-<h2>Wie gemessen wird</h2>
+<h2>Aufteilung</h2>
 
 {#if fehler}
   <p class="fehler">{fehler}</p>
@@ -41,12 +41,7 @@
   <p class="gedaempft">Wird geladen …</p>
 {:else}
   <div class="karte">
-    <h3>Kreuzvalidierung</h3>
-    <p>
-      Jede Aufnahme liegt fest in einer von {faltungen} Faltungen. Ein Lauf trainiert
-      {faltungen}-mal, jeweils auf den übrigen Faltungen, und misst an der zurückgehaltenen.
-      So hört jedes Modell nur Aufnahmen, die es nicht kannte - das ist die Zahl in „Modelle".
-    </p>
+    <h3>{faltungen} Faltungen</h3>
 
     {#if daten.aufnahmen > 0}
       <div class="faltungen" aria-hidden="true">
@@ -68,29 +63,13 @@
 
     {#if !daten.genug}
       <p class="hinweise">
-        Jede Faltung braucht mindestens eine Aufnahme - vorhanden sind {daten.aufnahmen}.
+        Zu wenige Aufnahmen: {daten.aufnahmen} für {faltungen} Faltungen.
       </p>
     {/if}
-  </div>
-
-  <div class="karte">
-    <h3>Endmodell</h3>
-    <p>
-      Ausgeliefert wird das Mittel der Faltungsmodelle, ohne die, die schiefgingen. Es hat
-      gelernt, woran die Faltungen gemessen wurden; seine Zahl ist die der Kreuzvalidierung.
-    </p>
-    <p class="gedaempft">
-      Ein unabhängiger Test fehlt: Die Zahl gilt für diesen Korpus, nicht für die nächste
-      Aufnahme.
-    </p>
   </div>
 {/if}
 
 <style>
-  .karte + .karte {
-    margin-top: 1rem;
-  }
-
   h3 {
     margin: 0 0 0.6rem;
     font-size: 1rem;

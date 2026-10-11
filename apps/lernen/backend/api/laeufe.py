@@ -1130,11 +1130,9 @@ def liste(korpus: Korpus, sprecher: SprecherId) -> ListeAntwort:
         hinweis=(
             ""
             if genug and erlaubt
-            else "Auf diesem Server ist kein Trainerschlüssel hinterlegt - "
-            "hier lässt sich kein Training anstoßen."
+            else "Auf diesem Server ist kein Trainerschlüssel hinterlegt."
             if not erlaubt
-            else f"Sechsfache Kreuzvalidierung braucht mindestens "
-            f"{lauf_layout.FALTUNGEN} Aufnahmen - sie kommen aus \u201ehören\u201c."
+            else f"Zu wenige Aufnahmen - mindestens {lauf_layout.FALTUNGEN}."
         ),
     )
 

@@ -38,35 +38,18 @@
     return APPS.find((eintrag) => eintrag.schluessel === schluessel)?.name ?? schluessel;
   }
 
-  const ABSCHNITTE: { titel: string; hinweis: string; eintraege: Schaltbar[] }[] = [
-    {
-      titel: 'Apps in der Kopfleiste',
-      hinweis:
-        'Die Reiter ganz oben. Ausgeblendet ist eine App nur aus der Leiste verschwunden, nicht abgeschaltet - ihre Adresse gilt weiter.',
-      eintraege: SCHALTBARE_APPS,
-    },
+  const ABSCHNITTE: { titel: string; eintraege: Schaltbar[] }[] = [
+    { titel: 'Apps in der Kopfleiste', eintraege: SCHALTBARE_APPS },
     ...SCHALTBARE_REITER.map((abschnitt) => ({
       titel: `Ansichten in „${appName(abschnitt.app)}“`,
-      hinweis:
-        'Die zweite Reihe der Kopfleiste. Auch hier gilt: ausgeblendet heißt unsichtbar, nicht abgeschaltet - wer einen Reiter wieder braucht, holt ihn hier zurück.',
       eintraege: abschnitt.eintraege,
     })),
-    {
-      titel: 'Punkte im Menü',
-      hinweis:
-        'Was hinter dem Menüknopf steht. Zwei Punkte bleiben: „Meine Daten“, weil dort die PIN vergeben wird, und „Darstellung“, weil hier die Schalter liegen.',
-      eintraege: SCHALTBARE_MENUEPUNKTE,
-    },
+    { titel: 'Punkte im Menü', eintraege: SCHALTBARE_MENUEPUNKTE },
   ];
 </script>
 
 <PinSchloss>
   <h2>Farben</h2>
-  <p class="gedaempft">
-    Wirkt sofort und in jeder App - dieser Browser merkt sich die Wahl, wie bei Mikrofon und Stimme
-    auch. Auf das Feld tippen öffnet die Farbwahl des Geräts; der Wert darunter lässt sich
-    überschreiben, wenn ein Ton genau getroffen werden muss.
-  </p>
 
   <div class="farben">
     {#each FARBEN as farbe (farbe.schluessel)}
@@ -156,7 +139,6 @@
       oninput={(ereignis) => setzeGrundschrift(Number(ereignis.currentTarget.value))}
     />
   </label>
-  <p class="gedaempft">Betrifft Knöpfe, Beschriftungen und Fließtext - alles außer der Vorlage unten.</p>
 
   <label>
     <span>Schriftgröße der Vorlage - {einstellungen.schriftRem.toFixed(1)} rem</span>
@@ -170,24 +152,15 @@
       oninput={(ereignis) => setzeSchrift(Number(ereignis.currentTarget.value))}
     />
   </label>
-  <p class="gedaempft">
-    Der Satz, der beim Sprechen und beim Diktieren groß in der Mitte steht (siehe „hören" und
-    „schreiben").
-  </p>
 
   <div class="karte">
     <PromptView vorher={null} aktuell={{ id: 'probe', text: PROBE }} nachher={null} schriftRem={einstellungen.schriftRem} />
   </div>
 
   <h2>Sichtbar in der Leiste</h2>
-  <p class="gedaempft">
-    Was nie gebraucht wird, muss auch nicht dastehen. Gilt wie Farbe und Schrift für diesen Browser
-    und damit für alle Apps darin.
-  </p>
 
   {#each ABSCHNITTE as abschnitt (abschnitt.titel)}
     <h3>{abschnitt.titel}</h3>
-    <p class="gedaempft">{abschnitt.hinweis}</p>
     <ul class="schalter">
       {#each abschnitt.eintraege as eintrag (eintrag.schluessel)}
         <li>
@@ -206,19 +179,12 @@
               onchange={(ereignis) => setzeSichtbar(eintrag.schluessel, ereignis.currentTarget.checked)}
             />
           </label>
-          {#if eintrag.grund}
-            <p class="grund">{eintrag.grund}</p>
-          {/if}
         </li>
       {/each}
     </ul>
   {/each}
 
   <h2>Zurücksetzen</h2>
-  <p class="gedaempft">
-    Setzt Farben, Schriftart, Schriftgrößen und die Sichtbarkeit auf die Vorgaben zurück - danach
-    steht jeder Punkt wieder in der Leiste.
-  </p>
   <button class="knopf" onclick={setzeDarstellungZurueck}>Auf Vorgaben zurücksetzen</button>
 </PinSchloss>
 
@@ -262,22 +228,11 @@
     color: var(--text);
   }
 
-  .schalter .grund {
-    margin: -0.4rem 0 0;
-    padding: 0 0.9rem 0.7rem;
-    font-size: 0.8rem;
-    color: var(--gedaempft);
-  }
-
   /* Der Schalter selbst steht in `app.css` an `[role='switch']`. */
 
   h3 {
     font-size: 1rem;
     margin: 1.25rem 0 0.4rem;
-  }
-
-  h3 + .gedaempft {
-    margin-top: 0;
   }
 
   .schieber {

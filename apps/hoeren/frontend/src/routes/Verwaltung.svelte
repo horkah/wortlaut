@@ -146,10 +146,7 @@
        wegklickt, gibt einen neuen aus - und der alte gilt dann nicht mehr. -->
   <div class="karte neuer-zugang">
     <strong>Zugang ausgegeben</strong>
-    <p class="gedaempft">
-      Diesen Link auf dem Gerät der Person einmal öffnen und als Lesezeichen ablegen. Er ist
-      <em>jetzt</em> zu sehen und später nicht mehr.
-    </p>
+    <p class="gedaempft">Nur jetzt sichtbar.</p>
     <code class="link">{frisch.link}</code>
     <div class="reihe">
       <button class="knopf haupt" onclick={kopiere}>
@@ -168,7 +165,7 @@
       <div class="gedaempft">
         {person.zugang_erneuert
           ? `Zugang ausgegeben am ${person.zugang_erneuert.slice(0, 10)}`
-          : 'Kein Zugang - für niemanden erreichbar'}
+          : 'Kein Zugang'}
       </div>
       {#if 'kennzahlen' in person}
         <!-- Nur die Aufsicht bekommt diese Zahlen mitgeliefert. Sie stehen
@@ -216,18 +213,9 @@
 {#if beaufsichtigt}
   <h2>Gesamtsicherung</h2>
   <div class="karte">
-    <p class="gedaempft">
-      Alle Korpora in <strong>einer</strong> Datei, zurückzuspielen mit
-      <code>scripts/restore.py</code>. Ohne Modellstände - die sind groß und neu zu rechnen.
-    </p>
     <button class="knopf haupt" disabled={packt} onclick={sichereAlles}>
       {packt ? 'Wird gepackt …' : 'Gesamtsicherung herunterladen (.tgz)'}
     </button>
-    <p class="gedaempft">
-      Bei einem großen Bestand dauert das Packen; der Browser hält die Datei so lange im
-      Speicher. Für sehr große Bestände besser <code>curl</code> - siehe
-      <code>docs/betrieb.md</code>.
-    </p>
   </div>
 {/if}
 

@@ -461,11 +461,6 @@
 </script>
 
 <h2>Auswertung</h2>
-<p class="gedaempft">
-  Jede Aufnahme ist zugleich eine Prüfaufgabe: Was vorgelesen werden sollte, steht daneben. Hier
-  laufen mehrere Erkenner über dieselben Aufnahmen, und was sie daraus machen, wird mit der Vorlage
-  verglichen. Korrekturen aus „schreiben" fehlen: Ihr Text ist selbst die Ausgabe eines Erkenners.
-</p>
 
 {#if fehler}
   <p class="fehler">{fehler}</p>
@@ -475,10 +470,7 @@
   {#if !stand}
     <p class="gedaempft">Wird geladen …</p>
   {:else if stand.gesamt === 0}
-    <p>Noch keine brauchbare Aufnahme im Korpus - es gibt nichts zu messen.</p>
-    <p class="gedaempft">
-      Aufnehmen unter „Aufnehmen"; verworfene Aufnahmen zählen hier bewusst nicht mit.
-    </p>
+    <p>Noch keine Aufnahme zum Messen.</p>
   {:else}
     <div class="balken" aria-hidden="true">
       <div style="width: {(anteil * 100).toFixed(1)}%"></div>
@@ -503,27 +495,17 @@
         <button class="knopf" onclick={halteAn} disabled={laeuftGerade === 'stopp'}>
           Anhalten
         </button>
-        <span class="gedaempft">
-          Läuft im Hintergrund weiter - diese Seite darf zu sein.
-        </span>
       {:else if stand.fremder_lauf}
-        <span class="gedaempft">
-          Es läuft gerade eine Auswertung für einen anderen Sprecher. Es rechnet immer nur eine.
-        </span>
+        <span class="gedaempft">Es läuft gerade eine Auswertung für einen anderen Sprecher.</span>
       {:else if stand.erledigt >= stand.gesamt}
         <button class="knopf" onclick={starte} disabled={laeuftGerade === 'start'}>
           Erneut prüfen
         </button>
-        <span class="gedaempft">
-          {meldung || 'Alles gerechnet. Neue Aufnahmen werden nachgeholt.'}
-        </span>
+        <span class="gedaempft">{meldung || 'Alles gerechnet.'}</span>
       {:else}
         <button class="knopf haupt" onclick={starte} disabled={laeuftGerade === 'start'}>
           Auswertung starten
         </button>
-        <span class="gedaempft">
-          Rechnet auf diesem Server und dauert; darum von Hand angestoßen.
-        </span>
       {/if}
     </div>
   {/if}
@@ -570,7 +552,6 @@
   </div>
   {#if aktuelleMetrik}
     <p class="gedaempft">
-      {aktuelleMetrik.erklaerung}
       {aktuelleMetrik.hoch_ist_gut ? 'Höher ist besser.' : 'Niedriger ist besser.'}
     </p>
   {/if}
@@ -618,17 +599,7 @@
         {/each}
       </tbody>
     </table>
-    <p class="gedaempft">
-      Über alle gerechneten Aufnahmen. Median = Normalfall, Mittel = mit
-      Ausreißern. Weit auseinander heißt: Das Modell verreißt einzelne
-      Aufnahmen - welche, zeigt die Kurve.
-    </p>
   {/if}
-
-  <p class="gedaempft">
-    Auf eine Spalte tippen zeigt die Vorlage und darunter, was jedes Modell
-    daraus gemacht hat.
-  </p>
 {/if}
 
 {#if vergleichLaeuft}
@@ -669,16 +640,7 @@
   {/if}
 
   {#if hervorheben}
-    <p class="gedaempft">
-      <del>Durchgestrichen</del> fehlt in der Erkennung, <ins>hervorgehoben</ins> kam hinzu.
-      Verglichen wird auf Zeichen; gemessen wird dagegen ohne Satzzeichen und Großschreibung, damit
-      ein fehlender Punkt nicht als Hörfehler zählt.
-    </p>
-  {:else}
-    <p class="gedaempft">
-      Jeder Text so, wie das Modell ihn geschrieben hat. Die Zahlen daneben stehen unverändert -
-      gemessen wird immer gegen die Vorlage, ob die Abweichungen nun ausgezeichnet sind oder nicht.
-    </p>
+    <p class="gedaempft"><del>fehlt</del> · <ins>kam hinzu</ins></p>
   {/if}
 {/if}
 

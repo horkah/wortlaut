@@ -199,22 +199,11 @@
       </dd>
     {/each}
   </dl>
-  <p class="gedaempft">
-    Die Schlüssel sind eigene Geheimnisse neben dem Zugang und bleiben in diesem Browser, auch wenn
-    der Zugang wechselt. Sie gelten in allen drei Apps.
-  </p>
 </PinSchloss>
 
 {#snippet zugangsteil()}
   {#if lage.art === 'sprecher'}
-    <p>
-      Dieser Browser hat den persönlichen Zugang von <strong>{lage.name}</strong>. Er kam über den
-      Link, der einmal geöffnet wurde, und gilt weiter - hier ist nichts einzutragen.
-    </p>
-    <p class="gedaempft">
-      Derselbe Zugang gilt in allen drei Apps: einmal geöffnet, überall angemeldet. Geht er
-      verloren, gibt die Verwaltung einen neuen Link aus; der alte gilt dann nicht mehr.
-    </p>
+    <p>Angemeldet als <strong>{lage.name}</strong>.</p>
 
     <!-- Der Weg in die Verwaltung und in die Aufsicht führt über dasselbe
          Feld, und ohne ihn käme man von einem Sprechergerät nie dorthin. Er
@@ -226,33 +215,12 @@
          tun, auf dem man gerade steht. -->
     <h2>Diesen Browser übergeben</h2>
     {#if wechseln}
-      <p class="gedaempft">
-        Ein Browser trägt genau einen Zugang. Mit dem
-        <code>WORTLAUT_AUTH_TOKEN</code> (Verwaltung) oder
-        <code>WORTLAUT_ADMIN_TOKEN</code> (Aufsicht) gilt der von
-        <strong>{lage.name}</strong> hier nicht mehr - der persönliche Link holt ihn zurück.
-      </p>
+      <p class="gedaempft">Ersetzt den Zugang von <strong>{lage.name}</strong> in diesem Browser.</p>
       {@render formular()}
     {:else}
-      <p class="gedaempft">
-        Sichern, Umbenennen und Löschen brauchen den Verwalter- oder Aufsichtstoken. Danach steht
-        die Sprecherliste in jeder App im Menü.
-      </p>
       <button class="knopf" onclick={() => (wechseln = true)}>Zugang wechseln</button>
     {/if}
   {:else}
-    <p class="gedaempft">
-      Wer aufnehmen oder diktieren will, braucht hier nichts einzutragen - dafür gibt es den
-      persönlichen Link. Er wird einmal geöffnet und gilt danach in allen drei Apps.
-    </p>
-    <p class="gedaempft">
-      <strong>Verwaltung:</strong> der <code>WORTLAUT_AUTH_TOKEN</code> des Servers - Profile
-      anlegen und persönliche Links ausgeben.
-    </p>
-    <p class="gedaempft">
-      <strong>Aufsicht:</strong> der <code>WORTLAUT_ADMIN_TOKEN</code>, in dasselbe Feld - Einsicht
-      in jeden Korpus, umbenennen, sichern, löschen.
-    </p>
     {@render formular()}
   {/if}
 {/snippet}

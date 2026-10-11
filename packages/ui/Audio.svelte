@@ -107,11 +107,6 @@
 
   // Über `liste`, damit die Anzeige nachzieht, wenn die Stimmen spät eintreffen.
   const gewaehlt = $derived(stimmeNachUri(einstellungen.stimmeUri, liste));
-  const serveGewaehlt = $derived(
-    istServestimme(einstellungen.stimmeUri)
-      ? serveliste.find((s) => SERVE_PRAEFIX + s.schluessel === einstellungen.stimmeUri)
-      : undefined,
-  );
   // Der Wert des Auswahlfelds: eine Servestimme trägt ihr Präfix, eine
   // Browserstimme ihre `voiceURI`.
   const wert = $derived(
@@ -148,10 +143,7 @@
 <h2>Vorlesen</h2>
 
 {#if liste.length === 0 && serveliste.length === 0}
-  <p class="gedaempft">
-    Dieser Browser meldet keine Stimme für die Sprache dieses Profils, und auf dem Server liegt
-    keine. Das Vorsprechen bleibt dann aus; siehe <code>docs/betrieb.md</code>.
-  </p>
+  <p class="gedaempft">Keine Stimme für diese Sprache.</p>
 {:else}
   <label>
     <span>Stimme</span>
@@ -172,20 +164,6 @@
       {/if}
     </select>
   </label>
-  {#if serveGewaehlt}
-    <p class="gedaempft">
-      {serveGewaehlt.erklaerung} Diese Stimme kommt vom Server: Sie klingt auf jedem Gerät gleich -
-      unter Linux wie auf dem Telefon.
-    </p>
-  {:else}
-    <p class="gedaempft">
-      Welche Gerätestimmen zur Wahl stehen und wie natürlich sie klingen, bestimmt das
-      Betriebssystem, nicht diese App.
-      {#if serveliste.length}
-        Die Stimmen vom Server klingen überall gleich.
-      {/if}
-    </p>
-  {/if}
 {/if}
 
 <label>
@@ -200,7 +178,6 @@
     oninput={(ereignis) => setzeTempo(Number(ereignis.currentTarget.value))}
   />
 </label>
-<p class="gedaempft">Langsamer ist leichter nachzusprechen, aber ermüdet über eine lange Sitzung.</p>
 
 <label class="kasten">
   <input
@@ -210,12 +187,6 @@
   />
   <span class="dazu">In „schreiben" den fertigen Text von selbst vorlesen</span>
 </label>
-<p class="gedaempft">
-  Wer den Text nicht sicher lesen kann, hört so den Fehler, statt ihn zu suchen. Unterwegs ist ein
-  Telefon, das von selbst zu sprechen anfängt, manchmal das Gegenteil - dann hier abschalten und im
-  Text auf „▶ Vorlesen" drücken, wenn es passt. Von selbst liest nur eine Stimme vom Server; eine
-  Gerätestimme liest auf Tippen.
-</p>
 
 <div class="reihe">
   <button class="knopf" onclick={probe} disabled={liste.length === 0 && serveliste.length === 0}
@@ -227,7 +198,6 @@
 {/if}
 
 <h2>Zurücksetzen</h2>
-<p class="gedaempft">Setzt Mikrofon, Stimme, Tempo und das Vorlesen auf die Vorgaben zurück.</p>
 <button class="knopf" onclick={setzeZurueck}>Auf Vorgaben zurücksetzen</button>
 
 <style>

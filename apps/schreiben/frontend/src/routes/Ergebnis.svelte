@@ -244,7 +244,7 @@
   {#if stimmeVerfuegbar(lage.sprache, einstellungen.stimmeUri)}
     <button class="knopf" onclick={tippeVorlesen}>{liest ? '■ Anhalten' : '▶ Vorlesen'}</button>
   {/if}
-  <span class="gedaempft">{abschnitte.length} Abschnitte · zum Bessern anklicken</span>
+  <span class="gedaempft">{abschnitte.length} Abschnitte</span>
 </div>
 
 <SegmentList
@@ -285,10 +285,7 @@
     {#if versand.offen > 0}
       <div class="hinweise">
         <strong>Noch nicht alles übergeben.</strong>
-        <p>
-          {versand.fehler ?? 'Unbekannter Grund.'} Der Rest liegt im Postausgang; verloren
-          gehen kann nichts, und ein neuer Versuch schadet nie.
-        </p>
+        <p>{versand.fehler ?? 'Unbekannter Grund.'}</p>
         <button class="knopf" onclick={nochmalSenden} disabled={stand === 'sendet'}>
           Noch einmal senden
         </button>

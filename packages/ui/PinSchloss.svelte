@@ -48,7 +48,6 @@
   <h2>Gesperrt</h2>
   <div class="karte">
     <p>Diese Seite ist mit derselben PIN gesichert wie „Meine Daten“.</p>
-    <p class="gedaempft">Geben Sie Ihre vierstellige PIN ein (4 Ziffern).</p>
     <form class="reihe" onsubmit={absenden}>
       <!-- `pattern` als Ausdruck, nicht als Text: In einer Vorlage ist `{4}`
            eine Einsetzung, `pattern="[0-9]{4}"` käme als `[0-9]4` beim Browser
@@ -69,10 +68,6 @@
     </form>
     {#if fehler}<p class="fehler">{fehler}</p>{/if}
   </div>
-  <p class="gedaempft">
-    Vergeben wird die PIN unter „Meine Daten“. Wer sie vergessen hat, lässt sie von der Aufsicht
-    zurücksetzen.
-  </p>
 {:else if schloss.stand !== 'unbekannt'}
   {@render children()}
 {/if}

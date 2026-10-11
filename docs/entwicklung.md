@@ -65,6 +65,11 @@ nicht „Sechsfache Kreuzvalidierung" - die Zahl ändert sich, und die
 was gilt und warum - nicht, wie es vorher war. Die Geschichte steht in der
 Commit-History; ausgenommen sind datierte Berichte.
 
+**Die Oberfläche erklärt nicht.** Sie zeigt Daten, Zustände, Fehler und
+die Warnung vor dem, was sich nicht rückgängig machen lässt - kurz. Wie
+etwas gemeint ist und warum es so ist, steht im Handbuch unter `docs/`.
+Eine Ansicht, die einen Absatz zur Bedienung braucht, ist neu zu entwerfen.
+
 **Eine Entscheidung, ein Ort.** Die drei Oberflächen teilen `packages/ui/`:
 das Menü (`menuePunkte` in `apps.ts`), die Ansichten dahinter
 (`Rahmen.svelte`), die Reiter (`REITER` in `apps.ts`) und die Regel für „kein

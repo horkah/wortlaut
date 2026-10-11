@@ -183,9 +183,6 @@
           <ul>
             {#each letzte.hinweise as hinweis}<li>{hinweis}</li>{/each}
           </ul>
-          <p class="gedaempft">
-            Das ist ein Hinweis, keine Ablehnung - die Aufnahme ist gespeichert.
-          </p>
         </div>
       {/if}
 

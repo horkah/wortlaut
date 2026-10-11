@@ -364,29 +364,18 @@
     {#if !hatKurve}
       <p class="gedaempft ueberlagert">
         {lauf.status === 'wartet'
-          ? 'Wartet auf den Trainer - sobald er anfängt, wächst hier eine Kurve.'
+          ? 'Wartet auf den Trainer.'
           : 'Noch keine Schritte gerechnet.'}
       </p>
     {/if}
   </div>
 
   {#if hatKurve}
-    <p class="gedaempft">
-      Durchgezogen: Trainingsverlust. Gestrichelt: Validierung. Fallen beide, lernt das Modell;
-      steigt die gestrichelte, lernt es auswendig.
-      {#if pruefung.length}
-        Geprüft wird einmal je Durchgang; {pruefung.length}
-        {pruefung.length === 1 ? 'Prüfung' : 'Prüfungen'} bisher.
-      {/if}
-    </p>
+    <p class="gedaempft">Durchgezogen: Training · gestrichelt: Validierung</p>
   {/if}
 
   {#if vergleich.length}
     <h3>Gegen die Baseline</h3>
-    <p class="gedaempft">
-      Dieselben Aufnahmen, die das jeweilige Faltungsmodell nie gesehen hat - einmal durch das unveränderte
-      {lauf.basismodell} (gemessen in der Auswertung von „hören") und einmal durch diesen Stand.
-    </p>
 
     <table class="vergleich">
       <thead>
@@ -411,13 +400,11 @@
       </tbody>
     </table>
     <p class="gedaempft klein">
-      Über {vergleich[0]?.anzahl ?? 0} Aufnahmen - nur solche, die beide Seiten gemessen haben.
+      Über {vergleich[0]?.anzahl ?? 0} Aufnahmen.
     </p>
   {:else if lauf.status === 'fertig'}
     <p class="hinweise">
-      Für diesen Lauf gibt es keine Baseline: In „hören" ist die Auswertung für
-      {lauf.basismodell} auf diesen Aufnahmen noch nicht gerechnet. Ohne sie steht die Zahl dieses
-      Standes allein da - und eine Verbesserung gegen nichts ist keine.
+      Keine Baseline: Die Auswertung für {lauf.basismodell} in „hören“ fehlt.
     </p>
   {/if}
 

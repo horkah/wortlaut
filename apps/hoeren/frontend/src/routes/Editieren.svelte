@@ -267,16 +267,6 @@
 
 {#if aufnahme}
   <div class="karte">
-    <p class="gedaempft">
-      Die gestrichelte Linie teilt die Aufnahme in zwei; die beiden äußeren sagen, was von jedem
-      Teil an den Rändern bleibt. Im Text darunter setzt ein Klick auf eine Lücke die Stelle, an der
-      der Text geteilt wird - auch vor dem ersten oder nach dem letzten Wort. Die beiden Felder lassen
-      sich berichtigen, wenn etwas anderes gesprochen wurde, als dasteht. Liegt die gestrichelte
-      Linie auf Anfang oder Ende, wird nur der andere Teil als Kopie gespeichert.
-    </p>
-  </div>
-
-  <div class="karte">
     <div class="reihe kopf">
       <span class="gedaempft">{aufnahme.dauer_s.toFixed(1)} s · {tag(aufnahme.erstellt)}</span>
       <span class="wachsen"></span>
@@ -389,11 +379,6 @@
           >{/if}
       {/each}
     </p>
-    {#if bearbeitet}
-      <p class="gedaempft klein">
-        Die Texte unten sind von Hand geändert. Ein Klick auf eine Lücke teilt wieder die Vorlage.
-      </p>
-    {/if}
 
     <div class="felder">
       <label class:leer={leerVorn}>
@@ -439,11 +424,6 @@
       </button>
       <button class="knopf" onclick={() => gehZu(ZUSCHNITT_PFAD)}>Abbrechen</button>
     </div>
-    <p class="gedaempft">
-      Es entstehen neue Aufnahmen mit eigenen Dateien und eigenem Text, verlustfrei aus dem
-      Original geschnitten. Das Original bleibt unverändert; gemessen werden die neuen Aufnahmen
-      beim nächsten Auswertungslauf.
-    </p>
   </div>
 {:else if !fehler}
   <p class="gedaempft">Wird geladen …</p>
