@@ -18,6 +18,7 @@
   import { fehlertext } from '$ui/api';
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Kalender from '$ui/Kalender.svelte';
+  import Guete from '../lib/Guete.svelte';
   import Listenwahl from '../lib/Listenwahl.svelte';
   import Pager from '$ui/Pager.svelte';
   import Papierkorb from '$ui/Papierkorb.svelte';
@@ -39,6 +40,7 @@
     pinStand,
     type AufsichtAufnahme,
     type Konto,
+    type Guteskala,
     type Listenwahl as Wahl,
     type Quellenwahl,
   } from '../lib/api';
@@ -71,6 +73,8 @@
   let wahl = $state<Wahl>(gemerkt.wahl);
   let proSeite = $state(gemerkt.proSeite);
   let quellen = $state<Quellenwahl[]>([]);
+  let skala = $state<Guteskala>({ rot: 50, gruen: 85 });
+  let modell = $state('');
 
   // Wo die Seite stand, als der Editor aufging - nur für die Rückkehr, also
   // im Speicher dieses Reiters und nicht über das Schließen hinaus.
@@ -161,6 +165,8 @@
     aufnahmen = seite.aufnahmen;
     aufnahmenGesamt = seite.gesamt;
     quellen = seite.quellen;
+    skala = seite.skala;
+    modell = seite.modell;
   }
 
   async function lade() {
@@ -561,10 +567,15 @@
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div class="karte aufnahme" class:offen onclick={(e) => klickAufKarte(e, aufnahme)}>
       <button class="aufklapper" aria-expanded={offen}>{aufnahme.text}</button>
-      <div class="gedaempft">
-        {aufnahme.dauer_s.toFixed(1)} s · {aufnahme.modus} · {tag(aufnahme.erstellt)}
-        {#if aufnahme.hinweise.length}<Warnzeichen hinweise={aufnahme.hinweise} />{/if}
-        {#if aufnahme.status !== 'ok'}· <strong>{aufnahme.status}</strong>{/if}
+      <div class="gedaempft zeile">
+        <span>
+          {aufnahme.dauer_s.toFixed(1)} s · {aufnahme.modus} · {tag(aufnahme.erstellt)}
+          {#if aufnahme.hinweise.length}<Warnzeichen hinweise={aufnahme.hinweise} />{/if}
+          {#if aufnahme.status !== 'ok'}· <strong>{aufnahme.status}</strong>{/if}
+        </span>
+        {#if aufnahme.qualitaet !== null}
+          <Guete wert={aufnahme.qualitaet} {skala} {modell} />
+        {/if}
       </div>
       {#if offen}
         <div class="reihe aufgeklappt">
@@ -689,6 +700,14 @@
     color: inherit;
     text-align: left;
     cursor: pointer;
+  }
+
+  /* Die Kennzeile: links, was die Aufnahme ist, rechts, wie gut sie gehört wurde. */
+  .zeile {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
   }
 
   .aufgeklappt {
