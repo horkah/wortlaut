@@ -626,6 +626,10 @@ export type Zuschnittaufnahme = {
   /** Wo die Stimme nach dem Pegel liegt - für „Auto". */
   vorschlag_start_s: number;
   vorschlag_ende_s: number;
+  /** Wie gut das Modell von „schreiben" sie gehört hat, 0 bis 100; null ungemessen. */
+  qualitaet: number | null;
+  modell: string;
+  skala: Guteskala;
 };
 
 /** Die Köpfe des Zuschnitts: der Bearbeitungsschlüssel, beim Schreiben dazu JSON. */

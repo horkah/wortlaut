@@ -28,15 +28,18 @@
    * teilen und berichtigen. Wer mit ungespeicherten Änderungen geht, wird
    * gefragt.
    *
-   * **Oben die Lage**: Datum der Aufnahme und der letzten Änderung, und die
-   * Stelle in der Liste von „Meine Daten", wie sie beim Öffnen sortiert war
-   * (`lib/rueckkehr`) - mit Knöpfen zur vorigen und nächsten Aufnahme darin.
-   * Mit ungespeicherten Änderungen fragt das Weiterblättern wie „Abbrechen".
+   * **Oben die Lage**: neben „Zurück" die Stelle in der Liste von „Meine
+   * Daten", wie sie beim Öffnen sortiert war (`lib/rueckkehr`), mit Knöpfen
+   * zur vorigen und nächsten Aufnahme darin; in der Karte Datum der Aufnahme
+   * und der letzten Änderung, rechts die Genauigkeit des Diktiermodells wie
+   * in der Liste. Mit ungespeicherten Änderungen fragt das Weiterblättern wie
+   * „Abbrechen".
    */
   import { onMount } from 'svelte';
   import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import Pegelverlauf from '$ui/Pegelverlauf.svelte';
+  import Guete from '../lib/Guete.svelte';
   import Rueckfrage from '$ui/Rueckfrage.svelte';
   import { spiele, stelle, stoppe, vergiss } from '$ui/ausschnitt';
   import { bewache } from '$ui/route';
@@ -381,7 +384,32 @@
   >
     Editieren
   </h2>
-  <button class="knopf" onclick={() => verlasse()}>Zurück zu „Meine Daten“</button>
+  <div class="reihe rechts">
+    {#if folge && stelleInFolge >= 0}
+      <div class="blaettern">
+        <button
+          class="knopf zeichen"
+          title="Vorige Aufnahme"
+          aria-label="Vorige Aufnahme"
+          disabled={!vorige}
+          onclick={() => vorige && verlasse(`${EDITIEREN_ROUTE}${vorige}`)}
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 L5 8 L10 13" class="strich" /></svg>
+        </button>
+        <span class="position">{stelleInFolge + 1} / {folge.eintraege.length}</span>
+        <button
+          class="knopf zeichen"
+          title="Nächste Aufnahme"
+          aria-label="Nächste Aufnahme"
+          disabled={!naechste}
+          onclick={() => naechste && verlasse(`${EDITIEREN_ROUTE}${naechste}`)}
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3 L11 8 L6 13" class="strich" /></svg>
+        </button>
+      </div>
+    {/if}
+    <button class="knopf" onclick={() => verlasse()}>Zurück zu „Meine Daten“</button>
+  </div>
 </div>
 
 {#if fehler}
@@ -394,34 +422,14 @@
 {#if aufnahme}
   <div class="karte">
     <div class="reihe lage">
-      {#if folge && stelleInFolge >= 0}
-        <div class="blaettern">
-          <button
-            class="knopf zeichen"
-            title="Vorige Aufnahme"
-            aria-label="Vorige Aufnahme"
-            disabled={!vorige}
-            onclick={() => vorige && verlasse(`${EDITIEREN_ROUTE}${vorige}`)}
-          >
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 L5 8 L10 13" class="strich" /></svg>
-          </button>
-          <span class="position">{stelleInFolge + 1} / {folge.eintraege.length}</span>
-          <button
-            class="knopf zeichen"
-            title="Nächste Aufnahme"
-            aria-label="Nächste Aufnahme"
-            disabled={!naechste}
-            onclick={() => naechste && verlasse(`${EDITIEREN_ROUTE}${naechste}`)}
-          >
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3 L11 8 L6 13" class="strich" /></svg>
-          </button>
-        </div>
-      {/if}
       <span class="gedaempft daten">
         aufgenommen {tag(aufnahme.erstellt)}
         {#if aufnahme.geaendert}· geändert {tagUndZeit(aufnahme.geaendert)}{/if}
         · {aufnahme.dauer_s.toFixed(1)} s
       </span>
+      {#if aufnahme.qualitaet !== null}
+        <Guete wert={aufnahme.qualitaet} skala={aufnahme.skala} modell={aufnahme.modell} />
+      {/if}
     </div>
 
     <div class="reihe kopf">
@@ -670,7 +678,13 @@
     margin-bottom: 0.5rem;
   }
 
+  .rechts {
+    align-items: center;
+    gap: 0.75rem;
+  }
+
   .lage {
+    justify-content: space-between;
     align-items: center;
     gap: 0.4rem 1rem;
     margin-bottom: 0.6rem;
