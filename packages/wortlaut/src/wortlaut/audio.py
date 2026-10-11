@@ -47,15 +47,25 @@ class Befund:
 # und Vorschlag im Editor (`stimmgrenzen`): Was der Editor als Grenze anbietet,
 # meldet die Prüfung danach nicht als Stille.
 #
-# **Die Schwelle hängt am Rauschboden der Datei**, nicht an festen dBFS: Die
-# Verstärkung beim Aufnehmen (bis 20×) verschiebt Stimme und Raum gleichermaßen.
-# Der Boden ist der Median der leisesten Fenster; Stimme ist, was einen festen
-# Abstand darüber liegt. Höchstens so hoch, dass die Spitze noch deutlich
-# darüber steht - sonst gälte eine Aufnahme ohne jede Pause als Stille.
+# **Die Schwelle hängt an der Datei**, nicht an festen dBFS: Die Verstärkung
+# beim Aufnehmen (bis 20×) verschiebt Stimme und Raum gleichermaßen. Der Boden
+# ist der Median der leisesten Fenster, die Spitze das lauteste Fenster; die
+# Schwelle liegt in dB in der Mitte dazwischen (`SCHWELLE_ANTEIL`). So folgt sie
+# beiden: In einem stillen Raum liegt sie weit unter der Stimme und fängt leise
+# An- und Auslaute, in einem lauten weit genug über dem Rauschen.
+#
+# Zwei Ränder: mindestens `UEBER_DEM_BODEN_DB` über dem Boden - sonst zählte
+# Rauschen bei schlechtem Abstand als Stimme -, und mindestens
+# `UNTER_DER_SPITZE_DB` unter der Spitze - sonst gälte eine Aufnahme ohne
+# jede Pause, deren Boden schon Stimme ist, als Stille. Ist der Abstand zu
+# klein für beides, liegt sie in der Mitte.
 RAUSCHBODEN_ANTEIL = 0.10
-UEBER_DEM_BODEN_DB = 10.0
-UNTER_DER_SPITZE_DB = 20.0
-# Digitale Stille hat keinen Boden; darunter zählt nichts als Stimme.
+SCHWELLE_ANTEIL = 0.5
+UEBER_DEM_BODEN_DB = 8.0
+UNTER_DER_SPITZE_DB = 6.0
+# Digitale Stille hat keinen Boden: Gerechnet wird mindestens mit diesem, und
+# unter der Untergrenze zählt nichts als Stimme.
+BODEN_MINDESTENS_DBFS = -70.0
 UNTERGRENZE_DBFS = -60.0
 
 # Luft vor und hinter der Stimme beim Zuschnitt - lieber zu viel als zu wenig:
@@ -135,12 +145,15 @@ def _fensterpegel(werte: array.array) -> list[float]:
 def _schwelle(fenster_rms: list[float]) -> float:
     """Ab wann ein Fenster als Stimme zählt (siehe „Wo die Stimme ist")."""
     leise = sorted(fenster_rms)[: max(1, round(len(fenster_rms) * RAUSCHBODEN_ANTEIL))]
-    boden = statistics.median(leise)
-    deckel = max(fenster_rms) * 10 ** (-UNTER_DER_SPITZE_DB / 20)
-    return max(
-        min(boden * 10 ** (UEBER_DEM_BODEN_DB / 20), deckel),
-        VOLLAUSSCHLAG * 10 ** (UNTERGRENZE_DBFS / 20),
-    )
+    boden = max(_dbfs(statistics.median(leise)), BODEN_MINDESTENS_DBFS)
+    spitze = max(_dbfs(max(fenster_rms)), boden)
+    abstand = spitze - boden
+    ueber = max(abstand * SCHWELLE_ANTEIL, UEBER_DEM_BODEN_DB)
+    ueber = min(ueber, abstand - UNTER_DER_SPITZE_DB)
+    if ueber < 0:
+        ueber = abstand / 2
+    schwelle_db = max(boden + ueber, UNTERGRENZE_DBFS)
+    return VOLLAUSSCHLAG * 10 ** (schwelle_db / 20)
 
 
 def _pegel(werte: array.array) -> tuple[float, list[float], float]:
