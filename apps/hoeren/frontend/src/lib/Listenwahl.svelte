@@ -12,6 +12,7 @@
    * Aufnahme stehen nicht da.
    */
   import {
+    ARTNAMEN,
     VORGABE_ARTEN,
     type Aufnahmeart,
     type Aufnahmenseite,
@@ -38,18 +39,10 @@
 
   const GROESSEN = [10, 20, 50, 100];
   const SORTIERUNGEN: { schluessel: Listenwahl['sortierung']; name: string }[] = [
-    { schluessel: 'geaendert', name: 'Geändert' },
+    { schluessel: 'geaendert', name: 'Editiert' },
     { schluessel: 'aufgenommen', name: 'Aufgenommen' },
     { schluessel: 'qualitaet', name: 'Qualität' },
   ];
-  const NAMEN: Record<Aufnahmeart, string> = {
-    gelesen: 'Gelesen',
-    nachgesprochen: 'Nachgesprochen',
-    frei: 'Frei',
-    korrektur_geprueft: 'Korrektur, geprüft',
-    korrektur_ungeprueft: 'Korrektur, ungeprüft',
-    verworfen: 'Verworfen',
-  };
 
   let offen = $state(false);
 
@@ -136,7 +129,7 @@
               class:gewaehlt={an}
               aria-pressed={an}
               onclick={() => schalte(eintrag.art)}
-              >{NAMEN[eintrag.art]}<span class="anzahl">{eintrag.anzahl}</span></button
+              >{ARTNAMEN[eintrag.art]}<span class="anzahl">{eintrag.anzahl}</span></button
             >
           {/each}
         </div>

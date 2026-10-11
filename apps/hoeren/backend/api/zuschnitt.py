@@ -10,8 +10,9 @@ Sprecherzugang auf einem Telefon nicht; schon die Ansicht ist die Werkbank.
 
 **Gespeichert wird in einem Schritt** (`speichern`): Bis dahin hat nichts im
 Editor eine Folge. Der Text steht danach an der Aufnahme (`recordings.text`),
-die Vorlage bleibt unberührt; eine Korrektur aus „schreiben" gilt danach als
-geprüft (`recordings.validiert`).
+die Vorlage bleibt unberührt. Eine gespeicherte Aufnahme ist **editiert**
+(`recordings.geaendert`) und gilt als geprüft (`recordings.validiert`) - gleich,
+ob sie gelesen, nachgesprochen oder aus „schreiben" kam.
 
 * **Ohne Teilung** bleibt es eine Aufnahme: die Datei auf Anfang und Ende
   gekürzt und überschrieben. Ändern sich Ton oder Text, gehen ihre
@@ -82,6 +83,8 @@ class ZuschnittAntwort(BaseModel):
     # Ob der Text aus dem Sprechen kommt - dann prüft ihn das Speichern.
     korrektur: bool
     validiert: bool
+    # Die Art wie in „Meine Daten" (`uebersicht.art_von`): gelesen, nachgesprochen, …
+    art: str = ""
     # Der Lautstärkeverlauf, ein Wert je Fenster, bezogen auf Vollausschlag.
     verlauf: list[float]
     fenster_s: float
@@ -179,9 +182,14 @@ def eine(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage) 
     modell = uebersicht.diktiermodell(sprecher)
     zeile.modell = modell
     zeile.skala = uebersicht.skala(db, modell)
-    zeile.qualitaet = db.scalar(
-        select(Erkennung.genauigkeit).where(
-            Erkennung.recording_id == aufnahme.id, Erkennung.modell == modell
+    zeile.art = uebersicht.art_von(aufnahme, zeile.korrektur)
+    zeile.qualitaet = (
+        uebersicht.EDITIERT_QUALITAET
+        if aufnahme.geaendert
+        else db.scalar(
+            select(Erkennung.genauigkeit).where(
+                Erkennung.recording_id == aufnahme.id, Erkennung.modell == modell
+            )
         )
     )
     return zeile
@@ -246,17 +254,15 @@ def speichern(
     if not 0.0 <= auftrag.start_s < auftrag.ende_s <= aufnahme.dauer_s + GENAUIGKEIT_S:
         raise HTTPException(status_code=400, detail="Anfang und Ende liegen nicht in der Aufnahme.")
     texte = _texte(auftrag)
-    korrektur = _ist_korrektur(db, vorlage)
 
     if auftrag.teilung_s is None:
-        return _ohne_teilung(auftrag, texte[0], korrektur, sprache, aufnahme, vorlage, db, ablage)
-    return _geteilt(auftrag, texte, korrektur, sprache, aufnahme, db, ablage)
+        return _ohne_teilung(auftrag, texte[0], sprache, aufnahme, vorlage, db, ablage)
+    return _geteilt(auftrag, texte, sprache, aufnahme, db, ablage)
 
 
 def _ohne_teilung(
     auftrag: Speichern,
     text: str,
-    korrektur: bool,
     sprache: str,
     aufnahme: Aufnahme,
     vorlage: Vorlage,
@@ -279,8 +285,7 @@ def _ohne_teilung(
         zuschnitt.pruefe_neu(aufnahme, erwartet)
     aufnahme.text = text
     aufnahme.geaendert = jetzt()
-    if korrektur:
-        aufnahme.validiert = True
+    aufnahme.validiert = True
     if gekuerzt or neuer_text:
         # Die Messwerte am alten Ton oder Text weg, sonst gälten sie als erledigt.
         db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme.id))
@@ -291,7 +296,6 @@ def _ohne_teilung(
 def _geteilt(
     auftrag: Speichern,
     texte: list[str],
-    korrektur: bool,
     sprache: str,
     original: Aufnahme,
     db: Datenbank,
@@ -350,7 +354,7 @@ def _geteilt(
                 sortierschluessel=f"{stamm}.{nummer}",
                 vorfahren=zuschnitt.nachfahren_von(original),
                 text=text,
-                validiert=korrektur or bool(original.validiert),
+                validiert=True,
                 # Das Datum der Aufnahme bleibt; geändert ist sie jetzt.
                 erstellt=original.erstellt,
                 geaendert=jetzt(),

@@ -438,13 +438,20 @@ class TestText:
         speichere(schneider, sprecher, kennung, 0.0, dauer_von(sprecher, kennung))
         assert gemessen()
 
-    def test_eine_vorlage_wird_nicht_geprueft(
+    def test_jede_gespeicherte_aufnahme_ist_editiert_und_geprueft(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
     ) -> None:
+        """Gleich welcher Art - auch eine gelesene."""
         kennung = nimm_auf(schneider, sprecher, audio_datei)
+        with Session(deps.engine_fuer(sprecher)) as sitzung:
+            erstellt = sitzung.get(Aufnahme, kennung).erstellt
         speichere(schneider, sprecher, kennung, 0.0, dauer_von(sprecher, kennung), texte=["anders"])
         with Session(deps.engine_fuer(sprecher)) as sitzung:
-            assert sitzung.get(Aufnahme, kennung).validiert is False
+            aufnahme = sitzung.get(Aufnahme, kennung)
+            assert aufnahme.validiert is True
+            assert aufnahme.geaendert is not None
+            # Das Datum der Aufnahme bleibt.
+            assert aufnahme.erstellt == erstellt
 
     def test_die_auswertung_misst_gegen_den_neuen_text(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
