@@ -10,7 +10,7 @@
  * ohne fremde Bibliothek auskommt; jede App trägt nur, was sie zeichnet.
  *
  * Geladen wird das Ganze erst, wenn eine Ansicht es braucht
- * (`await import('./diagramm')`) - die Aufteilung schleppt es nicht mit.
+ * (`await import('./diagramm')`) - Training und Modelle schleppen es nicht mit.
  */
 import { connect, init, use } from 'echarts/core';
 import { LineChart } from 'echarts/charts';

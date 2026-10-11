@@ -316,15 +316,14 @@ alle anderen.
 
 ## Die Ansichten
 
-**Aufteilung** zeigt, wie schwer die Faltungen sind
-([Kreuzvalidierung](#sechsfache-kreuzvalidierung)). Die Aufnahmen
-selbst stehen unter „Meine Daten" in „hören".
-
-**Training** beauftragt und zeigt die Läufe: je Lauf Code, Zustand, Umfang,
-ein Balken über die sechs Faltungen samt Mittel und die Stufe. Kommen neue Aufnahmen
-dazu, steht es da - „23 Aufnahmen sind dazugekommen, seit zuletzt etwas fertig
-trainiert wurde". Von selbst angestoßen wird nichts: Ein Lauf belegt die Karte
-und friert einen Stand des Korpus ein, und das soll jemand entscheiden.
+**Training** zeigt zuoberst die Aufteilung: wie schwer die Faltungen sind
+([Kreuzvalidierung](#sechsfache-kreuzvalidierung)). Die Aufnahmen selbst
+stehen unter „Meine Daten" in „hören". Darunter beauftragt und zeigt es die
+Läufe: je Lauf Code, Zustand, Umfang, ein Balken über die sechs Faltungen samt
+Mittel und die Stufe. Kommen neue Aufnahmen dazu, steht es da - „23 Aufnahmen
+sind dazugekommen, seit zuletzt etwas fertig trainiert wurde". Von selbst
+angestoßen wird nichts: Ein Lauf belegt die Karte und friert einen Stand des
+Korpus ein, und das soll jemand entscheiden.
 
 **Die Erklärungen der Achsen** stehen als Blase an der Überschrift jeder Achse
 (`ACHSE` in `Training.svelte`), die der einzelnen Wahl an der Option und an

@@ -19,7 +19,7 @@ export { setzeZugang, zugang } from '$ui/zugang';
  * Wie der Korpus auf die Faltungen der Kreuzvalidierung fällt.
  *
  * Ohne Liste der Aufnahmen: Die steht unter „Meine Daten", einmal und
- * vollständig (siehe `routes/Aufteilung.svelte`).
+ * vollständig (siehe `lib/Aufteilung.svelte`).
  */
 export type Aufteilung = {
   /** Wie viele Faltungen gerechnet werden - die Zahl kommt vom Server. */

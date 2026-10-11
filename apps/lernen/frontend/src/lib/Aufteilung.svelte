@@ -1,13 +1,14 @@
 <script lang="ts">
   /**
    * Die Aufteilung der Aufnahmen auf die Faltungen der Kreuzvalidierung
-   * (`docs/lernen.md`). Die Aufnahmen selbst stehen unter „Meine Daten".
+   * (`docs/lernen.md`), oben in „Training": Auf ihr lernt jeder Lauf. Die
+   * Aufnahmen selbst stehen unter „Meine Daten".
    */
   import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import { onMount } from 'svelte';
   import { MEINE_DATEN_PFAD } from '$ui/apps';
-  import { aufteilung as ladeAufteilung, type Aufteilung } from '../lib/api';
+  import { aufteilung as ladeAufteilung, type Aufteilung } from './api';
 
   let daten = $state<Aufteilung | null>(null);
   let fehler = $state('');
