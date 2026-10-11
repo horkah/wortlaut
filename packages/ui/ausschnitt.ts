@@ -27,7 +27,7 @@ let laeuft: AudioBufferSourceNode | null = null;
 
 // Dekodiert wird je Aufnahme einmal. Das Ergebnis ist ein Vielfaches der
 // Datei groß (float statt 16 bit), deshalb behält dieser Speicher nur, was
-// auf einer Seite steht - wer weiterblättert, gibt ihn frei (`vergiss`).
+// die offene Ansicht braucht - wer sie verlässt, gibt ihn frei (`vergiss`).
 const puffer = new Map<string, AudioBuffer>();
 
 function kontext(): AudioContext {
@@ -92,14 +92,7 @@ export async function spiele(
   quelle.start(0, anfang, laenge);
 }
 
-/**
- * Dekodierte Aufnahmen freigeben - beim Blättern und beim Verlassen.
- *
- * Ohne Namen alles. Eine Seite von zehn Aufnahmen zu je acht Sekunden sind
- * gut fünf Megabyte im Speicher; über hundert Seiten wäre das der Grund,
- * warum der Reiter irgendwann hakt.
- */
-export function vergiss(schluessel?: string): void {
-  if (schluessel) puffer.delete(schluessel);
-  else puffer.clear();
+/** Dekodierte Aufnahmen freigeben - beim Laden einer anderen Fassung und beim Verlassen. */
+export function vergiss(): void {
+  puffer.clear();
 }

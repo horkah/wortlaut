@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
-   * Editieren: eine Aufnahme zuschneiden, in zwei neue zerlegen, oder eine
-   * Kopie mit berichtigtem Text anlegen - im Ton und im Text.
+   * Editieren: eine Aufnahme zuschneiden, durch zwei neue ersetzen, oder
+   * durch eine mit berichtigtem Text - im Ton und im Text.
    *
    * Erreichbar aus „Meine Daten", über den Stift an einer aufgeklappten
    * Aufnahme, und nur von dort. Gezeigt wird genau diese eine Aufnahme: der
@@ -23,12 +23,14 @@
    * holt beides zurück.
    *
    * **Liegt die Teilung auf Anfang oder Ende**, hat ein Teil keine Länge. Sein
-   * Feld wird grau, und gespeichert wird nur der andere, als Kopie.
+   * Feld wird grau, und gespeichert wird nur der andere.
    *
-   * **Geteilt wird erst nach der Rückfrage**, und dann entstehen neue
-   * Aufnahmen neben dem Original (`api/zuschnitt.py`, `teilen`). Das Original
-   * bleibt. Abgespielt wird bis dahin aus der geladenen Datei
-   * (`$ui/ausschnitt`), ohne vorläufige Dateien auf dem Server.
+   * **Geteilt wird erst nach der Rückfrage**, und dann ersetzen die neuen
+   * Aufnahmen das Original (`api/zuschnitt.py`, `teilen`) - es ist danach
+   * weg. Abgespielt wird bis dahin aus der geladenen Datei (`$ui/ausschnitt`),
+   * ohne vorläufige Dateien auf dem Server.
+   *
+   * Jede Rückfrage sagt in kurzen Worten, was gelöscht wird.
    */
   import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
@@ -83,9 +85,9 @@
   const schneidbar = $derived(aufnahme !== null && (start > 0 || ende < aufnahme.dauer_s));
   const knopftext = $derived(
     leerVorn
-      ? 'Teil 2 als Kopie speichern'
+      ? 'Durch Teil 2 ersetzen'
       : leerHinten
-        ? 'Teil 1 als Kopie speichern'
+        ? 'Durch Teil 1 ersetzen'
         : 'In zwei Aufnahmen teilen',
   );
 
@@ -297,7 +299,7 @@
 
 <div class="reihe titel">
   <h2
-    use:erklaert={'Die beiden äußeren Linien bestimmen, was an den Rändern bleibt. Zuschneiden kürzt die Aufnahme auf sie und überschreibt das Original; die Messwerte der Aufnahme werden verworfen, die nächste Auswertung rechnet sie neu. Die gestrichelte Linie teilt die Aufnahme in zwei. Ein Klick auf eine Lücke im Text setzt die Stelle, an der der Text geteilt wird - auch vor dem ersten oder nach dem letzten Wort. Beide Felder lassen sich berichtigen, wenn anders gesprochen wurde, als dasteht. Liegt die Teilung auf Anfang oder Ende, wird nur der andere Teil gespeichert. Es entstehen neue Aufnahmen, verlustfrei aus dem Original geschnitten; das Original bleibt, gemessen werden die neuen bei der nächsten Auswertung.'}
+    use:erklaert={'Die beiden äußeren Linien bestimmen, was an den Rändern bleibt. Zuschneiden kürzt die Aufnahme auf sie und überschreibt das Original; die Messwerte der Aufnahme werden verworfen, die nächste Auswertung rechnet sie neu. Die gestrichelte Linie teilt die Aufnahme in zwei. Ein Klick auf eine Lücke im Text setzt die Stelle, an der der Text geteilt wird - auch vor dem ersten oder nach dem letzten Wort. Beide Felder lassen sich berichtigen, wenn anders gesprochen wurde, als dasteht. Liegt die Teilung auf Anfang oder Ende, wird nur der andere Teil gespeichert. Die neuen Aufnahmen werden verlustfrei aus dem Original geschnitten und ersetzen es; gemessen werden sie bei der nächsten Auswertung.'}
   >
     Editieren
   </h2>
@@ -521,26 +523,31 @@
   onja={zuschneiden}
   onnein={() => (frage = '')}
 >
-  <p>
-    Die Aufnahme wird auf {start.toFixed(2)} s bis {ende.toFixed(2)} s gekürzt und das Original
-    überschrieben. Was außerhalb der Linien liegt, ist danach weg.
-  </p>
-  <p class="gedaempft">Die Messwerte dieser Aufnahme werden verworfen.</p>
+  <p><strong>Gelöscht wird:</strong></p>
+  <ul>
+    {#if start > 0}<li>der Ton vor {start.toFixed(2)} s</li>{/if}
+    {#if aufnahme && ende < aufnahme.dauer_s}<li>der Ton nach {ende.toFixed(2)} s</li>{/if}
+    <li>die Messwerte dieser Aufnahme</li>
+  </ul>
+  <p>Die Aufnahme bleibt, nur kürzer.</p>
 </Rueckfrage>
 
 <Rueckfrage
   offen={frage === 'teilen'}
-  titel={teile.length === 2
-    ? 'In zwei Aufnahmen teilen?'
-    : `${knopftext.replace(' speichern', '')} speichern?`}
-  knopf={teile.length === 2 ? 'Teilen' : 'Speichern'}
+  titel={teile.length === 2 ? 'Aufnahme teilen?' : 'Aufnahme ersetzen?'}
+  knopf={teile.length === 2 ? 'Teilen' : 'Ersetzen'}
+  gefahr
   onja={teilen}
   onnein={() => (frage = '')}
 >
-  {#each teile as zeile (zeile)}
-    <p>{zeile}</p>
-  {/each}
-  <p class="gedaempft">Neue Aufnahmen tragen das Datum des Originals. Das Original bleibt erhalten.</p>
+  <p><strong>Neu:</strong></p>
+  <ul>
+    {#each teile as zeile (zeile)}<li>{zeile}</li>{/each}
+  </ul>
+  <p><strong>Gelöscht wird:</strong></p>
+  <ul>
+    <li>die bisherige Aufnahme mit Ton, Text und Messwerten</li>
+  </ul>
 </Rueckfrage>
 
 <style>

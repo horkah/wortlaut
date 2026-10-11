@@ -330,8 +330,9 @@ Spalten mit mehr Bedeutung als ihr Name:
   die Zahl.
 - `recordings.sortierschluessel`: leer, außer bei Teilen einer geteilten
   Aufnahme (`<id des Originals>.1`, `.2`). Sortiert wird nach `erstellt`, dann
-  nach `COALESCE(sortierschluessel, id)` - ein Original steht vor seinen
-  Teilen, und `zuschnitt.stamm` findet so die Verwandtschaft.
+  nach `COALESCE(sortierschluessel, id)` - Teile stehen an der Stelle ihres
+  Originals, und `zuschnitt.stamm` findet so die Verwandtschaft, auch wenn
+  das Original nach dem Teilen gelöscht ist.
 
 ---
 

@@ -14,7 +14,7 @@ erst danach.
 
 **Lange Aufnahmen sind hier gewollt.** Eine Buchseite am Stück dauert eine bis
 zwei Minuten, weit mehr als eine Einheit. Zerlegt wird sie danach in der
-Zuschnittansicht (`api/zuschnitt.py`, „Teilen") - dort, wo ein Mensch hört,
+Ansicht „Editieren" (`api/zuschnitt.py`, `teilen`) - dort, wo ein Mensch hört,
 wo ein Satz endet.
 
 Ein zweiter Lauf legt nichts doppelt an: Jede Aufnahme trägt Ordner und

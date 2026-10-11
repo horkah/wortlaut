@@ -276,9 +276,13 @@ offen ist immer nur eine. Aufgeklappt stehen dort der Player mit dem Audio,
 der Papierkorb und - nur wenn der Bearbeitungsschlüssel gilt - der Stift, der
 die Aufnahme in **Editieren** öffnet.
 
-Gelöscht wird hier nur einzeln - eine Aufnahme verwerfen wie beim Aufnehmen,
-nach einer Rückfrage mit Warnzeichen, denn Audio und Messwerte sind danach
-weg. `schreiben` verlinkt auf dieselbe Seite.
+Gelöscht wird hier nur einzeln und nur die Aufnahme - Ton und Messwerte,
+nach einer Rückfrage mit Warnzeichen. Der Text bleibt und steht wieder zum
+Aufnehmen an (dasselbe Verwerfen wie beim Aufnehmen, `DELETE
+/api/recordings/{id}`). `schreiben` verlinkt auf dieselbe Seite.
+
+Jede Rückfrage vor dem Löschen - hier wie in **Editieren** - nennt in kurzen
+Worten, was gelöscht wird.
 
 ### Eine Vorlage vom Foto
 
@@ -398,10 +402,16 @@ der passendsten Wortgrenze, bis jemand klickt.
 
 Nach der Rückfrage entstehen zwei neue Aufnahmen mit eigener Datei und
 eigener Vorlage; Byte für Byte ergeben sie den Bereich des Originals. Liegt die
-Teilung auf Anfang oder Ende, entsteht eine einzige Kopie - so wird aus
-derselben Ansicht eine Aufnahme mit berichtigtem Text. Das Original bleibt.
-Die Teile tragen sein Datum und einen Sortierschlüssel (`<id>.1`, `<id>.2`),
-der sie bei ihm hält.
+Teilung auf Anfang oder Ende, entsteht eine einzige - so wird aus derselben
+Ansicht eine Aufnahme mit berichtigtem Text. Die Teile tragen das Datum des
+Originals und einen Sortierschlüssel (`<id>.1`, `<id>.2`), der sie an seiner
+Stelle hält.
+
+**Die Teile ersetzen das Original.** Nach der Rückfrage mit Warnzeichen geht
+es ganz: Zeile, Datei, Messwerte und seine Vorlage, samt verworfenen
+Aufnahmen desselben Satzes - sonst stünde er wieder in der Warteschlange.
+Faltung und Verwandtschaft bleiben am Stamm (`zuschnitt.stamm`), auch ohne
+Original.
 
 ### Der Schlüssel
 
@@ -591,12 +601,10 @@ POST   /api/auswertung/stopp                Gerechnetes bleibt
 Zuschnitt - zusätzlich `X-Editor-Key`:
 
 ```
-GET    /api/zuschnitt/aufnahmen?ab=&anzahl= Kurve und Vorschlag
-GET    /api/zuschnitt/aufnahmen/{id}        eine Aufnahme - für „Editieren"
+GET    /api/zuschnitt/aufnahmen/{id}        Kurve und Vorschlag einer Aufnahme
 GET    /api/zuschnitt/aufnahmen/{id}/original
 POST   /api/zuschnitt/schreiben             { grenzen: [{ id, start_s, ende_s }] }
-POST   /api/zuschnitt/teilen                { id, start_s, teilung_s, ende_s, text_vorn, text_hinten } → { ids }
-POST   /api/zuschnitt/loeschen              { grenzen: [{ id }] }
+POST   /api/zuschnitt/teilen                { id, start_s, teilung_s, ende_s, text_vorn, text_hinten } → { ids }, ersetzt das Original
 ```
 
 Aufsicht - hinter `WORTLAUT_ADMIN_TOKEN`:
