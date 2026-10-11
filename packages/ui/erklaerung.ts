@@ -10,10 +10,16 @@
  *
  *     <h2 use:erklaert={'Was hier geschieht und warum.'}>Auswertung</h2>
  *
+ * Wo das Element selbst nicht sagt, wofür es steht - ein Balken mit einem
+ * Kürzel darunter -, trägt die Blase eine fette Zeile darüber:
+ * `use:erklaert={{ titel: 'Methode: LoRA', text }}`.
+ *
  * Es gibt nur eine Blase im Dokument; eine neue verdrängt die alte. Sie hängt
  * im Dokument und nicht im Fenster, rollt also mit der Seite.
  */
 import type { Action } from 'svelte/action';
+
+export type Erklaerung = string | { titel: string; text?: string };
 
 const VERWEILEN_MS = 400;
 const RAND_PX = 8;
@@ -26,13 +32,19 @@ let blase: HTMLElement | null = null;
 let traeger: HTMLElement | null = null;
 let horcht = false;
 
-function zeige(element: HTMLElement, text: string) {
+function zeige(element: HTMLElement, erklaerung: Erklaerung) {
   if (!blase) {
     blase = document.createElement('div');
     blase.className = 'erklaerung';
     blase.setAttribute('aria-hidden', 'true');
   }
-  blase.textContent = text;
+  if (typeof erklaerung === 'string') {
+    blase.textContent = erklaerung;
+  } else {
+    const titel = document.createElement('strong');
+    titel.textContent = erklaerung.titel;
+    blase.replaceChildren(titel, erklaerung.text ?? '');
+  }
   blase.style.left = '0';
   blase.style.top = '0';
   document.body.append(blase);
@@ -74,8 +86,15 @@ function aufBedienelement(element: HTMLElement, ziel: EventTarget | null): boole
   return !!treffer && element.contains(treffer);
 }
 
-export const erklaert: Action<HTMLElement, string> = (element, anfang) => {
-  let text = anfang;
+/** Der ganze Wortlaut in einer Zeile, für Vorlesestimmen; leer heißt: keine Blase. */
+function wortlaut(erklaerung: Erklaerung): string {
+  if (typeof erklaerung === 'string') return erklaerung;
+  return [erklaerung.titel, erklaerung.text].filter(Boolean).join('. ');
+}
+
+export const erklaert: Action<HTMLElement, Erklaerung> = (element, anfang) => {
+  let erklaerung = anfang;
+  let text = wortlaut(erklaerung);
   let verweilen: ReturnType<typeof setTimeout> | undefined;
   let druck: { x: number; y: number; zeit: number } | null = null;
 
@@ -91,7 +110,7 @@ export const erklaert: Action<HTMLElement, string> = (element, anfang) => {
   function hinein(ereignis: PointerEvent) {
     if (ereignis.pointerType !== 'mouse' || !text) return;
     clearTimeout(verweilen);
-    verweilen = setTimeout(() => zeige(element, text), VERWEILEN_MS);
+    verweilen = setTimeout(() => zeige(element, erklaerung), VERWEILEN_MS);
   }
 
   function hinaus(ereignis: PointerEvent) {
@@ -114,7 +133,7 @@ export const erklaert: Action<HTMLElement, string> = (element, anfang) => {
     const gewischt = Math.hypot(ereignis.clientX - war.x, ereignis.clientY - war.y) > TIPPEN_PX;
     if (gewischt || ereignis.timeStamp - war.zeit > TIPPEN_MS) return;
     if (traeger === element) verberge();
-    else zeige(element, text);
+    else zeige(element, erklaerung);
   }
 
   element.addEventListener('pointerenter', hinein);
@@ -123,11 +142,12 @@ export const erklaert: Action<HTMLElement, string> = (element, anfang) => {
   element.addEventListener('pointerup', hoch);
 
   return {
-    update(neu: string) {
-      text = neu;
+    update(neu: Erklaerung) {
+      erklaerung = neu;
+      text = wortlaut(erklaerung);
       beschrifte();
       if (traeger === element) {
-        if (text) zeige(element, text);
+        if (text) zeige(element, erklaerung);
         else verberge();
       }
     },

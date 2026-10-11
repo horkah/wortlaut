@@ -25,7 +25,7 @@ from wortlaut import kartenplan, laeufe as lauf_layout, registry, schluessel
 
 from ..config import einstellungen
 from ..deps import Korpus, Sprache, SprecherId
-from ..services import aufteilung, auftraege, vergleich
+from ..services import aufteilung, auftraege, grundmodelle, vergleich
 
 router = APIRouter(prefix="/lernen/api/laeufe", tags=["Läufe"])
 
@@ -62,13 +62,21 @@ METHODEN = [
     WahlAntwort(
         schluessel=lauf_layout.VOLL,
         name="Volles Feintuning",
-        erklaerung="Alle Gewichte trainierbar.",
+        erklaerung=(
+            "Alle Gewichte lernen mit. Passt sich am weitesten an diese Stimme an, "
+            "braucht aber den meisten Speicher und kann am ehesten verlernen, was "
+            "das Grundmodell allgemein konnte."
+        ),
         code=lauf_layout.CODE_METHODE[lauf_layout.VOLL],
     ),
     WahlAntwort(
         schluessel=lauf_layout.LORA,
         name="LoRA",
-        erklaerung="Low-Rank-Adapter, Grundmodell eingefroren.",
+        erklaerung=(
+            "Low-Rank-Adapter: Das Grundmodell bleibt eingefroren, gelernt wird nur "
+            "ein kleiner Zusatz an ausgewählten Gewichten. Weniger Speicher und "
+            "weniger Freiheit; für große Grundmodelle oft der einzige Weg auf die Karte."
+        ),
         code=lauf_layout.CODE_METHODE[lauf_layout.LORA],
     ),
 ]
@@ -78,25 +86,37 @@ LORA_ZIELE = [
     WahlAntwort(
         schluessel=lauf_layout.ZIELE_QV,
         name="q, v",
-        erklaerung="q_proj und v_proj der Aufmerksamkeit, in Encoder und Decoder.",
+        erklaerung=(
+            "q_proj und v_proj der Aufmerksamkeit, in Encoder und Decoder - der "
+            "kleinste Zusatz, an der Stelle, an der die Literatur den Gewinn erwartet."
+        ),
         code=lauf_layout.CODE_LORA_ZIELE[lauf_layout.ZIELE_QV],
     ),
     WahlAntwort(
         schluessel=lauf_layout.ZIELE_ALLE,
         name="Alle Projektionen",
-        erklaerung="q, k, v, out_proj, fc1, fc2 in Encoder und Decoder.",
+        erklaerung=(
+            "q, k, v, out_proj, fc1, fc2 in Encoder und Decoder - mehr Freiheit, "
+            "mehr Speicher."
+        ),
         code=lauf_layout.CODE_LORA_ZIELE[lauf_layout.ZIELE_ALLE],
     ),
     WahlAntwort(
         schluessel=lauf_layout.ZIELE_ENCODER,
         name="Nur Encoder",
-        erklaerung="Alle Projektionen, nur im Encoder - die Aussprache.",
+        erklaerung=(
+            "Alle Projektionen, nur im Encoder: lernt, wie diese Person klingt. Den "
+            "Wortschatz behält der unveränderte Decoder."
+        ),
         code=lauf_layout.CODE_LORA_ZIELE[lauf_layout.ZIELE_ENCODER],
     ),
     WahlAntwort(
         schluessel=lauf_layout.ZIELE_DECODER,
         name="Nur Decoder",
-        erklaerung="Alle Projektionen, nur im Decoder - der Wortschatz.",
+        erklaerung=(
+            "Alle Projektionen, nur im Decoder: lernt, was diese Person sagt - Wörter "
+            "und Wendungen. Wie sie klingt, hört der unveränderte Encoder."
+        ),
         code=lauf_layout.CODE_LORA_ZIELE[lauf_layout.ZIELE_DECODER],
     ),
 ]
@@ -106,9 +126,12 @@ LORA_RAENGE = [
         schluessel=rang,
         name=f"Rang {rang}",
         erklaerung={
-            lauf_layout.RANG_VORGABE: "",
-            "8": "Kleiner Zusatz, weniger Freiheit.",
-            "64": "Größerer Zusatz, näher am vollen Training.",
+            lauf_layout.RANG_VORGABE: "Ein mittelgroßer Zusatz.",
+            "8": (
+                "Kleiner Zusatz: weniger Freiheit, aber auch weniger Gefahr, die "
+                "Aufnahmen auswendig zu lernen."
+            ),
+            "64": "Größerer Zusatz, näher am vollen Training und mit mehr Speicher.",
         }.get(rang, ""),
         code=lauf_layout.CODE_LORA_RANG[rang],
     )
@@ -119,16 +142,18 @@ AUSWAHLEN = [
     WahlAntwort(
         schluessel=lauf_layout.AUSWAHL_ALLE,
         name="Alle Aufnahmen",
-        erklaerung="",
+        erklaerung="Gelernt und gemessen wird auf jeder Aufnahme des Korpus.",
         code=lauf_layout.CODE_AUSWAHL[lauf_layout.AUSWAHL_ALLE],
     ),
     WahlAntwort(
         schluessel=lauf_layout.AUSWAHL_KERN,
         name="Kernauswahl",
         erklaerung=(
+            "Für einen Korpus mit vielen verrauschten oder fehlerhaften Aufnahmen: "
             f"Gelernt nur auf den besten {round(lauf_layout.KERN_ANTEIL * 100)} % "
             "nach WER des freigegebenen Modells. Die übrigen sieht der Lauf nicht; "
-            "sie hört erst das Endmodell in der Auswertung von „hören“."
+            "sie hört erst das Endmodell in der Auswertung von „hören“. Braucht ein "
+            "freigegebenes Modell."
         ),
         code=lauf_layout.CODE_AUSWAHL[lauf_layout.AUSWAHL_KERN],
     ),
@@ -139,7 +164,12 @@ KORREKTURGEWICHTE = [
     WahlAntwort(
         schluessel=gewicht,
         name=f"Gewicht {gewicht.replace('.', ',')}",
-        erklaerung="Korrekturen zählen wie Vorlagen." if gewicht == "1.0" else "",
+        erklaerung=(
+            "Korrekturen zählen wie Aufnahmen nach Vorlage."
+            if gewicht == "1.0"
+            else f"Eine Korrektur zählt {_gewichtstext(float(gewicht))}, eine Aufnahme "
+            "nach Vorlage 1."
+        ),
         code=lauf_layout.CODE_KORREKTURGEWICHT[gewicht],
     )
     for gewicht in lauf_layout.KORREKTURGEWICHTE
@@ -149,8 +179,11 @@ KORREKTURGEWICHTE = [
         schluessel=lauf_layout.GEWICHT_VERLAUF,
         name="Aus dem Verlauf",
         erklaerung=(
-            f"Unverändert bestätigt {_gewichtstext(auftraege.GEWICHT_UNVERAENDERT)}, "
-            f"nachgesprochen {_gewichtstext(auftraege.GEWICHT_NACHGESPROCHEN)}."
+            "Je nachdem, wie die Korrektur entstand: unverändert bestätigt "
+            f"{_gewichtstext(auftraege.GEWICHT_UNVERAENDERT)} - das Modell hatte schon "
+            "recht, und ob jemand genau hinsah, weiß niemand -, nachgesprochen "
+            f"{_gewichtstext(auftraege.GEWICHT_NACHGESPROCHEN)} - die Person hat genau "
+            "diesen Abschnitt geprüft und durchgesetzt."
         ),
         code=lauf_layout.CODE_KORREKTURGEWICHT[lauf_layout.GEWICHT_VERLAUF],
     )
@@ -161,7 +194,7 @@ SELBSTTRAININGE = [
     WahlAntwort(
         schluessel=lauf_layout.SELBST_AUS,
         name="Aus",
-        erklaerung="",
+        erklaerung="Gelernt wird nur, wozu ein bestätigter Text gehört.",
         code=lauf_layout.CODE_SELBSTTRAINING[lauf_layout.SELBST_AUS],
     ),
     WahlAntwort(
@@ -169,7 +202,9 @@ SELBSTTRAININGE = [
         name="Unbestätigte Diktate",
         erklaerung=(
             "Das freigegebene Modell beschriftet sie; was es sicher hört, lernt mit "
-            f"Gewicht {_gewichtstext(auftraege.GEWICHTE[lauf_layout.QUELLE_SELBST])} mit."
+            f"Gewicht {_gewichtstext(auftraege.GEWICHTE[lauf_layout.QUELLE_SELBST])} mit. "
+            "Mehr Material ohne Mühe, aber das Modell kann dabei eigene Fehler "
+            "verstärken. Gemessen wird daran nie."
         ),
         code=lauf_layout.CODE_SELBSTTRAINING[lauf_layout.SELBST_AN],
     ),
@@ -180,25 +215,32 @@ ABSCHLUESSE = [
     WahlAntwort(
         schluessel=lauf_layout.ABSCHLUSS_BESTER,
         name="Bester Checkpoint",
-        erklaerung="Bester Wert der Steuergröße.",
+        erklaerung="Der Zwischenstand mit dem besten Wert der Steuergröße.",
         code=lauf_layout.CODE_ABSCHLUSS[lauf_layout.ABSCHLUSS_BESTER],
     ),
     WahlAntwort(
         schluessel=lauf_layout.ABSCHLUSS_MITTEL,
         name="Checkpoint-Mittel",
-        erklaerung="Die besten Checkpoints elementweise gemittelt (Model Soup).",
+        erklaerung=(
+            "Die besten Zwischenstände elementweise gemittelt (Model Soup) - glättet "
+            "den Zufall eines einzelnen Stands. Bei LoRA eine Näherung."
+        ),
         code=lauf_layout.CODE_ABSCHLUSS[lauf_layout.ABSCHLUSS_MITTEL],
     ),
     WahlAntwort(
         schluessel=lauf_layout.ABSCHLUSS_INTERPOLIERT,
         name="WiSE-FT",
-        erklaerung="α·θ_Grund + (1−α)·θ_fein, α auf der Validierung gewählt.",
+        erklaerung=(
+            "Mischt das Grundmodell zurück: α·θ_Grund + (1−α)·θ_fein, α an der "
+            "Validierung gewählt. Hält, was das Grundmodell allgemein konnte; ein "
+            "gewähltes α = 0 heißt, das Zurückmischen half nicht."
+        ),
         code=lauf_layout.CODE_ABSCHLUSS[lauf_layout.ABSCHLUSS_INTERPOLIERT],
     ),
     WahlAntwort(
         schluessel=lauf_layout.ABSCHLUSS_BEIDES,
         name="Checkpoint-Mittel + WiSE-FT",
-        erklaerung="",
+        erklaerung="Erst mitteln, dann das Grundmodell zurückmischen.",
         code=lauf_layout.CODE_ABSCHLUSS[lauf_layout.ABSCHLUSS_BEIDES],
     ),
 ]
@@ -208,25 +250,35 @@ AUGMENTIERUNGEN = [
     WahlAntwort(
         schluessel=lauf_layout.AUG_KEINE,
         name="Keine",
-        erklaerung="",
+        erklaerung="Jede Lernprobe klingt in jedem Durchgang gleich.",
         code=lauf_layout.CODE_AUGMENTIERUNG[lauf_layout.AUG_KEINE],
     ),
     WahlAntwort(
         schluessel=lauf_layout.AUG_MASKEN,
         name="SpecAugment",
-        erklaerung="Zeit- und Frequenzmasken im Spektrogramm.",
+        erklaerung=(
+            "Zeit- und Frequenzmasken im Spektrogramm: Das Modell kann sich nicht "
+            "auf einzelne Stellen verlassen. Kostet fast nichts."
+        ),
         code=lauf_layout.CODE_AUGMENTIERUNG[lauf_layout.AUG_MASKEN],
     ),
     WahlAntwort(
         schluessel=lauf_layout.AUG_UMGEBUNG,
         name="+ Raum + Rauschen",
-        erklaerung="Dazu Nachhall und Hintergrundrauschen auf der Welle.",
+        erklaerung=(
+            "Dazu gewürfelter Nachhall und Hintergrundrauschen auf der Welle - für "
+            "Diktate in anderen Räumen als denen der Aufnahmen."
+        ),
         code=lauf_layout.CODE_AUGMENTIERUNG[lauf_layout.AUG_UMGEBUNG],
     ),
     WahlAntwort(
         schluessel=lauf_layout.AUG_VOLL,
         name="+ Tempo-Perturbation",
-        erklaerung="Dazu Abspieltempo 0,9–1,1×.",
+        erklaerung=(
+            "Dazu Abspieltempo 0,9–1,1×. Bei dysarthrischer Sprache ist das Tempo "
+            "Merkmal, nicht Störung - ob die Abwandlung hilft oder schadet, zeigt "
+            "die Modelltafel."
+        ),
         code=lauf_layout.CODE_AUGMENTIERUNG[lauf_layout.AUG_VOLL],
     ),
 ]
@@ -236,13 +288,19 @@ DAUERN = [
     WahlAntwort(
         schluessel=lauf_layout.DAUER_FEST,
         name="Feste Epochenzahl",
-        erklaerung="Epochen laut Rezept.",
+        erklaerung=(
+            "So viele Durchgänge, wie das Rezept vorgibt; ausgeliefert wird der beste."
+        ),
         code=lauf_layout.CODE_DAUER[lauf_layout.DAUER_FEST],
     ),
     WahlAntwort(
         schluessel=lauf_layout.DAUER_GEDULDIG,
         name="Early Stopping",
-        erklaerung="Höhere Obergrenze, Abbruch ohne Verbesserung der Validierung.",
+        erklaerung=(
+            "Höhere Obergrenze, Schluss, sobald die Validierung eine Weile nicht "
+            "besser wird. Kostet höchstens Zeit, denn ausgeliefert wird ohnehin der "
+            "beste Durchgang."
+        ),
         code=lauf_layout.CODE_DAUER[lauf_layout.DAUER_GEDULDIG],
     ),
 ]
@@ -252,13 +310,20 @@ STEUERUNGEN = [
     WahlAntwort(
         schluessel=lauf_layout.STEUERUNG_VERLUST,
         name="Validierungsverlust",
-        erklaerung="Geprüft je Durchgang.",
+        erklaerung=(
+            "Der gewichtete Verlust auf der Validierung, geprüft je Durchgang. "
+            "Billig, sieht aber nicht, was die freie Dekodierung schreibt."
+        ),
         code=lauf_layout.CODE_STEUERUNG[lauf_layout.STEUERUNG_VERLUST],
     ),
     WahlAntwort(
         schluessel=lauf_layout.STEUERUNG_WER,
         name="WER",
-        erklaerung="Frei dekodiert, geprüft je Drittel eines Durchgangs.",
+        erklaerung=(
+            "Die Wortfehlerrate nach freier Dekodierung, dieselbe wie in der Messung, "
+            "geprüft je Drittel eines Durchgangs. Näher an dem, worauf es ankommt; "
+            "kostet Zeit."
+        ),
         code=lauf_layout.CODE_STEUERUNG[lauf_layout.STEUERUNG_WER],
     ),
 ]
@@ -268,7 +333,7 @@ FENSTER = [
     WahlAntwort(
         schluessel=lauf_layout.FENSTER_VOLL,
         name="30 Sekunden",
-        erklaerung="",
+        erklaerung="Jede Aufnahme auf 30 Sekunden aufgefüllt, wie ausgeliefert gehört wird.",
         code=lauf_layout.CODE_FENSTER[lauf_layout.FENSTER_VOLL],
     ),
     WahlAntwort(
@@ -276,7 +341,8 @@ FENSTER = [
         name="Gekürzt",
         erklaerung=(
             "Im Training auf die längste Aufnahme gekürzt; ausgeliefert und gemessen "
-            "mit 30 Sekunden."
+            "mit 30 Sekunden. Bei kurzen Sätzen deutlich schneller - das Risiko ist "
+            "die Auffüllung, die der Stand im Training nie sah."
         ),
         code=lauf_layout.CODE_FENSTER[lauf_layout.FENSTER_GEKUERZT],
     ),
@@ -287,19 +353,26 @@ TEMPI = [
     WahlAntwort(
         schluessel=lauf_layout.TEMPO_AUS,
         name="Aus",
-        erklaerung="",
+        erklaerung="Gehört wird in der Geschwindigkeit der Aufnahme.",
         code=lauf_layout.CODE_TEMPO[lauf_layout.TEMPO_AUS],
     ),
     WahlAntwort(
         schluessel=lauf_layout.TEMPO_GESCHAETZT,
         name="Geschätzt",
-        erklaerung="Aufnahmedauer / geschätzte Sprechdauer, je Faltung, auf 0,25 gerundet.",
+        erklaerung=(
+            "Aufnahmedauer ÷ geschätzte Sprechdauer der Texte, je Faltung, auf 0,25 "
+            "gerundet: wie weit diese Person vom üblichen Tempo abweicht. Kostet nichts."
+        ),
         code=lauf_layout.CODE_TEMPO[lauf_layout.TEMPO_GESCHAETZT],
     ),
     WahlAntwort(
         schluessel=lauf_layout.TEMPO_OPTIMAL,
         name="Gesucht",
-        erklaerung="WER-Minimum über 0,75–4,0× am Grundmodell, je Faltung.",
+        erklaerung=(
+            "Das Tempo zwischen 0,75 und 4,0×, bei dem das unveränderte Grundmodell "
+            "die wenigsten Fehler macht, je Faltung gesucht: wo das Modell diese "
+            "Person am besten versteht. Etwa eine Minute je Faltung."
+        ),
         code=lauf_layout.CODE_TEMPO[lauf_layout.TEMPO_OPTIMAL],
     ),
 ]
@@ -309,7 +382,7 @@ KONTEXTE = [
     WahlAntwort(
         schluessel=lauf_layout.KONTEXT_AUS,
         name="Aus",
-        erklaerung="",
+        erklaerung="Jede Erkennung beginnt ohne Vorgabe.",
         code=lauf_layout.CODE_KONTEXT[lauf_layout.KONTEXT_AUS],
     ),
     WahlAntwort(
@@ -317,7 +390,8 @@ KONTEXTE = [
         name="Vokabular",
         erklaerung=(
             "Startprompt mit den seltenen Wörtern der Lerntexte - je Faltung nur ihren; "
-            "gilt überall, wo der Stand hört."
+            "gilt überall, wo der Stand hört. Hilft bei Namen und Fachwörtern, kann "
+            "bei Stille aber zur Wortliste verleiten."
         ),
         code=lauf_layout.CODE_KONTEXT[lauf_layout.KONTEXT_VOKABULAR],
     ),
@@ -345,12 +419,14 @@ def _grundmodelle() -> list[GrundmodellAntwort]:
     antworten = []
     for modell in konfiguration.grundmodelle():
         kurz = lauf_layout.kurzname(modell)
+        karte = grundmodelle.KARTEN.get(kurz)
         antworten.append(
             GrundmodellAntwort(
                 schluessel=modell,
                 name=f"whisper-{kurz}",
                 # Welche Methoden passen, steht daneben - auf dieser Karte.
-                erklaerung=f"{kartenplan.parameter(kurz) / 1e6:.0f} M Parameter.",
+                erklaerung=f"{kartenplan.parameter(kurz) / 1e6:.0f} M Parameter."
+                + (f" {karte.erklaerung}" if karte else ""),
                 methoden=list(konfiguration.methoden_fuer(modell)),
                 lora=konfiguration.lora_fuer(modell),
                 code=lauf_layout.grundmodellcode(modell),
