@@ -106,9 +106,6 @@
       <span class="abzeichen">freigegeben</span>
     {/if}
   </div>
-  {#if daten.erklaerung}
-    <p class="gedaempft">{daten.erklaerung}</p>
-  {/if}
 
   <!-- Zwei Steckbriefe wie der eine beim Lauf: erst, was das Modell ist,
        dann, was davon hier liegt. Beschriftet vom Server. -->
@@ -142,18 +139,6 @@
 
   {#if gemessen && modell}
     <h3>Auf den Aufnahmen dieses Menschen</h3>
-    <p class="gedaempft">
-      Dieselben Zahlen wie in der Modelltabelle, über dieselben Aufnahmen. Ein Grundmodell hat
-      keine davon gelernt - jede ist für es neu.
-      {#if freigabe}
-        Daneben das freigegebene Modell,
-        {#if freigabe.job_id}
-          <a class="optionscode" href="#{LAUF_ROUTE}{freigabe.job_id}">{freigabe.name}</a>.
-        {:else}
-          {freigabe.name}.
-        {/if}
-      {/if}
-    </p>
 
     <table class="vergleich">
       <thead>
@@ -161,7 +146,13 @@
           <th scope="col">Maß</th>
           <th scope="col">Dieses Modell</th>
           {#if freigabe}
-            <th scope="col">Freigegeben</th>
+            <th scope="col">
+              {#if freigabe.job_id}
+                <a class="optionscode" href="#{LAUF_ROUTE}{freigabe.job_id}">{freigabe.name}</a>
+              {:else}
+                {freigabe.name}
+              {/if}
+            </th>
             <th scope="col">Abstand</th>
           {/if}
         </tr>
@@ -193,16 +184,8 @@
       {modell.aufnahmen === 1 ? 'Aufnahme' : 'Aufnahmen'}{#if !daten.vergleichbar}
         - noch kein gemeinsamer Boden mit den anderen Modellen{/if}.
     </p>
-
-    <p class="gedaempft">
-      Hervorgehoben heißt: Hier ist dieses Grundmodell besser als das freigegebene. Die Rechenzeit gilt für
-      das Rechenwerk oben im Steckbrief.
-    </p>
   {:else}
-    <p class="hinweise">
-      Auf diesen Aufnahmen hat {daten.titel} noch nichts gemessen. In „hören" unter
-      „Auswertung" läuft es über den Korpus - danach stehen hier seine Zahlen.
-    </p>
+    <p class="hinweise">Noch nicht gemessen - die Auswertung läuft in „hören“.</p>
   {/if}
 {/if}
 

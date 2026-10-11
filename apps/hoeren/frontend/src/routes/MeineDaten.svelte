@@ -293,7 +293,6 @@
   <h2>Meine Daten</h2>
   <div class="karte">
     <p>Diese Seite ist mit einer PIN gesichert.</p>
-    <p class="gedaempft">Geben Sie Ihre vierstellige PIN ein (4 Ziffern).</p>
     <form class="reihe" onsubmit={entsperren}>
       <!-- `pattern` als Ausdruck, nicht als Text: In einer Vorlage ist `{4}`
            eine Einsetzung, `pattern="[0-9]{4}"` käme als `[0-9]4` beim Browser
@@ -323,14 +322,7 @@
   {@const aktiv = quellen.filter((quelle) => quelle.aktiv).length}
   {@const einheiten = quellen.reduce((summe, quelle) => summe + quelle.einheiten, 0)}
 
-  <!--
-    Der Knopf steht beim Namen, denn der Name ist, was er ändert. Er stand
-    einmal in der Karte darunter, zwischen „Sicherung" und „Datensatz" - unter
-    der Überschrift „Ausleiten", die von zwei Dateien zum Herunterladen
-    handelt. Umbenennen lädt nichts herunter; es war dort nur die dritte
-    Handlung, die sonst nirgends hinpasste. Der erklärende Absatz derselben
-    Karte nennt ihn bis heute nicht, und das war der Hinweis.
-  -->
+  <!-- Der Knopf steht beim Namen, denn der Name ist, was er ändert. -->
   <div class="reihe titel">
     <h2>{person.name}</h2>
     <button class="knopf" disabled={laeuft === 'umbenennen'} onclick={benenneUm}>
@@ -371,30 +363,15 @@
         {laeuft === 'datensatz' ? 'Wird gepackt …' : 'Datensatz (.zip)'}
       </button>
     </div>
-    <p class="gedaempft">
-      <strong>Sicherung:</strong> Datenbank und Aufnahmen, zurückzuspielen mit
-      <code>scripts/restore.py</code>. Ohne Messwerte - die rechnet ein Auswertungslauf
-      neu.<br />
-      <strong>Datensatz:</strong> je Aufnahme WAV und Text, für fremde Werkzeuge. Keine Sicherung.
-    </p>
   </div>
 
   <!--
-    Kurzes zuerst, Langes ans Ende. Die Aufnahmen sind eine Liste, die über
+    Kurzes zuerst, Langes ans Ende: Die Aufnahmen sind eine Liste, die über
     Seiten läuft; alles, was man einmal einstellt, stünde dahinter außer
-    Sicht. Die PIN stand dort - hinter allen Listen, am Ende einer Seite, die
-    je nach Korpus sehr lang ist.
-
-    Die Einsicht der Aufsicht hatte es schon richtig herum; jetzt sind beide
-    Ansichten desselben Profils auch in der Reihenfolge dieselben.
+    Sicht. Dieselbe Reihenfolge wie in der Einsicht der Aufsicht.
   -->
   <h2>PIN</h2>
   <div class="karte">
-    <p class="gedaempft">
-      Eine PIN sichert diese Seite zusätzlich zum Zugang - gedacht gegen den Klick aus Versehen,
-      nicht als zweites Passwort.
-    </p>
-    <p class="gedaempft">Geben Sie eine vierstellige PIN ein (4 Ziffern).</p>
     <form class="reihe" onsubmit={pinAendern}>
       <input
         bind:value={neuePin}
@@ -435,9 +412,7 @@
     {:else}
       <p>Noch keine Textquelle.</p>
     {/if}
-    <p class="gedaempft">
-      Anlegen, abstellen und löschen unter <a href="#/quelle">Textquelle</a>.
-    </p>
+    <p><a href="#/quelle">Textquellen verwalten</a></p>
   </div>
 
   <!--
@@ -476,16 +451,10 @@
       <div class="reihe">
         <button class="knopf" onclick={() => gehZu(ZUSCHNITT_PFAD)}>Zuschnitt öffnen</button>
       </div>
-      <p class="gedaempft">
-        Zwischen dem Druck auf den Aufnahmeknopf und dem ersten Laut liegt meist eine Sekunde,
-        hinten oft mehr. Im Zuschnitt sehen Sie zu jeder Aufnahme den Lautstärkeverlauf und
-        schneiden weg, was davor und dahinter steht. Der Zuschnitt überschreibt die Originale.
-      </p>
     </div>
   {:else if lage.bearbeiten === 'fehlt' || lage.bearbeiten === 'falsch'}
     <p class="gedaempft">
-      Zuschneiden und Editieren gehen mit dem Bearbeitungsschlüssel dieses Servers - einzutragen
-      unter <a href="#{ZUGANGSDATEN_PFAD}">Zugangsdaten</a>.
+      Zuschnitt: Bearbeitungsschlüssel unter <a href="#{ZUGANGSDATEN_PFAD}">Zugangsdaten</a>
     </p>
   {/if}
   {#each aufnahmen as aufnahme (aufnahme.id)}

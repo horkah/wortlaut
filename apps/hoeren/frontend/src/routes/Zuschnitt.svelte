@@ -300,28 +300,16 @@
       Der Zuschnitt ist auf diesem Server abgeschaltet: <code>WORTLAUT_EDITOR_KEY</code> ist nicht
       gesetzt.
     </p>
-    <p class="gedaempft">
-      Der Zuschnitt greift in den Bestand: Er entscheidet, welcher Ton ab dann gemessen und
-      trainiert wird. Deshalb steht ein eigener Schlüssel davor, und ohne hinterlegten Schlüssel
-      ist er abgeschaltet - wie das Training in „lernen“.
-    </p>
   </div>
 {:else if stand === 'schluessel'}
   <div class="karte">
     <p>
-      {lage.bearbeiten === 'falsch'
-        ? 'Der eingetragene Bearbeitungsschlüssel stimmt nicht.'
-        : 'Zum Zuschneiden braucht es den Bearbeitungsschlüssel dieses Servers.'}
-      Eingetragen wird er unter <a href="#{ZUGANGSDATEN_PFAD}">Zugangsdaten</a>.
+      {lage.bearbeiten === 'falsch' ? 'Bearbeitungsschlüssel stimmt nicht' : 'Bearbeitungsschlüssel fehlt'}
+      - <a href="#{ZUGANGSDATEN_PFAD}">Zugangsdaten</a>
     </p>
   </div>
 {:else}
   <div class="karte">
-    <p class="gedaempft">
-      Die orangen Linien sagen, was von jeder Aufnahme bleibt. Sie stehen dort, wo die Stimme
-      anfängt und aufhört - verschieben lassen sie sich mit Finger, Maus oder den Pfeiltasten.
-      Geschrieben wird erst unten, und nur für das, was hier markiert ist.
-    </p>
     <div class="reihe werkzeuge">
       <label class="reihe schmal">
         <input
@@ -472,12 +460,7 @@
         {laeuft === 'loeschen' ? 'Wird gelöscht …' : `Löschen (${anzahlMarkiert})`}
       </button>
     </div>
-    <p class="gedaempft">
-      <strong>Der Zuschnitt überschreibt die Originaldateien</strong> - was außerhalb der
-      Linien liegt, ist danach weg, und das lässt sich nicht rückgängig machen. Die bisherigen
-      Messwerte der betroffenen Aufnahmen werden dabei verworfen, weil sie am alten Ton
-      entstanden sind; der nächste Auswertungslauf rechnet sie neu.
-    </p>
+    <p class="gedaempft">Überschreibt die Originaldateien - nicht rückgängig zu machen.</p>
   </div>
 {/if}
 

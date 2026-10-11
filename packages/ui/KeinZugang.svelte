@@ -21,18 +21,6 @@
 <h2>Kein Zugang</h2>
 
 <div class="karte">
-  <p>
-    Dieser Browser gehört noch zu niemandem. Was hier geschieht, gehört einem Menschen: Es läuft
-    auf seinem Modell und geht in seinen Korpus.
-  </p>
-  <p>
-    Der persönliche Link, einmal geöffnet, genügt - derselbe in allen drei Apps. Danach ist hier
-    nichts mehr einzutragen.
-  </p>
-  <p>Wer verwaltet oder beaufsichtigt, trägt stattdessen seinen Token ein - in dasselbe Feld.</p>
+  <p>Bitte den persönlichen Link öffnen.</p>
   <button class="knopf haupt" onclick={() => gehZu(ZUGANGSDATEN_PFAD)}>Zu den Zugangsdaten</button>
-  <p class="gedaempft">
-    Dieselbe Seite steht immer im Menü (☰) rechts oben. Was dort eingetragen wird, bleibt in
-    diesem Browser.
-  </p>
 </div>

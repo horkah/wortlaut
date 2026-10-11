@@ -575,12 +575,14 @@
 
 <h2>Training</h2>
 
-{#snippet option(wahl: Wahl | Grundmodell, anteil: string)}
-  <span>
+<!-- Die Erklärung einer Option steht im Mauszeiger, sichtbar nur, was die
+     Wahl sperrt. -->
+{#snippet option(wahl: Wahl | Grundmodell, anteil: string, sperre = '')}
+  <span title={wahl.erklaerung || undefined}>
     <strong>{wahl.name}</strong>
     {#if wahl.code}<code class="glied">{wahl.code}</code>{/if}
     {#if anteil}<small class="anteil" title="Anteil der gezählten Modelle">{anteil}</small>{/if}
-    {#if wahl.erklaerung}<span class="gedaempft">{wahl.erklaerung}</span>{/if}
+    {#if sperre}<span class="gedaempft">{sperre}</span>{/if}
   </span>
 {/snippet}
 
@@ -617,10 +619,9 @@
               disabled={!geht}
             />
             {@render option(
-              geht
-                ? wahl
-                : { ...wahl, erklaerung: `Mit ${gewaehltesGrundmodell?.name} nicht möglich (GPU-Speicher).` },
+              wahl,
               prozent('Methode', wahl),
+              geht ? '' : `Mit ${gewaehltesGrundmodell?.name} nicht möglich (GPU-Speicher).`,
             )}
           </label>
         {/each}
@@ -634,10 +635,11 @@
           <label class="option" class:nichtmoeglich={!mitLora || !geht}>
             <input type="radio" bind:group={loraZiele} value={wahl.schluessel} disabled={!geht} />
             {@render option(
-              geht
-                ? wahl
-                : { ...wahl, erklaerung: `Mit Rang ${loraRang} und ${gewaehltesGrundmodell?.name} nicht möglich (GPU-Speicher).` },
+              wahl,
               prozent('LoRA-Ziele', wahl),
+              geht
+                ? ''
+                : `Mit Rang ${loraRang} und ${gewaehltesGrundmodell?.name} nicht möglich (GPU-Speicher).`,
             )}
           </label>
         {/each}
@@ -650,10 +652,11 @@
           <label class="option" class:nichtmoeglich={!mitLora || !geht}>
             <input type="radio" bind:group={loraRang} value={wahl.schluessel} disabled={!geht} />
             {@render option(
-              geht
-                ? wahl
-                : { ...wahl, erklaerung: `Mit diesen Zielen und ${gewaehltesGrundmodell?.name} nicht möglich (GPU-Speicher).` },
+              wahl,
               prozent('LoRA-Rang', wahl),
+              geht
+                ? ''
+                : `Mit diesen Zielen und ${gewaehltesGrundmodell?.name} nicht möglich (GPU-Speicher).`,
             )}
           </label>
         {/each}
@@ -776,10 +779,8 @@
       <!-- Ein Lauf belegt die Karte für Stunden, und das soll nicht jeder
            anstoßen können, der einen Aufnahmelink hat. -->
       <p class="hinweise">
-        {lage.trainieren === 'falsch'
-          ? 'Der eingetragene Trainerschlüssel stimmt nicht.'
-          : 'Zum Beauftragen braucht es den Trainerschlüssel.'}
-        Eingetragen wird er unter <a href="#{ZUGANGSDATEN_PFAD}">Zugangsdaten</a>.
+        {lage.trainieren === 'falsch' ? 'Trainerschlüssel stimmt nicht' : 'Trainerschlüssel fehlt'}
+        - <a href="#{ZUGANGSDATEN_PFAD}">Zugangsdaten</a>
       </p>
     {/if}
 

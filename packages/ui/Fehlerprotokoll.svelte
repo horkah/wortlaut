@@ -66,11 +66,6 @@
   <button class="knopf" onclick={hole} disabled={laedt}>Neu laden</button>
 </div>
 
-<p class="gedaempft">
-  Warnungen und Fehler von Webdienst, Läufer und Training der letzten {tage} Tage, das jüngste
-  zuerst. Älteres wird verworfen.
-</p>
-
 {#if fehler}
   <p class="fehler">{fehler}</p>
 {:else if !eintraege.length}

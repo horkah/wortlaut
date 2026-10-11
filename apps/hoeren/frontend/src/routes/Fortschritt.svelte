@@ -54,10 +54,6 @@
   <div class="balken"><div style="width:{anteil(daten.sekunden, daten.marke_gut_s)}%"></div></div>
 
   <h2>Zusammensetzung</h2>
-  <p class="gedaempft">
-    Nachgesprochenes und Korrekturen sind schwächere Daten und werden im Training
-    niedriger gewichtet.
-  </p>
   <table>
     <tbody>
       {#each Object.entries(daten.nach_modus) as [modus, anzahl]}

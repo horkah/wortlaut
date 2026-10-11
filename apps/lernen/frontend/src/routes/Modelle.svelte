@@ -211,11 +211,6 @@
 </script>
 
 <h2>Modelle</h2>
-<p class="gedaempft">
-  Was diesem Menschen zuhören kann - die selbst trainierten Stände und die unveränderten
-  Grundmodelle, an denselben Aufnahmen gemessen. Freigegeben ist höchstens eines; mit dem
-  arbeitet „schreiben".
-</p>
 
 {#if fehler}
   <p class="fehler">{fehler}</p>
@@ -260,8 +255,8 @@
           {/each}
         </p>
         <p class="gedaempft klein">
-          Gemessen wie in der Tabelle unten, an {laufend.aufnahmen}
-          {laufend.aufnahmen === 1 ? 'Aufnahme' : 'Aufnahmen'}.
+          {laufend.aufnahmen}
+          {laufend.aufnahmen === 1 ? 'Aufnahme' : 'Aufnahmen'}
         </p>
       {/if}
 
@@ -271,10 +266,9 @@
   <div class="messgrundlage">
     <p class="gedaempft klein">
       {#if uebersicht.vergleichbar}
-        Gemessen an {uebersicht.messaufnahmen} Testaufnahmen, die kein Modell je zum Lernen gesehen
-        hat - {gemessen} je Modell, für alle dieselben.
+        {uebersicht.messaufnahmen} Testaufnahmen · {gemessen} je Modell
       {:else}
-        Noch kein gemeinsamer Boden: Jede Zeile rechnet auf dem, was sie hat.
+        Noch kein gemeinsamer Boden.
       {/if}
     </p>
     <!-- Ändert nichts an den Zahlen, legt eine zweite Zeile darunter. -->
@@ -297,14 +291,13 @@
 
   {#if sicherheit}
     <p class="gedaempft klein hinweiszeile">
-      95-%-Bereich aus 2000 Ziehungen über die Aufnahmen.
       {#if uebersicht.vergleich_mit}
         {@const verglichen = uebersicht.modelle.find(
           (m) => m.ref === uebersicht!.vergleich_mit,
         )}
-        Statt des Bereichs der gepaarte Abstand zu „{verglichen
-          ? kurz(verglichen)
-          : uebersicht.vergleich_mit}" - schärfer, weil auf denselben Aufnahmen.
+        Gepaarter Abstand zu „{verglichen ? kurz(verglichen) : uebersicht.vergleich_mit}“
+      {:else}
+        95-%-Bereich
       {/if}
     </p>
   {/if}
@@ -337,7 +330,7 @@
                      vom zweitbesten ab. -->
                 <span
                   class="unsicher"
-                  title="Die Bereiche des besten und des zweitbesten Wertes überlappen - der Vorsprung ist nicht belegt. Der gepaarte Vergleich über „Gegen“ kann trotzdem einen zeigen; er ist schärfer."
+                  title="Vorsprung nicht belegt"
                   aria-label="Vorsprung nicht belegt">≈</span
                 >
               {/if}
@@ -446,21 +439,8 @@
   </div>
 
   {#if !uebersicht.zeit_vergleichbar && uebersicht.modelle.some((m) => Object.keys(m.werte).length)}
-    <p class="warnung">
-      Rechenzeiten von verschiedenen Rechenwerken - nicht vergleichbar (Prozessor: zehn- bis
-      zwanzigfach). Die Marke steht an jeder Zahl. Ein neuer Auswertungslauf in „hören“ misst
-      alles auf demselben nach.
-    </p>
+    <p class="warnung">Rechenzeiten von verschiedenen Rechenwerken - nicht vergleichbar.</p>
   {/if}
-
-  <p class="gedaempft klein">
-    Es gilt höchstens ein Modell, und sofort. Nach einem Wechsel dauert das erste Diktat länger -
-    das Modell wird geladen.
-  </p>
-  <p class="gedaempft klein">
-    Zahlen: Grundmodelle aus der Auswertung in „hören", eigene Stände aus der Bewertung ihres
-    Laufs. Je Aufnahme aufgeschlüsselt jeweils dort.
-  </p>
 {/if}
 
 <style>
