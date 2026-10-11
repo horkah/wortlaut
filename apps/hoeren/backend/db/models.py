@@ -104,7 +104,15 @@ class Aufnahme(Basis):
     vorfahren: Mapped[str] = mapped_column(default="[]")
     # Nur bei Korrekturen: wie oft in „schreiben" gesprochen, bis bestätigt.
     anlaeufe: Mapped[int | None] = mapped_column(default=None)
+    # Was wirklich gesagt wurde; leer heißt: der Text der Vorlage (`024_aufnahmetext.sql`).
+    text: Mapped[str | None] = mapped_column(default=None)
+    # Ob ein Mensch den Text einer Korrektur geprüft hat.
+    validiert: Mapped[bool] = mapped_column(default=False)
     erstellt: Mapped[str]
+
+    def text_zu(self, vorlage: Vorlage) -> str:
+        """Der Text dieser Aufnahme: ihr eigener, sonst der ihrer Vorlage."""
+        return self.text if self.text is not None else vorlage.text
 
 
 class Erkennung(Basis):

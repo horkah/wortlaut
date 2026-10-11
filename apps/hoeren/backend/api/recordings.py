@@ -112,7 +112,9 @@ def hoere_ab(
     pfad = ablage.pfad(aufnahme.blob)
     if not pfad.is_file():
         raise HTTPException(status_code=404, detail="Zu dieser Aufnahme liegt kein Audio mehr.")
-    return FileResponse(pfad, media_type="audio/wav")
+    # Ein Schnitt überschreibt die Datei unter demselben Pfad - der Browser
+    # fragt deshalb jedes Mal nach, ob seine Fassung noch gilt (ETag).
+    return FileResponse(pfad, media_type="audio/wav", headers={"Cache-Control": "no-cache"})
 
 
 @router.delete("/{aufnahme_id}", status_code=204)

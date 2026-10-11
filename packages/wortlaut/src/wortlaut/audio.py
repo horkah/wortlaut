@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import array
 import math
+import statistics
 import subprocess
 import wave
 from dataclasses import dataclass
@@ -40,9 +41,28 @@ class Befund:
     stille_hinten_s: float
 
 
-# Luft vor und hinter der Stimme beim Zuschnitt - Stille kostet das Training
-# nichts, ein verschluckter Anlaut das Wort.
-RAND_S = 0.15
+# ── Wo die Stimme ist ───────────────────────────────────────────────────────
+#
+# Eine Rechnung für Randstille (`untersuche`, `services/quality.py` in „hören")
+# und Vorschlag im Editor (`stimmgrenzen`): Was der Editor als Grenze anbietet,
+# meldet die Prüfung danach nicht als Stille.
+#
+# **Die Schwelle hängt am Rauschboden der Datei**, nicht an festen dBFS: Die
+# Verstärkung beim Aufnehmen (bis 20×) verschiebt Stimme und Raum gleichermaßen.
+# Der Boden ist der Median der leisesten Fenster; Stimme ist, was einen festen
+# Abstand darüber liegt. Höchstens so hoch, dass die Spitze noch deutlich
+# darüber steht - sonst gälte eine Aufnahme ohne jede Pause als Stille.
+RAUSCHBODEN_ANTEIL = 0.10
+UEBER_DEM_BODEN_DB = 10.0
+UNTER_DER_SPITZE_DB = 20.0
+# Digitale Stille hat keinen Boden; darunter zählt nichts als Stimme.
+UNTERGRENZE_DBFS = -60.0
+
+# Luft vor und hinter der Stimme beim Zuschnitt - lieber zu viel als zu wenig:
+# Stille kostet das Training nichts, ein verschluckter An- oder Auslaut das
+# Wort, und bei Dysarthrie sind beide oft leise.
+RAND_VORN_S = 0.15
+RAND_HINTEN_S = 0.20
 
 
 @dataclass(frozen=True)
@@ -112,19 +132,22 @@ def _fensterpegel(werte: array.array) -> list[float]:
     ]
 
 
-def _schwelle(spitze: float) -> float:
-    """Ab wann ein Fenster als Sprache zählt.
-
-    Relativ zur Spitze: absolute Werte wären für leise Sprecher unbrauchbar.
-    Nach unten begrenzt, damit Rauschen nicht als Sprache zählt.
-    """
-    return max(spitze * 10 ** (-35 / 20), VOLLAUSSCHLAG * 10 ** (-60 / 20))
+def _schwelle(fenster_rms: list[float]) -> float:
+    """Ab wann ein Fenster als Stimme zählt (siehe „Wo die Stimme ist")."""
+    leise = sorted(fenster_rms)[: max(1, round(len(fenster_rms) * RAUSCHBODEN_ANTEIL))]
+    boden = statistics.median(leise)
+    deckel = max(fenster_rms) * 10 ** (-UNTER_DER_SPITZE_DB / 20)
+    return max(
+        min(boden * 10 ** (UEBER_DEM_BODEN_DB / 20), deckel),
+        VOLLAUSSCHLAG * 10 ** (UNTERGRENZE_DBFS / 20),
+    )
 
 
 def _pegel(werte: array.array) -> tuple[float, list[float], float]:
     """Spitze, RMS je Fenster und Sprachschwelle - dieselben Zahlen für Messung und Kurve."""
     spitze = float(max(max(werte), -min(werte)))
-    return spitze, _fensterpegel(werte) or [spitze], _schwelle(spitze)
+    fenster_rms = _fensterpegel(werte) or [spitze]
+    return spitze, fenster_rms, _schwelle(fenster_rms)
 
 
 def untersuche(wav: Path) -> Befund:
@@ -177,8 +200,10 @@ def verlauf(wav: Path) -> Verlauf:
     )
 
 
-def stimmgrenzen(kurve: Verlauf, rand_s: float = RAND_S) -> tuple[float, float]:
-    """Wo die Stimme anfängt und aufhört - mit etwas Luft an beiden Enden.
+def stimmgrenzen(
+    kurve: Verlauf, vorn_s: float = RAND_VORN_S, hinten_s: float = RAND_HINTEN_S
+) -> tuple[float, float]:
+    """Wo die Stimme anfängt und aufhört - mit Luft an beiden Enden, an den Dateigrenzen gestutzt.
 
     **Aus dem Pegel, nicht aus einem VAD.** Ein Raum, ein Mikrofon vor dem
     Mund, eine Äußerung - was laut wird, ist diese Person. Ein auf
@@ -192,8 +217,8 @@ def stimmgrenzen(kurve: Verlauf, rand_s: float = RAND_S) -> tuple[float, float]:
     laut = [nummer for nummer, wert in enumerate(kurve.werte) if wert >= kurve.schwelle]
     if not laut:
         return 0.0, kurve.dauer_s
-    start = max(0.0, laut[0] * kurve.fenster_s - rand_s)
-    ende = min(kurve.dauer_s, (laut[-1] + 1) * kurve.fenster_s + rand_s)
+    start = max(0.0, laut[0] * kurve.fenster_s - vorn_s)
+    ende = min(kurve.dauer_s, (laut[-1] + 1) * kurve.fenster_s + hinten_s)
     return start, ende
 
 

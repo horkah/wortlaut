@@ -9,7 +9,11 @@
    * jeder über seine eigenen Daten - ansehen, anhören, eine einzelne Aufnahme
    * verwerfen (dasselbe Verwerfen wie beim Aufnehmen, `Aufnahme.svelte`),
    * sich umbenennen und beides mitnehmen, Sicherung wie Datensatz.
+   *
+   * **Zurück aus dem Editor steht die Seite, wie sie war**: dieselbe Seite der
+   * Liste, dieselbe Karte offen, dieselbe Stelle im Fenster (`merkeStelle`).
    */
+  import { tick } from 'svelte';
   import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import AudioPlayer from '$ui/AudioPlayer.svelte';
@@ -38,6 +42,38 @@
   import { gehZu, lage } from '../lib/zustand.svelte';
 
   const PRO_SEITE = 10;
+
+  // Wo die Seite stand, als der Editor aufging - nur für die Rückkehr, also
+  // im Speicher dieses Reiters und nicht über das Schließen hinaus.
+  const STELLE = 'wortlaut.meine-daten.stelle';
+  type Stelle = { seite: number; aufgeklappt: string | null; y: number };
+
+  function merkeStelle() {
+    try {
+      const stelle: Stelle = { seite: aufnahmenSeite, aufgeklappt, y: window.scrollY };
+      sessionStorage.setItem(STELLE, JSON.stringify(stelle));
+    } catch {
+      // Ohne Speicher beginnt die Seite oben - kein Fehlerfall.
+    }
+  }
+
+  function nimmStelle(): Stelle | null {
+    try {
+      const roh = sessionStorage.getItem(STELLE);
+      sessionStorage.removeItem(STELLE);
+      return roh ? (JSON.parse(roh) as Stelle) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Nach dem Laden: Karte wieder auf, Fenster an die alte Stelle. */
+  async function kehreZurueck(stelle: Stelle) {
+    const karte = aufnahmen.find((aufnahme) => aufnahme.id === stelle.aufgeklappt);
+    if (karte) await klappe(karte);
+    await tick();
+    window.scrollTo(0, stelle.y);
+  }
 
   // Ob und womit diese Seite offen ist. `noetig` heißt: eine PIN ist gesetzt
   // und noch nicht eingegeben. Die PIN selbst liegt nur hier im Speicher,
@@ -99,9 +135,12 @@
 
   async function lade() {
     fehler = '';
+    const stelle = nimmStelle();
+    if (stelle) aufnahmenSeite = stelle.seite;
     try {
       daten = await meinKonto(meinePin);
       await Promise.all([ladeZeiten(), ladeAufnahmen()]);
+      if (stelle) await kehreZurueck(stelle);
     } catch (ursache) {
       fehler = fehlertext(ursache);
     }
@@ -143,7 +182,7 @@
       merkePin(pinEingabe);
       pinEingabe = '';
       stand = 'offen';
-      await Promise.all([ladeZeiten(), ladeAufnahmen()]);
+      await lade();
     } catch {
       pinFehler = 'Falsche PIN.';
     }
@@ -499,7 +538,10 @@
                 class="bearbeiten"
                 title="Bearbeiten"
                 aria-label="Aufnahme bearbeiten"
-                onclick={() => gehZu(`${EDITIEREN_ROUTE}${aufnahme.id}`)}
+                onclick={() => {
+                  merkeStelle();
+                  gehZu(`${EDITIEREN_ROUTE}${aufnahme.id}`);
+                }}
               >
                 <svg
                   viewBox="0 0 24 24"

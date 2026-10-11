@@ -42,7 +42,7 @@ def raeume(sprecher_id: str, loeschen: bool) -> int:
         originale = zuschnitt.geteilte_originale(sitzung)
         for original in originale:
             vorlage = sitzung.get(Vorlage, original.prompt_id)
-            text = vorlage.text if vorlage is not None else ""
+            text = original.text_zu(vorlage) if vorlage is not None else ""
             print(f"{sprecher_id}  {original.id}  {original.erstellt}  {text[:60]}")
         if not loeschen or not originale:
             return len(originale)

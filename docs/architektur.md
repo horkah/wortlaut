@@ -337,6 +337,11 @@ Spalten mit mehr Bedeutung als ihr Name:
   zuerst; leer bei einer gewöhnlichen Aufnahme. Sie steht am Teil selbst und
   bleibt richtig, wenn die Vorfahren gelöscht sind. Ein Stand, der einen
   davon kannte, wird am Teil nicht gemessen (`auswertung.verwandte`).
+- `recordings.text`: was in der Aufnahme wirklich gesagt wurde, geschrieben
+  von „Editieren"; leer heißt der Text der Vorlage (`Aufnahme.text_zu`). Die
+  Vorlage selbst bleibt unberührt.
+- `recordings.validiert`: ob ein Mensch den Text einer Korrektur geprüft hat.
+  Eine geprüfte Korrektur zählt in Training und Messung wie eine Vorlage.
 
 ---
 

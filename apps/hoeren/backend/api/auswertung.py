@@ -275,7 +275,7 @@ def vergleich(aufnahme_id: str, db: Datenbank, sprecher: SprecherId) -> Vergleic
         return VergleichAntwort(
             nummer=nummer,
             aufnahme_id=aufnahme.id,
-            referenz=vorlage.text,
+            referenz=aufnahme.text_zu(vorlage),
             dauer_s=aufnahme.dauer_s,
             # In der Reihenfolge der Konfiguration.
             erkennungen=[

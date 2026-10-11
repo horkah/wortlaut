@@ -26,8 +26,13 @@
    * bedienbar. Das ist hier kein Zusatz: Die Ansicht richtet sich an jemanden,
    * der eine Zeile Text nur mit Mühe liest.
    *
-   * **Die dritte Linie.** Zwischen den beiden Grenzen steht `teilung`,
-   * gestrichelt: die Stelle, an der „Editieren" eine Aufnahme in zwei zerlegt.
+   * **Die dritte Linie.** Mit `teilen` steht zwischen den beiden Grenzen
+   * `teilung`, gestrichelt: die Stelle, an der „Editieren" eine Aufnahme in
+   * zwei zerlegt.
+   *
+   * **Der Cursor** zeigt, wo gerade gespielt wird (`cursor`); ein Tippen auf
+   * die Kurve außerhalb der Griffe meldet `ontipp` - auf einem Telefon der
+   * Knopf, den die Leertaste am Rechner ist.
    */
 
   let {
@@ -38,6 +43,9 @@
     start = $bindable(0),
     ende = $bindable(0),
     teilung = $bindable(0),
+    teilen = false,
+    cursor = null,
+    ontipp,
     hoehe = 72,
     beschriftung = 'Ausschnitt',
   }: {
@@ -53,8 +61,14 @@
     start?: number;
     /** Ende des Ausschnitts in Sekunden - wandert beim Ziehen mit. */
     ende?: number;
-    /** Wo geteilt wird, in Sekunden. */
+    /** Wo geteilt wird, in Sekunden - nur mit `teilen`. */
     teilung?: number;
+    /** Ob die Teilung als dritte Linie dasteht. */
+    teilen?: boolean;
+    /** Wo gerade gespielt wird, in Sekunden; `null`, wenn nichts läuft. */
+    cursor?: number | null;
+    /** Ein Tippen auf die Kurve, nicht auf einen Griff. */
+    ontipp?: () => void;
     hoehe?: number;
     /** Wofür die beiden Griffe stehen, für Vorlesegeräte. */
     beschriftung?: string;
@@ -79,13 +93,11 @@
   // Die Teilung zuletzt, also obenauf: Liegt sie auf Anfang oder Ende, greift
   // der Zeiger sie und nicht die Linie darunter - sonst ließe sie sich von
   // dort nie wieder wegziehen.
-  const griffe = $derived(
-    [
-      { welche: 'start' as Welche, wert: start, name: 'Anfang' },
-      { welche: 'ende' as Welche, wert: ende, name: 'Ende' },
-      { welche: 'teilung' as Welche, wert: teilung, name: 'Teilung' },
-    ],
-  );
+  const griffe = $derived([
+    { welche: 'start' as Welche, wert: start, name: 'Anfang' },
+    { welche: 'ende' as Welche, wert: ende, name: 'Ende' },
+    ...(teilen ? [{ welche: 'teilung' as Welche, wert: teilung, name: 'Teilung' }] : []),
+  ]);
 
   const xVon = (sekunden: number) => (dauerS > 0 ? (sekunden / dauerS) * BREITE : 0);
 
@@ -137,35 +149,27 @@
    * Fenster dazwischen stehen: Wer die eine Linie über die andere schiebt,
    * schiebt sie bis dicht davor und merkt an der Kurve, dass es nicht weiter
    * geht. Mit einer Teilung dazwischen stößt jede äußere Linie an sie und
-   * nicht an die gegenüberliegende.
-   *
-   * **Die Teilung darf auf Anfang oder Ende liegen** - dann hat einer der
-   * beiden Teile keine Länge, und „Editieren" speichert nur den anderen. In
-   * der Nähe rastet sie ein (ein Hundertstel der Breite): Mit der Maus genau
-   * auf dieselbe Stelle zu treffen, gelänge sonst nie. Liegt sie auf einer
-   * äußeren Linie, geht sie mit ihr mit.
+   * nicht an die gegenüberliegende; jeder Teil behält eine Länge.
    */
   function setze(welche: Welche, sekunden: number) {
     const luft = fensterS;
     if (welche === 'teilung') {
-      const fang = dauerS * 0.01;
-      let wert = Math.min(Math.max(sekunden, start), ende);
-      if (wert - start < fang) wert = start;
-      else if (ende - wert < fang) wert = ende;
-      teilung = wert;
+      teilung = Math.min(Math.max(sekunden, start + luft), ende - luft);
       return;
     }
-    const aufStart = teilung === start;
-    const aufEnde = teilung === ende;
     if (welche === 'start') {
-      const anschlag = !aufStart ? teilung : ende - luft;
-      start = Math.min(Math.max(sekunden, 0), anschlag, ende - luft);
-      if (aufStart) teilung = start;
+      const anschlag = teilen ? teilung - luft : ende - luft;
+      start = Math.min(Math.max(sekunden, 0), anschlag);
     } else {
-      const anschlag = !aufEnde ? teilung : start + luft;
-      ende = Math.max(Math.min(sekunden, dauerS), anschlag, start + luft);
-      if (aufEnde) teilung = ende;
+      const anschlag = teilen ? teilung + luft : start + luft;
+      ende = Math.max(Math.min(sekunden, dauerS), anschlag);
     }
+  }
+
+  /** Ein Tippen auf die Kurve - die Griffe tun ihr Eigenes. */
+  function tippe(ereignis: MouseEvent) {
+    if ((ereignis.target as Element).closest('.griff')) return;
+    ontipp?.();
   }
 
   function greife(ereignis: PointerEvent, welche: Welche) {
@@ -215,6 +219,7 @@
   onpointermove={ziehe}
   onpointerup={lasse}
   onpointercancel={lasse}
+  onclick={tippe}
   role="presentation"
 >
   <!-- Was wegfällt, liegt unter einem Schleier. Nicht ausgeblendet: Man soll
@@ -234,6 +239,10 @@
   {#if schwelle > 0}
     <line x1="0" x2={BREITE} y1={MITTE - schwelleY} y2={MITTE - schwelleY} class="schwelle" />
     <line x1="0" x2={BREITE} y1={MITTE + schwelleY} y2={MITTE + schwelleY} class="schwelle" />
+  {/if}
+
+  {#if cursor !== null}
+    <line x1={xVon(cursor)} x2={xVon(cursor)} y1="0" y2={hoehe} class="cursor" />
   {/if}
 
   {#each griffe as griff (griff.welche)}
@@ -266,9 +275,13 @@
 
 <div class="marken gedaempft">
   <span>{zahl(start)}</span>
-  <span>1: {zahl(teilung - start)}</span>
-  <span>{zahl(teilung)}</span>
-  <span>2: {zahl(ende - teilung)}</span>
+  {#if teilen}
+    <span>A: {zahl(teilung - start)}</span>
+    <span>{zahl(teilung)}</span>
+    <span>B: {zahl(ende - teilung)}</span>
+  {:else}
+    <span>{zahl(ende - start)}</span>
+  {/if}
   <span>{zahl(ende)}</span>
 </div>
 
@@ -302,6 +315,12 @@
 
   .fangen {
     fill: transparent;
+  }
+
+  .cursor {
+    stroke: var(--text);
+    stroke-width: 2;
+    pointer-events: none;
   }
 
   .griff {

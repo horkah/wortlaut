@@ -101,7 +101,7 @@ def _zeilen(sitzung: Session, sprecher_id: str) -> list[tuple[dict[str, object],
         (
             {
                 "file_name": f"{AUDIO}/{aufnahme.id}.wav",
-                "transcription": vorlage.text,
+                "transcription": aufnahme.text_zu(vorlage),
                 "aufnahme_id": aufnahme.id,
                 "dauer_s": round(aufnahme.dauer_s, 3),
                 "modus": aufnahme.modus,

@@ -33,11 +33,13 @@ from apps.lernen.backend.services import aufteilung, kernauswahl, register
 from apps.lernen.backend.services.aufteilung import Probe
 from apps.lernen.backend.services.kernauswahl import Kernauswahl
 
-# Womit eine Probe zählt. Korrekturen stammen aus „schreiben": Ihr Text ist
-# keine Vorgabe, sondern eine vom Menschen abgenickte Maschinenausgabe. Wer sie
-# gleichrangig einspeist, trainiert dem Modell seine eigenen Fehler an - wie
-# viel weniger, ist eine Achse (`laeufe.KORREKTURGEWICHTE`). Selbst
-# beschriftetes Audio hat nicht einmal ein Nicken.
+# Womit eine Probe zählt - nach ihrem Status, nicht nach ihrer Quelle.
+# Korrekturen stammen aus „schreiben": Ihr Text ist keine Vorgabe, sondern eine
+# vom Menschen abgenickte Maschinenausgabe. Wer sie ungeprüft gleichrangig
+# einspeist, trainiert dem Modell seine eigenen Fehler an - wie viel weniger,
+# ist eine Achse (`laeufe.KORREKTURGEWICHTE`). Eine in „Editieren" geprüfte
+# Korrektur zählt wie eine Vorlage. Selbst beschriftetes Audio hat nicht
+# einmal ein Nicken.
 GEWICHTE = {"vorlage": 1.0, "korrektur": 0.5, laeufe.QUELLE_SELBST: 0.25}
 
 # `verlauf`: das Gewicht einer Korrektur nach ihren Anläufen in „schreiben".
@@ -49,10 +51,12 @@ GEWICHT_UNVERAENDERT = 0.25
 GEWICHT_NACHGESPROCHEN = 0.75
 
 
-def gewicht_fuer(quelle: str, korrekturgewicht: str, anlaeufe: int | None = None) -> float:
+def gewicht_fuer(
+    quelle: str, korrekturgewicht: str, anlaeufe: int | None = None, validiert: bool = False
+) -> float:
     """Womit eine Probe im Training zählt (`Probe.gewicht` in `training/daten.py`)."""
-    if quelle != "korrektur":
-        return GEWICHTE.get(quelle, 1.0)
+    if quelle != "korrektur" or validiert:
+        return GEWICHTE.get(quelle, 1.0) if quelle != "korrektur" else GEWICHTE["vorlage"]
     if korrekturgewicht != laeufe.GEWICHT_VERLAUF:
         return float(korrekturgewicht)
     if anlaeufe is None:
@@ -92,13 +96,17 @@ def _manifestzeile(
     # Relativ zum Korpus, damit sich ein Schnappschuss kopieren lässt.
     innerhalb = corpus.sprecher_relpfad(sprecher_id)
     anlaeufe = probe.aufnahme.anlaeufe
+    validiert = bool(probe.aufnahme.validiert)
     return {
         "audio": probe.aufnahme.blob.removeprefix(f"{innerhalb}/"),
-        "text": probe.vorlage.text,
+        # Was gesagt wurde, nicht was dastand (`Aufnahme.text_zu`).
+        "text": probe.aufnahme.text_zu(probe.vorlage),
         "quelle": quelle,
+        # Eine geprüfte Korrektur lernt voll und wird gemessen (`laeufe.gemessen`).
+        "validiert": validiert,
         "modus": probe.aufnahme.modus,
         "dauer_s": probe.aufnahme.dauer_s,
-        "gewicht": gewicht_fuer(quelle, korrekturgewicht, anlaeufe),
+        "gewicht": gewicht_fuer(quelle, korrekturgewicht, anlaeufe, validiert),
         # Nur bei Korrekturen: wie oft in „schreiben" gesprochen.
         "anlaeufe": anlaeufe,
         "faltung": probe.faltung,

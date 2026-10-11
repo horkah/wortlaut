@@ -21,10 +21,32 @@ export function gehZu(route: string): void {
   window.location.hash = route;
 }
 
+// Wer gerade gefragt werden will, bevor die Ansicht wechselt (`bewache`).
+let waechter: ((ziel: string) => boolean) | null = null;
+let zuletzt = routeAusHash();
+
+/**
+ * Vor jedem Wechsel der Ansicht fragen - für eine Ansicht mit ungespeicherten
+ * Änderungen. `null` hebt die Wache auf. Sagt sie nein, bleibt die Adresse,
+ * wo sie war.
+ */
+export function bewache(pruefe: ((ziel: string) => boolean) | null): void {
+  waechter = pruefe;
+}
+
 /**
  * Jede Änderung der Adresse an den Zustand der App weiterreichen - auch die,
  * die vom Zurück-Knopf des Browsers kommt.
  */
 export function folgeHash(uebernimm: (route: string) => void): void {
-  window.addEventListener('hashchange', () => uebernimm(routeAusHash()));
+  window.addEventListener('hashchange', () => {
+    const ziel = routeAusHash();
+    if (ziel !== zuletzt && waechter && !waechter(ziel)) {
+      // Ohne neues `hashchange`: Die Ansicht bleibt, die Adresse auch.
+      history.replaceState(null, '', `#${zuletzt}`);
+      return;
+    }
+    zuletzt = ziel;
+    uebernimm(ziel);
+  });
 }

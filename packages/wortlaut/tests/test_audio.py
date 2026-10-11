@@ -6,6 +6,8 @@ Die Messwerte selbst werden hier geprüft, ihre Bewertung in
 
 from __future__ import annotations
 
+import array
+import math
 import shutil
 import wave
 from pathlib import Path
@@ -145,7 +147,7 @@ class TestVerlauf:
         quelle = wav_schreiben(tmp_path / "ganz.wav", sekunden=3.0, stille_vorn_s=0.5)
 
         befund = audio.untersuche(quelle)
-        start, _ = audio.stimmgrenzen(audio.verlauf(quelle), rand_s=0.0)
+        start, _ = audio.stimmgrenzen(audio.verlauf(quelle), vorn_s=0.0, hinten_s=0.0)
 
         assert start == pytest.approx(befund.stille_vorn_s, abs=0.021)
 
@@ -158,9 +160,61 @@ class TestVerlauf:
 
         # Die Stimme setzt bei 1,0 s ein; der Vorschlag steht davor - und zwar
         # um den Rand, nicht darüber hinaus.
-        assert 1.0 - audio.RAND_S - 0.02 <= start <= 1.0
+        assert 1.0 - audio.RAND_VORN_S - 0.02 <= start <= 1.0
         assert ende == pytest.approx(3.0, abs=0.01)
         assert start >= 0.0
+
+    @staticmethod
+    def _mit_raum(ziel: Path, verstaerkung: float = 1.0) -> Path:
+        """Raumrauschen über drei Sekunden, Stimme von 1,0 bis 2,0 s."""
+        import random
+
+        wuerfel = random.Random(7)
+        werte = array.array("h")
+        for nummer in range(3 * 16_000):
+            zeit = nummer / 16_000
+            raum = wuerfel.gauss(0.0, 60.0)
+            stimme = 1500 * math.sin(2 * math.pi * 180 * zeit) if 1.0 <= zeit < 2.0 else 0.0
+            werte.append(int(max(-32768, min(32767, (raum + stimme) * verstaerkung))))
+        with wave.open(str(ziel), "wb") as datei:
+            datei.setnchannels(1)
+            datei.setsampwidth(2)
+            datei.setframerate(16_000)
+            datei.writeframes(werte.tobytes())
+        return ziel
+
+    def test_die_schwelle_steht_ueber_dem_rauschboden(self, tmp_path: Path) -> None:
+        """Rauschen ist keine Stimme - und die Ränder liegen 150 und 200 ms außen."""
+        start, ende = audio.stimmgrenzen(audio.verlauf(self._mit_raum(tmp_path / "raum.wav")))
+
+        assert start == pytest.approx(1.0 - audio.RAND_VORN_S, abs=0.03)
+        assert ende == pytest.approx(2.0 + audio.RAND_HINTEN_S, abs=0.03)
+
+    def test_die_verstaerkung_verschiebt_nichts(self, tmp_path: Path) -> None:
+        leise = audio.stimmgrenzen(audio.verlauf(self._mit_raum(tmp_path / "leise.wav")))
+        laut = audio.stimmgrenzen(audio.verlauf(self._mit_raum(tmp_path / "laut.wav", 15.0)))
+
+        assert laut == pytest.approx(leise, abs=0.021)
+
+    def test_der_editor_bietet_keine_grenze_an_die_die_pruefung_stille_nennt(
+        self, tmp_path: Path
+    ) -> None:
+        """Auf den Vorschlag geschnitten, bleibt am Rand nur der Puffer als Stille."""
+        quelle = self._mit_raum(tmp_path / "raum.wav")
+        start, ende = audio.stimmgrenzen(audio.verlauf(quelle))
+        geschnitten = tmp_path / "geschnitten.wav"
+        audio.schneide_ausschnitt(quelle, geschnitten, start, ende, nach_aussen=True)
+
+        befund = audio.untersuche(geschnitten)
+        assert befund.stille_vorn_s <= audio.RAND_VORN_S + 0.04
+        assert befund.stille_hinten_s <= audio.RAND_HINTEN_S + 0.04
+
+    def test_eine_aufnahme_ohne_pause_ist_keine_stille(
+        self, tmp_path: Path, wav_schreiben
+    ) -> None:
+        quelle = wav_schreiben(tmp_path / "durch.wav", sekunden=2.0, stille_vorn_s=0.0)
+
+        assert audio.untersuche(quelle).stille_vorn_s == 0.0
 
     def test_stille_ergibt_die_ganze_aufnahme(self, tmp_path: Path, wav_schreiben) -> None:
         """Lieber nichts vorschlagen als etwas wegschneiden."""
