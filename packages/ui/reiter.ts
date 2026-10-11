@@ -4,7 +4,7 @@
  * **Warum überhaupt.** Der Weg durch eine App ist eine Reihe von Ansichten,
  * aber niemand geht sie jeden Tag von vorn. Wer eine Woche lang aufnimmt, will
  * „Aufnehmen" sehen, nicht „Textquelle"; wer gerade ein Training beaufsichtigt,
- * will „Training" sehen und nicht die Aufteilung. Die App jedes Mal auf ihren
+ * will „Training" sehen und nicht die Modelle. Die App jedes Mal auf ihren
  * ersten Reiter zu stellen heißt, diesem Menschen jeden Tag denselben Klick
  * abzuverlangen - und die Zielperson kann schlecht lesen
  * (Grundentscheidung 7): Ein Klick weniger ist hier mehr wert als anderswo.

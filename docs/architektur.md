@@ -93,7 +93,7 @@ wortlaut/
 │   │   │   ├── services/          # aufteilung, auftraege, kernauswahl,
 │   │   │   │                      # messwerte, register, vergleich
 │   │   │   └── db/migrations/     # das Register der Läufe
-│   │   ├── frontend/src/routes/   # Aufteilung, Training, Lauf, Modelle
+│   │   ├── frontend/src/routes/   # Training, Lauf, Modelle
 │   │   ├── training/              # was auf der Karte läuft - eigenes Abbild
 │   │   │   ├── Dockerfile
 │   │   │   ├── laeufer.py         # nimmt Aufträge, einen nach dem anderen

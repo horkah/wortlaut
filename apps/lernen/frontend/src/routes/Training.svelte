@@ -1,6 +1,7 @@
 <script lang="ts">
   /**
-   * Läufe beauftragen und ihnen zusehen.
+   * Läufe beauftragen und ihnen zusehen - darüber, worauf sie lernen
+   * (`lib/Aufteilung.svelte`).
    *
    * Wenige Achsen mit wenigen Werten, alles andere im Rezept. Jede Achse ist
    * ein Glied im Optionscode (`wortlaut/laeufe.optionscode`), der einen Lauf
@@ -26,6 +27,7 @@
     type Wahl,
   } from '../lib/api';
   import Papierkorb from '$ui/Papierkorb.svelte';
+  import Aufteilung from '../lib/Aufteilung.svelte';
   import { darfLoeschen, loescheNachRueckfrage } from '../lib/laufloeschen';
   import { setzeTrainingswahl, trainingswahl } from '../lib/trainingswahl';
   import { LAUF_ROUTE, gehZu, lage } from '../lib/zustand.svelte';
@@ -503,13 +505,16 @@
   });
 </script>
 
+<Aufteilung />
+
 {#if fehler}
   <p class="fehler">{fehler}</p>
 {/if}
 
-<!-- Die Läufe zuerst: Wer diese Seite öffnet, will meist wissen, wie weit der
-     laufende ist, und erst danach den nächsten beauftragen. Fertige stehen
-     hier nicht - sie sind Modelle und stehen in der Modelltafel. -->
+<!-- Die Läufe vor der Bestellung: Wer diese Seite öffnet, will meist wissen,
+     wie weit der laufende ist, und erst danach den nächsten beauftragen.
+     Fertige stehen hier nicht - sie sind Modelle und stehen in der
+     Modelltafel. -->
 {#if offeneLaeufe.length}
   <h2>Läufe</h2>
   <div class="laeufe">

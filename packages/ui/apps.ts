@@ -224,9 +224,8 @@ export const SPRECHER_PFAD = '/sprecher';
  * nachsehen, was zusammengekommen ist, und am Ende messen, was die Modelle
  * daraus machen (`AUSWERTUNG_PFAD`).
  *
- * „lernen": nachsehen, wie die Aufnahmen aufgeteilt sind, ein Training
- * beauftragen und ihm zusehen, und am Ende entscheiden, welches Modell gelten
- * soll.
+ * „lernen": ein Training beauftragen und ihm zusehen, und am Ende
+ * entscheiden, welches Modell gelten soll.
  *
  * „schreiben" hat keine Reiterreihe, und das ist kein Versehen: Sein Weg ist
  * eine Folge - sprechen, hören, bessern, bestätigen - und keine Auswahl
@@ -240,7 +239,6 @@ export const REITER: Record<AppSchluessel, Menuepunkt[]> = {
     { pfad: AUSWERTUNG_PFAD, text: 'Auswertung' },
   ],
   lernen: [
-    { pfad: '/aufteilung', text: 'Aufteilung' },
     { pfad: '/training', text: 'Training' },
     { pfad: MODELLE_PFAD, text: 'Modelle' },
   ],
@@ -443,7 +441,7 @@ export const SCHALTBARE_MENUEPUNKTE: Schaltbar[] = [
  *
  * Sie sind aus demselben Grund abschaltbar wie die Apps selbst: Wer nur
  * aufnimmt, braucht die Auswertung nicht in der Leiste; wer nur trainiert,
- * kommt ohne die Aufteilung aus. Und es sind genau diese Reiter, die eine
+ * kommt ohne die Modellübersicht aus. Und es sind genau diese Reiter, die eine
  * Ansicht tragen, die man selten braucht und die viel Platz einnimmt - die
  * Auswertung in „hören" und die Modellübersicht in „lernen".
  *

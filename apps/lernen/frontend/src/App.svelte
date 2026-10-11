@@ -4,7 +4,7 @@
    * `$ui/Rahmen.svelte` und ist in jeder App derselbe, samt Menü.
    *
    * Die Reiter (`REITER` in `$ui/apps`) folgen dem Weg durch die Arbeit:
-   * Aufteilung, Training, Modelle. „Modelle" ist auch das Ziel eines Klicks
+   * Training, Modelle. „Modelle" ist auch das Ziel eines Klicks
    * auf das Modell in „schreiben" und „hören" - samt Grundmodellen. Ein Name
    * führt von dort in eine Einzelansicht: `Lauf` für einen eigenen Stand,
    * `Grundmodell` für ein unverändertes Whisper.
@@ -13,14 +13,12 @@
   import Zugangsdaten from '$ui/Zugangsdaten.svelte';
   import { MODELLE_PFAD } from '$ui/apps';
   import { grundmodellAusRoute, lage, laufAusRoute } from './lib/zustand.svelte';
-  import Aufteilung from './routes/Aufteilung.svelte';
   import Training from './routes/Training.svelte';
   import Grundmodell from './routes/Grundmodell.svelte';
   import Lauf from './routes/Lauf.svelte';
   import Modelle from './routes/Modelle.svelte';
 
   const ANSICHTEN = {
-    '/aufteilung': Aufteilung,
     '/training': Training,
     [MODELLE_PFAD]: Modelle,
   };
