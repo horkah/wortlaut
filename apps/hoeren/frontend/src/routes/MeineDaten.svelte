@@ -11,7 +11,7 @@
    * sich umbenennen und beides mitnehmen, Sicherung wie Datensatz.
    *
    * **Zurück aus dem Editor steht die Seite, wie sie war**: dieselbe Seite der
-   * Liste, dieselbe Karte offen, dieselbe Stelle im Fenster (`merkeStelle`).
+   * Liste, dieselbe Karte offen, dieselbe Stelle im Fenster (`lib/rueckkehr`).
    */
   import { tick } from 'svelte';
   import { erklaert } from '$ui/erklaerung';
@@ -20,6 +20,7 @@
   import Kalender from '$ui/Kalender.svelte';
   import Guete from '../lib/Guete.svelte';
   import Listenwahl from '../lib/Listenwahl.svelte';
+  import { merke, nimmStelle, type Reihenfolge, type Stelle } from '../lib/rueckkehr';
   import Pager from '$ui/Pager.svelte';
   import Papierkorb from '$ui/Papierkorb.svelte';
   import Rueckfrage from '$ui/Rueckfrage.svelte';
@@ -33,6 +34,7 @@
     meinKonto,
     meineAufnahmeAudio,
     meineAufnahmen,
+    meineReihenfolge,
     meineSicherung,
     meineAufnahmezeiten,
     michUmbenennen,
@@ -76,36 +78,29 @@
   let skala = $state<Guteskala>({ rot: 50, gruen: 85 });
   let modell = $state('');
 
-  // Wo die Seite stand, als der Editor aufging - nur für die Rückkehr, also
-  // im Speicher dieses Reiters und nicht über das Schließen hinaus.
-  const STELLE = 'wortlaut.meine-daten.stelle';
-  type Stelle = { seite: number; aufgeklappt: string | null; y: number };
-
-  function merkeStelle() {
+  /**
+   * In den Editor: Stelle und Reihenfolge der Liste merken (`lib/rueckkehr`).
+   * Die Reihenfolge ist die ganze Liste, nicht nur diese Seite - der Editor
+   * blättert darin. Kommt sie nicht, blättert er eben nicht.
+   */
+  async function oeffneEditor(kennung: string) {
+    let folge: Reihenfolge | null = null;
     try {
-      const stelle: Stelle = { seite: aufnahmenSeite, aufgeklappt, y: window.scrollY };
-      sessionStorage.setItem(STELLE, JSON.stringify(stelle));
+      folge = { eintraege: await meineReihenfolge(wahl, meinePin), proSeite };
     } catch {
-      // Ohne Speicher beginnt die Seite oben - kein Fehlerfall.
+      folge = null;
     }
+    merke({ seite: aufnahmenSeite, aufgeklappt, y: window.scrollY }, folge);
+    gehZu(`${EDITIEREN_ROUTE}${kennung}`);
   }
 
-  function nimmStelle(): Stelle | null {
-    try {
-      const roh = sessionStorage.getItem(STELLE);
-      sessionStorage.removeItem(STELLE);
-      return roh ? (JSON.parse(roh) as Stelle) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  /** Nach dem Laden: Karte wieder auf, Fenster an die alte Stelle. */
+  /** Nach dem Laden: Karte wieder auf, Fenster an die alte Stelle - oder zur Karte. */
   async function kehreZurueck(stelle: Stelle) {
     const karte = aufnahmen.find((aufnahme) => aufnahme.id === stelle.aufgeklappt);
     if (karte) await klappe(karte);
     await tick();
-    window.scrollTo(0, stelle.y);
+    if (stelle.y !== null) window.scrollTo(0, stelle.y);
+    else document.getElementById(`aufnahme-${stelle.aufgeklappt}`)?.scrollIntoView({ block: 'center' });
   }
 
   // Ob und womit diese Seite offen ist. `noetig` heißt: eine PIN ist gesetzt
@@ -565,7 +560,12 @@
     <!-- Die ganze Karte nimmt den Klick an; für Tastatur und Vorlesestimme ist
          der Text oben der Knopf, der sie auf- und zuklappt. -->
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-    <div class="karte aufnahme" class:offen onclick={(e) => klickAufKarte(e, aufnahme)}>
+    <div
+      class="karte aufnahme"
+      id="aufnahme-{aufnahme.id}"
+      class:offen
+      onclick={(e) => klickAufKarte(e, aufnahme)}
+    >
       <button class="aufklapper" aria-expanded={offen}>{aufnahme.text}</button>
       <div class="gedaempft zeile">
         <span>
@@ -590,10 +590,7 @@
                 class="bearbeiten"
                 title="Bearbeiten"
                 aria-label="Aufnahme bearbeiten"
-                onclick={() => {
-                  merkeStelle();
-                  gehZu(`${EDITIEREN_ROUTE}${aufnahme.id}`);
-                }}
+                onclick={() => oeffneEditor(aufnahme.id)}
               >
                 <svg
                   viewBox="0 0 24 24"
