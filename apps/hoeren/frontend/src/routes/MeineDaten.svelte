@@ -372,7 +372,8 @@
    */
   function klickAufKarte(ereignis: MouseEvent, aufnahme: AufsichtAufnahme) {
     const ziel = ereignis.target as Element;
-    if (ziel.closest('audio, a, button:not(.aufklapper)')) return;
+    // Die Wellenform spielt ab (`$ui/Abspieler`) - ihr Tippen gehört nicht der Karte.
+    if (ziel.closest('audio, a, button:not(.aufklapper), [role="button"]')) return;
     if (window.getSelection()?.toString()) return;
     klappe(aufnahme);
   }
