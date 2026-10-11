@@ -56,7 +56,7 @@ export interface Wer {
   sprache: string | null;
   /** Training beauftragen, neu starten, Läufe samt Modell löschen, Fehlerprotokoll. */
   trainieren: Exclude<Recht, 'unbekannt'>;
-  /** Zuschnitt und Editieren in „hören". */
+  /** Aufnahmen bearbeiten in „hören" - zuschneiden, teilen, berichtigen. */
   bearbeiten: Exclude<Recht, 'unbekannt'>;
 }
 

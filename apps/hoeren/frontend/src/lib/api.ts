@@ -551,7 +551,7 @@ export const auswertungStoppen = () =>
 
 // ── Zuschnitt ───────────────────────────────────────────────────────────────
 //
-// Die Stille an den Rändern der eigenen Aufnahmen wegschneiden
+// Eigene Aufnahmen zuschneiden und teilen, für „Editieren"
 // (`backend/api/zuschnitt.py`). Diese Wege verlangen über den Zugang hinaus
 // den Bearbeitungsschlüssel als `X-Editor-Key` - dasselbe Muster wie der
 // Trainerschlüssel in „lernen", und aus demselben Grund: Der Zugang sagt,
@@ -573,8 +573,6 @@ export type Zuschnittaufnahme = {
   vorschlag_ende_s: number;
 };
 
-export type Zuschnittseite = { gesamt: number; ab: number; aufnahmen: Zuschnittaufnahme[] };
-
 export type Zuschnittgrenze = { id: string; start_s: number; ende_s: number };
 
 export type Zuschnittergebnis = { geschrieben: number; fehler: Record<string, string> };
@@ -582,11 +580,6 @@ export type Zuschnittergebnis = { geschrieben: number; fehler: Record<string, st
 /** Die Köpfe des Zuschnitts: der Bearbeitungsschlüssel, beim Schreiben dazu JSON. */
 const bearbeitung = (json = false): HeadersInit =>
   mitSchluessel(['bearbeitung'], json ? { 'Content-Type': 'application/json' } : {});
-
-export const zuschnittAufnahmen = (ab = 0, anzahl = 10) =>
-  anfrage<Zuschnittseite>(`/zuschnitt/aufnahmen?ab=${ab}&anzahl=${anzahl}`, {
-    headers: bearbeitung(),
-  });
 
 /** Die Datei einer Aufnahme - zum Abspielen, ganz oder im Ausschnitt. */
 export const zuschnittOriginal = (aufnahme: string) =>
@@ -598,7 +591,7 @@ export const zuschnittSchreiben = (grenzen: Zuschnittgrenze[]) =>
     headers: bearbeitung(true),
   });
 
-/** Eine einzelne Aufnahme, wie die Liste sie zeigt - für „Editieren". */
+/** Eine einzelne Aufnahme mit Kurve und Vorschlag - für „Editieren". */
 export const zuschnittEine = (aufnahme: string) =>
   anfrage<Zuschnittaufnahme>(`/zuschnitt/aufnahmen/${aufnahme}`, { headers: bearbeitung() });
 
@@ -613,21 +606,10 @@ export type Zuschnittteilung = {
 
 /**
  * Eine Aufnahme in zwei neue zerlegen. Das Original bleibt; die Teile tragen
- * sein Datum und stehen in der Liste direkt darunter.
+ * sein Datum und stehen in „Meine Daten" direkt daneben.
  */
 export const zuschnittTeilen = (teilung: Zuschnittteilung) =>
   anfrage<{ ids: string[] }>('/zuschnitt/teilen', {
     ...alsJson(teilung),
-    headers: bearbeitung(true),
-  });
-
-/**
- * Aufnahmen ganz aus dem Bestand nehmen - Zeile, Dateien, Messwerte, und die
- * Vorlage, wenn an ihr nichts mehr hängt. Anders als das Verwerfen: danach
- * steht der Satz nicht wieder in der Warteschlange.
- */
-export const zuschnittLoeschen = (grenzen: Zuschnittgrenze[]) =>
-  anfrage<Zuschnittergebnis>('/zuschnitt/loeschen', {
-    ...alsJson({ grenzen }),
     headers: bearbeitung(true),
   });

@@ -16,8 +16,9 @@
   import Kalender from '$ui/Kalender.svelte';
   import Pager from '$ui/Pager.svelte';
   import Papierkorb from '$ui/Papierkorb.svelte';
+  import Rueckfrage from '$ui/Rueckfrage.svelte';
   import Warnzeichen from '$ui/Warnzeichen.svelte';
-  import { ZUGANGSDATEN_PFAD, ZUSCHNITT_PFAD } from '$ui/apps';
+  import { EDITIEREN_ROUTE } from '$ui/apps';
   import { gueltigePin, merkePin, schloss, vergissPin } from '$ui/pin.svelte';
   import { datum, dauer, tag } from '$ui/zeit';
   import {
@@ -79,9 +80,12 @@
   let fehler = $state('');
   let meldung = $state('');
   let laeuft = $state('');
-  // Zu welcher Aufnahme gerade das Audio geladen ist. Nur eine auf einmal:
-  // Der Browser hielte sonst Dutzende Aufnahmen im Speicher.
+  // Welche Karte aufgeklappt ist, und ihr Audio. Nur eine auf einmal: Der
+  // Browser hielte sonst Dutzende Aufnahmen im Speicher.
+  let aufgeklappt = $state<string | null>(null);
   let hoerprobe = $state<{ id: string; adresse: string } | null>(null);
+  // Die Aufnahme, nach deren Verwerfen gerade gefragt wird.
+  let zuVerwerfen = $state<AufsichtAufnahme | null>(null);
 
   async function ladeZeiten() {
     zeiten = await meineAufnahmezeiten(meinePin);
@@ -209,6 +213,8 @@
 
   async function wechsleAufnahmenSeite(seite: number) {
     aufnahmenSeite = seite;
+    vergissHoerprobe();
+    aufgeklappt = null;
     try {
       await ladeAufnahmen();
     } catch (ursache) {
@@ -231,36 +237,54 @@
     }
   }
 
-  async function hoere(aufnahme: AufsichtAufnahme) {
-    if (hoerprobe?.id === aufnahme.id) {
-      URL.revokeObjectURL(hoerprobe.adresse);
-      hoerprobe = null;
-      return;
-    }
+  function vergissHoerprobe() {
     if (hoerprobe) URL.revokeObjectURL(hoerprobe.adresse);
     hoerprobe = null;
+  }
+
+  /** Auf- oder zuklappen; aufgeklappt mit geladenem Audio. */
+  async function klappe(aufnahme: AufsichtAufnahme) {
+    vergissHoerprobe();
+    if (aufgeklappt === aufnahme.id) {
+      aufgeklappt = null;
+      return;
+    }
+    aufgeklappt = aufnahme.id;
+    if (!aufnahme.audio_vorhanden) return;
     await tue(
       `hoere-${aufnahme.id}`,
       async () => {
         const inhalt = await meineAufnahmeAudio(aufnahme.id);
-        hoerprobe = { id: aufnahme.id, adresse: URL.createObjectURL(inhalt) };
+        // Inzwischen eine andere Karte aufgeklappt: Dieses Audio braucht niemand.
+        if (aufgeklappt === aufnahme.id) {
+          hoerprobe = { id: aufnahme.id, adresse: URL.createObjectURL(inhalt) };
+        }
       },
       '',
     );
   }
 
-  async function verwirf(aufnahme: AufsichtAufnahme) {
-    const anfang = aufnahme.text.slice(0, 60);
-    if (
-      !confirm(
-        `Diese Aufnahme verwerfen?\n\n„${anfang}…“\n\nDer Text steht danach wieder zum Aufnehmen an.`,
-      )
-    )
-      return;
+  /**
+   * Ein Klick irgendwo auf die Karte klappt sie auf oder zu - außer auf das,
+   * was in ihr selbst etwas tut, und außer nach dem Markieren von Text.
+   */
+  function klickAufKarte(ereignis: MouseEvent, aufnahme: AufsichtAufnahme) {
+    const ziel = ereignis.target as Element;
+    if (ziel.closest('audio, a, button:not(.aufklapper)')) return;
+    if (window.getSelection()?.toString()) return;
+    klappe(aufnahme);
+  }
+
+  async function verwirf() {
+    const aufnahme = zuVerwerfen;
+    zuVerwerfen = null;
+    if (!aufnahme) return;
     await tue(
       `verwerfen-${aufnahme.id}`,
       async () => {
         await aufnahmeVerwerfen(aufnahme.id);
+        vergissHoerprobe();
+        aufgeklappt = null;
         // Auch Kennzahlen und Kalender: Eine verworfene Aufnahme zählt nicht mehr.
         await lade();
       },
@@ -270,12 +294,10 @@
 
   const megabyte = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
-  // Der Weg in den Zuschnitt steht nur da, wenn der Server den
+  // Der Knopf in den Editor steht nur da, wenn der Server den
   // Bearbeitungsschlüssel annimmt (`lage.bearbeiten`) - eine Tür zeigen, die
-  // 401 antwortet, ist keine Auskunft, sondern eine Sackgasse. Fehlt er nur,
-  // steht ein Hinweis auf die Zugangsdaten da; ist der Zuschnitt
-  // abgeschaltet, nichts.
-  const zuschneidbar = $derived(lage.bearbeiten === 'gilt');
+  // 401 antwortet, ist keine Auskunft, sondern eine Sackgasse.
+  const bearbeitbar = $derived(lage.bearbeiten === 'gilt');
 
   $effect(() => {
     if (lage.art === 'sprecher') starte();
@@ -448,55 +470,61 @@
   </div>
 
   <h2
-    use:erklaert={'Zwischen dem Druck auf den Aufnahmeknopf und dem ersten Laut liegt meist eine Sekunde, hinten oft mehr. Der Zuschnitt zeigt zu jeder Aufnahme den Lautstärkeverlauf und schneidet weg, was davor und dahinter steht; er überschreibt die Originale und braucht den Bearbeitungsschlüssel dieses Servers.'}
+    use:erklaert={'Ein Tippen auf eine Aufnahme klappt sie auf: zum Anhören und Verwerfen, und mit dem Bearbeitungsschlüssel aus den Zugangsdaten auch zum Bearbeiten - zuschneiden, teilen, den Text berichtigen. Ein zweites Tippen klappt sie wieder zu. Verworfen steht der Text wieder zum Aufnehmen an.'}
   >
     Aufnahmen
   </h2>
-  <!--
-    Der Weg in den Zuschnitt steht über der Liste und nicht bei „Ausleiten":
-    Er handelt von genau diesen Aufnahmen, und wer sie gerade durchsieht, ist
-    der, dem auffällt, dass vorn und hinten Stille steht. Ein eigener
-    Menüpunkt wäre er nicht - die Ansicht dahinter ist eine Werkbank, keine
-    Station auf dem täglichen Weg (siehe `ZUSCHNITT_PFAD` in `$ui/apps`).
-  -->
-  {#if zuschneidbar}
-    <div class="karte">
-      <div class="reihe">
-        <button class="knopf" onclick={() => gehZu(ZUSCHNITT_PFAD)}>Zuschnitt öffnen</button>
-      </div>
-    </div>
-  {:else if lage.bearbeiten === 'fehlt' || lage.bearbeiten === 'falsch'}
-    <p class="gedaempft">
-      Zuschnitt: Bearbeitungsschlüssel unter <a href="#{ZUGANGSDATEN_PFAD}">Zugangsdaten</a>
-    </p>
-  {/if}
   {#each aufnahmen as aufnahme (aufnahme.id)}
-    <div class="karte">
-      <div class="reihe">
-        <div style="flex:1">
-          <div>{aufnahme.text}</div>
-          <div class="gedaempft">
-            {aufnahme.dauer_s.toFixed(1)} s · {aufnahme.modus} · {tag(aufnahme.erstellt)}
-            {#if aufnahme.hinweise.length}<Warnzeichen hinweise={aufnahme.hinweise} />{/if}
-            {#if aufnahme.status !== 'ok'}· <strong>{aufnahme.status}</strong>{/if}
-          </div>
-        </div>
-        {#if aufnahme.audio_vorhanden}
-          <button class="knopf" onclick={() => hoere(aufnahme)}>
-            {hoerprobe?.id === aufnahme.id ? 'Zu' : '▶ Hören'}
-          </button>
-        {/if}
-        {#if aufnahme.status === 'ok'}
-          <Papierkorb
-            title="Aufnahme verwerfen"
-            label="Aufnahme verwerfen"
-            disabled={laeuft === `verwerfen-${aufnahme.id}`}
-            onclick={() => verwirf(aufnahme)}
-          />
-        {/if}
+    {@const offen = aufgeklappt === aufnahme.id}
+    <!-- Die ganze Karte nimmt den Klick an; für Tastatur und Vorlesestimme ist
+         der Text oben der Knopf, der sie auf- und zuklappt. -->
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <div class="karte aufnahme" class:offen onclick={(e) => klickAufKarte(e, aufnahme)}>
+      <button class="aufklapper" aria-expanded={offen}>{aufnahme.text}</button>
+      <div class="gedaempft">
+        {aufnahme.dauer_s.toFixed(1)} s · {aufnahme.modus} · {tag(aufnahme.erstellt)}
+        {#if aufnahme.hinweise.length}<Warnzeichen hinweise={aufnahme.hinweise} />{/if}
+        {#if aufnahme.status !== 'ok'}· <strong>{aufnahme.status}</strong>{/if}
       </div>
-      {#if hoerprobe?.id === aufnahme.id}
-        <AudioPlayer quelle={hoerprobe.adresse} />
+      {#if offen}
+        <div class="reihe aufgeklappt">
+          <div class="spieler">
+            {#if hoerprobe?.id === aufnahme.id}
+              <AudioPlayer quelle={hoerprobe.adresse} />
+            {/if}
+          </div>
+          {#if aufnahme.status === 'ok'}
+            {#if bearbeitbar && aufnahme.audio_vorhanden}
+              <button
+                class="bearbeiten"
+                title="Bearbeiten"
+                aria-label="Aufnahme bearbeiten"
+                onclick={() => gehZu(`${EDITIEREN_ROUTE}${aufnahme.id}`)}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="18"
+                  height="18"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                  <path d="m14.5 5.5 3 3" />
+                </svg>
+              </button>
+            {/if}
+            <Papierkorb
+              title="Aufnahme verwerfen"
+              label="Aufnahme verwerfen"
+              disabled={laeuft === `verwerfen-${aufnahme.id}`}
+              onclick={() => (zuVerwerfen = aufnahme)}
+            />
+          {/if}
+        </div>
       {/if}
     </div>
   {:else}
@@ -504,6 +532,18 @@
   {/each}
   <Pager seite={aufnahmenSeite} gesamtSeiten={aufnahmenSeiten} aendere={wechsleAufnahmenSeite} />
 {/if}
+
+<Rueckfrage
+  offen={zuVerwerfen !== null}
+  titel="Aufnahme verwerfen?"
+  knopf="Verwerfen"
+  gefahr
+  onja={verwirf}
+  onnein={() => (zuVerwerfen = null)}
+>
+  <p>„{zuVerwerfen?.text}“</p>
+  <p class="gedaempft">Der Text steht danach wieder zum Aufnehmen an.</p>
+</Rueckfrage>
 
 <style>
   /* Überschrift und Knopf in einer Zeile, ohne dass der Knopf die Grundlinie
@@ -540,5 +580,58 @@
   .zahlen span {
     color: var(--gedaempft);
     font-size: 0.85rem;
+  }
+
+  .karte.aufnahme {
+    cursor: pointer;
+  }
+
+  .karte.aufnahme.offen {
+    border-color: var(--akzent);
+  }
+
+  /* Der Text der Karte als Knopf - ohne Aussehen eines Knopfs. */
+  .aufklapper {
+    display: block;
+    width: 100%;
+    margin-bottom: 0.2rem;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .aufgeklappt {
+    margin-top: 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .spieler {
+    flex: 1;
+    min-width: 12rem;
+  }
+
+  /* Quadratisch und so groß wie der Papierkorb daneben. */
+  .bearbeiten {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 2.2rem;
+    height: 2.2rem;
+    padding: 0;
+    border: 1px solid var(--akzent);
+    border-radius: 0.35rem;
+    background: #fff;
+    color: var(--akzent);
+    cursor: pointer;
+  }
+
+  .bearbeiten:hover,
+  .bearbeiten:focus-visible {
+    background: var(--akzent-hell);
   }
 </style>

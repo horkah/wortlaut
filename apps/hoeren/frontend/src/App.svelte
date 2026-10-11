@@ -13,7 +13,6 @@
     EDITIEREN_ROUTE,
     MEINE_DATEN_PFAD,
     SPRECHER_PFAD,
-    ZUSCHNITT_PFAD,
   } from '$ui/apps';
   import { EINSICHT_ROUTE, lage } from './lib/zustand.svelte';
   import Verwaltung from './routes/Verwaltung.svelte';
@@ -23,7 +22,6 @@
   import Quelle from './routes/Quelle.svelte';
   import Aufnahme from './routes/Aufnahme.svelte';
   import Fortschritt from './routes/Fortschritt.svelte';
-  import Zuschnitt from './routes/Zuschnitt.svelte';
   import Editieren from './routes/Editieren.svelte';
 
   const ANSICHTEN = {
@@ -51,20 +49,18 @@
         // der Aufsicht, nur auf die eigenen Daten (siehe `MeineDaten.svelte`).
         lage.route === MEINE_DATEN_PFAD
         ? MeineDaten
-        : // Der Zuschnitt, erreichbar aus „Meine Daten" und nur von dort (siehe
-          // `ZUSCHNITT_PFAD` in `$ui/apps`), und darunter „Editieren" - eine
-          // Aufnahme daraus teilen oder mit berichtigtem Text kopieren. Beide
-          // brauchen einen Sprecher: Es sind dessen eigene Aufnahmen.
-          spricht && lage.route === ZUSCHNITT_PFAD
-          ? Zuschnitt
-          : spricht && lage.route.startsWith(EDITIEREN_ROUTE)
-            ? Editieren
-            : // Nur wer aufnimmt, hat Reiter; Verwaltung und Aufsicht haben eine
-              // einzige Seite, und eine Reiterreihe wäre dort eine Zeile voller
-              // Sackgassen.
-              !spricht
-              ? Verwaltung
-              : null,
+        : // „Editieren", erreichbar aus „Meine Daten" und nur von dort (siehe
+          // `EDITIEREN_ROUTE` in `$ui/apps`) - eine Aufnahme zuschneiden,
+          // teilen oder mit berichtigtem Text kopieren. Braucht einen
+          // Sprecher: Es sind dessen eigene Aufnahmen.
+          spricht && lage.route.startsWith(EDITIEREN_ROUTE)
+          ? Editieren
+          : // Nur wer aufnimmt, hat Reiter; Verwaltung und Aufsicht haben eine
+            // einzige Seite, und eine Reiterreihe wäre dort eine Zeile voller
+            // Sackgassen.
+            !spricht
+            ? Verwaltung
+            : null,
   );
 </script>
 

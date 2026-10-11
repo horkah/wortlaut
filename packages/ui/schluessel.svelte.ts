@@ -7,7 +7,8 @@
  *
  * - der **Trainerschlüssel**: ein Training beauftragen oder neu starten, einen
  *   Lauf samt Modell löschen, das Fehlerprotokoll lesen;
- * - der **Bearbeitungsschlüssel**: Zuschnitt und Editieren in „hören".
+ * - der **Bearbeitungsschlüssel**: Aufnahmen bearbeiten in „hören" -
+ *   zuschneiden, teilen, berichtigen.
  *
  * Eingetragen werden beide an genau einer Stelle, unter „Zugangsdaten"
  * (`Zugangsdaten.svelte`). Ob ein Schlüssel gilt, sagt nicht der Browser,

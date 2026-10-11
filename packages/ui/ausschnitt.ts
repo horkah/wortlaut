@@ -1,7 +1,7 @@
 /**
  * Einen Ausschnitt einer Audiodatei abspielen, ohne ihn zu schneiden.
  *
- * Gebraucht vom Zuschnitt in „hören": Neben dem Knopf für die ganze Aufnahme
+ * Gebraucht von „Editieren" in „hören": Neben dem Knopf für die ganze Aufnahme
  * steht einer für das, was nach dem Schnitt übrig bliebe - und der muss
  * antworten, **bevor** irgendetwas geschrieben ist. Sonst wäre die Reihenfolge
  * umgekehrt: erst schreiben, dann hören, ob es richtig war.

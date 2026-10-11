@@ -1,12 +1,11 @@
 <script lang="ts">
-  /** Abspielen dessen, was gerade aufgenommen wurde. */
-  let { quelle, beschriftung = 'Anhören' }: { quelle: string | null; beschriftung?: string } =
-    $props();
+  /** Abspielen dessen, was gerade aufgenommen wurde. Ohne `beschriftung` nur der Player. */
+  let { quelle, beschriftung = '' }: { quelle: string | null; beschriftung?: string } = $props();
 </script>
 
 {#if quelle}
   <figure class="abspieler">
-    <figcaption>{beschriftung}</figcaption>
+    {#if beschriftung}<figcaption>{beschriftung}</figcaption>{/if}
     <!-- svelte-ignore a11y_media_has_caption (eigene Sprachaufnahme, kein Untertitel) -->
     <audio controls src={quelle} preload="metadata"></audio>
   </figure>

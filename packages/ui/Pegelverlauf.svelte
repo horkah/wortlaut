@@ -2,7 +2,7 @@
   /**
    * Der Lautstärkeverlauf einer Aufnahme, mit zwei Grenzen zum Anfassen.
    *
-   * Gebraucht vom Zuschnitt in „hören": Die Kurve zeigt, wo gesprochen wurde,
+   * Gebraucht von „Editieren" in „hören": Die Kurve zeigt, wo gesprochen wurde,
    * die beiden Linien sagen, was davon bleiben soll, und beide lassen sich mit
    * Finger, Maus oder Tastatur verschieben.
    *
@@ -27,9 +27,8 @@
    * der eine Zeile Text nur mit Mühe liest.
    *
    * **Die dritte Linie.** Wird `teilung` gebunden, steht zwischen den beiden
-   * Grenzen eine weitere, gestrichelte: die Stelle, an der die Ansicht
-   * „Editieren" eine Aufnahme in zwei zerlegt. Ohne sie bleibt alles, wie es
-   * war - der Zuschnitt kennt nur zwei.
+   * Grenzen eine weitere, gestrichelte: die Stelle, an der „Editieren" eine
+   * Aufnahme in zwei zerlegt. Ohne sie zeigt die Kurve nur die beiden Grenzen.
    */
 
   let {
