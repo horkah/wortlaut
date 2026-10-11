@@ -8,6 +8,7 @@ nur eine offene `Session`.
 from __future__ import annotations
 
 import json
+import statistics
 
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import and_, func, select
@@ -47,6 +48,13 @@ SORTIERUNGEN = (NACH_AUFNAHME, NACH_AENDERUNG, NACH_QUALITAET)
 ALLE = ""
 GEPRUEFT = "geprueft"
 STATUSWAHL = (ALLE, GUELTIG, GEPRUEFT, VERWORFEN)
+
+# Die Farbskala der Genauigkeit an den Karten: Rot am 10-%-, Dunkelgrün am
+# 90-%-Quantil dessen, was das Modell bei diesem Sprecher gemessen hat. Rot
+# liegt nie über 50, Dunkelgrün nie unter 85 - sonst wäre bei einem schwer
+# verständlichen Sprecher alles grün und bei einem leichten alles rot.
+ROT_HOECHSTENS = 50.0
+GRUEN_MINDESTENS = 85.0
 
 # Eine Sitzung entsteht beim Öffnen der Aufnahmeseite, vor dem ersten Wort.
 # Die eigene Ansicht zeigt nur Sitzungen mit Aufnahmen; die Aufsicht alle -
@@ -157,6 +165,13 @@ class AufnahmeAntwort(BaseModel):
     qualitaet: float | None = None
 
 
+class Skala(BaseModel):
+    """Wo die Farbskala der Genauigkeit rot und wo sie dunkelgrün ist."""
+
+    rot: float = ROT_HOECHSTENS
+    gruen: float = GRUEN_MINDESTENS
+
+
 class QuelleWahl(BaseModel):
     """Eine Textquelle, nach der sich die Liste filtern lässt."""
 
@@ -171,8 +186,9 @@ class AufnahmenAntwort(BaseModel):
     aufnahmen: list[AufnahmeAntwort]
     # Wonach sich filtern lässt - die Textquellen mit Aufnahmen.
     quellen: list[QuelleWahl] = []
-    # Das Modell, dessen Genauigkeit `qualitaet` ist.
+    # Das Modell, dessen Genauigkeit `qualitaet` ist, und seine Farbskala.
     modell: str = ""
+    skala: Skala = Skala()
 
 
 class Eintrag(BaseModel):
@@ -348,6 +364,24 @@ def _liste(
     return abfrage.order_by(*(m.desc() if absteigend else m.asc() for m in merkmale))
 
 
+def skala(sitzung: Session, modell: str) -> Skala:
+    """Die Farbskala aus allen gemessenen gültigen Aufnahmen dieses Sprechers."""
+    werte = list(
+        sitzung.scalars(
+            select(Erkennung.genauigkeit)
+            .join(Aufnahme, Aufnahme.id == Erkennung.recording_id)
+            .where(Erkennung.modell == modell, Aufnahme.status == GUELTIG)
+        )
+    )
+    if len(werte) < 2:
+        return Skala()
+    stufen = statistics.quantiles(werte, n=10, method="inclusive")
+    return Skala(
+        rot=round(min(stufen[0], ROT_HOECHSTENS), 2),
+        gruen=round(max(stufen[-1], GRUEN_MINDESTENS), 2),
+    )
+
+
 def reihenfolge(sitzung: Session, modell: str, **wahl) -> list[Eintrag]:
     """Alle Aufnahmen in der Reihenfolge der Liste - für das Weiterblättern im Editor."""
     return [
@@ -382,6 +416,7 @@ def aufnahmen_seite(
         gesamt=gesamt,
         ab=max(ab, 0),
         modell=modell,
+        skala=skala(sitzung, modell),
         quellen=[QuelleWahl(id=quelle.id, titel=quelle.titel, art=quelle.art) for quelle in quellen],
         aufnahmen=[
             AufnahmeAntwort(

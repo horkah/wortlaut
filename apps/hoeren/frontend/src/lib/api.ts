@@ -311,7 +311,11 @@ export type Aufnahmenseite = {
   quellen: Quellenwahl[];
   /** Das Modell, dessen Genauigkeit `qualitaet` ist. */
   modell: string;
+  /** Wo die Farbskala rot und wo sie dunkelgrün ist, in Prozent. */
+  skala: Guteskala;
 };
+
+export type Guteskala = { rot: number; gruen: number };
 
 /** Wie die Liste gefiltert und sortiert wird (`services/uebersicht.py`). */
 export type Listenwahl = {
