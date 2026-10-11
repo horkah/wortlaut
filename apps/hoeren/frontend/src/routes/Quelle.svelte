@@ -275,18 +275,34 @@
   lade();
 </script>
 
-<h2>Thema (Text vom Sprachmodell)</h2>
+<h2
+  use:erklaert={'Ein Sprachmodell schreibt zum Thema einen Vorlesetext in geläufigen Wörtern und kurzen Sätzen. Er wird ohne Durchsicht in Einheiten geschnitten und hinten an die Aufnahmen gehängt. An das Sprachmodell gehen nur Thema, Altersspanne und Umfang, nie Stimme oder Aufnahmen. Das Erzeugen dauert je nach Umfang bis zu einigen Minuten, beim ersten Mal länger, weil das Modell erst geladen wird. Gefällt der Text nicht, unten unter „Vorhandene Quellen“ ansehen und löschen, dann mit genauerem Thema neu erzeugen.'}
+>
+  Thema (Text vom Sprachmodell)
+</h2>
 <form onsubmit={ausLLM}>
   <label>
-    <span>Thema oder Stichwort</span>
+    <span
+      use:erklaert={'Je genauer, desto besser: „Ein Besuch beim Hausarzt“ trägt weiter als „Arzt“. Wörter aus dem Alltag dieser Person - Namen, Orte, Hobbys, Fachwörter - lohnen sich doppelt, denn genau die soll das Modell später verstehen. Auch eine Form lässt sich nennen, etwa „als Brief“ oder „als Wetterbericht“.'}
+    >
+      Thema oder Stichwort
+    </span>
     <input bind:value={thema} required placeholder="Zum Beispiel: Einkaufen im Wochenmarkt" />
   </label>
   <label>
-    <span>Altersspanne der Zielgruppe</span>
+    <span
+      use:erklaert={'Bestimmt Wortwahl und Satzbau. Eine junge Zielgruppe wie „8-12“ gibt einfachere Wörter und kürzere Sätze - auch für Erwachsene, denen das Lesen schwerfällt. Freier Text, etwa „Senioren“ oder „Jugendliche“.'}
+    >
+      Altersspanne der Zielgruppe
+    </span>
     <input bind:value={altersspanne} placeholder="Erwachsene, 8-12, …" />
   </label>
   <label>
-    <span>Umfang (ungefähre Wortzahl)</span>
+    <span
+      use:erklaert={'Das Sprachmodell hält die Zahl nur ungefähr ein. 300 Wörter sind etwa zwei Dutzend Sätze zum Aufnehmen. Lieber mehrere kurze Texte zu verschiedenen Themen als einen langen: Das bringt mehr verschiedene Wörter, und jeder ist schneller da.'}
+    >
+      Umfang (ungefähre Wortzahl)
+    </span>
     <input type="number" bind:value={umfang} min="50" max="3000" step="50" />
   </label>
   <button class="knopf haupt" type="submit" disabled={laeuft}>Text erzeugen</button>
@@ -397,7 +413,11 @@
   <p class="fehler">{fehler}</p>
 {/if}
 
-<h2>Vorhandene Quellen</h2>
+<h2
+  use:erklaert={'Der Titel öffnet den Text, wie er in der Warteschlange steht. Abstellen nimmt die offenen Einheiten aus der Warteschlange, ohne etwas zu löschen; wieder anstellen bringt sie zurück. Löschen geht nur, solange niemand aus der Quelle aufgenommen hat.'}
+>
+  Vorhandene Quellen
+</h2>
 {#each liste as quelle (quelle.id)}
   <div class="karte zeile" class:still={!quelle.aktiv}>
     <button
