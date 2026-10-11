@@ -1,49 +1,46 @@
 <script lang="ts">
   /**
-   * Editieren: eine Aufnahme zuschneiden, durch zwei neue ersetzen, oder
-   * durch eine mit berichtigtem Text - im Ton und im Text.
+   * Editieren: eine Aufnahme kürzen, in zwei teilen, ihren Text berichtigen.
    *
    * Erreichbar aus „Meine Daten", über den Stift an einer aufgeklappten
    * Aufnahme, und nur von dort. Gezeigt wird genau diese eine Aufnahme: der
-   * Lautstärkeverlauf mit drei Linien - Anfang, Teilung, Ende. Darunter die
-   * Vorlage, Wort für Wort, mit einer anklickbaren Lücke vor dem ersten,
-   * zwischen je zwei und nach dem letzten Wort, und darunter die beiden Texte
-   * als Eingabefelder.
+   * Lautstärkeverlauf mit zwei Linien für Anfang und Ende, darunter ihr Text
+   * zum Mitlesen und das Feld, in dem er berichtigt wird.
    *
-   * **Zuschneiden** kürzt die Aufnahme auf Anfang und Ende und überschreibt
-   * das Original (`api/zuschnitt.py`, `schreiben`); die Teilung spielt dafür
-   * keine Rolle. Was außerhalb lag, ist danach weg, die Messwerte der
-   * Aufnahme ebenso. Danach steht die neue Fassung hier zur weiteren Arbeit.
+   * **Beim Öffnen ist nichts geändert.** Die Linien stehen ganz außen, der
+   * Teilen-Modus ist aus, „Speichern" gesperrt. Jede Änderung - Linien, Text,
+   * Teilen - schaltet es frei, und Knopf wie Warnzeile sagen, was sich beim
+   * Speichern ändert. „Auto" setzt die Linien an die Grenzen der Stimme, nach
+   * derselben Rechnung, mit der der Server Randstille meldet
+   * (`audio.stimmgrenzen`).
    *
-   * **Die Textteilung folgt der Linie, bis jemand sie selbst setzt.** Anfangs
-   * steht sie an der Wortgrenze, die zum Anteil der Zeit am besten passt; wer
-   * die Linie verschiebt, schiebt sie mit. Ein Klick auf eine Lücke löst sie
-   * davon, und wer in einem der Felder schreibt, löst die Felder ganz von der
-   * Vorlage - gesprochen wird nicht immer, was dasteht. „Text zurücksetzen"
-   * holt beides zurück.
+   * **Teilen** ist ein Schalter. Gedrückt steht eine dritte Linie in der
+   * längsten Pause der Mitte, der Text bekommt anklickbare Lücken und das
+   * Feld wird zu zweien; die Textteilung folgt der Linie, bis jemand eine
+   * Lücke anklickt, und die Felder folgen der Textteilung, bis jemand darin
+   * schreibt. Wieder gelöst, verschmelzen beide Felder zu einem - was darin
+   * geändert wurde, bleibt.
    *
-   * **Liegt die Teilung auf Anfang oder Ende**, hat ein Teil keine Länge. Sein
-   * Feld wird grau, und gespeichert wird nur der andere.
-   *
-   * **Geteilt wird erst nach der Rückfrage**, und dann ersetzen die neuen
-   * Aufnahmen das Original (`api/zuschnitt.py`, `teilen`) - es ist danach
-   * weg. Abgespielt wird bis dahin aus der geladenen Datei (`$ui/ausschnitt`),
-   * ohne vorläufige Dateien auf dem Server.
-   *
-   * Jede Rückfrage sagt in kurzen Worten, was gelöscht wird.
+   * **Bis zum Speichern hat nichts eine Folge.** Abgespielt wird aus der
+   * geladenen Datei (`$ui/ausschnitt`), ohne vorläufige Dateien auf dem
+   * Server. Gespeichert wird in einem Schritt (`api/zuschnitt.py`,
+   * `speichern`), nach einer Rückfrage; danach lässt sich nur weiter kürzen,
+   * teilen und berichtigen. Wer mit ungespeicherten Änderungen geht, wird
+   * gefragt.
    */
+  import { onMount } from 'svelte';
   import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import Pegelverlauf from '$ui/Pegelverlauf.svelte';
   import Rueckfrage from '$ui/Rueckfrage.svelte';
-  import { spiele, stoppe, vergiss } from '$ui/ausschnitt';
+  import { spiele, stelle, stoppe, vergiss } from '$ui/ausschnitt';
+  import { bewache } from '$ui/route';
   import { tag } from '$ui/zeit';
   import { EDITIEREN_ROUTE, MEINE_DATEN_PFAD } from '$ui/apps';
   import {
     zuschnittEine,
     zuschnittOriginal,
-    zuschnittSchreiben,
-    zuschnittTeilen,
+    zuschnittSpeichern,
     type Zuschnittaufnahme,
   } from '../lib/api';
   import { gehZu, lage } from '../lib/zustand.svelte';
@@ -53,63 +50,71 @@
   let aufnahme = $state<Zuschnittaufnahme | null>(null);
   let start = $state(0);
   let ende = $state(0);
+  let teilen = $state(false);
   let teilung = $state(0);
-  // Wo die Linien beim Laden standen - dorthin setzt „Linien zurücksetzen".
-  let anfangs = { start: 0, ende: 0, teilung: 0 };
-  // Vor dem wievielten Wort der zweite Teil beginnt: 0 heißt alles in Teil 2,
-  // die Zahl der Wörter alles in Teil 1.
+  // Der eine Text außerhalb des Teilen-Modus.
+  let text = $state('');
+  // Im Teilen-Modus: die Wörter, aus denen die beiden Felder kommen - der Text
+  // beim Einschalten -, vor dem wievielten Teil B beginnt, und die Felder.
+  let basis = $state<string[]>([]);
   let wortgrenze = $state(1);
   let vonHand = $state(false);
-  // Die beiden Texte. Solange niemand darin schreibt, kommen sie aus der
-  // Vorlage und der Wortgrenze; danach gehören sie dem, der schreibt.
-  let textVorn = $state('');
-  let textHinten = $state('');
+  let textA = $state('');
+  let textB = $state('');
   let bearbeitet = $state(false);
 
   let fehler = $state('');
   let meldung = $state('');
-  let spielt = $state<'' | 'ganz' | 'ausschnitt' | 'vorn' | 'hinten'>('');
-  let laeuft = $state<'' | 'zuschneiden' | 'teilen'>('');
-  // Wonach gerade gefragt wird, bevor geschrieben wird.
-  let frage = $state<'' | 'zuschneiden' | 'teilen'>('');
+  let spielt = $state<'' | 'ganz' | 'ausschnitt' | 'a' | 'b'>('');
+  let cursor = $state<number | null>(null);
+  let laeuft = $state(false);
+  // Wonach gerade gefragt wird.
+  let frage = $state<'' | 'speichern' | 'verlassen'>('');
+  // Wohin nach einem bestätigten Verlassen.
+  let ziel = MEINE_DATEN_PFAD;
+  // Gesetzt, wenn das Verlassen bestätigt ist - dann fragt die Wache nicht mehr.
+  let freigegeben = false;
   let datei: Blob | null = null;
 
-  const woerter = $derived(aufnahme ? aufnahme.text.split(/\s+/).filter(Boolean) : []);
-  // Ein Teil ohne Länge: Die Teilung liegt auf Anfang oder Ende.
-  const leerVorn = $derived(teilung <= start);
-  const leerHinten = $derived(teilung >= ende);
-  const bereit = $derived(
-    (leerVorn || textVorn.trim() !== '') && (leerHinten || textHinten.trim() !== ''),
+  const glatt = (wert: string) => wert.split(/\s+/).filter(Boolean).join(' ');
+
+  const gekuerzt = $derived(aufnahme !== null && (start > 0 || ende < aufnahme.dauer_s));
+  const neuerText = $derived(
+    aufnahme !== null &&
+      (teilen ? glatt(`${textA} ${textB}`) : glatt(text)) !== glatt(aufnahme.text),
   );
-  // Zuschneiden ohne etwas wegzunehmen wäre ein Schreiben ohne Wirkung.
-  const schneidbar = $derived(aufnahme !== null && (start > 0 || ende < aufnahme.dauer_s));
-  const knopftext = $derived(
-    leerVorn
-      ? 'Durch Teil 2 ersetzen'
-      : leerHinten
-        ? 'Durch Teil 1 ersetzen'
-        : 'In zwei Aufnahmen teilen',
+  const pruefen = $derived(aufnahme !== null && aufnahme.korrektur && !aufnahme.validiert);
+  const geaendert = $derived(gekuerzt || neuerText || teilen);
+
+  /** Was das Speichern ändert, in kurzen Worten - für Knopf, Warnzeile und Rückfrage. */
+  const aenderungen = $derived(
+    [
+      gekuerzt ? 'Audio gekürzt' : '',
+      teilen ? 'in zwei Aufnahmen geteilt' : '',
+      neuerText ? 'Text geändert' : '',
+      pruefen ? 'Text als geprüft übernommen' : '',
+    ].filter(Boolean),
   );
+  const fertig = $derived(teilen ? glatt(textA) !== '' && glatt(textB) !== '' : glatt(text) !== '');
+  const speicherbar = $derived((geaendert || pruefen) && fertig && !laeuft);
 
   /**
-   * Wo die Teilung anfangs steht: in der Mitte der längsten Pause zwischen
-   * den Grenzen - dort, wo zwei Sätze aneinanderstoßen. Gibt es keine, in der
-   * Mitte des Ausschnitts.
+   * Wo die Teilung vorgeschlagen wird: in der Mitte der längsten Pause im
+   * mittleren Bereich - dort, wo zwei Sätze aneinanderstoßen. Gibt es keine,
+   * in der Mitte.
    */
   function pausenmitte(eine: Zuschnittaufnahme, von: number, bis: number): number {
     const fenster = eine.fenster_s;
+    const rand = (bis - von) / 4;
+    const erstes = Math.ceil((von + rand) / fenster);
+    const letztes = Math.floor((bis - rand) / fenster);
     let beste = { laenge: 0, mitte: (von + bis) / 2 };
     let anfang = -1;
-    const erstes = Math.ceil(von / fenster);
-    const letztes = Math.floor(bis / fenster);
     for (let nummer = erstes; nummer <= letztes + 1; nummer++) {
       const leise = nummer <= letztes && (eine.verlauf[nummer] ?? 0) < eine.schwelle;
       if (leise && anfang < 0) anfang = nummer;
       if (!leise && anfang >= 0) {
-        // Pausen am Rand zählen nicht: Das ist die Stille vor dem ersten und
-        // nach dem letzten Wort, nicht die zwischen zwei Sätzen.
-        const amRand = anfang === erstes || nummer > letztes;
-        if (!amRand && nummer - anfang > beste.laenge) {
+        if (nummer - anfang > beste.laenge) {
           beste = { laenge: nummer - anfang, mitte: ((anfang + nummer) / 2) * fenster };
         }
         anfang = -1;
@@ -122,12 +127,11 @@
   function passendeGrenze(): number {
     if (ende <= start) return 0;
     const anteil = (teilung - start) / (ende - start);
-    const gesamt = Math.max(woerter.join(' ').length, 1);
-    let beste = 0;
+    const gesamt = Math.max(basis.join(' ').length, 1);
+    let beste = 1;
     let abstand = Infinity;
-    for (let grenze = 0; grenze <= woerter.length; grenze++) {
-      const vorn = woerter.slice(0, grenze).join(' ').length;
-      const neu = Math.abs(vorn / gesamt - anteil);
+    for (let grenze = 1; grenze < basis.length; grenze++) {
+      const neu = Math.abs(basis.slice(0, grenze).join(' ').length / gesamt - anteil);
       if (neu < abstand) {
         abstand = neu;
         beste = grenze;
@@ -138,19 +142,19 @@
 
   $effect(() => {
     // Die Textteilung läuft mit der Linie mit, solange niemand sie selbst gesetzt hat.
-    if (!vonHand && aufnahme) wortgrenze = passendeGrenze();
+    if (teilen && !vonHand && aufnahme) wortgrenze = passendeGrenze();
   });
 
   $effect(() => {
     // Und die Felder folgen der Textteilung, solange niemand darin schreibt.
-    if (bearbeitet) return;
-    textVorn = woerter.slice(0, wortgrenze).join(' ');
-    textHinten = woerter.slice(wortgrenze).join(' ');
+    if (!teilen || bearbeitet) return;
+    textA = basis.slice(0, wortgrenze).join(' ');
+    textB = basis.slice(wortgrenze).join(' ');
   });
 
   async function lade(id: string) {
     fehler = '';
-    stoppe();
+    halte();
     vergiss();
     datei = null;
     aufnahme = null;
@@ -163,147 +167,192 @@
     }
     try {
       const eine = await zuschnittEine(id);
-      start = eine.vorschlag_start_s;
-      ende = eine.vorschlag_ende_s;
-      teilung = pausenmitte(eine, start, ende);
-      anfangs = { start, ende, teilung };
-      vonHand = false;
+      start = 0;
+      ende = eine.dauer_s;
+      teilen = false;
+      text = eine.text;
       bearbeitet = false;
+      vonHand = false;
       aufnahme = eine;
     } catch (ursache) {
       fehler = fehlertext(ursache);
     }
   }
 
-  /** Eine Lücke angeklickt: Die Felder kommen wieder aus der Vorlage, an dieser Stelle geteilt. */
-  function setzeText(grenze: number) {
-    wortgrenze = grenze;
+  /** Anfang und Ende an die Grenzen der Stimme - und die Teilung neu in die Mitte. */
+  function auto() {
+    if (!aufnahme) return;
+    start = aufnahme.vorschlag_start_s;
+    ende = aufnahme.vorschlag_ende_s;
+    if (teilen) teilung = pausenmitte(aufnahme, start, ende);
+  }
+
+  /** Teilen ein und aus. Aus verschmelzen die beiden Felder zu einem. */
+  function schalteTeilen() {
+    if (!aufnahme) return;
+    halte();
+    if (teilen) {
+      text = glatt(`${textA} ${textB}`);
+      teilen = false;
+      return;
+    }
+    basis = glatt(text).split(' ').filter(Boolean);
+    teilung = pausenmitte(aufnahme, start, ende);
+    vonHand = false;
+    bearbeitet = false;
+    teilen = true;
+  }
+
+  /** Eine Lücke angeklickt: Die Felder kommen wieder aus dem Text, an dieser Stelle geteilt. */
+  function setzeGrenze(grenze: number) {
+    wortgrenze = Math.min(Math.max(grenze, 0), basis.length);
     vonHand = true;
     bearbeitet = false;
   }
 
-  /** Die Vorlage zurück in die Felder, und die Teilung folgt wieder der Linie. */
-  function textZuruecksetzen() {
-    vonHand = false;
-    bearbeitet = false;
+  function halte() {
+    stoppe();
+    spielt = '';
+    cursor = null;
   }
 
-  function linienZuruecksetzen() {
-    ({ start, ende, teilung } = anfangs);
-  }
-
-  function ganzeAufnahme() {
-    if (!aufnahme) return;
-    start = 0;
-    ende = aufnahme.dauer_s;
-  }
-
-  function allesZuruecksetzen() {
-    linienZuruecksetzen();
-    textZuruecksetzen();
-  }
-
-  /** Abspielen - das Ganze, den Ausschnitt oder einen der beiden Teile. Ein zweiter Druck hält an. */
-  async function hoere(welches: 'ganz' | 'ausschnitt' | 'vorn' | 'hinten') {
+  /** Abspielen - das Ganze, den Ausschnitt oder einen der Teile. Ein zweiter Druck hält an. */
+  async function hoere(welches: 'ganz' | 'ausschnitt' | 'a' | 'b') {
     if (!aufnahme) return;
     if (spielt === welches) {
-      stoppe();
-      spielt = '';
+      halte();
       return;
     }
-    const [von, bis] =
-      welches === 'ganz'
-        ? [0, aufnahme.dauer_s]
-        : welches === 'ausschnitt'
-          ? [start, ende]
-          : welches === 'vorn'
-            ? [start, teilung]
-            : [teilung, ende];
+    const [von, bis] = {
+      ganz: [0, aufnahme.dauer_s],
+      ausschnitt: [start, ende],
+      a: [start, teilung],
+      b: [teilung, ende],
+    }[welches];
     try {
       spielt = welches;
-      datei ??= await zuschnittOriginal(aufnahme.id);
-      await spiele(aufnahme.id, datei, von, bis, () => {
-        if (spielt === welches) spielt = '';
+      datei ??= await zuschnittOriginal(aufnahme.id, aufnahme.version);
+      await spiele(`${aufnahme.id}@${aufnahme.version}`, datei, von, bis, () => {
+        if (spielt === welches) halte();
       });
+      laufeMit();
     } catch (ursache) {
-      spielt = '';
+      halte();
       fehler = fehlertext(ursache);
     }
   }
 
-  // Die Zeilen der Rückfrage zum Teilen: welche Teile entstehen, wie lang, mit welchem Text.
-  const teile = $derived([
-    ...(leerVorn ? [] : [`Teil 1 (${(teilung - start).toFixed(2)} s): ${textVorn.trim()}`]),
-    ...(leerHinten ? [] : [`Teil 2 (${(ende - teilung).toFixed(2)} s): ${textHinten.trim()}`]),
-  ]);
+  /** Der Cursor folgt dem Abspielen, Bild für Bild. */
+  function laufeMit() {
+    const jetzt = stelle();
+    cursor = spielt ? jetzt : null;
+    if (spielt && jetzt !== null) requestAnimationFrame(laufeMit);
+  }
 
-  async function zuschneiden() {
+  /** Leertaste und Tippen auf die Kurve: was zwischen den Linien liegt, an oder aus. */
+  function umschalten() {
+    if (spielt) halte();
+    else hoere(gekuerzt ? 'ausschnitt' : 'ganz');
+  }
+
+  function taste(ereignis: KeyboardEvent) {
+    if (ereignis.code !== 'Space' || frage) return;
+    const ort = ereignis.target as HTMLElement | null;
+    if (ort?.closest('input, textarea, select, button, [contenteditable="true"]')) return;
+    ereignis.preventDefault();
+    umschalten();
+  }
+
+  async function speichern() {
     frage = '';
-    if (!aufnahme || !schneidbar) return;
+    if (!aufnahme || !speicherbar) return;
     const id = aufnahme.id;
-    stoppe();
-    spielt = '';
+    halte();
     fehler = '';
     meldung = '';
-    laeuft = 'zuschneiden';
+    laeuft = true;
     try {
-      const ergebnis = await zuschnittSchreiben([
-        { id, start_s: start, ende_s: ende },
-      ]);
-      const offen = Object.values(ergebnis.fehler);
-      if (offen.length) {
-        fehler = offen.join(' · ');
+      await zuschnittSpeichern({
+        id,
+        start_s: start,
+        ende_s: ende,
+        teilung_s: teilen ? teilung : null,
+        texte: teilen ? [glatt(textA), glatt(textB)] : [glatt(text)],
+      });
+      if (teilen) {
+        freigegeben = true;
+        gehZu(MEINE_DATEN_PFAD);
         return;
       }
       await lade(id);
-      meldung = 'Zugeschnitten.';
+      meldung = 'Gespeichert.';
     } catch (ursache) {
       fehler = fehlertext(ursache);
     } finally {
-      laeuft = '';
+      laeuft = false;
     }
   }
 
-  async function teilen() {
-    frage = '';
-    if (!aufnahme || !bereit) return;
-    fehler = '';
-    meldung = '';
-    laeuft = 'teilen';
-    try {
-      await zuschnittTeilen({
-        id: aufnahme.id,
-        start_s: start,
-        teilung_s: teilung,
-        ende_s: ende,
-        text_vorn: leerVorn ? '' : textVorn,
-        text_hinten: leerHinten ? '' : textHinten,
-      });
-      gehZu(MEINE_DATEN_PFAD);
-    } catch (ursache) {
-      fehler = fehlertext(ursache);
-    } finally {
-      laeuft = '';
+  /** Zurück zu „Meine Daten" - mit Rückfrage, wenn etwas verloren ginge. */
+  function verlasse(wohin = MEINE_DATEN_PFAD) {
+    ziel = wohin;
+    if (geaendert && !freigegeben) {
+      frage = 'verlassen';
+      return;
     }
+    freigegeben = true;
+    gehZu(wohin);
   }
+
+  function verwirf() {
+    frage = '';
+    freigegeben = true;
+    gehZu(ziel);
+  }
+
+  // Die Teile, wie sie in der Rückfrage stehen.
+  const teile = $derived([
+    `A (${(teilung - start).toFixed(2)} s): ${glatt(textA)}`,
+    `B (${(ende - teilung).toFixed(2)} s): ${glatt(textB)}`,
+  ]);
 
   $effect(() => {
     if (lage.art === 'sprecher' && kennung) lade(kennung);
     return () => {
-      stoppe();
+      halte();
       vergiss();
       datei = null;
+    };
+  });
+
+  onMount(() => {
+    // Andere Ansicht über einen Reiter oder den Zurück-Knopf: dieselbe Frage.
+    bewache((wohin) => {
+      if (!geaendert || freigegeben) return true;
+      ziel = wohin;
+      frage = 'verlassen';
+      return false;
+    });
+    const warne = (ereignis: BeforeUnloadEvent) => {
+      if (geaendert && !freigegeben) ereignis.preventDefault();
+    };
+    window.addEventListener('beforeunload', warne);
+    window.addEventListener('keydown', taste);
+    return () => {
+      bewache(null);
+      window.removeEventListener('beforeunload', warne);
+      window.removeEventListener('keydown', taste);
     };
   });
 </script>
 
 <div class="reihe titel">
   <h2
-    use:erklaert={'Die beiden äußeren Linien bestimmen, was an den Rändern bleibt. Zuschneiden kürzt die Aufnahme auf sie und überschreibt das Original; die Messwerte der Aufnahme werden verworfen, die nächste Auswertung rechnet sie neu. Die gestrichelte Linie teilt die Aufnahme in zwei. Ein Klick auf eine Lücke im Text setzt die Stelle, an der der Text geteilt wird - auch vor dem ersten oder nach dem letzten Wort. Beide Felder lassen sich berichtigen, wenn anders gesprochen wurde, als dasteht. Liegt die Teilung auf Anfang oder Ende, wird nur der andere Teil gespeichert. Die neuen Aufnahmen werden verlustfrei aus dem Original geschnitten und ersetzen es; gemessen werden sie bei der nächsten Auswertung.'}
+    use:erklaert={'Die beiden Linien bestimmen, was an den Rändern bleibt; „Auto“ setzt sie an die Grenzen der Stimme. „Teilen“ legt eine dritte Linie in die längste Pause der Mitte und teilt Ton und Text in zwei Aufnahmen - die Stelle im Text lässt sich mit einem Klick auf eine Lücke setzen. Der Text darunter lässt sich berichtigen, wenn anders gesprochen wurde, als dasteht. Leertaste oder ein Tippen auf die Kurve spielt ab, was zwischen den Linien liegt. Erst „Speichern“ ändert etwas; gekürzt wird verlustfrei, und die Messwerte der Aufnahme rechnet die nächste Auswertung neu.'}
   >
     Editieren
   </h2>
-  <button class="knopf" onclick={() => gehZu(MEINE_DATEN_PFAD)}>Zurück zu „Meine Daten“</button>
+  <button class="knopf" onclick={() => verlasse()}>Zurück zu „Meine Daten“</button>
 </div>
 
 {#if fehler}
@@ -318,10 +367,10 @@
     <div class="reihe kopf">
       <span class="gedaempft">{aufnahme.dauer_s.toFixed(1)} s · {tag(aufnahme.erstellt)}</span>
       <span class="wachsen"></span>
-      <!-- Vier Knöpfe, vier Zeichen: das volle Dreieck für die ganze Aufnahme,
-           eines zwischen zwei festen Grenzen für den Ausschnitt, und je eines
-           zwischen einer festen und einer gestrichelten Grenze für die beiden
-           Teile - die gestrichelte ist die Teilung, wie in der Kurve. -->
+      <!-- Die Zeichen: das volle Dreieck für die ganze Aufnahme, eines zwischen
+           zwei festen Grenzen für den Ausschnitt, und je eines zwischen einer
+           festen und einer gestrichelten Grenze für die beiden Teile - die
+           gestrichelte ist die Teilung, wie in der Kurve. -->
       <button
         class="knopf zeichen"
         title="Ganze Aufnahme anhören"
@@ -341,83 +390,96 @@
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3 L13 8 L4 13 Z" /></svg>
         {/if}
       </button>
-      <button
-        class="knopf zeichen"
-        title="Ausschnitt anhören"
-        aria-label="Ausschnitt anhören"
-        onclick={() => hoere('ausschnitt')}
-      >
-        <svg viewBox="0 0 16 16" aria-hidden="true"
-          ><rect x="0.5" y="2" width="1.5" height="12" class="grenze" /><rect
-            x="14"
-            y="2"
-            width="1.5"
-            height="12"
-            class="grenze"
-          />{#if spielt === 'ausschnitt'}<rect x="4.5" y="4" width="2.5" height="8" /><rect
-              x="9"
-              y="4"
-              width="2.5"
-              height="8"
-            />{:else}<path d="M5 4 L11.5 8 L5 12 Z" />{/if}</svg
+      {#if teilen}
+        <button
+          class="knopf zeichen"
+          title="Teil A anhören"
+          aria-label="Teil A anhören"
+          onclick={() => hoere('a')}
         >
-      </button>
-      <button
-        class="knopf zeichen"
-        title="Teil 1 anhören"
-        aria-label="Teil 1 anhören"
-        disabled={leerVorn}
-        onclick={() => hoere('vorn')}
-      >
-        <svg viewBox="0 0 16 16" aria-hidden="true"
-          ><rect x="0.5" y="2" width="1.5" height="12" class="grenze" /><rect
-            x="14"
-            y="2"
-            width="1.5"
-            height="3"
-            class="grenze"
-          /><rect x="14" y="6.5" width="1.5" height="3" class="grenze" /><rect
-            x="14"
-            y="11"
-            width="1.5"
-            height="3"
-            class="grenze"
-          />{#if spielt === 'vorn'}<rect x="4.5" y="4" width="2.5" height="8" /><rect
-              x="9"
-              y="4"
-              width="2.5"
-              height="8"
-            />{:else}<path d="M5 4 L11.5 8 L5 12 Z" />{/if}</svg
+          <svg viewBox="0 0 16 16" aria-hidden="true"
+            ><rect x="0.5" y="2" width="1.5" height="12" class="grenze" /><rect
+              x="14"
+              y="2"
+              width="1.5"
+              height="3"
+              class="grenze"
+            /><rect x="14" y="6.5" width="1.5" height="3" class="grenze" /><rect
+              x="14"
+              y="11"
+              width="1.5"
+              height="3"
+              class="grenze"
+            />{#if spielt === 'a'}<rect x="4.5" y="4" width="2.5" height="8" /><rect
+                x="9"
+                y="4"
+                width="2.5"
+                height="8"
+              />{:else}<path d="M5 4 L11.5 8 L5 12 Z" />{/if}</svg
+          >
+        </button>
+        <button
+          class="knopf zeichen"
+          title="Teil B anhören"
+          aria-label="Teil B anhören"
+          onclick={() => hoere('b')}
         >
-      </button>
-      <button
-        class="knopf zeichen"
-        title="Teil 2 anhören"
-        aria-label="Teil 2 anhören"
-        disabled={leerHinten}
-        onclick={() => hoere('hinten')}
-      >
-        <svg viewBox="0 0 16 16" aria-hidden="true"
-          ><rect x="0.5" y="2" width="1.5" height="3" class="grenze" /><rect
-            x="0.5"
-            y="6.5"
-            width="1.5"
-            height="3"
-            class="grenze"
-          /><rect x="0.5" y="11" width="1.5" height="3" class="grenze" /><rect
-            x="14"
-            y="2"
-            width="1.5"
-            height="12"
-            class="grenze"
-          />{#if spielt === 'hinten'}<rect x="4.5" y="4" width="2.5" height="8" /><rect
-              x="9"
-              y="4"
-              width="2.5"
-              height="8"
-            />{:else}<path d="M5 4 L11.5 8 L5 12 Z" />{/if}</svg
+          <svg viewBox="0 0 16 16" aria-hidden="true"
+            ><rect x="0.5" y="2" width="1.5" height="3" class="grenze" /><rect
+              x="0.5"
+              y="6.5"
+              width="1.5"
+              height="3"
+              class="grenze"
+            /><rect x="0.5" y="11" width="1.5" height="3" class="grenze" /><rect
+              x="14"
+              y="2"
+              width="1.5"
+              height="12"
+              class="grenze"
+            />{#if spielt === 'b'}<rect x="4.5" y="4" width="2.5" height="8" /><rect
+                x="9"
+                y="4"
+                width="2.5"
+                height="8"
+              />{:else}<path d="M5 4 L11.5 8 L5 12 Z" />{/if}</svg
+          >
+        </button>
+      {:else if gekuerzt}
+        <button
+          class="knopf zeichen"
+          title="Ausschnitt anhören"
+          aria-label="Ausschnitt anhören"
+          onclick={() => hoere('ausschnitt')}
         >
-      </button>
+          <svg viewBox="0 0 16 16" aria-hidden="true"
+            ><rect x="0.5" y="2" width="1.5" height="12" class="grenze" /><rect
+              x="14"
+              y="2"
+              width="1.5"
+              height="12"
+              class="grenze"
+            />{#if spielt === 'ausschnitt'}<rect x="4.5" y="4" width="2.5" height="8" /><rect
+                x="9"
+                y="4"
+                width="2.5"
+                height="8"
+              />{:else}<path d="M5 4 L11.5 8 L5 12 Z" />{/if}</svg
+          >
+        </button>
+      {/if}
+      <button
+        class="knopf klein"
+        title="Anfang und Ende an die Grenzen der Stimme setzen"
+        onclick={auto}>Auto</button
+      >
+      <button
+        class="knopf klein schalter"
+        class:gedrueckt={teilen}
+        aria-pressed={teilen}
+        title={teilen ? 'Nicht teilen - die beiden Texte werden wieder einer' : 'In zwei Aufnahmen teilen'}
+        onclick={schalteTeilen}>Split</button
+      >
     </div>
 
     <Pegelverlauf
@@ -428,87 +490,59 @@
       bind:start
       bind:ende
       bind:teilung
+      {teilen}
+      {cursor}
+      ontipp={umschalten}
       beschriftung="Schnitt"
     />
 
-    <p class="vorlage" class:bearbeitet aria-label="Vorlage, an jeder Wortgrenze teilbar">
-      {#each Array.from({ length: woerter.length + 1 }, (_, n) => n) as grenze (grenze)}
-        <button
-          class="luecke"
-          class:gesetzt={grenze === wortgrenze}
-          title="Hier teilen"
-          aria-label={grenze === 0
-            ? 'Vor dem ersten Wort teilen - alles in Teil 2'
-            : grenze === woerter.length
-              ? 'Nach dem letzten Wort teilen - alles in Teil 1'
-              : `Vor „${woerter[grenze]}“ teilen`}
-          aria-pressed={grenze === wortgrenze}
-          onclick={() => setzeText(grenze)}>{grenze === wortgrenze ? '|' : '\u00a0'}</button
-        >{#if grenze < woerter.length}<span class:hinten={grenze >= wortgrenze}
-            >{woerter[grenze]}</span
-          >{/if}
-      {/each}
-    </p>
-
-    <div class="felder">
-      <label class:leer={leerVorn}>
-        <span>Teil 1{leerVorn ? ' - ohne Länge, entsteht nicht' : ''}</span>
-        <textarea
-          rows="2"
-          bind:value={textVorn}
-          disabled={leerVorn}
-          oninput={() => (bearbeitet = true)}
-        ></textarea>
+    {#if teilen}
+      <p class="vorlage" class:bearbeitet aria-label="Text, an jeder Wortgrenze teilbar">
+        {#each basis as wort, nummer (nummer)}
+          {#if nummer > 0}<button
+              class="luecke"
+              class:gesetzt={nummer === wortgrenze}
+              title="Hier teilen"
+              aria-label={`Vor „${wort}“ teilen`}
+              aria-pressed={nummer === wortgrenze}
+              onclick={() => setzeGrenze(nummer)}
+              >{nummer === wortgrenze ? '|' : '\u00a0'}</button
+            >{/if}<span class:hinten={nummer >= wortgrenze}>{wort}</span>
+        {/each}
+      </p>
+      <div class="felder">
+        <label>
+          <span>A</span>
+          <textarea rows="2" bind:value={textA} oninput={() => (bearbeitet = true)}></textarea>
+        </label>
+        <label>
+          <span>B</span>
+          <textarea rows="2" bind:value={textB} oninput={() => (bearbeitet = true)}></textarea>
+        </label>
+      </div>
+    {:else}
+      <p class="vorlage">{aufnahme.text}</p>
+      <label class="feld">
+        <span>Text</span>
+        <textarea rows="2" bind:value={text}></textarea>
       </label>
-      <label class:leer={leerHinten}>
-        <span>Teil 2{leerHinten ? ' - ohne Länge, entsteht nicht' : ''}</span>
-        <textarea
-          rows="2"
-          bind:value={textHinten}
-          disabled={leerHinten}
-          oninput={() => (bearbeitet = true)}
-        ></textarea>
-      </label>
-    </div>
-
-    <div class="reihe schmal">
-      <button
-        class="knopf klein"
-        disabled={!vonHand && !bearbeitet}
-        title="Die Vorlage zurück in die Felder; die Teilung im Text folgt wieder der Linie"
-        onclick={textZuruecksetzen}>Text zurücksetzen</button
-      >
-      <button
-        class="knopf klein"
-        title="Anfang, Teilung und Ende dorthin, wo sie beim Öffnen standen"
-        onclick={linienZuruecksetzen}>Linien zurücksetzen</button
-      >
-      <button class="knopf klein" onclick={allesZuruecksetzen}>Alles zurücksetzen</button>
-      <button
-        class="knopf klein"
-        title="Anfang und Ende an die Ränder der Aufnahme"
-        onclick={ganzeAufnahme}>Ganze Aufnahme</button
-      >
-    </div>
+    {/if}
   </div>
 
   <div class="karte abschluss">
+    {#if aenderungen.length}
+      <p class="hinweise">Beim Speichern: {aenderungen.join(' · ')}.</p>
+    {/if}
     <div class="reihe">
       <button
-        class="knopf gefahr"
-        disabled={laeuft !== '' || !schneidbar}
-        onclick={() => (frage = 'zuschneiden')}
-      >
-        {laeuft === 'zuschneiden' ? 'Wird zugeschnitten …' : 'Zuschneiden'}
-      </button>
-      <button
         class="knopf haupt"
-        disabled={laeuft !== '' || !bereit}
-        onclick={() => (frage = 'teilen')}
+        disabled={!speicherbar}
+        title={aenderungen.length ? `Speichern: ${aenderungen.join(', ')}` : undefined}
+        onclick={() => (frage = 'speichern')}
       >
-        {laeuft === 'teilen' ? 'Wird gespeichert …' : knopftext}
+        {laeuft ? 'Wird gespeichert …' : 'Speichern'}
       </button>
-      <button class="knopf" onclick={() => gehZu(MEINE_DATEN_PFAD)}>Abbrechen</button>
+      <button class="knopf" onclick={() => verlasse()}>Abbrechen</button>
     </div>
   </div>
 {:else if !fehler}
@@ -516,38 +550,45 @@
 {/if}
 
 <Rueckfrage
-  offen={frage === 'zuschneiden'}
-  titel="Aufnahme zuschneiden?"
-  knopf="Zuschneiden"
+  offen={frage === 'speichern'}
+  titel="Änderungen speichern?"
+  knopf="Speichern"
   gefahr
-  onja={zuschneiden}
+  onja={speichern}
   onnein={() => (frage = '')}
 >
-  <p><strong>Gelöscht wird:</strong></p>
-  <ul>
-    {#if start > 0}<li>der Ton vor {start.toFixed(2)} s</li>{/if}
-    {#if aufnahme && ende < aufnahme.dauer_s}<li>der Ton nach {ende.toFixed(2)} s</li>{/if}
-    <li>die Messwerte dieser Aufnahme</li>
-  </ul>
-  <p>Die Aufnahme bleibt, nur kürzer.</p>
+  {#if teilen}
+    <p><strong>Neu:</strong></p>
+    <ul>
+      {#each teile as zeile (zeile)}<li>{zeile}</li>{/each}
+    </ul>
+  {/if}
+  {#if gekuerzt || teilen || neuerText}
+    <p><strong>Gelöscht wird:</strong></p>
+    <ul>
+      {#if teilen}
+        <li>die bisherige Aufnahme mit Ton, Text und Messwerten</li>
+      {:else}
+        {#if start > 0}<li>der Ton vor {start.toFixed(2)} s</li>{/if}
+        {#if aufnahme && ende < aufnahme.dauer_s}<li>der Ton nach {ende.toFixed(2)} s</li>{/if}
+        {#if neuerText}<li>der bisherige Text</li>{/if}
+        <li>die Messwerte dieser Aufnahme</li>
+      {/if}
+    </ul>
+  {/if}
+  {#if pruefen}
+    <p>Der Text gilt danach als geprüft.</p>
+  {/if}
 </Rueckfrage>
 
 <Rueckfrage
-  offen={frage === 'teilen'}
-  titel={teile.length === 2 ? 'Aufnahme teilen?' : 'Aufnahme ersetzen?'}
-  knopf={teile.length === 2 ? 'Teilen' : 'Ersetzen'}
-  gefahr
-  onja={teilen}
+  offen={frage === 'verlassen'}
+  titel="Änderungen verwerfen?"
+  knopf="Verwerfen"
+  onja={verwirf}
   onnein={() => (frage = '')}
 >
-  <p><strong>Neu:</strong></p>
-  <ul>
-    {#each teile as zeile (zeile)}<li>{zeile}</li>{/each}
-  </ul>
-  <p><strong>Gelöscht wird:</strong></p>
-  <ul>
-    <li>die bisherige Aufnahme mit Ton, Text und Messwerten</li>
-  </ul>
+  <p>{aenderungen.filter((a) => a !== 'Text als geprüft übernommen').join(' · ')} - nicht gespeichert.</p>
 </Rueckfrage>
 
 <style>
@@ -575,8 +616,8 @@
     line-height: 2;
   }
 
-  /* Der zweite Teil in der Akzentfarbe - dieselbe Trennung wie die Linie in
-     der Kurve, nur im Text. */
+  /* Teil B in der Akzentfarbe - dieselbe Trennung wie die Linie in der Kurve,
+     nur im Text. */
   .hinten {
     color: var(--akzent);
   }
@@ -613,40 +654,32 @@
     font-weight: bold;
   }
 
-  /* Nach Handarbeit an den Feldern ist die Wortreihe nur noch Vorlage zum
+  /* Nach Handarbeit an den Feldern ist die Wortreihe nur noch Stoff zum
      Neuanfangen - blasser, damit klar ist, dass die Felder gelten. */
   .vorlage.bearbeitet {
     opacity: 0.6;
-  }
-
-  .klein {
-    font-size: 0.85rem;
   }
 
   .felder {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.75rem;
-    margin: 0.5rem 0 0.75rem;
+    margin: 0.5rem 0 0.25rem;
   }
   @media (max-width: 600px) {
     .felder {
       grid-template-columns: 1fr;
     }
   }
-  .felder textarea {
+  .felder textarea,
+  .feld textarea {
     width: 100%;
     box-sizing: border-box;
     resize: vertical;
   }
-  /* Ein Teil ohne Länge: grau und nicht bearbeitbar - er entsteht nicht. */
-  .felder .leer textarea {
-    background: var(--rand);
-    color: var(--gedaempft);
-  }
-
-  .schmal {
-    gap: 0.4rem;
+  .feld {
+    display: block;
+    margin: 0.5rem 0 0.25rem;
   }
 
   .knopf.zeichen {
@@ -669,11 +702,20 @@
     font-size: 0.85rem;
   }
 
+  /* „Split" bleibt gedrückt, solange geteilt wird - ein Schalter, anders als
+     die Schieber sonst in dieser Oberfläche. */
+  .knopf.schalter.gedrueckt {
+    background: var(--akzent);
+    border-color: var(--akzent);
+    color: var(--hintergrund);
+    box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.25);
+  }
+
   .abschluss {
     margin-top: 1.5rem;
   }
 
-  .gefahr {
-    border-color: var(--fehler);
+  .hinweise {
+    margin: 0 0 0.75rem;
   }
 </style>

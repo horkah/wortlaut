@@ -1,21 +1,25 @@
-"""Die Wege der Ansicht „Editieren": eine Aufnahme zuschneiden oder teilen.
+"""Die Wege der Ansicht „Editieren": eine Aufnahme kürzen, teilen, ihren Text berichtigen.
 
 Diese Wege zeigen den Lautstärkeverlauf einer Aufnahme, schlagen die Grenzen
 der Stimme vor und schreiben, was ein Mensch daraus macht; was mit den Dateien
 geschieht, steht in `services/zuschnitt.py`.
 
 **Der Schlüssel** (`WORTLAUT_EDITOR_KEY`, `X-Editor-Key`) steht vor allen Wegen,
-auch den lesenden: Zuschneiden und Teilen ersetzen Aufnahmen, und das trägt
-der Sprecherzugang auf einem Telefon nicht; schon die Ansicht ist die Werkbank.
+auch den lesenden: Kürzen und Teilen ersetzen Aufnahmen, und das trägt der
+Sprecherzugang auf einem Telefon nicht; schon die Ansicht ist die Werkbank.
 
-**Beim Schreiben**, je Aufnahme: die Datei überschrieben, die Zeile aus der
-neuen Datei nachgeführt, die Messwerte weg - auch
-übernommene Faltungen, wie beim Verwerfen (`api/recordings.py`). Der nächste
-Auswertungslauf rechnet neu.
+**Gespeichert wird in einem Schritt** (`speichern`): Bis dahin hat nichts im
+Editor eine Folge. Der Text steht danach an der Aufnahme (`recordings.text`),
+die Vorlage bleibt unberührt; eine Korrektur aus „schreiben" gilt danach als
+geprüft (`recordings.validiert`).
 
-**Beim Teilen** entstehen neue Aufnahmen, und das Original geht: Zeile,
-Datei, Messwerte und seine Vorlage. Die Teile tragen die Kennungen aller
-Vorfahren (`teilen`).
+* **Ohne Teilung** bleibt es eine Aufnahme: die Datei auf Anfang und Ende
+  gekürzt und überschrieben. Ändern sich Ton oder Text, gehen ihre
+  Messwerte - auch übernommene Faltungen, wie beim Verwerfen
+  (`api/recordings.py`). Der nächste Auswertungslauf rechnet neu.
+* **Mit Teilung** entstehen zwei neue Aufnahmen an derselben Vorlage, und das
+  Original geht: Zeile, Datei, Messwerte. Die Teile tragen die Kennungen
+  aller Vorfahren und liegen in der Faltung des Originals.
 
 Den Ausschnitt spielt der Browser aus der geladenen Datei ab
 (`packages/ui/ausschnitt.ts`); vorläufige Dateien auf dem Server gibt es
@@ -37,12 +41,19 @@ from wortlaut import corpus, ids, schluessel
 from wortlaut.text import chunker
 
 from ..config import einstellungen
-from ..db.models import GUELTIG, Aufnahme, Erkennung, jetzt, Vorlage
+from ..db.models import GUELTIG, Aufnahme, Erkennung, Textquelle, Vorlage
 from ..deps import Ablage, Datenbank, Sprache, SprecherId
 from ..services import quality, zuschnitt
-from ..services.prompt_queue import naechste_position
 
 router = APIRouter(prefix="/api/zuschnitt", tags=["Zuschnitt"])
+
+# Woher eine Aufnahme ihren Text hat, wenn er aus dem Sprechen kommt und nicht
+# aus einer Vorlage (`api/intake.py`).
+KORREKTUR = "korrektur"
+
+# Was beim Vergleich von Grenzen als „dieselbe Stelle" gilt - weniger als ein
+# Rahmen der Kurve.
+GENAUIGKEIT_S = 1e-3
 
 
 def _pruefe_schluessel(
@@ -59,56 +70,61 @@ class ZuschnittAntwort(BaseModel):
     """Eine Aufnahme, wie „Editieren" sie braucht."""
 
     id: str
+    # Was gesagt wurde (`Aufnahme.text_zu`) - Vorbelegung des Textfelds.
     text: str
     erstellt: str
     dauer_s: float
+    # Der Stand der Datei; hängt an der Adresse des Audios, damit der Browser
+    # nach einem Schnitt nicht die alte Fassung aus seinem Speicher nimmt.
+    version: str
+    # Ob der Text aus dem Sprechen kommt - dann prüft ihn das Speichern.
+    korrektur: bool
+    validiert: bool
     # Der Lautstärkeverlauf, ein Wert je Fenster, bezogen auf Vollausschlag.
     verlauf: list[float]
     fenster_s: float
     # Ab wann ein Fenster als Stimme zählt - als blasse Linie gezeichnet.
     schwelle: float
-    # Der Vorschlag nach dem Pegel (`audio.stimmgrenzen`).
+    # Der Vorschlag nach dem Pegel (`audio.stimmgrenzen`) - für „Auto".
     vorschlag_start_s: float
     vorschlag_ende_s: float
 
 
-class Grenze(BaseModel):
-    """Wohin eine einzelne Aufnahme geschnitten werden soll."""
+class Speichern(BaseModel):
+    """Was aus einer Aufnahme werden soll - Ton und Text in einem Schritt."""
 
     id: str
     start_s: float
     ende_s: float
+    # Ohne Teilung bleibt es eine Aufnahme.
+    teilung_s: float | None = None
+    # Ein Text je Aufnahme, die danach steht: einer, mit Teilung zwei.
+    texte: list[str]
 
 
-class Auftrag(BaseModel):
-    grenzen: list[Grenze]
-
-
-class Teilung(BaseModel):
-    """Wo eine Aufnahme geteilt wird - im Ton und im Text."""
-
-    id: str
-    start_s: float
-    teilung_s: float
-    ende_s: float
-    # Die Texte der Teile, womöglich berichtigt; leer nur bei einem Teil ohne Länge.
-    text_vorn: str = ""
-    text_hinten: str = ""
-
-
-class Teile(BaseModel):
-    """Die Kennungen der beiden neuen Aufnahmen, vorderer Teil zuerst."""
+class Gespeichert(BaseModel):
+    """Die Kennungen der Aufnahmen, die danach stehen, vordere zuerst."""
 
     ids: list[str]
 
 
-class Ergebnis(BaseModel):
-    geschrieben: int
-    # Was nicht ging, je Aufnahme ein Satz; die übrigen gelten.
-    fehler: dict[str, str]
+def version(ablage: Ablage, aufnahme: Aufnahme) -> str:
+    """Der Stand einer Datei: Zeit und Größe. Leer, wenn sie fehlt."""
+    pfad = ablage.pfad(aufnahme.blob)
+    if not pfad.is_file():
+        return ""
+    stand = pfad.stat()
+    return f"{stand.st_mtime_ns:x}-{stand.st_size:x}"
 
 
-def _zeile(ablage: Ablage, aufnahme: Aufnahme, vorlage: Vorlage) -> ZuschnittAntwort | None:
+def _ist_korrektur(db: Datenbank, vorlage: Vorlage) -> bool:
+    quelle = db.get(Textquelle, vorlage.source_id)
+    return quelle is not None and quelle.art == KORREKTUR
+
+
+def _zeile(
+    db: Datenbank, ablage: Ablage, aufnahme: Aufnahme, vorlage: Vorlage
+) -> ZuschnittAntwort | None:
     """Eine Aufnahme mit Kurve und Vorschlag; `None`, wenn es nichts zu zeigen gibt."""
     pfad = ablage.pfad(aufnahme.blob)
     if not pfad.is_file():
@@ -120,9 +136,12 @@ def _zeile(ablage: Ablage, aufnahme: Aufnahme, vorlage: Vorlage) -> ZuschnittAnt
     vorschlag = klang.stimmgrenzen(kurve)
     return ZuschnittAntwort(
         id=aufnahme.id,
-        text=vorlage.text,
+        text=aufnahme.text_zu(vorlage),
         erstellt=aufnahme.erstellt,
         dauer_s=kurve.dauer_s,
+        version=version(ablage, aufnahme),
+        korrektur=_ist_korrektur(db, vorlage),
+        validiert=bool(aufnahme.validiert),
         verlauf=[round(wert, 5) for wert in kurve.werte],
         fenster_s=kurve.fenster_s,
         schwelle=round(kurve.schwelle, 5),
@@ -146,7 +165,7 @@ def eine(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage) 
     """Eine Aufnahme mit Kurve und Vorschlag."""
     aufnahme = _eigene(db, sprecher, aufnahme_id)
     vorlage = db.get(Vorlage, aufnahme.prompt_id)
-    zeile = _zeile(ablage, aufnahme, vorlage) if vorlage is not None else None
+    zeile = _zeile(db, ablage, aufnahme, vorlage) if vorlage is not None else None
     if zeile is None:
         raise HTTPException(status_code=404, detail="Zu dieser Aufnahme liegt kein Audio mehr.")
     return zeile
@@ -156,84 +175,27 @@ def eine(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage) 
 def original(
     sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage
 ) -> FileResponse:
-    """Die Datei der Aufnahme - zum Abspielen in der Ansicht, ganz oder im Ausschnitt."""
+    """Die Datei der Aufnahme - zum Abspielen in der Ansicht, ganz oder im Ausschnitt.
+
+    `no-cache`: Der Browser fragt jedes Mal nach, ob seine Fassung noch gilt.
+    """
     aufnahme = _eigene(db, sprecher, aufnahme_id)
     pfad = ablage.pfad(aufnahme.blob)
     if not pfad.is_file():
         raise HTTPException(status_code=404, detail="Zu dieser Aufnahme liegt kein Audio mehr.")
-    return FileResponse(pfad, media_type="audio/wav")
+    return FileResponse(pfad, media_type="audio/wav", headers={"Cache-Control": "no-cache"})
 
 
-@router.post("/schreiben", response_model=Ergebnis, dependencies=[Schluessel])
-def schreiben(auftrag: Auftrag, sprecher: SprecherId, db: Datenbank, ablage: Ablage) -> Ergebnis:
-    """Aufnahmen auf ihre Grenzen kürzen - die Originale werden überschrieben.
-
-    Was außerhalb der Grenzen lag, ist danach weg; ein zweiter Schnitt kann
-    nur noch weiter nach innen.
-
-    **Jede Aufnahme für sich.** Eine, die scheitert, nimmt die anderen nicht
-    mit; sie steht in `fehler` und ist unverändert geblieben. Ein Auftrag über
-    zwanzig Aufnahmen, der an der siebten ganz abbräche, hinterließe sechs
-    geschriebene und dreizehn offene, ohne dass jemand sähe, welche welche
-    sind - dieselbe Arbeit zweimal, beim zweiten Mal im Blindflug.
-    """
-    geschrieben = 0
-    fehler: dict[str, str] = {}
-
-    for grenze in auftrag.grenzen:
-        aufnahme = db.get(Aufnahme, grenze.id)
-        if aufnahme is None or aufnahme.speaker_id != sprecher or aufnahme.status != GUELTIG:
-            fehler[grenze.id] = "Unbekannte Aufnahme."
-            continue
-        vorlage = db.get(Vorlage, aufnahme.prompt_id)
-        if vorlage is None:
-            fehler[grenze.id] = "Zu dieser Aufnahme fehlt die Vorlage."
-            continue
-        try:
-            zuschnitt.schneide(ablage, aufnahme, vorlage, grenze.start_s, grenze.ende_s)
-        except klang.AudioFehler as ursache:
-            db.rollback()
-            fehler[grenze.id] = str(ursache)
-            continue
-
-        # Die Messwerte am alten Ton weg, sonst gälten sie als erledigt.
-        db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme.id))
-        db.commit()
-        geschrieben += 1
-
-    return Ergebnis(geschrieben=geschrieben, fehler=fehler)
-
-
-def _woerter(text: str) -> list[str]:
-    return text.split()
-
-
-def _stuecke(teilung: Teilung) -> list[tuple[int, str]]:
-    """Welche Teile entstehen: `(nummer, text)`, 1 für vorn, 2 für hinten.
-
-    Liegt die Teilung auf Anfang oder Ende, entsteht nur der andere Teil -
-    eine Kopie mit eigenem Text. Der Text darf von der Vorlage abweichen, denn
-    gemessen wird gegen ihn; geändert wird nur die Vorlage der neuen Aufnahme.
-    """
-    if not teilung.start_s <= teilung.teilung_s <= teilung.ende_s:
+def _texte(auftrag: Speichern) -> list[str]:
+    """Die Texte, an Leerraum geglättet - je Aufnahme einer, keiner leer."""
+    texte = [" ".join(text.split()) for text in auftrag.texte]
+    if len(texte) != (1 if auftrag.teilung_s is None else 2):
         raise HTTPException(
-            status_code=400, detail="Die Teilung muss zwischen Anfang und Ende liegen."
+            status_code=400, detail="Ein Text je Aufnahme - mit Teilung zwei, sonst einer."
         )
-    leer_vorn = teilung.teilung_s <= teilung.start_s
-    leer_hinten = teilung.teilung_s >= teilung.ende_s
-    if leer_vorn and leer_hinten:
-        raise HTTPException(status_code=400, detail="Der Ausschnitt hat keine Länge.")
-    stuecke = [
-        (nummer, " ".join(_woerter(text)))
-        for nummer, text, leer in (
-            (1, teilung.text_vorn, leer_vorn),
-            (2, teilung.text_hinten, leer_hinten),
-        )
-        if not leer
-    ]
-    if any(not text for _, text in stuecke):
-        raise HTTPException(status_code=400, detail="Jeder Teil, der entsteht, braucht Text.")
-    return stuecke
+    if not all(texte):
+        raise HTTPException(status_code=400, detail="Jede Aufnahme braucht Text.")
+    return texte
 
 
 def _naechste_nummer(db: Datenbank, stamm: str) -> int:
@@ -253,40 +215,95 @@ def _naechste_nummer(db: Datenbank, stamm: str) -> int:
     return max(nummern, default=0) + 1
 
 
-@router.post("/teilen", response_model=Teile, dependencies=[Schluessel])
-def teilen(
-    teilung: Teilung, sprecher: SprecherId, sprache: Sprache, db: Datenbank, ablage: Ablage
-) -> Teile:
-    """Eine Aufnahme durch zwei neue ersetzen - Ton und Text. Oder durch eine.
+@router.post("/speichern", response_model=Gespeichert, dependencies=[Schluessel])
+def speichern(
+    auftrag: Speichern, sprecher: SprecherId, sprache: Sprache, db: Datenbank, ablage: Ablage
+) -> Gespeichert:
+    """Kürzen, teilen, den Text berichtigen - was der Editor zeigt, in einem Schritt.
 
-    Für eine Aufnahme mit zwei Äußerungen. Jeder Teil bekommt eigene Datei
-    und eigene Vorlage in derselben Quelle, damit er zählt wie das Original,
-    dazu dessen Datum und einen Sortierschlüssel darunter. Pegel und Hinweise
-    kommen aus den neuen Dateien; gemessen wird beim nächsten Auswertungslauf.
-
-    Das Original geht danach ganz (`zuschnitt.entferne`): Seine Teile stehen
-    an seiner Stelle, und sein Satz käme sonst wieder in die Warteschlange.
-    Jeder Teil trägt die Kennungen des Originals und all seiner Vorfahren
-    (`zuschnitt.vorfahren`) - kein Stand, der einen davon im Training hatte,
-    wird an ihm gemessen.
+    Gekürzt wird nur nach innen; ein Schnitt lässt sich nicht zurücknehmen.
     """
-    original = _eigene(db, sprecher, teilung.id)
-    vorlage = db.get(Vorlage, original.prompt_id)
+    aufnahme = _eigene(db, sprecher, auftrag.id)
+    vorlage = db.get(Vorlage, aufnahme.prompt_id)
     if vorlage is None:
         raise HTTPException(status_code=404, detail="Zu dieser Aufnahme fehlt die Vorlage.")
-    stuecke = _stuecke(teilung)
+    if not 0.0 <= auftrag.start_s < auftrag.ende_s <= aufnahme.dauer_s + GENAUIGKEIT_S:
+        raise HTTPException(status_code=400, detail="Anfang und Ende liegen nicht in der Aufnahme.")
+    texte = _texte(auftrag)
+    korrektur = _ist_korrektur(db, vorlage)
 
-    kennungen = [ids.neue_id("rec") for _ in stuecke]
-    ziele = [corpus.audio_relpfad(sprecher, kennung) for kennung in kennungen]
+    if auftrag.teilung_s is None:
+        return _ohne_teilung(auftrag, texte[0], korrektur, sprache, aufnahme, vorlage, db, ablage)
+    return _geteilt(auftrag, texte, korrektur, sprache, aufnahme, db, ablage)
+
+
+def _ohne_teilung(
+    auftrag: Speichern,
+    text: str,
+    korrektur: bool,
+    sprache: str,
+    aufnahme: Aufnahme,
+    vorlage: Vorlage,
+    db: Datenbank,
+    ablage: Ablage,
+) -> Gespeichert:
+    """Eine Aufnahme bleibt: gekürzt, wenn die Marken innen stehen, mit ihrem Text."""
+    gekuerzt = (
+        auftrag.start_s > GENAUIGKEIT_S or auftrag.ende_s < aufnahme.dauer_s - GENAUIGKEIT_S
+    )
+    neuer_text = text != aufnahme.text_zu(vorlage)
+    erwartet = chunker.dauer(text, sprache)
+    if gekuerzt:
+        try:
+            zuschnitt.schneide(ablage, aufnahme, auftrag.start_s, auftrag.ende_s, erwartet)
+        except klang.AudioFehler as ursache:
+            db.rollback()
+            raise HTTPException(status_code=400, detail=str(ursache)) from ursache
+    elif neuer_text:
+        zuschnitt.pruefe_neu(aufnahme, erwartet)
+    aufnahme.text = text
+    if korrektur:
+        aufnahme.validiert = True
+    if gekuerzt or neuer_text:
+        # Die Messwerte am alten Ton oder Text weg, sonst gälten sie als erledigt.
+        db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme.id))
+    db.commit()
+    return Gespeichert(ids=[aufnahme.id])
+
+
+def _geteilt(
+    auftrag: Speichern,
+    texte: list[str],
+    korrektur: bool,
+    sprache: str,
+    original: Aufnahme,
+    db: Datenbank,
+    ablage: Ablage,
+) -> Gespeichert:
+    """Zwei neue Aufnahmen an derselben Vorlage, und das Original geht.
+
+    Jeder Teil bekommt eigene Datei und eigenen Text, dazu das Datum des
+    Originals und einen Sortierschlüssel darunter. Pegel und Hinweise kommen
+    aus den neuen Dateien; gemessen wird beim nächsten Auswertungslauf.
+
+    Das Original geht danach ganz (`zuschnitt.entferne`); seine Vorlage bleibt
+    bei den Teilen, die jetzt ihre gültigen Aufnahmen sind - sie kommt nicht
+    wieder in die Warteschlange. Jeder Teil trägt die Kennungen des Originals
+    und all seiner Vorfahren (`zuschnitt.vorfahren`) - kein Stand, der einen
+    davon im Training hatte, wird an ihm gemessen. Über den Stamm im
+    Sortierschlüssel liegen die Teile in der Faltung des Originals.
+    """
+    teilung_s = float(auftrag.teilung_s or 0.0)
+    if not auftrag.start_s < teilung_s < auftrag.ende_s:
+        raise HTTPException(
+            status_code=400, detail="Die Teilung muss zwischen Anfang und Ende liegen."
+        )
+    kennungen = [ids.neue_id("rec") for _ in texte]
+    ziele = [corpus.audio_relpfad(original.speaker_id, kennung) for kennung in kennungen]
     try:
-        if len(stuecke) == 2:
-            befunde = zuschnitt.teile(
-                ablage, original, teilung.start_s, teilung.teilung_s, teilung.ende_s, *ziele
-            )
-        else:
-            befunde = (
-                zuschnitt.kopiere(ablage, original, teilung.start_s, teilung.ende_s, ziele[0]),
-            )
+        befunde = zuschnitt.teile(
+            ablage, original, auftrag.start_s, teilung_s, auftrag.ende_s, *ziele
+        )
     except klang.AudioFehler as fehler:
         for ziel in ziele:
             ablage.loesche(ziel)
@@ -294,41 +311,32 @@ def teilen(
 
     stamm = original.sortierschluessel or original.id
     erste = _naechste_nummer(db, stamm)
-    position = naechste_position(db, sprecher)
-    for nummer, (kennung, ziel, befund, (_, text)) in enumerate(
-        zip(kennungen, ziele, befunde, stuecke, strict=True), start=erste
+    for nummer, (kennung, ziel, befund, text) in enumerate(
+        zip(kennungen, ziele, befunde, texte, strict=True), start=erste
     ):
-        neue_vorlage = Vorlage(
-            id=ids.neue_id("prm"),
-            source_id=vorlage.source_id,
-            speaker_id=sprecher,
-            position=position + nummer - erste,
-            text=text,
-            dauer_geschaetzt_s=chunker.dauer(text, sprache),
-            erstellt=jetzt(),
+        db.add(
+            Aufnahme(
+                id=kennung,
+                prompt_id=original.prompt_id,
+                speaker_id=original.speaker_id,
+                session_id=original.session_id,
+                blob=ziel,
+                **asdict(befund),
+                modus=original.modus,
+                status=GUELTIG,
+                hinweise=json.dumps(
+                    quality.pruefe(befund, chunker.dauer(text, sprache)), ensure_ascii=False
+                ),
+                externe_id=None,
+                # Ein Teil einer Korrektur ist so oft gesprochen wie sie.
+                anlaeufe=original.anlaeufe,
+                sortierschluessel=f"{stamm}.{nummer}",
+                vorfahren=zuschnitt.nachfahren_von(original),
+                text=text,
+                validiert=korrektur or bool(original.validiert),
+                erstellt=original.erstellt,
+            )
         )
-        db.add(neue_vorlage)
-        db.flush()
-        teil = Aufnahme(
-            id=kennung,
-            prompt_id=neue_vorlage.id,
-            speaker_id=sprecher,
-            session_id=original.session_id,
-            blob=ziel,
-            **asdict(befund),
-            modus=original.modus,
-            status=GUELTIG,
-            hinweise=json.dumps(
-                quality.pruefe(befund, neue_vorlage.dauer_geschaetzt_s), ensure_ascii=False
-            ),
-            externe_id=None,
-            # Ein Teil einer Korrektur ist so oft gesprochen wie sie.
-            anlaeufe=original.anlaeufe,
-            sortierschluessel=f"{stamm}.{nummer}",
-            vorfahren=zuschnitt.nachfahren_von(original),
-            erstellt=original.erstellt,
-        )
-        db.add(teil)
     db.flush()
     blob = zuschnitt.entferne(db, original)
     db.commit()
@@ -336,5 +344,4 @@ def teilen(
     # Zeile, die ein gescheitertes Commit stehen ließe.
     ablage.loesche(blob)
 
-    return Teile(ids=kennungen)
-
+    return Gespeichert(ids=kennungen)

@@ -804,6 +804,47 @@ class TestKorrekturen:
             None: 0.5,
         }
 
+    def test_eine_gepruefte_korrektur_zaehlt_wie_eine_vorlage(
+        self,
+        klient: TestClient,
+        hoeren: TestClient,
+        quelle: str,
+        sprich,
+        datenverzeichnis,
+        sprecher: str,
+    ) -> None:
+        """Gewicht und Messung hängen am Status, nicht an der Quelle."""
+        from sqlalchemy import select
+        from sqlalchemy.orm import Session
+
+        from apps.hoeren.backend.db.models import Aufnahme
+        from apps.hoeren.backend.deps import engine_fuer
+
+        sprich(6)
+        self._korrektur(hoeren, "seg_1", 1)
+        self._korrektur(hoeren, "seg_2", 1)
+        with Session(engine_fuer(sprecher)) as sitzung:
+            geprueft = sitzung.scalars(
+                select(Aufnahme).where(Aufnahme.externe_id == "seg_1")
+            ).one()
+            geprueft.validiert = True
+            geprueft.text = "Was wirklich gesagt wurde."
+            kennung = geprueft.id
+            sitzung.commit()
+
+        lauf = _beauftrage(klient)
+        zeilen = {z["recording_id"]: z for z in _manifest(datenverzeichnis, lauf["job_id"])}
+        zeile = zeilen[kennung]
+        assert zeile["validiert"] is True
+        assert zeile["gewicht"] == 1.0
+        assert zeile["text"] == "Was wirklich gesagt wurde."
+        assert laeufe.gemessen(zeile)
+        ungeprueft = next(
+            z for z in zeilen.values() if z["quelle"] == "korrektur" and not z["validiert"]
+        )
+        assert ungeprueft["gewicht"] == 0.5
+        assert not laeufe.gemessen(ungeprueft)
+
     def test_vorlagen_zaehlen_immer_eins(
         self, klient: TestClient, quelle: str, sprich, datenverzeichnis
     ) -> None:

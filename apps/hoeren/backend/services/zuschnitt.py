@@ -12,8 +12,9 @@ ist ein Schnitt das Kopieren eines Byte-Bereichs, nach außen gerundet
 (`audio.schneide_ausschnitt`, `nach_aussen=True`), ohne Blenden - geschnitten
 wird in der Stille.
 
-**Teilen ersetzt die Aufnahme.** Die Teile tragen die Kennungen aller
-Vorfahren (`vorfahren`), das Original geht ganz (`entferne`).
+**Teilen ersetzt die Aufnahme.** Die Teile hängen an derselben Vorlage und
+tragen die Kennungen aller Vorfahren (`vorfahren`); das Original geht ganz
+(`entferne`), seine Vorlage bleibt bei den Teilen.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from __future__ import annotations
 import json
 import tempfile
 import wave
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from pathlib import Path
 
 from sqlalchemy import delete, func, select
@@ -34,7 +35,11 @@ from . import quality
 
 
 def schneide(
-    ablage: storage.Ablage, aufnahme: Aufnahme, vorlage: Vorlage, start_s: float, ende_s: float
+    ablage: storage.Ablage,
+    aufnahme: Aufnahme,
+    start_s: float,
+    ende_s: float,
+    dauer_erwartet_s: float,
 ) -> klang.Befund:
     """Die Aufnahme auf [start, ende) kürzen und die Zeile nachführen.
 
@@ -45,10 +50,15 @@ def schneide(
     befund = _schneide_ab(ablage, quelle, aufnahme.blob, start_s, ende_s)
     for feld, wert in asdict(befund).items():
         setattr(aufnahme, feld, wert)
-    aufnahme.hinweise = json.dumps(
-        quality.pruefe(befund, vorlage.dauer_geschaetzt_s), ensure_ascii=False
-    )
+    pruefe_neu(aufnahme, dauer_erwartet_s)
     return befund
+
+
+def pruefe_neu(aufnahme: Aufnahme, dauer_erwartet_s: float) -> None:
+    """Die Hinweise einer Aufnahme neu rechnen - nach neuem Ton oder neuem Text."""
+    werte = {feld.name: getattr(aufnahme, feld.name) for feld in fields(klang.Befund)}
+    befund = klang.Befund(**werte)
+    aufnahme.hinweise = json.dumps(quality.pruefe(befund, dauer_erwartet_s), ensure_ascii=False)
 
 
 def reihenfolge() -> tuple:
@@ -160,16 +170,6 @@ def teile(
         _schneide_ab(ablage, quelle, ziel_vorn, start_s, innen, nach_aussen=False),
         _schneide_ab(ablage, quelle, ziel_hinten, innen, ende_s),
     )
-
-
-def kopiere(
-    ablage: storage.Ablage, aufnahme: Aufnahme, start_s: float, ende_s: float, ziel: str
-) -> klang.Befund:
-    """Einen Ausschnitt des Originals als eigene Datei ablegen - ein Teil allein.
-
-    Für „Editieren", wenn die Teilung auf Anfang oder Ende liegt.
-    """
-    return _schneide_ab(ablage, _quelle(ablage, aufnahme, start_s, ende_s), ziel, start_s, ende_s)
 
 
 def _quelle(ablage: storage.Ablage, aufnahme: Aufnahme, start_s: float, ende_s: float) -> Path:

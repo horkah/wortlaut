@@ -24,6 +24,8 @@
 
 let werk: AudioContext | null = null;
 let laeuft: AudioBufferSourceNode | null = null;
+// Wo in der Datei das Laufende begann, und wann auf der Uhr des Kontexts.
+let ab = { sekunde: 0, uhr: 0 };
 
 // Dekodiert wird je Aufnahme einmal. Das Ergebnis ist ein Vielfaches der
 // Datei groß (float statt 16 bit), deshalb behält dieser Speicher nur, was
@@ -89,7 +91,14 @@ export async function spiele(
     fertig?.();
   };
   laeuft = quelle;
+  ab = { sekunde: anfang, uhr: werkzeug.currentTime };
   quelle.start(0, anfang, laenge);
+}
+
+/** Wo in der Datei gerade gespielt wird, in Sekunden - `null`, wenn nichts läuft. Für den Cursor. */
+export function stelle(): number | null {
+  if (!laeuft || !werk) return null;
+  return ab.sekunde + (werk.currentTime - ab.uhr);
 }
 
 /** Dekodierte Aufnahmen freigeben - beim Laden einer anderen Fassung und beim Verlassen. */

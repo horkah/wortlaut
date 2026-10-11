@@ -394,7 +394,9 @@ class TestVerwandte:
         _stand_mit_werten(klient, datenverzeichnis, sprecher, wer)
 
         original = aufnahmen[-1]
-        teil = Aufnahme(id="rec_TEIL", sortierschluessel=f"{original}.1")
+        teil = Aufnahme(
+            id="rec_TEIL", sortierschluessel=f"{original}.1", vorfahren=json.dumps([original])
+        )
         with Session(korpus_engine(sprecher)) as korpus:
             proben = [
                 Probe(aufnahme=korpus.get(Aufnahme, kennung), vorlage=None, faltung=0, nummer=0)

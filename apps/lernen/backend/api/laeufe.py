@@ -893,6 +893,7 @@ def _anzahl(zahl: int, eins: str, mehr: str) -> str:
 def _training_im_steckbrief(umfang: lauf_layout.Umfang) -> tuple[str, str]:
     """Worauf gelernt wurde, nach Herkunft - und in wie vielen Faltungen."""
     vorlagen = umfang.lernen.get(lauf_layout.GEMESSENE_QUELLE, 0)
+    geprueft = umfang.lernen.get(lauf_layout.GEPRUEFT, 0)
     korrekturen = umfang.lernen.get("korrektur", 0)
     selbst = umfang.lernen.get(lauf_layout.QUELLE_SELBST, 0)
     faltungen = lauf_layout.FALTUNGEN
@@ -900,7 +901,12 @@ def _training_im_steckbrief(umfang: lauf_layout.Umfang) -> tuple[str, str]:
         f"{_anzahl(vorlagen, 'Vorlage', 'Vorlagen')} in {faltungen - 1} von {faltungen} Faltungen"
         if vorlagen
         else "",
-        f"{_anzahl(korrekturen, 'Korrektur', 'Korrekturen')} in allen" if korrekturen else "",
+        f"{_anzahl(geprueft, 'geprüfte Korrektur', 'geprüfte Korrekturen')} ebenso"
+        if geprueft
+        else "",
+        f"{_anzahl(korrekturen, 'ungeprüfte Korrektur', 'ungeprüfte Korrekturen')} in allen"
+        if korrekturen
+        else "",
         f"{selbst} selbst beschriftet in allen" if selbst else "",
     ]
     return (
@@ -914,11 +920,16 @@ def _messung_im_steckbrief(umfang: lauf_layout.Umfang) -> tuple[str, str]:
     """Woran gemessen wurde - und was nicht, mit Grund."""
     nicht = [
         name
-        for quelle, name in (("korrektur", "Korrekturen"), (lauf_layout.QUELLE_SELBST, "Selbstbeschriftetes"))
+        for quelle, name in (
+            ("korrektur", "ungeprüfte Korrekturen"),
+            (lauf_layout.QUELLE_SELBST, "Selbstbeschriftetes"),
+        )
         if umfang.lernen.get(quelle)
     ]
     teile = [
-        "nur Vorlagen, jede einmal von der Faltung, die sie nicht kannte",
+        "Vorlagen und geprüfte Korrekturen, jede einmal von der Faltung, die sie nicht kannte"
+        if umfang.lernen.get(lauf_layout.GEPRUEFT)
+        else "nur Vorlagen, jede einmal von der Faltung, die sie nicht kannte",
         f"{' und '.join(nicht)} nicht: ihr Text stammt von der Erkennung selbst" if nicht else "",
     ]
     return (

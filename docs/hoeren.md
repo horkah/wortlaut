@@ -355,69 +355,116 @@ von der Aufsicht.
 
 ---
 
-## Editieren - zuschneiden, teilen, berichtigen
+## Editieren - kürzen, teilen, berichtigen
 
 Eine Aufnahme allein, erreichbar über den Stift an einer aufgeklappten Karte
-in „Meine Daten" (`#/editieren/<id>`): der Lautstärkeverlauf mit drei Linien
-(Anfang, gestrichelte Teilung, Ende), der Text Wort für Wort mit anklickbaren
-Lücken, zwei Felder für die Texte der Teile, vier Knöpfe zum Hören (ganz, der
-Ausschnitt zwischen Anfang und Ende, Teil 1, Teil 2). Verschoben wird mit
-Finger, Maus oder Pfeiltasten.
+in „Meine Daten" (`#/editieren/<id>`): der Lautstärkeverlauf mit zwei Linien
+für Anfang und Ende, darunter ihr Text zum Mitlesen und ein Feld, in dem er
+berichtigt wird. Verschoben wird mit Finger, Maus oder Pfeiltasten. Beim
+Abspielen läuft ein Cursor mit; die Leertaste (außerhalb der Eingabefelder)
+oder ein Tippen auf die Kurve startet und stoppt, was zwischen den Linien
+liegt.
 
-### Zuschneiden - die Stille an den Rändern
+**Beim Öffnen ist nichts geändert.** Die Linien stehen ganz außen, Teilen ist
+aus, „Speichern" gesperrt, und es gibt einen Knopf zum Hören. Jede Änderung
+schaltet „Speichern" frei; der Knopf (als Tooltip) und eine Warnzeile darüber
+sagen, was sich ändert - gekürzt, geteilt, Text geändert, bei einer Korrektur
+dazu: als geprüft übernommen. Sind die Linien verschoben, kommt ein Knopf für
+den Ausschnitt dazu.
+
+**Zurück nach „Meine Daten"** steht die Seite, wie sie war: dieselbe Seite der
+Liste, dieselbe Karte offen, dieselbe Stelle im Fenster. Wer mit
+ungespeicherten Änderungen geht - über „Abbrechen", einen Reiter oder den
+Zurück-Knopf -, wird gefragt.
+
+### Auto - die Grenzen der Stimme
 
 Zwischen Knopfdruck und erstem Laut liegt oft eine Sekunde, am Ende mehr. Über
 anderthalb Stunden Korpus summiert sich das zu einer halben Stunde, die
 mittrainiert und mitgemessen wird.
 
-Anfang und Ende stehen anfangs, wo der Pegel die Stimme vermutet, mit einem
-Zehntel Sekunde Luft (`wortlaut/audio.stimmgrenzen`, 20-ms-Fenster, Schwelle
-relativ zur Spitze - dieselbe Rechnung wie beim Hochladen). „Ganze Aufnahme"
-setzt sie an die Ränder, „Linien zurücksetzen" zurück auf den Vorschlag.
+„Auto" setzt Anfang und Ende dorthin, wo der Pegel die Stimme vermutet
+(`wortlaut/audio.stimmgrenzen`). Dieselbe Rechnung meldet beim Hochladen die
+Randstille (`services/quality.py`) - der Editor bietet keine Grenze an, die die
+Prüfung danach als Stille meldet:
+
+* RMS in 20-ms-Fenstern;
+* Stimme ist, was 10 dB über dem Rauschboden der Datei liegt - dem Median der
+  leisesten 10 % der Fenster. Nicht feste dBFS: Die Verstärkung beim Aufnehmen
+  (bis 20×) verschiebt Stimme und Raum gleichermaßen. Höchstens 20 dB unter
+  der Spitze, damit eine Aufnahme ohne Pause nicht als Stille gilt;
+* Luft nach außen: 150 ms vor dem ersten, 200 ms nach dem letzten lauten
+  Fenster, an den Dateigrenzen gestutzt. Lieber zu viel Rand als zu wenig -
+  bei Dysarthrie sind leise An- und Auslaute häufig.
+
+Die Werte stehen als Konstanten am Kopf von „Wo die Stimme ist" in
+`wortlaut/audio.py`.
 
 **Kein VAD.** Ein Raum, ein Mikrofon vor dem Mund, eine Äußerung - was laut
 wird, ist diese Person. Ein Sprachmodell zu fragen, wo abweichende Sprache
 anfängt, träfe dieselbe Annahme, an der die Diktierfunktion des Telefons
 scheitert; und über dem Vorschlag sitzt ohnehin ein Mensch.
 
-**Geschrieben wird erst nach der Rückfrage**, und die warnt: **Zuschneiden
-überschreibt das Original.** Was außerhalb der Linien liegt, ist danach weg;
-rückgängig machen lässt sich das nicht. Die Teilung spielt dafür keine Rolle.
+### Split - in zwei Aufnahmen
 
-1. Die Datei wird verlustfrei gekürzt und ersetzt das Original.
+„Split" ist ein Schalter. Gedrückt steht eine dritte, gestrichelte Linie in
+der längsten Pause der mittleren Hälfte; es gibt drei Knöpfe zum Hören (ganz,
+A, B), der Text bekommt anklickbare Lücken, und das Feld wird zu zweien. Die
+Textteilung folgt der Linie an der passendsten Wortgrenze, bis jemand eine
+Lücke anklickt; die Felder folgen der Textteilung, bis jemand darin schreibt.
+Wieder gelöst, verschmelzen beide Felder zu einem - was darin geändert wurde,
+bleibt.
+
+### Speichern
+
+**Bis zum Speichern hat nichts eine Folge**; abgespielt wird aus der geladenen
+Datei, ohne vorläufige Dateien auf dem Server. Gespeichert wird in einem
+Schritt (`POST /api/zuschnitt/speichern`), nach einer Rückfrage mit
+Warnzeichen - rückgängig machen lässt es sich nicht. Danach lässt sich nur
+weiter kürzen, teilen und berichtigen, nicht verlängern.
+
+**Der Text steht an der Aufnahme** (`recordings.text`), die Vorlage bleibt
+unberührt. Bei einer Korrektur aus „schreiben" steht in der Vorlage damit
+weiter, was das Modell schrieb, an der Aufnahme, was wirklich gesagt wurde.
+Wo `recordings.text` leer ist, gilt der Text der Vorlage (`Aufnahme.text_zu`) -
+für Anzeige, Datensatz, Auswertung und Trainingsmanifest. Speichern prüft eine
+Korrektur (`recordings.validiert`), auch mit unverändertem Text; eine
+geprüfte zählt in Training und Messung wie eine Vorlage.
+
+Ohne Split:
+
+1. Die Datei wird verlustfrei auf Anfang und Ende gekürzt und ersetzt das
+   Original.
 2. Dauer, Pegel, Stille und Hinweise der Zeile kommen aus der neuen Datei.
-3. Die Messwerte der Aufnahme werden gelöscht, übernommene Faltungen
-   eingeschlossen; der nächste Auswertungslauf rechnet neu.
+3. Ändern sich Ton oder Text, werden die Messwerte der Aufnahme gelöscht,
+   übernommene Faltungen eingeschlossen; der nächste Auswertungslauf rechnet
+   neu.
 
-Danach steht die gekürzte Fassung in der Ansicht, mit neuem Vorschlag.
+Danach steht die neue Fassung im Editor, die Linien wieder außen.
 
-Bei 16 kHz mono PCM ist ein Rahmen zwei Byte, geschnitten wird auf ganze
-Rahmen, nach außen gerundet, ohne Blenden. Ein zweiter Schnitt kann nur
-weiter nach innen.
-
-### Teilen und berichtigen
-
-Die Teilung steht anfangs in der längsten Pause, die Textteilung folgt ihr an
-der passendsten Wortgrenze, bis jemand klickt.
-
-Nach der Rückfrage entstehen zwei neue Aufnahmen mit eigener Datei und
-eigener Vorlage; Byte für Byte ergeben sie den Bereich des Originals. Liegt die
-Teilung auf Anfang oder Ende, entsteht eine einzige - so wird aus derselben
-Ansicht eine Aufnahme mit berichtigtem Text. Die Teile tragen das Datum des
-Originals und einen Sortierschlüssel (`<id>.1`, `<id>.2`), der sie an seiner
-Stelle hält.
-
-**Die Teile ersetzen das Original.** Nach der Rückfrage mit Warnzeichen geht
-es ganz: Zeile, Datei, Messwerte und seine Vorlage, samt verworfenen
-Aufnahmen desselben Satzes - sonst stünde er wieder in der Warteschlange.
+Mit Split entstehen zwei neue Aufnahmen mit eigener Datei und eigenem Text,
+**an derselben Vorlage**; Byte für Byte ergeben sie den Bereich des Originals.
+Das Original geht ganz: Zeile, Datei, Messwerte. Die Vorlage bleibt - ihre
+gültigen Aufnahmen sind jetzt die Teile, sie steht nicht wieder in der
+Warteschlange und zählt im Fortschritt nicht als offen. Die Teile tragen das
+Datum des Originals und einen Sortierschlüssel (`<id>.1`, `<id>.2`), der sie
+an seiner Stelle hält und über den Stamm in seiner Faltung (`zuschnitt.stamm`).
+Danach geht es zurück nach „Meine Daten".
 
 **Jeder Teil trägt seine Vorfahren** (`recordings.vorfahren`): die Kennung
 des Originals, und wird ein Teil wieder geteilt, auch seine - über alle
 Generationen. Ein Stand, der einen Vorfahren im Training hatte, wird an
 keinem Nachfahren gemessen, auch wenn alle Vorfahren gelöscht sind
 (`auswertung.verwandte`). Teile desselben Originals untereinander sperren
-sich nicht; sie sind verschiedener Ton. Die Faltung erbt ein Teil vom
-Original (`zuschnitt.stamm`).
+sich nicht; sie sind verschiedener Ton.
+
+Bei 16 kHz mono PCM ist ein Rahmen zwei Byte, geschnitten wird auf ganze
+Rahmen, nach außen gerundet, ohne Blenden.
+
+**Das Audio hängt an seinem Stand.** Ein Schnitt überschreibt die Datei unter
+demselben Pfad; der Editor holt sie mit ihrer Version in der Adresse
+(`?v=`), und jeder Weg zum Audio antwortet mit `no-cache` - der Browser fragt
+mit dem ETag nach, statt die alte Fassung zu spielen.
 
 Ältere Bestände können geteilte Originale noch neben ihren Teilen führen;
 `scripts/alte_originale.py` zeigt sie und nimmt sie mit `--loeschen` heraus.
@@ -426,8 +473,8 @@ Die Teile gelten danach als Originale.
 ### Der Schlüssel
 
 Vor allen Wegen unter `/api/zuschnitt/…` steht zusätzlich
-`WORTLAUT_EDITOR_KEY` (`X-Editor-Key`), auch vor den lesenden: Zuschneiden
-überschreibt Aufnahmen. Eingetragen wird er unter „Zugangsdaten"; ob er gilt,
+`WORTLAUT_EDITOR_KEY` (`X-Editor-Key`), auch vor den lesenden: Speichern
+ersetzt Aufnahmen. Eingetragen wird er unter „Zugangsdaten"; ob er gilt,
 sagt `GET /api/zugang` (`bearbeiten`). Nur dann steht der Stift an den
 Aufnahmen in „Meine Daten". Leer heißt abgeschaltet.
 
@@ -613,8 +660,7 @@ Zuschnitt - zusätzlich `X-Editor-Key`:
 ```
 GET    /api/zuschnitt/aufnahmen/{id}        Kurve und Vorschlag einer Aufnahme
 GET    /api/zuschnitt/aufnahmen/{id}/original
-POST   /api/zuschnitt/schreiben             { grenzen: [{ id, start_s, ende_s }] }
-POST   /api/zuschnitt/teilen                { id, start_s, teilung_s, ende_s, text_vorn, text_hinten } → { ids }, ersetzt das Original
+POST   /api/zuschnitt/speichern             { id, start_s, ende_s, teilung_s | null, texte } → { ids }
 ```
 
 Aufsicht - hinter `WORTLAUT_ADMIN_TOKEN`:

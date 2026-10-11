@@ -897,11 +897,23 @@ def bewertungszeilen(verzeichnis: Path) -> list[dict[str, Any]]:
     return lies_zeilen(verzeichnis / BEWERTUNG)
 
 
-# Gemessen wird nur, was nach einer Vorlage gesprochen wurde. Eine Korrektur
+# Gemessen wird, was nach einer Vorlage gesprochen wurde, und jede Korrektur,
+# deren Text ein Mensch geprüft hat (`validiert`). Eine ungeprüfte Korrektur
 # aus „schreiben" trägt als Text eine abgenickte Maschinenausgabe - an ihr
 # gemessen, zählte die Erkennung ihre eigenen Fehler als richtig. Sie lernt mit
 # (gewichtet, `services/auftraege.GEWICHTE` in „lernen"), in jeder Faltung.
 GEMESSENE_QUELLE = "vorlage"
+
+
+# Im `Umfang` eigens gezählt: geprüfte Korrekturen, gemessen wie Vorlagen.
+GEPRUEFT = "geprueft"
+
+
+def gemessen(zeile: dict[str, Any]) -> bool:
+    """Ob eine Zeile des Manifests in ihrer Faltung gemessen wird."""
+    return str(zeile.get("quelle", GEMESSENE_QUELLE)) == GEMESSENE_QUELLE or bool(
+        zeile.get("validiert")
+    )
 
 
 def zeilen_fuer_faltung(
@@ -917,7 +929,7 @@ def zeilen_fuer_faltung(
 
     `faltung = None` gibt alle Lernzeilen und keine Messzeile - woraus das
     Endmodell seinen Startprompt nimmt (`training/endmodell.py`). Gemessen wird
-    nur an Vorlagen (`GEMESSENE_QUELLE`).
+    an Vorlagen und geprüften Korrekturen (`gemessen`).
 
     Mit `kern` (Kernaufnahme → Faltung, `kernfaltungen_aus`) ist der Kern der
     ganze Korpus: Der Rest fehlt in Lern- und Messzeilen, die auch das
@@ -947,8 +959,7 @@ def zeilen_fuer_faltung(
             ihre = kern[kennung]
         else:
             continue
-        gemessen = str(zeile.get("quelle", GEMESSENE_QUELLE)) == GEMESSENE_QUELLE
-        if faltung is not None and ihre == faltung and gemessen:
+        if faltung is not None and ihre == faltung and gemessen(zeile):
             mess.append(zeile)
         else:
             lern.append(zeile)
@@ -959,7 +970,7 @@ def zeilen_fuer_faltung(
 class Umfang:
     """Was ein Lauf lernt und woran er gemessen wird - gezählt, nicht beschrieben."""
 
-    # Herkunft (`vorlage`, `korrektur`, `selbst`) → Proben.
+    # Herkunft (`vorlage`, `geprueft`, `korrektur`, `selbst`) → Proben.
     lernen: dict[str, int]
     lern_aufnahmen: int
     messen: int
@@ -993,6 +1004,8 @@ def umfang(verzeichnis: Path, auftrag: dict[str, Any]) -> Umfang | None:
     lernen: dict[str, int] = {}
     for zeile in lern:
         quelle = str(zeile.get("quelle") or GEMESSENE_QUELLE)
+        if quelle != GEMESSENE_QUELLE and zeile.get("validiert"):
+            quelle = GEPRUEFT
         lernen[quelle] = lernen.get(quelle, 0) + 1
     return Umfang(
         lernen=lernen,

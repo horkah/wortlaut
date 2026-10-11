@@ -778,12 +778,18 @@ class TestTrainierteStaende:
         einstellungen.cache_clear()
 
         def schnitt(aufnahme: str) -> None:
+            vergleich = klient.get(f"/api/auswertung/{aufnahme}").json()
             antwort = klient.post(
-                "/api/zuschnitt/schreiben",
+                "/api/zuschnitt/speichern",
                 headers={"X-Editor-Key": "test-zuschnitt"},
-                json={"grenzen": [{"id": aufnahme, "start_s": 1.0, "ende_s": 2.0}]},
+                json={
+                    "id": aufnahme,
+                    "start_s": 1.0,
+                    "ende_s": 2.0,
+                    "texte": [vergleich["referenz"]],
+                },
             )
-            assert antwort.json()["geschrieben"] == 1, antwort.text
+            assert antwort.status_code == 200, antwort.text
 
         return schnitt
 
@@ -830,7 +836,9 @@ class TestTrainierteStaende:
 
         with Session(engine_fuer(_sprecher(klient))) as db:
             zeile = db.get(Aufnahme, aufnahme)
-            zuschnitt.schneide(ablage_fuer(), zeile, db.get(Vorlage, zeile.prompt_id), 1.0, 2.0)
+            zuschnitt.schneide(
+                ablage_fuer(), zeile, 1.0, 2.0, db.get(Vorlage, zeile.prompt_id).dauer_geschaetzt_s
+            )
             db.commit()
             assert db.scalars(select(Erkennung).where(Erkennung.modell == ref)).all()
 
@@ -868,15 +876,14 @@ class TestTrainierteStaende:
             aufnahme: str, teilung_s: float = 2.0, start_s: float = 0.5, ende_s: float = 3.5
         ) -> list[str]:
             antwort = klient.post(
-                "/api/zuschnitt/teilen",
+                "/api/zuschnitt/speichern",
                 headers={"X-Editor-Key": "test-zuschnitt"},
                 json={
                     "id": aufnahme,
                     "start_s": start_s,
                     "teilung_s": teilung_s,
                     "ende_s": ende_s,
-                    "text_vorn": "vorn",
-                    "text_hinten": "hinten",
+                    "texte": ["vorn", "hinten"],
                 },
             )
             assert antwort.status_code == 200, antwort.text
@@ -914,20 +921,6 @@ class TestTrainierteStaende:
         for teil in teile:
             assert self._vom_stand(klient, teil, ref) == []
             assert len(klient.get(f"/api/auswertung/{teil}").json()["erkennungen"]) == JE_AUFNAHME
-
-    def test_eine_kopie_ebenso(
-        self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an, editiere
-    ) -> None:
-        # Teilung auf dem Anfang: eine einzige neue Aufnahme, der Ausschnitt
-        # mit berichtigtem Text. Neuer Text, alter Ton.
-        sprich()
-        original = _aufnahmen(klient)[0]
-        ref = lege_stand_an(original)
-        (kopie,) = editiere(original, teilung_s=0.5)
-
-        antworten.update({"small": "egal", "medium": "egal", ref: "aus dem Gedächtnis"})
-        _laufe_bis_fertig(klient)
-        assert self._vom_stand(klient, kopie, ref) == []
 
     def test_das_geschwister_eines_gehoerten_teils_misst_er(
         self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an, editiere

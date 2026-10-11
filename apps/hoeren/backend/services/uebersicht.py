@@ -254,7 +254,7 @@ def aufnahmen_seite(
             AufnahmeAntwort(
                 id=aufnahme.id,
                 prompt_id=aufnahme.prompt_id,
-                text=vorlage.text,
+                text=aufnahme.text_zu(vorlage),
                 quelle_art=quelle.art,
                 dauer_s=aufnahme.dauer_s,
                 pegel_dbfs=aufnahme.pegel_dbfs,

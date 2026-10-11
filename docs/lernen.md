@@ -46,10 +46,14 @@ Danach ist jede Aufnahme genau einmal von einem Modell gehört worden, das sie
 nie gelernt hat; diese Messungen sind die Zahl des Laufs. Die Faltung wird bei
 jedem Auftrag gerechnet und steht im Manifest.
 
-**Gemessen wird nur an Vorlagen** (`laeufe.zeilen_fuer_faltung`). Eine
-Korrektur aus „schreiben" trägt als Text eine abgenickte Maschinenausgabe;
-sie lernt in jeder Faltung mit, gewichtet nach der Achse „Korrekturen", und
-wird nie gemessen. Ebenso selbst beschriftete Diktate.
+**Gemessen wird an Vorlagen und geprüften Korrekturen** (`laeufe.gemessen`).
+Eine ungeprüfte Korrektur aus „schreiben" trägt als Text eine abgenickte
+Maschinenausgabe; sie lernt in jeder Faltung mit, gewichtet nach der Achse
+„Korrekturen", und wird nicht gemessen. Ebenso selbst beschriftete Diktate.
+Hat ein Mensch ihren Text in „Editieren" geprüft (`recordings.validiert`),
+zählt sie wie eine Vorlage: volles Gewicht, gemessen in ihrer Faltung. **Das
+Gewicht hängt am Status, nicht an der Quelle.** Gelernt wird immer auf dem
+Text der Aufnahme (`recordings.text`, sonst der der Vorlage).
 
 **Am Ende steht das Grundmodell daneben.** Protokoll und Manifest
 (`grundmodell`) nennen WER und CER des Laufs und des unveränderten
@@ -143,7 +147,7 @@ Beschriftung (`api/laeufe.py`, `Training.svelte`) und ihre Wirkung im Trainer.
 | LoRA-Ziele | q, v; alle Projektionen; nur Encoder; nur Decoder | wo der Zusatz sitzt - nur mit LoRA |
 | LoRA-Rang | 32, 8, 64 | wie groß er ist, α wächst mit - nur mit LoRA |
 | Auswahl | Alle Aufnahmen, Kernauswahl | siehe [Die Kernauswahl](#die-kernauswahl) |
-| Korrekturen | Gewicht 0,5, 0,25, 0,75, 1,0, aus dem Verlauf | womit Korrekturen aus „schreiben" zählen |
+| Korrekturen | Gewicht 0,5, 0,25, 0,75, 1,0, aus dem Verlauf | womit ungeprüfte Korrekturen aus „schreiben" zählen; geprüfte zählen 1 |
 | Selbsttraining | aus, unbestätigte Diktate | ob das freigegebene Modell unbestätigte Diktate beschriftet und sie mitlernen |
 | Epochen | fest, geduldig | feste Obergrenze oder Early Stopping |
 | Steuergröße | Validierungsverlust, WER | woran Checkpoint, Abbruch und α gewählt werden |

@@ -551,7 +551,7 @@ export const auswertungStoppen = () =>
 
 // ── Zuschnitt ───────────────────────────────────────────────────────────────
 //
-// Eigene Aufnahmen zuschneiden und teilen, für „Editieren"
+// Eigene Aufnahmen kürzen, teilen, ihren Text berichtigen, für „Editieren"
 // (`backend/api/zuschnitt.py`). Diese Wege verlangen über den Zugang hinaus
 // den Bearbeitungsschlüssel als `X-Editor-Key` - dasselbe Muster wie der
 // Trainerschlüssel in „lernen", und aus demselben Grund: Der Zugang sagt,
@@ -561,55 +561,54 @@ export const auswertungStoppen = () =>
 
 export type Zuschnittaufnahme = {
   id: string;
+  /** Was gesagt wurde: der Text der Aufnahme, sonst der ihrer Vorlage. */
   text: string;
   erstellt: string;
   dauer_s: number;
+  /** Der Stand der Datei - hängt an der Adresse des Audios. */
+  version: string;
+  /** Ob der Text aus dem Sprechen kommt; Speichern prüft ihn dann. */
+  korrektur: boolean;
+  validiert: boolean;
   /** Ein Pegelwert je Fenster, bezogen auf Vollausschlag. */
   verlauf: number[];
   fenster_s: number;
   schwelle: number;
-  /** Wo die Stimme nach dem Pegel liegt - ein Vorschlag, keine Festlegung. */
+  /** Wo die Stimme nach dem Pegel liegt - für „Auto". */
   vorschlag_start_s: number;
   vorschlag_ende_s: number;
 };
-
-export type Zuschnittgrenze = { id: string; start_s: number; ende_s: number };
-
-export type Zuschnittergebnis = { geschrieben: number; fehler: Record<string, string> };
 
 /** Die Köpfe des Zuschnitts: der Bearbeitungsschlüssel, beim Schreiben dazu JSON. */
 const bearbeitung = (json = false): HeadersInit =>
   mitSchluessel(['bearbeitung'], json ? { 'Content-Type': 'application/json' } : {});
 
-/** Die Datei einer Aufnahme - zum Abspielen, ganz oder im Ausschnitt. */
-export const zuschnittOriginal = (aufnahme: string) =>
-  blob(`/zuschnitt/aufnahmen/${aufnahme}/original`, { headers: bearbeitung() });
-
-export const zuschnittSchreiben = (grenzen: Zuschnittgrenze[]) =>
-  anfrage<Zuschnittergebnis>('/zuschnitt/schreiben', {
-    ...alsJson({ grenzen }),
-    headers: bearbeitung(true),
+/**
+ * Die Datei einer Aufnahme - zum Abspielen, ganz oder im Ausschnitt. Die
+ * Version gehört zur Adresse: Nach einem Schnitt ist es eine andere Datei.
+ */
+export const zuschnittOriginal = (aufnahme: string, version: string) =>
+  blob(`/zuschnitt/aufnahmen/${aufnahme}/original?v=${encodeURIComponent(version)}`, {
+    headers: bearbeitung(),
   });
 
 /** Eine einzelne Aufnahme mit Kurve und Vorschlag - für „Editieren". */
 export const zuschnittEine = (aufnahme: string) =>
   anfrage<Zuschnittaufnahme>(`/zuschnitt/aufnahmen/${aufnahme}`, { headers: bearbeitung() });
 
-export type Zuschnittteilung = {
+export type Zuschnittauftrag = {
   id: string;
   start_s: number;
-  teilung_s: number;
   ende_s: number;
-  text_vorn: string;
-  text_hinten: string;
+  /** Ohne Teilung bleibt es eine Aufnahme. */
+  teilung_s: number | null;
+  /** Ein Text je Aufnahme danach: einer, mit Teilung zwei. */
+  texte: string[];
 };
 
-/**
- * Eine Aufnahme durch zwei neue ersetzen, oder durch eine. Das Original ist
- * danach weg; die Teile tragen sein Datum und stehen an seiner Stelle.
- */
-export const zuschnittTeilen = (teilung: Zuschnittteilung) =>
-  anfrage<{ ids: string[] }>('/zuschnitt/teilen', {
-    ...alsJson(teilung),
+/** Kürzen, teilen, Text berichtigen - in einem Schritt. Zurück kommen die Aufnahmen danach. */
+export const zuschnittSpeichern = (auftrag: Zuschnittauftrag) =>
+  anfrage<{ ids: string[] }>('/zuschnitt/speichern', {
+    ...alsJson(auftrag),
     headers: bearbeitung(true),
   });
