@@ -191,9 +191,10 @@ class Posten:
         return (self.aufnahme_id, self.modell)
 
 
-# Der Ton, auf dem ein Lauf eine Aufnahme kannte: Pfad und Dauer aus dem
-# Manifest. `None`, wenn das Manifest fehlt.
-Ton = tuple[str, float] | None
+# Der Ton, auf dem ein Lauf eine Aufnahme kannte: Pfad, Dauer und Text aus dem
+# Manifest - der Text `None`, wo die Zeile keinen trägt. `None`, wenn das
+# Manifest fehlt.
+Ton = tuple[str, float, str | None] | None
 
 # Je Laufverzeichnis das Gelesene samt dem Stand der Dateien - gefragt wird
 # bei jedem Posten und jeder Abfrage des Fortschritts.
@@ -239,7 +240,12 @@ def _gehoert_im_lauf(verzeichnis: Path) -> dict[str, Ton]:
             continue
         if kern is not None and kennung not in kern:
             continue
-        gehoert[kennung] = (str(zeile.get("audio") or ""), float(zeile.get("dauer_s") or 0.0))
+        text = zeile.get("text")
+        gehoert[kennung] = (
+            str(zeile.get("audio") or ""),
+            float(zeile.get("dauer_s") or 0.0),
+            None if text is None else str(text),
+        )
     _gehoert_zwischen[verzeichnis] = (stempel, gehoert)
     return gehoert
 
@@ -292,8 +298,35 @@ def derselbe_ton(aufnahme: Aufnahme, damals: Ton) -> bool:
     """
     if damals is None:
         return True
-    _, dauer = damals
+    _, dauer, _ = damals
     return abs(dauer - aufnahme.dauer_s) < 1e-3
+
+
+def anderer_text(referenz: str, damals: Ton) -> bool:
+    """Ob der Text einer Aufnahme heute ein anderer ist als im Lauf.
+
+    Verglichen wie gemessen (`metriken.normalisiere`): Groß- und
+    Kleinschreibung oder Satzzeichen ändern kein Maß. Ohne Text im Manifest
+    lässt sich nichts vergleichen; dann gilt er als derselbe.
+    """
+    if damals is None or damals[2] is None:
+        return False
+    return metriken.normalisiere(referenz) != metriken.normalisiere(damals[2])
+
+
+def masse_der_faltung(zeile: dict, referenz: str, damals: Ton) -> dict[str, float] | None:
+    """Die Maße, die eine Faltung heute ehrlich beiträgt - `None`, wenn keine.
+
+    Den Ton hat die Faltung gehört, ohne ihn zu kennen; was sie erkannt hat
+    (`text`), gilt also weiter. Nur der Text, an dem gemessen wird, kann sich
+    seither geändert haben (`Editieren`) - dann wird ihr Erkanntes am heutigen
+    gemessen, nicht ihre Zahl am alten übernommen.
+    """
+    if anderer_text(referenz, damals):
+        return metriken.bewerte(referenz, str(zeile.get("text") or "")).als_dict()
+    if any(zeile.get(mass) is None for mass in metriken.GUETEFELDER):
+        return None
+    return {mass: float(zeile[mass]) for mass in metriken.GUETEFELDER}
 
 
 def vergiss_ueberholte_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -> int:
@@ -302,7 +335,9 @@ def vergiss_ueberholte_faltungen(db: Session, datenverzeichnis: Path, sprecher_i
     Der Zuschnitt löscht die Messungen einer Aufnahme (`api/zuschnitt.py`),
     der Abgleich übernähme die Faltung aber wieder - also wird sie hier
     weggeräumt und nicht übernommen. Ebenso jede selbst gerechnete Zeile
-    eines Standes über etwas, das er kannte (`verwandte`).
+    eines Standes über etwas, das er kannte (`verwandte`), und jede
+    Faltungszeile, die nicht am heutigen Text misst (`masse_der_faltung`) -
+    `uebernimm_faltungen` schreibt sie neu.
     """
     namen = [
         str(manifest.get("id", ""))
@@ -311,18 +346,30 @@ def vergiss_ueberholte_faltungen(db: Session, datenverzeichnis: Path, sprecher_i
     bekannt = gehoert(datenverzeichnis, namen)
     if not bekannt:
         return 0
-    aufnahmen = {aufnahme.id: aufnahme for aufnahme, _ in gueltige_aufnahmen(db)}
+    aufnahmen = {aufnahme.id: (aufnahme, vorlage) for aufnahme, vorlage in gueltige_aufnahmen(db)}
     gesperrt = verwandte(db, bekannt)
+
+    def ueberholt(zeile: Erkennung) -> bool:
+        if zeile.recording_id not in gesperrt[zeile.modell]:
+            return False
+        if zeile.recording_id not in bekannt[zeile.modell] or zeile.herkunft != FALTUNG:
+            return True
+        if (gilt := aufnahmen.get(zeile.recording_id)) is None:
+            return True
+        aufnahme, vorlage = gilt
+        damals = bekannt[zeile.modell][zeile.recording_id]
+        if not derselbe_ton(aufnahme, damals):
+            return True
+        referenz = aufnahme.text_zu(vorlage)
+        if not anderer_text(referenz, damals):
+            return False
+        heute = metriken.bewerte(referenz, zeile.text).als_dict()
+        return any(abs(heute[mass] - getattr(zeile, mass)) > 1e-6 for mass in metriken.GUETEFELDER)
+
     weg = [
         zeile.id
         for zeile in db.scalars(select(Erkennung).where(Erkennung.modell.in_(list(bekannt))))
-        if zeile.recording_id in gesperrt[zeile.modell]
-        and (
-            zeile.recording_id not in bekannt[zeile.modell]
-            or zeile.herkunft != FALTUNG
-            or (aufnahme := aufnahmen.get(zeile.recording_id)) is None
-            or not derselbe_ton(aufnahme, bekannt[zeile.modell][zeile.recording_id])
-        )
+        if ueberholt(zeile)
     ]
     if not weg:
         return 0
@@ -347,7 +394,7 @@ def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -
             select(Erkennung.recording_id, Erkennung.modell).where(Erkennung.herkunft == FALTUNG)
         ).all()
     }
-    gueltig = {aufnahme.id: aufnahme for aufnahme, _ in gueltige_aufnahmen(db)}
+    gueltig = {aufnahme.id: (aufnahme, vorlage) for aufnahme, vorlage in gueltige_aufnahmen(db)}
 
     neu = 0
     for manifest in registry.alle_staende(datenverzeichnis, sprecher_id):
@@ -363,12 +410,15 @@ def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -
             # Nur was heute gilt - gelöschte und verworfene Aufnahmen nicht.
             if not kennung or kennung not in gueltig:
                 continue
+            aufnahme, vorlage = gueltig[kennung]
             # Nur auf dem Ton, der heute gilt (`derselbe_ton`).
-            if not derselbe_ton(gueltig[kennung], damals.get(kennung)):
+            if not derselbe_ton(aufnahme, damals.get(kennung)):
                 continue
             if (kennung, ref) in vorhanden:
                 continue
-            if any(zeile.get(mass) is None for mass in metriken.GUETEFELDER):
+            # Gemessen am Text, der heute gilt (`masse_der_faltung`).
+            masse = masse_der_faltung(zeile, aufnahme.text_zu(vorlage), damals.get(kennung))
+            if masse is None:
                 continue
             db.add(
                 Erkennung(
@@ -376,7 +426,7 @@ def uebernimm_faltungen(db: Session, datenverzeichnis: Path, sprecher_id: str) -
                     recording_id=kennung,
                     modell=ref,
                     text=str(zeile.get("text") or ""),
-                    **{mass: float(zeile[mass]) for mass in metriken.GUETEFELDER},
+                    **masse,
                     rechenzeit_s=float(zeile.get("rechenzeit_s") or 0.0),
                     # Das Rechenwerk des Trainers - die Rechenzeit ist dann nicht
                     # vergleichbar (`zeit_vergleichbar` in „lernen").

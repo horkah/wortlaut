@@ -485,7 +485,8 @@ Ohne Split:
 2. Dauer, Pegel, Stille und Hinweise der Zeile kommen aus der neuen Datei.
 3. Ändern sich Ton oder Text, werden die Messwerte der Aufnahme gelöscht,
    übernommene Faltungen eingeschlossen; der nächste Auswertungslauf rechnet
-   neu.
+   neu. Blieb der Ton, kommt eine Faltung beim nächsten Abgleich wieder,
+   gemessen am neuen Text (siehe „Die eigenen Stände treten mit an").
 
 Danach steht die neue Fassung im Editor, die Linien wieder außen.
 
@@ -534,12 +535,15 @@ Vorlage vergleichen (`services/auswertung.py`). Die Zahlen sind die Baseline
 für `lernen`. Gemessen wird ein Korpus, der des Zugangs; verworfene Aufnahmen
 zählen nicht.
 
-**Korrekturen aus „schreiben" misst kein Modell.** Ihr Text ist die Ausgabe
-eines Erkenners, so oft neu gesprochen, bis sie stimmte, und dann abgenickt -
-an ihr gemessen, zählte ein Modell dessen Fehler als richtig. Ein Stand hat sie
-zudem gelernt, und keine Faltung misst sie. Sie fehlen deshalb in Kurve,
-Kennzahlen und Zählung, für Grundmodelle wie für Stände; gelernt wird an ihnen
-weiter.
+**Ungeprüfte Korrekturen aus „schreiben" misst kein Modell.** Ihr Text ist
+die Ausgabe eines Erkenners, so oft neu gesprochen, bis sie stimmte, und dann
+abgenickt - an ihr gemessen, zählte ein Modell dessen Fehler als richtig. Sie
+fehlen deshalb in Kurve, Kennzahlen und Zählung; gelernt wird an ihnen weiter.
+Hat ein Mensch ihren Text in „Editieren" geprüft (`recordings.validiert`),
+zählt sie wie eine Vorlage. Ein Stand, der sie gelernt hat, als sie noch
+ungeprüft war, hat für sie keine Zahl: Er misst sie nicht selbst, und seine
+Faltungen haben sie nicht gemessen. Bei ihm fehlt sie, bei den Grundmodellen
+nicht - die Zählung unterscheidet sich darum.
 
 Es treten an die Grundmodelle aus `WORTLAUT_AUSWERTUNG_MODELLE`:
 
@@ -575,6 +579,11 @@ hat. Die Faltungen werden beim Öffnen der Seite übernommen
   Faltung nicht übernommen und, wo sie steht, weggeräumt
   (`vergiss_ueberholte_faltungen`). Die Stelle bleibt dann leer und zählt
   weder als offen noch als erledigt.
+- **Gemessen wird am Text, der heute gilt.** Blieb der Ton, aber der Text ist
+  ein anderer als im Manifest des Laufs, gilt das Erkannte der Faltung weiter
+  - die Maße werden daraus gegen den neuen Text gerechnet, nicht vom alten
+  übernommen (`masse_der_faltung`). Satzzeichen und Großschreibung zählen
+  dabei nicht (`metriken.normalisiere`).
 - **Ohne Gewichte tritt ein Stand nicht an**, und ein gelöschter räumt seine
   Zeilen (`vergiss_verschwundene_staende`, im Lauf `noch_da`).
 - **Übernommene Zeilen gelten nie als offen** - ihre Rechenzeit stammt von der
