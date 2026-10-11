@@ -441,6 +441,7 @@ class TestTeilen:
         with Session(deps.engine_fuer(sprecher)) as sitzung:
             assert sitzung.get(Aufnahme, kopie).sortierschluessel == f"{kennung}.1"
             assert sitzung.get(Aufnahme, kopie).dauer_s == pytest.approx(3.0, abs=0.01)
+            assert zuschnitt.vorfahren(sitzung.get(Aufnahme, kopie)) == [kennung]
         assert [eine for eine, _, _ in gueltige(sprecher)] == [kopie]
 
     def test_ein_teil_wird_wieder_geteilt(
@@ -468,6 +469,9 @@ class TestTeilen:
             assert sitzung.get(Aufnahme, vorn).sortierschluessel == f"{kennung}.1.1"
             assert sitzung.get(Aufnahme, hinten).sortierschluessel == f"{kennung}.1.2"
             assert zuschnitt.stamm(sitzung.get(Aufnahme, vorn)) == kennung
+            # Die Vorfahren stehen am Teil, auch wenn beide gelöscht sind.
+            assert sitzung.get(Aufnahme, kopie) is None
+            assert zuschnitt.vorfahren(sitzung.get(Aufnahme, hinten)) == [kennung, kopie]
 
     def test_teilung_muss_zwischen_den_grenzen_liegen(
         self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
@@ -543,3 +547,55 @@ class TestOriginal:
         with Session(deps.engine_fuer(sprecher)) as sitzung:
             assert sitzung.get(Aufnahme, verworfen) is None
             assert sitzung.get(Vorlage, vorlage_id) is None
+
+
+class TestAlteOriginale:
+    """`scripts/alte_originale.py`: Originale neben ihren Teilen aus älteren Beständen."""
+
+    def test_findet_originale_mit_teilen_ueber_alle_stufen(
+        self, schneider: TestClient, sprecher: str, quelle: str, audio_datei: dict
+    ) -> None:
+        original = nimm_auf(schneider, sprecher, audio_datei)
+        allein = nimm_auf(schneider, sprecher, audio_datei)
+        with Session(deps.engine_fuer(sprecher)) as sitzung:
+            vorlage = sitzung.get(Aufnahme, original).prompt_id
+            vorlage_allein = sitzung.get(Aufnahme, allein).prompt_id
+            # Wie ältere Bestände: Teil und Teil des Teils neben dem Original.
+            for kennung, schluessel, an in (
+                ("rec_teil", f"{original}.1", vorlage_allein),
+                ("rec_enkel", f"{original}.1.1", vorlage_allein),
+            ):
+                zeile = sitzung.get(Aufnahme, allein)
+                sitzung.add(
+                    Aufnahme(
+                        id=kennung,
+                        prompt_id=an,
+                        speaker_id=zeile.speaker_id,
+                        session_id=zeile.session_id,
+                        blob=zeile.blob,
+                        dauer_s=zeile.dauer_s,
+                        pegel_dbfs=zeile.pegel_dbfs,
+                        spitze_dbfs=zeile.spitze_dbfs,
+                        clipping_anteil=zeile.clipping_anteil,
+                        stille_vorn_s=zeile.stille_vorn_s,
+                        stille_hinten_s=zeile.stille_hinten_s,
+                        modus=zeile.modus,
+                        status=GUELTIG,
+                        hinweise="[]",
+                        externe_id=None,
+                        sortierschluessel=schluessel,
+                        erstellt=zeile.erstellt,
+                    )
+                )
+            sitzung.commit()
+
+            gefunden = {aufnahme.id for aufnahme in zuschnitt.geteilte_originale(sitzung)}
+            assert gefunden == {original, "rec_teil"}
+
+            for aufnahme in zuschnitt.geteilte_originale(sitzung):
+                zuschnitt.entferne(sitzung, aufnahme)
+            sitzung.commit()
+            assert sitzung.get(Aufnahme, original) is None
+            assert sitzung.get(Vorlage, vorlage) is None
+            assert sitzung.get(Aufnahme, "rec_enkel") is not None
+            assert zuschnitt.geteilte_originale(sitzung) == []

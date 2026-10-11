@@ -1,0 +1,12 @@
+-- Woraus eine Aufnahme hervorging: die Kennungen aller Vorfahren, ältester
+-- zuerst, als JSON-Liste. Leer bei jeder gewöhnlichen Aufnahme; bei einem Teil
+-- aus „Editieren" die des Originals, und wird der Teil wieder geteilt, dazu
+-- seine eigene (`api/zuschnitt.teilen`).
+--
+-- Die Liste steht an der Aufnahme selbst, weil die Vorfahren beim Teilen
+-- gelöscht werden: Sie bleibt richtig, auch wenn keiner von ihnen mehr da
+-- ist. Ein Stand, der einen Vorfahren im Training hatte, wird an keinem
+-- Nachfahren gemessen (`auswertung.verwandte`).
+--
+-- Was schon im Korpus liegt, bekommt keine Vorfahren und gilt als Original.
+ALTER TABLE recordings ADD COLUMN vorfahren TEXT NOT NULL DEFAULT '[]';

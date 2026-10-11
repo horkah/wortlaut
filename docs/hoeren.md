@@ -410,8 +410,18 @@ Stelle hält.
 **Die Teile ersetzen das Original.** Nach der Rückfrage mit Warnzeichen geht
 es ganz: Zeile, Datei, Messwerte und seine Vorlage, samt verworfenen
 Aufnahmen desselben Satzes - sonst stünde er wieder in der Warteschlange.
-Faltung und Verwandtschaft bleiben am Stamm (`zuschnitt.stamm`), auch ohne
-Original.
+
+**Jeder Teil trägt seine Vorfahren** (`recordings.vorfahren`): die Kennung
+des Originals, und wird ein Teil wieder geteilt, auch seine - über alle
+Generationen. Ein Stand, der einen Vorfahren im Training hatte, wird an
+keinem Nachfahren gemessen, auch wenn alle Vorfahren gelöscht sind
+(`auswertung.verwandte`). Teile desselben Originals untereinander sperren
+sich nicht; sie sind verschiedener Ton. Die Faltung erbt ein Teil vom
+Original (`zuschnitt.stamm`).
+
+Ältere Bestände können geteilte Originale noch neben ihren Teilen führen;
+`scripts/alte_originale.py` zeigt sie und nimmt sie mit `--loeschen` heraus.
+Die Teile gelten danach als Originale.
 
 ### Der Schlüssel
 
@@ -464,8 +474,8 @@ hat. Die Faltungen werden beim Öffnen der Seite übernommen
 (`auswertung.gleiche_ab`), nicht erst beim Druck auf den Knopf.
 
 - **Gekannt** hat ein Stand, was sein Lauf gelernt und gemessen hat -
-  bei einem Kernlauf nur den Kern (`_gehoert_im_lauf`) - samt Teilen und
-  Kopien davon (`verwandte`).
+  bei einem Kernlauf nur den Kern (`_gehoert_im_lauf`) - samt allen Teilen
+  und Kopien, die daraus hervorgingen, über alle Generationen (`verwandte`).
 - **Eine Faltung gilt nur für den Ton, auf dem sie gemessen wurde.** Hat die
   Aufnahme seither eine andere Dauer, weil sie zugeschnitten wurde, wird die
   Faltung nicht übernommen und, wo sie steht, weggeräumt

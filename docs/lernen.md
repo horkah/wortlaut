@@ -28,7 +28,7 @@ Sprecher: Es gibt eine Karte.
 ## Sechsfache Kreuzvalidierung
 
 Die Aufnahmen gehen auf sechs Faltungen, je Stamm: Teile und Kopien aus
-„Editieren" sind derselbe Ton wie ihr Original und teilen dessen Faltung.
+„Editieren" tragen den Stamm ihres Originals und teilen dessen Faltung.
 **Die Faltung wird mit der ersten Aufnahme eines Stamms vergeben** - in die
 Faltung mit der wenigsten Sprache - und steht dann fest in „hören"
 (`hoeren/services/faltungen.py`, Tabelle `faltungen`). So bleiben die
@@ -200,8 +200,8 @@ Kernmodell werden (`laeufe.KERN_ANTEIL`).
 denselben Quellen wie in der Modelltafel: bei einem trainierten
 Stand aus seiner Kreuzvalidierung und für später dazugekommene Aufnahmen aus
 der Auswertung in „hören", bei einem Grundmodell allein aus „hören". Teile und
-Kopien erben den Wert ihres Originals. Bei gleicher WER entscheidet die
-Kennung.
+Kopien erben den Wert ihres nächsten Vorfahren, der einen hat
+(`recordings.vorfahren`). Bei gleicher WER entscheidet die Kennung.
 
 **Wie viele, steht beim Auftrag fest** - 70 % aller Aufnahmen, aufgerundet
 (`laeufe.kern_anzahl`). Die Übersicht zeigt von Anfang an, worauf gerechnet

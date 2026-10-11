@@ -94,6 +94,7 @@ Im Container gibt es weder `make` noch `uv`. Daneben:
 |---|---|
 | `scripts/vorlesen.py` | Stimmen holen (`--hole <stimme>`), alle Vorlagen vorab sprechen |
 | `scripts/importieren.py` | Paare aus Ton und Text von außerhalb als Textquelle übernehmen |
+| `scripts/alte_originale.py` | geteilte Originale, die noch neben ihren Teilen stehen, zeigen und mit `--loeschen` herausnehmen |
 | `scripts/paare_teilen.py` | zu lange Paare aus Ton und Text vor dem Import in Stücke unter 30 s teilen, bevorzugt an Satzenden und in der Stille |
 | `scripts/register.py` | alle vorhandenen Läufe ins Register der Läufe eintragen ([lernen](lernen.md#das-register-der-läufe)) |
 | `scripts/restore.py`, `scripts/purge_speaker.py` | siehe unten |

@@ -14,7 +14,8 @@ neuen Datei nachgeführt, die Messwerte weg - auch
 Auswertungslauf rechnet neu.
 
 **Beim Teilen** entstehen neue Aufnahmen, und das Original geht: Zeile,
-Datei, Messwerte und seine Vorlage (`teilen`).
+Datei, Messwerte und seine Vorlage. Die Teile tragen die Kennungen aller
+Vorfahren (`teilen`).
 
 Den Ausschnitt spielt der Browser aus der geladenen Datei ab
 (`packages/ui/ausschnitt.ts`); vorläufige Dateien auf dem Server gibt es
@@ -263,8 +264,11 @@ def teilen(
     dazu dessen Datum und einen Sortierschlüssel darunter. Pegel und Hinweise
     kommen aus den neuen Dateien; gemessen wird beim nächsten Auswertungslauf.
 
-    Das Original geht danach ganz (`_entferne`): Seine Teile stehen an seiner
-    Stelle, und sein Satz käme sonst wieder in die Warteschlange.
+    Das Original geht danach ganz (`zuschnitt.entferne`): Seine Teile stehen
+    an seiner Stelle, und sein Satz käme sonst wieder in die Warteschlange.
+    Jeder Teil trägt die Kennungen des Originals und all seiner Vorfahren
+    (`zuschnitt.vorfahren`) - kein Stand, der einen davon im Training hatte,
+    wird an ihm gemessen.
     """
     original = _eigene(db, sprecher, teilung.id)
     vorlage = db.get(Vorlage, original.prompt_id)
@@ -321,11 +325,12 @@ def teilen(
             # Ein Teil einer Korrektur ist so oft gesprochen wie sie.
             anlaeufe=original.anlaeufe,
             sortierschluessel=f"{stamm}.{nummer}",
+            vorfahren=zuschnitt.nachfahren_von(original),
             erstellt=original.erstellt,
         )
         db.add(teil)
     db.flush()
-    blob = _entferne(db, original)
+    blob = zuschnitt.entferne(db, original)
     db.commit()
     # Die Datei erst, wenn die Zeilen sicher stehen - sonst fehlte sie einer
     # Zeile, die ein gescheitertes Commit stehen ließe.
@@ -333,24 +338,3 @@ def teilen(
 
     return Teile(ids=kennungen)
 
-
-def _entferne(db: Datenbank, aufnahme: Aufnahme) -> str:
-    """Eine Aufnahme aus dem Bestand nehmen, samt Messwerten und - wenn sonst
-    keine gültige Aufnahme an ihr hängt - ihrer Vorlage.
-
-    Verworfene Zeilen derselben Vorlage gehen mit: Sie hielten die Vorlage
-    fest, und die stünde dann wieder in der Warteschlange. Gibt den Pfad der
-    Datei zurück; die löscht der Aufrufer nach dem Commit.
-    """
-    vorlage_id, blob = aufnahme.prompt_id, aufnahme.blob
-    db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme.id))
-    db.delete(aufnahme)
-    db.flush()
-    an_der_vorlage = db.scalars(select(Aufnahme).where(Aufnahme.prompt_id == vorlage_id)).all()
-    if not any(andere.status == GUELTIG for andere in an_der_vorlage):
-        for andere in an_der_vorlage:
-            db.execute(delete(Erkennung).where(Erkennung.recording_id == andere.id))
-            db.delete(andere)
-        if (vorlage := db.get(Vorlage, vorlage_id)) is not None:
-            db.delete(vorlage)
-    return blob
