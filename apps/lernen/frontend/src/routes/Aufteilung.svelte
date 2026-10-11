@@ -3,6 +3,7 @@
    * Die Aufteilung der Aufnahmen auf die Faltungen der Kreuzvalidierung
    * (`docs/lernen.md`). Die Aufnahmen selbst stehen unter „Meine Daten".
    */
+  import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import { onMount } from 'svelte';
   import { MEINE_DATEN_PFAD } from '$ui/apps';
@@ -33,7 +34,11 @@
   });
 </script>
 
-<h2>Aufteilung</h2>
+<h2
+  use:erklaert={'Ausgeliefert wird das Mittel der Faltungsmodelle, ohne die, die schiefgingen. Es hat gelernt, woran die Faltungen gemessen wurden; seine Zahl ist die der Kreuzvalidierung. Ein unabhängiger Test fehlt: Die Zahl gilt für diesen Korpus, nicht für die nächste Aufnahme.'}
+>
+  Aufteilung
+</h2>
 
 {#if fehler}
   <p class="fehler">{fehler}</p>
@@ -41,7 +46,11 @@
   <p class="gedaempft">Wird geladen …</p>
 {:else}
   <div class="karte">
-    <h3>{faltungen} Faltungen</h3>
+    <h3
+      use:erklaert={`Jede Aufnahme liegt fest in einer von ${faltungen} Faltungen. Ein Lauf trainiert ${faltungen}-mal, jeweils auf den übrigen Faltungen, und misst an der zurückgehaltenen. So hört jedes Modell nur Aufnahmen, die es nicht kannte - das ist die Zahl in „Modelle“.`}
+    >
+      {faltungen} Faltungen
+    </h3>
 
     {#if daten.aufnahmen > 0}
       <div class="faltungen" aria-hidden="true">

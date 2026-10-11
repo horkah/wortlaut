@@ -222,3 +222,25 @@ input[type='checkbox'][role='switch']:focus-visible {
   height: 100%;
   background: var(--akzent);
 }
+
+/* Die Blase zu einer Überschrift (`erklaerung.ts`). Sie hängt am Dokument,
+   nicht an der Überschrift, und fängt keinen Zeiger ab. */
+.erklaerung {
+  position: absolute;
+  z-index: 20;
+  width: max-content;
+  max-width: min(22rem, calc(100vw - 16px));
+  box-sizing: border-box;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--rand);
+  border-left: 3px solid var(--akzent);
+  border-radius: 0.4rem;
+  background: var(--hintergrund);
+  color: var(--text);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.12);
+  font-size: 0.85rem;
+  font-weight: normal;
+  line-height: 1.45;
+  text-align: left;
+  pointer-events: none;
+}

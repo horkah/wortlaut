@@ -26,6 +26,7 @@
    * wird bis dahin wie im Zuschnitt aus der geladenen Datei (`$ui/ausschnitt`),
    * ohne vorläufige Dateien auf dem Server.
    */
+  import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import Pegelverlauf from '$ui/Pegelverlauf.svelte';
   import { spiele, stoppe, vergiss } from '$ui/ausschnitt';
@@ -257,7 +258,11 @@
 </script>
 
 <div class="reihe titel">
-  <h2>Editieren</h2>
+  <h2
+    use:erklaert={'Die gestrichelte Linie teilt die Aufnahme in zwei, die beiden äußeren bestimmen, was von jedem Teil an den Rändern bleibt. Ein Klick auf eine Lücke im Text setzt die Stelle, an der der Text geteilt wird - auch vor dem ersten oder nach dem letzten Wort. Beide Felder lassen sich berichtigen, wenn anders gesprochen wurde, als dasteht. Liegt die Teilung auf Anfang oder Ende, wird nur der andere Teil gespeichert. Es entstehen neue Aufnahmen, verlustfrei aus dem Original geschnitten; das Original bleibt, gemessen werden die neuen bei der nächsten Auswertung.'}
+  >
+    Editieren
+  </h2>
   <button class="knopf" onclick={() => gehZu(ZUSCHNITT_PFAD)}>Zurück zum Zuschnitt</button>
 </div>
 

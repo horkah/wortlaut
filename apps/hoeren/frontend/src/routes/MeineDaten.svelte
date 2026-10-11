@@ -10,6 +10,7 @@
    * verwerfen (dasselbe Verwerfen wie beim Aufnehmen, `Aufnahme.svelte`),
    * sich umbenennen und beides mitnehmen, Sicherung wie Datensatz.
    */
+  import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Kalender from '$ui/Kalender.svelte';
@@ -290,7 +291,11 @@
 {/if}
 
 {#if stand === 'noetig'}
-  <h2>Meine Daten</h2>
+  <h2
+    use:erklaert={'Die vierstellige PIN, die unter „Meine Daten“ vergeben wurde. Wer sie vergessen hat, lässt sie von der Aufsicht zurücksetzen.'}
+  >
+    Meine Daten
+  </h2>
   <div class="karte">
     <p>Diese Seite ist mit einer PIN gesichert.</p>
     <form class="reihe" onsubmit={entsperren}>
@@ -343,7 +348,7 @@
     <div><strong>{zahlen.verworfen}</strong><span>verworfen</span></div>
   </div>
 
-  <h2>Ausleiten</h2>
+  <h2 use:erklaert={'Sicherung: Datenbank und Aufnahmen, zurückzuspielen mit scripts/restore.py - ohne Messwerte, die rechnet die Auswertung neu. Datensatz: je Aufnahme WAV und Text, für fremde Werkzeuge; keine Sicherung.'}>Ausleiten</h2>
   <div class="karte">
     <div class="reihe">
       <button
@@ -370,7 +375,11 @@
     Seiten läuft; alles, was man einmal einstellt, stünde dahinter außer
     Sicht. Dieselbe Reihenfolge wie in der Einsicht der Aufsicht.
   -->
-  <h2>PIN</h2>
+  <h2
+    use:erklaert={'Vier Ziffern, die diese Seite zusätzlich zum Zugang sichern - gegen den Klick aus Versehen, nicht als zweites Passwort.'}
+  >
+    PIN
+  </h2>
   <div class="karte">
     <form class="reihe" onsubmit={pinAendern}>
       <input
@@ -438,7 +447,11 @@
     {/if}
   </div>
 
-  <h2>Aufnahmen</h2>
+  <h2
+    use:erklaert={'Zwischen dem Druck auf den Aufnahmeknopf und dem ersten Laut liegt meist eine Sekunde, hinten oft mehr. Der Zuschnitt zeigt zu jeder Aufnahme den Lautstärkeverlauf und schneidet weg, was davor und dahinter steht; er überschreibt die Originale und braucht den Bearbeitungsschlüssel dieses Servers.'}
+  >
+    Aufnahmen
+  </h2>
   <!--
     Der Weg in den Zuschnitt steht über der Liste und nicht bei „Ausleiten":
     Er handelt von genau diesen Aufnahmen, und wer sie gerade durchsieht, ist

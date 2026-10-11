@@ -10,6 +10,7 @@
    * eingesprochen und neu transkribiert, alle anderen bleiben unberührt. Das
    * ist der Grund, warum Abschnitte einzeln mit Audio gespeichert werden.
    */
+  import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import { untrack } from 'svelte';
   import AudioPlayer from '$ui/AudioPlayer.svelte';
@@ -244,7 +245,9 @@
   {#if stimmeVerfuegbar(lage.sprache, einstellungen.stimmeUri)}
     <button class="knopf" onclick={tippeVorlesen}>{liest ? '■ Anhalten' : '▶ Vorlesen'}</button>
   {/if}
-  <span class="gedaempft">{abschnitte.length} Abschnitte</span>
+  <span class="gedaempft" use:erklaert={'Ein Tipp auf einen Abschnitt bessert ihn.'}>
+    {abschnitte.length} Abschnitte
+  </span>
 </div>
 
 <SegmentList
@@ -284,7 +287,11 @@
     </p>
     {#if versand.offen > 0}
       <div class="hinweise">
-        <strong>Noch nicht alles übergeben.</strong>
+        <strong
+          use:erklaert={'Der Rest liegt im Postausgang. Verloren gehen kann nichts, und ein neuer Versuch schadet nie.'}
+        >
+          Noch nicht alles übergeben.
+        </strong>
         <p>{versand.fehler ?? 'Unbekannter Grund.'}</p>
         <button class="knopf" onclick={nochmalSenden} disabled={stand === 'sendet'}>
           Noch einmal senden

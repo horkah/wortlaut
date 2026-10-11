@@ -11,6 +11,7 @@
    * Die beste Zahl jeder Spalte fällt auch ohne Sortieren ins Auge, farbig und
    * mit einem Wort im `title`.
    */
+  import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import { ANZEIGE_GEBIET } from '$ui/sprache';
   import { zeitpunkt } from '$ui/zeit';
@@ -210,7 +211,11 @@
   onMount(hole);
 </script>
 
-<h2>Modelle</h2>
+<h2
+  use:erklaert={'Was diesem Menschen zuhören kann: die selbst trainierten Stände und die unveränderten Grundmodelle, gemessen an denselben Testaufnahmen, die keines zum Lernen gesehen hat - Grundmodelle in der Auswertung von „hören“, eigene Stände in der Bewertung ihres Laufs. Die Bereiche sind 95-%-Bereiche aus 2000 Ziehungen über die Aufnahmen; der gepaarte Abstand über „Gegen“ ist schärfer, weil auf denselben Aufnahmen. Freigegeben ist höchstens eines, und mit ihm arbeitet „schreiben“ sofort; das erste Diktat danach dauert länger, weil das Modell geladen wird.'}
+>
+  Modelle
+</h2>
 
 {#if fehler}
   <p class="fehler">{fehler}</p>

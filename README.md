@@ -74,7 +74,8 @@ Netz nur die Grundmodelle - Aufnahmen verlassen die Maschine nicht.
 **Die Oberfläche ist für den gebaut, der sie braucht.** Ein persönlicher Link
 statt einer Anmeldung, höchstens eine vierstellige PIN. Schrift, Kontrast und
 sogar die sichtbaren Reiter sind einstellbar - wer nur diktiert, sieht nur den
-Knopf.
+Knopf. Erklärungen stehen nicht im Weg: Wer eine Überschrift antippt oder mit
+der Maus darauf verweilt, liest, wie der Abschnitt darunter gemeint ist.
 
 ---
 

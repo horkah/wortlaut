@@ -4,6 +4,7 @@
    * ein hochgeladener Text. Beides wird zu Sprecheinheiten geschnitten und
    * hinten an die Warteschlange gehängt.
    */
+  import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import Papierkorb from '$ui/Papierkorb.svelte';
   import {
@@ -263,6 +264,14 @@
     }
   }
 
+  const erklaerungEigenerText = $derived(
+    'txt, md, pdf, epub oder docx' +
+      (kannErkennen
+        ? ' - oder das Foto einer Seite, ein eingescanntes PDF, ein Bild aus der Zwischenablage. Der Text wird dann erkannt; das Kamerasymbol öffnet direkt die Kamera. Auf dem iPhone erkennt langes Drücken auf das Bild den Text oft besser, und er lässt sich kopieren und einfügen.'
+        : '.') +
+      ' Vor dem Übernehmen liegt der Text zum Durchsehen vor: Kopfzeilen, Seitenzahlen und Fußnoten will niemand vorlesen, und was stehen bleibt, wird vorgesprochen und nachgesprochen.',
+  );
+
   lade();
 </script>
 
@@ -283,7 +292,7 @@
   <button class="knopf haupt" type="submit" disabled={laeuft}>Text erzeugen</button>
 </form>
 
-<h2>Eigener Text</h2>
+<h2 use:erklaert={erklaerungEigenerText}>Eigener Text</h2>
 
 {#if entwurf}
   <!--

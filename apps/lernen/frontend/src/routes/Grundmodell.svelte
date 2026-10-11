@@ -14,6 +14,7 @@
    * daneben: Die Frage vor einem Grundmodell ist meist, ob es das eigene
    * schlägt - nicht umgekehrt wie beim Lauf, der sich gegen seine Baseline misst.
    */
+  import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import { ANZEIGE_GEBIET } from '$ui/sprache';
   import { zeitpunkt } from '$ui/zeit';
@@ -98,7 +99,7 @@
   {#if !fehler}<p class="gedaempft">Wird geladen …</p>{/if}
 {:else}
   <div class="kopfzeile">
-    <h2>
+    <h2 use:erklaert={daten.erklaerung}>
       <code class="kennung">Grundmodell</code>
       <span class="optionscode">{daten.titel}</span>
     </h2>
@@ -138,7 +139,11 @@
   </details>
 
   {#if gemessen && modell}
-    <h3>Auf den Aufnahmen dieses Menschen</h3>
+    <h3
+      use:erklaert={'Dieselben Zahlen wie in der Modelltabelle, über dieselben Aufnahmen. Ein Grundmodell hat keine davon gelernt - jede ist für es neu. Hervorgehoben ist, wo es besser ist als das freigegebene Modell. Die Rechenzeit gilt für das Rechenwerk im Steckbrief.'}
+    >
+      Auf den Aufnahmen dieses Menschen
+    </h3>
 
     <table class="vergleich">
       <thead>

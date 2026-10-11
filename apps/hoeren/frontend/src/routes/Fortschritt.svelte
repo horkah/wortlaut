@@ -7,6 +7,7 @@
    * niemand umrechnen (Grundentscheidung 7). Gerechnet in `$ui/zeit`, wie in
    * „Meine Daten" und der Sprecherliste.
    */
+  import { erklaert } from '$ui/erklaerung';
   import { dauer } from '$ui/zeit';
   import { fortschritt, type Fortschritt } from '../lib/api';
 
@@ -53,7 +54,11 @@
   </p>
   <div class="balken"><div style="width:{anteil(daten.sekunden, daten.marke_gut_s)}%"></div></div>
 
-  <h2>Zusammensetzung</h2>
+  <h2
+    use:erklaert={'Nachgesprochenes und Korrekturen sind schwächere Daten und werden im Training niedriger gewichtet.'}
+  >
+    Zusammensetzung
+  </h2>
   <table>
     <tbody>
       {#each Object.entries(daten.nach_modus) as [modus, anzahl]}

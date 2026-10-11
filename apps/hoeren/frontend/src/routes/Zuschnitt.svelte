@@ -23,6 +23,7 @@
    * Ausschnitt eine Zahl im Browser und wird aus der geladenen Datei
    * abgespielt (`$ui/ausschnitt`) - keine vorläufigen Dateien auf dem Server.
    */
+  import { erklaert } from '$ui/erklaerung';
   import { untrack } from 'svelte';
   import Pager from '$ui/Pager.svelte';
   import Pegelverlauf from '$ui/Pegelverlauf.svelte';
@@ -281,7 +282,11 @@
 </script>
 
 <div class="reihe titel">
-  <h2>Zuschnitt</h2>
+  <h2
+    use:erklaert={'Die orangen Linien sagen, was von jeder Aufnahme bleibt. Sie stehen, wo die Stimme anfängt und aufhört, und lassen sich mit Finger, Maus oder Pfeiltasten verschieben. Geschrieben wird erst unten und nur für das Markierte - und das überschreibt die Originaldateien: Was außerhalb der Linien liegt, ist weg. Die Messwerte der betroffenen Aufnahmen werden verworfen, die nächste Auswertung rechnet sie neu. Weil der Zuschnitt entscheidet, welcher Ton gemessen und trainiert wird, braucht er einen eigenen Schlüssel.'}
+  >
+    Zuschnitt
+  </h2>
   <button class="knopf" onclick={() => gehZu(MEINE_DATEN_PFAD)}>Zurück zu „Meine Daten“</button>
 </div>
 

@@ -7,6 +7,7 @@
    * ihre Vorgaben und wie sie auf die App wirken, stehen in
    * `einstellungen.svelte.ts`; hier steht nur die Bedienung dazu.
    */
+  import { erklaert } from './erklaerung';
   import PinSchloss from './PinSchloss.svelte';
   import PromptView from './PromptView.svelte';
   import {
@@ -38,18 +39,32 @@
     return APPS.find((eintrag) => eintrag.schluessel === schluessel)?.name ?? schluessel;
   }
 
-  const ABSCHNITTE: { titel: string; eintraege: Schaltbar[] }[] = [
-    { titel: 'Apps in der Kopfleiste', eintraege: SCHALTBARE_APPS },
+  const ABSCHNITTE: { titel: string; erklaerung: string; eintraege: Schaltbar[] }[] = [
+    {
+      titel: 'Apps in der Kopfleiste',
+      erklaerung: 'Die Reiter ganz oben.',
+      eintraege: SCHALTBARE_APPS,
+    },
     ...SCHALTBARE_REITER.map((abschnitt) => ({
       titel: `Ansichten in „${appName(abschnitt.app)}“`,
+      erklaerung: 'Die zweite Reihe der Kopfleiste.',
       eintraege: abschnitt.eintraege,
     })),
-    { titel: 'Punkte im Menü', eintraege: SCHALTBARE_MENUEPUNKTE },
+    {
+      titel: 'Punkte im Menü',
+      erklaerung:
+        'Was hinter dem Menüknopf steht. „Meine Daten“ und „Darstellung“ bleiben: Dort wird die PIN vergeben, hier liegen die Schalter.',
+      eintraege: SCHALTBARE_MENUEPUNKTE,
+    },
   ];
 </script>
 
 <PinSchloss>
-  <h2>Farben</h2>
+  <h2
+    use:erklaert={'Wirkt sofort und in jeder App; dieser Browser merkt sich die Wahl. Ein Tipp auf das Feld öffnet die Farbwahl des Geräts, der Wert darunter trifft einen Ton genau.'}
+  >
+    Farben
+  </h2>
 
   <div class="farben">
     {#each FARBEN as farbe (farbe.schluessel)}
@@ -126,7 +141,11 @@
     </select>
   </label>
 
-  <h2>Schriftgröße</h2>
+  <h2
+    use:erklaert={'Die Grundschrift gilt für Knöpfe, Beschriftungen und Fließtext. Die Vorlage ist der Satz, der beim Sprechen und Diktieren groß in der Mitte steht.'}
+  >
+    Schriftgröße
+  </h2>
   <label>
     <span>Grundschriftgröße der Oberfläche - {einstellungen.grundschriftPx} px</span>
     <input
@@ -157,10 +176,14 @@
     <PromptView vorher={null} aktuell={{ id: 'probe', text: PROBE }} nachher={null} schriftRem={einstellungen.schriftRem} />
   </div>
 
-  <h2>Sichtbar in der Leiste</h2>
+  <h2
+    use:erklaert={'Was nie gebraucht wird, muss nicht dastehen. Ausgeblendet heißt unsichtbar, nicht abgeschaltet: Die Adresse gilt weiter, und hier kommt es zurück. Gilt für diesen Browser und alle Apps darin.'}
+  >
+    Sichtbar in der Leiste
+  </h2>
 
   {#each ABSCHNITTE as abschnitt (abschnitt.titel)}
-    <h3>{abschnitt.titel}</h3>
+    <h3 use:erklaert={abschnitt.erklaerung}>{abschnitt.titel}</h3>
     <ul class="schalter">
       {#each abschnitt.eintraege as eintrag (eintrag.schluessel)}
         <li>
@@ -184,7 +207,11 @@
     </ul>
   {/each}
 
-  <h2>Zurücksetzen</h2>
+  <h2
+    use:erklaert={'Setzt Farben, Schriftart, Schriftgrößen und die Sichtbarkeit auf die Vorgaben zurück; danach steht jeder Punkt wieder in der Leiste.'}
+  >
+    Zurücksetzen
+  </h2>
   <button class="knopf" onclick={setzeDarstellungZurueck}>Auf Vorgaben zurücksetzen</button>
 </PinSchloss>
 

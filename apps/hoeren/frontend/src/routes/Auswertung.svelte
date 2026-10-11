@@ -16,6 +16,7 @@
    *
    * ECharts (`lib/diagramm.ts`) wird erst hier geladen.
    */
+  import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import { onMount } from 'svelte';
   import AudioPlayer from '$ui/AudioPlayer.svelte';
@@ -460,7 +461,12 @@
   });
 </script>
 
-<h2>Auswertung</h2>
+<h2
+  use:erklaert={'Jede Aufnahme ist zugleich eine Prüfaufgabe: Mehrere Erkenner laufen über dieselben Aufnahmen, und was sie daraus machen, wird mit der Vorlage verglichen. Verworfene Aufnahmen zählen nicht, Korrekturen aus „schreiben“ auch nicht - ihr Text ist selbst die Ausgabe eines Erkenners. Die Auswertung rechnet auf diesem Server und dauert; darum wird sie von Hand gestartet, und sie läuft weiter, wenn die Seite zu ist. Median ist der Normalfall, Mittel zählt Ausreißer mit: Liegen beide weit auseinander, verreißt ein Modell einzelne Aufnahmen. Ein Tipp auf eine Spalte zeigt die Aufnahme dahinter.' +
+    (aktuelleMetrik ? ` ${aktuelleMetrik.name}: ${aktuelleMetrik.erklaerung}` : '')}
+>
+  Auswertung
+</h2>
 
 {#if fehler}
   <p class="fehler">{fehler}</p>
@@ -606,7 +612,11 @@
   <p class="gedaempft">Wird geladen …</p>
 {:else if gewaehlt}
   <div class="kopfzeile">
-    <h2>Aufnahme {gewaehlt.nummer}</h2>
+    <h2
+      use:erklaert={'Die Vorlage und darunter, was jedes Modell daraus gemacht hat. Verglichen wird auf Zeichen, gemessen dagegen ohne Satzzeichen und Großschreibung - ein fehlender Punkt ist kein Hörfehler. Die Zahlen bleiben dieselben, ob die Unterschiede hervorgehoben sind oder nicht.'}
+    >
+      Aufnahme {gewaehlt.nummer}
+    </h2>
     <!-- Bei den Texten: Der Schalter ändert nur, wie sie zu lesen sind. -->
     <label class="umschalter">
       <span>Unterschiede hervorheben</span>
