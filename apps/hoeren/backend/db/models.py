@@ -108,6 +108,8 @@ class Aufnahme(Basis):
     text: Mapped[str | None] = mapped_column(default=None)
     # Ob ein Mensch den Text einer Korrektur geprüft hat.
     validiert: Mapped[bool] = mapped_column(default=False)
+    # Wann zuletzt in „Editieren" gespeichert; leer heißt nie (`025_geaendert.sql`).
+    geaendert: Mapped[str | None] = mapped_column(default=None)
     erstellt: Mapped[str]
 
     def text_zu(self, vorlage: Vorlage) -> str:

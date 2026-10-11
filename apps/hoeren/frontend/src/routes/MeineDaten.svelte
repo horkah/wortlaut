@@ -18,6 +18,7 @@
   import { fehlertext } from '$ui/api';
   import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Kalender from '$ui/Kalender.svelte';
+  import Listenwahl from '../lib/Listenwahl.svelte';
   import Pager from '$ui/Pager.svelte';
   import Papierkorb from '$ui/Papierkorb.svelte';
   import Rueckfrage from '$ui/Rueckfrage.svelte';
@@ -38,10 +39,38 @@
     pinStand,
     type AufsichtAufnahme,
     type Konto,
+    type Listenwahl as Wahl,
+    type Quellenwahl,
   } from '../lib/api';
   import { gehZu, lage } from '../lib/zustand.svelte';
 
-  const PRO_SEITE = 10;
+  // Wie die Liste steht - gemerkt in diesem Browser, eine Bequemlichkeit.
+  const LISTE = 'wortlaut.meine-daten.liste';
+  const VORGABE: { wahl: Wahl; proSeite: number } = {
+    wahl: { quelle: '', status: '', sortierung: 'geaendert', richtung: 'ab' },
+    proSeite: 10,
+  };
+
+  function gemerkteListe(): typeof VORGABE {
+    try {
+      const roh = localStorage.getItem(LISTE);
+      if (!roh) return VORGABE;
+      const gelesen = JSON.parse(roh) as Partial<typeof VORGABE>;
+      return {
+        wahl: { ...VORGABE.wahl, ...gelesen.wahl },
+        proSeite: [10, 20, 50, 100].includes(Number(gelesen.proSeite))
+          ? Number(gelesen.proSeite)
+          : VORGABE.proSeite,
+      };
+    } catch {
+      return VORGABE;
+    }
+  }
+
+  const gemerkt = gemerkteListe();
+  let wahl = $state<Wahl>(gemerkt.wahl);
+  let proSeite = $state(gemerkt.proSeite);
+  let quellen = $state<Quellenwahl[]>([]);
 
   // Wo die Seite stand, als der Editor aufging - nur für die Rückkehr, also
   // im Speicher dieses Reiters und nicht über das Schließen hinaus.
@@ -111,7 +140,7 @@
   let aufnahmen = $state<AufsichtAufnahme[]>([]);
   let aufnahmenSeite = $state(1);
   let aufnahmenGesamt = $state(0);
-  const aufnahmenSeiten = $derived(Math.max(1, Math.ceil(aufnahmenGesamt / PRO_SEITE)));
+  const aufnahmenSeiten = $derived(Math.max(1, Math.ceil(aufnahmenGesamt / proSeite)));
 
   let fehler = $state('');
   let meldung = $state('');
@@ -128,9 +157,10 @@
   }
 
   async function ladeAufnahmen() {
-    const seite = await meineAufnahmen((aufnahmenSeite - 1) * PRO_SEITE, PRO_SEITE, meinePin);
+    const seite = await meineAufnahmen((aufnahmenSeite - 1) * proSeite, proSeite, wahl, meinePin);
     aufnahmen = seite.aufnahmen;
     aufnahmenGesamt = seite.gesamt;
+    quellen = seite.quellen;
   }
 
   async function lade() {
@@ -248,6 +278,16 @@
       },
       'Umbenannt.',
     );
+  }
+
+  /** Sortierung, Filter oder Seitengröße geändert: gemerkt, und von vorn. */
+  async function neueListe() {
+    try {
+      localStorage.setItem(LISTE, JSON.stringify({ wahl, proSeite }));
+    } catch {
+      // Ohne Speicher gilt die Wahl bis zum Neuladen - kein Fehlerfall.
+    }
+    await wechsleAufnahmenSeite(1);
   }
 
   async function wechsleAufnahmenSeite(seite: number) {
@@ -513,6 +553,7 @@
   >
     Aufnahmen
   </h2>
+  <Listenwahl bind:wahl bind:proSeite {quellen} gesamt={aufnahmenGesamt} aendere={neueListe} />
   {#each aufnahmen as aufnahme (aufnahme.id)}
     {@const offen = aufgeklappt === aufnahme.id}
     <!-- Die ganze Karte nimmt den Klick an; für Tastatur und Vorlesestimme ist

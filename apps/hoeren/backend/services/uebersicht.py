@@ -10,15 +10,43 @@ from __future__ import annotations
 import json
 
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 from wortlaut import storage
 
-from ..db.models import GUELTIG, VERWORFEN, Aufnahme, Sitzung, Sprecher, Textquelle, Vorlage
+from apps.schreiben.backend.config import einstellungen as schreiben_einstellungen
+from apps.schreiben.backend.deps import aktive_ref
+
+from ..db.models import (
+    GUELTIG,
+    VERWORFEN,
+    Aufnahme,
+    Erkennung,
+    Sitzung,
+    Sprecher,
+    Textquelle,
+    Vorlage,
+)
 from . import zuschnitt
 
 # Höchstens so viele Zeilen je Seite.
 SEITE = 200
+
+# ── Die Aufnahmenliste ──────────────────────────────────────────────────────
+#
+# Sortiert nach dem Datum der Aufnahme, nach dem der letzten Änderung in
+# „Editieren" (ohne Änderung: das der Aufnahme) oder nach der Genauigkeit, mit
+# der das Modell von „schreiben" sie gehört hat - nicht gemessene zählen still
+# als 0. Vorgabe: zuletzt geändert zuerst.
+NACH_AUFNAHME = "aufgenommen"
+NACH_AENDERUNG = "geaendert"
+NACH_QUALITAET = "qualitaet"
+SORTIERUNGEN = (NACH_AUFNAHME, NACH_AENDERUNG, NACH_QUALITAET)
+
+# Welche Aufnahmen: alle, die gültigen, die geprüften Korrekturen, die verworfenen.
+ALLE = ""
+GEPRUEFT = "geprueft"
+STATUSWAHL = (ALLE, GUELTIG, GEPRUEFT, VERWORFEN)
 
 # Eine Sitzung entsteht beim Öffnen der Aufnahmeseite, vor dem ersten Wort.
 # Die eigene Ansicht zeigt nur Sitzungen mit Aufnahmen; die Aufsicht alle -
@@ -119,12 +147,39 @@ class AufnahmeAntwort(BaseModel):
     externe_id: str | None
     audio_vorhanden: bool
     erstellt: str
+    # Wann zuletzt in „Editieren" gespeichert; leer heißt nie.
+    geaendert: str | None = None
+    quelle_id: str = ""
+    quelle_titel: str = ""
+    validiert: bool = False
+    # Die Genauigkeit (0 bis 100), mit der das Modell von „schreiben" diese
+    # Aufnahme gehört hat; leer, solange nicht gemessen.
+    qualitaet: float | None = None
+
+
+class QuelleWahl(BaseModel):
+    """Eine Textquelle, nach der sich die Liste filtern lässt."""
+
+    id: str
+    titel: str
+    art: str
 
 
 class AufnahmenAntwort(BaseModel):
     gesamt: int
     ab: int
     aufnahmen: list[AufnahmeAntwort]
+    # Wonach sich filtern lässt - die Textquellen mit Aufnahmen.
+    quellen: list[QuelleWahl] = []
+    # Das Modell, dessen Genauigkeit `qualitaet` ist.
+    modell: str = ""
+
+
+class Eintrag(BaseModel):
+    """Eine Aufnahme in der Reihenfolge der Liste - ohne alles Übrige."""
+
+    id: str
+    status: str
 
 
 def profil(
@@ -233,23 +288,101 @@ def aufnahmezeiten(sitzung: Session) -> list[str]:
     return list(sitzung.scalars(abfrage))
 
 
-def aufnahmen_seite(
-    sitzung: Session, ablage: storage.Ablage, ab: int = 0, anzahl: int = SEITE
-) -> AufnahmenAntwort:
-    """Die Aufnahmen eines Sprechers mit ihrem Text, neueste zuerst, seitenweise."""
-    gesamt = sitzung.scalar(select(func.count()).select_from(Aufnahme)) or 0
-    treffer = sitzung.execute(
-        select(Aufnahme, Vorlage, Textquelle)
+AUFSTEIGEND = "auf"
+ABSTEIGEND = "ab"
+
+
+def wahl_aus(quelle: str, status: str, sortierung: str, richtung: str) -> dict:
+    """Die Wahl der Liste aus den Parametern einer Anfrage; `ValueError` bei Unbekanntem."""
+    if richtung not in (AUFSTEIGEND, ABSTEIGEND):
+        raise ValueError(f"Unbekannte Richtung: {richtung}")
+    if sortierung not in SORTIERUNGEN:
+        raise ValueError(f"Unbekannte Sortierung: {sortierung}")
+    if status not in STATUSWAHL:
+        raise ValueError(f"Unbekannter Status: {status}")
+    return {
+        "quelle": quelle,
+        "status": status,
+        "sortierung": sortierung,
+        "absteigend": richtung == ABSTEIGEND,
+    }
+
+
+def diktiermodell(sprecher_id: str) -> str:
+    """Womit „schreiben" für diesen Menschen diktiert - der Name, unter dem es misst."""
+    konfiguration = schreiben_einstellungen()
+    return aktive_ref(konfiguration, sprecher_id) or konfiguration.asr_modell
+
+
+def _liste(
+    modell: str,
+    quelle: str = "",
+    status: str = ALLE,
+    sortierung: str = NACH_AENDERUNG,
+    absteigend: bool = True,
+):
+    """Die Abfrage hinter Seite und Reihenfolge: gefiltert, sortiert, mit Genauigkeit.
+
+    Die Wahl ist geprüft (`wahl_aus`).
+    """
+    abfrage = (
+        select(Aufnahme, Vorlage, Textquelle, Erkennung.genauigkeit)
         .join(Vorlage, Vorlage.id == Aufnahme.prompt_id)
         .join(Textquelle, Textquelle.id == Vorlage.source_id)
-        .order_by(*(merkmal.desc() for merkmal in zuschnitt.reihenfolge()))
-        .offset(max(ab, 0))
-        .limit(min(max(anzahl, 1), SEITE))
-    ).all()
+        .outerjoin(
+            Erkennung, and_(Erkennung.recording_id == Aufnahme.id, Erkennung.modell == modell)
+        )
+    )
+    if quelle:
+        abfrage = abfrage.where(Textquelle.id == quelle)
+    if status == GEPRUEFT:
+        abfrage = abfrage.where(Aufnahme.status == GUELTIG, Aufnahme.validiert)
+    elif status:
+        abfrage = abfrage.where(Aufnahme.status == status)
+    erstes = {
+        NACH_AUFNAHME: Aufnahme.erstellt,
+        NACH_AENDERUNG: func.coalesce(Aufnahme.geaendert, Aufnahme.erstellt),
+        NACH_QUALITAET: func.coalesce(Erkennung.genauigkeit, 0.0),
+    }[sortierung]
+    merkmale = (erstes, *zuschnitt.reihenfolge())
+    return abfrage.order_by(*(m.desc() if absteigend else m.asc() for m in merkmale))
+
+
+def reihenfolge(sitzung: Session, modell: str, **wahl) -> list[Eintrag]:
+    """Alle Aufnahmen in der Reihenfolge der Liste - für das Weiterblättern im Editor."""
+    return [
+        Eintrag(id=aufnahme.id, status=aufnahme.status)
+        for aufnahme, *_ in sitzung.execute(_liste(modell, **wahl)).all()
+    ]
+
+
+def aufnahmen_seite(
+    sitzung: Session,
+    ablage: storage.Ablage,
+    ab: int = 0,
+    anzahl: int = SEITE,
+    *,
+    modell: str = "",
+    **wahl,
+) -> AufnahmenAntwort:
+    """Die Aufnahmen eines Sprechers mit ihrem Text, gefiltert und sortiert, seitenweise.
+
+    `wahl` sind `quelle`, `status`, `sortierung` und `absteigend` (`_liste`).
+    """
+    abfrage = _liste(modell, **wahl)
+    gesamt = sitzung.scalar(select(func.count()).select_from(abfrage.subquery())) or 0
+    treffer = sitzung.execute(abfrage.offset(max(ab, 0)).limit(min(max(anzahl, 1), SEITE))).all()
+    quellen = sitzung.execute(
+        select(Textquelle)
+        .where(Textquelle.id.in_(select(Vorlage.source_id).join(Aufnahme)))
+        .order_by(Textquelle.erstellt)
+    ).scalars()
 
     return AufnahmenAntwort(
         gesamt=gesamt,
         ab=max(ab, 0),
+        modell=modell,
+        quellen=[QuelleWahl(id=quelle.id, titel=quelle.titel, art=quelle.art) for quelle in quellen],
         aufnahmen=[
             AufnahmeAntwort(
                 id=aufnahme.id,
@@ -264,8 +397,13 @@ def aufnahmen_seite(
                 externe_id=aufnahme.externe_id,
                 audio_vorhanden=ablage.pfad(aufnahme.blob).is_file(),
                 erstellt=aufnahme.erstellt,
+                geaendert=aufnahme.geaendert,
+                quelle_id=quelle.id,
+                quelle_titel=quelle.titel,
+                validiert=bool(aufnahme.validiert),
+                qualitaet=genauigkeit,
             )
-            for aufnahme, vorlage, quelle in treffer
+            for aufnahme, vorlage, quelle, genauigkeit in treffer
         ],
     )
 

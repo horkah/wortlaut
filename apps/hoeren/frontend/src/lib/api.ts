@@ -287,6 +287,13 @@ export type AufsichtAufnahme = {
   externe_id: string | null;
   audio_vorhanden: boolean;
   erstellt: string;
+  /** Wann zuletzt in „Editieren" gespeichert; null heißt nie. */
+  geaendert: string | null;
+  quelle_id: string;
+  quelle_titel: string;
+  validiert: boolean;
+  /** Die Genauigkeit des Modells von „schreiben" auf dieser Aufnahme, 0 bis 100; null ungemessen. */
+  qualitaet: number | null;
 };
 
 export type Einsicht = {
@@ -294,7 +301,36 @@ export type Einsicht = {
   quellen: AufsichtQuelle[];
 };
 
-export type Aufnahmenseite = { gesamt: number; ab: number; aufnahmen: AufsichtAufnahme[] };
+export type Quellenwahl = { id: string; titel: string; art: string };
+
+export type Aufnahmenseite = {
+  gesamt: number;
+  ab: number;
+  aufnahmen: AufsichtAufnahme[];
+  /** Die Textquellen mit Aufnahmen - zum Filtern. */
+  quellen: Quellenwahl[];
+  /** Das Modell, dessen Genauigkeit `qualitaet` ist. */
+  modell: string;
+};
+
+/** Wie die Liste gefiltert und sortiert wird (`services/uebersicht.py`). */
+export type Listenwahl = {
+  quelle: string;
+  status: '' | 'ok' | 'geprueft' | 'verworfen';
+  sortierung: 'aufgenommen' | 'geaendert' | 'qualitaet';
+  richtung: 'auf' | 'ab';
+};
+
+/** Eine Aufnahme in der Reihenfolge der Liste. */
+export type Listeneintrag = { id: string; status: string };
+
+const alsParameter = (wahl: Listenwahl) =>
+  new URLSearchParams({
+    quelle: wahl.quelle,
+    status: wahl.status,
+    sortierung: wahl.sortierung,
+    richtung: wahl.richtung,
+  }).toString();
 export type Sitzungenseite = { gesamt: number; ab: number; sitzungen: AufsichtSitzung[] };
 
 export const alleSprecher = () => anfrage<Uebersicht[]>('/admin/speakers');
@@ -423,8 +459,15 @@ export const meinKonto = (pin?: string) => anfrage<Konto>('/konto', mitPin(pin))
 export const meineAufnahmezeiten = (pin?: string) =>
   anfrage<string[]>('/konto/aufnahmezeiten', mitPin(pin));
 
-export const meineAufnahmen = (ab = 0, anzahl = 10, pin?: string) =>
-  anfrage<Aufnahmenseite>(`/konto/recordings?ab=${ab}&anzahl=${anzahl}`, mitPin(pin));
+export const meineAufnahmen = (ab: number, anzahl: number, wahl: Listenwahl, pin?: string) =>
+  anfrage<Aufnahmenseite>(
+    `/konto/recordings?ab=${ab}&anzahl=${anzahl}&${alsParameter(wahl)}`,
+    mitPin(pin),
+  );
+
+/** Alle eigenen Aufnahmen in der Reihenfolge der Liste - für das Blättern im Editor. */
+export const meineReihenfolge = (wahl: Listenwahl, pin?: string) =>
+  anfrage<Listeneintrag[]>(`/konto/recordings/reihenfolge?${alsParameter(wahl)}`, mitPin(pin));
 
 /** Sich selbst umbenennen - dieselbe Beschriftung, die die Aufsicht ändert. */
 export const michUmbenennen = (name: string, pin?: string) =>
