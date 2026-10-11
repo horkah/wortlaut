@@ -864,6 +864,91 @@ class TestTrainierteStaende:
         )
         assert klient.get("/api/auswertung").json()["punkte"][0]["werte"][ref] != {}
 
+    def _mit_text_im_manifest(self, klient: TestClient, aufnahme: str, text: str) -> None:
+        """Wie ein echter Lauf: Das Manifest sagt auch, an welchem Text er maß."""
+        from apps.hoeren.backend.db.models import Aufnahme
+
+        with Session(engine_fuer(_sprecher(klient))) as db:
+            dauer = db.get(Aufnahme, aufnahme).dauer_s
+        laeufe.haenge_an(
+            laeufe.lauf_verzeichnis(einstellungen().data_dir, "job_probe") / laeufe.MANIFEST,
+            {
+                "recording_id": aufnahme,
+                "audio": f"audio/{aufnahme}.wav",
+                "dauer_s": dauer,
+                "text": text,
+            },
+        )
+
+    def test_nach_neuem_text_misst_die_faltung_am_neuen(
+        self,
+        klient: TestClient,
+        quelle: str,
+        sprich,
+        lege_stand_an,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Der Ton blieb, der Text nicht: Das Erkannte der Faltung gilt, ihre Zahl nicht.
+
+        Gespeichert wird nur der Text - die Faltung kommt wieder, gemessen an
+        ihm, nicht mit der Zahl gegen den alten.
+        """
+        vorgelesen = sprich()
+        aufnahme = _aufnahmen(klient)[0]
+        ref = lege_stand_an(aufnahme)
+        self._mit_text_im_manifest(klient, aufnahme, vorgelesen)
+        klient.get("/api/auswertung")
+        assert self._vom_stand(klient, aufnahme, ref)[0]["genauigkeit"] == 70.0
+
+        monkeypatch.setenv("WORTLAUT_EDITOR_KEY", "test-zuschnitt")
+        einstellungen.cache_clear()
+        from apps.hoeren.backend.db.models import Aufnahme
+
+        with Session(engine_fuer(_sprecher(klient))) as db:
+            dauer = db.get(Aufnahme, aufnahme).dauer_s
+        antwort = klient.post(
+            "/api/zuschnitt/speichern",
+            headers={"X-Editor-Key": "test-zuschnitt"},
+            json={"id": aufnahme, "start_s": 0.0, "ende_s": dauer, "texte": [AUS_DER_FALTUNG]},
+        )
+        assert antwort.status_code == 200, antwort.text
+
+        klient.get("/api/auswertung")
+        (zeile,) = self._vom_stand(klient, aufnahme, ref)
+        assert zeile["text"] == AUS_DER_FALTUNG
+        assert zeile["genauigkeit"] == 100.0
+
+    def test_eine_stehende_faltung_am_alten_text_wird_neu_gemessen(
+        self, klient: TestClient, quelle: str, sprich, lege_stand_an
+    ) -> None:
+        """Ein neuer Text am Abgleich vorbei: Die alte Zahl geht, die neue kommt."""
+        vorgelesen = sprich()
+        aufnahme = _aufnahmen(klient)[0]
+        ref = lege_stand_an(aufnahme)
+        self._mit_text_im_manifest(klient, aufnahme, vorgelesen)
+        klient.get("/api/auswertung")
+
+        from apps.hoeren.backend.db.models import Aufnahme
+
+        with Session(engine_fuer(_sprecher(klient))) as db:
+            db.get(Aufnahme, aufnahme).text = AUS_DER_FALTUNG
+            db.commit()
+
+        klient.get("/api/auswertung")
+        (zeile,) = self._vom_stand(klient, aufnahme, ref)
+        assert zeile["genauigkeit"] == 100.0
+
+    def test_satzzeichen_aendern_die_zahl_der_faltung_nicht(
+        self, klient: TestClient, quelle: str, sprich, lege_stand_an
+    ) -> None:
+        # Gemessen wird ohne Satzzeichen und Großschreibung (`metriken.normalisiere`).
+        vorgelesen = sprich()
+        aufnahme = _aufnahmen(klient)[0]
+        ref = lege_stand_an(aufnahme)
+        self._mit_text_im_manifest(klient, aufnahme, vorgelesen.upper() + "!")
+        klient.get("/api/auswertung")
+        assert self._vom_stand(klient, aufnahme, ref)[0]["genauigkeit"] == 70.0
+
     @pytest.fixture
     def editiere(
         self, klient: TestClient, monkeypatch: pytest.MonkeyPatch
