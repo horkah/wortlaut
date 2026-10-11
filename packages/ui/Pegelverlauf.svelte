@@ -33,6 +33,10 @@
    * **Der Cursor** zeigt, wo gerade gespielt wird (`cursor`); ein Tippen auf
    * die Kurve außerhalb der Griffe meldet `ontipp` - auf einem Telefon der
    * Knopf, den die Leertaste am Rechner ist.
+   *
+   * **Ohne `bedienbar`** bleiben nur Kurve und Cursor - zum Anhören, wie in
+   * „Meine Daten" (`Abspieler.svelte`): keine Griffe, kein Schleier, keine
+   * Zahlen darunter; das ganze Bild ist der Knopf.
    */
 
   let {
@@ -46,6 +50,7 @@
     teilen = false,
     cursor = null,
     ontipp,
+    bedienbar = true,
     hoehe = 72,
     beschriftung = 'Ausschnitt',
   }: {
@@ -69,6 +74,8 @@
     cursor?: number | null;
     /** Ein Tippen auf die Kurve, nicht auf einen Griff. */
     ontipp?: () => void;
+    /** Mit Griffen, Schleier und Zahlen - aus, wenn nur angehört wird. */
+    bedienbar?: boolean;
     hoehe?: number;
     /** Wofür die beiden Griffe stehen, für Vorlesegeräte. */
     beschriftung?: string;
@@ -207,9 +214,14 @@
     ereignis.preventDefault();
   }
 
+  // Für Vorlesestimmen mit Einheit; unter dem Bild nur die Zahl, Dauern in
+  // Klammern zwischen den Zeitpunkten.
   const zahl = (sekunden: number) => `${sekunden.toFixed(2)} s`;
+  const kurz = (sekunden: number) => sekunden.toFixed(2);
 </script>
 
+<!-- Die Rolle hängt am Modus: zum Anhören ist das ganze Bild ein Knopf. -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <svg
   bind:this={bild}
   class="verlauf"
@@ -220,23 +232,34 @@
   onpointerup={lasse}
   onpointercancel={lasse}
   onclick={tippe}
-  role="presentation"
+  onkeydown={(ereignis) => {
+    if (!bedienbar && (ereignis.key === 'Enter' || ereignis.key === ' ')) {
+      ereignis.preventDefault();
+      ontipp?.();
+    }
+  }}
+  role={bedienbar ? 'presentation' : 'button'}
+  tabindex={bedienbar ? undefined : 0}
+  aria-label={bedienbar ? undefined : beschriftung}
+  class:anhoeren={!bedienbar}
 >
-  <!-- Was wegfällt, liegt unter einem Schleier. Nicht ausgeblendet: Man soll
-       sehen, was man wegschneidet - erst dann ist die Linie ein Vorschlag und
-       keine Wand. -->
-  <rect x="0" y="0" width={xVon(start)} height={hoehe} class="verworfen" />
-  <rect
-    x={xVon(ende)}
-    y="0"
-    width={Math.max(BREITE - xVon(ende), 0)}
-    height={hoehe}
-    class="verworfen"
-  />
+  {#if bedienbar}
+    <!-- Was wegfällt, liegt unter einem Schleier. Nicht ausgeblendet: Man soll
+         sehen, was man wegschneidet - erst dann ist die Linie ein Vorschlag und
+         keine Wand. -->
+    <rect x="0" y="0" width={xVon(start)} height={hoehe} class="verworfen" />
+    <rect
+      x={xVon(ende)}
+      y="0"
+      width={Math.max(BREITE - xVon(ende), 0)}
+      height={hoehe}
+      class="verworfen"
+    />
+  {/if}
 
   <path d={flaeche} class="kurve" />
 
-  {#if schwelle > 0}
+  {#if bedienbar && schwelle > 0}
     <line x1="0" x2={BREITE} y1={MITTE - schwelleY} y2={MITTE - schwelleY} class="schwelle" />
     <line x1="0" x2={BREITE} y1={MITTE + schwelleY} y2={MITTE + schwelleY} class="schwelle" />
   {/if}
@@ -245,7 +268,7 @@
     <line x1={xVon(cursor)} x2={xVon(cursor)} y1="0" y2={hoehe} class="cursor" />
   {/if}
 
-  {#each griffe as griff (griff.welche)}
+  {#each bedienbar ? griffe : [] as griff (griff.welche)}
     <g
       class="griff"
       class:aktiv={zieht === griff.welche}
@@ -273,17 +296,19 @@
   {/each}
 </svg>
 
-<div class="marken gedaempft">
-  <span>{zahl(start)}</span>
-  {#if teilen}
-    <span>A: {zahl(teilung - start)}</span>
-    <span>{zahl(teilung)}</span>
-    <span>B: {zahl(ende - teilung)}</span>
-  {:else}
-    <span>{zahl(ende - start)}</span>
-  {/if}
-  <span>{zahl(ende)}</span>
-</div>
+{#if bedienbar}
+  <div class="marken gedaempft">
+    <span>{kurz(start)}</span>
+    {#if teilen}
+      <span>({kurz(teilung - start)})</span>
+      <span>{kurz(teilung)}</span>
+      <span>({kurz(ende - teilung)})</span>
+    {:else}
+      <span>({kurz(ende - start)})</span>
+    {/if}
+    <span>{kurz(ende)}</span>
+  </div>
+{/if}
 
 <style>
   .verlauf {
@@ -299,6 +324,14 @@
 
   .kurve {
     fill: var(--akzent);
+  }
+
+  .verlauf.anhoeren {
+    cursor: pointer;
+  }
+  .verlauf.anhoeren:focus-visible {
+    outline: 2px solid var(--akzent);
+    outline-offset: 2px;
   }
 
   .verworfen {
