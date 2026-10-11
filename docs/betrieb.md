@@ -300,6 +300,8 @@ uv run python scripts/purge_speaker.py spr_7f2a --ja-wirklich
 
 ---
 
+<a id="hilfe-fehlerprotokoll"></a>
+
 ## Wenn etwas klemmt
 
 Zuerst ins **Fehlerprotokoll** (Menü, unter „System"): Warnungen und Fehler

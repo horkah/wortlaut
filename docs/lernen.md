@@ -316,6 +316,8 @@ alle anderen.
 
 ## Die Ansichten
 
+<a id="hilfe-training"></a>
+
 **Training** zeigt zuoberst die Aufteilung: wie schwer die Faltungen sind
 ([Kreuzvalidierung](#sechsfache-kreuzvalidierung)). Die Aufnahmen selbst
 stehen unter „Meine Daten" in „hören". Darunter beauftragt und zeigt es die
@@ -358,6 +360,8 @@ ein Stand ohne seinen Lauf könnte nicht mehr sagen, worauf er trainiert wurde.
 Die Rückfrage nennt beides und ob der Stand freigegeben ist; die Freigabe geht
 dann mit. Ein rechnender Lauf lässt sich nicht löschen, ein hängender schon.
 
+<a id="hilfe-lauf"></a>
+
 **Der einzelne Lauf** zeigt Steckbrief, Protokoll und zwei Kurven über den
 Schritten: Trainingsverlust und Validierung. Erst die zweite zeigt, wann das
 Auswendiglernen beginnt. Ist der Lauf fertig, folgt der Vergleich mit der
@@ -373,6 +377,8 @@ gemessen haben; jede Aufnahme des Standes stammt aus der Faltung,
 die sie nicht kannte.
 
 ---
+
+<a id="hilfe-modelle"></a>
 
 ## Modelle - die eine Ansicht, auf der entschieden wird
 
@@ -425,6 +431,8 @@ auch ein Grundmodell, und `schreiben` diktiert sofort damit (siehe
 Über der Tafel steht, was `schreiben` gerade geladen hat - mit denselben
 Zahlen wie seine Zeile, aus derselben Rechnung. Die Auskunft kommt aus der API
 von `schreiben`; antwortet es nicht, entfällt die Karte.
+
+<a id="hilfe-grundmodell"></a>
 
 ### Ein Name führt in die Einzelansicht
 

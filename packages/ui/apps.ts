@@ -399,6 +399,12 @@ export function reiterSchluessel(app: AppSchluessel, pfad: string): string {
  */
 export const PROJEKT_SCHLUESSEL = 'menue.projekt';
 
+/**
+ * „Hilfe" steht nicht im Menü, sondern unter dem Menüknopf (`hilfe.ts`), und
+ * lässt sich trotzdem wie ein Menüpunkt ausblenden.
+ */
+export const HILFE_SCHLUESSEL = 'menue.hilfe';
+
 /** Die drei Apps in der Kopfleiste, in ihrer Reihenfolge dort. */
 export const SCHALTBARE_APPS: Schaltbar[] = APPS.map((eintrag) => ({
   schluessel: appSchluessel(eintrag.schluessel),
@@ -434,6 +440,7 @@ export const SCHALTBARE_MENUEPUNKTE: Schaltbar[] = [
   { schluessel: menueSchluessel(SYSTEM_PFAD), text: MENUE_TEXT[SYSTEM_PFAD] },
   { schluessel: menueSchluessel(FEHLERLOG_PFAD), text: MENUE_TEXT[FEHLERLOG_PFAD] },
   { schluessel: PROJEKT_SCHLUESSEL, text: 'Über wortlaut' },
+  { schluessel: HILFE_SCHLUESSEL, text: 'Hilfe' },
 ];
 
 /**

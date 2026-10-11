@@ -7,18 +7,20 @@ daraus machen. Die Grundentscheidungen stehen in
 
 ---
 
+<a id="hilfe-ablauf"></a>
+
 ## Ablauf
 
 1. **Sprecherprofil** anlegen: Name und Sprache. Die Sprache gilt für alles am
    Profil - Vorlagen, Aufnahmen, Training, Bewertung, Diktat - und lässt sich
    nicht wechseln ([Andere Sprachen](sprachen.md)). Dazu einen Zugang
    ausgeben; daraus wird ein Link, und der ist alles, was die Person braucht.
-2. **Textquelle wählen.** Ein Thema mit Altersspanne, aus dem ein LLM Text
+2. <a id="hilfe-textquelle"></a>**Textquelle wählen.** Ein Thema mit Altersspanne, aus dem ein LLM Text
    erzeugt; ein hochgeladener Text; oder ein Foto, das erkannt und geprüft wird.
    Herkunft und Parameter werden gespeichert.
 3. **Schneiden.** `chunker.py` zerlegt den Text in Einheiten von grob 3–12
    Sekunden geschätzter Sprechdauer, an Satz- und Teilsatzgrenzen.
-4. **Aufnehmen.** Eine Einheit groß, davor und dahinter je eine blass.
+4. <a id="hilfe-aufnehmen"></a>**Aufnehmen.** Eine Einheit groß, davor und dahinter je eine blass.
    Aufnehmen, anhören, verwerfen, weiter. Die Stelle wird nicht gespeichert,
    sondern abgeleitet: offen ist jede Vorlage ohne gültige Aufnahme. Verwerfen
    macht sie wieder offen und löscht das Audio. Auf Wunsch in zufälliger
@@ -26,7 +28,7 @@ daraus machen. Die Grundentscheidungen stehen in
 5. **Prüfen.** Serverseitig Pegel, Clipping, Randstille und Dauer gegen die
    geschätzte Sprechdauer. Auffälliges wird angezeigt, nicht erzwungen - bei
    Sprechstörungen sind Ausreißer normal.
-6. **Fortschritt.** Die Sprechzeit (`25 min 48 s`, `packages/ui/zeit.ts`)
+6. <a id="hilfe-fortschritt"></a>**Fortschritt.** Die Sprechzeit (`25 min 48 s`, `packages/ui/zeit.ts`)
    gegen zwei Marken: ab etwa 1,5 Stunden wird ein Modell brauchbar, ab etwa
    20 gut. Neben jeder Marke steht, was noch fehlt.
 
@@ -85,6 +87,8 @@ gilt der zuletzt benutzte Reiter dieses Browsers (`packages/ui/reiter.ts`) -
 gemerkt, nicht angesprungen, damit der Zurück-Knopf nirgendwohin führt, wo
 niemand war.
 
+<a id="hilfe-zugangsdaten"></a>
+
 **Zugangsdaten** steht immer im Menü, auch ohne gültigen Zugang: Dann ist es
 der einzige Weg herein. Mit einem Sprecherzugang zeigt die Seite zuerst,
 wessen Zugang im Browser liegt, und darunter **Zugang wechseln** - der Weg zu
@@ -103,6 +107,8 @@ Auf einem Wirt verteilt `apps/gesamt.py` im Prozess.
 
 Mit dem Verwaltertoken gibt es nur eine Seite - Profile anlegen, Zugänge
 ausgeben - und in der Kopfzeile steht „Verwaltung".
+
+<a id="hilfe-audio"></a>
 
 ### Audio
 
@@ -124,6 +130,8 @@ prüft (`services/quality.py`). Zu leise Eingänge lassen sich zweifach heben:
 Beides steckt in der gespeicherten Aufnahme. Eine nachträgliche Normalisierung
 auf dem Server gibt es nicht: Wie laut jemand spricht, gehört zu den Daten.
 
+<a id="hilfe-darstellung"></a>
+
 ### Darstellung - und was überhaupt dasteht
 
 Farben, Schriftart und Schriftgrößen, je mit Probe. Die acht Farben stehen als
@@ -139,7 +147,26 @@ nicht abgeschaltet: Routen, Zugang und PIN bleiben, wie sie sind. Gespeichert
 im `localStorage` (`wortlaut.sichtbar.…`); nur ein ausdrückliches `false`
 blendet aus.
 
+<a id="hilfe-system"></a>
+
+### System
+
+Worauf wortlaut läuft und wie viel es gerade zu tun hat: oben die
+Grafikkarte - läuft das Training noch, ist der Speicher voll, wird sie zu
+heiß? -, darunter Prozessor, Arbeitsspeicher und Platten. Die Werte zeigen die
+Maschine, nicht den Browser (`GET /api/system`, `wortlaut/systemlage.py`).
+Gefragt wird einmal je Sekunde, fünf Minuten lang und nur, solange der Reiter
+vorn liegt; ein Knopf fragt weiter.
+
+### Hilfe
+
+Rechts unter dem Menüknopf führt **Hilfe** an die Stelle dieses Handbuchs, die
+die offene Ansicht beschreibt (`packages/ui/hilfe.ts`) - in einem neuen Reiter,
+auf GitHub. Unter „Darstellung" lässt sie sich ausblenden wie ein Menüpunkt.
+
 ---
+
+<a id="hilfe-zugang"></a>
 
 ## Der Zugang ist die Kennung
 
@@ -173,6 +200,8 @@ aufnehmen will, gibt sich einen Zugang aus wie alle anderen. Ein Link ist ein
 Lesezeichen, kein Ausweis: Wer ihn weitergibt, gibt den Korpus weiter.
 
 ---
+
+<a id="hilfe-aufsicht"></a>
 
 ## Die Aufsicht
 
@@ -250,6 +279,8 @@ steht an einer Stelle (`services/loeschung.py`), die auch
 `scripts/purge_speaker.py` fragt.
 
 ---
+
+<a id="hilfe-meine-daten"></a>
 
 ## Meine Daten
 
@@ -390,6 +421,8 @@ von der Aufsicht.
 
 ---
 
+<a id="hilfe-editieren"></a>
+
 ## Editieren - kürzen, teilen, berichtigen
 
 Eine Aufnahme allein, erreichbar über den Stift an einer aufgeklappten Karte
@@ -527,6 +560,8 @@ sagt `GET /api/zugang` (`bearbeiten`). Nur dann steht der Stift an den
 Aufnahmen in „Meine Daten". Leer heißt abgeschaltet.
 
 ---
+
+<a id="hilfe-auswertung"></a>
 
 ## Auswertung - wie gut hört welches Modell?
 

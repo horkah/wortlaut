@@ -10,6 +10,7 @@
    */
   import {
     APPS,
+    HILFE_SCHLUESSEL,
     PROJEKT_SCHLUESSEL,
     PROJEKT_URL,
     appSchluessel,
@@ -29,6 +30,7 @@
     menue,
     sprecher,
     route = '/',
+    hilfe,
   }: {
     /** Welche der drei Apps diese Seite ist. */
     app: AppSchluessel;
@@ -49,6 +51,8 @@
     sprecher?: string | null;
     /** Die offene Hash-Route, ohne `#`. */
     route?: string;
+    /** Die Stelle im Handbuch zu dieser Ansicht (`hilfe.ts`). */
+    hilfe?: string;
   } = $props();
 
   // Warum Sprecher und Einstellungen hier hängen und nicht in der Reiterreihe:
@@ -80,6 +84,7 @@
     menue.some((punkt) => punkt.pfad === route) ||
       (punkte.length > 0 && !gezeigteReiter.some((punkt) => punkt.pfad === route)),
   );
+  const zeigeHilfe = $derived(!!hilfe && istSichtbar(HILFE_SCHLUESSEL));
   const appName = $derived(APPS.find((eintrag) => eintrag.schluessel === app)?.name ?? '');
 
   function schliesseWennDraussen(ereignis: MouseEvent) {
@@ -201,17 +206,34 @@
     </div>
   </div>
 
-  {#if gezeigteReiter.length}
-    <nav class="ebene ansichten" aria-label="Ansichten">
-      {#each gezeigteReiter as punkt (punkt.pfad)}
+  <!-- Die Ansichten links, „Hilfe" rechts unter dem Menüknopf. Ohne Reiter
+       steht die Reihe nur für „Hilfe" da. -->
+  {#if gezeigteReiter.length || zeigeHilfe}
+    <div class="ebene ansichten">
+      {#if gezeigteReiter.length}
+        <nav class="reiterreihe" aria-label="Ansichten">
+          {#each gezeigteReiter as punkt (punkt.pfad)}
+            <a
+              class="reiter"
+              class:aktiv={punkt.pfad === route}
+              aria-current={punkt.pfad === route ? 'page' : undefined}
+              href="#{punkt.pfad}">{punkt.text}</a
+            >
+          {/each}
+        </nav>
+      {/if}
+      {#if zeigeHilfe}
+        <!-- Führt aus der App heraus wie „Über wortlaut": eigener Reiter,
+             ohne Zugriff auf dieses Fenster. -->
         <a
-          class="reiter"
-          class:aktiv={punkt.pfad === route}
-          aria-current={punkt.pfad === route ? 'page' : undefined}
-          href="#{punkt.pfad}">{punkt.text}</a
+          class="hilfe"
+          href={hilfe}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Handbuch zu dieser Ansicht - öffnet einen neuen Reiter">Hilfe</a
         >
-      {/each}
-    </nav>
+      {/if}
+    </div>
   {/if}
 </header>
 
@@ -405,6 +427,33 @@
   .ansichten {
     padding-bottom: 0.4rem;
     gap: 0.25rem;
+  }
+
+  .reiterreihe {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+
+  /* Klein und farbig, rechtsbündig unter dem Menüknopf - auffindbar, ohne
+     mit den Reitern zu verwechseln zu sein. */
+  .hilfe {
+    margin-left: auto;
+    padding: 0.15rem 0.65rem;
+    border-radius: 999px;
+    background: var(--akzent);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .hilfe:hover,
+  .hilfe:focus-visible {
+    background: var(--akzent-hell);
+    color: var(--akzent);
   }
 
   .reiter {
