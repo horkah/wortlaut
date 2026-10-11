@@ -288,7 +288,7 @@
         // Auch Kennzahlen und Kalender: Eine verworfene Aufnahme zählt nicht mehr.
         await lade();
       },
-      'Aufnahme verworfen.',
+      'Aufnahme gelöscht.',
     );
   }
 
@@ -470,7 +470,7 @@
   </div>
 
   <h2
-    use:erklaert={'Ein Tippen auf eine Aufnahme klappt sie auf: zum Anhören und Verwerfen, und mit dem Bearbeitungsschlüssel aus den Zugangsdaten auch zum Bearbeiten - zuschneiden, teilen, den Text berichtigen. Ein zweites Tippen klappt sie wieder zu. Verworfen steht der Text wieder zum Aufnehmen an.'}
+    use:erklaert={'Ein Tippen auf eine Aufnahme klappt sie auf: zum Anhören und Löschen, und mit dem Bearbeitungsschlüssel aus den Zugangsdaten auch zum Bearbeiten - zuschneiden, teilen, den Text berichtigen. Ein zweites Tippen klappt sie wieder zu. Gelöscht wird nur die Aufnahme; ihr Text steht wieder zum Aufnehmen an.'}
   >
     Aufnahmen
   </h2>
@@ -518,8 +518,8 @@
               </button>
             {/if}
             <Papierkorb
-              title="Aufnahme verwerfen"
-              label="Aufnahme verwerfen"
+              title="Aufnahme löschen"
+              label="Aufnahme löschen"
               disabled={laeuft === `verwerfen-${aufnahme.id}`}
               onclick={() => (zuVerwerfen = aufnahme)}
             />
@@ -535,14 +535,18 @@
 
 <Rueckfrage
   offen={zuVerwerfen !== null}
-  titel="Aufnahme verwerfen?"
-  knopf="Verwerfen"
+  titel="Aufnahme löschen?"
+  knopf="Löschen"
   gefahr
   onja={verwirf}
   onnein={() => (zuVerwerfen = null)}
 >
   <p>„{zuVerwerfen?.text}“</p>
-  <p class="gedaempft">Der Text steht danach wieder zum Aufnehmen an.</p>
+  <p><strong>Gelöscht wird:</strong></p>
+  <ul>
+    <li>die Aufnahme mit Ton und Messwerten</li>
+  </ul>
+  <p>Der Text bleibt und steht wieder zum Aufnehmen an.</p>
 </Rueckfrage>
 
 <style>

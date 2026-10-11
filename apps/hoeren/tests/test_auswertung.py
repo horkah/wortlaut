@@ -777,9 +777,9 @@ class TestTrainierteStaende:
         monkeypatch.setenv("WORTLAUT_EDITOR_KEY", "test-zuschnitt")
         einstellungen.cache_clear()
 
-        def schnitt(aufnahme: str, weg: str = "schreiben") -> None:
+        def schnitt(aufnahme: str) -> None:
             antwort = klient.post(
-                f"/api/zuschnitt/{weg}",
+                "/api/zuschnitt/schreiben",
                 headers={"X-Editor-Key": "test-zuschnitt"},
                 json={"grenzen": [{"id": aufnahme, "start_s": 1.0, "ende_s": 2.0}]},
             )
@@ -906,9 +906,9 @@ class TestTrainierteStaende:
 
         antworten.update({"small": "egal", "medium": "egal", ref: "aus dem Gedächtnis"})
         stand = _laufe_bis_fertig(klient)
-        # Original und zwei Teile für die Grundmodelle, die Faltung des
-        # Originals für den Stand - und nichts sonst.
-        assert stand["erledigt"] == stand["gesamt"] == 3 * JE_AUFNAHME + 1
+        # Die zwei Teile für die Grundmodelle - und nichts sonst. Das Original
+        # ist ersetzt, seine Faltung mit ihm.
+        assert stand["erledigt"] == stand["gesamt"] == 2 * JE_AUFNAHME
         for teil in teile:
             assert self._vom_stand(klient, teil, ref) == []
             assert len(klient.get(f"/api/auswertung/{teil}").json()["erkennungen"]) == JE_AUFNAHME
@@ -927,11 +927,10 @@ class TestTrainierteStaende:
         _laufe_bis_fertig(klient)
         assert self._vom_stand(klient, kopie, ref) == []
 
-    def test_wer_einen_teil_hatte_kennt_auch_das_original(
+    def test_wer_einen_teil_hatte_kennt_auch_das_geschwister(
         self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an, editiere
     ) -> None:
-        # Umgekehrt dasselbe: Das Original enthält den Ton des Teils - und das
-        # Geschwister ebenso, beide stammen aus demselben Satz.
+        # Beide Teile stammen aus demselben Satz.
         sprich()
         original = _aufnahmen(klient)[0]
         vorn, hinten = editiere(original)
@@ -939,7 +938,6 @@ class TestTrainierteStaende:
 
         antworten.update({"small": "egal", "medium": "egal", ref: "aus dem Gedächtnis"})
         _laufe_bis_fertig(klient)
-        assert self._vom_stand(klient, original, ref) == []
         assert self._vom_stand(klient, hinten, ref) == []
         assert {z["text"] for z in self._vom_stand(klient, vorn, ref)} == {AUS_DER_FALTUNG}
 

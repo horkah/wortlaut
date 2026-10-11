@@ -1,10 +1,10 @@
 <script lang="ts">
   /**
-   * Der Lautstärkeverlauf einer Aufnahme, mit zwei Grenzen zum Anfassen.
+   * Der Lautstärkeverlauf einer Aufnahme, mit drei Linien zum Anfassen.
    *
    * Gebraucht von „Editieren" in „hören": Die Kurve zeigt, wo gesprochen wurde,
-   * die beiden Linien sagen, was davon bleiben soll, und beide lassen sich mit
-   * Finger, Maus oder Tastatur verschieben.
+   * die beiden äußeren Linien sagen, was davon bleiben soll, und alle lassen
+   * sich mit Finger, Maus oder Tastatur verschieben.
    *
    * **Warum selbstgebaut und nicht wavesurfer.js.** Die Bibliothek nimmt eine
    * Audiodatei, dekodiert sie im Browser und zeichnet daraus eine Wellenform;
@@ -26,9 +26,8 @@
    * bedienbar. Das ist hier kein Zusatz: Die Ansicht richtet sich an jemanden,
    * der eine Zeile Text nur mit Mühe liest.
    *
-   * **Die dritte Linie.** Wird `teilung` gebunden, steht zwischen den beiden
-   * Grenzen eine weitere, gestrichelte: die Stelle, an der „Editieren" eine
-   * Aufnahme in zwei zerlegt. Ohne sie zeigt die Kurve nur die beiden Grenzen.
+   * **Die dritte Linie.** Zwischen den beiden Grenzen steht `teilung`,
+   * gestrichelt: die Stelle, an der „Editieren" eine Aufnahme in zwei zerlegt.
    */
 
   let {
@@ -38,7 +37,7 @@
     dauerS,
     start = $bindable(0),
     ende = $bindable(0),
-    teilung = $bindable(undefined),
+    teilung = $bindable(0),
     hoehe = 72,
     beschriftung = 'Ausschnitt',
   }: {
@@ -54,7 +53,7 @@
     start?: number;
     /** Ende des Ausschnitts in Sekunden - wandert beim Ziehen mit. */
     ende?: number;
-    /** Wo geteilt wird, in Sekunden; ohne Wert keine dritte Linie. */
+    /** Wo geteilt wird, in Sekunden. */
     teilung?: number;
     hoehe?: number;
     /** Wofür die beiden Griffe stehen, für Vorlesegeräte. */
@@ -84,9 +83,7 @@
     [
       { welche: 'start' as Welche, wert: start, name: 'Anfang' },
       { welche: 'ende' as Welche, wert: ende, name: 'Ende' },
-      ...(teilung === undefined
-        ? []
-        : [{ welche: 'teilung' as Welche, wert: teilung, name: 'Teilung' }]),
+      { welche: 'teilung' as Welche, wert: teilung, name: 'Teilung' },
     ],
   );
 
@@ -158,14 +155,14 @@
       teilung = wert;
       return;
     }
-    const aufStart = teilung !== undefined && teilung === start;
-    const aufEnde = teilung !== undefined && teilung === ende;
+    const aufStart = teilung === start;
+    const aufEnde = teilung === ende;
     if (welche === 'start') {
-      const anschlag = teilung !== undefined && !aufStart ? teilung : ende - luft;
+      const anschlag = !aufStart ? teilung : ende - luft;
       start = Math.min(Math.max(sekunden, 0), anschlag, ende - luft);
       if (aufStart) teilung = start;
     } else {
-      const anschlag = teilung !== undefined && !aufEnde ? teilung : start + luft;
+      const anschlag = !aufEnde ? teilung : start + luft;
       ende = Math.max(Math.min(sekunden, dauerS), anschlag, start + luft);
       if (aufEnde) teilung = ende;
     }
@@ -195,7 +192,7 @@
 
   function tasten(ereignis: KeyboardEvent, welche: Welche) {
     const weite = ereignis.shiftKey ? SCHRITT * 10 : SCHRITT;
-    const jetzt = welche === 'start' ? start : welche === 'ende' ? ende : (teilung ?? 0);
+    const jetzt = welche === 'start' ? start : welche === 'ende' ? ende : teilung;
     if (ereignis.key === 'ArrowLeft') setze(welche, jetzt - weite);
     else if (ereignis.key === 'ArrowRight') setze(welche, jetzt + weite);
     // Pos1 und Ende schieben so weit, wie es geht - `setze` hält an der
@@ -269,13 +266,9 @@
 
 <div class="marken gedaempft">
   <span>{zahl(start)}</span>
-  {#if teilung === undefined}
-    <span>{zahl(ende - start)} bleiben</span>
-  {:else}
-    <span>1: {zahl(teilung - start)}</span>
-    <span>{zahl(teilung)}</span>
-    <span>2: {zahl(ende - teilung)}</span>
-  {/if}
+  <span>1: {zahl(teilung - start)}</span>
+  <span>{zahl(teilung)}</span>
+  <span>2: {zahl(ende - teilung)}</span>
   <span>{zahl(ende)}</span>
 </div>
 

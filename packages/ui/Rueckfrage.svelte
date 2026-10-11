@@ -2,6 +2,8 @@
   /**
    * Eine Rückfrage vor einem Schritt, als Dialog über der Seite.
    *
+   * Was gelöscht wird, steht im Inhalt - genau und in kurzen Worten.
+   *
    * `gefahr` steht für Unumkehrbares: Dann trägt der Dialog das rote
    * Warnzeichen und den Satz, dass sich das nicht rückgängig machen lässt,
    * und der bestätigende Knopf ist rot. Den Fokus hat anfangs „Abbrechen" -
@@ -101,10 +103,20 @@
     font-size: 1.1rem;
   }
 
-  .warnung {
+  .innen :global(p) {
+    margin: 0 0 0.5rem;
+  }
+
+  .innen :global(ul) {
+    margin: 0 0 0.75rem;
+    padding-left: 1.25rem;
+  }
+
+  .innen .warnung {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    margin-top: 0.75rem;
     color: var(--fehler);
     font-weight: 600;
   }

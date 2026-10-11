@@ -1,20 +1,23 @@
-"""Die Zuschnittansicht: Stille an den Rändern sehen, hören und wegschneiden.
+"""Die Wege der Ansicht „Editieren": eine Aufnahme zuschneiden oder teilen.
 
-Diese Wege zeigen den Lautstärkeverlauf jeder Aufnahme, schlagen die Grenzen
+Diese Wege zeigen den Lautstärkeverlauf einer Aufnahme, schlagen die Grenzen
 der Stimme vor und schreiben, was ein Mensch daraus macht; was mit den Dateien
 geschieht, steht in `services/zuschnitt.py`.
 
 **Der Schlüssel** (`WORTLAUT_EDITOR_KEY`, `X-Editor-Key`) steht vor allen Wegen,
-auch den lesenden: Der Zuschnitt überschreibt Aufnahmen, und das trägt der
-Sprecherzugang auf einem Telefon nicht; schon die Ansicht ist die Werkbank.
+auch den lesenden: Zuschneiden und Teilen ersetzen Aufnahmen, und das trägt
+der Sprecherzugang auf einem Telefon nicht; schon die Ansicht ist die Werkbank.
 
 **Beim Schreiben**, je Aufnahme: die Datei überschrieben, die Zeile aus der
 neuen Datei nachgeführt, die Messwerte weg - auch
 übernommene Faltungen, wie beim Verwerfen (`api/recordings.py`). Der nächste
 Auswertungslauf rechnet neu.
 
+**Beim Teilen** entstehen neue Aufnahmen, und das Original geht: Zeile,
+Datei, Messwerte und seine Vorlage (`teilen`).
+
 Den Ausschnitt spielt der Browser aus der geladenen Datei ab
-(`packages/ui/Pegelverlauf.svelte`); vorläufige Dateien auf dem Server gibt es
+(`packages/ui/ausschnitt.ts`); vorläufige Dateien auf dem Server gibt es
 nicht.
 """
 
@@ -27,7 +30,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
 from wortlaut import audio as klang
 from wortlaut import corpus, ids, schluessel
 from wortlaut.text import chunker
@@ -39,9 +42,6 @@ from ..services import quality, zuschnitt
 from ..services.prompt_queue import naechste_position
 
 router = APIRouter(prefix="/api/zuschnitt", tags=["Zuschnitt"])
-
-# Höchstens so viele Aufnahmen je Seite - jede bringt einen gerechneten Verlauf mit.
-SEITE_MAX = 100
 
 
 def _pruefe_schluessel(
@@ -55,7 +55,7 @@ Schluessel = Depends(_pruefe_schluessel)
 
 
 class ZuschnittAntwort(BaseModel):
-    """Eine Aufnahme, wie die Zuschnittansicht sie braucht."""
+    """Eine Aufnahme, wie „Editieren" sie braucht."""
 
     id: str
     text: str
@@ -69,12 +69,6 @@ class ZuschnittAntwort(BaseModel):
     # Der Vorschlag nach dem Pegel (`audio.stimmgrenzen`).
     vorschlag_start_s: float
     vorschlag_ende_s: float
-
-
-class Seite(BaseModel):
-    gesamt: int
-    ab: int
-    aufnahmen: list[ZuschnittAntwort]
 
 
 class Grenze(BaseModel):
@@ -113,36 +107,6 @@ class Ergebnis(BaseModel):
     fehler: dict[str, str]
 
 
-@router.get("/aufnahmen", response_model=Seite, dependencies=[Schluessel])
-def aufnahmen(
-    sprecher: SprecherId, db: Datenbank, ablage: Ablage, ab: int = 0, anzahl: int = 10
-) -> Seite:
-    """Die eigenen Aufnahmen mit Kurve und Vorschlag.
-
-    Älteste zuerst - hier wird eine Liste abgearbeitet, und neue Aufnahmen
-    sollen sie nicht verschieben. Der Verlauf wird nur für die gezeigte Seite
-    gerechnet. Ohne Audio entfällt eine Aufnahme.
-    """
-    gueltig = Aufnahme.status == GUELTIG
-    gesamt = db.scalar(select(func.count()).select_from(Aufnahme).where(gueltig)) or 0
-    treffer = db.execute(
-        select(Aufnahme, Vorlage)
-        .join(Vorlage, Vorlage.id == Aufnahme.prompt_id)
-        .where(gueltig)
-        .order_by(*zuschnitt.reihenfolge())
-        .offset(max(ab, 0))
-        .limit(min(max(anzahl, 1), SEITE_MAX))
-    ).all()
-
-    zeilen = []
-    for aufnahme, vorlage in treffer:
-        # Eine unlesbare Datei kostet nur ihre Zeile.
-        if (zeile := _zeile(ablage, aufnahme, vorlage)) is not None:
-            zeilen.append(zeile)
-
-    return Seite(gesamt=gesamt, ab=max(ab, 0), aufnahmen=zeilen)
-
-
 def _zeile(ablage: Ablage, aufnahme: Aufnahme, vorlage: Vorlage) -> ZuschnittAntwort | None:
     """Eine Aufnahme mit Kurve und Vorschlag; `None`, wenn es nichts zu zeigen gibt."""
     pfad = ablage.pfad(aufnahme.blob)
@@ -178,7 +142,7 @@ def _eigene(db: Datenbank, sprecher: str, aufnahme_id: str) -> Aufnahme:
     "/aufnahmen/{aufnahme_id}", response_model=ZuschnittAntwort, dependencies=[Schluessel]
 )
 def eine(sprecher: SprecherId, aufnahme_id: str, db: Datenbank, ablage: Ablage) -> ZuschnittAntwort:
-    """Eine einzelne Aufnahme, wie die Liste sie zeigt - für die Ansicht „Teilen"."""
+    """Eine Aufnahme mit Kurve und Vorschlag."""
     aufnahme = _eigene(db, sprecher, aufnahme_id)
     vorlage = db.get(Vorlage, aufnahme.prompt_id)
     zeile = _zeile(ablage, aufnahme, vorlage) if vorlage is not None else None
@@ -201,7 +165,7 @@ def original(
 
 @router.post("/schreiben", response_model=Ergebnis, dependencies=[Schluessel])
 def schreiben(auftrag: Auftrag, sprecher: SprecherId, db: Datenbank, ablage: Ablage) -> Ergebnis:
-    """Die markierten Aufnahmen auf ihre Grenzen kürzen - die Originale werden überschrieben.
+    """Aufnahmen auf ihre Grenzen kürzen - die Originale werden überschrieben.
 
     Was außerhalb der Grenzen lag, ist danach weg; ein zweiter Schnitt kann
     nur noch weiter nach innen.
@@ -292,13 +256,15 @@ def _naechste_nummer(db: Datenbank, stamm: str) -> int:
 def teilen(
     teilung: Teilung, sprecher: SprecherId, sprache: Sprache, db: Datenbank, ablage: Ablage
 ) -> Teile:
-    """Eine Aufnahme in zwei neue zerlegen - Ton und Text. Oder in eine.
+    """Eine Aufnahme durch zwei neue ersetzen - Ton und Text. Oder durch eine.
 
     Für eine Aufnahme mit zwei Äußerungen. Jeder Teil bekommt eigene Datei
     und eigene Vorlage in derselben Quelle, damit er zählt wie das Original,
-    dazu dessen Datum und einen Sortierschlüssel darunter. Das Original
-    bleibt, bis es jemand löscht (`loeschen`). Pegel und Hinweise kommen aus
-    den neuen Dateien; gemessen wird beim nächsten Auswertungslauf.
+    dazu dessen Datum und einen Sortierschlüssel darunter. Pegel und Hinweise
+    kommen aus den neuen Dateien; gemessen wird beim nächsten Auswertungslauf.
+
+    Das Original geht danach ganz (`_entferne`): Seine Teile stehen an seiner
+    Stelle, und sein Satz käme sonst wieder in die Warteschlange.
     """
     original = _eigene(db, sprecher, teilung.id)
     vorlage = db.get(Vorlage, original.prompt_id)
@@ -358,40 +324,33 @@ def teilen(
             erstellt=original.erstellt,
         )
         db.add(teil)
+    db.flush()
+    blob = _entferne(db, original)
     db.commit()
+    # Die Datei erst, wenn die Zeilen sicher stehen - sonst fehlte sie einer
+    # Zeile, die ein gescheitertes Commit stehen ließe.
+    ablage.loesche(blob)
 
     return Teile(ids=kennungen)
 
 
-@router.post("/loeschen", response_model=Ergebnis, dependencies=[Schluessel])
-def loeschen(auftrag: Auftrag, sprecher: SprecherId, db: Datenbank, ablage: Ablage) -> Ergebnis:
-    """Aufnahmen ganz aus dem Bestand nehmen - Zeile, Dateien, Messwerte.
+def _entferne(db: Datenbank, aufnahme: Aufnahme) -> str:
+    """Eine Aufnahme aus dem Bestand nehmen, samt Messwerten und - wenn sonst
+    keine gültige Aufnahme an ihr hängt - ihrer Vorlage.
 
-    Anders als Verwerfen („noch einmal sprechen") soll es die Aufnahme nicht
-    gegeben haben - typisch für das Original nach dem Teilen. Die Vorlage geht
-    mit, wenn keine andere Aufnahme mehr an ihr hängt, sonst stünde der Satz
-    wieder in der Warteschlange. `grenzen` trägt nur Kennungen.
+    Verworfene Zeilen derselben Vorlage gehen mit: Sie hielten die Vorlage
+    fest, und die stünde dann wieder in der Warteschlange. Gibt den Pfad der
+    Datei zurück; die löscht der Aufrufer nach dem Commit.
     """
-    geloescht = 0
-    fehler: dict[str, str] = {}
-
-    for grenze in auftrag.grenzen:
-        aufnahme = db.get(Aufnahme, grenze.id)
-        if aufnahme is None or aufnahme.speaker_id != sprecher:
-            fehler[grenze.id] = "Unbekannte Aufnahme."
-            continue
-
-        ablage.loesche(aufnahme.blob)
-        db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme.id))
-        vorlage_id = aufnahme.prompt_id
-        db.delete(aufnahme)
-        db.flush()
-        uebrig = db.scalar(
-            select(func.count()).select_from(Aufnahme).where(Aufnahme.prompt_id == vorlage_id)
-        )
-        if not uebrig and (vorlage := db.get(Vorlage, vorlage_id)) is not None:
+    vorlage_id, blob = aufnahme.prompt_id, aufnahme.blob
+    db.execute(delete(Erkennung).where(Erkennung.recording_id == aufnahme.id))
+    db.delete(aufnahme)
+    db.flush()
+    an_der_vorlage = db.scalars(select(Aufnahme).where(Aufnahme.prompt_id == vorlage_id)).all()
+    if not any(andere.status == GUELTIG for andere in an_der_vorlage):
+        for andere in an_der_vorlage:
+            db.execute(delete(Erkennung).where(Erkennung.recording_id == andere.id))
+            db.delete(andere)
+        if (vorlage := db.get(Vorlage, vorlage_id)) is not None:
             db.delete(vorlage)
-        db.commit()
-        geloescht += 1
-
-    return Ergebnis(geschrieben=geloescht, fehler=fehler)
+    return blob

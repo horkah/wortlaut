@@ -605,8 +605,8 @@ export type Zuschnittteilung = {
 };
 
 /**
- * Eine Aufnahme in zwei neue zerlegen. Das Original bleibt; die Teile tragen
- * sein Datum und stehen in „Meine Daten" direkt daneben.
+ * Eine Aufnahme durch zwei neue ersetzen, oder durch eine. Das Original ist
+ * danach weg; die Teile tragen sein Datum und stehen an seiner Stelle.
  */
 export const zuschnittTeilen = (teilung: Zuschnittteilung) =>
   anfrage<{ ids: string[] }>('/zuschnitt/teilen', {
