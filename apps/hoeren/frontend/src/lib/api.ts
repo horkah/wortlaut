@@ -611,6 +611,8 @@ export type Zuschnittaufnahme = {
   /** Was gesagt wurde: der Text der Aufnahme, sonst der ihrer Vorlage. */
   text: string;
   erstellt: string;
+  /** Wann zuletzt gespeichert; null heißt nie. */
+  geaendert: string | null;
   dauer_s: number;
   /** Der Stand der Datei - hängt an der Adresse des Audios. */
   version: string;

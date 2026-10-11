@@ -27,6 +27,11 @@
    * `speichern`), nach einer Rückfrage; danach lässt sich nur weiter kürzen,
    * teilen und berichtigen. Wer mit ungespeicherten Änderungen geht, wird
    * gefragt.
+   *
+   * **Oben die Lage**: Datum der Aufnahme und der letzten Änderung, und die
+   * Stelle in der Liste von „Meine Daten", wie sie beim Öffnen sortiert war
+   * (`lib/rueckkehr`) - mit Knöpfen zur vorigen und nächsten Aufnahme darin.
+   * Mit ungespeicherten Änderungen fragt das Weiterblättern wie „Abbrechen".
    */
   import { onMount } from 'svelte';
   import { erklaert } from '$ui/erklaerung';
@@ -35,7 +40,7 @@
   import Rueckfrage from '$ui/Rueckfrage.svelte';
   import { spiele, stelle, stoppe, vergiss } from '$ui/ausschnitt';
   import { bewache } from '$ui/route';
-  import { tag } from '$ui/zeit';
+  import { tag, tagUndZeit } from '$ui/zeit';
   import { EDITIEREN_ROUTE, MEINE_DATEN_PFAD } from '$ui/apps';
   import {
     zuschnittEine,
@@ -44,6 +49,7 @@
     type Zuschnittaufnahme,
   } from '../lib/api';
   import { gehZu, lage } from '../lib/zustand.svelte';
+  import { reihenfolge, wechsleZu, type Reihenfolge } from '../lib/rueckkehr';
 
   const kennung = $derived(lage.route.slice(EDITIEREN_ROUTE.length));
 
@@ -75,6 +81,25 @@
   // Gesetzt, wenn das Verlassen bestätigt ist - dann fragt die Wache nicht mehr.
   let freigegeben = false;
   let datei: Blob | null = null;
+  // Mit welcher Aufnahme der Editor aufging.
+  let zuerst = '';
+  // Die Liste aus „Meine Daten", eingefroren beim Öffnen.
+  const folge: Reihenfolge | null = reihenfolge();
+
+  const stelleInFolge = $derived(
+    folge ? folge.eintraege.findIndex((eintrag) => eintrag.id === kennung) : -1,
+  );
+  /** Die nächste bearbeitbare Aufnahme in dieser Richtung - verworfene haben kein Audio. */
+  function nachbar(schritt: -1 | 1): string | null {
+    if (!folge || stelleInFolge < 0) return null;
+    const eintraege = folge.eintraege;
+    for (let nummer = stelleInFolge + schritt; eintraege[nummer]; nummer += schritt) {
+      if (eintraege[nummer].status === 'ok') return eintraege[nummer].id;
+    }
+    return null;
+  }
+  const vorige = $derived(nachbar(-1));
+  const naechste = $derived(nachbar(1));
 
   const glatt = (wert: string) => wert.split(/\s+/).filter(Boolean).join(' ');
 
@@ -154,6 +179,10 @@
 
   async function lade(id: string) {
     fehler = '';
+    freigegeben = false;
+    // Geblättert: Nach der Rückkehr steht in „Meine Daten" diese Karte offen.
+    if (!zuerst) zuerst = id;
+    else if (id !== zuerst) wechsleZu(id);
     halte();
     vergiss();
     datei = null;
@@ -364,8 +393,38 @@
 
 {#if aufnahme}
   <div class="karte">
+    <div class="reihe lage">
+      {#if folge && stelleInFolge >= 0}
+        <div class="blaettern">
+          <button
+            class="knopf zeichen"
+            title="Vorige Aufnahme"
+            aria-label="Vorige Aufnahme"
+            disabled={!vorige}
+            onclick={() => vorige && verlasse(`${EDITIEREN_ROUTE}${vorige}`)}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 L5 8 L10 13" class="strich" /></svg>
+          </button>
+          <span class="position">{stelleInFolge + 1} / {folge.eintraege.length}</span>
+          <button
+            class="knopf zeichen"
+            title="Nächste Aufnahme"
+            aria-label="Nächste Aufnahme"
+            disabled={!naechste}
+            onclick={() => naechste && verlasse(`${EDITIEREN_ROUTE}${naechste}`)}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3 L11 8 L6 13" class="strich" /></svg>
+          </button>
+        </div>
+      {/if}
+      <span class="gedaempft daten">
+        aufgenommen {tag(aufnahme.erstellt)}
+        {#if aufnahme.geaendert}· geändert {tagUndZeit(aufnahme.geaendert)}{/if}
+        · {aufnahme.dauer_s.toFixed(1)} s
+      </span>
+    </div>
+
     <div class="reihe kopf">
-      <span class="gedaempft">{aufnahme.dauer_s.toFixed(1)} s · {tag(aufnahme.erstellt)}</span>
       <span class="wachsen"></span>
       <!-- Die Zeichen: das volle Dreieck für die ganze Aufnahme, eines zwischen
            zwei festen Grenzen für den Ausschnitt, und je eines zwischen einer
@@ -609,6 +668,34 @@
     align-items: center;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
+  }
+
+  .lage {
+    align-items: center;
+    gap: 0.4rem 1rem;
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--rand);
+  }
+  .blaettern {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .position {
+    min-width: 4.5rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .daten {
+    font-size: 0.85rem;
+  }
+  .knopf.zeichen svg .strich {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
   .vorlage {
