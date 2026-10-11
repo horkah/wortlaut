@@ -97,8 +97,14 @@ def aufnahmen(
     """Die Aufnahmen eines Sprechers, zuletzt geänderte zuerst, seitenweise."""
     with Session(engine_fuer(sprecher_id)) as sitzung:
         _hole(sitzung, sprecher_id)
+        # Die Aufsicht sieht alles, auch Verworfenes.
         return uebersicht.aufnahmen_seite(
-            sitzung, ablage, ab, anzahl, modell=uebersicht.diktiermodell(sprecher_id)
+            sitzung,
+            ablage,
+            ab,
+            anzahl,
+            modell=uebersicht.diktiermodell(sprecher_id),
+            arten=uebersicht.ARTEN,
         )
 
 

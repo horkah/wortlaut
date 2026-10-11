@@ -11,7 +11,7 @@ import json
 import statistics
 
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
 from wortlaut import storage
 
@@ -44,10 +44,18 @@ NACH_AENDERUNG = "geaendert"
 NACH_QUALITAET = "qualitaet"
 SORTIERUNGEN = (NACH_AUFNAHME, NACH_AENDERUNG, NACH_QUALITAET)
 
-# Welche Aufnahmen: alle, die gültigen, die geprüften Korrekturen, die verworfenen.
-ALLE = ""
-GEPRUEFT = "geprueft"
-STATUSWAHL = (ALLE, GUELTIG, GEPRUEFT, VERWORFEN)
+# Welche Aufnahmen: nach ihrer Art, überschneidungsfrei - jede Aufnahme gehört
+# zu genau einer (`_art`). Verworfen ist eine Art für sich, gleich wie sie
+# gesprochen war. Eine gültige Korrektur aus „schreiben" ist geprüft oder
+# nicht (`recordings.validiert`); jede andere gültige Aufnahme zählt nach
+# ihrem Modus. Vorgabe: alle außer den verworfenen.
+GELESEN = "gelesen"
+NACHGESPROCHEN = "nachgesprochen"
+FREI = "frei"
+KORREKTUR_GEPRUEFT = "korrektur_geprueft"
+KORREKTUR_UNGEPRUEFT = "korrektur_ungeprueft"
+ARTEN = (GELESEN, NACHGESPROCHEN, FREI, KORREKTUR_GEPRUEFT, KORREKTUR_UNGEPRUEFT, VERWORFEN)
+VORGABE_ARTEN = tuple(art for art in ARTEN if art != VERWORFEN)
 
 # Die Farbskala der Genauigkeit an den Karten: Rot am 10-%-, Dunkelgrün am
 # 90-%-Quantil dessen, was das Modell bei diesem Sprecher gemessen hat. Rot
@@ -189,6 +197,15 @@ class AufnahmenAntwort(BaseModel):
     # Das Modell, dessen Genauigkeit `qualitaet` ist, und seine Farbskala.
     modell: str = ""
     skala: Skala = Skala()
+    # Jede Art mit ihrer Zahl, in der Reihenfolge von `ARTEN`.
+    arten: list[ArtZahl] = []
+
+
+class ArtZahl(BaseModel):
+    """Eine Art und wie viele Aufnahmen sie hat - mit dem Filter nach Quelle."""
+
+    art: str
+    anzahl: int
 
 
 class Eintrag(BaseModel):
@@ -308,20 +325,35 @@ AUFSTEIGEND = "auf"
 ABSTEIGEND = "ab"
 
 
-def wahl_aus(quelle: str, status: str, sortierung: str, richtung: str) -> dict:
-    """Die Wahl der Liste aus den Parametern einer Anfrage; `ValueError` bei Unbekanntem."""
+def wahl_aus(quelle: str, arten: str, sortierung: str, richtung: str) -> dict:
+    """Die Wahl der Liste aus den Parametern einer Anfrage; `ValueError` bei Unbekanntem.
+
+    `arten` durch Kommas getrennt; leer heißt keine.
+    """
     if richtung not in (AUFSTEIGEND, ABSTEIGEND):
         raise ValueError(f"Unbekannte Richtung: {richtung}")
     if sortierung not in SORTIERUNGEN:
         raise ValueError(f"Unbekannte Sortierung: {sortierung}")
-    if status not in STATUSWAHL:
-        raise ValueError(f"Unbekannter Status: {status}")
+    gewaehlt = tuple(art for art in arten.split(",") if art)
+    if unbekannt := [art for art in gewaehlt if art not in ARTEN]:
+        raise ValueError(f"Unbekannte Art: {', '.join(unbekannt)}")
     return {
         "quelle": quelle,
-        "status": status,
+        "arten": gewaehlt,
         "sortierung": sortierung,
         "absteigend": richtung == ABSTEIGEND,
     }
+
+
+def _art():
+    """Die Art einer Aufnahme als Ausdruck der Abfrage (siehe `ARTEN`)."""
+    korrektur = Textquelle.art == "korrektur"
+    return case(
+        (Aufnahme.status == VERWORFEN, VERWORFEN),
+        (and_(korrektur, Aufnahme.validiert), KORREKTUR_GEPRUEFT),
+        (korrektur, KORREKTUR_UNGEPRUEFT),
+        else_=Aufnahme.modus,
+    )
 
 
 def diktiermodell(sprecher_id: str) -> str:
@@ -333,7 +365,7 @@ def diktiermodell(sprecher_id: str) -> str:
 def _liste(
     modell: str,
     quelle: str = "",
-    status: str = ALLE,
+    arten: tuple[str, ...] = VORGABE_ARTEN,
     sortierung: str = NACH_AENDERUNG,
     absteigend: bool = True,
 ):
@@ -351,10 +383,7 @@ def _liste(
     )
     if quelle:
         abfrage = abfrage.where(Textquelle.id == quelle)
-    if status == GEPRUEFT:
-        abfrage = abfrage.where(Aufnahme.status == GUELTIG, Aufnahme.validiert)
-    elif status:
-        abfrage = abfrage.where(Aufnahme.status == status)
+    abfrage = abfrage.where(_art().in_(arten))
     erstes = {
         NACH_AUFNAHME: Aufnahme.erstellt,
         NACH_AENDERUNG: func.coalesce(Aufnahme.geaendert, Aufnahme.erstellt),
@@ -401,11 +430,21 @@ def aufnahmen_seite(
 ) -> AufnahmenAntwort:
     """Die Aufnahmen eines Sprechers mit ihrem Text, gefiltert und sortiert, seitenweise.
 
-    `wahl` sind `quelle`, `status`, `sortierung` und `absteigend` (`_liste`).
+    `wahl` sind `quelle`, `arten`, `sortierung` und `absteigend` (`_liste`).
     """
     abfrage = _liste(modell, **wahl)
     gesamt = sitzung.scalar(select(func.count()).select_from(abfrage.subquery())) or 0
     treffer = sitzung.execute(abfrage.offset(max(ab, 0)).limit(min(max(anzahl, 1), SEITE))).all()
+    zaehlung = (
+        select(_art(), func.count())
+        .select_from(Aufnahme)
+        .join(Vorlage, Vorlage.id == Aufnahme.prompt_id)
+        .join(Textquelle, Textquelle.id == Vorlage.source_id)
+        .group_by(_art())
+    )
+    if wahl.get("quelle"):
+        zaehlung = zaehlung.where(Textquelle.id == wahl["quelle"])
+    je_art = dict(sitzung.execute(zaehlung).tuples().all())
     quellen = sitzung.execute(
         select(Textquelle)
         .where(Textquelle.id.in_(select(Vorlage.source_id).join(Aufnahme)))
@@ -417,6 +456,7 @@ def aufnahmen_seite(
         ab=max(ab, 0),
         modell=modell,
         skala=skala(sitzung, modell),
+        arten=[ArtZahl(art=art, anzahl=je_art.get(art, 0)) for art in ARTEN],
         quellen=[QuelleWahl(id=quelle.id, titel=quelle.titel, art=quelle.art) for quelle in quellen],
         aufnahmen=[
             AufnahmeAntwort(

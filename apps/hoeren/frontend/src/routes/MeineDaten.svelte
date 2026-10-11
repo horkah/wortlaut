@@ -35,6 +35,7 @@
     meineAufnahmeAudio,
     meineAufnahmen,
     meineReihenfolge,
+    VORGABE_ARTEN,
     meineSicherung,
     meineAufnahmezeiten,
     michUmbenennen,
@@ -42,6 +43,7 @@
     pinStand,
     type AufsichtAufnahme,
     type Konto,
+    type Aufnahmenseite,
     type Guteskala,
     type Listenwahl as Wahl,
     type Quellenwahl,
@@ -51,7 +53,7 @@
   // Wie die Liste steht - gemerkt in diesem Browser, eine Bequemlichkeit.
   const LISTE = 'wortlaut.meine-daten.liste';
   const VORGABE: { wahl: Wahl; proSeite: number } = {
-    wahl: { quelle: '', status: '', sortierung: 'geaendert', richtung: 'ab' },
+    wahl: { quelle: '', arten: VORGABE_ARTEN, sortierung: 'geaendert', richtung: 'ab' },
     proSeite: 10,
   };
 
@@ -60,8 +62,14 @@
       const roh = localStorage.getItem(LISTE);
       if (!roh) return VORGABE;
       const gelesen = JSON.parse(roh) as Partial<typeof VORGABE>;
+      const wahl = { ...VORGABE.wahl, ...gelesen.wahl };
       return {
-        wahl: { ...VORGABE.wahl, ...gelesen.wahl },
+        wahl: {
+          quelle: wahl.quelle,
+          arten: Array.isArray(wahl.arten) ? wahl.arten : VORGABE.wahl.arten,
+          sortierung: wahl.sortierung,
+          richtung: wahl.richtung,
+        },
         proSeite: [10, 20, 50, 100].includes(Number(gelesen.proSeite))
           ? Number(gelesen.proSeite)
           : VORGABE.proSeite,
@@ -75,6 +83,7 @@
   let wahl = $state<Wahl>(gemerkt.wahl);
   let proSeite = $state(gemerkt.proSeite);
   let quellen = $state<Quellenwahl[]>([]);
+  let arten = $state<Aufnahmenseite['arten']>([]);
   let skala = $state<Guteskala>({ rot: 50, gruen: 85 });
   let modell = $state('');
 
@@ -160,6 +169,7 @@
     aufnahmen = seite.aufnahmen;
     aufnahmenGesamt = seite.gesamt;
     quellen = seite.quellen;
+    arten = seite.arten;
     skala = seite.skala;
     modell = seite.modell;
   }
@@ -554,7 +564,14 @@
   >
     Aufnahmen
   </h2>
-  <Listenwahl bind:wahl bind:proSeite {quellen} gesamt={aufnahmenGesamt} aendere={neueListe} />
+  <Listenwahl
+    bind:wahl
+    bind:proSeite
+    {quellen}
+    {arten}
+    gesamt={aufnahmenGesamt}
+    aendere={neueListe}
+  />
   {#each aufnahmen as aufnahme (aufnahme.id)}
     {@const offen = aufgeklappt === aufnahme.id}
     <!-- Die ganze Karte nimmt den Klick an; für Tastatur und Vorlesestimme ist

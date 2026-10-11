@@ -102,9 +102,9 @@ def aufnahmezeiten(db: Datenbank) -> list[str]:
     return uebersicht.aufnahmezeiten(db)
 
 
-def _wahl(quelle: str, status: str, sortierung: str, richtung: str) -> dict:
+def _wahl(quelle: str, arten: str, sortierung: str, richtung: str) -> dict:
     try:
-        return uebersicht.wahl_aus(quelle, status, sortierung, richtung)
+        return uebersicht.wahl_aus(quelle, arten, sortierung, richtung)
     except ValueError as ursache:
         raise HTTPException(status_code=400, detail=str(ursache)) from ursache
 
@@ -117,7 +117,7 @@ def aufnahmen(
     ab: int = 0,
     anzahl: int = 10,
     quelle: str = "",
-    status: str = uebersicht.ALLE,
+    arten: str = ",".join(uebersicht.VORGABE_ARTEN),
     sortierung: str = uebersicht.NACH_AENDERUNG,
     richtung: str = uebersicht.ABSTEIGEND,
 ) -> AufnahmenAntwort:
@@ -131,7 +131,7 @@ def aufnahmen(
         ab,
         anzahl,
         modell=uebersicht.diktiermodell(sprecher),
-        **_wahl(quelle, status, sortierung, richtung),
+        **_wahl(quelle, arten, sortierung, richtung),
     )
 
 
@@ -144,7 +144,7 @@ def reihenfolge(
     db: Datenbank,
     sprecher: SprecherId,
     quelle: str = "",
-    status: str = uebersicht.ALLE,
+    arten: str = ",".join(uebersicht.VORGABE_ARTEN),
     sortierung: str = uebersicht.NACH_AENDERUNG,
     richtung: str = uebersicht.ABSTEIGEND,
 ) -> list[uebersicht.Eintrag]:
@@ -153,7 +153,7 @@ def reihenfolge(
     Für den Editor: Er blättert in der Reihenfolge, die beim Öffnen galt.
     """
     return uebersicht.reihenfolge(
-        db, uebersicht.diktiermodell(sprecher), **_wahl(quelle, status, sortierung, richtung)
+        db, uebersicht.diktiermodell(sprecher), **_wahl(quelle, arten, sortierung, richtung)
     )
 
 

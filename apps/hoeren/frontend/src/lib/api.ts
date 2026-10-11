@@ -313,14 +313,37 @@ export type Aufnahmenseite = {
   modell: string;
   /** Wo die Farbskala rot und wo sie dunkelgrün ist, in Prozent. */
   skala: Guteskala;
+  /** Jede Art mit ihrer Zahl (mit dem Filter nach Quelle), in fester Reihenfolge. */
+  arten: { art: Aufnahmeart; anzahl: number }[];
 };
+
+/**
+ * Die Arten einer Aufnahme, überschneidungsfrei - jede gehört zu genau einer
+ * (`services/uebersicht.py`, `ARTEN`).
+ */
+export type Aufnahmeart =
+  | 'gelesen'
+  | 'nachgesprochen'
+  | 'frei'
+  | 'korrektur_geprueft'
+  | 'korrektur_ungeprueft'
+  | 'verworfen';
+
+/** Was die Liste anfangs zeigt: alles außer dem Verworfenen. */
+export const VORGABE_ARTEN: Aufnahmeart[] = [
+  'gelesen',
+  'nachgesprochen',
+  'frei',
+  'korrektur_geprueft',
+  'korrektur_ungeprueft',
+];
 
 export type Guteskala = { rot: number; gruen: number };
 
 /** Wie die Liste gefiltert und sortiert wird (`services/uebersicht.py`). */
 export type Listenwahl = {
   quelle: string;
-  status: '' | 'ok' | 'geprueft' | 'verworfen';
+  arten: Aufnahmeart[];
   sortierung: 'aufgenommen' | 'geaendert' | 'qualitaet';
   richtung: 'auf' | 'ab';
 };
@@ -331,7 +354,7 @@ export type Listeneintrag = { id: string; status: string };
 const alsParameter = (wahl: Listenwahl) =>
   new URLSearchParams({
     quelle: wahl.quelle,
-    status: wahl.status,
+    arten: wahl.arten.join(','),
     sortierung: wahl.sortierung,
     richtung: wahl.richtung,
   }).toString();
