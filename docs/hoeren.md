@@ -603,8 +603,9 @@ sein Gedächtnis:
 | vom ausgelieferten Stand, hier gerechnet | alle übrigen | `gemessen` |
 
 Beide Male misst die Zeile, wie gut der Stand etwas hört, das er nie gelernt
-hat. Die Faltungen werden beim Öffnen der Seite übernommen
-(`auswertung.gleiche_ab`), nicht erst beim Druck auf den Knopf.
+hat. Die Faltungen werden beim Öffnen der Seite und der Aufnahmenliste in
+„Meine Daten" übernommen (`auswertung.gleiche_ab`), nicht erst beim Druck auf
+den Knopf.
 
 - **Gekannt** hat ein Stand, was sein Lauf gelernt und gemessen hat -
   bei einem Kernlauf nur den Kern (`_gehoert_im_lauf`) - samt allen Teilen

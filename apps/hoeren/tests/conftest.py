@@ -13,8 +13,9 @@ Zwei Dinge werden ersetzt:
 
 * **ffmpeg** - die Umwandlung selbst ist in `packages/wortlaut/tests` geprüft;
   hier soll nicht jeder Endpunkt-Test ein externes Programm brauchen.
-* **die zwischengespeicherten Engines und Einstellungen** - sie zeigen sonst
-  auf das Datenverzeichnis des vorigen Tests.
+* **die zwischengespeicherten Engines und Einstellungen** - auch die von
+  „schreiben", aus denen das Diktiermodell kommt; sie zeigen sonst auf das
+  Datenverzeichnis des vorigen Tests.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ from wortlaut import audio
 from apps.hoeren.backend import deps
 from apps.hoeren.backend.config import einstellungen
 from apps.hoeren.backend.main import app
+from apps.schreiben.backend.config import einstellungen as schreiben_einstellungen
 
 TOKEN = "test-geheim"
 ADMIN_TOKEN = "test-aufsicht"
@@ -45,6 +47,7 @@ def _umgebung(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, wav_schreiben) ->
     # des Entwicklers, ob `test_ohne_gesetzten_schluessel_…` gelingt.
     monkeypatch.setenv("WORTLAUT_EDITOR_KEY", "")
     einstellungen.cache_clear()
+    schreiben_einstellungen.cache_clear()
     deps._engines.clear()
 
     # Statt ffmpeg: eine echte, gleichbleibende Aufnahme von vier Sekunden.
@@ -54,6 +57,7 @@ def _umgebung(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, wav_schreiben) ->
     yield
 
     einstellungen.cache_clear()
+    schreiben_einstellungen.cache_clear()
     deps._engines.clear()
 
 

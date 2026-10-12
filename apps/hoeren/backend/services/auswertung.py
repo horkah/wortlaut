@@ -738,9 +738,10 @@ async def _mit_freier_karte_danach(*argumente) -> None:
 def gleiche_ab(db: Session, datenverzeichnis: Path, sprecher_id: str) -> None:
     """Die Tabelle mit dem in Einklang bringen, was an Ständen dasteht.
 
-    Beim Öffnen der Ansicht, nicht erst beim Start: Die Faltungen zu
-    übernehmen kostet nichts, und erst danach stimmen Vergleich und offene
-    Posten.
+    Beim Öffnen der Auswertung und der Aufnahmenliste in „Meine Daten", nicht
+    erst beim Start: Die Faltungen zu übernehmen kostet nichts, und erst
+    danach stimmen Vergleich, offene Posten und die Genauigkeit an jeder
+    Aufnahme.
     """
     vergiss_verschwundene_staende(db, datenverzeichnis, sprecher_id)
     vergiss_ueberholte_faltungen(db, datenverzeichnis, sprecher_id)

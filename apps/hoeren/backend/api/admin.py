@@ -22,7 +22,7 @@ from wortlaut import corpus, sicherung
 from ..config import einstellungen
 from ..db.models import Aufnahme, Sprecher
 from ..deps import Ablage, Aufsicht, engine_fuer, vergiss_engine
-from ..services import ausleitung, loeschung, pin, uebersicht
+from ..services import auswertung, ausleitung, loeschung, pin, uebersicht
 from ..services.pin import PinAenderung, PinAntwort
 from ..services.uebersicht import (
     SEITE,
@@ -97,6 +97,9 @@ def aufnahmen(
     """Die Aufnahmen eines Sprechers, zuletzt geänderte zuerst, seitenweise."""
     with Session(engine_fuer(sprecher_id)) as sitzung:
         _hole(sitzung, sprecher_id)
+        # Die Genauigkeit eines frisch freigegebenen Standes steht in seinen
+        # Faltungen (`auswertung.gleiche_ab`).
+        auswertung.gleiche_ab(sitzung, einstellungen().data_dir, sprecher_id)
         # Die Aufsicht sieht alles, auch Verworfenes.
         return uebersicht.aufnahmen_seite(
             sitzung,

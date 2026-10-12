@@ -21,9 +21,10 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from ..config import einstellungen
 from ..db.models import Sprecher
 from ..deps import Ablage, Datenbank, SprecherId
-from ..services import ausleitung, pin, uebersicht
+from ..services import auswertung, ausleitung, pin, uebersicht
 from ..services.pin import PinAenderung, PinAntwort
 from ..services.uebersicht import (
     AufnahmenAntwort,
@@ -124,7 +125,11 @@ def aufnahmen(
     """Die eigenen Aufnahmen mit ihrem Text, gefiltert und sortiert, seitenweise.
 
     Vorgabe: zuletzt geändert zuerst. Anhören und Verwerfen: `api/recordings.py`.
+
+    Zuerst der Abgleich mit den Ständen (`auswertung.gleiche_ab`): Die
+    Genauigkeit eines frisch freigegebenen Standes steht in seinen Faltungen.
     """
+    auswertung.gleiche_ab(db, einstellungen().data_dir, sprecher)
     return uebersicht.aufnahmen_seite(
         db,
         ablage,
