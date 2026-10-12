@@ -19,21 +19,22 @@
   import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import { onMount } from 'svelte';
-  import AudioPlayer from '$ui/AudioPlayer.svelte';
   import Textvergleich from '$ui/Textvergleich.svelte';
+  import Aufnahmekarte from '../lib/Aufnahmekarte.svelte';
   import type { Diagramm } from '../lib/diagramm';
   import { einstellungen } from '$ui/einstellungen.svelte';
-  import { grundmodellUrl, laufUrl } from '$ui/apps';
+  import { EDITIEREN_ROUTE, grundmodellUrl, laufUrl } from '$ui/apps';
   import {
     auswertung as ladeAuswertung,
     auswertungStarten,
     auswertungStoppen,
     diktatmodell,
-    meineAufnahmeAudio,
     vergleich as ladeVergleich,
     type Auswertung,
     type Vergleich,
   } from '../lib/api';
+  import { merke } from '../lib/rueckkehr';
+  import { gehZu, lage } from '../lib/zustand.svelte';
 
   // Während gerechnet wird, wächst die Kurve mit; im Ruhezustand kommt ein
   // Lauf aus einem anderen Reiter trotzdem an.
@@ -64,49 +65,24 @@
   let gewaehlteNummer = $state(0);
   let vergleichLaeuft = $state(false);
 
+  // Wie in „Meine Daten": Der Knopf in den Editor nur mit gültigem Bearbeitungsschlüssel.
+  const bearbeitbar = $derived(lage.bearbeiten === 'gilt');
+
   /**
-   * Die Aufnahme zum Mithören.
-   *
-   * Ohne Knopf davor - es ist eine einzige, anders als die Liste in „Meine
-   * Daten". Als Blob, weil `<audio src>` den Zugang nicht mitschickt. Die
-   * Kennung verhindert, dass ein spätes Laden eine neuere Wahl übertönt.
+   * In den Editor. Zurück geht es nach „Meine Daten", zur Karte dieser
+   * Aufnahme; geblättert wird im Editor nicht (`lib/rueckkehr`).
    */
-  let hoerprobe = $state<{ aufnahmeId: string; adresse: string } | null>(null);
-
-  function vergissHoerprobe() {
-    if (hoerprobe) URL.revokeObjectURL(hoerprobe.adresse);
-    hoerprobe = null;
+  function bearbeite(kennung: string) {
+    merke({ seite: 1, aufgeklappt: kennung, y: null }, null);
+    gehZu(`${EDITIEREN_ROUTE}${kennung}`);
   }
 
-  async function ladeHoerprobe(aufnahmeId: string) {
-    if (hoerprobe?.aufnahmeId === aufnahmeId) return;
-    vergissHoerprobe();
-    try {
-      const inhalt = await meineAufnahmeAudio(aufnahmeId);
-      // Noch dieselbe Aufnahme? Sonst ist das hier die Antwort auf eine
-      // Frage, die niemand mehr stellt.
-      if (gewaehlt?.aufnahme_id === aufnahmeId) {
-        hoerprobe = { aufnahmeId, adresse: URL.createObjectURL(inhalt) };
-      }
-    } catch {
-      // Kein Audio: kein Abspieler, keine Meldung.
-      vergissHoerprobe();
-    }
+  /** Gelöscht: Die Spalte ist fort, die Nummern rücken auf. */
+  async function verworfen() {
+    gewaehlt = null;
+    gewaehlteNummer = 0;
+    await hole();
   }
-
-  // Nachladen, sobald sich die Aufnahme ändert - und aufräumen, wenn die
-  // Ansicht geht: Ein nicht freigegebenes Objekt-URL hält die ganze
-  // Audiodatei im Speicher.
-  $effect(() => {
-    const aufnahmeId = gewaehlt?.aufnahme_id;
-    if (!aufnahmeId) {
-      vergissHoerprobe();
-      return;
-    }
-    ladeHoerprobe(aufnahmeId);
-  });
-
-  $effect(() => () => vergissHoerprobe());
 
   // Abweichungen von der Vorlage auszeichnen - an als Vorgabe, aus für den
   // Wortlaut, wenn ein Satz sonst in Schnipsel zerfällt. Ein Griff zwischen
@@ -623,14 +599,17 @@
       <input type="checkbox" role="switch" bind:checked={hervorheben} />
     </label>
   </div>
-  <div class="karte">
-    <p class="marke">Vorlage</p>
-    <p class="vorlage">{gewaehlt.referenz}</p>
-    <!-- Erst selbst hinhören. -->
-    {#if hoerprobe}
-      <AudioPlayer quelle={hoerprobe.adresse} beschriftung="Die Aufnahme" />
-    {/if}
-  </div>
+  <!-- Erst selbst hinhören - dieselbe Karte wie in „Meine Daten", aufgeklappt. -->
+  <Aufnahmekarte
+    aufnahme={gewaehlt.aufnahme}
+    skala={gewaehlt.skala}
+    modell={gewaehlt.modell}
+    offen
+    {bearbeitbar}
+    onbearbeite={() => gewaehlt && bearbeite(gewaehlt.aufnahme_id)}
+    onverworfen={verworfen}
+    onfehler={(text) => (fehler = text)}
+  />
 
   {#each gewaehlt.erkennungen as erkennung (erkennung.modell)}
     <div class="karte">
@@ -786,11 +765,6 @@
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--akzent);
-  }
-
-  .vorlage {
-    margin: 0;
-    line-height: 1.55;
   }
 
   /* Dieselbe Auszeichnung wie im Vergleich selbst, damit die Legende zeigt,

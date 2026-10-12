@@ -19,7 +19,7 @@ from wortlaut import metriken, rechenwerk, registry
 from ..config import einstellungen
 from ..db.models import Aufnahme, Erkennung, Sprecher, Vorlage
 from ..deps import Ablage, Datenbank, SprecherId, engine_fuer
-from ..services import auswertung
+from ..services import auswertung, uebersicht as liste
 
 router = APIRouter(prefix="/api/auswertung", tags=["Auswertung"])
 
@@ -117,6 +117,11 @@ class VergleichAntwort(BaseModel):
     referenz: str
     dauer_s: float
     erkennungen: list[ErkennungAntwort]
+    # Die Karte aus „Meine Daten" - mit der Genauigkeit des Modells von
+    # „schreiben" (`modell`) und seiner Farbskala.
+    aufnahme: liste.AufnahmeAntwort
+    modell: str
+    skala: liste.Skala
 
 
 def _namen(sprecher: str) -> list[str]:
@@ -259,9 +264,12 @@ async def stopp(db: Datenbank, sprecher: SprecherId) -> StandAntwort:
 
 
 @router.get("/{aufnahme_id}", response_model=VergleichAntwort)
-def vergleich(aufnahme_id: str, db: Datenbank, sprecher: SprecherId) -> VergleichAntwort:
+def vergleich(
+    aufnahme_id: str, db: Datenbank, ablage: Ablage, sprecher: SprecherId
+) -> VergleichAntwort:
     """Was dastand und was jedes Modell daraus machte - der Klick auf einen Balken."""
     namen = _namen(sprecher)
+    modell = liste.diktiermodell(sprecher)
     for nummer, aufnahme, vorlage in _nummeriert(db):
         if aufnahme.id != aufnahme_id:
             continue
@@ -272,11 +280,17 @@ def vergleich(aufnahme_id: str, db: Datenbank, sprecher: SprecherId) -> Vergleic
                 select(Erkennung).where(Erkennung.recording_id == aufnahme_id)
             )
         }
+        karte = liste.eine_aufnahme(db, ablage, aufnahme.id, modell=modell)
+        if karte is None:
+            break
         return VergleichAntwort(
             nummer=nummer,
             aufnahme_id=aufnahme.id,
             referenz=aufnahme.text_zu(vorlage),
             dauer_s=aufnahme.dauer_s,
+            aufnahme=karte,
+            modell=modell,
+            skala=liste.skala(db, modell),
             # In der Reihenfolge der Konfiguration.
             erkennungen=[
                 ErkennungAntwort(

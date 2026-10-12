@@ -608,6 +608,11 @@ export type Vergleich = {
   referenz: string;
   dauer_s: number;
   erkennungen: Erkennung[];
+  /** Die Karte aus „Meine Daten", mit der Genauigkeit von `modell`. */
+  aufnahme: AufsichtAufnahme;
+  /** Womit „schreiben" diktiert. */
+  modell: string;
+  skala: Guteskala;
 };
 
 export const auswertung = () => anfrage<Auswertung>('/auswertung');

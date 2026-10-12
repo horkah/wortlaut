@@ -538,29 +538,48 @@ def aufnahmen_seite(
         skala=skala(sitzung, modell),
         arten=[ArtZahl(art=art, anzahl=je_art.get(art, 0)) for art in ARTEN],
         quellen=[QuelleWahl(id=quelle.id, titel=quelle.titel, art=quelle.art) for quelle in quellen],
-        aufnahmen=[
-            AufnahmeAntwort(
-                id=aufnahme.id,
-                prompt_id=aufnahme.prompt_id,
-                text=aufnahme.text_zu(vorlage),
-                quelle_art=quelle.art,
-                dauer_s=aufnahme.dauer_s,
-                pegel_dbfs=aufnahme.pegel_dbfs,
-                modus=aufnahme.modus,
-                status=aufnahme.status,
-                hinweise=json.loads(aufnahme.hinweise),
-                externe_id=aufnahme.externe_id,
-                audio_vorhanden=ablage.pfad(aufnahme.blob).is_file(),
-                erstellt=aufnahme.erstellt,
-                geaendert=aufnahme.geaendert,
-                quelle_id=quelle.id,
-                quelle_titel=quelle.titel,
-                validiert=bool(aufnahme.validiert),
-                qualitaet=genauigkeit,
-                editiert=bool(editiert),
-            )
-            for aufnahme, vorlage, quelle, genauigkeit, editiert in treffer
-        ],
+        aufnahmen=[_antwort(ablage, *zeile) for zeile in treffer],
+    )
+
+
+def eine_aufnahme(
+    sitzung: Session, ablage: storage.Ablage, aufnahme_id: str, *, modell: str = ""
+) -> AufnahmeAntwort | None:
+    """Eine Aufnahme, wie sie in der Liste steht - für die Karte in „Auswertung"."""
+    zeile = sitzung.execute(
+        _liste(modell, arten=ARTEN).where(Aufnahme.id == aufnahme_id)
+    ).first()
+    return _antwort(ablage, *zeile) if zeile else None
+
+
+def _antwort(
+    ablage: storage.Ablage,
+    aufnahme: Aufnahme,
+    vorlage: Vorlage,
+    quelle: Textquelle,
+    genauigkeit: float | None,
+    editiert: bool,
+) -> AufnahmeAntwort:
+    """Eine Zeile aus `_liste` als Karte."""
+    return AufnahmeAntwort(
+        id=aufnahme.id,
+        prompt_id=aufnahme.prompt_id,
+        text=aufnahme.text_zu(vorlage),
+        quelle_art=quelle.art,
+        dauer_s=aufnahme.dauer_s,
+        pegel_dbfs=aufnahme.pegel_dbfs,
+        modus=aufnahme.modus,
+        status=aufnahme.status,
+        hinweise=json.loads(aufnahme.hinweise),
+        externe_id=aufnahme.externe_id,
+        audio_vorhanden=ablage.pfad(aufnahme.blob).is_file(),
+        erstellt=aufnahme.erstellt,
+        geaendert=aufnahme.geaendert,
+        quelle_id=quelle.id,
+        quelle_titel=quelle.titel,
+        validiert=bool(aufnahme.validiert),
+        qualitaet=genauigkeit,
+        editiert=bool(editiert),
     )
 
 
