@@ -408,6 +408,7 @@ def trainiere(
         setattr(modell.config, feld, None)
 
     if methode == laeufe.LORA:
+        from huggingface_hub import try_to_load_from_cache
         from peft import LoraConfig, get_peft_model
 
         # Rang und Ziele aus dem Auftrag (`adapter.py`).
@@ -424,6 +425,12 @@ def trainiere(
             # Der Zusatz in float32, auch über einem halben Grundmodell.
             autocast_adapter_dtype=True,
         )
+        # Beim Sichern jedes Zwischenstands prüft peft, ob das Grundmodell neue
+        # Marken bekam, und fragt dafür sonst den Hub nach dessen
+        # `config.json` - ohne Netz fünf Wiederholungen, gut anderthalb Minuten
+        # je Zwischenstand. Mit dem Pfad im Modellcache liest es sie dort.
+        if isinstance(ablage := try_to_load_from_cache(basismodell, "config.json"), str):
+            modell.peft_config["default"].base_model_name_or_path = str(Path(ablage).parent)
         # Sonst bekommt der Zusatz beim Gradientensparen keinen Gradienten -
         # der Lauf liefe durch und lernte nichts. Ob gespart wird, zeigt erst
         # der Probeschritt (`zuschneiden`).
