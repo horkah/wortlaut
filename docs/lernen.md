@@ -515,7 +515,9 @@ Aufnahmen, statt gleichmäßig schlechter zu sein.
 Ein Tipp in eine Spalte zeigt die Aufnahme als Karte wie in **Meine Daten**,
 aufgeklappt - Wellenform, Stift, Papierkorb und der Ring mit der Genauigkeit
 des Modells von „schreiben" -, darunter je Modell den erkannten Text. Der
-Stift öffnet **Editieren**; zurück geht es von dort nach **Meine Daten**.
+Stift öffnet **Editieren** in `hören`; „Zurück zu „Auswertung"" führt wieder
+hierher, und dieselbe Aufnahme ist gewählt - sie bleibt es im Browser-Reiter
+auch über einen Wechsel des Reiters (`wortlaut.auswertung.gewaehlt`).
 Unterschiede sind zeichenweise ausgezeichnet - fehlend grau durchgestrichen,
 hinzugekommen farbig und fett, als `<del>`/`<ins>` (`packages/ui/diff.ts`); ein
 Schalter zeigt den glatten Text.

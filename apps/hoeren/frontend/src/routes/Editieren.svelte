@@ -2,8 +2,9 @@
   /**
    * Editieren: eine Aufnahme kürzen, in zwei teilen, ihren Text berichtigen.
    *
-   * Erreichbar aus „Meine Daten", über den Stift an einer aufgeklappten
-   * Aufnahme, und nur von dort. Gezeigt wird genau diese eine Aufnahme: der
+   * Erreichbar über den Stift an einer aufgeklappten Aufnahme - in „Meine
+   * Daten" und in der Auswertung von „lernen"; „Zurück" führt dorthin, woher
+   * der Stift kam (`$ui/rueckkehr`, `rueckweg`). Gezeigt wird genau diese eine Aufnahme: der
    * Lautstärkeverlauf mit zwei Linien für Anfang und Ende, darunter ihr Text
    * zum Mitlesen und das Feld, in dem er berichtigt wird.
    *
@@ -29,7 +30,7 @@
    * gefragt.
    *
    * **Oben die Lage**: neben „Zurück" die Stelle in der Liste von „Meine
-   * Daten", wie sie beim Öffnen sortiert war (`lib/rueckkehr`), mit Knöpfen
+   * Daten", wie sie beim Öffnen sortiert war (`$ui/rueckkehr`), mit Knöpfen
    * zur vorigen und nächsten Aufnahme darin; in der Karte Datum der Aufnahme
    * und der letzten Änderung, rechts die Genauigkeit des Diktiermodells wie
    * in der Liste. Mit ungespeicherten Änderungen fragt das Weiterblättern wie
@@ -44,7 +45,7 @@
   import { folge as folgeCursor, spiele, stoppe, vergiss, wecke } from '$ui/ausschnitt';
   import { bewache } from '$ui/route';
   import { tag, tagUndZeit } from '$ui/zeit';
-  import { EDITIEREN_ROUTE, MEINE_DATEN_PFAD } from '$ui/apps';
+  import { EDITIEREN_ROUTE } from '$ui/apps';
   import {
     ARTNAMEN,
     zuschnittEine,
@@ -53,7 +54,7 @@
     type Zuschnittaufnahme,
   } from '../lib/api';
   import { gehZu, lage } from '../lib/zustand.svelte';
-  import { reihenfolge, wechsleZu, type Reihenfolge } from '$ui/rueckkehr';
+  import { reihenfolge, rueckweg, wechsleZu, type Reihenfolge } from '$ui/rueckkehr';
 
   const kennung = $derived(lage.route.slice(EDITIEREN_ROUTE.length));
 
@@ -80,8 +81,10 @@
   let laeuft = $state(false);
   // Wonach gerade gefragt wird.
   let frage = $state<'' | 'speichern' | 'verlassen'>('');
+  // Woher der Stift kam - dorthin führt „Zurück".
+  const zurueck = rueckweg();
   // Wohin nach einem bestätigten Verlassen.
-  let ziel = MEINE_DATEN_PFAD;
+  let ziel = zurueck.ziel;
   // Gesetzt, wenn das Verlassen bestätigt ist - dann fragt die Wache nicht mehr.
   let freigegeben = false;
   let datei: Blob | null = null;
@@ -309,7 +312,7 @@
       });
       if (teilen) {
         freigegeben = true;
-        gehZu(MEINE_DATEN_PFAD);
+        gehe(zurueck.ziel);
         return;
       }
       await lade(id);
@@ -321,21 +324,27 @@
     }
   }
 
-  /** Zurück zu „Meine Daten" - mit Rückfrage, wenn etwas verloren ginge. */
-  function verlasse(wohin = MEINE_DATEN_PFAD) {
+  /** Zurück, woher der Stift kam - mit Rückfrage, wenn etwas verloren ginge. */
+  function verlasse(wohin = zurueck.ziel) {
     ziel = wohin;
     if (geaendert && !freigegeben) {
       frage = 'verlassen';
       return;
     }
     freigegeben = true;
-    gehZu(wohin);
+    gehe(wohin);
   }
 
   function verwirf() {
     frage = '';
     freigegeben = true;
-    gehZu(ziel);
+    gehe(ziel);
+  }
+
+  /** Eine Route von „hören" oder die volle Adresse einer anderen App (mit `#`). */
+  function gehe(wohin: string) {
+    if (wohin.includes('#')) window.location.href = wohin;
+    else gehZu(wohin);
   }
 
   // Die Teile, wie sie in der Rückfrage stehen.
@@ -404,7 +413,7 @@
         </button>
       </div>
     {/if}
-    <button class="knopf" onclick={() => verlasse()}>Zurück zu „Meine Daten“</button>
+    <button class="knopf" onclick={() => verlasse()}>Zurück zu „{zurueck.text}“</button>
   </div>
 </div>
 
