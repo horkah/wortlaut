@@ -16,24 +16,17 @@
   import { tick } from 'svelte';
   import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
-  import Abspieler from '$ui/Abspieler.svelte';
   import Kalender from '$ui/Kalender.svelte';
-  import Guete from '../lib/Guete.svelte';
+  import Aufnahmekarte from '../lib/Aufnahmekarte.svelte';
   import Listenwahl from '../lib/Listenwahl.svelte';
   import { merke, nimmStelle, type Reihenfolge, type Stelle } from '../lib/rueckkehr';
   import Pager from '$ui/Pager.svelte';
-  import Papierkorb from '$ui/Papierkorb.svelte';
-  import Rueckfrage from '$ui/Rueckfrage.svelte';
-  import Warnzeichen from '$ui/Warnzeichen.svelte';
   import { EDITIEREN_ROUTE } from '$ui/apps';
   import { gueltigePin, merkePin, schloss, vergissPin } from '$ui/pin.svelte';
   import { datum, dauer, tag } from '$ui/zeit';
   import {
-    aufnahmeVerwerfen,
     meinDatensatz,
     meinKonto,
-    meineAufnahmeAudio,
-    meineWellenform,
     meineAufnahmen,
     meineReihenfolge,
     VORGABE_ARTEN,
@@ -48,7 +41,6 @@
     type Guteskala,
     type Listenwahl as Wahl,
     type Quellenwahl,
-    type Wellenform,
   } from '../lib/api';
   import { gehZu, lage } from '../lib/zustand.svelte';
 
@@ -125,7 +117,7 @@
   /** Nach dem Laden: Karte wieder auf, Fenster an die alte Stelle - oder zur Karte. */
   async function kehreZurueck(stelle: Stelle) {
     const karte = aufnahmen.find((aufnahme) => aufnahme.id === stelle.aufgeklappt);
-    if (karte) await klappe(karte);
+    if (karte) klappe(karte);
     await tick();
     if (stelle.y !== null) window.scrollTo(0, stelle.y);
     else document.getElementById(`aufnahme-${stelle.aufgeklappt}`)?.scrollIntoView({ block: 'center' });
@@ -172,12 +164,9 @@
   let fehler = $state('');
   let meldung = $state('');
   let laeuft = $state('');
-  // Welche Karte aufgeklappt ist, und ihre Wellenform. Nur eine auf einmal:
-  // Der Browser hielte sonst Dutzende Aufnahmen im Speicher.
+  // Welche Karte aufgeklappt ist. Nur eine auf einmal: Der Browser hielte
+  // sonst Dutzende Aufnahmen im Speicher.
   let aufgeklappt = $state<string | null>(null);
-  let wellenform = $state<(Wellenform & { id: string }) | null>(null);
-  // Die Aufnahme, nach deren Verwerfen gerade gefragt wird.
-  let zuVerwerfen = $state<AufsichtAufnahme | null>(null);
 
   async function ladeZeiten() {
     zeiten = await meineAufnahmezeiten(meinePin);
@@ -322,7 +311,6 @@
 
   async function wechsleAufnahmenSeite(seite: number) {
     aufnahmenSeite = seite;
-    wellenform = null;
     aufgeklappt = null;
     try {
       await ladeAufnahmen();
@@ -346,53 +334,15 @@
     }
   }
 
-  /** Auf- oder zuklappen; aufgeklappt mit der Wellenform, das Audio erst beim Abspielen. */
-  async function klappe(aufnahme: AufsichtAufnahme) {
-    wellenform = null;
-    if (aufgeklappt === aufnahme.id) {
-      aufgeklappt = null;
-      return;
-    }
-    aufgeklappt = aufnahme.id;
-    if (!aufnahme.audio_vorhanden) return;
-    await tue(
-      `hoere-${aufnahme.id}`,
-      async () => {
-        const kurve = await meineWellenform(aufnahme.id);
-        // Inzwischen eine andere Karte aufgeklappt: Diese Kurve braucht niemand.
-        if (aufgeklappt === aufnahme.id) wellenform = { ...kurve, id: aufnahme.id };
-      },
-      '',
-    );
+  /** Auf- oder zuklappen - aufgeklappt holt die Karte ihre Wellenform. */
+  function klappe(aufnahme: AufsichtAufnahme) {
+    aufgeklappt = aufgeklappt === aufnahme.id ? null : aufnahme.id;
   }
 
-  /**
-   * Ein Klick irgendwo auf die Karte klappt sie auf oder zu - außer auf das,
-   * was in ihr selbst etwas tut, und außer nach dem Markieren von Text.
-   */
-  function klickAufKarte(ereignis: MouseEvent, aufnahme: AufsichtAufnahme) {
-    const ziel = ereignis.target as Element;
-    // Die Wellenform spielt ab (`$ui/Abspieler`) - ihr Tippen gehört nicht der Karte.
-    if (ziel.closest('audio, a, button:not(.aufklapper), [role="button"]')) return;
-    if (window.getSelection()?.toString()) return;
-    klappe(aufnahme);
-  }
-
-  async function verwirf() {
-    const aufnahme = zuVerwerfen;
-    zuVerwerfen = null;
-    if (!aufnahme) return;
-    await tue(
-      `verwerfen-${aufnahme.id}`,
-      async () => {
-        await aufnahmeVerwerfen(aufnahme.id);
-        wellenform = null;
-        aufgeklappt = null;
-        // Auch Kennzahlen und Kalender: Eine verworfene Aufnahme zählt nicht mehr.
-        await lade();
-      },
-      'Aufnahme gelöscht.',
-    );
+  /** Gelöscht: Auch Kennzahlen und Kalender - eine verworfene Aufnahme zählt nicht mehr. */
+  async function verworfen() {
+    aufgeklappt = null;
+    await tue('verwerfen', lade, 'Aufnahme gelöscht.');
   }
 
   const megabyte = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -586,99 +536,22 @@
     aendere={neueListe}
   />
   {#each aufnahmen as aufnahme (aufnahme.id)}
-    {@const offen = aufgeklappt === aufnahme.id}
-    <!-- Die ganze Karte nimmt den Klick an; für Tastatur und Vorlesestimme ist
-         der Text oben der Knopf, der sie auf- und zuklappt. -->
-    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-    <div
-      class="karte aufnahme"
-      id="aufnahme-{aufnahme.id}"
-      class:offen
-      onclick={(e) => klickAufKarte(e, aufnahme)}
-    >
-      <button class="aufklapper" aria-expanded={offen}>{aufnahme.text}</button>
-      <div class="gedaempft zeile">
-        <span>
-          {aufnahme.dauer_s.toFixed(1)} s · {aufnahme.modus} · {tag(aufnahme.erstellt)}
-          {#if aufnahme.hinweise.length}<Warnzeichen hinweise={aufnahme.hinweise} />{/if}
-          {#if aufnahme.status !== 'ok'}· <strong>{aufnahme.status}</strong>{/if}
-        </span>
-        {#if aufnahme.editiert}
-          <span class="editiert" title="Editiert - noch in keinem Training von {modell}">editiert</span>
-        {:else if aufnahme.qualitaet !== null}
-          <Guete wert={aufnahme.qualitaet} {skala} {modell} />
-        {/if}
-      </div>
-      {#if offen}
-        <div class="reihe aufgeklappt">
-          <div class="spieler">
-            {#if wellenform?.id === aufnahme.id}
-              <!-- Der Schlüssel trägt Dauer und letztes Speichern: Nach einem
-                   Schnitt ist es eine andere Datei. -->
-              <Abspieler
-                schluessel="{aufnahme.id}@{aufnahme.dauer_s}@{aufnahme.geaendert ?? ''}"
-                verlauf={wellenform.verlauf}
-                fensterS={wellenform.fenster_s}
-                dauerS={wellenform.dauer_s}
-                lade={() => meineAufnahmeAudio(aufnahme.id)}
-              />
-            {/if}
-          </div>
-          {#if aufnahme.status === 'ok'}
-            {#if bearbeitbar && aufnahme.audio_vorhanden}
-              <button
-                class="bearbeiten"
-                title="Bearbeiten"
-                aria-label="Aufnahme bearbeiten"
-                onclick={() => oeffneEditor(aufnahme.id)}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  width="18"
-                  height="18"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.75"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                  <path d="m14.5 5.5 3 3" />
-                </svg>
-              </button>
-            {/if}
-            <Papierkorb
-              title="Aufnahme löschen"
-              label="Aufnahme löschen"
-              disabled={laeuft === `verwerfen-${aufnahme.id}`}
-              onclick={() => (zuVerwerfen = aufnahme)}
-            />
-          {/if}
-        </div>
-      {/if}
-    </div>
+    <Aufnahmekarte
+      {aufnahme}
+      {skala}
+      {modell}
+      offen={aufgeklappt === aufnahme.id}
+      {bearbeitbar}
+      onklappe={() => klappe(aufnahme)}
+      onbearbeite={() => oeffneEditor(aufnahme.id)}
+      onverworfen={verworfen}
+      onfehler={(text) => (fehler = text)}
+    />
   {:else}
     <p class="gedaempft">Keine Aufnahme.</p>
   {/each}
   <Pager seite={aufnahmenSeite} gesamtSeiten={aufnahmenSeiten} aendere={wechsleAufnahmenSeite} />
 {/if}
-
-<Rueckfrage
-  offen={zuVerwerfen !== null}
-  titel="Aufnahme löschen?"
-  knopf="Löschen"
-  gefahr
-  onja={verwirf}
-  onnein={() => (zuVerwerfen = null)}
->
-  <p>„{zuVerwerfen?.text}“</p>
-  <p><strong>Gelöscht wird:</strong></p>
-  <ul>
-    <li>die Aufnahme mit Ton und Messwerten</li>
-  </ul>
-  <p>Der Text bleibt und steht wieder zum Aufnehmen an.</p>
-</Rueckfrage>
 
 <style>
   /* Überschrift und Knopf in einer Zeile, ohne dass der Knopf die Grundlinie
@@ -715,66 +588,5 @@
   .zahlen span {
     color: var(--gedaempft);
     font-size: 0.85rem;
-  }
-
-  .karte.aufnahme {
-    cursor: pointer;
-  }
-
-  .karte.aufnahme.offen {
-    border-color: var(--akzent);
-  }
-
-  /* Der Text der Karte als Knopf - ohne Aussehen eines Knopfs. */
-  .aufklapper {
-    display: block;
-    width: 100%;
-    margin-bottom: 0.2rem;
-    padding: 0;
-    border: none;
-    background: none;
-    font: inherit;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  /* Die Kennzeile: links, was die Aufnahme ist, rechts, wie gut sie gehört wurde. */
-  .zeile {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-  }
-
-  .aufgeklappt {
-    margin-top: 0.75rem;
-    gap: 0.5rem;
-  }
-
-  .spieler {
-    flex: 1;
-    min-width: 12rem;
-  }
-
-  /* Quadratisch und so groß wie der Papierkorb daneben. */
-  .bearbeiten {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: none;
-    width: 2.2rem;
-    height: 2.2rem;
-    padding: 0;
-    border: 1px solid var(--akzent);
-    border-radius: 0.35rem;
-    background: #fff;
-    color: var(--akzent);
-    cursor: pointer;
-  }
-
-  .bearbeiten:hover,
-  .bearbeiten:focus-visible {
-    background: var(--akzent-hell);
   }
 </style>

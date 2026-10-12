@@ -301,7 +301,8 @@ eine Aufnahme fällt, rechnet der Browser in der Zeitzone des Betrachters.
 Kurzes zuerst (Name, Kennzahlen, Ausleiten, PIN, Textquellen, Sitzungen),
 die lange Liste der Aufnahmen danach.
 
-Jede Aufnahme ist eine Karte: Text, Dauer, Modus, Tag, Hinweise. Ein Klick
+Jede Aufnahme ist eine Karte (`apps/hoeren/frontend/src/lib/Aufnahmekarte.svelte`,
+dieselbe wie in **Auswertung**): Text, Dauer, Modus, Tag, Hinweise. Ein Klick
 oder Tippen irgendwo auf die Karte klappt sie auf, ein zweites klappt sie zu;
 offen ist immer nur eine. Aufgeklappt stehen dort die Wellenform, der
 Papierkorb und - nur wenn der Bearbeitungsschlüssel gilt - der Stift, der die
@@ -688,8 +689,10 @@ Darunter die Bilanz: **Median und Mittel** je Modell im gewählten Maß. Liegen
 sie weit auseinander, verreißt ein Modell einzelne
 Aufnahmen, statt gleichmäßig schlechter zu sein.
 
-Ein Tipp in eine Spalte zeigt die Aufnahme: einen Abspieler, die Vorlage und
-je Modell den erkannten Text.
+Ein Tipp in eine Spalte zeigt die Aufnahme als Karte wie in **Meine Daten**,
+aufgeklappt - Wellenform, Stift, Papierkorb und der Ring mit der Genauigkeit
+des Modells von „schreiben" -, darunter je Modell den erkannten Text. Der
+Stift öffnet **Editieren**; zurück geht es von dort nach **Meine Daten**.
 Unterschiede sind zeichenweise ausgezeichnet - fehlend grau durchgestrichen,
 hinzugekommen farbig und fett, als `<del>`/`<ins>` (`packages/ui/diff.ts`); ein
 Schalter zeigt den glatten Text.
@@ -745,7 +748,7 @@ GET    /api/konto/pin                       { gesetzt }
 GET    /api/konto/pin/pruefung              204, wenn die vorgelegte PIN stimmt
 PATCH  /api/konto/pin                       { pin } - vier Ziffern oder null
 GET    /api/auswertung                      Kurve und Stand - ohne Texte
-GET    /api/auswertung/{aufnahme}           Vorlage und der erkannte Text je Modell
+GET    /api/auswertung/{aufnahme}           Vorlage, der erkannte Text je Modell und die Karte
 POST   /api/auswertung/start
 POST   /api/auswertung/stopp                Gerechnetes bleibt
 ```
