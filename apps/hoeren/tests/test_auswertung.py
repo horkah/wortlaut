@@ -669,6 +669,19 @@ class TestTrainierteStaende:
         assert uebersicht["stand"]["erledigt"] == 1
         assert uebersicht["stand"]["gesamt"] == 3
 
+    def test_meine_daten_zeigt_die_faltung_des_freigegebenen_standes(
+        self, klient: TestClient, quelle: str, sprich, lege_stand_an
+    ) -> None:
+        """Freigegeben und nie in der Auswertung gewesen - die Genauigkeit steht trotzdem da."""
+        sprich()
+        aufnahme = _aufnahmen(klient)[0]
+        ref = lege_stand_an(aufnahme)
+        registry.gib_frei(einstellungen().data_dir, _sprecher(klient), ref)
+
+        liste = klient.get("/api/konto/recordings").json()
+        assert liste["modell"] == ref
+        assert [eintrag["qualitaet"] for eintrag in liste["aufnahmen"]] == [70.0]
+
     def test_faltungen_werden_uebernommen_statt_gerechnet(
         self, klient: TestClient, quelle: str, sprich, antworten: dict, lege_stand_an
     ) -> None:
