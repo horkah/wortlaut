@@ -15,6 +15,7 @@ Klang wird.
 
 from __future__ import annotations
 
+import unicodedata
 import wave
 from dataclasses import dataclass
 from pathlib import Path
@@ -165,6 +166,11 @@ class PiperMotor:
         entwurf = ziel.with_suffix(".wav.neu")
         try:
             sprecher = PiperVoice.load(str(modell))
+            zerlegt = sprecher.phonemize
+            karte = sprecher.config.phoneme_id_map
+            sprecher.phonemize = lambda text: [
+                passend_zusammengesetzt(satz, karte) for satz in zerlegt(text)
+            ]
             with wave.open(str(entwurf), "wb") as datei:
                 # `synthesize_wav` schreibt die ganze Datei samt Kopf.
                 sprecher.synthesize_wav(text, datei)
@@ -172,6 +178,24 @@ class PiperMotor:
             entwurf.unlink(missing_ok=True)
             raise VorlesenFehler(f"Piper konnte nicht sprechen: {ursache}") from ursache
         entwurf.replace(ziel)
+
+
+def passend_zusammengesetzt(phoneme: list[str], karte: dict) -> list[str]:
+    """Ein zerlegtes Zeichen wieder zusammensetzen, wo die Stimme nur das ganze kennt.
+
+    Piper zerlegt die Lautschrift (NFD): `ç` wird `c` und ein Häkchen
+    (U+0327). Stimmen aus Piper 0.2 (Kerstin, Pavoque) führen nur das ganze
+    `ç`; Piper ließe das Häkchen fallen, und aus jedem „ich" würde [ɪc].
+    """
+    ergebnis: list[str] = []
+    for zeichen in phoneme:
+        if ergebnis and zeichen not in karte:
+            ganz = unicodedata.normalize("NFC", ergebnis[-1] + zeichen)
+            if len(ganz) == 1 and ganz in karte:
+                ergebnis[-1] = ganz
+                continue
+        ergebnis.append(zeichen)
+    return ergebnis
 
 
 # ── Die Auswahl ─────────────────────────────────────────────────────────────
