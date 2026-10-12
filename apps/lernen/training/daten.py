@@ -22,12 +22,22 @@ from .klangwandel import RAHMENSCHRITT, Wandler
 VOLLAUSSCHLAG = 32768.0
 
 
-def lies_wav(pfad: Path) -> np.ndarray:
-    """Eine WAV-Datei als float32 zwischen -1 und 1."""
+def lies_rohwerte(pfad: Path) -> array.array:
+    """Eine WAV-Datei, wie sie daliegt: 16 bit je Abtastwert."""
     with wave.open(str(pfad), "rb") as datei:
         werte = array.array("h")
         werte.frombytes(datei.readframes(datei.getnframes()))
+    return werte
+
+
+def als_float(werte: array.array) -> np.ndarray:
+    """16-bit-Abtastwerte als float32 zwischen -1 und 1."""
     return np.asarray(werte, dtype=np.float32) / VOLLAUSSCHLAG
+
+
+def lies_wav(pfad: Path) -> np.ndarray:
+    """Eine WAV-Datei als float32 zwischen -1 und 1."""
+    return als_float(lies_rohwerte(pfad))
 
 
 @dataclass
@@ -40,8 +50,14 @@ class Probe:
 class Proben(torch.utils.data.Dataset):
     """Die Zeilen eines Teils des Manifests, beim Zugriff in Merkmale verwandelt.
 
-    Nicht im Voraus: Ein Spektrogramm (80×3000) wiegt knapp ein Megabyte, und
-    eine kurze WAV-Datei zu lesen fällt neben einem Trainingsschritt nicht auf.
+    Der Ton wird beim Anlegen gelesen, als 16 bit wie in der Datei: Wird eine
+    Aufnahme in „hören" editiert oder gelöscht, während die Faltung lernt,
+    verschwindet ihre Datei - der Lauf lernt dann weiter, was beim Anlegen
+    galt, statt die ganze Faltung zu verlieren. Was schon beim Anlegen fehlt,
+    fällt heraus wie in `laeufe.zeilen_fuer_faltung`.
+
+    Die Merkmale nicht im Voraus: Ein Spektrogramm (80×3000) wiegt knapp ein
+    Megabyte, die Welle derselben Aufnahme ein Zehntel davon.
     """
 
     def __init__(
@@ -55,7 +71,6 @@ class Proben(torch.utils.data.Dataset):
         zwischenlager: Path | None = None,
         fenster: int | None = None,
     ) -> None:
-        self.zeilen = zeilen
         # Merkmalsrahmen je Probe; `None`: Whispers 30 Sekunden (`fenster.py`).
         self.fenster = fenster
         self.korpus = korpus
@@ -66,6 +81,15 @@ class Proben(torch.utils.data.Dataset):
         # Ohne Wandler bleibt jede Probe, wie sie ist - so auch immer die
         # Validierung (`klangwandel.py`).
         self.wandler = wandler or Wandler()
+        self.zeilen: list[dict[str, Any]] = []
+        self.wellen: list[array.array] = []
+        for zeile in zeilen:
+            try:
+                welle = lies_rohwerte(self._pfad(str(zeile["audio"])))
+            except FileNotFoundError:
+                continue
+            self.zeilen.append(zeile)
+            self.wellen.append(welle)
 
     def __len__(self) -> int:
         return len(self.zeilen)
@@ -90,7 +114,7 @@ class Proben(torch.utils.data.Dataset):
 
     def __getitem__(self, stelle: int) -> Probe:
         zeile = self.zeilen[stelle]
-        klang = lies_wav(self._pfad(str(zeile["audio"])))
+        klang = als_float(self.wellen[stelle])
 
         # Raum und Tempo wirken auf die Welle, Masken aufs Spektrogramm.
         klang = self.wandler.welle(klang)

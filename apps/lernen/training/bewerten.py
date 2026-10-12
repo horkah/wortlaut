@@ -313,7 +313,8 @@ def vervollstaendige_kern(
         try:
             for nummer, zeile in enumerate(zeilen, start=1):
                 gemessen = _eine_zeile(erkenner, zeile, korpuswurzel, sprache, faktor)
-                wer[str(zeile["recording_id"])] = float(gemessen["wer"])
+                if gemessen is not None:
+                    wer[str(zeile["recording_id"])] = float(gemessen["wer"])
                 bericht.schritt(nummer, len(zeilen))
                 if nummer % 10 == 0 or nummer == len(zeilen):
                     bericht.sage(f"  gehört: {nummer}/{len(zeilen)}")
@@ -333,20 +334,27 @@ def vervollstaendige_kern(
 
 def _eine_zeile(
     erkenner, zeile: dict[str, Any], korpuswurzel: Path, sprache: str, faktor: float
-) -> dict[str, Any]:
+) -> dict[str, Any] | None:
     """Eine Manifestzeile erkennen und bewerten - ohne sie irgendwo abzulegen.
 
     Mit dem Tempo, mit dem gelernt und diktiert wird
-    (`apps/schreiben/.../segmenter.py`).
+    (`apps/schreiben/.../segmenter.py`). `None`, wenn ihr Ton inzwischen fehlt:
+    In „hören" editiert oder gelöscht, während gemessen wird - sie fällt dann
+    heraus wie beim Zusammenstellen (`laeufe.zeilen_fuer_faltung`).
     """
+    wav = korpuswurzel / str(zeile["audio"])
+    if not wav.is_file():
+        return None
     with tempfile.TemporaryDirectory() as ablage_tmp:
-        wav = korpuswurzel / str(zeile["audio"])
-        if tempo.vorspulen_noetig(faktor):
-            schnell = Path(ablage_tmp) / "vorgespult.wav"
-            tempo.spule_vor(wav, schnell, faktor)
-            wav = schnell
-        begonnen = time.monotonic()
-        transkript = erkenner.transkribiere(wav, sprache=sprache)
+        try:
+            if tempo.vorspulen_noetig(faktor):
+                schnell = Path(ablage_tmp) / "vorgespult.wav"
+                tempo.spule_vor(wav, schnell, faktor)
+                wav = schnell
+            begonnen = time.monotonic()
+            transkript = erkenner.transkribiere(wav, sprache=sprache)
+        except FileNotFoundError:
+            return None
         dauer = time.monotonic() - begonnen
     guete = metriken.bewerte(str(zeile["text"]), transkript.text)
     return {
@@ -455,7 +463,8 @@ def pruefe_endmodell(
     try:
         _hole_karte(erkenner, bericht)
         for zeile in stichprobe:
-            gemessen.append(_eine_zeile(erkenner, zeile, korpuswurzel, sprache, faktor))
+            if (eintrag := _eine_zeile(erkenner, zeile, korpuswurzel, sprache, faktor)) is not None:
+                gemessen.append(eintrag)
     finally:
         erkenner.entlade()
 
@@ -497,13 +506,14 @@ def _miss(
     """Zeile für Zeile erkennen und bewerten - der Rumpf von `bewerte_faltung`."""
     ergebnis = []
     for nummer, zeile in enumerate(zeilen, start=1):
-        eintrag = {
-            **_eine_zeile(erkenner, zeile, korpuswurzel, sprache, faktor),
+        gemessen = _eine_zeile(erkenner, zeile, korpuswurzel, sprache, faktor)
+        if gemessen is None:
+            bericht.sage(f"  {zeile.get('recording_id')}: Ton fehlt inzwischen - nicht gemessen")
+        else:
             # Welches Faltungsmodell sie gehört hat.
-            "faltung": faltung,
-        }
-        laeufe.haenge_an(verzeichnis / laeufe.BEWERTUNG, eintrag)
-        ergebnis.append(eintrag)
+            eintrag = {**gemessen, "faltung": faltung}
+            laeufe.haenge_an(verzeichnis / laeufe.BEWERTUNG, eintrag)
+            ergebnis.append(eintrag)
         if nummer % 10 == 0 or nummer == len(zeilen):
             bericht.sage(f"  bewertet: {nummer}/{len(zeilen)}")
 
