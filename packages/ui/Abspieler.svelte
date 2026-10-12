@@ -10,7 +10,7 @@
    */
   import { onDestroy } from 'svelte';
   import Pegelverlauf from './Pegelverlauf.svelte';
-  import { folge, spiele, stelle, stoppe, vergiss } from './ausschnitt';
+  import { folge, spiele, stelle, stoppe, vergiss, wecke } from './ausschnitt';
 
   let {
     schluessel,
@@ -44,6 +44,7 @@
       cursor = ab;
       return;
     }
+    wecke();
     datei ??= await lade();
     spielt = true;
     await spiele(schluessel, datei, ab, dauerS, () => {
