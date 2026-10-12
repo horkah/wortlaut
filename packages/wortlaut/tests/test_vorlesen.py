@@ -96,3 +96,16 @@ class TestOhneStimmen:
     def test_stimmen_schluckt_den_unbekannten_motor(self, tmp_path: Path) -> None:
         # Die Liste ist eine Auskunft und kein Weg, an dem etwas hängt.
         assert vorlesen.stimmen(tmp_path, "zauberei") == []
+
+
+class TestLautschrift:
+    """Piper zerlegt `ç`; ältere Stimmen kennen es nur ganz."""
+
+    def test_das_haekchen_kommt_wieder_an_sein_zeichen(self) -> None:
+        karte = {"ɪ": [1], "c": [2], "ç": [3]}
+        assert vorlesen.passend_zusammengesetzt(["ɪ", "c", "̧"], karte) == ["ɪ", "ç"]
+
+    def test_kennt_die_stimme_das_haekchen_bleibt_es_zerlegt(self) -> None:
+        karte = {"ɪ": [1], "c": [2], "ç": [3], "̧": [4]}
+        zerlegt = ["ɪ", "c", "̧"]
+        assert vorlesen.passend_zusammengesetzt(zerlegt, karte) == zerlegt
