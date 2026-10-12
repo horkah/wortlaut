@@ -86,6 +86,14 @@ gilt der zuletzt benutzte Reiter dieses Browsers (`packages/ui/reiter.ts`) -
 gemerkt, nicht angesprungen, damit der Zurück-Knopf nirgendwohin führt, wo
 niemand war.
 
+**Jede Ansicht steht beim Wiederkommen, wo sie verlassen wurde.** Die Lage im
+Fenster merkt sich der Rahmen je App und Route, Reiter wie Menüansichten
+(`packages/ui/fensterlage.ts`), im Speicher des Browser-Reiters - auch über
+einen Wechsel der App hinweg, nicht über das Schließen hinaus. Weil eine
+Ansicht ihren Inhalt erst nachlädt, zieht der Rahmen bis zu fünf Sekunden
+nach, bis die Seite lang genug ist; wer vorher selbst scrollt oder tippt,
+hat Vorrang.
+
 <a id="hilfe-zugangsdaten"></a>
 
 **Zugangsdaten** steht immer im Menü, auch ohne gültigen Zugang: Dann ist es

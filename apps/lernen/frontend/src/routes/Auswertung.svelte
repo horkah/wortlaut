@@ -74,7 +74,7 @@
    * dieser Aufnahme; geblättert wird im Editor nicht (`$ui/rueckkehr`).
    */
   function bearbeite(kennung: string) {
-    merke({ seite: 1, aufgeklappt: kennung, y: null }, null);
+    merke({ seite: 1, aufgeklappt: kennung, suchen: true }, null);
     window.location.href = editierenUrl(kennung);
   }
 
