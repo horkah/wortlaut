@@ -2,10 +2,11 @@
  * Was „Meine Daten", die Auswertung und „Editieren" über einen Ausflug in den
  * Editor teilen.
  *
- * **Die Stelle**: Seite der Liste, offene Karte, Lage im Fenster - damit die
- * Liste nach der Rückkehr dasteht wie vorher. Blättert der Editor zu einer
- * anderen Aufnahme, wird deren Karte die offene, und das Fenster sucht sie
- * statt der alten Lage.
+ * **Die Stelle**: Seite der Liste und offene Karte - damit die Liste nach
+ * der Rückkehr dasteht wie vorher; die Lage im Fenster merkt sich jede
+ * Ansicht selbst (`fensterlage.ts`). Blättert der Editor zu einer anderen
+ * Aufnahme, wird deren Karte die offene, und das Fenster sucht sie
+ * (`suchen`) statt der alten Lage.
  *
  * **Die Reihenfolge**: die Liste, wie sie beim Öffnen des Editors sortiert
  * war, eingefroren. Der Editor blättert darin; erst „Meine Daten" sortiert
@@ -18,7 +19,7 @@
  */
 import type { Listeneintrag } from './aufnahme';
 
-export type Stelle = { seite: number; aufgeklappt: string | null; y: number | null };
+export type Stelle = { seite: number; aufgeklappt: string | null; suchen: boolean };
 export type Reihenfolge = { eintraege: Listeneintrag[]; proSeite: number };
 
 const STELLE = 'wortlaut.meine-daten.stelle';
@@ -81,6 +82,6 @@ export function wechsleZu(kennung: string): void {
   schreibe(STELLE, {
     seite: Math.floor(nummer / folge.proSeite) + 1,
     aufgeklappt: kennung,
-    y: null,
+    suchen: true,
   } satisfies Stelle);
 }

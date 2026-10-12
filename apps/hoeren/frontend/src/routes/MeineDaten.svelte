@@ -11,7 +11,8 @@
    * sich umbenennen und beides mitnehmen, Sicherung wie Datensatz.
    *
    * **Zurück aus dem Editor steht die Seite, wie sie war**: dieselbe Seite der
-   * Liste, dieselbe Karte offen, dieselbe Stelle im Fenster (`lib/rueckkehr`).
+   * Liste, dieselbe Karte offen (`$ui/rueckkehr`), dieselbe Stelle im Fenster
+   * (`$ui/fensterlage`).
    */
   import { tick } from 'svelte';
   import { erklaert } from '$ui/erklaerung';
@@ -20,6 +21,7 @@
   import Aufnahmekarte from '$ui/Aufnahmekarte.svelte';
   import Listenwahl from '../lib/Listenwahl.svelte';
   import { merke, nimmStelle, type Reihenfolge, type Stelle } from '$ui/rueckkehr';
+  import { lasse } from '$ui/fensterlage';
   import Pager from '$ui/Pager.svelte';
   import { EDITIEREN_ROUTE } from '$ui/apps';
   import { gueltigePin, merkePin, schloss, vergissPin } from '$ui/pin.svelte';
@@ -82,7 +84,7 @@
   let modell = $state('');
 
   /**
-   * In den Editor: Stelle und Reihenfolge der Liste merken (`lib/rueckkehr`).
+   * In den Editor: Stelle und Reihenfolge der Liste merken (`$ui/rueckkehr`).
    * Die Reihenfolge ist die ganze Liste, nicht nur diese Seite - der Editor
    * blättert darin. Kommt sie nicht, blättert er eben nicht.
    */
@@ -93,7 +95,7 @@
     } catch {
       folge = null;
     }
-    merke({ seite: aufnahmenSeite, aufgeklappt, y: window.scrollY }, folge);
+    merke({ seite: aufnahmenSeite, aufgeklappt, suchen: false }, folge);
     gehZu(`${EDITIEREN_ROUTE}${kennung}`);
   }
 
@@ -107,20 +109,25 @@
     try {
       const folge = await meineReihenfolge(wahl, meinePin);
       const nummer = folge.findIndex((eintrag) => eintrag.id === stelle.aufgeklappt);
-      if (nummer < 0) return { seite: 1, aufgeklappt: null, y: 0 };
-      return { seite: Math.floor(nummer / proSeite) + 1, aufgeklappt: stelle.aufgeklappt, y: null };
+      if (nummer < 0) return { seite: 1, aufgeklappt: null, suchen: false };
+      return { seite: Math.floor(nummer / proSeite) + 1, aufgeklappt: stelle.aufgeklappt, suchen: true };
     } catch {
       return stelle;
     }
   }
 
-  /** Nach dem Laden: Karte wieder auf, Fenster an die alte Stelle - oder zur Karte. */
+  /**
+   * Nach dem Laden: Karte wieder auf. Die alte Lage im Fenster stellt der
+   * Rahmen her (`$ui/fensterlage`); steht die Karte jetzt woanders, geht das
+   * Fenster statt dessen zu ihr.
+   */
   async function kehreZurueck(stelle: Stelle) {
     const karte = aufnahmen.find((aufnahme) => aufnahme.id === stelle.aufgeklappt);
     if (karte) klappe(karte);
+    if (!stelle.suchen) return;
     await tick();
-    if (stelle.y !== null) window.scrollTo(0, stelle.y);
-    else document.getElementById(`aufnahme-${stelle.aufgeklappt}`)?.scrollIntoView({ block: 'center' });
+    lasse();
+    document.getElementById(`aufnahme-${stelle.aufgeklappt}`)?.scrollIntoView({ block: 'center' });
   }
 
   // Ob und womit diese Seite offen ist. `noetig` heißt: eine PIN ist gesetzt

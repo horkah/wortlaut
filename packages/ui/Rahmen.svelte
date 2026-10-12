@@ -11,6 +11,9 @@
    * System, Fehlerprotokoll, Zugangsdaten -, dazu den Hinweis, wenn kein
    * Zugang da ist.
    *
+   * Dazu die Lage im Fenster: Jede Ansicht steht beim Wiederkommen dort, wo
+   * sie verlassen wurde (`fensterlage.ts`).
+   *
    * So viel hier, damit keine App davon abweichen kann.
    *
    * Die App liefert nur, was ihr gehört: die Ansicht zu jedem ihrer Reiter
@@ -38,6 +41,7 @@
   } from './apps';
   import { OHNE_ZUGANG, hilfeAdresse } from './hilfe';
   import { merkeReiter, vorgabeReiter } from './reiter';
+  import { zeigeAn } from './fensterlage';
   import { ladeZugang, lage } from './lage.svelte';
 
   let {
@@ -90,6 +94,14 @@
   $effect(() => {
     if (aufReiter) merkeReiter(app, lage.route);
   });
+
+  // Welche Ansicht dasteht, für die Lage im Fenster - je App und Route; die
+  // leere Adresse ist der Reiter, der dann gilt. Nicht `offen`: Ein Lauf
+  // markiert „Training" und ist doch eine eigene Seite.
+  const fenster = $derived(
+    `${app}:${lage.route === '/' && reiter.length ? vorgabe : lage.route}`,
+  );
+  $effect(() => zeigeAn(fenster));
 
   // Was die Kopfleiste als offen markiert. Reiter und Menüansichten markieren
   // sich selbst; alles andere fällt auf das zurück, was die App dafür nennt,
