@@ -25,7 +25,7 @@
   import type { Diagramm } from '../lib/diagramm';
   import { einstellungen } from '$ui/einstellungen.svelte';
   import { editierenUrl } from '$ui/apps';
-  import { merke } from '$ui/rueckkehr';
+  import { IN_DIE_AUSWERTUNG, merke } from '$ui/rueckkehr';
   import {
     auswertung as ladeAuswertung,
     auswertungStarten,
@@ -70,11 +70,11 @@
   const bearbeitbar = $derived(lage.bearbeiten === 'gilt');
 
   /**
-   * In den Editor von „hören". Zurück geht es nach „Meine Daten", zur Karte
-   * dieser Aufnahme; geblättert wird im Editor nicht (`$ui/rueckkehr`).
+   * In den Editor von „hören". „Zurück" führt wieder hierher, zu derselben
+   * Aufnahme (`GEWAEHLT`); geblättert wird im Editor nicht (`$ui/rueckkehr`).
    */
   function bearbeite(kennung: string) {
-    merke({ seite: 1, aufgeklappt: kennung, suchen: true }, null);
+    merke(null, null, IN_DIE_AUSWERTUNG);
     window.location.href = editierenUrl(kennung);
   }
 
@@ -82,7 +82,36 @@
   async function verworfen() {
     gewaehlt = null;
     gewaehlteNummer = 0;
+    merkeWahl('');
     await hole();
+  }
+
+  // Welche Aufnahme gewählt ist, im Speicher dieses Browser-Reiters: Zurück
+  // aus dem Editor oder einem anderen Reiter steht sie wieder da.
+  const GEWAEHLT = 'wortlaut.auswertung.gewaehlt';
+  let wahlWiederhergestellt = false;
+
+  function merkeWahl(aufnahmeId: string) {
+    try {
+      if (aufnahmeId) sessionStorage.setItem(GEWAEHLT, aufnahmeId);
+      else sessionStorage.removeItem(GEWAEHLT);
+    } catch {
+      // Ohne Speicher steht nach der Rückkehr keine gewählt - kein Fehlerfall.
+    }
+  }
+
+  /** Einmal, sobald die Kurve da ist: die zuletzt gewählte Aufnahme wieder wählen. */
+  function stelleWahlWieder() {
+    if (wahlWiederhergestellt || !daten) return;
+    wahlWiederhergestellt = true;
+    let gemerkt = '';
+    try {
+      gemerkt = sessionStorage.getItem(GEWAEHLT) ?? '';
+    } catch {
+      return;
+    }
+    const stelle = daten.punkte.findIndex((punkt) => punkt.aufnahme_id === gemerkt);
+    if (stelle >= 0) waehleStelle(stelle);
   }
 
   // Abweichungen von der Vorlage auszeichnen - an als Vorgabe, aus für den
@@ -334,6 +363,7 @@
     const punkt = daten?.punkte[stelle];
     if (!punkt || punkt.nummer === gewaehlteNummer) return;
     gewaehlteNummer = punkt.nummer;
+    merkeWahl(punkt.aufnahme_id);
     vergleichLaeuft = true;
     try {
       gewaehlt = await ladeVergleich(punkt.aufnahme_id);
@@ -351,6 +381,7 @@
       fehler = '';
       // Sobald wieder gerechnet wird, ist die Quittung von vorhin überholt.
       if (daten.stand.laeuft) meldung = '';
+      stelleWahlWieder();
     } catch (ursache) {
       fehler = fehlertext(ursache);
     }

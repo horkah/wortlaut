@@ -20,7 +20,13 @@
   import Kalender from '$ui/Kalender.svelte';
   import Aufnahmekarte from '$ui/Aufnahmekarte.svelte';
   import Listenwahl from '../lib/Listenwahl.svelte';
-  import { merke, nimmStelle, type Reihenfolge, type Stelle } from '$ui/rueckkehr';
+  import {
+    merke,
+    nimmStelle,
+    NACH_MEINEN_DATEN,
+    type Reihenfolge,
+    type Stelle,
+  } from '$ui/rueckkehr';
   import { lasse } from '$ui/fensterlage';
   import Pager from '$ui/Pager.svelte';
   import { EDITIEREN_ROUTE } from '$ui/apps';
@@ -95,7 +101,7 @@
     } catch {
       folge = null;
     }
-    merke({ seite: aufnahmenSeite, aufgeklappt, suchen: false }, folge);
+    merke({ seite: aufnahmenSeite, aufgeklappt, suchen: false }, folge, NACH_MEINEN_DATEN);
     gehZu(`${EDITIEREN_ROUTE}${kennung}`);
   }
 

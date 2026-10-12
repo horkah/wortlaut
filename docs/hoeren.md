@@ -434,7 +434,7 @@ von der Aufsicht.
 ## Editieren - kürzen, teilen, berichtigen
 
 Eine Aufnahme allein, erreichbar über den Stift an einer aufgeklappten Karte
-in „Meine Daten" (`#/editieren/<id>`): der Lautstärkeverlauf mit zwei Linien
+in „Meine Daten" und in der Auswertung von `lernen` (`#/editieren/<id>`): der Lautstärkeverlauf mit zwei Linien
 für Anfang und Ende, darunter ihr Text zum Mitlesen und ein Feld, in dem er
 berichtigt wird. Verschoben wird mit Finger, Maus oder Pfeiltasten. Beim
 Abspielen läuft ein Cursor mit; die Leertaste (außerhalb der Eingabefelder)
@@ -450,8 +450,12 @@ den Ausschnitt dazu. Über der Kurve stehen Art (gelesen, nachgesprochen, …),
 Datum der Aufnahme und des letzten Speicherns, die Dauer und rechts wie in
 „Meine Daten" der Ring der Genauigkeit oder die Marke „editiert".
 
-**Zurück nach „Meine Daten"** steht die Seite, wie sie war: dieselbe Seite der
-Liste, dieselbe Karte offen, dieselbe Stelle im Fenster. Wer mit
+**Zurück geht es dorthin, woher der Stift kam** - nach „Meine Daten" oder in
+die Auswertung von `lernen`; der Knopf nennt das Ziel
+(`packages/ui/rueckkehr.ts`, `rueckweg`). In „Meine Daten" steht die Seite,
+wie sie war: dieselbe Seite der Liste, dieselbe Karte offen, dieselbe Stelle
+im Fenster. Aus der Auswertung geöffnet, blättert der Editor nicht - er
+blättert nur in der Liste von „Meine Daten". Wer mit
 ungespeicherten Änderungen geht - über „Abbrechen", einen Reiter oder den
 Zurück-Knopf -, wird gefragt.
 

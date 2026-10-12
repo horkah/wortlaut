@@ -168,6 +168,7 @@ export function editierenUrl(aufnahme: string): string {
  * Korpus schreibt (Grundentscheidung 6); die Ansicht fragt dessen API.
  */
 export const AUSWERTUNG_PFAD = '/auswertung';
+export const AUSWERTUNG_URL = `/lernen/#${AUSWERTUNG_PFAD}`;
 
 /**
  * Wo alle Modelle eines Menschen zusammen stehen - die eine Übersicht.
