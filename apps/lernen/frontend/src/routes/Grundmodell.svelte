@@ -190,7 +190,7 @@
         - noch kein gemeinsamer Boden mit den anderen Modellen{/if}.
     </p>
   {:else}
-    <p class="hinweise">Noch nicht gemessen - die Auswertung läuft in „hören“.</p>
+    <p class="hinweise">Noch nicht gemessen - gemessen wird unter „Auswertung“.</p>
   {/if}
 {/if}
 

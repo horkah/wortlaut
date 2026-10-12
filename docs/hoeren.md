@@ -71,8 +71,7 @@ die Browserstimmen klingen, entscheidet das Betriebssystem
 
 Die Kopfzeile hat zwei Reihen: oben die drei Apps, die offene dunkelgrün,
 darunter die Ansichten der offenen App - in `hören` **Textquelle**,
-**Aufnehmen**, **Fortschritt** und **Auswertung**, in der Reihenfolge der
-Arbeit. Rechts steht, wer angemeldet ist - der Name, den der Server zum Zugang
+**Aufnehmen** und **Fortschritt**, in der Reihenfolge der Arbeit. Rechts steht, wer angemeldet ist - der Name, den der Server zum Zugang
 nennt (`GET /api/zugang`).
 
 Kopfzeile, Menü und die Ansichten dahinter gibt es einmal, in
@@ -301,9 +300,9 @@ eine Aufnahme fällt, rechnet der Browser in der Zeitzone des Betrachters.
 Kurzes zuerst (Name, Kennzahlen, Ausleiten, PIN, Textquellen, Sitzungen),
 die lange Liste der Aufnahmen danach.
 
-Jede Aufnahme ist eine Karte (`apps/hoeren/frontend/src/lib/Aufnahmekarte.svelte`,
-dieselbe wie in **Auswertung**): Text, Dauer, Modus, Tag, Hinweise. Ein Klick
-oder Tippen irgendwo auf die Karte klappt sie auf, ein zweites klappt sie zu;
+Jede Aufnahme ist eine Karte (`packages/ui/Aufnahmekarte.svelte`, dieselbe
+wie in der Auswertung von `lernen`): Text, Dauer, Modus, Tag, Hinweise. Ein
+Klick oder Tippen irgendwo auf die Karte klappt sie auf, ein zweites klappt sie zu;
 offen ist immer nur eine. Aufgeklappt stehen dort die Wellenform, der
 Papierkorb und - nur wenn der Bearbeitungsschlüssel gilt - der Stift, der die
 Aufnahme in **Editieren** öffnet. Die Wellenform ist dieselbe wie im Editor,
@@ -562,146 +561,6 @@ Aufnahmen in „Meine Daten". Leer heißt abgeschaltet.
 
 ---
 
-<a id="hilfe-auswertung"></a>
-
-## Auswertung - wie gut hört welches Modell?
-
-Jede Aufnahme ist eine Prüfaufgabe: durch einen Erkenner schicken, mit der
-Vorlage vergleichen (`services/auswertung.py`). Die Zahlen sind die Baseline
-für `lernen`. Gemessen wird ein Korpus, der des Zugangs; verworfene Aufnahmen
-zählen nicht.
-
-**Ungeprüfte Korrekturen aus „schreiben" misst kein Modell.** Ihr Text ist
-die Ausgabe eines Erkenners, so oft neu gesprochen, bis sie stimmte, und dann
-abgenickt - an ihr gemessen, zählte ein Modell dessen Fehler als richtig. Sie
-fehlen deshalb in Kurve, Kennzahlen und Zählung; gelernt wird an ihnen weiter.
-Hat ein Mensch ihren Text in „Editieren" geprüft (`recordings.validiert`),
-zählt sie wie eine Vorlage. Ein Stand, der sie gelernt hat, als sie noch
-ungeprüft war, hat für sie keine Zahl: Er misst sie nicht selbst, und seine
-Faltungen haben sie nicht gemessen. Bei ihm fehlt sie, bei den Grundmodellen
-nicht - die Zählung unterscheidet sich darum.
-
-Es treten an die Grundmodelle aus `WORTLAUT_AUSWERTUNG_MODELLE`:
-
-| Modell | wofür |
-| --- | --- |
-| `small` | der Alltagsfall, die Untergrenze |
-| `medium` | was mit mehr Rechenzeit zu holen ist |
-| `large-v3` | das größte fertige Modell - reicht überhaupt eines für diese Stimme? |
-
-Jeder Name in der Tabelle der Kennzahlen führt in die Einzelansicht in
-`lernen` - ein Grundmodell in seinen Steckbrief, ein Stand in seinen Lauf.
-
-### Die eigenen Stände treten mit an
-
-Jeder trainierte Stand des Sprechers mit Gewichten (`ct2/`) steht daneben.
-**Was ein Stand gelernt hat, misst er nie selbst** - das wäre eine Zahl über
-sein Gedächtnis:
-
-| woher eine Zeile kommt | für welche Aufnahmen | `herkunft` |
-| --- | --- | --- |
-| aus den Faltungen seines Laufs | die er im Lauf kannte | `faltung` |
-| vom ausgelieferten Stand, hier gerechnet | alle übrigen | `gemessen` |
-
-Beide Male misst die Zeile, wie gut der Stand etwas hört, das er nie gelernt
-hat. Die Faltungen werden beim Öffnen der Seite und der Aufnahmenliste in
-„Meine Daten" übernommen (`auswertung.gleiche_ab`), nicht erst beim Druck auf
-den Knopf.
-
-- **Gekannt** hat ein Stand, was sein Lauf gelernt und gemessen hat -
-  bei einem Kernlauf nur den Kern (`_gehoert_im_lauf`) - samt allen Teilen
-  und Kopien, die daraus hervorgingen, über alle Generationen (`verwandte`).
-- **Eine Faltung gilt nur für den Ton, auf dem sie gemessen wurde.** Hat die
-  Aufnahme seither eine andere Dauer, weil sie zugeschnitten wurde, wird die
-  Faltung nicht übernommen und, wo sie steht, weggeräumt
-  (`vergiss_ueberholte_faltungen`). Die Stelle bleibt dann leer und zählt
-  weder als offen noch als erledigt.
-- **Gemessen wird am Text, der heute gilt.** Blieb der Ton, aber der Text ist
-  ein anderer als im Manifest des Laufs, gilt das Erkannte der Faltung weiter
-  - die Maße werden daraus gegen den neuen Text gerechnet, nicht vom alten
-  übernommen (`masse_der_faltung`). Satzzeichen und Großschreibung zählen
-  dabei nicht (`metriken.normalisiere`).
-- **Ohne Gewichte tritt ein Stand nicht an**, und ein gelöschter räumt seine
-  Zeilen (`vergiss_verschwundene_staende`, im Lauf `noch_da`).
-- **Übernommene Zeilen gelten nie als offen** - ihre Rechenzeit stammt von der
-  Trainingsmaschine.
-
-Angezeigt wird ein Stand mit seiner Kurzkennung (`K7M2Q`,
-`registry.beschriftung`).
-
-### Vier Maße und eine Zahl
-
-`wortlaut/metriken.py`:
-
-| Maß | was es zählt | Grenzen |
-| --- | --- | --- |
-| **WER** | falsche, fehlende und zusätzliche **Wörter** | 0 bis offen |
-| **CER** | dasselbe auf **Zeichen** | 0 bis offen |
-| **MER** | Fehler im Verhältnis zu allem Gesagten | 0 bis 1 |
-| **WIL** | verlorene Wortinformation | 0 bis 1 |
-
-Darüber die **Genauigkeit**, 0 bis 100, das geometrische Mittel der vier
-umgedrehten Raten:
-
-* WER und CER werden **gebogen, nicht gekappt** (`1/(1+x)`) - „jedes Wort
-  falsch" und „den Satz dreimal geliefert" bleiben unterscheidbar.
-* **Null** heißt, wie bei MER und WIL, dass kein Wort getroffen wurde.
-* **Geometrisch**, damit ein durchgefallenes Maß nicht von zwei guten
-  aufgerechnet wird.
-
-Verglichen wird auf angeglichenem Text - klein, ohne Satzzeichen, einfache
-Leerzeichen. Der Rohtext wird gespeichert und angezeigt.
-
-### Der Lauf
-
-Ein Hintergrundlauf rechnet die offenen Paare aus Aufnahme und Modell:
-
-* **Von Hand angestoßen**, nie beim Hochfahren.
-* **Ist nichts offen, läuft nichts**, und der Knopf sagt „Nichts Neues zu
-  rechnen".
-* **Modellweise**: Ein Modell rechnet alle offenen Aufnahmen, dann kommt das nächste, in der Reihenfolge von `WORTLAUT_AUSWERTUNG_MODELLE`
-  und danach die eigenen Stände. So lädt jedes Modell einmal je Lauf.
-* **Ein Erkenner auf der Karte.** Kommt das nächste Modell an die Reihe, geht
-  das vorige herunter (`transkriptor_fuer`). Mehrere nebeneinander ließen
-  einem großen Stand keinen Platz, und einem Training daneben auch nicht.
-* **Danach ist die Karte frei.** Endet ein Lauf, gibt er den Erkenner zurück
-  (`gib_karte_frei`), denn der Trainer braucht die ganze Karte.
-* **Wiederaufnehmbar.** Fertig ist, was in `erkennungen` steht; ein zweiter
-  Lauf rechnet nur, was fehlt.
-* **Fertig heißt: auf diesem Rechenwerk.** Jede Zeile trägt ihr Rechenwerk;
-  eine aus einem anderen gilt als offen, damit die Rechenzeiten vergleichbar
-  bleiben.
-* **Gezählt wird nur, was gilt** - brauchbare Aufnahmen. Verwerfen räumt die
-  Messzeilen einer Aufnahme mit.
-* **Auf der Karte, wenn eine da ist**; ist sie voll, weicht der Lauf auf den
-  Prozessor aus.
-* **Ein Lauf zur Zeit**, über alle Sprecher.
-
-### Die Ansicht
-
-Eine Kurve über die Aufnahmen in der Reihenfolge, in der sie aufgenommen
-wurden, lückenlos von 1 an gezählt (`zuschnitt.reihenfolge`). Je Aufnahme ein
-Wert je Modell, eines als Balken, die übrigen als Punkte; Auswahllisten
-wechseln Maß und Balkenmodell. Was noch nicht gerechnet ist, bleibt leer
-statt null.
-
-Darunter die Bilanz: **Median und Mittel** je Modell im gewählten Maß. Liegen
-sie weit auseinander, verreißt ein Modell einzelne
-Aufnahmen, statt gleichmäßig schlechter zu sein.
-
-Ein Tipp in eine Spalte zeigt die Aufnahme als Karte wie in **Meine Daten**,
-aufgeklappt - Wellenform, Stift, Papierkorb und der Ring mit der Genauigkeit
-des Modells von „schreiben" -, darunter je Modell den erkannten Text. Der
-Stift öffnet **Editieren**; zurück geht es von dort nach **Meine Daten**.
-Unterschiede sind zeichenweise ausgezeichnet - fehlend grau durchgestrichen,
-hinzugekommen farbig und fett, als `<del>`/`<ins>` (`packages/ui/diff.ts`); ein
-Schalter zeigt den glatten Text.
-
-Gezeichnet wird mit ECharts, nachgeladen mit den eingetragenen Teilen
-(`apps/hoeren/frontend/src/lib/diagramm.ts`).
-
----
-
 ## Endpunkte
 
 Verwaltung - hinter `WORTLAUT_AUTH_TOKEN`:
@@ -747,7 +606,7 @@ GET    /api/konto/datensatz                 .zip der eigenen Paare              
 GET    /api/konto/pin                       { gesetzt }
 GET    /api/konto/pin/pruefung              204, wenn die vorgelegte PIN stimmt
 PATCH  /api/konto/pin                       { pin } - vier Ziffern oder null
-GET    /api/auswertung                      Kurve und Stand - ohne Texte
+GET    /api/auswertung                      Kurve und Stand - ohne Texte (Ansicht in „lernen")
 GET    /api/auswertung/{aufnahme}           Vorlage, der erkannte Text je Modell und die Karte
 POST   /api/auswertung/start
 POST   /api/auswertung/stopp                Gerechnetes bleibt

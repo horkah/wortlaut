@@ -16,6 +16,7 @@ import { mitSchluessel } from '$ui/schluessel.svelte';
 // Wer der Server in diesem Browser sieht - die Form steht in `$ui/wer`, weil
 // alle drei Apps dieselbe Antwort lesen.
 import type { Wer } from '$ui/wer';
+import type { AufsichtAufnahme, Guteskala, Listeneintrag } from '$ui/aufnahme';
 
 // Die Wege dieser App liegen auf der Wurzel - sie ist der Einstieg (siehe
 // `APPS` in `$ui/apps`). Wie eine Anfrage hinausgeht und wie ein Fehlschlag
@@ -198,22 +199,17 @@ export function aufnahmeSenden(eingabe: {
   return anfrage<Aufnahme>('/recordings', { method: 'POST', body: formular });
 }
 
-export const aufnahmeVerwerfen = (aufnahme: string) =>
-  anfrage<void>(`/recordings/${aufnahme}`, { method: 'DELETE' });
-
-/**
- * Eine eigene Aufnahme anhören - für „Meine Daten" und die Auswertung.
- *
- * Als Blob und nicht als Adresse im `src`: Die Datei hängt am Zugang, und ein
- * `<audio src>` schickt keine Kopfzeilen mit.
- */
-export const meineAufnahmeAudio = (aufnahme: string) => blob(`/recordings/${aufnahme}/audio`);
-
-/** Der Lautstärkeverlauf einer eigenen Aufnahme - die Wellenform zum Anhören. */
-export type Wellenform = { dauer_s: number; fenster_s: number; verlauf: number[] };
-
-export const meineWellenform = (aufnahme: string) =>
-  anfrage<Wellenform>(`/recordings/${aufnahme}/verlauf`);
+// Anhören, Löschen und die Karte einer eigenen Aufnahme braucht auch die
+// Auswertung in „lernen" - einmal in `$ui/aufnahme`.
+export {
+  aufnahmeVerwerfen,
+  meineAufnahmeAudio,
+  meineWellenform,
+  type AufsichtAufnahme,
+  type Guteskala,
+  type Listeneintrag,
+  type Wellenform,
+} from '$ui/aufnahme';
 
 // ── Vorlesen ────────────────────────────────────────────────────────────────
 
@@ -280,30 +276,6 @@ export type AufsichtSitzung = {
   aufnahmen: number;
 };
 
-export type AufsichtAufnahme = {
-  id: string;
-  prompt_id: string;
-  text: string;
-  quelle_art: string;
-  dauer_s: number;
-  pegel_dbfs: number;
-  modus: string;
-  status: string;
-  hinweise: string[];
-  externe_id: string | null;
-  audio_vorhanden: boolean;
-  erstellt: string;
-  /** Wann zuletzt in „Editieren" gespeichert; null heißt nie. */
-  geaendert: string | null;
-  quelle_id: string;
-  quelle_titel: string;
-  validiert: boolean;
-  /** Die Genauigkeit des Modells von „schreiben" auf dieser Aufnahme, 0 bis 100; null ungemessen. */
-  qualitaet: number | null;
-  /** Editiert und seitdem nicht gelernt - dann steht die Marke statt der Zahl. */
-  editiert: boolean;
-};
-
 export type Einsicht = {
   sprecher: Uebersicht;
   quellen: AufsichtQuelle[];
@@ -356,7 +328,6 @@ export const VORGABE_ARTEN: Aufnahmeart[] = [
   'korrektur_ungeprueft',
 ];
 
-export type Guteskala = { rot: number; gruen: number };
 
 /** Wie die Liste gefiltert und sortiert wird (`services/uebersicht.py`). */
 export type Listenwahl = {
@@ -365,9 +336,6 @@ export type Listenwahl = {
   sortierung: 'aufgenommen' | 'geaendert' | 'qualitaet';
   richtung: 'auf' | 'ab';
 };
-
-/** Eine Aufnahme in der Reihenfolge der Liste. */
-export type Listeneintrag = { id: string; status: string };
 
 const alsParameter = (wahl: Listenwahl) =>
   new URLSearchParams({
@@ -530,117 +498,6 @@ export const michUmbenennen = (name: string, pin?: string) =>
 export const meineSicherung = (pin?: string) => lade('/konto/sicherung', mitPin(pin));
 
 export const meinDatensatz = (pin?: string) => lade('/konto/datensatz', mitPin(pin));
-
-// ── Auswertung ──────────────────────────────────────────────────────────────
-//
-// Wie gut verschiedene Modelle diesem Sprecher zuhören, gemessen an seinen
-// eigenen Aufnahmen (`backend/api/auswertung.py`). Zwei Auskünfte, absichtlich
-// getrennt: `auswertung()` liefert die Zahlen für die Kurve und wird abgefragt,
-// solange die Seite offen ist; `vergleich()` liefert die Texte einer einzelnen
-// Aufnahme und erst auf Klick. Die Texte in jede Abfrage zu packen hieße, bei
-// jedem Takt ein Vielfaches der Zahlen zu übertragen, die gemeint sind.
-
-export type Metrik = {
-  schluessel: string;
-  name: string;
-  erklaerung: string;
-  /** Ob ein hoher Wert der bessere ist - die Fehlerraten sind andersherum. */
-  hoch_ist_gut: boolean;
-  einheit: string;
-  /** Feste Obergrenze der Achse; `null` heißt: nach den Daten richten. */
-  obergrenze: number | null;
-};
-
-export type Laufstand = {
-  laeuft: boolean;
-  erledigt: number;
-  gesamt: number;
-  uebersprungen: number;
-  aktuell: string;
-  fehler: string | null;
-  /** Es rechnet gerade jemand anderes - es läuft immer nur ein Lauf. */
-  fremder_lauf: boolean;
-};
-
-export type Punkt = {
-  nummer: number;
-  aufnahme_id: string;
-  dauer_s: number;
-  erstellt: string;
-  /**
-   * modell → maß → Wert. Fehlt ein Eintrag, ist er noch nicht
-   * gerechnet. Der Server rechnet hier nichts zusammen: Welche Zahl die Kurve
-   * zeigt, hängt am gewählten Maß, und die Tabelle zeigt ohnehin jede.
-   */
-  werte: Record<string, Record<string, number>>;
-};
-
-export type Auswertung = {
-  modelle: string[];
-  /**
-   * Wie ein Modell heißen soll - `small` bleibt `small`, ein trainierter
-   * Stand wird zu `Stand K7M2Q`. Der Schlüssel bleibt überall die rohe
-   * Kennung: Sie steht so in der Datenbank, und zwei Stände desselben Laufs
-   * unterscheiden sich nur darin.
-   */
-  beschriftungen: Record<string, string>;
-  /** Stand -> sein Lauf in „lernen" (`laufUrl`); Grundmodelle fehlen. */
-  laeufe: Record<string, string>;
-  metriken: Metrik[];
-  stand: Laufstand;
-  punkte: Punkt[];
-};
-
-export type Erkennung = {
-  modell: string;
-  text: string;
-  wer: number;
-  cer: number;
-  mer: number;
-  wil: number;
-  genauigkeit: number;
-  rechenzeit_s: number;
-};
-
-export type Vergleich = {
-  nummer: number;
-  aufnahme_id: string;
-  referenz: string;
-  dauer_s: number;
-  erkennungen: Erkennung[];
-  /** Die Karte aus „Meine Daten", mit der Genauigkeit von `modell`. */
-  aufnahme: AufsichtAufnahme;
-  /** Womit „schreiben" diktiert. */
-  modell: string;
-  skala: Guteskala;
-};
-
-export const auswertung = () => anfrage<Auswertung>('/auswertung');
-
-/**
- * Womit „schreiben" diktiert - die Kennung eines Standes oder ein Grundmodell.
- *
- * Gefragt wird „schreiben" selbst, wie in der Modellübersicht von „lernen":
- * Dort steht die eine Antwort, samt allem, was sie überstimmt
- * (`WORTLAUT_MODELL_REF`, ersatzweise `WORTLAUT_ASR_MODELL`). Scheitert die
- * Frage, kommt `null` - die Auswertung steht auch ohne „schreiben".
- */
-export async function diktatmodell(): Promise<string | null> {
-  try {
-    const antwort = await api('/schreiben/api').anfrage<{ ref: string }>('/model');
-    return antwort.ref || null;
-  } catch {
-    return null;
-  }
-}
-
-export const vergleich = (aufnahme: string) => anfrage<Vergleich>(`/auswertung/${aufnahme}`);
-
-export const auswertungStarten = () =>
-  anfrage<Laufstand>('/auswertung/start', { method: 'POST' });
-
-export const auswertungStoppen = () =>
-  anfrage<Laufstand>('/auswertung/stopp', { method: 'POST' });
 
 // ── Zuschnitt ───────────────────────────────────────────────────────────────
 //

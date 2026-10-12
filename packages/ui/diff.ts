@@ -1,7 +1,7 @@
 /**
  * Zwei Texte nebeneinandergelegt: was gleich blieb, was fehlt, was dazukam.
  *
- * Gebraucht für die Auswertung („hören"): Dort steht die Vorlage neben dem,
+ * Gebraucht für die Auswertung („lernen"): Dort steht die Vorlage neben dem,
  * was ein Modell daraus gehört hat, und der Unterschied ist die eigentliche
  * Aussage. Ihn als zwei Absätze untereinander zu zeigen hieße, das Vergleichen
  * dem Auge zu überlassen - bei „Häuser" gegen „Heuser" verliert das Auge.

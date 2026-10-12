@@ -60,7 +60,6 @@ const JE_APP: Record<AppSchluessel, Record<string, Stelle>> = {
     '/quelle': ['hoeren.md', 'hilfe-textquelle'],
     '/aufnahme': ['hoeren.md', 'hilfe-aufnehmen'],
     '/fortschritt': ['hoeren.md', 'hilfe-fortschritt'],
-    [AUSWERTUNG_PFAD]: ['hoeren.md', 'hilfe-auswertung'],
     [EDITIEREN_ROUTE]: ['hoeren.md', 'hilfe-editieren'],
     '/aufsicht/': ['hoeren.md', 'hilfe-aufsicht'],
     '': ['hoeren.md', 'hilfe-ablauf'],
@@ -68,6 +67,7 @@ const JE_APP: Record<AppSchluessel, Record<string, Stelle>> = {
   lernen: {
     '/training': ['lernen.md', 'hilfe-training'],
     [LAUF_ROUTE]: ['lernen.md', 'hilfe-lauf'],
+    [AUSWERTUNG_PFAD]: ['lernen.md', 'hilfe-auswertung'],
     [MODELLE_PFAD]: ['lernen.md', 'hilfe-modelle'],
     [GRUNDMODELL_ROUTE]: ['lernen.md', 'hilfe-grundmodell'],
     '': ['lernen.md', 'hilfe-training'],

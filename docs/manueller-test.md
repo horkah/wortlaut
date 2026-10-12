@@ -47,7 +47,7 @@ gemacht, und was dabei herauskommt, ist ein Link.
 1. Den kopierten Link in die Adresszeile einfügen und öffnen. Erwartet: Die
    Adresse springt sofort zurück auf `.../#/` - das Geheimnis steht nicht mehr
    dort. Die App zeigt die Ansicht „Textquelle“, in der Kopfzeile steht eine
-   zweite Reihe (Textquelle, Aufnehmen, Fortschritt, Auswertung) mit „Textquelle“ hell
+   zweite Reihe (Textquelle, Aufnehmen, Fortschritt) mit „Textquelle“ hell
    hinterlegt, und vor dem Menüknopf steht der eingetragene Name. Die
    Einstellungen hängen hinter dem Menüknopf (☰) rechts oben; statt
    „Sprecher“ steht dort „Meine Daten“. „Zugangsdaten“ zeigt zuerst, wessen

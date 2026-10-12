@@ -152,7 +152,7 @@ AUSWAHLEN = [
             "Für einen Korpus mit vielen verrauschten oder fehlerhaften Aufnahmen: "
             f"Gelernt nur auf den besten {round(lauf_layout.KERN_ANTEIL * 100)} % "
             "nach WER des freigegebenen Modells. Die übrigen sieht der Lauf nicht; "
-            "sie hört erst das Endmodell in der Auswertung von „hören“. Braucht ein "
+            "sie hört erst das Endmodell in der „Auswertung“. Braucht ein "
             "freigegebenes Modell."
         ),
         code=lauf_layout.CODE_AUSWAHL[lauf_layout.AUSWAHL_KERN],

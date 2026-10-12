@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
-   * Eine Aufnahme als Karte - in „Meine Daten" als Klappkarte der Liste, in
-   * „Auswertung" aufgeklappt für die gewählte Spalte.
+   * Eine Aufnahme als Karte - in „Meine Daten" (hören) als Klappkarte der
+   * Liste, in „Auswertung" (lernen) aufgeklappt für die gewählte Spalte.
    *
    * Oben der Text, darunter Dauer, Art, Tag, Hinweise und rechts die
    * Genauigkeit des Modells von „schreiben" (`Guete`) oder „editiert".
@@ -9,12 +9,12 @@
    * Editor und der Papierkorb mit Rückfrage. Die Wellenform holt die Karte
    * selbst, sobald sie offen ist - das Audio erst das erste Tippen darauf.
    */
-  import { fehlertext } from '$ui/api';
-  import Abspieler from '$ui/Abspieler.svelte';
-  import Papierkorb from '$ui/Papierkorb.svelte';
-  import Rueckfrage from '$ui/Rueckfrage.svelte';
-  import Warnzeichen from '$ui/Warnzeichen.svelte';
-  import { tag } from '$ui/zeit';
+  import { fehlertext } from './api';
+  import Abspieler from './Abspieler.svelte';
+  import Papierkorb from './Papierkorb.svelte';
+  import Rueckfrage from './Rueckfrage.svelte';
+  import Warnzeichen from './Warnzeichen.svelte';
+  import { tag } from './zeit';
   import Guete from './Guete.svelte';
   import {
     aufnahmeVerwerfen,
@@ -23,7 +23,7 @@
     type AufsichtAufnahme,
     type Guteskala,
     type Wellenform,
-  } from './api';
+  } from './aufnahme';
 
   let {
     aufnahme,

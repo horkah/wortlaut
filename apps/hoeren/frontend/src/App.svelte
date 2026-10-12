@@ -5,20 +5,14 @@
    *
    * Die Reiter stehen in `REITER` (`$ui/apps`): der Weg durch die Arbeit an
    * einem Sprecher - Text holen, aufnehmen, nachsehen, was zusammengekommen
-   * ist, und am Ende messen, was die Modelle daraus machen.
+   * ist. Was die Modelle daraus machen, misst die Auswertung in „lernen".
    */
   import Rahmen from '$ui/Rahmen.svelte';
-  import {
-    AUSWERTUNG_PFAD,
-    EDITIEREN_ROUTE,
-    MEINE_DATEN_PFAD,
-    SPRECHER_PFAD,
-  } from '$ui/apps';
+  import { EDITIEREN_ROUTE, MEINE_DATEN_PFAD, SPRECHER_PFAD } from '$ui/apps';
   import { EINSICHT_ROUTE, lage } from './lib/zustand.svelte';
   import Verwaltung from './routes/Verwaltung.svelte';
   import Einsicht from './routes/Einsicht.svelte';
   import MeineDaten from './routes/MeineDaten.svelte';
-  import Auswertung from './routes/Auswertung.svelte';
   import Quelle from './routes/Quelle.svelte';
   import Aufnahme from './routes/Aufnahme.svelte';
   import Fortschritt from './routes/Fortschritt.svelte';
@@ -28,7 +22,6 @@
     '/quelle': Quelle,
     '/aufnahme': Aufnahme,
     '/fortschritt': Fortschritt,
-    [AUSWERTUNG_PFAD]: Auswertung,
   };
 
   // Wer der Server in diesem Browser sieht, entscheidet, was es zu sehen gibt:
@@ -49,7 +42,7 @@
         // der Aufsicht, nur auf die eigenen Daten (siehe `MeineDaten.svelte`).
         lage.route === MEINE_DATEN_PFAD
         ? MeineDaten
-        : // „Editieren", erreichbar aus „Meine Daten" und nur von dort (siehe
+        : // „Editieren", erreichbar aus „Meine Daten" und der Auswertung (siehe
           // `EDITIEREN_ROUTE` in `$ui/apps`) - eine Aufnahme zuschneiden,
           // teilen oder mit berichtigtem Text kopieren. Braucht einen
           // Sprecher: Es sind dessen eigene Aufnahmen.

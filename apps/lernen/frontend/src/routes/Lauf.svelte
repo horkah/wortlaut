@@ -382,7 +382,7 @@
 
   {#if vergleich.length}
     <h3
-      use:erklaert={`Dieselben Aufnahmen, die das jeweilige Faltungsmodell nie gesehen hat - einmal durch das unveränderte ${lauf.basismodell} (gemessen in der Auswertung von „hören“) und einmal durch diesen Stand. Gezählt werden nur Aufnahmen, die beide Seiten gemessen haben.`}
+      use:erklaert={`Dieselben Aufnahmen, die das jeweilige Faltungsmodell nie gesehen hat - einmal durch das unveränderte ${lauf.basismodell} (gemessen in der „Auswertung“) und einmal durch diesen Stand. Gezählt werden nur Aufnahmen, die beide Seiten gemessen haben.`}
     >
       Gegen die Baseline
     </h3>
@@ -414,7 +414,7 @@
     </p>
   {:else if lauf.status === 'fertig'}
     <p class="hinweise">
-      Keine Baseline: Die Auswertung für {lauf.basismodell} in „hören“ fehlt.
+      Keine Baseline: Die „Auswertung“ für {lauf.basismodell} fehlt.
     </p>
   {/if}
 

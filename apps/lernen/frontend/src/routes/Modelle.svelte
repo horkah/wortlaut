@@ -5,8 +5,7 @@
    * Eigene Stände und Grundmodelle in einer Tabelle - nur so zeigt sich, ob
    * das eigene Modell besser ist als Whisper von sich aus. Eine Rangfolge
    * liest man in Spalten; wenige Spalten, denn hier wird entschieden, nicht
-   * geforscht - die Aufschlüsselung steht in der Auswertung von „hören" und
-   * beim Lauf.
+   * geforscht - die Aufschlüsselung steht in der Auswertung und beim Lauf.
    *
    * Die beste Zahl jeder Spalte fällt auch ohne Sortieren ins Auge, farbig und
    * mit einem Wort im `title`.
@@ -212,7 +211,7 @@
 </script>
 
 <h2
-  use:erklaert={'Was diesem Menschen zuhören kann: die selbst trainierten Stände und die unveränderten Grundmodelle, gemessen an denselben Testaufnahmen, die keines zum Lernen gesehen hat - Grundmodelle in der Auswertung von „hören“, eigene Stände in der Bewertung ihres Laufs. Die Bereiche sind 95-%-Bereiche aus 2000 Ziehungen über die Aufnahmen; der gepaarte Abstand über „Gegen“ ist schärfer, weil auf denselben Aufnahmen. Freigegeben ist höchstens eines, und mit ihm arbeitet „schreiben“ sofort; das erste Diktat danach dauert länger, weil das Modell geladen wird.'}
+  use:erklaert={'Was diesem Menschen zuhören kann: die selbst trainierten Stände und die unveränderten Grundmodelle, gemessen an denselben Testaufnahmen, die keines zum Lernen gesehen hat - Grundmodelle in der „Auswertung“, eigene Stände in der Bewertung ihres Laufs. Die Bereiche sind 95-%-Bereiche aus 2000 Ziehungen über die Aufnahmen; der gepaarte Abstand über „Gegen“ ist schärfer, weil auf denselben Aufnahmen. Freigegeben ist höchstens eines, und mit ihm arbeitet „schreiben“ sofort; das erste Diktat danach dauert länger, weil das Modell geladen wird.'}
 >
   Modelle
 </h2>
