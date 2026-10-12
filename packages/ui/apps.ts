@@ -142,8 +142,8 @@ export const MEINE_DATEN_PFAD = '/meine-daten';
  * kopieren - `#/editieren/<id>`.
  *
  * Eine Ansicht von „hören", und zwar **weder Reiter noch Menüpunkt**: Hierher
- * führt der Stift an einer aufgeklappten Aufnahme in „Meine Daten", zurück
- * derselbe Weg. Dieselbe Stellung wie die Einsicht der Aufsicht
+ * führt der Stift an einer aufgeklappten Aufnahme in „Meine Daten" und in der
+ * Auswertung von „lernen" (`editierenUrl`). Dieselbe Stellung wie die Einsicht der Aufsicht
  * (`EINSICHT_ROUTE` in `zustand.svelte.ts`) und aus demselben Grund - es ist
  * eine Werkbank, keine Station auf dem täglichen Weg (Grundentscheidung 7).
  *
@@ -154,12 +154,18 @@ export const MEINE_DATEN_PFAD = '/meine-daten';
  */
 export const EDITIEREN_ROUTE = '/editieren/';
 
+export function editierenUrl(aufnahme: string): string {
+  return `/#${EDITIEREN_ROUTE}${aufnahme}`;
+}
+
 /**
- * Wo die Grundmodelle über den eigenen Korpus laufen - die Auswertung.
+ * Wo Grundmodelle und eigene Stände über den eigenen Korpus laufen - die
+ * Auswertung.
  *
- * Ein Reiter von „hören", wo der Korpus liegt: Jede Aufnahme ist mit ihrer
- * Vorlage eine fertige Prüfaufgabe. Der letzte Schritt der Arbeit - ohne ihn
- * bleibt die Modelltafel in „lernen" leer.
+ * Ein Reiter von „lernen", zwischen Training und Modelle: erst trainieren,
+ * dann messen, dann freigeben. Jede Aufnahme ist mit ihrer Vorlage eine
+ * fertige Prüfaufgabe. Gerechnet und gespeichert wird in „hören", das den
+ * Korpus schreibt (Grundentscheidung 6); die Ansicht fragt dessen API.
  */
 export const AUSWERTUNG_PFAD = '/auswertung';
 
@@ -183,25 +189,15 @@ export const MODELLE_URL = `/lernen/#${MODELLE_PFAD}`;
  *
  * Die Kennung steht in der Adresse, damit ein Lauf verlinkbar bleibt - ein
  * Training dauert Stunden, und wer nach dem Mittagessen wieder hinsehen will,
- * soll den Reiter wiederfinden statt ihn zu suchen. Aus „hören" führt
- * `laufUrl` dorthin, von der Auswertung aus.
+ * soll den Reiter wiederfinden statt ihn zu suchen.
  */
 export const LAUF_ROUTE = '/lauf/';
 
-export function laufUrl(jobId: string): string {
-  return `/lernen/#${LAUF_ROUTE}${jobId}`;
-}
-
 /**
  * Ein unverändertes Whisper-Modell in „lernen": `#/grundmodell/<name>` - sein
- * Steckbrief, das Gegenstück zur Einzelansicht eines Laufs. Aus „hören" führt
- * `grundmodellUrl` dorthin.
+ * Steckbrief, das Gegenstück zur Einzelansicht eines Laufs.
  */
 export const GRUNDMODELL_ROUTE = '/grundmodell/';
-
-export function grundmodellUrl(name: string): string {
-  return `/lernen/#${GRUNDMODELL_ROUTE}${encodeURIComponent(name)}`;
-}
 
 /**
  * Wo der Sprecher gewählt und angelegt wird.
@@ -221,11 +217,11 @@ export const SPRECHER_PFAD = '/sprecher';
  * Ansicht zu (`Rahmen.svelte`).
  *
  * „hören": der Weg durch die Arbeit an einem Sprecher - Text holen, aufnehmen,
- * nachsehen, was zusammengekommen ist, und am Ende messen, was die Modelle
- * daraus machen (`AUSWERTUNG_PFAD`).
+ * nachsehen, was zusammengekommen ist.
  *
- * „lernen": ein Training beauftragen und ihm zusehen, und am Ende
- * entscheiden, welches Modell gelten soll.
+ * „lernen": ein Training beauftragen und ihm zusehen, messen, was die Modelle
+ * aus dem Korpus machen (`AUSWERTUNG_PFAD`), und am Ende entscheiden, welches
+ * Modell gelten soll.
  *
  * „schreiben" hat keine Reiterreihe, und das ist kein Versehen: Sein Weg ist
  * eine Folge - sprechen, hören, bessern, bestätigen - und keine Auswahl
@@ -236,10 +232,10 @@ export const REITER: Record<AppSchluessel, Menuepunkt[]> = {
     { pfad: '/quelle', text: 'Textquelle' },
     { pfad: '/aufnahme', text: 'Aufnehmen' },
     { pfad: '/fortschritt', text: 'Fortschritt' },
-    { pfad: AUSWERTUNG_PFAD, text: 'Auswertung' },
   ],
   lernen: [
     { pfad: '/training', text: 'Training' },
+    { pfad: AUSWERTUNG_PFAD, text: 'Auswertung' },
     { pfad: MODELLE_PFAD, text: 'Modelle' },
   ],
   schreiben: [],
@@ -450,7 +446,7 @@ export const SCHALTBARE_MENUEPUNKTE: Schaltbar[] = [
  * aufnimmt, braucht die Auswertung nicht in der Leiste; wer nur trainiert,
  * kommt ohne die Modellübersicht aus. Und es sind genau diese Reiter, die eine
  * Ansicht tragen, die man selten braucht und die viel Platz einnimmt - die
- * Auswertung in „hören" und die Modellübersicht in „lernen".
+ * Auswertung und die Modellübersicht in „lernen".
  *
  * Auch hier gilt: Ausgeblendet heißt unsichtbar, nicht abgeschaltet. Die
  * Route bleibt, was sie war, und ein Lesezeichen darauf führt weiterhin hin -

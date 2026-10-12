@@ -58,7 +58,7 @@ Text der Aufnahme (`recordings.text`, sonst der der Vorlage).
 **Am Ende steht das Grundmodell daneben.** Protokoll und Manifest
 (`grundmodell`) nennen WER und CER des Laufs und des unveränderten
 Grundmodells auf denselben Messungen. Die Zahlen des Grundmodells stammen aus
-der Auswertung von „hören"; was dort fehlt, wird gezählt, nicht nachgemessen.
+der [Auswertung](#hilfe-auswertung); was dort fehlt, wird gezählt, nicht nachgemessen.
 
 **Was die Zahl sagt.** Wie gut das Verfahren auf diesem Korpus arbeitet - kein
 unabhängiger Test. Und sie ist leicht optimistisch: Das zurückgehaltene
@@ -100,7 +100,7 @@ den Aufnahmen, die die Faltung zurückhielt:
 **Ausreißer am Grundmodell gemessen, nicht an der WER.** Die WER einer
 Faltung hängt vor allem daran, wie schwer ihre zurückgehaltenen Aufnahmen
 sind. Das Verhältnis ihrer WER zu der des Grundmodells auf denselben
-Aufnahmen (aus der Auswertung in „hören") rechnet das heraus; eine Faltung,
+Aufnahmen (aus der Auswertung) rechnet das heraus; eine Faltung,
 die besser ist als das Grundmodell, bleibt immer drin. Fehlen die Werte des
 Grundmodells, entfällt diese Prüfung, und das Protokoll sagt es. Dieselben
 Schwellen wie in der Plausibilitätsprüfung. Erst wenn keine Faltung
@@ -203,7 +203,7 @@ Kernmodell werden (`laeufe.KERN_ANTEIL`).
 **Die besten nach dem freigegebenen Modell.** Gezählt wird die WER, aus
 denselben Quellen wie in der Modelltafel: bei einem trainierten
 Stand aus seiner Kreuzvalidierung und für später dazugekommene Aufnahmen aus
-der Auswertung in „hören", bei einem Grundmodell allein aus „hören". Teile und
+der Auswertung, bei einem Grundmodell allein aus ihr. Teile und
 Kopien erben den Wert ihres nächsten Vorfahren, der einen hat
 (`recordings.vorfahren`). Bei gleicher WER entscheidet die Kennung.
 
@@ -224,7 +224,7 @@ Kreuzvalidierung läuft auf eigenen Faltungen des Kerns
 (`laeufe.verteile_kern`, nach dem Hash des Stamms), die
 Plausibilitätsprüfung zieht nur aus dem Kern.
 
-**Den Rest hört erst das Endmodell**, in der Auswertung von „hören": Für einen
+**Den Rest hört erst das Endmodell**, in der Auswertung: Für einen
 Kernstand gelten dort nur die Kernaufnahmen als gehört
 (`auswertung._gehoert_im_lauf`), ausgenommen Teile und Kopien einer
 Kernaufnahme. Bis diese Auswertung gelaufen ist, hat ein Kernstand Werte nur
@@ -371,10 +371,157 @@ Baseline.
 
 Die Frage ist, ob das Training das Modell besser gemacht hat. Die Baseline
 liegt schon da: die Messungen des unveränderten Grundmodells in der
-Auswertung von „hören" - dasselbe Modell, dieselben Aufnahmen, dieselbe
+[Auswertung](#hilfe-auswertung) - dasselbe Modell, dieselben Aufnahmen, dieselbe
 Rechnung (`wortlaut/metriken.py`). Verglichen wird nur, was beide Seiten
 gemessen haben; jede Aufnahme des Standes stammt aus der Faltung,
 die sie nicht kannte.
+
+---
+
+<a id="hilfe-auswertung"></a>
+
+## Auswertung - wie gut hört welches Modell?
+
+Jede Aufnahme ist eine Prüfaufgabe: durch einen Erkenner schicken, mit der
+Vorlage vergleichen. Die Zahlen sind die Baseline der Läufe. Gemessen wird ein
+Korpus, der des Zugangs; verworfene Aufnahmen zählen nicht.
+
+**Die Ansicht steht in `lernen`, gerechnet wird in `hören`.** Die Messwerte
+stehen im Korpus (`erkennungen`), und den schreibt nur `hören`
+(Grundentscheidung 6 in `architektur.md`): Lauf, Maße und Wege liegen dort
+(`apps/hoeren/backend/services/auswertung.py`, `api/auswertung.py`, die
+Endpunkte unter `/api/auswertung` in `hoeren.md`). Die Ansicht
+(`apps/lernen/frontend/src/routes/Auswertung.svelte`) fragt diese API mit
+demselben Zugang.
+
+**Ungeprüfte Korrekturen aus „schreiben" misst kein Modell.** Ihr Text ist
+die Ausgabe eines Erkenners, so oft neu gesprochen, bis sie stimmte, und dann
+abgenickt - an ihr gemessen, zählte ein Modell dessen Fehler als richtig. Sie
+fehlen deshalb in Kurve, Kennzahlen und Zählung; gelernt wird an ihnen weiter.
+Hat ein Mensch ihren Text in „Editieren" geprüft (`recordings.validiert`),
+zählt sie wie eine Vorlage. Ein Stand, der sie gelernt hat, als sie noch
+ungeprüft war, hat für sie keine Zahl: Er misst sie nicht selbst, und seine
+Faltungen haben sie nicht gemessen. Bei ihm fehlt sie, bei den Grundmodellen
+nicht - die Zählung unterscheidet sich darum.
+
+Es treten an die Grundmodelle aus `WORTLAUT_AUSWERTUNG_MODELLE`:
+
+| Modell | wofür |
+| --- | --- |
+| `small` | der Alltagsfall, die Untergrenze |
+| `medium` | was mit mehr Rechenzeit zu holen ist |
+| `large-v3` | das größte fertige Modell - reicht überhaupt eines für diese Stimme? |
+
+Jeder Name in der Tabelle der Kennzahlen führt in die Einzelansicht - ein
+Grundmodell in seinen Steckbrief, ein Stand in seinen Lauf.
+
+### Die eigenen Stände treten mit an
+
+Jeder trainierte Stand des Sprechers mit Gewichten (`ct2/`) steht daneben.
+**Was ein Stand gelernt hat, misst er nie selbst** - das wäre eine Zahl über
+sein Gedächtnis:
+
+| woher eine Zeile kommt | für welche Aufnahmen | `herkunft` |
+| --- | --- | --- |
+| aus den Faltungen seines Laufs | die er im Lauf kannte | `faltung` |
+| vom ausgelieferten Stand, hier gerechnet | alle übrigen | `gemessen` |
+
+Beide Male misst die Zeile, wie gut der Stand etwas hört, das er nie gelernt
+hat. Die Faltungen werden beim Öffnen der Seite und der Aufnahmenliste in
+„Meine Daten" übernommen (`auswertung.gleiche_ab`), nicht erst beim Druck auf
+den Knopf.
+
+- **Gekannt** hat ein Stand, was sein Lauf gelernt und gemessen hat -
+  bei einem Kernlauf nur den Kern (`_gehoert_im_lauf`) - samt allen Teilen
+  und Kopien, die daraus hervorgingen, über alle Generationen (`verwandte`).
+- **Eine Faltung gilt nur für den Ton, auf dem sie gemessen wurde.** Hat die
+  Aufnahme seither eine andere Dauer, weil sie zugeschnitten wurde, wird die
+  Faltung nicht übernommen und, wo sie steht, weggeräumt
+  (`vergiss_ueberholte_faltungen`). Die Stelle bleibt dann leer und zählt
+  weder als offen noch als erledigt.
+- **Gemessen wird am Text, der heute gilt.** Blieb der Ton, aber der Text ist
+  ein anderer als im Manifest des Laufs, gilt das Erkannte der Faltung weiter
+  - die Maße werden daraus gegen den neuen Text gerechnet, nicht vom alten
+  übernommen (`masse_der_faltung`). Satzzeichen und Großschreibung zählen
+  dabei nicht (`metriken.normalisiere`).
+- **Ohne Gewichte tritt ein Stand nicht an**, und ein gelöschter räumt seine
+  Zeilen (`vergiss_verschwundene_staende`, im Lauf `noch_da`).
+- **Übernommene Zeilen gelten nie als offen** - ihre Rechenzeit stammt von der
+  Trainingsmaschine.
+
+Angezeigt wird ein Stand mit seiner Kurzkennung (`K7M2Q`,
+`registry.beschriftung`).
+
+### Vier Maße und eine Zahl
+
+`wortlaut/metriken.py`:
+
+| Maß | was es zählt | Grenzen |
+| --- | --- | --- |
+| **WER** | falsche, fehlende und zusätzliche **Wörter** | 0 bis offen |
+| **CER** | dasselbe auf **Zeichen** | 0 bis offen |
+| **MER** | Fehler im Verhältnis zu allem Gesagten | 0 bis 1 |
+| **WIL** | verlorene Wortinformation | 0 bis 1 |
+
+Darüber die **Genauigkeit**, 0 bis 100, das geometrische Mittel der vier
+umgedrehten Raten:
+
+* WER und CER werden **gebogen, nicht gekappt** (`1/(1+x)`) - „jedes Wort
+  falsch" und „den Satz dreimal geliefert" bleiben unterscheidbar.
+* **Null** heißt, wie bei MER und WIL, dass kein Wort getroffen wurde.
+* **Geometrisch**, damit ein durchgefallenes Maß nicht von zwei guten
+  aufgerechnet wird.
+
+Verglichen wird auf angeglichenem Text - klein, ohne Satzzeichen, einfache
+Leerzeichen. Der Rohtext wird gespeichert und angezeigt.
+
+### Der Lauf
+
+Ein Hintergrundlauf rechnet die offenen Paare aus Aufnahme und Modell:
+
+* **Von Hand angestoßen**, nie beim Hochfahren.
+* **Ist nichts offen, läuft nichts**, und der Knopf sagt „Nichts Neues zu
+  rechnen".
+* **Modellweise**: Ein Modell rechnet alle offenen Aufnahmen, dann kommt das nächste, in der Reihenfolge von `WORTLAUT_AUSWERTUNG_MODELLE`
+  und danach die eigenen Stände. So lädt jedes Modell einmal je Lauf.
+* **Ein Erkenner auf der Karte.** Kommt das nächste Modell an die Reihe, geht
+  das vorige herunter (`transkriptor_fuer`). Mehrere nebeneinander ließen
+  einem großen Stand keinen Platz, und einem Training daneben auch nicht.
+* **Danach ist die Karte frei.** Endet ein Lauf, gibt er den Erkenner zurück
+  (`gib_karte_frei`), denn der Trainer braucht die ganze Karte.
+* **Wiederaufnehmbar.** Fertig ist, was in `erkennungen` steht; ein zweiter
+  Lauf rechnet nur, was fehlt.
+* **Fertig heißt: auf diesem Rechenwerk.** Jede Zeile trägt ihr Rechenwerk;
+  eine aus einem anderen gilt als offen, damit die Rechenzeiten vergleichbar
+  bleiben.
+* **Gezählt wird nur, was gilt** - brauchbare Aufnahmen. Verwerfen räumt die
+  Messzeilen einer Aufnahme mit.
+* **Auf der Karte, wenn eine da ist**; ist sie voll, weicht der Lauf auf den
+  Prozessor aus.
+* **Ein Lauf zur Zeit**, über alle Sprecher.
+
+### Die Ansicht
+
+Eine Kurve über die Aufnahmen in der Reihenfolge, in der sie aufgenommen
+wurden, lückenlos von 1 an gezählt (`zuschnitt.reihenfolge`). Je Aufnahme ein
+Wert je Modell, eines als Balken, die übrigen als Punkte; Auswahllisten
+wechseln Maß und Balkenmodell. Was noch nicht gerechnet ist, bleibt leer
+statt null.
+
+Darunter die Bilanz: **Median und Mittel** je Modell im gewählten Maß. Liegen
+sie weit auseinander, verreißt ein Modell einzelne
+Aufnahmen, statt gleichmäßig schlechter zu sein.
+
+Ein Tipp in eine Spalte zeigt die Aufnahme als Karte wie in **Meine Daten**,
+aufgeklappt - Wellenform, Stift, Papierkorb und der Ring mit der Genauigkeit
+des Modells von „schreiben" -, darunter je Modell den erkannten Text. Der
+Stift öffnet **Editieren**; zurück geht es von dort nach **Meine Daten**.
+Unterschiede sind zeichenweise ausgezeichnet - fehlend grau durchgestrichen,
+hinzugekommen farbig und fett, als `<del>`/`<ins>` (`packages/ui/diff.ts`); ein
+Schalter zeigt den glatten Text.
+
+Gezeichnet wird mit ECharts, nachgeladen mit den eingetragenen Teilen
+(`apps/lernen/frontend/src/lib/diagramm.ts`).
 
 ---
 
@@ -387,7 +534,7 @@ jeder eigene Stand, mit **Genauigkeit**, **WER**, **CER** und **Rechenzeit**.
 Der beste Wert je Spalte ist hervorgehoben; ein Klick auf die Überschrift
 sortiert.
 
-**Gemessen wird nichts neu.** Die Zahlen kommen aus der Auswertung in „hören"
+**Gemessen wird nichts neu.** Die Zahlen kommen aus der Auswertung
 (Grundmodelle, dazu jeder Stand auf den Aufnahmen, die er nicht kannte) und
 aus der Bewertung jedes Laufs (`services/messwerte.py`).
 
@@ -437,7 +584,7 @@ von `schreiben`; antwortet es nicht, entfällt die Karte.
 ### Ein Name führt in die Einzelansicht
 
 Jeder Modellname - in der Tafel, auf der Karte darüber und in der Tabelle der
-Auswertung von „hören" - öffnet die Einzelansicht: bei einem eigenen Stand
+Auswertung - öffnet die Einzelansicht: bei einem eigenen Stand
 seinen Lauf, bei einem Grundmodell dessen **Steckbrief** (`#/grundmodell/<name>`).
 
 Der Steckbrief eines Grundmodells steht in zwei Teilen. **Was das Modell ist**,
@@ -464,7 +611,7 @@ Sprecher (`services/register.py`, Schema mit Erklärung jeder Spalte in
 |---|---|---|
 | `laeufe` | Auftrag, Zustand samt Metriken und Bootstrap-Intervall, Manifest des Modells (Rezept, Abschluss, Endmodell, Grundmodell daneben, Plausibilitätsprüfung), Kernauswahl, Protokoll, Umgebung, wann gelöscht | Laufverzeichnis, Registry, Läufer |
 | `daten` | jede Zeile des Manifests: Aufnahme, Faltung, Gewicht, Herkunft, Text wie damals, SHA-256 der Audiodatei | `manifest.jsonl` |
-| `messungen` | was ein Modell aus einer Aufnahme machte: `faltung` aus der Kreuzvalidierung, `endmodell` aus der Auswertung von „hören" | `bewertung.jsonl`, Tabelle `erkennungen` |
+| `messungen` | was ein Modell aus einer Aufnahme machte: `faltung` aus der Kreuzvalidierung, `endmodell` aus der Auswertung | `bewertung.jsonl`, Tabelle `erkennungen` |
 | `ereignisse` | Verlust je Schritt, Validierung je Durchgang, Stufen, gescheiterte Faltungen | `fortschritt.jsonl` |
 
 Die Sicht `uebersicht` zeigt je Lauf die Eckdaten ohne JSON.

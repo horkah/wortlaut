@@ -7,6 +7,10 @@
 
 Gemessen wird der Korpus des Zugangs; ein Mittel über mehrere Stimmen gälte
 für keine.
+
+Die Ansicht dazu steht in „lernen" (`apps/lernen/frontend/src/routes/
+Auswertung.svelte`); die Wege liegen hier, weil die Messwerte im Korpus
+stehen und nur „hören" ihn schreibt (Grundentscheidung 6).
 """
 
 from __future__ import annotations

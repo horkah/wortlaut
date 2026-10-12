@@ -1,39 +1,51 @@
 /**
- * Die Diagrammbibliothek für „lernen", einmal eingerichtet.
+ * Die Diagrammbibliothek für „lernen", einmal eingerichtet - und die einzige
+ * Stelle, die sie kennt.
  *
- * Dieselbe Bibliothek und derselbe Aufbau wie in „hören"
- * (`apps/hoeren/frontend/src/lib/diagramm.ts`), aber mit anderen Bausteinen:
- * Dort werden Balken und Punkte über Aufnahmen gezeichnet, hier Linien über
- * Trainingsschritte. Die Bausteine namentlich - 90 statt 370 Kilobyte.
+ * **Warum ECharts.** Die Kurven wissen voneinander - derselbe Zoom, derselbe
+ * Zeiger, ein Klick markiert überall dasselbe (`verbinde`). Dazu Zeigen,
+ * Ziehen und Zwei-Finger-Zoom auf dem Telefon und gemischte Reihen in einem
+ * Bild.
  *
- * Zweimal vorhanden, weil `packages/ui` kein eigenes `node_modules` hat und
- * ohne fremde Bibliothek auskommt; jede App trägt nur, was sie zeichnet.
+ * **Warum diese Datei.** Die Bausteine werden hier **namentlich** eingeführt
+ * und nicht als ganzes Bündel. Wer eine neue Art braucht, trägt sie hier ein.
+ *
+ * In der App und nicht in `packages/ui`, das kein eigenes `node_modules` hat
+ * und ohne fremde Bibliothek auskommt.
  *
  * Geladen wird das Ganze erst, wenn eine Ansicht es braucht
  * (`await import('./diagramm')`) - Training und Modelle schleppen es nicht mit.
  */
 import { connect, init, use } from 'echarts/core';
-import { LineChart } from 'echarts/charts';
+import { BarChart, LineChart, ScatterChart } from 'echarts/charts';
 import {
   DataZoomComponent,
   GridComponent,
   LegendComponent,
+  MarkAreaComponent,
   MarkLineComponent,
   TooltipComponent,
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 
 use([
-  // Eine einzige Kurvenart: Die Lernkurven sind Linien über Schritte. Balken
-  // und Punkte braucht diese App nicht, also trägt ihr Bündel sie nicht.
+  // Kurvenarten: Linien für die Lernkurven über Schritte (`Lauf`), Balken für
+  // den Hauptwert und Punkte für die Vergleichsreihen über Aufnahmen
+  // (`Auswertung`). Was hier nicht steht, zeichnet diese Oberfläche nicht.
   LineChart,
-  // Achsenraster, Zeiger, Legende, Zoom - und die senkrechte Marke, mit der
-  // ein Durchgang im Bild steht statt daneben.
+  BarChart,
+  ScatterChart,
+  // Achsenraster, Zeiger, Legende, Zoom - die senkrechte Marke, mit der ein
+  // Durchgang im Bild steht, und die Fläche, mit der eine gewählte Aufnahme
+  // im Bild steht statt daneben.
   GridComponent,
   TooltipComponent,
   LegendComponent,
   DataZoomComponent,
   MarkLineComponent,
+  MarkAreaComponent,
+  // Leinwand statt SVG: Bei einigen hundert Balken samt Zoom ist sie
+  // flüssiger.
   CanvasRenderer,
 ]);
 

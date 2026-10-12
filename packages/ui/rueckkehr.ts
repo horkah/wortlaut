@@ -1,5 +1,6 @@
 /**
- * Was „Meine Daten" und „Editieren" über einen Ausflug in den Editor teilen.
+ * Was „Meine Daten", die Auswertung und „Editieren" über einen Ausflug in den
+ * Editor teilen.
  *
  * **Die Stelle**: Seite der Liste, offene Karte, Lage im Fenster - damit die
  * Liste nach der Rückkehr dasteht wie vorher. Blättert der Editor zu einer
@@ -15,7 +16,7 @@
  * Speicher beginnt die Liste oben und der Editor blättert nicht - kein
  * Fehlerfall.
  */
-import type { Listeneintrag } from './api';
+import type { Listeneintrag } from './aufnahme';
 
 export type Stelle = { seite: number; aufgeklappt: string | null; y: number | null };
 export type Reihenfolge = { eintraege: Listeneintrag[]; proSeite: number };

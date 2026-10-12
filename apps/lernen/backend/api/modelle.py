@@ -387,8 +387,8 @@ def _hinweis(
         return "Noch kein eigenes Modell - beauftragt wird unter \u201eTraining\u201c."
     if not messwerte.gemeinsame_aufnahmen(list(reihen.values())):
         return (
-            "Keine Aufnahme, die jedes Modell gemessen hat - die Auswertung in "
-            "\u201ehören\u201c holt sie nach."
+            "Keine Aufnahme, die jedes Modell gemessen hat - die "
+            "\u201eAuswertung\u201c holt sie nach."
         )
 
     begrenzer, jetzt, ohne = bodenbegrenzer(reihen)
@@ -557,7 +557,7 @@ def _hier(
             SteckbriefZeile(
                 begriff="Gerechnet als",
                 wert=zeile.rechenwerk,
-                hinweis="Rechenwerk und Genauigkeit der Auswertung in \u201ehören\u201c",
+                hinweis="Rechenwerk und Genauigkeit der \u201eAuswertung\u201c",
             )
         )
 

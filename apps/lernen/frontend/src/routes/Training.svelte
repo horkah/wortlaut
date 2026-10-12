@@ -707,7 +707,7 @@
       </fieldset>
 
       <!-- Beim Kern ist er der ganze Korpus des Laufs: Die übrigen Aufnahmen
-           sieht erst das Endmodell, in der Auswertung von „hören"
+           sieht erst das Endmodell, in der Auswertung
            (`wortlaut/laeufe.py`, „Die Auswahl"). -->
       <fieldset>
         <legend use:erklaert={ACHSE.Auswahl}>Auswahl</legend>

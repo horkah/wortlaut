@@ -3,10 +3,11 @@
    * Wie gut hören verschiedene Modelle diesem Sprecher zu?
    *
    * Jede Aufnahme im Korpus ist eine fertige Prüfaufgabe: Was gesprochen
-   * werden sollte, steht als Vorlage daneben. Der Server schickt sie durch
-   * mehrere Erkenner und misst, was herauskommt (`backend/api/auswertung.py`,
-   * `wortlaut/metriken.py`); diese Seite zeigt das Ergebnis und stößt den Lauf
-   * an.
+   * werden sollte, steht als Vorlage daneben. Der Server von „hören" schickt
+   * sie durch mehrere Erkenner und misst, was herauskommt
+   * (`apps/hoeren/backend/api/auswertung.py`, `wortlaut/metriken.py`) - er
+   * schreibt den Korpus, und die Messwerte stehen darin. Diese Seite zeigt
+   * das Ergebnis und stößt den Lauf an.
    *
    * **Ein Diagramm**, denn gefragt ist, ob eine Zahl sich über den Korpus
    * hält: Ein Modell, das bei jeder fünften Aufnahme einbricht, hat dasselbe
@@ -20,10 +21,11 @@
   import { fehlertext } from '$ui/api';
   import { onMount } from 'svelte';
   import Textvergleich from '$ui/Textvergleich.svelte';
-  import Aufnahmekarte from '../lib/Aufnahmekarte.svelte';
+  import Aufnahmekarte from '$ui/Aufnahmekarte.svelte';
   import type { Diagramm } from '../lib/diagramm';
   import { einstellungen } from '$ui/einstellungen.svelte';
-  import { EDITIEREN_ROUTE, grundmodellUrl, laufUrl } from '$ui/apps';
+  import { editierenUrl } from '$ui/apps';
+  import { merke } from '$ui/rueckkehr';
   import {
     auswertung as ladeAuswertung,
     auswertungStarten,
@@ -33,8 +35,7 @@
     type Auswertung,
     type Vergleich,
   } from '../lib/api';
-  import { merke } from '../lib/rueckkehr';
-  import { gehZu, lage } from '../lib/zustand.svelte';
+  import { GRUNDMODELL_ROUTE, LAUF_ROUTE, lage } from '../lib/zustand.svelte';
 
   // Während gerechnet wird, wächst die Kurve mit; im Ruhezustand kommt ein
   // Lauf aus einem anderen Reiter trotzdem an.
@@ -69,12 +70,12 @@
   const bearbeitbar = $derived(lage.bearbeiten === 'gilt');
 
   /**
-   * In den Editor. Zurück geht es nach „Meine Daten", zur Karte dieser
-   * Aufnahme; geblättert wird im Editor nicht (`lib/rueckkehr`).
+   * In den Editor von „hören". Zurück geht es nach „Meine Daten", zur Karte
+   * dieser Aufnahme; geblättert wird im Editor nicht (`$ui/rueckkehr`).
    */
   function bearbeite(kennung: string) {
     merke({ seite: 1, aufgeklappt: kennung, y: null }, null);
-    gehZu(`${EDITIEREN_ROUTE}${kennung}`);
+    window.location.href = editierenUrl(kennung);
   }
 
   /** Gelöscht: Die Spalte ist fort, die Nummern rücken auf. */
@@ -411,10 +412,10 @@
 
     takt();
     baueDiagramm();
-    // Einmal je Besuch: Freigegeben wird in „lernen", und wer das tut, kommt
-    // danach über den Reiter hierher zurück.
-    diktatmodell().then((ref) => {
-      if (!beendet && ref) diktatRef = ref;
+    // Einmal je Besuch: Freigegeben wird unter „Modelle", und wer das tut,
+    // kommt danach über den Reiter hierher zurück.
+    diktatmodell().then((modell) => {
+      if (!beendet && modell?.ref) diktatRef = modell.ref;
     });
 
     return () => {
@@ -562,14 +563,16 @@
                 style="background: {reihenfarbe(zeile.modell, zeile.nummer, 'var(--akzent)')}"
                 aria-hidden="true"
               ></span>
-              <!-- Der Name führt in die Einzelansicht in „lernen" - dieselbe
-                   wie aus der Modelltafel: ein Stand in seinen Lauf, ein
-                   Grundmodell in seinen Steckbrief. Ein Stand ohne Lauf
-                   (gelöscht) bleibt ohne Link. -->
+              <!-- Der Name führt in die Einzelansicht - dieselbe wie aus der
+                   Modelltafel: ein Stand in seinen Lauf, ein Grundmodell in
+                   seinen Steckbrief. Ein Stand ohne Lauf (gelöscht) bleibt
+                   ohne Link. -->
               {#if daten?.laeufe?.[zeile.modell]}
-                <a href={laufUrl(daten.laeufe[zeile.modell])}>{benannt(zeile.modell)}</a>
+                <a href="#{LAUF_ROUTE}{daten.laeufe[zeile.modell]}">{benannt(zeile.modell)}</a>
               {:else if !zeile.modell.includes('/')}
-                <a href={grundmodellUrl(zeile.modell)}>{benannt(zeile.modell)}</a>
+                <a href="#{GRUNDMODELL_ROUTE}{encodeURIComponent(zeile.modell)}"
+                  >{benannt(zeile.modell)}</a
+                >
               {:else}
                 {benannt(zeile.modell)}
               {/if}

@@ -17,9 +17,9 @@
   import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import Kalender from '$ui/Kalender.svelte';
-  import Aufnahmekarte from '../lib/Aufnahmekarte.svelte';
+  import Aufnahmekarte from '$ui/Aufnahmekarte.svelte';
   import Listenwahl from '../lib/Listenwahl.svelte';
-  import { merke, nimmStelle, type Reihenfolge, type Stelle } from '../lib/rueckkehr';
+  import { merke, nimmStelle, type Reihenfolge, type Stelle } from '$ui/rueckkehr';
   import Pager from '$ui/Pager.svelte';
   import { EDITIEREN_ROUTE } from '$ui/apps';
   import { gueltigePin, merkePin, schloss, vergissPin } from '$ui/pin.svelte';

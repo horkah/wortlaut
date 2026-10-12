@@ -39,7 +39,7 @@
   import { erklaert } from '$ui/erklaerung';
   import { fehlertext } from '$ui/api';
   import Pegelverlauf from '$ui/Pegelverlauf.svelte';
-  import Guete from '../lib/Guete.svelte';
+  import Guete from '$ui/Guete.svelte';
   import Rueckfrage from '$ui/Rueckfrage.svelte';
   import { folge as folgeCursor, spiele, stoppe, vergiss, wecke } from '$ui/ausschnitt';
   import { bewache } from '$ui/route';
@@ -53,7 +53,7 @@
     type Zuschnittaufnahme,
   } from '../lib/api';
   import { gehZu, lage } from '../lib/zustand.svelte';
-  import { reihenfolge, wechsleZu, type Reihenfolge } from '../lib/rueckkehr';
+  import { reihenfolge, wechsleZu, type Reihenfolge } from '$ui/rueckkehr';
 
   const kennung = $derived(lage.route.slice(EDITIEREN_ROUTE.length));
 

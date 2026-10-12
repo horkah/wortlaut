@@ -83,7 +83,7 @@ wortlaut/
 │   │   │   │                      # pin, export, ausleitung, loeschung
 │   │   │   └── db/                # models.py, migrations/
 │   │   ├── frontend/src/routes/   # Verwaltung, Quelle, Aufnahme, Fortschritt,
-│   │   │                          # Auswertung, MeineDaten, Einsicht, Editieren
+│   │   │                          # MeineDaten, Einsicht, Editieren
 │   │   └── tests/
 │   │
 │   ├── lernen/
@@ -93,7 +93,8 @@ wortlaut/
 │   │   │   ├── services/          # aufteilung, auftraege, kernauswahl, freigabe,
 │   │   │   │                      # grundmodelle, messwerte, register, vergleich
 │   │   │   └── db/migrations/     # das Register der Läufe
-│   │   ├── frontend/src/routes/   # Training, Lauf, Modelle
+│   │   ├── frontend/src/routes/   # Training, Lauf, Auswertung, Modelle,
+│   │   │                          # Grundmodell
 │   │   ├── training/              # was auf der Karte läuft - eigenes Abbild
 │   │   │   ├── Dockerfile
 │   │   │   ├── laeufer.py         # nimmt Aufträge, einen nach dem anderen

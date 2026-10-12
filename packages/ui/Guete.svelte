@@ -8,7 +8,7 @@
    * Rot an ihrem unteren, Dunkelgrün an ihrem oberen Ende. Der Ring füllt sich
    * mit dem Wert selbst, bis 100.
    */
-  import type { Guteskala } from './api';
+  import type { Guteskala } from './aufnahme';
 
   let { wert, skala, modell }: { wert: number; skala: Guteskala; modell: string } = $props();
 

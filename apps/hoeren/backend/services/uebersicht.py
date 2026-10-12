@@ -545,7 +545,7 @@ def aufnahmen_seite(
 def eine_aufnahme(
     sitzung: Session, ablage: storage.Ablage, aufnahme_id: str, *, modell: str = ""
 ) -> AufnahmeAntwort | None:
-    """Eine Aufnahme, wie sie in der Liste steht - für die Karte in „Auswertung"."""
+    """Eine Aufnahme, wie sie in der Liste steht - für die Karte in der Auswertung."""
     zeile = sitzung.execute(
         _liste(modell, arten=ARTEN).where(Aufnahme.id == aufnahme_id)
     ).first()

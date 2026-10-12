@@ -13,6 +13,7 @@ import { mitSchluessel } from '$ui/schluessel.svelte';
 // Wer der Server in diesem Browser sieht - die Form steht in `$ui/wer`, weil
 // alle drei Apps dieselbe Antwort lesen. Diese hier bekommt sie von „hören".
 import type { Wer } from '$ui/wer';
+import type { AufsichtAufnahme, Guteskala } from '$ui/aufnahme';
 export { setzeZugang, zugang } from '$ui/zugang';
 
 /**
@@ -450,3 +451,102 @@ async function beiSchreiben<T>(optionen: RequestInit = {}): Promise<T | null> {
 
 export const diktatmodell = () => beiSchreiben<Diktatmodell>();
 
+// ── Auswertung ──────────────────────────────────────────────────────────────
+//
+// Wie gut verschiedene Modelle diesem Sprecher zuhören, gemessen an seinen
+// eigenen Aufnahmen. Die Wege gehören „hören" (`apps/hoeren/backend/api/
+// auswertung.py`): Dort liegt der Korpus, und nur „hören" schreibt ihn
+// (Grundentscheidung 6) - die Messwerte stehen darin. Zwei Auskünfte, absichtlich
+// getrennt: `auswertung()` liefert die Zahlen für die Kurve und wird abgefragt,
+// solange die Seite offen ist; `vergleich()` liefert die Texte einer einzelnen
+// Aufnahme und erst auf Klick. Die Texte in jede Abfrage zu packen hieße, bei
+// jedem Takt ein Vielfaches der Zahlen zu übertragen, die gemeint sind.
+
+export type Metrik = {
+  schluessel: string;
+  name: string;
+  erklaerung: string;
+  /** Ob ein hoher Wert der bessere ist - die Fehlerraten sind andersherum. */
+  hoch_ist_gut: boolean;
+  einheit: string;
+  /** Feste Obergrenze der Achse; `null` heißt: nach den Daten richten. */
+  obergrenze: number | null;
+};
+
+export type Laufstand = {
+  laeuft: boolean;
+  erledigt: number;
+  gesamt: number;
+  uebersprungen: number;
+  aktuell: string;
+  fehler: string | null;
+  /** Es rechnet gerade jemand anderes - es läuft immer nur ein Lauf. */
+  fremder_lauf: boolean;
+};
+
+export type Auswertungspunkt = {
+  nummer: number;
+  aufnahme_id: string;
+  dauer_s: number;
+  erstellt: string;
+  /**
+   * modell → maß → Wert. Fehlt ein Eintrag, ist er noch nicht
+   * gerechnet. Der Server rechnet hier nichts zusammen: Welche Zahl die Kurve
+   * zeigt, hängt am gewählten Maß, und die Tabelle zeigt ohnehin jede.
+   */
+  werte: Record<string, Record<string, number>>;
+};
+
+export type Auswertung = {
+  modelle: string[];
+  /**
+   * Wie ein Modell heißen soll - `small` bleibt `small`, ein trainierter
+   * Stand wird zu `Stand K7M2Q`. Der Schlüssel bleibt überall die rohe
+   * Kennung: Sie steht so in der Datenbank, und zwei Stände desselben Laufs
+   * unterscheiden sich nur darin.
+   */
+  beschriftungen: Record<string, string>;
+  /** Stand -> sein Lauf (`LAUF_ROUTE`); Grundmodelle fehlen. */
+  laeufe: Record<string, string>;
+  metriken: Metrik[];
+  stand: Laufstand;
+  punkte: Auswertungspunkt[];
+};
+
+export type Erkennung = {
+  modell: string;
+  text: string;
+  wer: number;
+  cer: number;
+  mer: number;
+  wil: number;
+  genauigkeit: number;
+  rechenzeit_s: number;
+};
+
+export type Vergleich = {
+  nummer: number;
+  aufnahme_id: string;
+  referenz: string;
+  dauer_s: number;
+  erkennungen: Erkennung[];
+  /** Die Karte aus „Meine Daten", mit der Genauigkeit von `modell`. */
+  aufnahme: AufsichtAufnahme;
+  /** Womit „schreiben" diktiert. */
+  modell: string;
+  skala: Guteskala;
+};
+
+/** Die API von „hören" - dieselbe Domain, derselbe Zugang. */
+const hoeren = api('/api');
+
+export const auswertung = () => hoeren.anfrage<Auswertung>('/auswertung');
+
+export const vergleich = (aufnahme: string) =>
+  hoeren.anfrage<Vergleich>(`/auswertung/${aufnahme}`);
+
+export const auswertungStarten = () =>
+  hoeren.anfrage<Laufstand>('/auswertung/start', { method: 'POST' });
+
+export const auswertungStoppen = () =>
+  hoeren.anfrage<Laufstand>('/auswertung/stopp', { method: 'POST' });
