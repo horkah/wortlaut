@@ -41,7 +41,7 @@
   import Pegelverlauf from '$ui/Pegelverlauf.svelte';
   import Guete from '../lib/Guete.svelte';
   import Rueckfrage from '$ui/Rueckfrage.svelte';
-  import { folge as folgeCursor, spiele, stoppe, vergiss } from '$ui/ausschnitt';
+  import { folge as folgeCursor, spiele, stoppe, vergiss, wecke } from '$ui/ausschnitt';
   import { bewache } from '$ui/route';
   import { tag, tagUndZeit } from '$ui/zeit';
   import { EDITIEREN_ROUTE, MEINE_DATEN_PFAD } from '$ui/apps';
@@ -262,6 +262,7 @@
       a: [start, teilung],
       b: [teilung, ende],
     }[welches];
+    wecke();
     try {
       spielt = welches;
       datei ??= await zuschnittOriginal(aufnahme.id, aufnahme.version);

@@ -20,6 +20,12 @@
  *
  * Es spielt immer nur **eines**: Zwei Aufnahmen gleichzeitig sind kein Vergleich,
  * sondern Lärm. Ein neuer Aufruf beendet den vorigen.
+ *
+ * **Geweckt wird im Tippen selbst** (`wecke`), vor dem ersten `await`: Safari
+ * lässt einen Kontext nur innerhalb der Nutzereingabe anlaufen, und nach dem
+ * Laden der Datei ist die vorbei. Auf iPhone und iPad gilt Web Audio außerdem
+ * als Hintergrundklang und schweigt bei stummgeschaltetem Gerät - der Kontext
+ * spielt deshalb als Wiedergabe (`navigator.audioSession`), wie ein `<audio>`.
  */
 
 let werk: AudioContext | null = null;
@@ -33,11 +39,28 @@ let ab = { schluessel: '', sekunde: 0, uhr: 0 };
 // die offene Ansicht braucht - wer sie verlässt, gibt ihn frei (`vergiss`).
 const puffer = new Map<string, AudioBuffer>();
 
+// Die Art der Audiositzung - bislang nur in Safari, und dort nicht in den Typen.
+type MitSitzung = Navigator & { audioSession?: { type: string } };
+
 function kontext(): AudioContext {
   // Erst beim ersten Druck: Ein AudioContext, der vor einer Nutzereingabe
   // entsteht, startet in manchen Browsern gesperrt und bleibt es.
-  werk ??= new AudioContext();
+  if (!werk) {
+    const sitzung = (navigator as MitSitzung).audioSession;
+    if (sitzung) sitzung.type = 'playback';
+    werk = new AudioContext();
+  }
   return werk;
+}
+
+/**
+ * Den Kontext anlaufen lassen - aufzurufen im Tippen, vor jedem `await`.
+ * `spiele` danach findet ihn laufend vor.
+ */
+export function wecke(): void {
+  const werkzeug = kontext();
+  // Abgelehnt heißt: keine Nutzereingabe. Dann versucht es `spiele` noch einmal.
+  if (werkzeug.state !== 'running') werkzeug.resume().catch(() => {});
 }
 
 /** Was gerade läuft, anhalten. Läuft nichts, passiert nichts. */
@@ -71,8 +94,9 @@ export async function spiele(
 ): Promise<void> {
   stoppe();
   const werkzeug = kontext();
-  // Auf manchen Systemen steht der Kontext nach längerem Nichtstun still.
-  if (werkzeug.state === 'suspended') await werkzeug.resume();
+  // Auf manchen Systemen steht der Kontext nach längerem Nichtstun still,
+  // auf iPhone und iPad auch nach einem Anruf (`interrupted`).
+  if (werkzeug.state !== 'running') await werkzeug.resume();
 
   let inhalt = puffer.get(schluessel);
   if (!inhalt) {
