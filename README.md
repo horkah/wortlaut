@@ -136,4 +136,4 @@ make release JOB=job_01J8…                        # freigeben - „schreiben" 
 
 ## Lizenz
 
-[MIT](LICENSE). Whisper steht ebenfalls unter MIT.
+[Hier](LICENSE). Whisper steht ebenfalls unter MIT.
