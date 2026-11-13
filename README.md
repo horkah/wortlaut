@@ -136,4 +136,4 @@ make release JOB=job_01J8…                        # freigeben - „schreiben" 
 
 ## Lizenz
 
-[Hier](LICENSE). Whisper steht unter MIT.
+[GNU AGPL v3.0](LICENSE). Whisper steht unter MIT.
